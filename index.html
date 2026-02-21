@@ -322,6 +322,13 @@
                     </svg>
                     Zones
                 </div>
+                <span class="nav-section-label">Tools</span>
+                <div class="nav-item" data-page="workout" onclick="navigate('workout');closeSidebar();">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+                    </svg>
+                    Create Workout
+                </div>
                 <span class="nav-section-label">Account</span>
                 <div
                     class="nav-item"
@@ -751,6 +758,9 @@
                                 <div class="card-title">All Activities</div>
                                 <div class="card-subtitle" id="allActivitiesSubtitle">—</div>
                             </div>
+                            <select class="year-select" id="activitiesYearSelect" onchange="setActivitiesYear(this.value)">
+                                <option value="all">All years</option>
+                            </select>
                         </div>
                         <div class="sort-bar">
                             <span class="sort-label">Sort</span>
@@ -952,9 +962,7 @@
                     <div class="fit-kpi-row">
                         <div class="fit-kpi-card">
                             <div class="fit-kpi-label">CTL</div>
-                            <div class="fit-kpi-value fit-kpi-value--ctl" id="fitCTL">
-                                —
-                            </div>
+                            <div class="fit-kpi-value fit-kpi-value--ctl" id="fitCTL">—</div>
                             <div class="fit-kpi-name">Fitness</div>
                             <div class="fit-kpi-bar">
                                 <div class="fit-kpi-bar-fill fit-kpi-bar-fill--ctl" id="fitBarCTL"></div>
@@ -973,10 +981,7 @@
                             <div class="fit-kpi-value" id="fitTSB">—</div>
                             <div class="fit-kpi-name">Form</div>
                             <div class="fit-kpi-bar">
-                                <div
-                                    class="fit-kpi-bar-fill"
-                                    id="fitBarTSB"
-                                ></div>
+                                <div class="fit-kpi-bar-fill" id="fitBarTSB"></div>
                             </div>
                         </div>
                         <div class="fit-kpi-card">
@@ -984,6 +989,42 @@
                             <div class="fit-kpi-value" id="fitRamp">—</div>
                             <div class="fit-kpi-name">CTL / week</div>
                             <div class="fit-kpi-hint" id="fitRampHint"></div>
+                        </div>
+                        <div class="fit-kpi-card">
+                            <div class="fit-kpi-label">Streak</div>
+                            <div class="fit-kpi-value fit-kpi-value--streak" id="fitStreak">—</div>
+                            <div class="fit-kpi-name">days</div>
+                            <div class="fit-kpi-hint" id="fitStreakHint"></div>
+                        </div>
+                        <div class="fit-kpi-card">
+                            <div class="fit-kpi-label">This Week</div>
+                            <div class="fit-kpi-value" id="fitWeekActs">—</div>
+                            <div class="fit-kpi-name">activities</div>
+                            <div class="fit-kpi-hint" id="fitWeekHint"></div>
+                        </div>
+                    </div>
+
+                    <!-- ── Wellness strip (shown only if data available) ── -->
+                    <div class="fit-wellness-strip" id="fitWellnessStrip" style="display:none">
+                        <div class="fit-wcard" id="fitWcardHRV" style="display:none">
+                            <div class="fit-wcard-label">HRV <span class="fit-wcard-trend" id="fitHRVTrend"></span></div>
+                            <div class="fit-wcard-val" id="fitHRV">—</div>
+                            <div class="fit-wcard-sub">ms · 7-day avg</div>
+                        </div>
+                        <div class="fit-wcard" id="fitWcardHR" style="display:none">
+                            <div class="fit-wcard-label">Resting HR</div>
+                            <div class="fit-wcard-val" id="fitRestHR">—</div>
+                            <div class="fit-wcard-sub">bpm · latest</div>
+                        </div>
+                        <div class="fit-wcard" id="fitWcardSleep" style="display:none">
+                            <div class="fit-wcard-label">Sleep <span class="fit-wcard-trend" id="fitSleepTrend"></span></div>
+                            <div class="fit-wcard-val" id="fitSleep">—</div>
+                            <div class="fit-wcard-sub">hours · 7-day avg</div>
+                        </div>
+                        <div class="fit-wcard" id="fitWcardWeight" style="display:none">
+                            <div class="fit-wcard-label">Weight <span class="fit-wcard-trend" id="fitWeightTrend"></span></div>
+                            <div class="fit-wcard-val" id="fitWeight">—</div>
+                            <div class="fit-wcard-sub">kg · latest</div>
                         </div>
                     </div>
 
@@ -1041,20 +1082,50 @@
                         </div>
                     </div>
 
-                    <!-- ── Bottom row: Weekly Load + Monthly Summary ── -->
-                    <div class="fit-bottom-row">
+                    <!-- ── Training Calendar + Weekly Load (side by side, equal height) ── -->
+                    <div class="fit-cal-row">
+                        <!-- Training Calendar heatmap -->
+                        <div class="card fit-card-flex">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">Training Calendar</div>
+                                    <div class="card-subtitle">Last 26 weeks · intensity = training load</div>
+                                </div>
+                                <div class="fit-hm-legend">
+                                    <span>Less</span>
+                                    <span class="fit-hm-swatch fit-hm-swatch--0"></span>
+                                    <span class="fit-hm-swatch fit-hm-swatch--1"></span>
+                                    <span class="fit-hm-swatch fit-hm-swatch--2"></span>
+                                    <span class="fit-hm-swatch fit-hm-swatch--3"></span>
+                                    <span class="fit-hm-swatch fit-hm-swatch--4"></span>
+                                    <span>More</span>
+                                </div>
+                            </div>
+                            <div class="fit-heatmap-scroll fit-heatmap-fill">
+                                <div class="fit-heatmap" id="fitHeatmap"></div>
+                            </div>
+                        </div>
+
                         <!-- Weekly Load bars -->
-                        <div class="card">
+                        <div class="card fit-card-flex">
                             <div class="card-header">
                                 <div>
                                     <div class="card-title">Weekly Load</div>
-                                    <div class="card-subtitle">
-                                        TSS per week · last 16 weeks
-                                    </div>
+                                    <div class="card-subtitle">TSS per week · last 16 weeks</div>
                                 </div>
                             </div>
-                            <div class="chart-wrap chart-wrap--md">
+                            <div class="chart-wrap fit-chart-fill">
                                 <canvas id="fitnessWeeklyPageChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ── Monthly Summary (full width) ── -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">Monthly Summary</div>
+                                <div class="card-subtitle">Rolling 6 months</div>
                             </div>
                         </div>
 
@@ -1098,8 +1169,8 @@
                                 </table>
                             </div>
                         </div>
-                    </div>
                 </div>
+                </div><!-- /page-fitness -->
 
                 <div class="page" id="page-power">
                     <div class="card">
@@ -1139,6 +1210,70 @@
                             <p>Zone distribution — next step</p>
                         </div>
                     </div>
+                </div>
+
+                <!-- ==================== WORKOUT BUILDER ==================== -->
+                <div class="page" id="page-workout">
+
+                    <!-- Top bar: name + stats -->
+                    <div class="wrk-topbar">
+                        <input class="wrk-name-input" id="wrkNameInput" placeholder="Workout name" value="New Workout" oninput="wrkState.name=this.value;wrkRefreshStats()">
+                        <div class="wrk-topbar-stats">
+                            <span class="wrk-stat"><span class="wrk-stat-val" id="wrkTotalTime">0:00</span><span class="wrk-stat-lbl">duration</span></span>
+                            <span class="wrk-stat-sep">·</span>
+                            <span class="wrk-stat"><span class="wrk-stat-val" id="wrkTotalTSS">0</span><span class="wrk-stat-lbl">TSS</span></span>
+                            <span class="wrk-stat-sep">·</span>
+                            <span class="wrk-stat"><span class="wrk-stat-val" id="wrkFtpDisp">—</span><span class="wrk-stat-lbl">FTP w</span></span>
+                        </div>
+                        <button class="btn btn-ghost wrk-clear-btn" onclick="wrkClear()">New</button>
+                    </div>
+
+                    <!-- Visual chart -->
+                    <div class="card wrk-chart-card">
+                        <canvas id="wrkCanvas" class="wrk-canvas"></canvas>
+                        <div class="wrk-chart-empty" id="wrkChartEmpty">Add segments below to preview your workout</div>
+                    </div>
+
+                    <!-- Segment list -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Segments</div>
+                            <div class="wrk-ftp-row">
+                                <label class="wrk-ftp-label">FTP override</label>
+                                <input class="wrk-ftp-input" id="wrkFtpInput" type="number" min="50" max="600" placeholder="auto" oninput="wrkSetFtp(this.value)">
+                                <span class="wrk-ftp-unit">w</span>
+                            </div>
+                        </div>
+                        <div class="wrk-segment-list" id="wrkSegmentList">
+                            <div class="wrk-list-empty">No segments yet — add one below</div>
+                        </div>
+                        <div class="wrk-add-bar">
+                            <button class="btn btn-ghost wrk-add-btn" onclick="wrkAddSegment('warmup')">+ Warmup</button>
+                            <button class="btn btn-ghost wrk-add-btn" onclick="wrkAddSegment('steady')">+ Steady</button>
+                            <button class="btn btn-ghost wrk-add-btn" onclick="wrkAddSegment('interval')">+ Interval</button>
+                            <button class="btn btn-ghost wrk-add-btn" onclick="wrkAddSegment('cooldown')">+ Cooldown</button>
+                            <button class="btn btn-ghost wrk-add-btn" onclick="wrkAddSegment('free')">+ Free Ride</button>
+                        </div>
+                    </div>
+
+                    <!-- Export bar -->
+                    <div class="card wrk-export-card">
+                        <div class="wrk-export-info">
+                            <div class="wrk-export-title">Export workout</div>
+                            <div class="wrk-export-sub">Zwift: load the .zwo file from Documents/Zwift/Workouts · Garmin: sideload the .fit to your device or import via Garmin Connect</div>
+                        </div>
+                        <div class="wrk-export-btns">
+                            <button class="btn btn-primary" onclick="wrkExportZwo()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                Zwift (.zwo)
+                            </button>
+                            <button class="btn btn-ghost" onclick="wrkExportFit()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                Garmin (.fit)
+                            </button>
+                        </div>
+                    </div>
+
                 </div>
 
                 <!-- ==================== SETTINGS PAGE ==================== -->
@@ -1250,6 +1385,17 @@
                                         />
                                     </svg>
                                     Sync Now
+                                </button>
+                                <button
+                                    class="btn btn-ghost"
+                                    onclick="forceFullSync()"
+                                    title="Clears the local cache and re-fetches all activities from the server"
+                                >
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="1 4 1 10 7 10"/>
+                                        <path d="M3.51 15a9 9 0 1 0 .49-4.93"/>
+                                    </svg>
+                                    Full Re-sync
                                 </button>
                                 <button
                                     class="btn btn-ghost"

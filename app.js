@@ -28,7 +28,8 @@ const state = {
   previousPage: null,
   synced: false,
   activitiesSort: 'date',
-  activitiesSortDir: 'desc'
+  activitiesSortDir: 'desc',
+  activitiesYear: null   // null = all years; number = filter to that year
 };
 
 const ICU_BASE = 'https://intervals.icu/api/v1';
@@ -119,28 +120,58 @@ async function fetchAthleteProfile() {
 }
 
 // since: optional Date — if provided, only fetches activities on/after that date (incremental mode)
-async function fetchActivities(daysBack = 365, since = null) {
-  const newest = toDateStr(new Date());
-  const oldest = since ? toDateStr(since) : toDateStr(daysAgo(daysBack));
-  let all = [];
-  let page = 0;
-  const pageSize = 200;
-  while (true) {
+// Fetch activities using date-based pagination (more reliable than offset with intervals.icu).
+// Each page walks the ceiling backwards to the oldest date in the previous chunk so we
+// never miss activities when a date-range returns more than one page.
+async function fetchActivities(daysBack = 400, since = null) {
+  const hardOldest = since ? toDateStr(since) : toDateStr(daysAgo(daysBack));
+  const pageSize   = 200;
+  const seen       = new Set();
+  const all        = [];
+
+  let ceiling = toDateStr(new Date()); // start from today, walk backwards
+
+  for (let guard = 0; guard < 30; guard++) {
     const data = await icuFetch(
-      `/athlete/${state.athleteId}/activities?oldest=${oldest}&newest=${newest}&limit=${pageSize}&offset=${page * pageSize}`
+      `/athlete/${state.athleteId}/activities?oldest=${hardOldest}&newest=${ceiling}&limit=${pageSize}`
     );
     const chunk = Array.isArray(data) ? data : (data.activities || []);
-    all = all.concat(chunk);
-    if (chunk.length < pageSize) break;
-    page++;
-    if (page > 20) break;
+    if (!chunk.length) break;
+
+    let added = 0;
+    for (const a of chunk) {
+      if (!seen.has(a.id)) { seen.add(a.id); all.push(a); added++; }
+    }
+
+    // Full page → there may be more; walk the ceiling back past the oldest date in this chunk.
+    if (chunk.length >= pageSize) {
+      const oldestDateInChunk = chunk.reduce((min, a) => {
+        const d = (a.start_date_local || a.start_date || '').slice(0, 10);
+        return (!min || d < min) ? d : min;
+      }, '');
+      if (!oldestDateInChunk || oldestDateInChunk <= hardOldest) break;
+      // Step ceiling back by 1 day so next request doesn't re-fetch the same boundary day
+      const prev = new Date(oldestDateInChunk);
+      prev.setDate(prev.getDate() - 1);
+      const prevStr = toDateStr(prev);
+      if (prevStr <= hardOldest) break;
+      ceiling = prevStr;
+      if (added === 0) break; // safety: got a full chunk but all dupes — stop
+    } else {
+      break; // partial page → reached the end of the window
+    }
   }
 
+  // Sort newest-first to match the rest of the app
+  all.sort((a, b) =>
+    new Date(b.start_date_local || b.start_date) - new Date(a.start_date_local || a.start_date)
+  );
+
   if (since) {
-    // Incremental: merge fresh activities into existing cache
-    // New fetch supersedes any existing entry with the same id
+    // Incremental: merge fresh activities into existing cache.
+    // Retain anything in cache that is within the fetch window and wasn't just re-fetched.
     const freshIds = new Set(all.map(a => a.id));
-    const cutoff   = daysAgo(365); // drop anything older than 365 days from cache
+    const cutoff   = daysAgo(daysBack);
     const retained = state.activities.filter(
       a => !freshIds.has(a.id) && new Date(a.start_date_local || a.start_date) >= cutoff
     );
@@ -284,14 +315,14 @@ async function syncData() {
       updateConnectionUI(true);
       renderDashboard();
 
-      // Fetch only activities since last sync minus 1-day buffer
+      // Fetch only activities since last sync minus 2-day buffer (extra buffer for timezone safety)
       const since = new Date(cache.lastSync);
-      since.setDate(since.getDate() - 1);
+      since.setDate(since.getDate() - 2);
       setLoading(true, 'Checking for new activities…');
-      await fetchActivities(365, since);
+      await fetchActivities(400, since);
     } else {
-      setLoading(true, 'Loading activities — first sync may take a moment…');
-      await fetchActivities(365);
+      setLoading(true, 'Loading activities — fetching up to 400 days…');
+      await fetchActivities(400);
     }
 
     // Save updated cache after a successful fetch
@@ -341,6 +372,16 @@ function disconnect() {
   updateConnectionUI(false);
   resetDashboard();
   showToast('Disconnected', 'info');
+}
+
+// Force a full re-fetch from scratch, ignoring any cached activities.
+// Useful when activities appear missing, especially on the 1-year view.
+function forceFullSync() {
+  if (!state.athleteId || !state.apiKey) { openModal(); return; }
+  clearActivityCache();          // wipe local cache so syncData() treats this as a fresh install
+  state.activities = [];         // clear in-memory list too
+  showToast('Cache cleared — starting full re-sync…', 'info');
+  syncData();
 }
 
 /* ====================================================
@@ -414,7 +455,8 @@ function navigate(page) {
     fitness:    ['Fitness', 'CTL · ATL · TSB history'],
     power:      ['Power Curve', 'Best efforts across durations'],
     zones:      ['Training Zones', 'Time in zone breakdown'],
-    settings:   ['Settings', 'Account & connection']
+    settings:   ['Settings', 'Account & connection'],
+    workout:    ['Create Workout', 'Build & export custom cycling workouts']
   };
   const [title, sub] = info[page] || ['CycleIQ', ''];
   document.getElementById('pageTitle').textContent    = title;
@@ -428,6 +470,9 @@ function navigate(page) {
 
   if (page === 'calendar') renderCalendar();
   if (page === 'fitness')  renderFitnessPage();
+  if (page === 'workout')  { wrkRefreshStats(); wrkRender(); }
+
+  window.scrollTo(0, 0);
 }
 
 /* ====================================================
@@ -455,10 +500,21 @@ const SORT_FIELDS = {
 };
 
 function sortedAllActivities() {
-  const pool = state.activities.filter(a => !isEmptyActivity(a));
-  const fn   = SORT_FIELDS[state.activitiesSort] || SORT_FIELDS.date;
-  const dir  = state.activitiesSortDir === 'asc' ? 1 : -1;
+  let pool = state.activities.filter(a => !isEmptyActivity(a));
+  if (state.activitiesYear !== null) {
+    pool = pool.filter(a => {
+      const d = new Date(a.start_date_local || a.start_date);
+      return d.getFullYear() === state.activitiesYear;
+    });
+  }
+  const fn  = SORT_FIELDS[state.activitiesSort] || SORT_FIELDS.date;
+  const dir = state.activitiesSortDir === 'asc' ? 1 : -1;
   return [...pool].sort((a, b) => dir * (fn(a) - fn(b)));
+}
+
+function setActivitiesYear(year) {
+  state.activitiesYear = year === 'all' ? null : parseInt(year);
+  renderAllActivitiesList();
 }
 
 function setActivitiesSort(field) {
@@ -484,9 +540,53 @@ function updateSortButtons() {
 
 function renderAllActivitiesList() {
   const sorted = sortedAllActivities();
+  const yearLabel = state.activitiesYear !== null ? ` · ${state.activitiesYear}` : '';
   document.getElementById('allActivitiesSubtitle').textContent =
-    `${sorted.length} activities`;
+    `${sorted.length} activities${yearLabel}`;
   renderActivityList('allActivityList', sorted);
+  _refreshYearDropdown();
+}
+
+function _refreshYearDropdown() {
+  const sel = document.getElementById('activitiesYearSelect');
+  if (!sel) return;
+
+  // Collect distinct years from ALL (unfiltered) activities
+  const currentYear = new Date().getFullYear();
+  const years = new Set();
+  state.activities.forEach(a => {
+    if (!isEmptyActivity(a)) {
+      const y = new Date(a.start_date_local || a.start_date).getFullYear();
+      if (!isNaN(y)) years.add(y);
+    }
+  });
+
+  // Ensure the last 4 years are always present in the list
+  for (let y = currentYear; y > currentYear - 4; y--) years.add(y);
+
+  const sorted = [...years].sort((a, b) => b - a); // newest first
+
+  // Re-build options only if they changed (avoids flicker)
+  const desired = ['all', ...sorted.map(String)];
+  const current = [...sel.options].map(o => o.value);
+  if (JSON.stringify(desired) === JSON.stringify(current)) return;
+
+  sel.innerHTML = '';
+  // "All" option
+  const allOpt = document.createElement('option');
+  allOpt.value = 'all';
+  allOpt.textContent = 'All years';
+  sel.appendChild(allOpt);
+
+  sorted.forEach(y => {
+    const opt = document.createElement('option');
+    opt.value = y;
+    opt.textContent = y === currentYear ? `${y} (current)` : String(y);
+    sel.appendChild(opt);
+  });
+
+  // Restore selected value
+  sel.value = state.activitiesYear !== null ? String(state.activitiesYear) : 'all';
 }
 
 /* ====================================================
@@ -792,7 +892,7 @@ function renderFitnessChart(activities, days) {
     data: { labels, datasets: [
       { label: 'CTL', data: ctlD, borderColor: '#00e5a0', backgroundColor: 'rgba(0,229,160,0.07)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.4, fill: true },
       { label: 'ATL', data: atlD, borderColor: '#ff6b35', backgroundColor: 'rgba(255,107,53,0.05)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.4 },
-      { label: 'TSB', data: tsbD, borderColor: '#4a9eff', backgroundColor: 'rgba(74,158,255,0.05)', borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, tension: 0.4, borderDash: [4, 3] }
+      { label: 'TSB', data: tsbD, borderColor: '#4a9eff', backgroundColor: 'rgba(74,158,255,0.05)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.4 }
     ]},
     options: {
       responsive: true, maintainAspectRatio: false,
@@ -1140,6 +1240,193 @@ async function renderPowerCurve() {
 /* ====================================================
    FITNESS PAGE
 ==================================================== */
+function renderFitnessStreak() {
+  const activities = state.activities.filter(a => !isEmptyActivity(a));
+
+  // Build set of active days (YYYY-MM-DD)
+  const daySet = new Set();
+  activities.forEach(a => {
+    const d = (a.start_date_local || a.start_date || '').slice(0, 10);
+    if (d) daySet.add(d);
+  });
+
+  // Current streak: count consecutive days back from today (if today empty, start from yesterday)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayStr = toDateStr(today);
+  let streak = 0;
+  const startOffset = daySet.has(todayStr) ? 0 : 1;
+  for (let i = startOffset; i < 365; i++) {
+    const d = toDateStr(new Date(today.getTime() - i * 86400000));
+    if (daySet.has(d)) streak++;
+    else break;
+  }
+
+  // This week (Mon → today)
+  const dow = (today.getDay() + 6) % 7;
+  const weekStart = new Date(today.getTime() - dow * 86400000);
+  weekStart.setHours(0, 0, 0, 0);
+  const weekActs = activities.filter(a => new Date(a.start_date_local || a.start_date) >= weekStart);
+  const weekTSS  = weekActs.reduce((s, a) => s + (a.icu_training_load || a.tss || 0), 0);
+
+  const streakEl   = document.getElementById('fitStreak');
+  const streakHint = document.getElementById('fitStreakHint');
+  if (streakEl) {
+    streakEl.textContent = streak;
+    streakEl.style.color = streak >= 7 ? 'var(--accent)' : streak >= 3 ? 'var(--orange)' : '';
+  }
+  if (streakHint) {
+    streakHint.textContent = streak >= 14 ? 'On fire 🔥' : streak >= 7 ? 'Great run' : streak >= 3 ? 'Keep going' : streak > 0 ? 'Started' : '';
+  }
+
+  const weekEl   = document.getElementById('fitWeekActs');
+  const weekHint = document.getElementById('fitWeekHint');
+  if (weekEl) weekEl.textContent = weekActs.length;
+  if (weekHint) weekHint.textContent = weekTSS > 0 ? Math.round(weekTSS) + ' TSS' : '';
+}
+
+function renderFitnessWellness() {
+  const entries = Object.values(state.wellnessHistory)
+    .filter(e => e.id)
+    .sort((a, b) => a.id.localeCompare(b.id));
+
+  if (!entries.length) return;
+
+  const last7 = entries.slice(-7);
+  let shown = 0;
+
+  // HRV (rMSSD)
+  const hrvVals = last7.filter(e => e.hrv != null);
+  if (hrvVals.length >= 2) {
+    const avg = hrvVals.reduce((s, e) => s + e.hrv, 0) / hrvVals.length;
+    const trend = hrvVals[hrvVals.length - 1].hrv - hrvVals[0].hrv;
+    document.getElementById('fitHRV').textContent = Math.round(avg);
+    const tEl = document.getElementById('fitHRVTrend');
+    if (tEl) {
+      tEl.textContent = trend > 1 ? '↑' : trend < -1 ? '↓' : '→';
+      tEl.style.color = trend > 1 ? 'var(--accent)' : trend < -1 ? 'var(--red)' : 'var(--text-muted)';
+    }
+    document.getElementById('fitWcardHRV').style.display = '';
+    shown++;
+  }
+
+  // Resting HR
+  const hrVals = last7.filter(e => e.restingHR != null);
+  if (hrVals.length >= 1) {
+    const latest = hrVals[hrVals.length - 1].restingHR;
+    const trend  = hrVals.length >= 3 ? latest - hrVals[0].restingHR : 0;
+    document.getElementById('fitRestHR').textContent = Math.round(latest);
+    const tEl = document.getElementById('fitHRTrend');
+    if (tEl) {
+      tEl.textContent = trend > 2 ? '↑' : trend < -2 ? '↓' : '';
+      tEl.style.color = trend > 2 ? 'var(--red)' : trend < -2 ? 'var(--accent)' : 'var(--text-muted)';
+    }
+    document.getElementById('fitWcardHR').style.display = '';
+    shown++;
+  }
+
+  // Sleep
+  const sleepVals = last7.filter(e => e.sleepSecs != null && e.sleepSecs > 0);
+  if (sleepVals.length >= 2) {
+    const avgH = sleepVals.reduce((s, e) => s + e.sleepSecs, 0) / sleepVals.length / 3600;
+    const trend = sleepVals[sleepVals.length - 1].sleepSecs - sleepVals[0].sleepSecs;
+    document.getElementById('fitSleep').textContent = avgH.toFixed(1) + 'h';
+    const tEl = document.getElementById('fitSleepTrend');
+    if (tEl) {
+      tEl.textContent = trend > 1800 ? '↑' : trend < -1800 ? '↓' : '→';
+      tEl.style.color = trend > 1800 ? 'var(--accent)' : trend < -1800 ? 'var(--red)' : 'var(--text-muted)';
+    }
+    document.getElementById('fitWcardSleep').style.display = '';
+    shown++;
+  }
+
+  // Weight
+  const weightVals = entries.filter(e => e.weight != null && e.weight > 0);
+  if (weightVals.length >= 1) {
+    const latest = weightVals[weightVals.length - 1].weight;
+    const prev   = weightVals[Math.max(0, weightVals.length - 8)].weight;
+    const delta  = latest - prev;
+    document.getElementById('fitWeight').textContent = latest.toFixed(1);
+    const tEl = document.getElementById('fitWeightTrend');
+    if (tEl && Math.abs(delta) >= 0.1) {
+      tEl.textContent = (delta > 0 ? '+' : '') + delta.toFixed(1) + ' kg';
+      tEl.style.color = 'var(--text-muted)';
+    }
+    document.getElementById('fitWcardWeight').style.display = '';
+    shown++;
+  }
+
+  const strip = document.getElementById('fitWellnessStrip');
+  if (strip) strip.style.display = shown > 0 ? 'grid' : 'none';
+}
+
+function renderFitnessHeatmap() {
+  const el = document.getElementById('fitHeatmap');
+  if (!el) return;
+
+  // Build TSS map keyed by YYYY-MM-DD
+  const tssMap = {};
+  state.activities.filter(a => !isEmptyActivity(a)).forEach(a => {
+    const d = (a.start_date_local || a.start_date || '').slice(0, 10);
+    if (!d) return;
+    tssMap[d] = (tssMap[d] || 0) + (a.icu_training_load || a.tss || 1);
+  });
+
+  // 26 complete weeks ending today
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const dow   = (today.getDay() + 6) % 7; // 0=Mon
+  const start = new Date(today.getTime() - (dow + 26 * 7 - 1) * 86400000);
+
+  // Color scale threshold: 80th percentile of non-zero TSS values
+  const allTSS = Object.values(tssMap).filter(t => t > 0).sort((a, b) => a - b);
+  const p80    = allTSS.length > 0 ? allTSS[Math.floor(allTSS.length * 0.8)] : 80;
+
+  // Day-of-week labels (Mon, Wed, Fri only)
+  const DAY_LABELS = ['M', '', 'W', '', 'F', '', ''];
+  let html = '<div class="fit-hm-days">' +
+    DAY_LABELS.map(l => `<div class="fit-hm-day-label">${l}</div>`).join('') +
+    '</div>';
+
+  // Month labels row — track first occurrence of each month across columns
+  const monthLabels = [];
+  for (let w = 0; w < 26; w++) {
+    const colStart = new Date(start.getTime() + w * 7 * 86400000);
+    const m = colStart.getMonth();
+    const prev = w > 0 ? new Date(start.getTime() + (w - 1) * 7 * 86400000).getMonth() : -1;
+    monthLabels.push(m !== prev ? colStart.toLocaleDateString('en-GB', { month: 'short' }) : '');
+  }
+
+  // Week columns
+  for (let w = 0; w < 26; w++) {
+    html += '<div class="fit-hm-col">';
+    // Month label at top of column
+    html += `<div class="fit-hm-month-lbl">${monthLabels[w]}</div>`;
+    // 7 day cells
+    for (let d = 0; d < 7; d++) {
+      const date    = new Date(start.getTime() + (w * 7 + d) * 86400000);
+      const dateStr = toDateStr(date);
+      const tss     = tssMap[dateStr] || 0;
+      const future  = date > today;
+
+      let level = 0;
+      if (!future && tss > 0) {
+        if      (tss < p80 * 0.25) level = 1;
+        else if (tss < p80 * 0.5)  level = 2;
+        else if (tss < p80 * 0.75) level = 3;
+        else                        level = 4;
+      }
+
+      const cls     = future ? 'fit-hm-cell fit-hm-cell--future' : `fit-hm-cell fit-hm-cell--${level}`;
+      const tooltip = tss > 0 ? `${dateStr} · ${Math.round(tss)} TSS` : dateStr;
+      html += `<div class="${cls}" title="${tooltip}"></div>`;
+    }
+    html += '</div>';
+  }
+
+  el.innerHTML = html;
+}
+
 function setFitnessRange(days) {
   state.fitnessRangeDays = days;
   document.querySelectorAll('#fitRangePills button').forEach(b => b.classList.remove('active'));
@@ -1185,7 +1472,10 @@ function renderFitnessPage() {
     }
   }
 
+  renderFitnessStreak();
+  renderFitnessWellness();
   renderFitnessHistoryChart(state.fitnessRangeDays);
+  renderFitnessHeatmap();
   renderFitnessWeeklyPageChart();
   renderFitnessMonthlyTable();
 }
@@ -1246,7 +1536,7 @@ function renderFitnessHistoryChart(days) {
     data: { labels, datasets: [
       { label: 'CTL', data: ctlD, borderColor: '#00e5a0', backgroundColor: 'rgba(0,229,160,0.08)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.4, fill: true },
       { label: 'ATL', data: atlD, borderColor: '#ff6b35', backgroundColor: 'rgba(255,107,53,0.05)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.4 },
-      { label: 'TSB', data: tsbD, borderColor: '#4a9eff', backgroundColor: 'rgba(74,158,255,0.05)', borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, tension: 0.4, borderDash: [4, 3] }
+      { label: 'TSB', data: tsbD, borderColor: '#4a9eff', backgroundColor: 'rgba(74,158,255,0.05)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.4 }
     ]},
     options: chartOpts
   });
@@ -1529,10 +1819,8 @@ async function navigateToActivity(actKey, fromStep = false) {
 
   // Scroll back to top and remove calendar's full-bleed layout so normal padding is restored
   const pageContent = document.getElementById('pageContent');
-  if (pageContent) {
-    pageContent.scrollTop = 0;
-    pageContent.classList.remove('page-content--calendar');
-  }
+  if (pageContent) pageContent.classList.remove('page-content--calendar');
+  window.scrollTo(0, 0);
 
   // Back button label
   const fromLabel = state.previousPage === 'dashboard' ? 'Dashboard' : 'Activities';
@@ -2164,3 +2452,636 @@ if (hasCredentials) {
 document.getElementById('connectModal').addEventListener('click', function(e) {
   if (e.target === this && (state.athleteId && state.apiKey)) closeModal();
 });
+
+/* ====================================================
+   WORKOUT BUILDER
+==================================================== */
+const wrkState = {
+  name: 'New Workout',
+  segments: [],
+  editIdx: null,
+  ftpOverride: null,
+};
+
+// Segment type defaults
+const WRK_DEFAULTS = {
+  warmup:   { type:'warmup',   duration:600,  powerLow:50,  powerHigh:75 },
+  steady:   { type:'steady',   duration:1200, power:88 },
+  interval: { type:'interval', reps:5, onDuration:180, onPower:120, offDuration:120, offPower:50 },
+  cooldown: { type:'cooldown', duration:600,  powerLow:75,  powerHigh:40 },
+  free:     { type:'free',     duration:600 },
+};
+
+// Zone color by % FTP
+function wrkZoneColor(pct, alpha = 0.88) {
+  if (pct < 55)  return `rgba(110,110,150,${alpha})`;
+  if (pct < 75)  return `rgba(74,158,255,${alpha})`;
+  if (pct < 90)  return `rgba(0,229,160,${alpha})`;
+  if (pct < 105) return `rgba(255,204,0,${alpha})`;
+  if (pct < 120) return `rgba(255,107,53,${alpha})`;
+  return             `rgba(255,82,82,${alpha})`;
+}
+
+function wrkGetFtp() {
+  if (wrkState.ftpOverride) return wrkState.ftpOverride;
+  const ftp = state.athlete?.ftp || state.athlete?.icu_ftp || state.athlete?.threshold_power;
+  return (ftp && ftp > 0) ? ftp : 250;
+}
+
+function wrkSegDuration(seg) {
+  return seg.type === 'interval'
+    ? seg.reps * (seg.onDuration + seg.offDuration)
+    : seg.duration;
+}
+
+function wrkTotalSecs() {
+  return wrkState.segments.reduce((s, seg) => s + wrkSegDuration(seg), 0);
+}
+
+function wrkFmtTime(secs) {
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = secs % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+
+function wrkEstimateTSS() {
+  const ftp = wrkGetFtp();
+  let totalWorkJ = 0, totalSecs = 0;
+  wrkState.segments.forEach(seg => {
+    const dur = wrkSegDuration(seg);
+    totalSecs += dur;
+    if (seg.type === 'warmup' || seg.type === 'cooldown') {
+      totalWorkJ += ftp * ((seg.powerLow + seg.powerHigh) / 2 / 100) * dur;
+    } else if (seg.type === 'steady') {
+      totalWorkJ += ftp * (seg.power / 100) * dur;
+    } else if (seg.type === 'interval') {
+      const repD = seg.onDuration + seg.offDuration;
+      const avgP = (seg.onPower * seg.onDuration + seg.offPower * seg.offDuration) / repD / 100;
+      totalWorkJ += ftp * avgP * dur;
+    } else if (seg.type === 'free') {
+      totalWorkJ += ftp * 0.55 * dur;
+    }
+  });
+  if (totalSecs === 0) return 0;
+  const np = totalWorkJ / totalSecs;
+  const IF = np / ftp;
+  return Math.round((totalSecs * np * IF) / (ftp * 3600) * 100);
+}
+
+function wrkSetFtp(val) {
+  wrkState.ftpOverride = val ? parseInt(val) : null;
+  wrkRefreshStats();
+  wrkDrawChart();
+}
+
+function wrkRefreshStats() {
+  const ftp = wrkGetFtp();
+  const secs = wrkTotalSecs();
+  const el = document.getElementById('wrkTotalTime');
+  if (el) el.textContent = wrkFmtTime(secs);
+  const tssEl = document.getElementById('wrkTotalTSS');
+  if (tssEl) tssEl.textContent = wrkEstimateTSS();
+  const ftpEl = document.getElementById('wrkFtpDisp');
+  if (ftpEl) ftpEl.textContent = ftp;
+}
+
+/* ── Canvas chart ─────────────────────────────── */
+function wrkDrawChart() {
+  const canvas = document.getElementById('wrkCanvas');
+  const empty  = document.getElementById('wrkChartEmpty');
+  if (!canvas) return;
+
+  const segs = wrkState.segments;
+  if (!segs.length) {
+    canvas.style.display = 'none';
+    if (empty) empty.style.display = 'flex';
+    return;
+  }
+  canvas.style.display = 'block';
+  if (empty) empty.style.display = 'none';
+
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.clientWidth;
+  const H = canvas.clientHeight;
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const PAD_T = 20, PAD_B = 28, PAD_L = 38, PAD_R = 10;
+  const cW = W - PAD_L - PAD_R;
+  const cH = H - PAD_T - PAD_B;
+  const totalSecs = wrkTotalSecs();
+  const MAX_PCT = 160;
+
+  // Background
+  ctx.fillStyle = 'rgba(0,0,0,0)';
+  ctx.clearRect(0, 0, W, H);
+
+  // Y-axis grid lines
+  const gridPcts = [50, 75, 100, 125];
+  ctx.font = `10px 'JetBrains Mono', monospace`;
+  ctx.textAlign = 'right';
+  gridPcts.forEach(pct => {
+    const y = PAD_T + cH * (1 - pct / MAX_PCT);
+    ctx.strokeStyle = pct === 100 ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.05)';
+    ctx.lineWidth = pct === 100 ? 1 : 0.5;
+    ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(PAD_L, y); ctx.lineTo(PAD_L + cW, y); ctx.stroke();
+    ctx.fillStyle = pct === 100 ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.2)';
+    ctx.fillText(pct + '%', PAD_L - 4, y + 3.5);
+  });
+
+  // Draw segments
+  let curSec = 0;
+  segs.forEach((seg, idx) => {
+    const dur  = wrkSegDuration(seg);
+    const x    = PAD_L + (curSec / totalSecs) * cW;
+    const segW = (dur / totalSecs) * cW;
+    const isSelected = idx === wrkState.editIdx;
+
+    if (seg.type === 'warmup') {
+      wrkDrawRamp(ctx, x, segW, seg.powerLow, seg.powerHigh, MAX_PCT, PAD_T, cH);
+    } else if (seg.type === 'cooldown') {
+      wrkDrawRamp(ctx, x, segW, seg.powerHigh, seg.powerLow, MAX_PCT, PAD_T, cH);
+    } else if (seg.type === 'steady') {
+      wrkDrawBlock(ctx, x, segW, seg.power, MAX_PCT, PAD_T, cH);
+    } else if (seg.type === 'interval') {
+      const repW  = segW / seg.reps;
+      const onW   = repW * seg.onDuration / (seg.onDuration + seg.offDuration);
+      const offW  = repW - onW;
+      for (let r = 0; r < seg.reps; r++) {
+        wrkDrawBlock(ctx, x + r * repW,       onW,  seg.onPower,  MAX_PCT, PAD_T, cH);
+        wrkDrawBlock(ctx, x + r * repW + onW, offW, seg.offPower, MAX_PCT, PAD_T, cH);
+      }
+    } else if (seg.type === 'free') {
+      wrkDrawFree(ctx, x, segW, MAX_PCT, PAD_T, cH);
+    }
+
+    // Selection highlight
+    if (isSelected) {
+      const topPct = seg.type === 'interval' ? Math.max(seg.onPower, seg.offPower)
+                   : seg.type === 'warmup' || seg.type === 'cooldown' ? Math.max(seg.powerLow, seg.powerHigh)
+                   : seg.type === 'steady' ? seg.power : 55;
+      const selY = PAD_T + cH * (1 - topPct / MAX_PCT);
+      ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([3, 3]);
+      ctx.strokeRect(x + 1, selY, segW - 2, cH + PAD_T - selY - 1);
+      ctx.setLineDash([]);
+    }
+
+    // Time label at segment start (skip first and very narrow ones)
+    if (idx > 0 && segW > 30) {
+      ctx.fillStyle = 'rgba(255,255,255,0.25)';
+      ctx.textAlign = 'center';
+      ctx.font = '9px Inter, sans-serif';
+      ctx.fillText(wrkFmtTime(Math.round(curSec)), x, PAD_T + cH + 16);
+    }
+
+    curSec += dur;
+  });
+
+  // Final time label
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.textAlign = 'center';
+  ctx.font = '9px Inter, sans-serif';
+  ctx.fillText(wrkFmtTime(Math.round(totalSecs)), PAD_L + cW, PAD_T + cH + 16);
+}
+
+function wrkDrawBlock(ctx, x, w, pct, maxPct, padT, cH) {
+  const barH = Math.max(2, (pct / maxPct) * cH);
+  const y = padT + cH - barH;
+  ctx.fillStyle = wrkZoneColor(pct);
+  ctx.fillRect(x, y, Math.max(1, w), barH);
+}
+
+function wrkDrawRamp(ctx, x, w, pctFrom, pctTo, maxPct, padT, cH) {
+  const bottom = padT + cH;
+  const yFrom  = padT + cH - (pctFrom / maxPct) * cH;
+  const yTo    = padT + cH - (pctTo   / maxPct) * cH;
+  const grad   = ctx.createLinearGradient(x, 0, x + w, 0);
+  grad.addColorStop(0, wrkZoneColor(pctFrom, 0.9));
+  grad.addColorStop(1, wrkZoneColor(pctTo,   0.9));
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.moveTo(x,     bottom);
+  ctx.lineTo(x,     yFrom);
+  ctx.lineTo(x + w, yTo);
+  ctx.lineTo(x + w, bottom);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function wrkDrawFree(ctx, x, w, maxPct, padT, cH) {
+  const pct  = 50;
+  const barH = (pct / maxPct) * cH;
+  const y    = padT + cH - barH;
+  ctx.fillStyle = 'rgba(120,120,140,0.35)';
+  ctx.fillRect(x, y, Math.max(1, w), barH);
+  ctx.fillStyle = 'rgba(255,255,255,0.04)';
+  for (let i = 0; i < w; i += 8) ctx.fillRect(x + i, y, 4, barH);
+}
+
+/* ── Segment list rendering ───────────────────── */
+function wrkRender() {
+  wrkDrawChart();
+  wrkRefreshStats();
+
+  const list = document.getElementById('wrkSegmentList');
+  if (!list) return;
+  const segs = wrkState.segments;
+
+  if (!segs.length) {
+    list.innerHTML = '<div class="wrk-list-empty">No segments yet — add one below</div>';
+    return;
+  }
+
+  const TYPE_LABELS = { warmup:'Warmup', steady:'Steady State', interval:'Intervals', cooldown:'Cooldown', free:'Free Ride' };
+  const TYPE_COLORS = { warmup:'#4a9eff', steady:'#00e5a0', interval:'#ff6b35', cooldown:'#8888bb', free:'#777' };
+
+  list.innerHTML = segs.map((seg, idx) => {
+    const color   = TYPE_COLORS[seg.type] || '#aaa';
+    const label   = TYPE_LABELS[seg.type] || seg.type;
+    const dur     = wrkSegDuration(seg);
+    const durStr  = wrkFmtTime(dur);
+    let detail = '';
+    if (seg.type === 'warmup' || seg.type === 'cooldown') {
+      detail = `${durStr} · ${seg.powerLow}→${seg.powerHigh}% FTP`;
+    } else if (seg.type === 'steady') {
+      detail = `${durStr} · ${seg.power}% FTP`;
+    } else if (seg.type === 'interval') {
+      detail = `${seg.reps}× (${wrkFmtTime(seg.onDuration)} @ ${seg.onPower}% / ${wrkFmtTime(seg.offDuration)} @ ${seg.offPower}%)`;
+    } else if (seg.type === 'free') {
+      detail = `${durStr} · no target`;
+    }
+
+    const isEditing = wrkState.editIdx === idx;
+    const editPanel = isEditing ? wrkBuildEditPanel(seg, idx) : '';
+
+    return `<div class="wrk-seg-wrap${isEditing ? ' wrk-seg-wrap--active' : ''}">
+      <div class="wrk-seg-row" onclick="wrkToggleEdit(${idx})">
+        <span class="wrk-seg-swatch" style="background:${color}"></span>
+        <div class="wrk-seg-info">
+          <span class="wrk-seg-type">${label}</span>
+          <span class="wrk-seg-detail">${detail}</span>
+        </div>
+        <div class="wrk-seg-actions" onclick="event.stopPropagation()">
+          <button class="wrk-icon-btn" title="Move up"    onclick="wrkMove(${idx},-1)" ${idx===0?'disabled':''}>↑</button>
+          <button class="wrk-icon-btn" title="Move down"  onclick="wrkMove(${idx}, 1)" ${idx===segs.length-1?'disabled':''}>↓</button>
+          <button class="wrk-icon-btn wrk-icon-btn--del" title="Remove" onclick="wrkRemove(${idx})">×</button>
+        </div>
+      </div>
+      ${editPanel}
+    </div>`;
+  }).join('');
+}
+
+function wrkBuildEditPanel(seg, idx) {
+  const fmtDur = (secs) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return { m, s };
+  };
+
+  let fields = '';
+  if (seg.type === 'steady') {
+    const { m, s } = fmtDur(seg.duration);
+    fields = `
+      <div class="wrk-edit-row">
+        <label>Duration</label>
+        <div class="wrk-dur-inputs">
+          <input type="number" min="0" max="600" value="${m}" oninput="wrkSet(${idx},'durationMin',+this.value)"> <span>min</span>
+          <input type="number" min="0" max="59"  value="${s}" oninput="wrkSet(${idx},'durationSec',+this.value)"> <span>sec</span>
+        </div>
+      </div>
+      <div class="wrk-edit-row">
+        <label>Power</label>
+        <div class="wrk-power-input">
+          <input type="range" min="40" max="160" value="${seg.power}" oninput="wrkSet(${idx},'power',+this.value);this.nextElementSibling.textContent=this.value+'%'">
+          <span class="wrk-power-badge" style="background:${wrkZoneColor(seg.power)}">${seg.power}%</span>
+        </div>
+      </div>`;
+  } else if (seg.type === 'warmup' || seg.type === 'cooldown') {
+    const { m, s } = fmtDur(seg.duration);
+    fields = `
+      <div class="wrk-edit-row">
+        <label>Duration</label>
+        <div class="wrk-dur-inputs">
+          <input type="number" min="0" max="600" value="${m}" oninput="wrkSet(${idx},'durationMin',+this.value)"> <span>min</span>
+          <input type="number" min="0" max="59"  value="${s}" oninput="wrkSet(${idx},'durationSec',+this.value)"> <span>sec</span>
+        </div>
+      </div>
+      <div class="wrk-edit-row">
+        <label>Power from</label>
+        <div class="wrk-power-input">
+          <input type="range" min="30" max="130" value="${seg.powerLow}" oninput="wrkSet(${idx},'powerLow',+this.value);this.nextElementSibling.textContent=this.value+'%'">
+          <span class="wrk-power-badge" style="background:${wrkZoneColor(seg.powerLow)}">${seg.powerLow}%</span>
+        </div>
+      </div>
+      <div class="wrk-edit-row">
+        <label>Power to</label>
+        <div class="wrk-power-input">
+          <input type="range" min="30" max="130" value="${seg.powerHigh}" oninput="wrkSet(${idx},'powerHigh',+this.value);this.nextElementSibling.textContent=this.value+'%'">
+          <span class="wrk-power-badge" style="background:${wrkZoneColor(seg.powerHigh)}">${seg.powerHigh}%</span>
+        </div>
+      </div>`;
+  } else if (seg.type === 'interval') {
+    const { m: onM, s: onS } = fmtDur(seg.onDuration);
+    const { m: offM, s: offS } = fmtDur(seg.offDuration);
+    fields = `
+      <div class="wrk-edit-row">
+        <label>Repetitions</label>
+        <div class="wrk-dur-inputs"><input type="number" min="1" max="50" value="${seg.reps}" oninput="wrkSet(${idx},'reps',+this.value)"> <span>×</span></div>
+      </div>
+      <div class="wrk-edit-row">
+        <label>Work duration</label>
+        <div class="wrk-dur-inputs">
+          <input type="number" min="0" max="60" value="${onM}" oninput="wrkSet(${idx},'onDurMin',+this.value)"> <span>min</span>
+          <input type="number" min="0" max="59" value="${onS}" oninput="wrkSet(${idx},'onDurSec',+this.value)"> <span>sec</span>
+        </div>
+      </div>
+      <div class="wrk-edit-row">
+        <label>Work power</label>
+        <div class="wrk-power-input">
+          <input type="range" min="50" max="200" value="${seg.onPower}" oninput="wrkSet(${idx},'onPower',+this.value);this.nextElementSibling.textContent=this.value+'%'">
+          <span class="wrk-power-badge" style="background:${wrkZoneColor(seg.onPower)}">${seg.onPower}%</span>
+        </div>
+      </div>
+      <div class="wrk-edit-row">
+        <label>Rest duration</label>
+        <div class="wrk-dur-inputs">
+          <input type="number" min="0" max="60" value="${offM}" oninput="wrkSet(${idx},'offDurMin',+this.value)"> <span>min</span>
+          <input type="number" min="0" max="59" value="${offS}" oninput="wrkSet(${idx},'offDurSec',+this.value)"> <span>sec</span>
+        </div>
+      </div>
+      <div class="wrk-edit-row">
+        <label>Rest power</label>
+        <div class="wrk-power-input">
+          <input type="range" min="30" max="100" value="${seg.offPower}" oninput="wrkSet(${idx},'offPower',+this.value);this.nextElementSibling.textContent=this.value+'%'">
+          <span class="wrk-power-badge" style="background:${wrkZoneColor(seg.offPower)}">${seg.offPower}%</span>
+        </div>
+      </div>`;
+  } else if (seg.type === 'free') {
+    const { m, s } = fmtDur(seg.duration);
+    fields = `
+      <div class="wrk-edit-row">
+        <label>Duration</label>
+        <div class="wrk-dur-inputs">
+          <input type="number" min="0" max="600" value="${m}" oninput="wrkSet(${idx},'durationMin',+this.value)"> <span>min</span>
+          <input type="number" min="0" max="59"  value="${s}" oninput="wrkSet(${idx},'durationSec',+this.value)"> <span>sec</span>
+        </div>
+      </div>`;
+  }
+
+  return `<div class="wrk-edit-panel">${fields}</div>`;
+}
+
+/* ── Segment operations ───────────────────────── */
+function wrkAddSegment(type) {
+  wrkState.segments.push({ ...WRK_DEFAULTS[type] });
+  wrkState.editIdx = wrkState.segments.length - 1;
+  wrkRender();
+}
+
+function wrkRemove(idx) {
+  wrkState.segments.splice(idx, 1);
+  if (wrkState.editIdx === idx) wrkState.editIdx = null;
+  else if (wrkState.editIdx > idx) wrkState.editIdx--;
+  wrkRender();
+}
+
+function wrkMove(idx, dir) {
+  const segs = wrkState.segments;
+  const ni = idx + dir;
+  if (ni < 0 || ni >= segs.length) return;
+  [segs[idx], segs[ni]] = [segs[ni], segs[idx]];
+  if (wrkState.editIdx === idx) wrkState.editIdx = ni;
+  else if (wrkState.editIdx === ni) wrkState.editIdx = idx;
+  wrkRender();
+}
+
+function wrkToggleEdit(idx) {
+  wrkState.editIdx = wrkState.editIdx === idx ? null : idx;
+  wrkRender();
+}
+
+function wrkSet(idx, field, val) {
+  const seg = wrkState.segments[idx];
+  if (!seg) return;
+  if (field === 'durationMin') seg.duration = val * 60 + (seg.duration % 60);
+  else if (field === 'durationSec') seg.duration = Math.floor(seg.duration / 60) * 60 + val;
+  else if (field === 'onDurMin')  seg.onDuration  = val * 60 + (seg.onDuration  % 60);
+  else if (field === 'onDurSec')  seg.onDuration  = Math.floor(seg.onDuration  / 60) * 60 + val;
+  else if (field === 'offDurMin') seg.offDuration = val * 60 + (seg.offDuration % 60);
+  else if (field === 'offDurSec') seg.offDuration = Math.floor(seg.offDuration / 60) * 60 + val;
+  else seg[field] = val;
+  // Redraw chart + stats without re-rendering the segment list (keeps inputs focused)
+  wrkDrawChart();
+  wrkRefreshStats();
+}
+
+function wrkClear() {
+  if (wrkState.segments.length && !confirm('Start a new workout? Current workout will be lost.')) return;
+  wrkState.segments = [];
+  wrkState.editIdx  = null;
+  wrkState.name     = 'New Workout';
+  const inp = document.getElementById('wrkNameInput');
+  if (inp) inp.value = 'New Workout';
+  wrkRender();
+}
+
+/* ── Exports ──────────────────────────────────── */
+function wrkExportZwo() {
+  if (!wrkState.segments.length) { showToast('Add segments first', 'error'); return; }
+  const name = wrkState.name || 'CycleIQ Workout';
+  const seg2zwo = seg => {
+    if (seg.type === 'warmup')
+      return `    <Warmup Duration="${seg.duration}" PowerLow="${(seg.powerLow/100).toFixed(2)}" PowerHigh="${(seg.powerHigh/100).toFixed(2)}"/>`;
+    if (seg.type === 'cooldown')
+      return `    <Cooldown Duration="${seg.duration}" PowerLow="${(Math.min(seg.powerLow,seg.powerHigh)/100).toFixed(2)}" PowerHigh="${(Math.max(seg.powerLow,seg.powerHigh)/100).toFixed(2)}"/>`;
+    if (seg.type === 'steady')
+      return `    <SteadyState Duration="${seg.duration}" Power="${(seg.power/100).toFixed(2)}"/>`;
+    if (seg.type === 'interval')
+      return `    <IntervalsT Repeat="${seg.reps}" OnDuration="${seg.onDuration}" OffDuration="${seg.offDuration}" OnPower="${(seg.onPower/100).toFixed(2)}" OffPower="${(seg.offPower/100).toFixed(2)}"/>`;
+    if (seg.type === 'free')
+      return `    <FreeRide Duration="${seg.duration}"/>`;
+    return '';
+  };
+  const xml = `<?xml version="1.0" encoding="utf-8"?>
+<workout_file>
+  <author>CycleIQ</author>
+  <name>${name}</name>
+  <description></description>
+  <sportType>bike</sportType>
+  <tags></tags>
+  <workout>
+${wrkState.segments.map(seg2zwo).join('\n')}
+  </workout>
+</workout_file>`;
+  wrkDownload(name.replace(/[^a-z0-9]/gi,'_') + '.zwo', xml, 'application/xml');
+  showToast('Zwift .zwo downloaded', 'success');
+}
+
+function wrkExportFit() {
+  if (!wrkState.segments.length) { showToast('Add segments first', 'error'); return; }
+  const name = wrkState.name || 'CycleIQ Workout';
+  const ftp  = wrkGetFtp();
+  try {
+    const fitBytes = buildFitWorkout(wrkState.segments, name, ftp);
+    const blob = new Blob([fitBytes], { type: 'application/octet-stream' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = name.replace(/[^a-z0-9]/gi,'_') + '.fit';
+    a.click(); URL.revokeObjectURL(url);
+    showToast('Garmin .fit downloaded', 'success');
+  } catch(e) {
+    showToast('FIT export failed: ' + e.message, 'error');
+  }
+}
+
+function wrkDownload(filename, content, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ── Garmin FIT encoder ───────────────────────── */
+function buildFitWorkout(segments, name, ftp) {
+  // CRC-16 (FIT variant)
+  const CRC_TAB = [0x0000,0xCC01,0xD801,0x1400,0xF001,0x3C00,0x2800,0xE401,
+                   0xA001,0x6C00,0x7800,0xB401,0x5000,0x9C01,0x8801,0x4400];
+  const crc16 = (data, seed = 0) => {
+    let c = seed;
+    for (const b of data) {
+      let t = CRC_TAB[c & 0xF]; c = (c >> 4) & 0xFFF; c ^= t ^ CRC_TAB[b & 0xF];
+      t = CRC_TAB[c & 0xF]; c = (c >> 4) & 0xFFF; c ^= t ^ CRC_TAB[(b >> 4) & 0xF];
+    }
+    return c;
+  };
+
+  const buf = [];
+  const u8  = v => buf.push(v & 0xFF);
+  const u16 = v => { buf.push(v & 0xFF); buf.push((v >> 8) & 0xFF); };
+  const u32 = v => { buf.push(v & 0xFF); buf.push((v >> 8) & 0xFF);
+                     buf.push((v >> 16) & 0xFF); buf.push((v >> 24) & 0xFF); };
+  const str = (s, len) => {
+    const b = new TextEncoder().encode(s.slice(0, len - 1));
+    for (let i = 0; i < len; i++) buf.push(i < b.length ? b[i] : 0);
+  };
+
+  // Count total workout steps
+  let nSteps = 0;
+  segments.forEach(s => { nSteps += s.type === 'interval' ? s.reps * 2 : 1; });
+
+  // --- Def: FILE_ID (local 0, global mesg 0) ---
+  u8(0x40); u8(0x00); u8(0x00); u16(0); u8(5);
+  u8(0);  u8(1); u8(0x00);  // type: enum
+  u8(1);  u8(2); u8(0x84);  // manufacturer: uint16
+  u8(2);  u8(2); u8(0x84);  // product: uint16
+  u8(4);  u8(4); u8(0x86);  // time_created: uint32
+  u8(5);  u8(2); u8(0x84);  // number: uint16
+  // Data: FILE_ID
+  u8(0x00);
+  u8(5);     // type = workout
+  u16(255);  // manufacturer
+  u16(0);    // product
+  const FIT_EPOCH = 631065600000;
+  u32(Math.floor((Date.now() - FIT_EPOCH) / 1000));
+  u16(0);    // number
+
+  // --- Def: WORKOUT (local 1, global mesg 26) ---
+  u8(0x41); u8(0x00); u8(0x00); u16(26); u8(4);
+  u8(4); u8(1); u8(0x00);   // sport: enum
+  u8(5); u8(4); u8(0x86);   // capabilities: uint32
+  u8(6); u8(2); u8(0x84);   // num_valid_steps: uint16
+  u8(8); u8(16); u8(0x07);  // wkt_name: string[16]
+  // Data: WORKOUT
+  u8(0x01);
+  u8(2);       // sport = cycling
+  u32(0x00000020);
+  u16(nSteps);
+  str(name, 16);
+
+  // --- Def: WORKOUT_STEP (local 2, global mesg 27) ---
+  u8(0x42); u8(0x00); u8(0x00); u16(27); u8(9);
+  u8(254); u8(2);  u8(0x84);  // message_index: uint16
+  u8(0);   u8(16); u8(0x07);  // wkt_step_name: string[16]
+  u8(1);   u8(1);  u8(0x00);  // duration_type: enum
+  u8(2);   u8(4);  u8(0x86);  // duration_value: uint32
+  u8(3);   u8(1);  u8(0x00);  // target_type: enum
+  u8(4);   u8(4);  u8(0x86);  // target_value: uint32
+  u8(5);   u8(4);  u8(0x86);  // target_low: uint32
+  u8(6);   u8(4);  u8(0x86);  // target_high: uint32
+  u8(7);   u8(1);  u8(0x00);  // intensity: enum
+
+  let stepIdx = 0;
+  const writeStep = (label, secs, pLow, pHigh, intensity) => {
+    u8(0x02);
+    u16(stepIdx++);
+    str(label, 16);
+    u8(0);      // duration_type = time
+    u32(secs);
+    const hp = pHigh > 0;
+    u8(hp ? 4 : 0);  // target_type: 4=power, 0=open
+    u32(0);           // target_value (use low/high range)
+    u32(hp ? Math.round(ftp * pLow  / 100) + 1000 : 0xFFFFFFFF);
+    u32(hp ? Math.round(ftp * pHigh / 100) + 1000 : 0xFFFFFFFF);
+    u8(intensity);
+  };
+
+  segments.forEach(seg => {
+    if (seg.type === 'warmup') {
+      writeStep('Warmup', seg.duration, seg.powerLow, seg.powerHigh, 2);
+    } else if (seg.type === 'cooldown') {
+      writeStep('Cooldown', seg.duration,
+        Math.min(seg.powerLow, seg.powerHigh), Math.max(seg.powerLow, seg.powerHigh), 3);
+    } else if (seg.type === 'steady') {
+      writeStep('Steady', seg.duration, Math.max(1, seg.power - 5), seg.power + 5, 0);
+    } else if (seg.type === 'interval') {
+      for (let r = 0; r < seg.reps; r++) {
+        writeStep('Work', seg.onDuration,  Math.max(1,seg.onPower  - 5), seg.onPower  + 5, 0);
+        writeStep('Rest', seg.offDuration, Math.max(1,seg.offPower - 5), seg.offPower + 5, 1);
+      }
+    } else if (seg.type === 'free') {
+      writeStep('Free Ride', seg.duration, 0, 0, 0);
+    }
+  });
+
+  // Assemble: build data array
+  const data = new Uint8Array(buf);
+
+  // FIT file header (14 bytes)
+  const hdr = [];
+  const h8  = v => hdr.push(v & 0xFF);
+  const h16 = v => { hdr.push(v & 0xFF); hdr.push((v >> 8) & 0xFF); };
+  const h32 = v => { hdr.push(v & 0xFF); hdr.push((v >> 8) & 0xFF);
+                     hdr.push((v >> 16) & 0xFF); hdr.push((v >> 24) & 0xFF); };
+  h8(14); h8(0x10); h16(2100); h32(data.length);
+  h8(0x2E); h8(0x46); h8(0x49); h8(0x54); // ".FIT"
+  const hdrArr = new Uint8Array(hdr);
+  const hdrCrc = crc16(hdrArr);
+  const datCrc = crc16(data);
+
+  const out = new Uint8Array(14 + 2 + data.length + 2);
+  out.set(hdrArr, 0);
+  out[14] = hdrCrc & 0xFF; out[15] = (hdrCrc >> 8) & 0xFF;
+  out.set(data, 16);
+  out[16 + data.length]     = datCrc & 0xFF;
+  out[16 + data.length + 1] = (datCrc >> 8) & 0xFF;
+  return out;
+}
+
+// Redraw chart on resize
+(function() {
+  let _wrkRaf = null;
+  window.addEventListener('resize', () => {
+    if (state.currentPage !== 'workout') return;
+    clearTimeout(_wrkRaf);
+    _wrkRaf = setTimeout(wrkDrawChart, 80);
+  });
+})();
