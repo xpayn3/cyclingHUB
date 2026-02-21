@@ -17,6 +17,9 @@ const state = {
   fitnessRangeDays: 90,
   activityPowerChart: null,
   activityHRChart: null,
+  powerCurveChart: null,
+  powerCurve: null,
+  powerCurveRange: null,
   calMonth: null,
   currentPage: 'dashboard',
   previousPage: null,
@@ -413,6 +416,7 @@ function renderDashboard() {
   renderWeeklyChart(recent);
   renderAvgPowerChart(recent);
   renderZoneDist(recent);
+  renderPowerCurve(); // async — fetches if range changed
 }
 
 function resetDashboard() {
@@ -430,9 +434,13 @@ function resetDashboard() {
       <p>Connect your account to see activities.</p>
       <button class="btn btn-primary" onclick="openModal()">Connect intervals.icu</button>
     </div>`;
-  if (state.avgPowerChart) { state.avgPowerChart.destroy(); state.avgPowerChart = null; }
+  if (state.avgPowerChart)   { state.avgPowerChart.destroy();   state.avgPowerChart   = null; }
+  if (state.powerCurveChart) { state.powerCurveChart.destroy(); state.powerCurveChart = null; }
+  state.powerCurve = null; state.powerCurveRange = null;
   const zc = document.getElementById('zoneDistCard');
   if (zc) zc.style.display = 'none';
+  const pc = document.getElementById('powerCurveCard');
+  if (pc) pc.style.display = 'none';
 }
 
 /* ====================================================
@@ -746,32 +754,25 @@ function renderZoneDist(activities) {
   const card = document.getElementById('zoneDistCard');
   if (!card) return;
 
-  // Debug: inspect zone-related and icu_ fields from the first activity
-  if (activities.length > 0) {
-    const sample = activities[0];
-    const zoneKeys = Object.keys(sample).filter(k => /zone/i.test(k));
-    const icuKeys  = Object.keys(sample).filter(k => k.startsWith('icu_'));
-    console.log('[ZoneDist] All icu_ keys:', icuKeys);
-    console.log('[ZoneDist] Zone-related keys:', zoneKeys);
-    console.log('[ZoneDist] icu_zone_times value:', sample.icu_zone_times);
-    if (zoneKeys.length) zoneKeys.forEach(k => console.log(`  ${k}:`, sample[k]));
-  }
-
   // Sum icu_zone_times across recent activities.
-  // intervals.icu uses: index 0 = below-Z1 / unclassified, indices 1-6 = Z1-Z6.
+  // Each entry is an object: { id: "Z1", secs: 557 }, { id: "Z2", secs: 1358 }, …
+  // Z7 and SS (Sweet Spot) entries are ignored; we only map Z1–Z6.
   const totals = [0, 0, 0, 0, 0, 0];
   let hasData = false;
 
   activities.forEach(a => {
-    // Primary field: icu_zone_times (power zones on rides, HR zones otherwise)
     const zt = a.icu_zone_times;
-    if (Array.isArray(zt) && zt.length >= 2) {
-      hasData = true;
-      // Skip index 0 (unclassified); map zt[1..6] → totals[0..5]
-      for (let i = 1; i <= 6; i++) {
-        if (i < zt.length) totals[i - 1] += (zt[i] || 0);
+    if (!Array.isArray(zt) || zt.length < 1) return;
+    zt.forEach(z => {
+      if (!z || typeof z.id !== 'string') return;
+      const match = z.id.match(/^Z(\d)$/);           // matches Z1–Z6 (Z7 ignored)
+      if (!match) return;
+      const idx = parseInt(match[1], 10) - 1;        // Z1 → 0, …, Z6 → 5
+      if (idx >= 0 && idx < 6) {
+        hasData = true;
+        totals[idx] += (z.secs || 0);
       }
-    }
+    });
   });
 
   const totalSecs = totals.reduce((s, t) => s + t, 0);
@@ -828,6 +829,151 @@ function renderZoneDist(activities) {
     <div class="zone-balance-label">Zone Balance</div>
     <div class="zone-balance-bar">${segs}</div>
     <div class="zone-style-hint"><strong>${style}</strong> — ${hint}</div>`;
+}
+
+/* ====================================================
+   POWER CURVE
+==================================================== */
+// Human-readable label for a duration in seconds (short form for axis / pills)
+function fmtSecsShort(s) {
+  if (s < 60)   return `${s}s`;
+  if (s < 3600) { const m = Math.floor(s / 60); const r = s % 60; return r ? `${m}m${r}s` : `${m}m`; }
+  const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60);
+  return m ? `${h}h${m}m` : `${h}h`;
+}
+
+// Key durations to show as stat pills above the chart
+const CURVE_PEAKS = [
+  { secs: 5,    label: '5s'  },
+  { secs: 60,   label: '1m'  },
+  { secs: 300,  label: '5m'  },
+  { secs: 1200, label: '20m' },
+  { secs: 3600, label: '1h'  },
+];
+
+// Tick labels shown on the logarithmic x-axis
+const CURVE_TICK_MAP = { 1:'1s', 5:'5s', 10:'10s', 30:'30s', 60:'1m', 300:'5m', 600:'10m', 1200:'20m', 1800:'30m', 3600:'1h' };
+
+async function renderPowerCurve() {
+  const card = document.getElementById('powerCurveCard');
+  if (!card) return;
+
+  // Fetch (or use cache) when range changes
+  if (!state.powerCurve || state.powerCurveRange !== state.rangeDays) {
+    const newest = toDateStr(new Date());
+    const oldest = toDateStr(daysAgo(state.rangeDays));
+    try {
+      const data = await icuFetch(
+        `/athlete/${state.athleteId}/power-curves?type=Ride&oldest=${oldest}&newest=${newest}`
+      );
+      // API returns an array; first item is the primary curve
+      const raw = Array.isArray(data) ? data[0] : data;
+      state.powerCurve      = (raw && Array.isArray(raw.secs) && raw.secs.length > 0) ? raw : null;
+      state.powerCurveRange = state.rangeDays;
+    } catch (e) {
+      state.powerCurve = null;
+    }
+  }
+
+  const pc = state.powerCurve;
+  if (!pc) { card.style.display = 'none'; return; }
+  card.style.display = '';
+
+  // Build a lookup: secs → watts (skipping null / 0)
+  const lookup = {};
+  pc.secs.forEach((s, i) => { if (pc.watts[i]) lookup[s] = pc.watts[i]; });
+
+  // Find watts closest to target duration
+  function peakWatts(targetSecs) {
+    if (lookup[targetSecs]) return lookup[targetSecs];
+    let best = null, minDiff = Infinity;
+    pc.secs.forEach(s => {
+      const diff = Math.abs(s - targetSecs);
+      if (diff < minDiff && lookup[s]) { minDiff = diff; best = lookup[s]; }
+    });
+    return best;
+  }
+
+  // Subtitle
+  document.getElementById('powerCurveSubtitle').textContent =
+    `Best power efforts · Last ${state.rangeDays} days`;
+
+  // Peak stat pills
+  document.getElementById('curvePeaks').innerHTML = CURVE_PEAKS.map(p => {
+    const w = Math.round(peakWatts(p.secs) || 0);
+    if (!w) return '';
+    return `<div class="curve-peak">
+      <div class="curve-peak-val">${w}<span class="curve-peak-unit">w</span></div>
+      <div class="curve-peak-dur">${p.label}</div>
+    </div>`;
+  }).join('');
+
+  // Prepare chart data (use all available points as {x, y})
+  const chartData = pc.secs
+    .map((s, i) => ({ x: s, y: pc.watts[i] }))
+    .filter(pt => pt.y > 0);
+
+  const maxSecs = chartData[chartData.length - 1]?.x || 3600;
+
+  // Destroy old chart
+  if (state.powerCurveChart) { state.powerCurveChart.destroy(); state.powerCurveChart = null; }
+
+  const canvas = document.getElementById('powerCurveChart');
+  state.powerCurveChart = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: {
+      datasets: [{
+        data: chartData,
+        borderColor: '#00e5a0',
+        backgroundColor: 'rgba(0,229,160,0.07)',
+        fill: true,
+        tension: 0.35,
+        pointRadius: 0,
+        pointHoverRadius: 5,
+        pointHoverBackgroundColor: '#00e5a0',
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1e2330', borderColor: '#252b3a', borderWidth: 1,
+          titleColor: '#8891a8', bodyColor: '#eef0f8', padding: 10,
+          callbacks: {
+            title: items => fmtSecsShort(items[0].parsed.x),
+            label: ctx  => `${Math.round(ctx.parsed.y)}w`,
+          }
+        }
+      },
+      scales: {
+        x: {
+          type: 'logarithmic',
+          min: 1,
+          max: maxSecs,
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: {
+            color: '#525d72',
+            font: { size: 10 },
+            autoSkip: false,
+            maxRotation: 0,
+            callback: val => CURVE_TICK_MAP[val] ?? null,
+          }
+        },
+        y: {
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: {
+            color: '#525d72',
+            font: { size: 11 },
+            callback: v => v + 'w',
+          }
+        }
+      }
+    }
+  });
 }
 
 /* ====================================================

@@ -190,6 +190,11 @@ code { font-family: 'JetBrains Mono', monospace; font-size: 0.82em; background: 
 .card-title { font-size: 0.9rem; font-weight: 700; }
 .card-subtitle { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
 .card--narrow { max-width: 580px; }
+/* Two cards sitting side by side in one row, equal height */
+.card-row { display: flex; gap: 20px; align-items: stretch; }
+.card-row > .card { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.card-row > .card .chart-wrap { flex: 1; }
+@media (max-width: 900px) { .card-row { flex-direction: column; } }
 /* Reusable right-side slot in card headers (legend + controls) */
 .card-header-controls { display: flex; align-items: center; gap: 16px; }
 
@@ -505,6 +510,46 @@ code { font-family: 'JetBrains Mono', monospace; font-size: 0.82em; background: 
 .zone-balance-seg { height: 100%; transition: width 0.7s cubic-bezier(0.4,0,0.2,1); }
 .zone-style-hint { font-size: 0.73rem; color: var(--text-muted); margin-top: 9px; }
 .zone-style-hint strong { color: var(--text-primary); }
+
+/* ============================================================
+   POWER CURVE
+============================================================ */
+.curve-peaks {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+.curve-peak {
+  flex: 1;
+  min-width: 60px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  text-align: center;
+}
+.curve-peak-val {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent);
+  font-family: 'JetBrains Mono', monospace;
+  line-height: 1;
+}
+.curve-peak-unit {
+  font-size: 0.7rem;
+  font-weight: 500;
+  margin-left: 1px;
+  opacity: 0.7;
+}
+.curve-peak-dur {
+  font-size: 0.63rem;
+  color: var(--text-muted);
+  margin-top: 5px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-family: 'JetBrains Mono', monospace;
+}
 
 /* ============================================================
    RESPONSIVE

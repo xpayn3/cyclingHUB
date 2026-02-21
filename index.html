@@ -670,36 +670,51 @@
                         </div>
                     </div>
 
-                    <!-- Average Power over time -->
-                    <div class="card" id="avgPowerCard">
-                        <div class="card-header">
-                            <div>
-                                <div class="card-title">Average Power</div>
-                                <div class="card-subtitle">
-                                    Per ride · 7-ride trend
+                    <!-- Average Power + Zone Distribution side by side -->
+                    <div class="card-row">
+                        <div class="card" id="avgPowerCard">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">Average Power</div>
+                                    <div class="card-subtitle">
+                                        Per ride · 7-ride trend
+                                    </div>
+                                </div>
+                                <div class="chart-legend">
+                                    <span class="chart-legend-item"
+                                        ><span class="chart-legend-dot" style="background:var(--accent)"></span>Trend</span>
                                 </div>
                             </div>
-                            <div class="chart-legend">
-                                <span class="chart-legend-item"
-                                    ><span class="chart-legend-dot" style="background:var(--accent)"></span>Trend</span>
+                            <div class="chart-wrap">
+                                <canvas id="avgPowerChart"></canvas>
                             </div>
                         </div>
-                        <div class="chart-wrap">
-                            <canvas id="avgPowerChart"></canvas>
+
+                        <div class="card" id="zoneDistCard" style="display:none">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">Zone Distribution</div>
+                                    <div class="card-subtitle" id="zoneDistSubtitle">Time in power zone</div>
+                                </div>
+                                <div class="zone-total-badge" id="zoneTotalBadge"></div>
+                            </div>
+                            <div class="zone-list" id="zoneList"></div>
+                            <div class="zone-balance-section" id="zoneBalanceSection" style="display:none"></div>
                         </div>
                     </div>
 
-                    <!-- Zone Distribution -->
-                    <div class="card" id="zoneDistCard" style="display:none">
+                    <!-- Power Curve -->
+                    <div class="card" id="powerCurveCard" style="display:none">
                         <div class="card-header">
                             <div>
-                                <div class="card-title">Zone Distribution</div>
-                                <div class="card-subtitle" id="zoneDistSubtitle">Time in power zone</div>
+                                <div class="card-title">Power Curve</div>
+                                <div class="card-subtitle" id="powerCurveSubtitle">Best power efforts</div>
                             </div>
-                            <div class="zone-total-badge" id="zoneTotalBadge"></div>
                         </div>
-                        <div class="zone-list" id="zoneList"></div>
-                        <div class="zone-balance-section" id="zoneBalanceSection" style="display:none"></div>
+                        <div class="curve-peaks" id="curvePeaks"></div>
+                        <div class="chart-wrap chart-wrap--lg">
+                            <canvas id="powerCurveChart"></canvas>
+                        </div>
                     </div>
 
                     <div class="card">
