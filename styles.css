@@ -1269,3 +1269,12 @@ code { font-family: 'JetBrains Mono', monospace; font-size: 0.82em; background: 
   background: var(--bg-elevated);
   color: var(--text-primary);
 }
+
+/* Note shown below the activities list for placeholder/no-data entries */
+.act-empty-note {
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  padding: 10px 16px 6px;
+  letter-spacing: 0.01em;
+}

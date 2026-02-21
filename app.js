@@ -123,7 +123,8 @@ async function fetchAthleteProfile() {
 // Fetch activities using date-based pagination (more reliable than offset with intervals.icu).
 // Each page walks the ceiling backwards to the oldest date in the previous chunk so we
 // never miss activities when a date-range returns more than one page.
-async function fetchActivities(daysBack = 400, since = null) {
+async function fetchActivities(daysBack = null, since = null) {
+  if (daysBack === null) daysBack = defaultSyncDays(); // covers Jan 1 of last year
   const hardOldest = since ? toDateStr(since) : toDateStr(daysAgo(daysBack));
   const pageSize   = 200;
   const seen       = new Set();
@@ -319,10 +320,11 @@ async function syncData() {
       const since = new Date(cache.lastSync);
       since.setDate(since.getDate() - 2);
       setLoading(true, 'Checking for new activities…');
-      await fetchActivities(400, since);
+      await fetchActivities(null, since);
     } else {
-      setLoading(true, 'Loading activities — fetching up to 400 days…');
-      await fetchActivities(400);
+      const days = defaultSyncDays();
+      setLoading(true, `Loading activities — syncing ${days} days…`);
+      await fetchActivities(days);
     }
 
     // Save updated cache after a successful fetch
@@ -492,11 +494,11 @@ function setRange(days) {
 ==================================================== */
 const SORT_FIELDS = {
   date:      a => new Date(a.start_date_local || a.start_date).getTime(),
-  distance:  a => a.distance || 0,
-  time:      a => a.moving_time || a.elapsed_time || 0,
-  elevation: a => a.total_elevation_gain || 0,
-  power:     a => a.icu_weighted_avg_watts || a.average_watts || 0,
-  bpm:       a => a.average_heartrate || 0,
+  distance:  a => actVal(a, 'distance', 'icu_distance'),
+  time:      a => actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time', 'icu_elapsed_time'),
+  elevation: a => actVal(a, 'total_elevation_gain', 'icu_total_elevation_gain'),
+  power:     a => actVal(a, 'icu_weighted_avg_watts', 'average_watts', 'icu_average_watts'),
+  bpm:       a => actVal(a, 'average_heartrate', 'icu_average_heartrate'),
 };
 
 function sortedAllActivities() {
@@ -544,6 +546,25 @@ function renderAllActivitiesList() {
   document.getElementById('allActivitiesSubtitle').textContent =
     `${sorted.length} activities${yearLabel}`;
   renderActivityList('allActivityList', sorted);
+
+  // Count placeholder activities (planned workouts never completed — all metrics zero).
+  // These exist in the intervals.icu /activities endpoint but have no recorded data.
+  let allPool = state.activities.filter(a => !!(a.start_date_local || a.start_date));
+  if (state.activitiesYear !== null) {
+    allPool = allPool.filter(a => {
+      const d = new Date(a.start_date_local || a.start_date);
+      return d.getFullYear() === state.activitiesYear;
+    });
+  }
+  const emptyCount = allPool.filter(a => isEmptyActivity(a)).length;
+  const listEl = document.getElementById('allActivityList');
+  if (listEl && emptyCount > 0) {
+    const note = document.createElement('div');
+    note.className = 'act-empty-note';
+    note.textContent = `+ ${emptyCount} planned ${emptyCount === 1 ? 'workout' : 'workouts'} with no recorded data`;
+    listEl.appendChild(note);
+  }
+
   _refreshYearDropdown();
 }
 
@@ -601,11 +622,11 @@ function renderDashboard() {
 
   let tss = 0, dist = 0, time = 0, elev = 0, power = 0, powerN = 0;
   recent.forEach(a => {
-    tss  += (a.icu_training_load || a.tss || 0);
-    dist += (a.distance || 0) / 1000;
-    time += (a.moving_time || a.elapsed_time || 0) / 3600;
-    elev += (a.total_elevation_gain || 0);
-    const w = a.icu_weighted_avg_watts || a.average_watts || 0;
+    tss  += actVal(a, 'icu_training_load', 'tss');
+    dist += actVal(a, 'distance', 'icu_distance') / 1000;
+    time += actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time', 'icu_elapsed_time') / 3600;
+    elev += actVal(a, 'total_elevation_gain', 'icu_total_elevation_gain');
+    const w = actVal(a, 'icu_weighted_avg_watts', 'average_watts', 'icu_average_watts');
     if (w > 0) { power += w; powerN++; }
   });
 
@@ -689,39 +710,64 @@ const sportIcon = {
   default: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`
 };
 
+// Resolve the sport type string, checking all known field variants
+function actSportType(a) {
+  return (a.sport_type || a.type || a.icu_sport_type || a.activity_type || '').toLowerCase();
+}
+
 function activityTypeClass(a) {
-  const t = (a.sport_type || a.type || '').toLowerCase();
+  const t = actSportType(a);
   if (t.includes('run'))  return 'run';
   if (t.includes('swim')) return 'swim';
   return '';
 }
 
 function activityTypeIcon(a) {
-  const t = (a.sport_type || a.type || '').toLowerCase();
+  const t = actSportType(a);
   if (t.includes('run'))  return sportIcon.run;
   if (t.includes('swim')) return sportIcon.swim;
   return sportIcon.ride;
 }
 
 function activityFallbackName(a) {
-  const t = (a.sport_type || a.type || '').toLowerCase();
+  const t = actSportType(a);
   if (t.includes('virtualride') || t.includes('virtual_ride')) return 'Virtual Ride';
   if (t.includes('ride'))    return 'Ride';
   if (t.includes('run'))     return 'Run';
   if (t.includes('swim'))    return 'Swim';
   if (t.includes('walk'))    return 'Walk';
   if (t.includes('hike'))    return 'Hike';
-  if (t.includes('weight'))  return 'Strength';
+  if (t.includes('weight') || t.includes('strength')) return 'Strength';
   if (t.includes('yoga'))    return 'Yoga';
   if (t.includes('workout')) return 'Workout';
-  return a.sport_type || a.type || 'Activity';
+  if (t.includes('row'))     return 'Rowing';
+  if (t.includes('ski'))     return 'Ski';
+  if (t.includes('climb'))   return 'Climbing';
+  if (t.includes('virtual')) return 'Virtual';
+  const raw = a.sport_type || a.type || a.icu_sport_type || a.activity_type || '';
+  return raw || 'Activity';
+}
+
+// Helper: pull a metric from an activity checking both plain and icu_ prefixed field names.
+// The intervals.icu API sometimes stores data under icu_distance, icu_moving_time etc.
+// depending on the source device / manual entry.
+function actVal(a, ...keys) {
+  for (const k of keys) { const v = a[k]; if (v) return v; }
+  return 0;
 }
 
 function isEmptyActivity(a) {
-  const dist = a.distance || 0;
-  const time = a.moving_time || a.elapsed_time || 0;
-  const tss  = a.icu_training_load || a.tss || 0;
-  return dist === 0 && time === 0 && tss === 0;
+  if (!(a.start_date_local || a.start_date)) return true;
+  // Discard true calendar placeholders — planned workouts that were never completed.
+  // These arrive through the /activities endpoint with zero data in every metric field.
+  // We check both plain and icu_ variants so we never drop real non-cycling activities
+  // (gym, walk, yoga, etc.) that have time but no distance or power.
+  const dist = actVal(a, 'distance', 'icu_distance');
+  const time = actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time', 'icu_elapsed_time', 'total_elapsed_time');
+  const tss  = actVal(a, 'icu_training_load', 'tss');
+  const hr   = actVal(a, 'average_heartrate', 'icu_average_heartrate');
+  const pwr  = actVal(a, 'icu_weighted_avg_watts', 'average_watts', 'icu_average_watts');
+  return dist === 0 && time === 0 && tss === 0 && hr === 0 && pwr === 0;
 }
 
 // Global lookup: actKey → activity object, rebuilt on every renderActivityList call
@@ -762,19 +808,23 @@ function renderActivityList(containerId, activities) {
     const actKey  = containerId + '_' + fi;
     window._actLookup[actKey] = a;
 
-    const distKm  = (a.distance || 0) / 1000;
-    const secs    = a.moving_time || a.elapsed_time || 0;
-    const elev    = Math.round(a.total_elevation_gain || 0);
-    const speedMs = a.average_speed || (secs > 0 && a.distance ? a.distance / secs : 0);
+    // Use actVal() for every metric — intervals.icu may return fields with or without
+    // the icu_ prefix depending on sync source (Garmin/Strava vs manual entry).
+    const dist    = actVal(a, 'distance', 'icu_distance');
+    const distKm  = dist / 1000;
+    const secs    = actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time', 'icu_elapsed_time', 'total_elapsed_time');
+    const elev    = Math.round(actVal(a, 'total_elevation_gain', 'icu_total_elevation_gain'));
+    const rawSpeed = actVal(a, 'average_speed', 'icu_average_speed');
+    const speedMs  = rawSpeed || (secs > 0 && dist ? dist / secs : 0);
     const speedKmh = speedMs * 3.6;
-    const pwr     = a.icu_weighted_avg_watts || a.average_watts || 0;
-    const hr      = Math.round(a.average_heartrate || 0);
-    const tss     = Math.round(a.icu_training_load || a.tss || 0);
+    const pwr     = actVal(a, 'icu_weighted_avg_watts', 'average_watts', 'icu_average_watts');
+    const hr      = Math.round(actVal(a, 'average_heartrate', 'icu_average_heartrate'));
+    const tss     = Math.round(actVal(a, 'icu_training_load', 'tss'));
     const date    = fmtDate(a.start_date_local || a.start_date);
     const tc      = activityTypeClass(a);  // 'run' | 'swim' | ''
 
     // Determine virtual ride class for stripe colour
-    const sportRaw = (a.sport_type || a.type || '').toLowerCase();
+    const sportRaw = (a.sport_type || a.type || a.icu_sport_type || '').toLowerCase();
     const isVirtual = sportRaw.includes('virtual');
     const rowClass  = isVirtual ? 'virtual' : tc;
 
@@ -1588,9 +1638,9 @@ function renderFitnessMonthlyTable() {
     if (!key) return;
     if (!months[key]) months[key] = { count: 0, dist: 0, time: 0, tss: 0 };
     months[key].count++;
-    months[key].dist += (a.distance || 0) / 1000;
-    months[key].time += (a.moving_time || a.elapsed_time || 0) / 3600;
-    months[key].tss  += (a.icu_training_load || a.tss || 0);
+    months[key].dist += actVal(a, 'distance', 'icu_distance') / 1000;
+    months[key].time += actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time', 'icu_elapsed_time') / 3600;
+    months[key].tss  += actVal(a, 'icu_training_load', 'tss');
   });
 
   const entries = Object.entries(months).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 8);
@@ -1645,6 +1695,15 @@ function fmtTime(str) {
 }
 function toDateStr(d) { return d.toISOString().slice(0, 10); }
 function daysAgo(n)   { const d = new Date(); d.setDate(d.getDate() - n); return d; }
+
+// Returns how many days to fetch so we always cover Jan 1 of the previous calendar year.
+// e.g. on Feb 21 2026  →  Jan 1 2025 is 416 days ago  →  returns 421 (+ 5-day buffer)
+function defaultSyncDays() {
+  const today      = new Date();
+  const jan1LastYr = new Date(today.getFullYear() - 1, 0, 1);
+  const days       = Math.ceil((today - jan1LastYr) / 86400000);
+  return days + 5; // small buffer for timezone safety
+}
 
 function weekKey(d) {
   const date = new Date(d);
@@ -1992,26 +2051,32 @@ function renderActivityBasic(a) {
   iconEl.className = 'activity-type-icon lg ' + activityTypeClass(a);
   iconEl.innerHTML = activityTypeIcon(a);
 
-  const tss   = Math.round(a.icu_training_load || a.tss || 0);
+  const tss   = Math.round(actVal(a, 'icu_training_load', 'tss'));
   const tssEl = document.getElementById('detailTSSBadge');
   tssEl.textContent   = tss > 0 ? `${tss} TSS` : '';
   tssEl.style.display = tss > 0 ? 'flex' : 'none';
 
   // ── Metrics strip ─────────────────────────────────────────────────────────
-  const distKm   = (a.distance || 0) / 1000;
-  const secs     = a.moving_time || a.elapsed_time || a.moving_time_seconds || a.elapsed_time_seconds || 0;
-  const speedMs  = a.average_speed || a.average_speed_meters_per_sec ||
-                   (secs > 0 && a.distance ? a.distance / secs : 0);
+  const dist     = actVal(a, 'distance', 'icu_distance');
+  const distKm   = dist / 1000;
+  const secs     = actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time', 'icu_elapsed_time',
+                           'moving_time_seconds', 'elapsed_time_seconds');
+  const rawSpd   = actVal(a, 'average_speed', 'icu_average_speed', 'average_speed_meters_per_sec');
+  const speedMs  = rawSpd || (secs > 0 && dist ? dist / secs : 0);
   const speedKmh = speedMs * 3.6;
-  const avgW     = a.average_watts || 0;
-  const np       = a.icu_weighted_avg_watts || 0;
-  const maxW     = a.max_watts || 0;
+  const avgW     = actVal(a, 'average_watts', 'icu_average_watts');
+  const np       = actVal(a, 'icu_weighted_avg_watts', 'normalized_power');
+  const maxW     = actVal(a, 'max_watts', 'icu_max_watts');
   const ifVal    = a.intensity_factor || 0;
-  const avgHR    = a.average_heartrate || (a.heart_rate && a.heart_rate.average) || 0;
-  const maxHR    = a.max_heartrate || (a.heart_rate && a.heart_rate.max) || 0;
-  const avgCad   = a.average_cadence || (a.cadence && a.cadence.average) || 0;
-  const cals     = a.calories || (a.other && a.other.calories) || 0;
-  const elev     = Math.round(a.total_elevation_gain || 0);
+  const avgHR    = actVal(a, 'average_heartrate', 'icu_average_heartrate') ||
+                   (a.heart_rate && a.heart_rate.average) || 0;
+  const maxHR    = actVal(a, 'max_heartrate', 'icu_max_heartrate') ||
+                   (a.heart_rate && a.heart_rate.max) || 0;
+  const avgCad   = actVal(a, 'average_cadence', 'icu_average_cadence') ||
+                   (a.cadence && a.cadence.average) || 0;
+  const cals     = actVal(a, 'calories', 'icu_calories') ||
+                   (a.other && a.other.calories) || 0;
+  const elev     = Math.round(actVal(a, 'total_elevation_gain', 'icu_total_elevation_gain'));
 
   // chip(value, label, accent?)
   const chip = (v, lbl, accent = false) =>
