@@ -48,6 +48,7 @@ a { color: inherit; text-decoration: none; }
 button { cursor: pointer; border: none; background: none; font-family: inherit; color: inherit; }
 svg { display: block; }
 input, select { font-family: inherit; }
+code { font-family: 'JetBrains Mono', monospace; font-size: 0.82em; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; color: var(--accent); }
 
 /* ============================================================
    SIDEBAR
@@ -187,6 +188,8 @@ input, select { font-family: inherit; }
 .card-title { font-size: 0.9rem; font-weight: 700; }
 .card-subtitle { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
 .card--narrow { max-width: 580px; }
+/* Reusable right-side slot in card headers (legend + controls) */
+.card-header-controls { display: flex; align-items: center; gap: 16px; }
 
 /* ============================================================
    FITNESS ROW (Training Load + Status)
@@ -297,6 +300,12 @@ input, select { font-family: inherit; }
 /* Taller history chart */
 .chart-wrap--lg { height: 280px; }
 .chart-wrap--md { height: 200px; }
+
+/* Fitness KPI colour variants (CTL always accent, ATL always orange) */
+.fit-kpi-value--ctl { color: var(--accent); }
+.fit-kpi-value--atl { color: var(--orange); }
+.fit-kpi-bar-fill--ctl { background: var(--accent); }
+.fit-kpi-bar-fill--atl { background: var(--orange); }
 
 /* Bottom two-column grid */
 .fit-bottom-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
@@ -460,7 +469,7 @@ input, select { font-family: inherit; }
   .fitness-row { grid-template-columns: 1fr; }
 }
 @media (max-width: 900px) {
-.stream-charts { grid-template-columns: 1fr; }
+  .stream-charts { grid-template-columns: 1fr; }
   .cal-day { padding: 4px 3px; }
   .cal-event-meta { display: none; }
   .cal-event { padding: 2px 4px; }

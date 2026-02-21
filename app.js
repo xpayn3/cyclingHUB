@@ -657,10 +657,10 @@ function renderAvgPowerChart(activities) {
     .sort((a, b) => new Date(a.start_date_local || a.start_date) - new Date(b.start_date_local || b.start_date));
 
   if (!powered.length) {
-    document.getElementById('avgPowerChart').parentElement.closest('.card').style.display = 'none';
+    document.getElementById('avgPowerCard').style.display = 'none';
     return;
   }
-  document.getElementById('avgPowerChart').parentElement.closest('.card').style.display = '';
+  document.getElementById('avgPowerCard').style.display = '';
 
   const labels = powered.map(a => fmtDate(a.start_date_local || a.start_date));
   const watts   = powered.map(a => Math.round(a.icu_weighted_avg_watts || a.average_watts || 0));

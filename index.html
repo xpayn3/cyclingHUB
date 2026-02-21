@@ -15,6 +15,7 @@
         />
         <link rel="stylesheet" href="styles.css" />
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+        <script src="app.js" defer></script>
     </head>
     <body>
         <!-- ============================================================  CONNECT MODAL  ============================================================ -->
@@ -83,7 +84,7 @@
                     </div>
 
                     <div class="field">
-                        <label>Athlete ID</label>
+                        <label for="inputAthleteId">Athlete ID</label>
                         <input
                             type="text"
                             id="inputAthleteId"
@@ -100,7 +101,7 @@
                     </div>
 
                     <div class="field">
-                        <label>API Key</label>
+                        <label for="inputApiKey">API Key</label>
                         <div class="input-with-toggle">
                             <input
                                 type="password"
@@ -597,26 +598,11 @@
                                 </div>
                                 <div class="chart-legend">
                                     <span class="chart-legend-item"
-                                        ><span
-                                            class="chart-legend-dot"
-                                            style="background: #00e5a0"
-                                        ></span
-                                        >CTL</span
-                                    >
+                                        ><span class="chart-legend-dot" style="background:var(--accent)"></span>CTL</span>
                                     <span class="chart-legend-item"
-                                        ><span
-                                            class="chart-legend-dot"
-                                            style="background: #ff6b35"
-                                        ></span
-                                        >ATL</span
-                                    >
+                                        ><span class="chart-legend-dot" style="background:var(--orange)"></span>ATL</span>
                                     <span class="chart-legend-item"
-                                        ><span
-                                            class="chart-legend-dot"
-                                            style="background: #4a9eff"
-                                        ></span
-                                        >TSB</span
-                                    >
+                                        ><span class="chart-legend-dot" style="background:var(--blue)"></span>TSB</span>
                                 </div>
                             </div>
                             <div class="chart-wrap">
@@ -695,12 +681,7 @@
                             </div>
                             <div class="chart-legend">
                                 <span class="chart-legend-item"
-                                    ><span
-                                        class="chart-legend-dot"
-                                        style="background: #00e5a0"
-                                    ></span
-                                    >Trend</span
-                                >
+                                    ><span class="chart-legend-dot" style="background:var(--accent)"></span>Trend</span>
                             </div>
                         </div>
                         <div class="chart-wrap">
@@ -963,38 +944,20 @@
                     <div class="fit-kpi-row">
                         <div class="fit-kpi-card">
                             <div class="fit-kpi-label">CTL</div>
-                            <div
-                                class="fit-kpi-value"
-                                id="fitCTL"
-                                style="color: var(--accent)"
-                            >
+                            <div class="fit-kpi-value fit-kpi-value--ctl" id="fitCTL">
                                 —
                             </div>
                             <div class="fit-kpi-name">Fitness</div>
                             <div class="fit-kpi-bar">
-                                <div
-                                    class="fit-kpi-bar-fill"
-                                    id="fitBarCTL"
-                                    style="background: var(--accent)"
-                                ></div>
+                                <div class="fit-kpi-bar-fill fit-kpi-bar-fill--ctl" id="fitBarCTL"></div>
                             </div>
                         </div>
                         <div class="fit-kpi-card">
                             <div class="fit-kpi-label">ATL</div>
-                            <div
-                                class="fit-kpi-value"
-                                id="fitATL"
-                                style="color: var(--orange)"
-                            >
-                                —
-                            </div>
+                            <div class="fit-kpi-value fit-kpi-value--atl" id="fitATL">—</div>
                             <div class="fit-kpi-name">Fatigue</div>
                             <div class="fit-kpi-bar">
-                                <div
-                                    class="fit-kpi-bar-fill"
-                                    id="fitBarATL"
-                                    style="background: var(--orange)"
-                                ></div>
+                                <div class="fit-kpi-bar-fill fit-kpi-bar-fill--atl" id="fitBarATL"></div>
                             </div>
                         </div>
                         <div class="fit-kpi-card">
@@ -1027,35 +990,14 @@
                                     Chronic (CTL) · Acute (ATL) · Form (TSB)
                                 </div>
                             </div>
-                            <div
-                                style="
-                                    display: flex;
-                                    align-items: center;
-                                    gap: 16px;
-                                "
-                            >
+                            <div class="card-header-controls">
                                 <div class="chart-legend">
                                     <span class="chart-legend-item"
-                                        ><span
-                                            class="chart-legend-dot"
-                                            style="background: #00e5a0"
-                                        ></span
-                                        >CTL</span
-                                    >
+                                        ><span class="chart-legend-dot" style="background:var(--accent)"></span>CTL</span>
                                     <span class="chart-legend-item"
-                                        ><span
-                                            class="chart-legend-dot"
-                                            style="background: #ff6b35"
-                                        ></span
-                                        >ATL</span
-                                    >
+                                        ><span class="chart-legend-dot" style="background:var(--orange)"></span>ATL</span>
                                     <span class="chart-legend-item"
-                                        ><span
-                                            class="chart-legend-dot"
-                                            style="background: #4a9eff"
-                                        ></span
-                                        >TSB</span
-                                    >
+                                        ><span class="chart-legend-dot" style="background:var(--blue)"></span>TSB</span>
                                 </div>
                                 <div class="fit-range-pills" id="fitRangePills">
                                     <button
@@ -1121,10 +1063,7 @@
                                 </div>
                             </div>
                             <div class="fit-monthly-wrap">
-                                <table
-                                    class="fit-monthly-table"
-                                    id="fitMonthlyTable"
-                                >
+                                <table class="fit-monthly-table">
                                     <thead>
                                         <tr>
                                             <th>Month</th>
@@ -1227,10 +1166,7 @@
                             </div>
                         </div>
 
-                        <div
-                            class="settings-section"
-                            id="settingsCredentialsSection"
-                        >
+                        <div class="settings-section">
                             <div class="settings-section-title">
                                 Saved Credentials
                             </div>
@@ -1374,6 +1310,5 @@
         <!-- TOAST -->
         <div class="toast-container" id="toastContainer"></div>
 
-        <script src="app.js" defer></script>
     </body>
 </html>
