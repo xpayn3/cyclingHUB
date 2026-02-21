@@ -37,6 +37,34 @@
     --pad-page: 14px;
     --gap-layout: 14px;
     --pad-card: 12px 12px;
+
+    /* ── Typography ──────────────────────────────────────────
+     --font-ui  : all UI text — body, labels, buttons, nav
+     --font-num : numbers, stats, data values, timecodes
+     Change these two to swap fonts globally.
+  ──────────────────────────────────────────────────────── */
+    --font-ui:  'Inter', system-ui, -apple-system, sans-serif;
+    --font-num: 'Inter', system-ui, -apple-system, sans-serif;
+
+    /* ── Font size scale ─────────────────────────────────────
+     Base html font-size: 15px
+     --text-2xs : micro labels, badges, superscripts  (~9px)
+     --text-xs  : label caps, secondary meta          (~11px)
+     --text-sm  : secondary body, sub-labels          (~12px)
+     --text-base: primary body                        (~13px)
+     --text-md  : card sub-values, row labels         (~15px)
+     --text-lg  : primary card values, chart axis     (~18px)
+     --text-xl  : hero stat values                    (~27px)
+     --text-2xl : largest display numbers             (~36px)
+  ──────────────────────────────────────────────────────── */
+    --text-2xs:  0.62rem;   /*  ~9px  — micro badges, superscripts    */
+    --text-xs:   0.72rem;   /* ~11px  — uppercase labels, meta info   */
+    --text-sm:   0.8rem;    /* ~12px  — secondary body, sub-labels    */
+    --text-base: 0.875rem;  /* ~13px  — primary body text             */
+    --text-md:   1rem;      /*  15px  — card sub-headings, row values */
+    --text-lg:   1.1rem;    /* ~17px  — section titles                */
+    --text-xl:   1.9rem;    /* ~28px  — primary stat values           */
+    --text-2xl:  2.2rem;    /* ~33px  — hero gauge numbers            */
 }
 
 /* ============================================================
@@ -55,7 +83,7 @@ html {
     max-width: 100%;
 }
 body {
-    font-family: "Inter", system-ui, sans-serif;
+    font-family: var(--font-ui);
     background: var(--bg-base);
     color: var(--text-primary);
     overflow-x: hidden;
@@ -82,7 +110,7 @@ select {
     font-family: inherit;
 }
 code {
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-num);
     font-size: 0.82em;
     background: var(--bg-elevated);
     border: 1px solid var(--border);
@@ -109,7 +137,6 @@ code {
     bottom: 0;
     z-index: 10;
     padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
     transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .sidebar-logo {
@@ -134,7 +161,7 @@ code {
     height: 18px;
 }
 .logo-text {
-    font-size: 1.05rem;
+    font-size: var(--text-lg);
     font-weight: 800;
     letter-spacing: -0.3px;
 }
@@ -150,7 +177,7 @@ code {
     overflow-y: auto;
 }
 .nav-section-label {
-    font-size: 0.68rem;
+    font-size: var(--text-xs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -167,7 +194,7 @@ code {
     padding: 9px 12px;
     border-radius: 8px;
     color: var(--text-secondary);
-    font-size: 0.875rem;
+    font-size: var(--text-base);
     font-weight: 500;
     transition:
         background var(--transition),
@@ -192,14 +219,16 @@ code {
     margin-left: auto;
     background: var(--accent);
     color: var(--bg-base);
-    font-size: 0.65rem;
+    font-size: var(--text-2xs);
     font-weight: 700;
     padding: 2px 7px;
     border-radius: 20px;
 }
 .sidebar-footer {
     padding: 14px 10px;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom));
     border-top: 1px solid var(--border);
+    background: var(--bg-surface);
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -226,7 +255,7 @@ code {
     flex: 1;
     justify-content: center;
     gap: 7px;
-    font-size: 0.8rem;
+    font-size: var(--text-sm);
     padding: 8px 10px;
 }
 .athlete-avatar {
@@ -237,7 +266,7 @@ code {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.75rem;
+    font-size: var(--text-sm);
     font-weight: 700;
     color: var(--bg-base);
     flex-shrink: 0;
@@ -247,14 +276,14 @@ code {
     min-width: 0;
 }
 .athlete-name {
-    font-size: 0.8rem;
+    font-size: var(--text-sm);
     font-weight: 600;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 .athlete-sub {
-    font-size: 0.68rem;
+    font-size: var(--text-xs);
     color: var(--text-muted);
 }
 .connection-dot {
@@ -321,7 +350,7 @@ code {
     line-height: 1.1;
 }
 .page-headline-sub {
-    font-size: 0.78rem;
+    font-size: var(--text-sm);
     color: var(--text-muted);
     margin-top: 4px;
 }
@@ -347,7 +376,7 @@ code {
     gap: 6px;
     padding: 7px 14px;
     border-radius: 8px;
-    font-size: 0.8rem;
+    font-size: var(--text-sm);
     font-weight: 600;
     transition: all var(--transition);
 }
@@ -410,7 +439,7 @@ code {
 }
 .date-range-pill button {
     padding: 6px 12px;
-    font-size: 0.78rem;
+    font-size: var(--text-sm);
     font-weight: 500;
     color: var(--text-secondary);
     transition: all var(--transition);
@@ -502,12 +531,12 @@ code {
     padding: 0 28px 28px;
 }
 .modal-title {
-    font-size: 1.1rem;
+    font-size: var(--text-lg);
     font-weight: 800;
     margin-bottom: 6px;
 }
 .modal-desc {
-    font-size: 0.82rem;
+    font-size: var(--text-sm);
     color: var(--text-secondary);
     line-height: 1.5;
     margin-bottom: 22px;
@@ -525,7 +554,7 @@ code {
 }
 .field label {
     display: block;
-    font-size: 0.75rem;
+    font-size: var(--text-sm);
     font-weight: 600;
     color: var(--text-secondary);
     margin-bottom: 6px;
@@ -539,7 +568,7 @@ code {
     border-radius: 9px;
     padding: 10px 14px;
     color: var(--text-primary);
-    font-size: 0.875rem;
+    font-size: var(--text-base);
     outline: none;
     transition:
         border-color var(--transition),
@@ -556,7 +585,7 @@ code {
     border-color: var(--red);
 }
 .field-hint {
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
     color: var(--text-muted);
     margin-top: 5px;
     line-height: 1.4;
@@ -565,7 +594,7 @@ code {
     color: var(--accent);
 }
 .field-error {
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
     color: var(--red);
     margin-top: 5px;
     display: none;
@@ -607,7 +636,7 @@ code {
     border-radius: 8px;
     padding: 12px 14px;
     margin-bottom: 20px;
-    font-size: 0.78rem;
+    font-size: var(--text-sm);
     line-height: 1.5;
     color: var(--text-secondary);
 }
@@ -626,7 +655,7 @@ code {
    STAT CARDS
 ============================================================ */
 .stat-grid-label {
-    font-size: 0.7rem;
+    font-size: var(--text-xs);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -641,7 +670,7 @@ code {
     text-transform: none;
     letter-spacing: 0;
     color: var(--text-secondary);
-    font-size: 0.68rem;
+    font-size: var(--text-xs);
 }
 .stat-grid {
     display: grid;
@@ -670,7 +699,7 @@ code {
     justify-content: space-between;
 }
 .stat-label {
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.07em;
@@ -705,21 +734,22 @@ code {
     color: var(--purple);
 }
 .stat-value {
-    font-size: 1.9rem;
+    font-size: var(--text-xl);
     font-weight: 800;
     letter-spacing: -1px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-num);
     line-height: 1;
 }
 .stat-value .unit {
-    font-size: 0.85rem;
+    font-size: var(--text-base);
     font-weight: 500;
     color: var(--text-secondary);
-    font-family: "Inter", sans-serif;
+    font-family: var(--font-ui);
     letter-spacing: 0;
 }
 .stat-delta {
-    font-size: 0.75rem;
+    font-family: var(--font-ui);
+    font-size: var(--text-sm);
     font-weight: 600;
     display: flex;
     align-items: center;
@@ -752,11 +782,11 @@ code {
     margin-bottom: 8px;
 }
 .card-title {
-    font-size: 0.9rem;
+    font-size: var(--text-base);
     font-weight: 700;
 }
 .card-subtitle {
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
     color: var(--text-muted);
     margin-top: 2px;
 }
@@ -822,7 +852,7 @@ code {
     text-align: center;
 }
 .gauge-label {
-    font-size: 0.68rem;
+    font-size: var(--text-xs);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.09em;
@@ -830,14 +860,14 @@ code {
     margin-bottom: 8px;
 }
 .gauge-value {
-    font-size: 2.2rem;
+    font-size: var(--text-2xl);
     font-weight: 800;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-num);
     letter-spacing: -1.5px;
     line-height: 1;
 }
 .gauge-name {
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
     color: var(--text-secondary);
     margin-top: 4px;
 }
@@ -879,7 +909,7 @@ code {
     margin-top: 16px;
 }
 .weekly-tss-label {
-    font-size: 0.75rem;
+    font-size: var(--text-sm);
     font-weight: 600;
     color: var(--text-muted);
     margin-bottom: 10px;
@@ -894,7 +924,7 @@ code {
 .chart-legend {
     display: flex;
     gap: 14px;
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
     color: var(--text-muted);
 }
 .chart-legend-item {
@@ -922,7 +952,7 @@ code {
 
 /* Range label shown in Training Load card header (replaces the pill) */
 .fitness-range-label {
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
     font-weight: 600;
     color: var(--text-muted);
     background: var(--bg-elevated);
@@ -954,7 +984,7 @@ code {
     margin-bottom: 4px;
 }
 .sort-label {
-    font-size: 0.68rem;
+    font-size: var(--text-xs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -966,7 +996,7 @@ code {
     border: 1px solid var(--border);
     border-radius: 20px;
     padding: 4px 11px;
-    font-size: 0.75rem;
+    font-size: var(--text-sm);
     font-weight: 500;
     color: var(--text-secondary);
     cursor: pointer;
@@ -986,7 +1016,7 @@ code {
     background: var(--accent-dim);
 }
 .sort-arrow {
-    font-size: 0.7rem;
+    font-size: var(--text-xs);
 }
 
 /* ---- Activity row — single horizontal line ---- */
@@ -1054,7 +1084,7 @@ code {
     overflow: hidden;
 }
 .act-card-name {
-    font-size: 0.85rem;
+    font-size: var(--text-base);
     font-weight: 700;
     letter-spacing: -0.2px;
     white-space: nowrap;
@@ -1068,7 +1098,7 @@ code {
     margin-top: 2px;
 }
 .act-card-date {
-    font-size: 0.68rem;
+    font-size: var(--text-xs);
     color: var(--text-muted);
 }
 .act-card-badge {
@@ -1076,7 +1106,7 @@ code {
     border: 1px solid var(--border);
     border-radius: 4px;
     padding: 1px 5px;
-    font-size: 0.6rem;
+    font-size: var(--text-2xs);
     font-weight: 600;
     letter-spacing: 0.04em;
     color: var(--text-secondary);
@@ -1084,11 +1114,11 @@ code {
 .activity-tss {
     padding: 2px 8px;
     border-radius: 20px;
-    font-size: 0.68rem;
+    font-size: var(--text-xs);
     font-weight: 700;
     background: var(--accent-dim);
     color: var(--accent);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-num);
     white-space: nowrap;
     flex-shrink: 0;
     line-height: 1.5;
@@ -1116,20 +1146,46 @@ code {
     padding-right: 0;
 }
 .act-stat-val {
-    font-size: 0.82rem;
+    font-size: var(--text-sm);
     font-weight: 800;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-num);
     letter-spacing: -0.5px;
     line-height: 1.2;
     white-space: nowrap;
 }
 .act-stat-lbl {
-    font-size: 0.56rem;
+    font-size: var(--text-2xs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.07em;
     color: var(--text-muted);
     margin-top: 1px;
+}
+
+/* Activity list — mobile: stack stats below the name */
+@media (max-width: 600px) {
+    .activity-row {
+        flex-wrap: wrap;
+        align-items: flex-start;
+    }
+    .act-card-info {
+        flex: 1;
+    }
+    .activity-tss {
+        margin-left: auto;
+    }
+    .act-card-stats {
+        flex-basis: 100%;
+        justify-content: space-between;
+        margin-top: 8px;
+        padding: 8px 0 0;
+        border-top: 1px solid var(--border);
+    }
+    .act-stat {
+        flex: 1;
+        align-items: center;
+        padding: 0 4px;
+    }
 }
 
 /* ============================================================
@@ -1149,7 +1205,7 @@ code {
     padding: 18px 20px 16px;
 }
 .fit-kpi-label {
-    font-size: 0.65rem;
+    font-size: var(--text-2xs);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
@@ -1157,19 +1213,19 @@ code {
     margin-bottom: 6px;
 }
 .fit-kpi-value {
-    font-size: 2.2rem;
+    font-size: var(--text-2xl);
     font-weight: 800;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-num);
     letter-spacing: -2px;
     line-height: 1;
 }
 .fit-kpi-name {
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
     color: var(--text-secondary);
     margin-top: 5px;
 }
 .fit-kpi-hint {
-    font-size: 0.68rem;
+    font-size: var(--text-xs);
     font-weight: 600;
     color: var(--text-muted);
     margin-top: 3px;
@@ -1220,7 +1276,7 @@ code {
     border-color: var(--border-active);
 }
 .fit-wcard-label {
-    font-size: 0.65rem;
+    font-size: var(--text-2xs);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
@@ -1231,20 +1287,20 @@ code {
     gap: 5px;
 }
 .fit-wcard-val {
-    font-size: 2rem;
+    font-size: var(--text-xl);
     font-weight: 800;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-num);
     letter-spacing: -1.5px;
     line-height: 1;
     color: var(--text-primary);
 }
 .fit-wcard-sub {
-    font-size: 0.68rem;
+    font-size: var(--text-xs);
     color: var(--text-muted);
     margin-top: 5px;
 }
 .fit-wcard-trend {
-    font-size: 0.9rem;
+    font-size: var(--text-base);
     font-weight: 700;
 }
 
@@ -1261,7 +1317,7 @@ code {
     background: none;
     border: none;
     color: var(--text-muted);
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
     font-weight: 600;
     padding: 3px 10px;
     border-radius: 6px;
@@ -1315,7 +1371,7 @@ code {
 .fit-hm-day-label {
     width: 14px;
     height: 12px;
-    font-size: 0.58rem;
+    font-size: var(--text-2xs);
     color: var(--text-muted);
     display: flex;
     align-items: center;
@@ -1327,7 +1383,7 @@ code {
 }
 .fit-hm-month-lbl {
     height: 16px;
-    font-size: 0.6rem;
+    font-size: var(--text-2xs);
     color: var(--text-muted);
     white-space: nowrap;
     margin-bottom: 2px;
@@ -1367,7 +1423,7 @@ code {
     display: flex;
     align-items: center;
     gap: 4px;
-    font-size: 0.65rem;
+    font-size: var(--text-2xs);
     color: var(--text-muted);
 }
 .fit-hm-swatch {
@@ -1422,11 +1478,11 @@ code {
 .fit-monthly-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.82rem;
+    font-size: var(--text-sm);
 }
 .fit-monthly-table thead th {
     text-align: left;
-    font-size: 0.63rem;
+    font-size: var(--text-2xs);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -1456,7 +1512,7 @@ code {
 .fit-tss-cell {
     color: var(--accent) !important;
     font-weight: 700;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-num);
 }
 
 /* ── Responsive ── */
@@ -1491,11 +1547,25 @@ code {
 /* ============================================================
    SETTINGS PAGE
 ============================================================ */
+.settings-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--gap-layout);
+    align-items: start;
+}
+.settings-col {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-layout);
+}
+@media (max-width: 860px) {
+    .settings-grid { grid-template-columns: 1fr; }
+}
 .settings-section {
-    margin-bottom: 28px;
+    margin-bottom: 16px;
 }
 .settings-section-title {
-    font-size: 0.8rem;
+    font-size: var(--text-sm);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.07em;
@@ -1506,28 +1576,28 @@ code {
     display: flex;
     align-items: center;
     gap: 16px;
-    padding: 14px 16px;
+    padding: 10px 12px;
     background: var(--bg-elevated);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    margin-bottom: 8px;
+    margin-bottom: 6px;
 }
 .settings-row-info {
     flex: 1;
 }
 .settings-row-label {
-    font-size: 0.85rem;
+    font-size: var(--text-base);
     font-weight: 600;
     margin-bottom: 2px;
 }
 .settings-row-sub {
-    font-size: 0.75rem;
+    font-size: var(--text-sm);
     color: var(--text-muted);
 }
 .settings-row-value {
-    font-size: 0.82rem;
+    font-size: var(--text-sm);
     color: var(--text-secondary);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-num);
     background: var(--bg-card);
     padding: 4px 10px;
     border-radius: 6px;
@@ -1539,7 +1609,7 @@ code {
     gap: 6px;
     padding: 4px 10px;
     border-radius: 20px;
-    font-size: 0.75rem;
+    font-size: var(--text-sm);
     font-weight: 600;
 }
 .connection-status-badge.connected {
@@ -1555,8 +1625,46 @@ code {
     gap: 10px;
     flex-wrap: wrap;
 }
+/* Avatar row */
+.settings-row--avatar { align-items: center; gap: 14px; }
+.avatar-preview-wrap {
+    position: relative;
+    flex-shrink: 0;
+}
+.avatar-preview {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--blue));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--bg-base);
+    overflow: hidden;
+    border: 2px solid var(--border);
+}
+.avatar-edit-btn {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--bg-elevated);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background var(--transition);
+}
+.avatar-edit-btn:hover { background: var(--text-primary); }
+.avatar-edit-btn svg { width: 11px; height: 11px; stroke: var(--bg-base); }
+.btn-sm { padding: 4px 10px; font-size: var(--text-sm); }
 .about-text {
-    font-size: 0.8rem;
+    font-size: var(--text-sm);
     color: var(--text-secondary);
     line-height: 1.6;
 }
@@ -1598,7 +1706,7 @@ code {
     }
 }
 .loading-text {
-    font-size: 0.85rem;
+    font-size: var(--text-base);
     color: var(--text-secondary);
 }
 .toast-container {
@@ -1615,7 +1723,7 @@ code {
     border: 1px solid var(--border);
     border-radius: 10px;
     padding: 12px 16px;
-    font-size: 0.82rem;
+    font-size: var(--text-sm);
     font-weight: 500;
     display: flex;
     align-items: center;
@@ -1662,7 +1770,7 @@ code {
     opacity: 0.35;
 }
 .empty-state p {
-    font-size: 0.85rem;
+    font-size: var(--text-base);
     line-height: 1.5;
 }
 .empty-state .btn {
@@ -1688,12 +1796,12 @@ code {
     gap: 0 !important;
 }
 
-/* Shell is fixed to fill the exact viewport area below the topbar and beside the sidebar */
+/* Shell is fixed to fill the exact viewport area (topbar hidden on calendar) */
 .cal-shell {
     position: fixed;
     left: var(--sidebar-w);
     right: 0;
-    top: calc(48px + env(safe-area-inset-top));
+    top: env(safe-area-inset-top);
     bottom: 0;
     z-index: 2;
     display: flex;
@@ -1720,7 +1828,7 @@ code {
     gap: 4px;
 }
 .cal-month-title {
-    font-size: 1.1rem;
+    font-size: var(--text-lg);
     font-weight: 800;
     letter-spacing: -0.4px;
     color: var(--text-primary);
@@ -1728,7 +1836,7 @@ code {
     text-align: center;
 }
 .cal-today-btn {
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
     font-weight: 600;
     color: var(--accent);
     background: var(--accent-dim);
@@ -1768,13 +1876,13 @@ code {
     align-self: stretch;
 }
 .cal-hstat-val {
-    font-size: 0.9rem;
+    font-size: var(--text-base);
     font-weight: 700;
     color: var(--text-primary);
     line-height: 1.15;
 }
 .cal-hstat-label {
-    font-size: 0.61rem;
+    font-size: var(--text-2xs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -1792,7 +1900,7 @@ code {
 .cal-dow-row > div {
     padding: 9px 0;
     text-align: center;
-    font-size: 0.66rem;
+    font-size: var(--text-2xs);
     font-weight: 600;
     color: var(--text-muted);
     text-transform: uppercase;
@@ -1846,7 +1954,7 @@ code {
 
 /* Day number badge */
 .cal-day-num {
-    font-size: 0.75rem;
+    font-size: var(--text-sm);
     font-weight: 600;
     color: var(--text-secondary);
     width: 24px;
@@ -1881,7 +1989,7 @@ code {
     transition:
         filter var(--transition),
         transform var(--transition);
-    font-size: 0.66rem;
+    font-size: var(--text-2xs);
     line-height: 1.3;
     border-left: 2px solid transparent;
     overflow: hidden;
@@ -1926,11 +2034,11 @@ code {
     overflow: hidden;
     text-overflow: ellipsis;
     color: var(--text-muted);
-    font-size: 0.61rem;
+    font-size: var(--text-2xs);
     margin-top: 1px;
 }
 .cal-more {
-    font-size: 0.61rem;
+    font-size: var(--text-2xs);
     color: var(--accent);
     padding: 1px 2px;
     font-weight: 600;
@@ -1971,9 +2079,9 @@ code {
     pointer-events: none;
 }
 .detail-nav-counter {
-    font-size: 0.7rem;
+    font-size: var(--text-xs);
     color: var(--text-muted);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-num);
     min-width: 46px;
     text-align: center;
     letter-spacing: 0.02em;
@@ -1998,7 +2106,7 @@ code {
     border: 1px solid var(--border);
     border-radius: 20px;
     padding: 2px 10px;
-    font-size: 0.65rem;
+    font-size: var(--text-2xs);
     font-weight: 700;
     letter-spacing: 0.07em;
     text-transform: uppercase;
@@ -2010,9 +2118,9 @@ code {
     color: var(--accent);
     border-radius: 20px;
     padding: 2px 10px;
-    font-size: 0.68rem;
+    font-size: var(--text-xs);
     font-weight: 700;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-num);
     letter-spacing: 0.04em;
     white-space: nowrap;
 }
@@ -2030,7 +2138,7 @@ code {
 
 /* date line */
 .act-hero-date {
-    font-size: 0.82rem;
+    font-size: var(--text-sm);
     color: var(--text-muted);
     margin-bottom: 24px;
     letter-spacing: 0.01em;
@@ -2061,7 +2169,7 @@ code {
 .act-pstat-val {
     font-size: clamp(1.55rem, 3vw, 2.1rem);
     font-weight: 900;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-num);
     letter-spacing: -1.5px;
     line-height: 1;
     color: var(--text-primary);
@@ -2071,7 +2179,7 @@ code {
     color: var(--accent);
 }
 .act-pstat-lbl {
-    font-size: 0.6rem;
+    font-size: var(--text-2xs);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.09em;
@@ -2136,16 +2244,16 @@ code {
 .act-sstat-icon.red    { background: rgba(255,71,87,0.12);       color: var(--red); }
 .act-sstat-icon.yellow { background: var(--yellow-dim);          color: var(--yellow); }
 .act-sstat-val {
-    font-size: 1.1rem;
+    font-size: var(--text-lg);
     font-weight: 800;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-num);
     letter-spacing: -0.5px;
     color: var(--text-primary);
     white-space: nowrap;
     line-height: 1;
 }
 .act-sstat-lbl {
-    font-size: 0.6rem;
+    font-size: var(--text-2xs);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.07em;
@@ -2192,40 +2300,40 @@ code {
     border-bottom: none;
 }
 .detail-zone-tag {
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
     font-weight: 700;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-num);
     min-width: 26px;
     letter-spacing: 0.03em;
 }
 .detail-zone-name {
-    font-size: 0.78rem;
+    font-size: var(--text-sm);
     color: var(--text-muted);
     min-width: 86px;
 }
 .detail-zone-bar-track {
     flex: 1;
-    height: 5px;
+    height: 10px;
     background: rgba(255, 255, 255, 0.06);
-    border-radius: 3px;
+    border-radius: 6px;
     overflow: hidden;
 }
 .detail-zone-bar-fill {
     height: 100%;
-    border-radius: 3px;
+    border-radius: 6px;
     transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .detail-zone-time {
-    font-size: 0.76rem;
+    font-size: var(--text-xs);
     color: var(--text-secondary);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-num);
     min-width: 52px;
     text-align: right;
 }
 .detail-zone-pct {
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
     font-weight: 600;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-num);
     min-width: 38px;
     text-align: right;
 }
@@ -2235,7 +2343,7 @@ code {
     }
     .detail-zone-time {
         min-width: 44px;
-        font-size: 0.7rem;
+        font-size: var(--text-xs);
     }
 }
 
@@ -2246,7 +2354,7 @@ code {
     gap: 12px;
     padding: 28px;
     color: var(--text-muted);
-    font-size: 0.85rem;
+    font-size: var(--text-base);
 }
 .detail-charts-loading .spinner {
     width: 20px;
@@ -2264,9 +2372,9 @@ code {
     border: 1px solid var(--accent-glow);
     border-radius: 20px;
     padding: 3px 12px;
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
     font-weight: 700;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-num);
     white-space: nowrap;
     flex-shrink: 0;
 }
@@ -2281,15 +2389,15 @@ code {
     gap: 10px;
 }
 .zone-tag {
-    font-size: 0.67rem;
+    font-size: var(--text-2xs);
     font-weight: 800;
     letter-spacing: 0.04em;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-num);
     width: 22px;
     flex-shrink: 0;
 }
 .zone-row-name {
-    font-size: 0.78rem;
+    font-size: var(--text-sm);
     font-weight: 500;
     color: var(--text-secondary);
     width: 74px;
@@ -2297,26 +2405,26 @@ code {
 }
 .zone-bar-track {
     flex: 1;
-    height: 6px;
+    height: 10px;
     background: var(--bg-elevated);
-    border-radius: 3px;
+    border-radius: 6px;
     overflow: hidden;
 }
 .zone-bar-fill {
     height: 100%;
-    border-radius: 3px;
+    border-radius: 6px;
     transition: width 0.7s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .zone-pct {
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
     font-weight: 700;
     width: 34px;
     text-align: right;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-num);
     flex-shrink: 0;
 }
 .zone-time {
-    font-size: 0.67rem;
+    font-size: var(--text-2xs);
     color: var(--text-muted);
     width: 46px;
     text-align: right;
@@ -2329,7 +2437,7 @@ code {
     border-top: 1px solid var(--border);
 }
 .zone-balance-label {
-    font-size: 0.63rem;
+    font-size: var(--text-2xs);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.09em;
@@ -2347,7 +2455,7 @@ code {
     transition: width 0.7s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .zone-style-hint {
-    font-size: 0.73rem;
+    font-size: var(--text-xs);
     color: var(--text-muted);
     margin-top: 9px;
 }
@@ -2374,25 +2482,25 @@ code {
     text-align: center;
 }
 .curve-peak-val {
-    font-size: 1.1rem;
+    font-size: var(--text-lg);
     font-weight: 700;
     color: var(--accent);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-num);
     line-height: 1;
 }
 .curve-peak-unit {
-    font-size: 0.7rem;
+    font-size: var(--text-xs);
     font-weight: 500;
     margin-left: 1px;
     opacity: 0.7;
 }
 .curve-peak-dur {
-    font-size: 0.63rem;
+    font-size: var(--text-2xs);
     color: var(--text-muted);
     margin-top: 5px;
     text-transform: uppercase;
     letter-spacing: 0.07em;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-num);
 }
 
 /* ============================================================
@@ -2422,12 +2530,12 @@ code {
 }
 @media (max-width: 600px) {
     .cal-dow-row > div {
-        font-size: 0.58rem;
+        font-size: var(--text-2xs);
         letter-spacing: 0;
     }
     .cal-month-title {
         min-width: 130px;
-        font-size: 0.95rem;
+        font-size: var(--text-base);
     }
     .cal-day {
         padding: 4px 2px;
@@ -2435,7 +2543,7 @@ code {
     .cal-day-num {
         width: 20px;
         height: 20px;
-        font-size: 0.68rem;
+        font-size: var(--text-xs);
     }
 }
 /* ── Backdrop: always in DOM, invisible + non-interactive when closed ── */
@@ -2553,7 +2661,7 @@ code {
     border-radius: var(--radius);
     color: var(--text-primary);
     font-family: inherit;
-    font-size: 1.15rem;
+    font-size: var(--text-lg);
     font-weight: 700;
     padding: 9px 14px;
     outline: none;
@@ -2575,13 +2683,13 @@ code {
     line-height: 1.1;
 }
 .wrk-stat-val {
-    font-size: 1.05rem;
+    font-size: var(--text-lg);
     font-weight: 700;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-num);
     color: var(--text-primary);
 }
 .wrk-stat-lbl {
-    font-size: 0.68rem;
+    font-size: var(--text-xs);
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -2593,7 +2701,7 @@ code {
 }
 .wrk-clear-btn {
     flex-shrink: 0;
-    font-size: 0.82rem;
+    font-size: var(--text-sm);
     padding: 7px 14px;
 }
 
@@ -2615,7 +2723,7 @@ code {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.9rem;
+    font-size: var(--text-base);
     color: var(--text-muted);
     pointer-events: none;
 }
@@ -2627,7 +2735,7 @@ code {
     gap: 6px;
 }
 .wrk-ftp-label {
-    font-size: 0.8rem;
+    font-size: var(--text-sm);
     color: var(--text-secondary);
     white-space: nowrap;
 }
@@ -2638,7 +2746,7 @@ code {
     border-radius: var(--radius);
     color: var(--text-primary);
     font-family: inherit;
-    font-size: 0.88rem;
+    font-size: var(--text-base);
     padding: 5px 8px;
     outline: none;
     transition: border-color var(--transition);
@@ -2647,7 +2755,7 @@ code {
     border-color: var(--accent);
 }
 .wrk-ftp-unit {
-    font-size: 0.8rem;
+    font-size: var(--text-sm);
     color: var(--text-muted);
 }
 
@@ -2661,7 +2769,7 @@ code {
 .wrk-list-empty {
     text-align: center;
     color: var(--text-muted);
-    font-size: 0.88rem;
+    font-size: var(--text-base);
     padding: 24px 0;
 }
 .wrk-seg-wrap {
@@ -2699,13 +2807,13 @@ code {
     min-width: 0;
 }
 .wrk-seg-type {
-    font-size: 0.88rem;
+    font-size: var(--text-base);
     font-weight: 600;
     color: var(--text-primary);
     text-transform: capitalize;
 }
 .wrk-seg-detail {
-    font-size: 0.78rem;
+    font-size: var(--text-sm);
     color: var(--text-secondary);
     white-space: nowrap;
     overflow: hidden;
@@ -2723,7 +2831,7 @@ code {
     background: var(--bg-card);
     border: 1px solid var(--border);
     color: var(--text-secondary);
-    font-size: 0.9rem;
+    font-size: var(--text-base);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2762,7 +2870,7 @@ code {
     flex-wrap: wrap;
 }
 .wrk-edit-row label {
-    font-size: 0.78rem;
+    font-size: var(--text-sm);
     color: var(--text-secondary);
     min-width: 80px;
     flex-shrink: 0;
@@ -2780,7 +2888,7 @@ code {
     border-radius: 6px;
     color: var(--text-primary);
     font-family: inherit;
-    font-size: 0.88rem;
+    font-size: var(--text-base);
     padding: 5px 8px;
     outline: none;
     transition: border-color var(--transition);
@@ -2789,7 +2897,7 @@ code {
     border-color: var(--accent);
 }
 .wrk-dur-inputs span {
-    font-size: 0.78rem;
+    font-size: var(--text-sm);
     color: var(--text-muted);
 }
 .wrk-power-input {
@@ -2804,9 +2912,9 @@ code {
     min-width: 80px;
 }
 .wrk-power-badge {
-    font-size: 0.78rem;
+    font-size: var(--text-sm);
     font-weight: 700;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-num);
     padding: 3px 8px;
     border-radius: 20px;
     color: #fff;
@@ -2825,7 +2933,7 @@ code {
     margin-top: 6px;
 }
 .wrk-add-btn {
-    font-size: 0.82rem;
+    font-size: var(--text-sm);
     padding: 6px 14px;
     border-radius: 20px;
     border: 1px solid var(--border);
@@ -2854,12 +2962,12 @@ code {
     min-width: 0;
 }
 .wrk-export-title {
-    font-size: 0.95rem;
+    font-size: var(--text-base);
     font-weight: 600;
     color: var(--text-primary);
 }
 .wrk-export-sub {
-    font-size: 0.78rem;
+    font-size: var(--text-sm);
     color: var(--text-muted);
     margin-top: 3px;
     line-height: 1.5;
@@ -2871,7 +2979,7 @@ code {
     flex-wrap: wrap;
 }
 .wrk-export-btns .btn {
-    font-size: 0.85rem;
+    font-size: var(--text-base);
     padding: 8px 18px;
 }
 
@@ -2902,7 +3010,7 @@ code {
     border-radius: var(--radius);
     color: var(--text-secondary);
     font-family: inherit;
-    font-size: 0.82rem;
+    font-size: var(--text-sm);
     font-weight: 500;
     padding: 6px 30px 6px 12px;
     cursor: pointer;
@@ -2940,7 +3048,7 @@ code {
     gap: 4px;
 }
 .wkp-toggle-btn {
-    font-size: 0.69rem;
+    font-size: var(--text-2xs);
     font-weight: 600;
     padding: 4px 10px;
     border-radius: 20px;
@@ -2995,7 +3103,7 @@ code {
     flex-shrink: 0;
 }
 .wkp-stat-label {
-    font-size: 0.68rem;
+    font-size: var(--text-xs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -3003,6 +3111,7 @@ code {
     margin-bottom: 5px;
 }
 .wkp-stat-val {
+    font-family: var(--font-num);
     font-size: 1.65rem;
     font-weight: 700;
     line-height: 1;
@@ -3011,16 +3120,18 @@ code {
     margin-bottom: 4px;
 }
 .wkp-stat-delta {
-    font-size: 0.76rem;
+    font-family: var(--font-num);
+    font-size: var(--text-xs);
     font-weight: 600;
     color: var(--accent);
 }
 .wkp-stat-sub {
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
     color: var(--text-muted);
 }
 .wkp-ctl-delta {
-    font-size: 1.05rem;
+    font-family: var(--font-num);
+    font-size: var(--text-lg);
     font-weight: 700;
     line-height: 1.2;
     color: var(--text-primary);
@@ -3029,7 +3140,7 @@ code {
 }
 .wkp-badge {
     display: inline-block;
-    font-size: 0.7rem;
+    font-size: var(--text-xs);
     font-weight: 700;
     padding: 3px 9px;
     border-radius: 20px;
@@ -3053,7 +3164,7 @@ code {
         font-size: 1.25rem;
     }
     .wkp-ctl-delta {
-        font-size: 0.88rem;
+        font-size: var(--text-base);
     }
 }
 
@@ -3081,6 +3192,7 @@ code {
 .trs-form-wrap {
     flex: 1;
     min-width: 0;
+    container-type: inline-size;
     background: var(--bg-elevated);
     border: 1px solid var(--border);
     border-radius: var(--radius);
@@ -3092,7 +3204,7 @@ code {
 }
 .trs-fitness-row {
     display: flex;
-    align-items: flex-end;
+    align-items: flex-start;
     gap: 0;
 }
 .trs-fitness-metric {
@@ -3111,7 +3223,7 @@ code {
     flex-shrink: 0;
 }
 .trs-metric-label {
-    font-size: 0.68rem;
+    font-size: var(--text-xs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -3125,6 +3237,7 @@ code {
     position: relative;
     width: 100%;
     max-width: 200px;
+    container-type: inline-size;
 }
 .trs-gauge-svg {
     width: 100%;
@@ -3132,22 +3245,24 @@ code {
 }
 .trs-gauge-overlay {
     position: absolute;
-    bottom: 4px;
+    bottom: 6%;
     left: 50%;
     transform: translateX(-50%);
     text-align: center;
     pointer-events: none;
     white-space: nowrap;
+    width: 100%;
 }
 .trs-gauge-num {
-    font-size: 1.5rem;
+    font-family: var(--font-num);
+    font-size: clamp(1.1rem, 12cqw, 2rem);
     font-weight: 700;
     line-height: 1;
     color: var(--text-primary);
     font-variant-numeric: tabular-nums;
 }
 .trs-gauge-unit {
-    font-size: 0.65rem;
+    font-size: clamp(0.55rem, 3cqw, var(--text-2xs));
     color: var(--text-muted);
     margin-top: 2px;
     letter-spacing: 0.04em;
@@ -3155,7 +3270,7 @@ code {
 /* Reusable badge used for ramp zone labels */
 .trs-badge {
     display: inline-block;
-    font-size: 0.7rem;
+    font-size: var(--text-xs);
     font-weight: 700;
     padding: 3px 9px;
     border-radius: 20px;
@@ -3184,18 +3299,24 @@ code {
 }
 /* Form/TSB values */
 .trs-form-num {
-    font-size: 2.2rem;
+    font-family: var(--font-num);
+    font-size: clamp(1.6rem, 6cqw, 2.8rem);
     font-weight: 700;
     line-height: 1;
     font-variant-numeric: tabular-nums;
     margin: 2px 0 4px;
 }
 .trs-form-status {
-    font-size: 0.85rem;
+    display: inline-block;
+    font-size: var(--text-sm);
     font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 20px;
+    letter-spacing: 0.02em;
+    margin-top: 2px;
 }
 .trs-form-hint {
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
     color: var(--text-muted);
     margin-top: 2px;
 }
@@ -3219,13 +3340,13 @@ code {
     flex-shrink: 0;
 }
 #trsEFCurrent {
-    font-size: 0.92rem;
+    font-size: var(--text-base);
     font-weight: 700;
     color: var(--text-primary);
     font-variant-numeric: tabular-nums;
 }
 #trsEFDelta {
-    font-size: 0.78rem;
+    font-size: var(--text-sm);
     font-weight: 600;
     color: var(--accent);
 }
@@ -3233,7 +3354,7 @@ code {
     height: 72px;
 }
 .trs-ef-footer {
-    font-size: 0.67rem;
+    font-size: var(--text-2xs);
     color: var(--text-muted);
     text-align: center;
     margin-top: 5px;
@@ -3251,8 +3372,163 @@ code {
 /* Note shown below the activities list for placeholder/no-data entries */
 .act-empty-note {
     text-align: center;
-    font-size: 0.78rem;
+    font-size: var(--text-sm);
     color: var(--text-muted);
     padding: 10px 16px 6px;
     letter-spacing: 0.01em;
+}
+
+/* ============================================================
+   TRAINING GUIDE PAGE
+============================================================ */
+.guide-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--gap-layout);
+    align-items: start;
+}
+
+/* Intro banner spans full width */
+.guide-intro-card {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+}
+.guide-intro-icon {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: var(--accent-dim);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.guide-intro-icon svg { width: 22px; height: 22px; }
+.guide-intro-title {
+    font-size: var(--text-lg);
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+.guide-intro-sub {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+/* Individual metric cards */
+.guide-metric-card {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.guide-metric-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.guide-metric-badge {
+    font-family: var(--font-num);
+    font-size: var(--text-lg);
+    font-weight: 700;
+    padding: 6px 14px;
+    border-radius: 10px;
+    letter-spacing: -0.5px;
+    flex-shrink: 0;
+}
+.guide-metric-name {
+    font-size: var(--text-base);
+    font-weight: 700;
+}
+.guide-metric-aka {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    margin-top: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+.guide-metric-desc {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    line-height: 1.65;
+}
+
+/* Zone bars */
+.guide-zones {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    background: var(--bg-elevated);
+    border-radius: var(--radius);
+    padding: 12px;
+}
+.guide-zone-row {
+    display: grid;
+    grid-template-columns: 64px minmax(80px, max-content) 1fr;
+    align-items: center;
+    gap: 10px;
+}
+.guide-zone-bar {
+    height: 4px;
+    border-radius: 2px;
+    max-width: 100%;
+}
+.guide-zone-label {
+    font-family: var(--font-num);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+.guide-zone-desc {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+}
+
+/* Tip row */
+.guide-tip {
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+    background: var(--bg-elevated);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 8px 12px;
+    line-height: 1.5;
+}
+
+/* Quick reference card spans full width */
+.guide-ref-card {
+    grid-column: 1 / -1;
+}
+.guide-ref-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--gap-layout);
+    margin-top: 4px;
+}
+.guide-ref-item {
+    background: var(--bg-elevated);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+}
+.guide-ref-label {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+.guide-ref-val {
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+@media (max-width: 700px) {
+    .guide-grid {
+        grid-template-columns: 1fr;
+    }
+    .guide-ref-grid {
+        grid-template-columns: 1fr;
+    }
 }

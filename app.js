@@ -33,7 +33,7 @@ const state = {
   synced: false,
   activitiesSort: 'date',
   activitiesSortDir: 'desc',
-  activitiesYear: null   // null = all years; number = filter to that year
+  activitiesYear: new Date().getFullYear()   // default to current year; null = all years
 };
 
 const ICU_BASE = 'https://intervals.icu/api/v1';
@@ -380,6 +380,69 @@ function disconnect() {
   showToast('Disconnected', 'info');
 }
 
+/* ====================================================
+   PROFILE PICTURE
+==================================================== */
+function loadAvatar() {
+  const stored = localStorage.getItem('icu_avatar');
+  applyAvatar(stored);
+}
+
+function applyAvatar(dataUrl) {
+  const sidebarAv  = document.getElementById('athleteAvatar');
+  const previewAv  = document.getElementById('avatarPreview');
+  const removeBtn  = document.getElementById('avatarRemoveBtn');
+  if (dataUrl) {
+    const img = `<img src="${dataUrl}" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+    if (sidebarAv) { sidebarAv.innerHTML = img; sidebarAv.style.background = 'none'; }
+    if (previewAv) { previewAv.innerHTML = img; previewAv.style.background = 'none'; }
+    if (removeBtn) removeBtn.style.display = 'inline-flex';
+  } else {
+    // Revert to initials
+    const aName = state.athlete ? (state.athlete.name || state.athlete.firstname || '?') : '?';
+    const initial = aName[0].toUpperCase();
+    if (sidebarAv) { sidebarAv.textContent = initial; sidebarAv.style.background = ''; }
+    if (previewAv) { previewAv.textContent = initial; previewAv.style.background = ''; }
+    if (removeBtn) removeBtn.style.display = 'none';
+  }
+}
+
+function handleAvatarUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { showToast('Please select an image file', 'error'); return; }
+  const reader = new FileReader();
+  reader.onload = ev => {
+    // Downscale to max 200×200 to keep localStorage usage small
+    const img = new Image();
+    img.onload = () => {
+      const size = 200;
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      // Cover-crop: centre the image
+      const scale = Math.max(size / img.width, size / img.height);
+      const sw = size / scale, sh = size / scale;
+      const sx = (img.width - sw) / 2, sy = (img.height - sh) / 2;
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, size, size);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+      localStorage.setItem('icu_avatar', dataUrl);
+      applyAvatar(dataUrl);
+      showToast('Profile photo updated', 'success');
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+  // Reset input so the same file can be re-selected
+  e.target.value = '';
+}
+
+function removeAvatar() {
+  localStorage.removeItem('icu_avatar');
+  applyAvatar(null);
+  showToast('Profile photo removed', 'info');
+}
+
 // Force a full re-fetch from scratch, ignoring any cached activities.
 // Useful when activities appear missing, especially on the 1-year view.
 function forceFullSync() {
@@ -405,16 +468,56 @@ function updateConnectionUI(connected) {
   const skey  = document.getElementById('settingsApiKey');
 
   if (connected && state.athlete) {
-    const aName = state.athlete.name || state.athlete.firstname || 'Athlete';
-    dot.className  = 'connection-dot connected';
+    const a = state.athlete;
+    const aName = a.name || a.firstname || 'Athlete';
+    dot.className    = 'connection-dot connected';
     name.textContent = aName;
-    sub.textContent  = state.athlete.city || 'intervals.icu';
+    sub.textContent  = a.city || 'intervals.icu';
     av.textContent   = aName[0].toUpperCase();
     lbl.textContent  = 'Reconnect';
     badge.className  = 'connection-status-badge connected';
     btext.textContent = 'Connected';
     sid.textContent  = state.athleteId || '—';
     skey.textContent = state.apiKey ? '••••••••' + state.apiKey.slice(-4) : '—';
+
+    // Athlete profile card
+    const el = id => document.getElementById(id);
+    if (el('settingsAthleteName')) el('settingsAthleteName').textContent = aName;
+    if (el('settingsFTP'))    el('settingsFTP').textContent    = a.ftp   ? a.ftp + ' W'   : '—';
+    if (el('settingsLTHR'))   el('settingsLTHR').textContent   = a.lthr  ? a.lthr + ' bpm': '—';
+    if (el('settingsWeight')) el('settingsWeight').textContent = a.weight ? a.weight + ' kg' : '—';
+    const loc = [a.city, a.country].filter(Boolean).join(', ');
+    if (el('settingsLocation')) el('settingsLocation').textContent = loc || '—';
+
+    // Sync avatar preview with whatever is stored (photo or initial)
+    applyAvatar(localStorage.getItem('icu_avatar'));
+
+    // Data & sync card
+    const lastSync = localStorage.getItem('icu_last_sync');
+    if (el('settingsLastSync')) {
+      if (lastSync) {
+        const diff = Math.round((Date.now() - new Date(lastSync)) / 60000);
+        el('settingsLastSync').textContent = diff < 1 ? 'Just now'
+          : diff < 60 ? `${diff} min ago`
+          : diff < 1440 ? `${Math.round(diff / 60)} hr ago`
+          : new Date(lastSync).toLocaleDateString();
+      } else {
+        el('settingsLastSync').textContent = 'Never';
+      }
+    }
+    if (el('settingsActivityCount')) {
+      el('settingsActivityCount').textContent = state.activities.length
+        ? state.activities.length.toLocaleString() + ' activities'
+        : '—';
+    }
+    if (el('settingsCacheSize')) {
+      try {
+        const bytes = new Blob([localStorage.getItem('icu_activities_cache') || '']).size;
+        el('settingsCacheSize').textContent = bytes > 1048576
+          ? (bytes / 1048576).toFixed(1) + ' MB'
+          : (bytes / 1024).toFixed(0) + ' KB';
+      } catch { el('settingsCacheSize').textContent = '—'; }
+    }
   } else {
     dot.className   = 'connection-dot disconnected';
     name.textContent = 'Not connected';
@@ -425,6 +528,11 @@ function updateConnectionUI(connected) {
     btext.textContent = 'Not connected';
     sid.textContent  = '—';
     skey.textContent = '—';
+    ['settingsAthleteName','settingsFTP','settingsLTHR','settingsWeight','settingsLocation',
+     'settingsLastSync','settingsActivityCount','settingsCacheSize'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = '—';
+    });
   }
 }
 
@@ -464,7 +572,8 @@ function navigate(page) {
     power:      ['Power Curve', 'Best efforts across durations'],
     zones:      ['Training Zones', 'Time in zone breakdown'],
     settings:   ['Settings', 'Account & connection'],
-    workout:    ['Create Workout', 'Build & export custom cycling workouts']
+    workout:    ['Create Workout', 'Build & export custom cycling workouts'],
+    guide:      ['Training Guide', 'Understanding CTL · ATL · TSB & training load']
   };
   const [title, sub] = info[page] || ['CycleIQ', ''];
   document.getElementById('pageTitle').textContent    = title;
@@ -476,17 +585,63 @@ function navigate(page) {
 
   // Show topbar range pill only on pages where it makes sense
   const pill = document.getElementById('dateRangePill');
-  if (pill) pill.style.display = (page === 'dashboard' || page === 'activities') ? 'flex' : 'none';
+  if (pill) pill.style.display = (page === 'dashboard') ? 'flex' : 'none';
 
-  // Restore topbar + page headline when navigating away from the activity page
-  document.querySelector('.topbar')?.classList.remove('topbar--hidden');
-  document.querySelector('.page-headline')?.classList.remove('page-headline--hidden');
+  // Hide topbar + headline on calendar (full-viewport layout) and activity pages
+  const isFullViewport = (page === 'calendar');
+  document.querySelector('.topbar')?.classList.toggle('topbar--hidden', isFullViewport);
+  document.querySelector('.page-headline')?.classList.toggle('page-headline--hidden', isFullViewport);
 
   if (page === 'calendar') renderCalendar();
   if (page === 'fitness')  renderFitnessPage();
   if (page === 'workout')  { wrkRefreshStats(); wrkRender(); }
 
   window.scrollTo(0, 0);
+}
+
+/* ====================================================
+   UNITS  (metric / imperial)
+==================================================== */
+function loadUnits() {
+  state.units = localStorage.getItem('icu_units') || 'metric';
+}
+
+function setUnits(units) {
+  state.units = units;
+  localStorage.setItem('icu_units', units);
+  document.querySelectorAll('[data-units]').forEach(btn =>
+    btn.classList.toggle('active', btn.dataset.units === units)
+  );
+  const elevEl = document.getElementById('settingsElevUnit');
+  if (elevEl) elevEl.textContent = units === 'imperial' ? 'feet' : 'metres';
+  if (state.synced) {
+    renderDashboard();
+    if (state.currentPage === 'activities') renderActivityList();
+  }
+}
+
+// Distance: input in metres, returns { val, unit }
+function fmtDist(metres) {
+  if (state.units === 'imperial') {
+    return { val: (metres / 1609.344).toFixed(1), unit: 'mi' };
+  }
+  return { val: (metres / 1000).toFixed(1), unit: 'km' };
+}
+
+// Speed: input in m/s, returns { val, unit }
+function fmtSpeed(ms) {
+  if (state.units === 'imperial') {
+    return { val: (ms * 2.23694).toFixed(1), unit: 'mph' };
+  }
+  return { val: (ms * 3.6).toFixed(1), unit: 'km/h' };
+}
+
+// Elevation: input in metres, returns { val, unit }
+function fmtElev(metres) {
+  if (state.units === 'imperial') {
+    return { val: Math.round(metres * 3.28084).toLocaleString(), unit: 'ft' };
+  }
+  return { val: Math.round(metres).toLocaleString(), unit: 'm' };
 }
 
 /* ====================================================
@@ -518,11 +673,18 @@ function setRange(days) {
   // Sync topbar pill
   document.querySelectorAll('#dateRangePill button').forEach(b => b.classList.remove('active'));
   document.getElementById('range' + days)?.classList.add('active');
+  // Sync settings default-range pill
+  document.querySelectorAll('[data-defrange]').forEach(b =>
+    b.classList.toggle('active', parseInt(b.dataset.defrange) === days)
+  );
   // Update Training Load card range label
   const lbl = document.getElementById('fitnessRangeLabel');
   if (lbl) lbl.textContent = rangeLabel(days);
   if (state.synced) renderDashboard();
 }
+
+// Alias used by the settings page default-range buttons
+function setDefaultRange(days) { setRange(days); }
 
 /* ====================================================
    ACTIVITIES SORT
@@ -1261,8 +1423,12 @@ function renderTrainingStatus() {
     else                { fLabel = 'Overreaching';  fColor = '#ff4757'; fHint = 'Recovery needed soon'; }
 
     formNumEl.style.color = fColor;
-    if (formStat) { formStat.textContent = fLabel; formStat.style.color = fColor; }
-    if (formHint) formHint.textContent   = fHint;
+    if (formStat) {
+      formStat.textContent = fLabel;
+      formStat.style.color = fColor;
+      formStat.style.background = fColor + '22';
+    }
+    if (formHint) formHint.textContent = fHint;
   }
 
   // ── AEROBIC EFFICIENCY sparkline ───────────────────────────
@@ -1965,6 +2131,8 @@ function renderFitnessPage() {
     const ramp = state.fitness.rampRate;
 
     document.getElementById('fitCTL').textContent = Math.round(ctl);
+    const sidebarCTL = document.getElementById('sidebarCTL');
+    if (sidebarCTL) sidebarCTL.textContent = `CTL ${Math.round(ctl)}`;
     document.getElementById('fitATL').textContent = Math.round(atl);
 
     const tsbEl  = document.getElementById('fitTSB');
@@ -3151,7 +3319,7 @@ function copySetupLink() {
    INIT
 ==================================================== */
 const savedRange = parseInt(localStorage.getItem('icu_range_days'));
-if ([7, 30, 90, 365].includes(savedRange)) {
+if ([7, 14, 30, 60, 90, 365].includes(savedRange)) {
   state.rangeDays = savedRange;
   document.querySelectorAll('#dateRangePill button').forEach(b => b.classList.remove('active'));
   document.getElementById('range' + savedRange)?.classList.add('active');
@@ -3159,6 +3327,10 @@ if ([7, 30, 90, 365].includes(savedRange)) {
 // Init Training Load range label
 const initRangeLabel = document.getElementById('fitnessRangeLabel');
 if (initRangeLabel) initRangeLabel.textContent = rangeLabel(state.rangeDays);
+// Sync settings default-range buttons
+document.querySelectorAll('[data-defrange]').forEach(b =>
+  b.classList.toggle('active', parseInt(b.dataset.defrange) === state.rangeDays)
+);
 
 const savedWeekStart = parseInt(localStorage.getItem('icu_week_start_day'));
 if (savedWeekStart === 0 || savedWeekStart === 1) {
@@ -3167,6 +3339,16 @@ if (savedWeekStart === 0 || savedWeekStart === 1) {
 document.querySelectorAll('[data-weekstart]').forEach(btn => {
   btn.classList.toggle('active', parseInt(btn.dataset.weekstart) === state.weekStartDay);
 });
+
+// Load units preference
+loadUnits();
+// Load saved profile picture
+loadAvatar();
+document.querySelectorAll('[data-units]').forEach(btn =>
+  btn.classList.toggle('active', btn.dataset.units === state.units)
+);
+const elevEl = document.getElementById('settingsElevUnit');
+if (elevEl) elevEl.textContent = state.units === 'imperial' ? 'feet' : 'metres';
 
 // Capture any saved route before navigate('dashboard') overwrites sessionStorage
 const _initRoute = (() => { try { return JSON.parse(sessionStorage.getItem('icu_route')); } catch { return null; } })();
@@ -3202,7 +3384,7 @@ if (hasCredentials) {
     updateConnectionUI(false);
   }
   // Restore the page the user was on before refresh
-  const _validPages = ['dashboard','activities','calendar','fitness','power','zones','settings','workout'];
+  const _validPages = ['dashboard','activities','calendar','fitness','power','zones','settings','workout','guide'];
   if (_initRoute && _initRoute.type === 'activity' && _initRoute.actId) {
     // Find by ID directly — _actLookup may not be built yet so search state.activities
     const _restoredAct = state.activities.find(a => String(a.id) === String(_initRoute.actId));

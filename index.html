@@ -11,7 +11,7 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
             rel="stylesheet"
         />
         <link rel="stylesheet" href="styles.css" />
@@ -277,7 +277,7 @@
                         <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
                     </svg>
                     Fitness
-                    <span class="badge">CTL</span>
+                    <span class="badge" id="sidebarCTL">—</span>
                 </div>
                 <span class="nav-section-label">Analysis</span>
                 <div
@@ -329,6 +329,12 @@
                         <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
                     </svg>
                     Create Workout
+                </div>
+                <div class="nav-item" data-page="guide" onclick="navigate('guide');closeSidebar();">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>
+                    </svg>
+                    Training Guide
                 </div>
                 <span class="nav-section-label">Account</span>
                 <div
@@ -640,18 +646,18 @@
                                     <div class="trs-form-wrap">
                                         <div class="trs-fitness-row">
                                             <div class="trs-fitness-metric">
-                                                <div class="trs-metric-label">Fitness / CTL</div>
                                                 <div class="trs-form-num" id="trsCTLNum">—</div>
+                                                <div class="trs-metric-label">Fitness / CTL</div>
                                             </div>
                                             <div class="trs-fitness-div"></div>
                                             <div class="trs-fitness-metric">
-                                                <div class="trs-metric-label">Fatigue / ATL</div>
                                                 <div class="trs-form-num" id="trsATLNum">—</div>
+                                                <div class="trs-metric-label">Fatigue / ATL</div>
                                             </div>
                                             <div class="trs-fitness-div"></div>
                                             <div class="trs-fitness-metric">
-                                                <div class="trs-metric-label">Form / TSB</div>
                                                 <div class="trs-form-num" id="trsFormNum">—</div>
+                                                <div class="trs-metric-label">Form / TSB</div>
                                             </div>
                                         </div>
                                         <div class="trs-form-status" id="trsFormStatus">—</div>
@@ -793,15 +799,6 @@
                 <!-- ==================== ACTIVITIES PAGE ==================== -->
                 <div class="page" id="page-activities">
                     <div class="card">
-                        <div class="card-header">
-                            <div>
-                                <div class="card-title">All Activities</div>
-                                <div class="card-subtitle" id="allActivitiesSubtitle">—</div>
-                            </div>
-                            <select class="year-select" id="activitiesYearSelect" onchange="setActivitiesYear(this.value)">
-                                <option value="all">All years</option>
-                            </select>
-                        </div>
                         <div class="sort-bar">
                             <span class="sort-label">Sort</span>
                             <button class="sort-btn active" data-sort="date"      onclick="setActivitiesSort('date')">Date<span class="sort-arrow"> ↓</span></button>
@@ -810,6 +807,10 @@
                             <button class="sort-btn"        data-sort="elevation" onclick="setActivitiesSort('elevation')">Elevation<span class="sort-arrow"></span></button>
                             <button class="sort-btn"        data-sort="power"     onclick="setActivitiesSort('power')">Power<span class="sort-arrow"></span></button>
                             <button class="sort-btn"        data-sort="bpm"       onclick="setActivitiesSort('bpm')">BPM<span class="sort-arrow"></span></button>
+                            <select class="year-select" id="activitiesYearSelect" onchange="setActivitiesYear(this.value)" style="margin-left:auto">
+                                <option value="all">All years</option>
+                            </select>
+                            <span id="allActivitiesSubtitle" style="display:none"></span>
                         </div>
                         <div class="activity-list" id="allActivityList">
                             <div class="empty-state">
@@ -1327,192 +1328,361 @@
 
                 </div>
 
+                <!-- ==================== TRAINING GUIDE PAGE ==================== -->
+                <div class="page" id="page-guide">
+                    <div class="guide-grid">
+
+                        <!-- ── INTRO ── -->
+                        <div class="card guide-intro-card">
+                            <div class="guide-intro-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                            </div>
+                            <div>
+                                <div class="guide-intro-title">Training Load Explained</div>
+                                <div class="guide-intro-sub">Intervals.icu tracks your fitness using three numbers — CTL, ATL, and TSB. Together they tell you how fit you are, how tired you are, and whether you're ready to perform. Here's what each one means.</div>
+                            </div>
+                        </div>
+
+                        <!-- ── CTL ── -->
+                        <div class="card guide-metric-card">
+                            <div class="guide-metric-header">
+                                <div class="guide-metric-badge" style="background:rgba(0,229,160,0.12);color:var(--accent)">CTL</div>
+                                <div>
+                                    <div class="guide-metric-name">Chronic Training Load</div>
+                                    <div class="guide-metric-aka">aka <strong>Fitness</strong></div>
+                                </div>
+                            </div>
+                            <p class="guide-metric-desc">Your 42-day rolling average of daily training stress. Think of it as your long-term fitness bank — the higher it is, the more your body is adapted to hard training. It goes up slowly when you train consistently and drops when you rest or take time off.</p>
+                            <div class="guide-zones">
+                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:20%;background:var(--text-muted)"></span><span class="guide-zone-label">0–30</span><span class="guide-zone-desc">Beginner / returning from break</span></div>
+                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:40%;background:var(--blue)"></span><span class="guide-zone-label">30–60</span><span class="guide-zone-desc">Recreational cyclist, training regularly</span></div>
+                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:65%;background:var(--accent)"></span><span class="guide-zone-label">60–90</span><span class="guide-zone-desc">Fit amateur, racing or hard sportives</span></div>
+                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:85%;background:var(--orange)"></span><span class="guide-zone-label">90–120</span><span class="guide-zone-desc">Serious club racer / part-time athlete</span></div>
+                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:100%;background:var(--red)"></span><span class="guide-zone-label">120+</span><span class="guide-zone-desc">Elite / pro level — needs full recovery cycles</span></div>
+                            </div>
+                            <div class="guide-tip">💡 Aim to build CTL no faster than 5–8 points per week to reduce injury risk.</div>
+                        </div>
+
+                        <!-- ── ATL ── -->
+                        <div class="card guide-metric-card">
+                            <div class="guide-metric-header">
+                                <div class="guide-metric-badge" style="background:rgba(255,107,53,0.12);color:var(--orange)">ATL</div>
+                                <div>
+                                    <div class="guide-metric-name">Acute Training Load</div>
+                                    <div class="guide-metric-aka">aka <strong>Fatigue</strong></div>
+                                </div>
+                            </div>
+                            <p class="guide-metric-desc">Your 7-day rolling average of daily training stress. It reacts fast — a big week shoots it up, a few easy days brings it down quickly. When ATL is much higher than CTL you're digging a fatigue hole. When it's lower, you're recovering.</p>
+                            <div class="guide-zones">
+                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:25%;background:var(--accent)"></span><span class="guide-zone-label">ATL &lt; CTL</span><span class="guide-zone-desc">Recovering — feeling fresh, performance may peak</span></div>
+                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:55%;background:var(--blue)"></span><span class="guide-zone-label">ATL ≈ CTL</span><span class="guide-zone-desc">Maintaining — steady state training</span></div>
+                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:80%;background:var(--orange)"></span><span class="guide-zone-label">ATL &gt; CTL by 20–30</span><span class="guide-zone-desc">Hard training block — expected but monitor closely</span></div>
+                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:100%;background:var(--red)"></span><span class="guide-zone-label">ATL &gt; CTL by 30+</span><span class="guide-zone-desc">Danger zone — high injury &amp; illness risk</span></div>
+                            </div>
+                            <div class="guide-tip">💡 ATL drops about 13% per day of rest — a 3-day easy period makes a noticeable difference.</div>
+                        </div>
+
+                        <!-- ── TSB ── -->
+                        <div class="card guide-metric-card">
+                            <div class="guide-metric-header">
+                                <div class="guide-metric-badge" style="background:rgba(74,158,255,0.12);color:var(--blue)">TSB</div>
+                                <div>
+                                    <div class="guide-metric-name">Training Stress Balance</div>
+                                    <div class="guide-metric-aka">aka <strong>Form</strong> &nbsp;=&nbsp; CTL − ATL</div>
+                                </div>
+                            </div>
+                            <p class="guide-metric-desc">The difference between your fitness and your fatigue. A positive TSB means you're fresh and ready to perform. A negative TSB means you're carrying fatigue from recent training. Your best races and efforts usually happen when TSB is slightly positive.</p>
+                            <div class="guide-zones">
+                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:15%;background:var(--purple)"></span><span class="guide-zone-label">Below −30</span><span class="guide-zone-desc">Overreaching — step back immediately</span></div>
+                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:40%;background:var(--orange)"></span><span class="guide-zone-label">−30 to −10</span><span class="guide-zone-desc">Training load — tired but building fitness</span></div>
+                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:65%;background:var(--accent)"></span><span class="guide-zone-label">−10 to +5</span><span class="guide-zone-desc">Sweet spot — training while managing fatigue</span></div>
+                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:85%;background:var(--blue)"></span><span class="guide-zone-label">+5 to +25</span><span class="guide-zone-desc">Peak form — ideal for races &amp; hard efforts</span></div>
+                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:100%;background:var(--text-muted)"></span><span class="guide-zone-label">Above +25</span><span class="guide-zone-desc">Detraining — too much rest, fitness declining</span></div>
+                            </div>
+                            <div class="guide-tip">💡 Aim for TSB between +5 and +15 on race day. Start your taper 7–14 days out.</div>
+                        </div>
+
+                        <!-- ── TSS ── -->
+                        <div class="card guide-metric-card">
+                            <div class="guide-metric-header">
+                                <div class="guide-metric-badge" style="background:rgba(240,196,41,0.12);color:var(--yellow)">TSS</div>
+                                <div>
+                                    <div class="guide-metric-name">Training Stress Score</div>
+                                    <div class="guide-metric-aka">per-ride training load</div>
+                                </div>
+                            </div>
+                            <p class="guide-metric-desc">A single number representing the stress of one ride. 100 TSS = riding at your FTP (threshold) for exactly one hour. Every workout gets a TSS; these feed into your ATL and CTL calculations. It accounts for both intensity and duration.</p>
+                            <div class="guide-zones">
+                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:20%;background:var(--accent)"></span><span class="guide-zone-label">Under 50</span><span class="guide-zone-desc">Easy recovery ride — minimal fatigue</span></div>
+                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:45%;background:var(--blue)"></span><span class="guide-zone-label">50–100</span><span class="guide-zone-desc">Moderate training ride — recover in a day</span></div>
+                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:70%;background:var(--orange)"></span><span class="guide-zone-label">100–150</span><span class="guide-zone-desc">Hard session — 1–2 days recovery needed</span></div>
+                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:100%;background:var(--red)"></span><span class="guide-zone-label">150+</span><span class="guide-zone-desc">Very hard / long ride — 2–3 days to fully recover</span></div>
+                            </div>
+                            <div class="guide-tip">💡 Without a power meter, TSS is estimated from heart rate. A power meter gives more accurate numbers.</div>
+                        </div>
+
+                        <!-- ── Ramp Rate ── -->
+                        <div class="card guide-metric-card">
+                            <div class="guide-metric-header">
+                                <div class="guide-metric-badge" style="background:rgba(155,89,255,0.12);color:var(--purple)">RR</div>
+                                <div>
+                                    <div class="guide-metric-name">Ramp Rate</div>
+                                    <div class="guide-metric-aka">CTL change per week</div>
+                                </div>
+                            </div>
+                            <p class="guide-metric-desc">How fast your CTL (fitness) is rising or falling each week. Building fitness too quickly leads to injury and burnout. The sweet spot is a gradual, consistent rise that your body can adapt to.</p>
+                            <div class="guide-zones">
+                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:15%;background:var(--text-muted)"></span><span class="guide-zone-label">Negative</span><span class="guide-zone-desc">Fitness declining — rest week or off-season</span></div>
+                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:40%;background:var(--accent)"></span><span class="guide-zone-label">+3 to +5</span><span class="guide-zone-desc">Ideal — safe, sustainable fitness gains</span></div>
+                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:70%;background:var(--orange)"></span><span class="guide-zone-label">+5 to +8</span><span class="guide-zone-desc">Aggressive — monitor for fatigue &amp; soreness</span></div>
+                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:100%;background:var(--red)"></span><span class="guide-zone-label">Above +8</span><span class="guide-zone-desc">Too fast — high injury risk, ease off</span></div>
+                            </div>
+                            <div class="guide-tip">💡 New to structured training? Stay at +3–4/week. Experienced athletes can push to +5–6 for short blocks.</div>
+                        </div>
+
+                        <!-- ── Quick reference ── -->
+                        <div class="card guide-ref-card">
+                            <div class="card-header"><div class="card-title">Quick Reference</div></div>
+                            <div class="guide-ref-grid">
+                                <div class="guide-ref-item">
+                                    <div class="guide-ref-label">I want to get fitter</div>
+                                    <div class="guide-ref-val">Keep ATL &gt; CTL for weeks at a time. Ramp rate +3–5/wk.</div>
+                                </div>
+                                <div class="guide-ref-item">
+                                    <div class="guide-ref-label">I have a race next weekend</div>
+                                    <div class="guide-ref-val">Reduce load now. Target TSB +5 to +15 on race day.</div>
+                                </div>
+                                <div class="guide-ref-item">
+                                    <div class="guide-ref-label">I feel exhausted all the time</div>
+                                    <div class="guide-ref-val">Check TSB — if below −20, take 3–5 easy days.</div>
+                                </div>
+                                <div class="guide-ref-item">
+                                    <div class="guide-ref-label">I haven't trained in weeks</div>
+                                    <div class="guide-ref-val">CTL is low — start easy and ramp slowly. Rushing causes injury.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
                 <!-- ==================== SETTINGS PAGE ==================== -->
                 <div class="page" id="page-settings">
-                    <div class="card card--narrow">
-                        <div class="card-header">
-                            <div class="card-title">
-                                Account &amp; Connection
+                    <div class="settings-grid">
+
+                        <!-- ── LEFT COLUMN ── -->
+                        <div class="settings-col">
+
+                            <!-- Account -->
+                            <div class="card">
+                                <div class="card-header">
+                                    <div>
+                                        <div class="card-title">Account</div>
+                                        <div class="card-subtitle">Connection to intervals.icu</div>
+                                    </div>
+                                    <div class="connection-status-badge disconnected" id="settingsConnectionBadge">
+                                        <span id="settingsConnectionText">Not connected</span>
+                                    </div>
+                                </div>
+                                <div class="settings-section">
+                                    <div class="settings-row">
+                                        <div class="settings-row-info">
+                                            <div class="settings-row-label">Athlete ID</div>
+                                            <div class="settings-row-sub">Your intervals.icu athlete ID</div>
+                                        </div>
+                                        <div class="settings-row-value" id="settingsAthleteId">—</div>
+                                    </div>
+                                    <div class="settings-row">
+                                        <div class="settings-row-info">
+                                            <div class="settings-row-label">API Key</div>
+                                            <div class="settings-row-sub">Stored only in your browser — never transmitted</div>
+                                        </div>
+                                        <div class="settings-row-value" id="settingsApiKey">—</div>
+                                    </div>
+                                </div>
+                                <div class="settings-actions">
+                                    <button class="btn btn-primary" onclick="openModal()">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                        Change Credentials
+                                    </button>
+                                    <button class="btn btn-ghost" onclick="copySetupLink()">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                                        Copy Setup Link
+                                    </button>
+                                    <button class="btn btn-danger" onclick="disconnect()">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                        Disconnect
+                                    </button>
+                                </div>
                             </div>
+
+                            <!-- Athlete Profile -->
+                            <div class="card">
+                                <div class="card-header">
+                                    <div>
+                                        <div class="card-title">Athlete Profile</div>
+                                        <div class="card-subtitle">From intervals.icu</div>
+                                    </div>
+                                </div>
+                                <div class="settings-section">
+                                    <!-- Profile picture row -->
+                                    <div class="settings-row settings-row--avatar">
+                                        <div class="avatar-preview-wrap">
+                                            <div class="avatar-preview" id="avatarPreview">?</div>
+                                            <button class="avatar-edit-btn" onclick="document.getElementById('avatarFileInput').click()" title="Change photo">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                            </button>
+                                            <input type="file" id="avatarFileInput" accept="image/*" style="display:none" onchange="handleAvatarUpload(event)">
+                                        </div>
+                                        <div class="settings-row-info">
+                                            <div class="settings-row-label">Profile Photo</div>
+                                            <div class="settings-row-sub">Shown in the sidebar. Stored locally in your browser.</div>
+                                        </div>
+                                        <button class="btn btn-ghost btn-sm" id="avatarRemoveBtn" onclick="removeAvatar()" style="display:none">Remove</button>
+                                    </div>
+                                    <div class="settings-row">
+                                        <div class="settings-row-info">
+                                            <div class="settings-row-label">Name</div>
+                                        </div>
+                                        <div class="settings-row-value" id="settingsAthleteName">—</div>
+                                    </div>
+                                    <div class="settings-row">
+                                        <div class="settings-row-info">
+                                            <div class="settings-row-label">FTP</div>
+                                            <div class="settings-row-sub">Functional Threshold Power</div>
+                                        </div>
+                                        <div class="settings-row-value" id="settingsFTP">—</div>
+                                    </div>
+                                    <div class="settings-row">
+                                        <div class="settings-row-info">
+                                            <div class="settings-row-label">LTHR</div>
+                                            <div class="settings-row-sub">Lactate Threshold Heart Rate</div>
+                                        </div>
+                                        <div class="settings-row-value" id="settingsLTHR">—</div>
+                                    </div>
+                                    <div class="settings-row">
+                                        <div class="settings-row-info">
+                                            <div class="settings-row-label">Weight</div>
+                                        </div>
+                                        <div class="settings-row-value" id="settingsWeight">—</div>
+                                    </div>
+                                    <div class="settings-row">
+                                        <div class="settings-row-info">
+                                            <div class="settings-row-label">Location</div>
+                                        </div>
+                                        <div class="settings-row-value" id="settingsLocation">—</div>
+                                    </div>
+                                </div>
+                            </div>
+
                         </div>
 
-                        <div class="settings-section">
-                            <div class="settings-section-title">
-                                Connection Status
-                            </div>
-                            <div class="settings-row">
-                                <div class="settings-row-info">
-                                    <div class="settings-row-label">
-                                        intervals.icu
-                                    </div>
-                                    <div class="settings-row-sub">
-                                        Training data source
-                                    </div>
-                                </div>
-                                <div
-                                    class="connection-status-badge disconnected"
-                                    id="settingsConnectionBadge"
-                                >
-                                    <span id="settingsConnectionText"
-                                        >Not connected</span
-                                    >
-                                </div>
-                            </div>
-                        </div>
+                        <!-- ── RIGHT COLUMN ── -->
+                        <div class="settings-col">
 
-                        <div class="settings-section">
-                            <div class="settings-section-title">
-                                Saved Credentials
+                            <!-- Units & Display -->
+                            <div class="card">
+                                <div class="card-header">
+                                    <div>
+                                        <div class="card-title">Units &amp; Display</div>
+                                        <div class="card-subtitle">How data is shown across the app</div>
+                                    </div>
+                                </div>
+                                <div class="settings-section">
+                                    <div class="settings-row">
+                                        <div class="settings-row-info">
+                                            <div class="settings-row-label">Distance &amp; Speed</div>
+                                            <div class="settings-row-sub">Affects all distance and speed values</div>
+                                        </div>
+                                        <div class="date-range-pill">
+                                            <button data-units="metric" onclick="setUnits('metric')">km</button>
+                                            <button data-units="imperial" onclick="setUnits('imperial')">mi</button>
+                                        </div>
+                                    </div>
+                                    <div class="settings-row">
+                                        <div class="settings-row-info">
+                                            <div class="settings-row-label">Elevation</div>
+                                            <div class="settings-row-sub">Follows distance unit setting</div>
+                                        </div>
+                                        <div class="settings-row-value" id="settingsElevUnit">metres</div>
+                                    </div>
+                                    <div class="settings-row">
+                                        <div class="settings-row-info">
+                                            <div class="settings-row-label">Week starts on</div>
+                                            <div class="settings-row-sub">Affects weekly stats &amp; calendar</div>
+                                        </div>
+                                        <div class="date-range-pill">
+                                            <button data-weekstart="1" onclick="setWeekStartDay(1)" class="active">Mon</button>
+                                            <button data-weekstart="0" onclick="setWeekStartDay(0)">Sun</button>
+                                        </div>
+                                    </div>
+                                    <div class="settings-row">
+                                        <div class="settings-row-info">
+                                            <div class="settings-row-label">Default date range</div>
+                                            <div class="settings-row-sub">Dashboard &amp; activities default view</div>
+                                        </div>
+                                        <div class="date-range-pill">
+                                            <button data-defrange="7"  onclick="setDefaultRange(7)">7d</button>
+                                            <button data-defrange="14" onclick="setDefaultRange(14)">14d</button>
+                                            <button data-defrange="30" onclick="setDefaultRange(30)" class="active">30d</button>
+                                            <button data-defrange="60" onclick="setDefaultRange(60)">60d</button>
+                                            <button data-defrange="90" onclick="setDefaultRange(90)">90d</button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="settings-row">
-                                <div class="settings-row-info">
-                                    <div class="settings-row-label">
-                                        Athlete ID
-                                    </div>
-                                    <div class="settings-row-sub">
-                                        Your intervals.icu athlete ID
-                                    </div>
-                                </div>
-                                <div
-                                    class="settings-row-value"
-                                    id="settingsAthleteId"
-                                >
-                                    —
-                                </div>
-                            </div>
-                            <div class="settings-row">
-                                <div class="settings-row-info">
-                                    <div class="settings-row-label">
-                                        API Key
-                                    </div>
-                                    <div class="settings-row-sub">
-                                        Stored locally in your browser
-                                    </div>
-                                </div>
-                                <div
-                                    class="settings-row-value"
-                                    id="settingsApiKey"
-                                >
-                                    —
-                                </div>
-                            </div>
-                        </div>
 
-                        <div class="settings-section">
-                            <div class="settings-section-title">Preferences</div>
-                            <div class="settings-row">
-                                <div class="settings-row-info">
-                                    <div class="settings-row-label">Week starts on</div>
-                                    <div class="settings-row-sub">Affects weekly stats, week progress card &amp; calendar</div>
+                            <!-- Data & Cache -->
+                            <div class="card">
+                                <div class="card-header">
+                                    <div>
+                                        <div class="card-title">Data &amp; Sync</div>
+                                        <div class="card-subtitle">Local cache &amp; sync status</div>
+                                    </div>
                                 </div>
-                                <div class="date-range-pill">
-                                    <button data-weekstart="1" onclick="setWeekStartDay(1)" class="active">Mon</button>
-                                    <button data-weekstart="0" onclick="setWeekStartDay(0)">Sun</button>
+                                <div class="settings-section">
+                                    <div class="settings-row">
+                                        <div class="settings-row-info">
+                                            <div class="settings-row-label">Last synced</div>
+                                            <div class="settings-row-sub">Most recent data pull from intervals.icu</div>
+                                        </div>
+                                        <div class="settings-row-value" id="settingsLastSync">—</div>
+                                    </div>
+                                    <div class="settings-row">
+                                        <div class="settings-row-info">
+                                            <div class="settings-row-label">Cached activities</div>
+                                            <div class="settings-row-sub">Stored locally in your browser</div>
+                                        </div>
+                                        <div class="settings-row-value" id="settingsActivityCount">—</div>
+                                    </div>
+                                    <div class="settings-row">
+                                        <div class="settings-row-info">
+                                            <div class="settings-row-label">Cache size</div>
+                                            <div class="settings-row-sub">Approximate localStorage usage</div>
+                                        </div>
+                                        <div class="settings-row-value" id="settingsCacheSize">—</div>
+                                    </div>
+                                </div>
+                                <div class="settings-actions">
+                                    <button class="btn btn-primary" onclick="syncData()">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.08-8.58"/></svg>
+                                        Sync Now
+                                    </button>
+                                    <button class="btn btn-ghost" onclick="forceFullSync()" title="Clears local cache and re-fetches all activities">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.93"/></svg>
+                                        Full Re-sync
+                                    </button>
                                 </div>
                             </div>
-                        </div>
 
-                        <div class="settings-section">
-                            <div class="settings-section-title">Actions</div>
-                            <div class="settings-actions">
-                                <button
-                                    class="btn btn-primary"
-                                    onclick="openModal()"
-                                >
-                                    <svg
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="2.5"
-                                    >
-                                        <path
-                                            d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
-                                        />
-                                        <path
-                                            d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
-                                        />
-                                    </svg>
-                                    Change Credentials
-                                </button>
-                                <button
-                                    class="btn btn-ghost"
-                                    onclick="syncData()"
-                                >
-                                    <svg
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="2"
-                                    >
-                                        <polyline points="23 4 23 10 17 10" />
-                                        <path
-                                            d="M20.49 15a9 9 0 1 1-.08-8.58"
-                                        />
-                                    </svg>
-                                    Sync Now
-                                </button>
-                                <button
-                                    class="btn btn-ghost"
-                                    onclick="forceFullSync()"
-                                    title="Clears the local cache and re-fetches all activities from the server"
-                                >
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <polyline points="1 4 1 10 7 10"/>
-                                        <path d="M3.51 15a9 9 0 1 0 .49-4.93"/>
-                                    </svg>
-                                    Full Re-sync
-                                </button>
-                                <button
-                                    class="btn btn-ghost"
-                                    onclick="copySetupLink()"
-                                >
-                                    <svg
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="2"
-                                    >
-                                        <rect
-                                            x="9"
-                                            y="9"
-                                            width="13"
-                                            height="13"
-                                            rx="2"
-                                        />
-                                        <path
-                                            d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
-                                        />
-                                    </svg>
-                                    Copy Setup Link
-                                </button>
-                                <button
-                                    class="btn btn-danger"
-                                    onclick="disconnect()"
-                                >
-                                    <svg
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="2"
-                                    >
-                                        <line x1="18" y1="6" x2="6" y2="18" />
-                                        <line x1="6" y1="6" x2="18" y2="18" />
-                                    </svg>
-                                    Disconnect
-                                </button>
+                            <!-- About -->
+                            <div class="card">
+                                <div class="card-header">
+                                    <div class="card-title">About CycleIQ</div>
+                                </div>
+                                <p class="about-text">CycleIQ pulls data directly from intervals.icu using their REST API. Your API key is stored only in your browser's localStorage and is never sent anywhere except intervals.icu's own servers. No backend, no accounts — just your data.</p>
                             </div>
-                        </div>
 
-                        <div class="settings-section">
-                            <div class="settings-section-title">About</div>
-                            <p class="about-text">
-                                CycleIQ pulls data directly from intervals.icu
-                                using their REST API. Your API key is stored
-                                only in your browser's localStorage and is never
-                                sent anywhere except intervals.icu's own
-                                servers. No backend, no accounts — just your
-                                data.
-                            </p>
                         </div>
                     </div>
                 </div>
