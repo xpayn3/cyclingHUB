@@ -746,15 +746,31 @@ function renderZoneDist(activities) {
   const card = document.getElementById('zoneDistCard');
   if (!card) return;
 
-  // Sum icu_zone_times (seconds per zone) across all activities in range
+  // Debug: inspect zone-related and icu_ fields from the first activity
+  if (activities.length > 0) {
+    const sample = activities[0];
+    const zoneKeys = Object.keys(sample).filter(k => /zone/i.test(k));
+    const icuKeys  = Object.keys(sample).filter(k => k.startsWith('icu_'));
+    console.log('[ZoneDist] All icu_ keys:', icuKeys);
+    console.log('[ZoneDist] Zone-related keys:', zoneKeys);
+    console.log('[ZoneDist] icu_zone_times value:', sample.icu_zone_times);
+    if (zoneKeys.length) zoneKeys.forEach(k => console.log(`  ${k}:`, sample[k]));
+  }
+
+  // Sum icu_zone_times across recent activities.
+  // intervals.icu uses: index 0 = below-Z1 / unclassified, indices 1-6 = Z1-Z6.
   const totals = [0, 0, 0, 0, 0, 0];
   let hasData = false;
 
   activities.forEach(a => {
+    // Primary field: icu_zone_times (power zones on rides, HR zones otherwise)
     const zt = a.icu_zone_times;
     if (Array.isArray(zt) && zt.length >= 2) {
       hasData = true;
-      zt.forEach((t, i) => { if (i < 6) totals[i] += (t || 0); });
+      // Skip index 0 (unclassified); map zt[1..6] → totals[0..5]
+      for (let i = 1; i <= 6; i++) {
+        if (i < zt.length) totals[i - 1] += (zt[i] || 0);
+      }
     }
   });
 
