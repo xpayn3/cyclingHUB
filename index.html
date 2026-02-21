@@ -848,23 +848,23 @@
                         </div>
                     </div>
 
-                    <!-- Hero -->
-                    <div class="adh">
-                        <div class="activity-type-icon lg" id="detailIcon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                        </div>
-                        <div class="adh-body">
-                            <div class="adh-name" id="detailName">Activity</div>
-                            <div class="adh-meta">
-                                <span id="detailDate"></span>
-                                <span class="adh-sport" id="detailType"></span>
+                    <!-- Activity hero -->
+                    <div class="act-hero">
+                        <div class="act-hero-eyebrow">
+                            <div class="activity-type-icon" id="detailIcon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                             </div>
+                            <span class="act-type-badge" id="detailType"></span>
+                            <div class="act-tss-badge" id="detailTSSBadge" style="display:none"></div>
                         </div>
-                        <div class="adh-tss" id="detailTSSBadge" style="display:none"></div>
+                        <h1 class="act-hero-title" id="detailName">—</h1>
+                        <div class="act-hero-date" id="detailDate"></div>
+                        <!-- 4 primary stats -->
+                        <div class="act-primary-stats" id="actPrimaryStats"></div>
                     </div>
 
-                    <!-- Metrics strip -->
-                    <div class="metrics-strip" id="detailMetrics"></div>
+                    <!-- Secondary stats strip -->
+                    <div class="act-secondary-strip" id="actSecondaryStats"></div>
 
                     <!-- Loading -->
                     <div class="detail-charts-loading" id="detailChartsLoading" style="display:none">
@@ -897,16 +897,29 @@
                         </div>
                     </div>
 
-                    <!-- Power zones (always shown if icu_zone_times exists) -->
-                    <div class="card" id="detailZonesCard" style="display:none">
-                        <div class="card-header">
-                            <div>
-                                <div class="card-title">Power Zones</div>
-                                <div class="card-subtitle" id="detailZonesSubtitle"></div>
+                    <!-- Power zones + HR zones side by side -->
+                    <div class="detail-zones-row">
+                        <div class="card" id="detailZonesCard" style="display:none">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">Power Zones</div>
+                                    <div class="card-subtitle" id="detailZonesSubtitle"></div>
+                                </div>
+                                <span class="zone-total-badge" id="detailZonesTotalBadge"></span>
                             </div>
-                            <span class="badge" id="detailZonesTotalBadge"></span>
+                            <div id="detailZoneList"></div>
                         </div>
-                        <div id="detailZoneList"></div>
+
+                        <div class="card" id="detailHRZonesCard" style="display:none">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">HR Zones</div>
+                                    <div class="card-subtitle" id="detailHRZonesSubtitle"></div>
+                                </div>
+                                <span class="zone-total-badge" id="detailHRZonesTotalBadge"></span>
+                            </div>
+                            <div id="detailHRZoneList"></div>
+                        </div>
                     </div>
 
                     <!-- Ride power curve (only if API returns data) -->

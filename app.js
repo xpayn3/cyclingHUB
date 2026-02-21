@@ -476,6 +476,10 @@ function navigate(page) {
   const pill = document.getElementById('dateRangePill');
   if (pill) pill.style.display = (page === 'dashboard' || page === 'activities') ? 'flex' : 'none';
 
+  // Restore topbar + page headline when navigating away from the activity page
+  document.querySelector('.topbar')?.classList.remove('topbar--hidden');
+  document.querySelector('.page-headline')?.classList.remove('page-headline--hidden');
+
   if (page === 'calendar') renderCalendar();
   if (page === 'fitness')  renderFitnessPage();
   if (page === 'workout')  { wrkRefreshStats(); wrkRender(); }
@@ -1517,8 +1521,9 @@ const ZONE_COLORS = [
   'var(--red)',     // Z5 VO₂max
   'var(--purple)'  // Z6 Anaerobic
 ];
-const ZONE_NAMES = ['Recovery', 'Endurance', 'Tempo', 'Threshold', 'VO₂max', 'Anaerobic'];
-const ZONE_TAGS  = ['Z1', 'Z2', 'Z3', 'Z4', 'Z5', 'Z6'];
+const ZONE_NAMES    = ['Recovery', 'Endurance', 'Tempo', 'Threshold', 'VO₂max', 'Anaerobic'];
+const HR_ZONE_NAMES = ['Active Recovery', 'Aerobic Base', 'Aerobic', 'Threshold', 'VO₂max', 'Anaerobic', 'Neuromuscular'];
+const ZONE_TAGS     = ['Z1', 'Z2', 'Z3', 'Z4', 'Z5', 'Z6'];
 
 function renderZoneDist(activities) {
   const card = document.getElementById('zoneDistCard');
@@ -2422,6 +2427,9 @@ async function navigateToActivity(actKey, fromStep = false) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-activity').classList.add('active');
+  // Hide topbar and page headline — activity page has its own back nav
+  document.querySelector('.topbar')?.classList.add('topbar--hidden');
+  document.querySelector('.page-headline')?.classList.add('page-headline--hidden');
   // Scroll back to top and remove calendar's full-bleed layout so normal padding is restored
   const pageContent = document.getElementById('pageContent');
   if (pageContent) pageContent.classList.remove('page-content--calendar');
@@ -2431,10 +2439,7 @@ async function navigateToActivity(actKey, fromStep = false) {
   const fromLabel = state.previousPage === 'dashboard' ? 'Dashboard' : 'Activities';
   document.getElementById('detailBackLabel').textContent = fromLabel;
 
-  // Update topbar
-  const aName = (activity.name && activity.name.trim()) ? activity.name.trim() : activityFallbackName(activity);
-  document.getElementById('pageTitle').textContent    = aName;
-  document.getElementById('pageSubtitle').textContent = fmtDate(activity.start_date_local || activity.start_date);
+  // Topbar is hidden on activity page — title/date are shown in the hero section instead
 
   // Render basic info immediately from cached data
   renderActivityBasic(activity);
@@ -2459,6 +2464,7 @@ async function navigateToActivity(actKey, fromStep = false) {
     const fullDetail = detailResult.status === 'fulfilled' ? detailResult.value : null;
     const streams    = streamsResult.status === 'fulfilled' ? streamsResult.value : null;
 
+
     // Re-render stats with richer fields from full detail response
     if (fullDetail) renderActivityBasic({ ...activity, ...fullDetail });
 
@@ -2466,14 +2472,44 @@ async function navigateToActivity(actKey, fromStep = false) {
 
     const richActivity = fullDetail ? { ...activity, ...fullDetail } : activity;
 
+    // The individual detail endpoint sometimes omits zone arrays that ARE present
+    // on the cached list activity — restore them so the supplementary cards can render.
+    ['icu_zone_times', 'icu_hr_zone_times'].forEach(key => {
+      if (Array.isArray(activity[key]) && activity[key].length > 0 &&
+          (!Array.isArray(richActivity[key]) || richActivity[key].length === 0)) {
+        richActivity[key] = activity[key];
+      }
+    });
+
+    // Normalize streams once here so we can use it for both zone computation and charts.
+    // normalizeStreams converts the raw API shape ({type,data}[] or flat object) → flat {key: []}
+    const normStreams = streams ? normalizeStreams(streams) : {};
+
+    // If icu_hr_zone_times still not present, compute it from the HR stream
+    // using the athlete's configured icu_hr_zones boundaries (bpm upper limits per zone).
+    if (!Array.isArray(richActivity.icu_hr_zone_times) || richActivity.icu_hr_zone_times.length === 0) {
+      const hrArr    = normStreams.heartrate || normStreams.heart_rate || [];
+      const zoneBnds = richActivity.icu_hr_zones;
+      const computed = computeHRZoneTimesFromStream(hrArr, zoneBnds);
+      if (computed) richActivity.icu_hr_zone_times = computed;
+    }
+
     // Stream charts only when data actually came back
     if (streams) {
-      const norm = normalizeStreams(streams);
+      const norm = normStreams;
       renderStreamCharts(norm, richActivity);
     }
 
     // Supplementary cards — each shows/hides itself based on data availability
     renderDetailZones(richActivity);
+    renderDetailHRZones(richActivity);
+    // Adjust zones row: force single column when only one card is visible
+    const zonesRow = document.querySelector('.detail-zones-row');
+    if (zonesRow) {
+      const powerHidden = document.getElementById('detailZonesCard')?.style.display === 'none';
+      const hrHidden    = document.getElementById('detailHRZonesCard')?.style.display === 'none';
+      zonesRow.classList.toggle('detail-zones-row--single', powerHidden || hrHidden);
+    }
     renderDetailHistogram(richActivity);
     renderDetailCurve(actId); // async — shows/hides its own card
   } catch (err) {
@@ -2500,7 +2536,7 @@ function destroyActivityCharts() {
   if (state.activityHRChart)        { state.activityHRChart.destroy();        state.activityHRChart        = null; }
   if (state.activityCurveChart)     { state.activityCurveChart.destroy();     state.activityCurveChart     = null; }
   if (state.activityHistogramChart) { state.activityHistogramChart.destroy(); state.activityHistogramChart = null; }
-  ['detailZonesCard', 'detailHistogramCard', 'detailCurveCard'].forEach(id => {
+  ['detailZonesCard', 'detailHRZonesCard', 'detailHistogramCard', 'detailCurveCard'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
@@ -2584,25 +2620,25 @@ function downsampleStreams(streams, targetLen = 300) {
    ACTIVITY DETAIL — RENDERING
 ==================================================== */
 function renderActivityBasic(a) {
-  // ── Hero ──────────────────────────────────────────────────────────────────
-  const aName = (a.name && a.name.trim()) ? a.name.trim() : activityFallbackName(a);
-  document.getElementById('detailName').textContent = aName;
-
-  const dateStr = fmtDate(a.start_date_local || a.start_date);
-  const timeStr = fmtTime(a.start_date_local || a.start_date);
-  document.getElementById('detailDate').textContent = dateStr + (timeStr ? ' · ' + timeStr : '');
-  document.getElementById('detailType').textContent = a.sport_type || a.type || '';
-
+  // ── Eyebrow: icon · type · TSS ────────────────────────────────────────────
   const iconEl = document.getElementById('detailIcon');
-  iconEl.className = 'activity-type-icon lg ' + activityTypeClass(a);
+  iconEl.className = 'activity-type-icon ' + activityTypeClass(a);
   iconEl.innerHTML = activityTypeIcon(a);
+  document.getElementById('detailType').textContent = a.sport_type || a.type || '';
 
   const tss   = Math.round(actVal(a, 'icu_training_load', 'tss'));
   const tssEl = document.getElementById('detailTSSBadge');
   tssEl.textContent   = tss > 0 ? `${tss} TSS` : '';
   tssEl.style.display = tss > 0 ? 'flex' : 'none';
 
-  // ── Metrics strip ─────────────────────────────────────────────────────────
+  // ── Title & date ──────────────────────────────────────────────────────────
+  const aName = (a.name && a.name.trim()) ? a.name.trim() : activityFallbackName(a);
+  document.getElementById('detailName').textContent = aName;
+  const dateStr = fmtDate(a.start_date_local || a.start_date);
+  const timeStr = fmtTime(a.start_date_local || a.start_date);
+  document.getElementById('detailDate').textContent = dateStr + (timeStr ? ' · ' + timeStr : '');
+
+  // ── Raw values ────────────────────────────────────────────────────────────
   const dist     = actVal(a, 'distance', 'icu_distance');
   const distKm   = dist / 1000;
   const secs     = actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time', 'icu_elapsed_time',
@@ -2624,26 +2660,41 @@ function renderActivityBasic(a) {
                    (a.other && a.other.calories) || 0;
   const elev     = Math.round(actVal(a, 'total_elevation_gain', 'icu_total_elevation_gain'));
 
-  // chip(value, label, accent?)
-  const chip = (v, lbl, accent = false) =>
-    `<div class="mc${accent ? ' mc--accent' : ''}"><div class="mc-val">${v}</div><div class="mc-lbl">${lbl}</div></div>`;
+  // ── Primary stats: up to 4 hero numbers ───────────────────────────────────
+  const pStat = (val, lbl, accent = false) =>
+    `<div class="act-pstat${accent ? ' act-pstat--accent' : ''}">
+       <div class="act-pstat-val">${val}</div>
+       <div class="act-pstat-lbl">${lbl}</div>
+     </div>`;
 
-  let html = '';
-  if (distKm > 0.05)  html += chip(distKm.toFixed(1), 'km');
-  if (secs > 0)        html += chip(fmtDur(secs), 'time');
-  if (elev > 0)        html += chip(elev.toLocaleString(), 'm elev');
-  if (speedKmh > 0.5)  html += chip(speedKmh.toFixed(1), 'km/h');
-  if (avgW > 0)        html += chip(Math.round(avgW) + 'w', 'avg power', true);
-  if (np > 0)          html += chip(Math.round(np) + 'w', 'norm power', true);
-  if (maxW > 0)        html += chip(Math.round(maxW) + 'w', 'max power');
-  if (ifVal > 0)       html += chip(ifVal.toFixed(2), 'int. factor');
-  if (avgHR > 0)       html += chip(Math.round(avgHR), 'avg bpm');
-  if (maxHR > 0)       html += chip(Math.round(maxHR), 'max bpm');
-  if (avgCad > 0)      html += chip(Math.round(avgCad), 'rpm');
-  if (cals > 0)        html += chip(Math.round(cals).toLocaleString(), 'kcal');
-  if (tss > 0)         html += chip(tss, 'TSS', true);
+  const primary = [];
+  if (distKm > 0.05) primary.push(pStat(distKm.toFixed(1), 'km'));
+  if (secs > 0)      primary.push(pStat(fmtDur(secs), 'duration'));
+  if (np > 0)        primary.push(pStat(Math.round(np) + 'W', 'norm power', true));
+  else if (avgW > 0) primary.push(pStat(Math.round(avgW) + 'W', 'avg power', true));
+  if (avgHR > 0)     primary.push(pStat(Math.round(avgHR), 'avg bpm'));
+  else if (speedKmh > 0.5) primary.push(pStat(speedKmh.toFixed(1), 'km/h'));
 
-  document.getElementById('detailMetrics').innerHTML = html;
+  const primaryEl = document.getElementById('actPrimaryStats');
+  primaryEl.innerHTML = primary.slice(0, 4).join('');
+  primaryEl.style.gridTemplateColumns = `repeat(${Math.min(primary.length, 4)}, 1fr)`;
+
+  // ── Secondary stats: remaining chips ─────────────────────────────────────
+  const sStat = (val, lbl) =>
+    `<div class="act-sstat"><div class="act-sstat-val">${val}</div><div class="act-sstat-lbl">${lbl}</div></div>`;
+
+  let sec = '';
+  if (elev > 0)       sec += sStat(elev.toLocaleString() + ' m', 'elevation');
+  if (speedKmh > 0.5 && np > 0) sec += sStat(speedKmh.toFixed(1), 'km/h');
+  if (avgW > 0 && np > 0) sec += sStat(Math.round(avgW) + 'W', 'avg power');
+  if (maxW > 0)       sec += sStat(Math.round(maxW) + 'W', 'max power');
+  if (ifVal > 0)      sec += sStat(ifVal.toFixed(2), 'int. factor');
+  if (maxHR > 0)      sec += sStat(Math.round(maxHR), 'max bpm');
+  if (avgCad > 0)     sec += sStat(Math.round(avgCad), 'cadence');
+  if (cals > 0)       sec += sStat(Math.round(cals).toLocaleString(), 'kcal');
+  if (tss > 0)        sec += sStat(tss, 'TSS');
+
+  document.getElementById('actSecondaryStats').innerHTML = sec;
 }
 
 function renderStreamCharts(streams, activity) {
@@ -2824,16 +2875,91 @@ function renderDetailZones(activity) {
   document.getElementById('detailZonesSubtitle').textContent   = 'Time in power zone · this ride';
 
   document.getElementById('detailZoneList').innerHTML = totals.map((secs, i) => {
-    if (secs === 0) return '';
-    const pct   = (secs / totalSecs * 100).toFixed(1);
+    const pct   = totalSecs > 0 ? (secs / totalSecs * 100).toFixed(1) : '0.0';
     const color = ZONE_HEX[i];
-    return `<div class="detail-zone-row">
+    const dim   = secs === 0 ? ' style="opacity:0.35"' : '';
+    return `<div class="detail-zone-row"${dim}>
       <span class="detail-zone-tag" style="color:${color}">${ZONE_TAGS[i]}</span>
       <span class="detail-zone-name">${ZONE_NAMES[i]}</span>
       <div class="detail-zone-bar-track">
         <div class="detail-zone-bar-fill" style="width:${pct}%;background:${color}"></div>
       </div>
-      <span class="detail-zone-time">${fmtDur(secs)}</span>
+      <span class="detail-zone-time">${secs > 0 ? fmtDur(secs) : '—'}</span>
+      <span class="detail-zone-pct" style="color:${color}">${pct}%</span>
+    </div>`;
+  }).join('');
+
+  card.style.display = '';
+}
+
+// Compute HR zone times from a raw second-by-second HR stream.
+// zoneBoundaries: icu_hr_zones — array of UPPER bpm limits per zone, e.g. [136,152,158,169,174,179,187]
+// Each sample counts as 1 second. Last zone catches everything above the second-to-last boundary.
+function computeHRZoneTimesFromStream(hrStream, zoneBoundaries) {
+  if (!Array.isArray(hrStream) || hrStream.length === 0) return null;
+  if (!Array.isArray(zoneBoundaries) || zoneBoundaries.length === 0) return null;
+  const n = zoneBoundaries.length;
+  const secs = new Array(n).fill(0);
+  hrStream.forEach(bpm => {
+    if (!bpm || bpm <= 0) return;
+    let z = n - 1; // default: last zone
+    for (let i = 0; i < n; i++) { if (bpm <= zoneBoundaries[i]) { z = i; break; } }
+    secs[z]++;
+  });
+  if (secs.every(s => s === 0)) return null;
+  return secs.map((s, i) => ({ id: `Z${i + 1}`, secs: s }));
+}
+
+// Detailed HR zone table — mirrors renderDetailZones but uses icu_hr_zone_times
+function renderDetailHRZones(activity) {
+  const card = document.getElementById('detailHRZonesCard');
+  if (!card) return;
+
+  const hzt = activity.icu_hr_zone_times;
+  if (!Array.isArray(hzt) || hzt.length === 0) { card.style.display = 'none'; return; }
+
+  // Normalise to [{id,secs}] — API returns plain numbers [1783,1152,...] or objects [{id,secs}]
+  const entries = hzt.map((z, i) =>
+    typeof z === 'number' ? { id: `Z${i + 1}`, secs: z } : z
+  );
+
+  const numZones = Math.min(entries.length, 7);
+  const totals = new Array(numZones).fill(0);
+  let totalSecs = 0;
+  entries.forEach(z => {
+    if (!z || typeof z.id !== 'string') return;
+    const m = z.id.match(/^Z(\d)$/);
+    if (!m) return;
+    const idx = parseInt(m[1], 10) - 1;
+    if (idx >= 0 && idx < numZones) { totals[idx] += (z.secs || 0); totalSecs += (z.secs || 0); }
+  });
+
+  if (totalSecs === 0) { card.style.display = 'none'; return; }
+
+  // Pull avg/max HR from the activity for the subtitle
+  const avgHR = actVal(activity, 'average_heartrate', 'icu_average_heartrate');
+  const maxHR = actVal(activity, 'max_heartrate', 'icu_max_heartrate');
+  const hintParts = [];
+  if (avgHR > 0) hintParts.push(`avg ${Math.round(avgHR)} bpm`);
+  if (maxHR > 0) hintParts.push(`max ${Math.round(maxHR)} bpm`);
+
+  document.getElementById('detailHRZonesTotalBadge').textContent = fmtDur(totalSecs) + ' total';
+  document.getElementById('detailHRZonesSubtitle').textContent   =
+    hintParts.length ? `Time in HR zone · ${hintParts.join(' · ')}` : 'Time in HR zone · this ride';
+
+  document.getElementById('detailHRZoneList').innerHTML = totals.map((secs, i) => {
+    const pct   = totalSecs > 0 ? (secs / totalSecs * 100).toFixed(1) : '0.0';
+    const color = ZONE_HEX[i] || ZONE_HEX[ZONE_HEX.length - 1];
+    const tag   = `Z${i + 1}`;
+    const name  = HR_ZONE_NAMES[i] || tag;
+    const dim   = secs === 0 ? ' style="opacity:0.35"' : '';
+    return `<div class="detail-zone-row"${dim}>
+      <span class="detail-zone-tag" style="color:${color}">${tag}</span>
+      <span class="detail-zone-name">${name}</span>
+      <div class="detail-zone-bar-track">
+        <div class="detail-zone-bar-fill" style="width:${pct}%;background:${color}"></div>
+      </div>
+      <span class="detail-zone-time">${secs > 0 ? fmtDur(secs) : '—'}</span>
       <span class="detail-zone-pct" style="color:${color}">${pct}%</span>
     </div>`;
   }).join('');
