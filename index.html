@@ -573,43 +573,93 @@
                         </div>
                     </div>
 
-                    <!-- ── Week Progress Card ── -->
-                    <div class="card" id="weekProgressCard">
-                        <div class="card-header">
-                            <div>
-                                <div class="card-title">Week Progress</div>
-                                <div class="card-subtitle">Daily TSS · Mon → Sun</div>
+                    <!-- ── Week Progress + Training Status (side by side) ── -->
+                    <div class="card-row">
+
+                        <div class="card" id="weekProgressCard">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">Week Progress</div>
+                                    <div class="card-subtitle">Daily TSS · Mon → Sun</div>
+                                </div>
+                                <div class="chart-legend">
+                                    <span class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--accent)"></span>This week</span>
+                                    <span class="chart-legend-item"><span class="chart-legend-dot" style="background:rgba(136,145,168,0.5)"></span>Last week</span>
+                                </div>
                             </div>
-                            <div class="chart-legend">
-                                <span class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--accent)"></span>This week</span>
-                                <span class="chart-legend-item"><span class="chart-legend-dot" style="background:rgba(136,145,168,0.5)"></span>Last week</span>
+                            <div class="wkp-body">
+                                <div class="wkp-chart">
+                                    <canvas id="weekProgressChart"></canvas>
+                                </div>
+                                <div class="wkp-stats">
+                                    <div class="wkp-stat">
+                                        <div class="wkp-stat-label">This week</div>
+                                        <div class="wkp-stat-val" id="wpThisWeek">—</div>
+                                        <div class="wkp-stat-delta" id="wpDelta">—</div>
+                                    </div>
+                                    <div class="wkp-divider"></div>
+                                    <div class="wkp-stat">
+                                        <div class="wkp-stat-label">Last week</div>
+                                        <div class="wkp-stat-val" id="wpLastWeek">—</div>
+                                        <div class="wkp-stat-sub">TSS</div>
+                                    </div>
+                                    <div class="wkp-divider"></div>
+                                    <div class="wkp-stat">
+                                        <div class="wkp-stat-label">Fitness trend</div>
+                                        <div class="wkp-ctl-delta" id="wpCTLDelta">—</div>
+                                        <div class="wkp-badge" id="wpTrendBadge">—</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div class="wkp-body">
-                            <div class="wkp-chart">
-                                <canvas id="weekProgressChart"></canvas>
+
+                        <!-- Training Status card -->
+                        <div class="card" id="trainingStatusCard">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">Training Status</div>
+                                    <div class="card-subtitle">Pro fitness indicators</div>
+                                </div>
                             </div>
-                            <div class="wkp-stats">
-                                <div class="wkp-stat">
-                                    <div class="wkp-stat-label">This week</div>
-                                    <div class="wkp-stat-val" id="wpThisWeek">—</div>
-                                    <div class="wkp-stat-delta" id="wpDelta">—</div>
+                            <div class="trs-body">
+                                <!-- Top: Ramp Rate gauge + Form/TSB -->
+                                <div class="trs-top-row">
+                                    <div class="trs-ramp-wrap">
+                                        <div class="trs-metric-label">Ramp Rate</div>
+                                        <div class="trs-gauge-container">
+                                            <svg id="rampGaugeSVG" viewBox="0 0 200 116" class="trs-gauge-svg"></svg>
+                                            <div class="trs-gauge-overlay">
+                                                <div class="trs-gauge-num" id="rampNum">—</div>
+                                                <div class="trs-gauge-unit">CTL / wk</div>
+                                            </div>
+                                        </div>
+                                        <div id="rampBadge" class="trs-badge">—</div>
+                                    </div>
+                                    <div class="trs-form-wrap">
+                                        <div class="trs-metric-label">Form / TSB</div>
+                                        <div class="trs-form-num" id="trsFormNum">—</div>
+                                        <div class="trs-form-status" id="trsFormStatus">—</div>
+                                        <div class="trs-form-hint" id="trsFormHint">—</div>
+                                    </div>
                                 </div>
-                                <div class="wkp-divider"></div>
-                                <div class="wkp-stat">
-                                    <div class="wkp-stat-label">Last week</div>
-                                    <div class="wkp-stat-val" id="wpLastWeek">—</div>
-                                    <div class="wkp-stat-sub">TSS</div>
-                                </div>
-                                <div class="wkp-divider"></div>
-                                <div class="wkp-stat">
-                                    <div class="wkp-stat-label">Fitness trend</div>
-                                    <div class="wkp-ctl-delta" id="wpCTLDelta">—</div>
-                                    <div class="wkp-badge" id="wpTrendBadge">—</div>
+                                <!-- Bottom: Aerobic Efficiency sparkline -->
+                                <div class="trs-ef-wrap">
+                                    <div class="trs-ef-header">
+                                        <div class="trs-metric-label">Aerobic Efficiency · NP ÷ HR</div>
+                                        <div class="trs-ef-nums">
+                                            <span id="trsEFCurrent">—</span>
+                                            <span id="trsEFDelta">—</span>
+                                        </div>
+                                    </div>
+                                    <div class="trs-ef-chart-area">
+                                        <canvas id="trsEFChart"></canvas>
+                                    </div>
+                                    <div class="trs-ef-footer">Last 10 qualifying rides with power + HR · higher = more efficient</div>
                                 </div>
                             </div>
                         </div>
-                    </div>
+
+                    </div><!-- /card-row week+status -->
 
                     <div class="fitness-row">
                         <!-- Training Load chart -->

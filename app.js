@@ -24,6 +24,7 @@ const state = {
   powerCurve: null,
   powerCurveRange: null,
   weekProgressChart: null,
+  efSparkChart: null,
   calMonth: null,
   currentPage: 'dashboard',
   previousPage: null,
@@ -672,6 +673,7 @@ function renderDashboard() {
   renderAllActivitiesList();
   updateSortButtons();
   renderWeekProgress();
+  renderTrainingStatus();
   renderFitnessChart(recent, days);
   renderWeeklyChart(recent);
   renderAvgPowerChart(recent);
@@ -697,6 +699,7 @@ function resetDashboard() {
   if (state.avgPowerChart)      { state.avgPowerChart.destroy();      state.avgPowerChart      = null; }
   if (state.powerCurveChart)    { state.powerCurveChart.destroy();    state.powerCurveChart    = null; }
   if (state.weekProgressChart)  { state.weekProgressChart.destroy();  state.weekProgressChart  = null; }
+  if (state.efSparkChart)       { state.efSparkChart.destroy();       state.efSparkChart       = null; }
   state.powerCurve = null; state.powerCurveRange = null;
   const zc = document.getElementById('zoneDistCard');
   if (zc) zc.style.display = 'none';
@@ -974,9 +977,11 @@ function renderWeekProgress() {
     deltaEl.style.color = 'var(--text-muted)';
   }
 
-  // Fitness trend: use API CTL for today, compute 7-days-ago CTL from activities
-  const ctlNow  = state.fitness?.ctl ?? computeCTLfromActivities(state.activities, today);
+  // Fitness trend: compute BOTH from activities so the delta is on a consistent scale.
+  // Mixing API CTL (built from full history) with a locally-computed value (starts from 0)
+  // creates a false offset that inflates the delta.
   const d7      = new Date(today); d7.setDate(d7.getDate() - 7);
+  const ctlNow  = computeCTLfromActivities(state.activities, today);
   const ctlPrev = computeCTLfromActivities(state.activities, d7);
   const ctlDiff = ctlNow - ctlPrev;
 
@@ -997,41 +1002,45 @@ function renderWeekProgress() {
     badgeEl.className   = 'wkp-badge wkp-badge--flat';
   }
 
-  // Chart
+  // Chart — line graph: this week (solid green) vs last week (dashed grey)
   const ctx = document.getElementById('weekProgressChart');
   if (!ctx) return;
   if (state.weekProgressChart) { state.weekProgressChart.destroy(); state.weekProgressChart = null; }
 
-  // Capture thisMonday for the backgroundColor callback
-  const capturedMonday = new Date(thisMonday);
+  // Find index of today (last non-null point) to highlight it
+  const todayIdx = thisWeekData.reduce((idx, v, i) => (v !== null ? i : idx), 0);
 
   state.weekProgressChart = new Chart(ctx.getContext('2d'), {
-    type: 'bar',
+    type: 'line',
     data: {
       labels: dayLabels,
       datasets: [
         {
           label: 'Last week',
           data: lastWeekData,
-          backgroundColor: 'rgba(136,145,168,0.18)',
-          borderColor:      'rgba(136,145,168,0.3)',
-          borderWidth: 1,
-          borderRadius: 5,
+          borderColor:      'rgba(136,145,168,0.45)',
+          backgroundColor:  'transparent',
+          borderWidth: 2,
+          borderDash: [5, 4],
+          pointRadius: 3,
+          pointBackgroundColor: 'rgba(136,145,168,0.5)',
+          pointBorderColor: 'transparent',
+          tension: 0.35,
           order: 2
         },
         {
           label: 'This week',
           data: thisWeekData,
-          backgroundColor: thisWeekData.map((_, i) => {
-            const td = new Date(capturedMonday);
-            td.setDate(capturedMonday.getDate() + i);
-            return toDateStr(td) === todayStr ? 'rgba(0,229,160,0.9)' : 'rgba(0,229,160,0.45)';
-          }),
-          hoverBackgroundColor: '#00e5a0',
-          borderColor:   'rgba(0,229,160,0.65)',
-          borderWidth: 1,
-          borderRadius: 5,
-          skipNull: true,
+          borderColor:     '#00e5a0',
+          backgroundColor: 'rgba(0,229,160,0.08)',
+          borderWidth: 2.5,
+          pointRadius:          thisWeekData.map((_, i) => i === todayIdx ? 6 : 3),
+          pointBackgroundColor: thisWeekData.map((_, i) => i === todayIdx ? '#00e5a0' : 'rgba(0,229,160,0.6)'),
+          pointBorderColor:     thisWeekData.map((_, i) => i === todayIdx ? 'var(--bg-card)' : 'transparent'),
+          pointBorderWidth: 2,
+          fill: true,
+          spanGaps: false,
+          tension: 0.35,
           order: 1
         }
       ]
@@ -1054,6 +1063,173 @@ function renderWeekProgress() {
 }
 
 /* ====================================================
+   TRAINING STATUS
+==================================================== */
+
+// Draw the semicircular ramp-rate gauge into #rampGaugeSVG.
+// Range 0–12 CTL/week. Negative values pin the needle at 0.
+function drawRampGaugeSVG(rampRate) {
+  const el = document.getElementById('rampGaugeSVG');
+  if (!el) return;
+
+  const CX = 100, CY = 105, R = 82, SW = 16;
+  const val = Math.max(0, Math.min(12, rampRate));
+
+  // Map value to angle: 0 → π (left), 12 → 0 (right)
+  const toA = v => Math.PI * (1 - Math.max(0, Math.min(12, v)) / 12);
+
+  // SVG coordinate at angle a (standard math → SVG y-flip)
+  const px = a => (CX + R * Math.cos(a)).toFixed(1);
+  const py = a => (CY - R * Math.sin(a)).toFixed(1);
+
+  // Arc path from angle a1 to a2, sweep=1 (clockwise on screen = top arc)
+  const seg = (a1, a2, col, sw, op, cap) => {
+    op  = op  ?? 1;
+    cap = cap ?? 'butt';
+    const large = (a1 - a2) > Math.PI ? 1 : 0;
+    return `<path d="M${px(a1)} ${py(a1)} A${R} ${R} 0 ${large} 1 ${px(a2)} ${py(a2)}" `
+         + `fill="none" stroke="${col}" stroke-width="${sw}" stroke-linecap="${cap}" opacity="${op}"/>`;
+  };
+
+  // Ramp-rate color zones (0–12 CTL/wk)
+  const zones = [[0,3,'#00e5a0'],[3,8,'#00e5a0'],[8,10,'#f0c429'],[10,12,'#ff4757']];
+  const color = val < 8 ? '#00e5a0' : val < 10 ? '#f0c429' : '#ff4757';
+
+  let s = '';
+  // 1. Background track
+  s += seg(Math.PI * 0.999, Math.PI * 0.001, 'rgba(255,255,255,0.07)', SW);
+  // 2. Dimmed zone bands
+  zones.forEach(([lo, hi, c]) => s += seg(toA(lo), toA(hi), c, SW - 7, 0.28));
+  // 3. Active progress fill
+  if (val > 0.15) s += seg(Math.PI * 0.999, toA(val), color, SW, 0.88, 'round');
+  // 4. Indicator dot
+  s += `<circle cx="${px(toA(val))}" cy="${py(toA(val))}" r="7" fill="${color}" stroke="var(--bg-card)" stroke-width="3"/>`;
+
+  el.innerHTML = s;
+}
+
+function renderTrainingStatus() {
+  // ── RAMP RATE ──────────────────────────────────────────────
+  // Both dates use the same local computation so the delta is on a consistent scale.
+  // Do NOT mix state.fitness.ctl (API, full history) with computeCTL (starts from 0) —
+  // that offset makes a low-activity week appear like a huge gain.
+  const today   = new Date();
+  const d7      = new Date(); d7.setDate(d7.getDate() - 7);
+  const ctlNow  = computeCTLfromActivities(state.activities, today);
+  const ctlPrev = computeCTLfromActivities(state.activities, d7);
+  const ramp    = ctlNow - ctlPrev; // CTL points gained/lost over last 7 days
+
+  const rampNumEl = document.getElementById('rampNum');
+  const rampBadge = document.getElementById('rampBadge');
+  if (rampNumEl) rampNumEl.textContent = (ramp >= 0 ? '+' : '') + ramp.toFixed(1);
+
+  let rampLabel, rampCls;
+  if      (ramp <  0) { rampLabel = 'Detraining';    rampCls = 'trs-badge trs-badge--blue';      }
+  else if (ramp <  3) { rampLabel = 'Easy build';     rampCls = 'trs-badge trs-badge--green-dim'; }
+  else if (ramp <  8) { rampLabel = 'Optimal build';  rampCls = 'trs-badge trs-badge--green';     }
+  else if (ramp < 10) { rampLabel = 'Aggressive';     rampCls = 'trs-badge trs-badge--yellow';    }
+  else                { rampLabel = 'At risk';         rampCls = 'trs-badge trs-badge--red';       }
+  if (rampBadge) { rampBadge.textContent = rampLabel; rampBadge.className = rampCls; }
+
+  drawRampGaugeSVG(ramp);
+
+  // ── FORM / TSB ─────────────────────────────────────────────
+  const tsb       = state.fitness?.tsb ?? (state.fitness ? (state.fitness.ctl - state.fitness.atl) : null);
+  const formNumEl = document.getElementById('trsFormNum');
+  const formStat  = document.getElementById('trsFormStatus');
+  const formHint  = document.getElementById('trsFormHint');
+
+  if (tsb !== null && formNumEl) {
+    formNumEl.textContent = (tsb >= 0 ? '+' : '') + Math.round(tsb);
+
+    let fLabel, fColor, fHint;
+    if      (tsb > 25)  { fLabel = 'Peak Form';     fColor = '#00e5a0'; fHint = 'Perfect for A-priority races'; }
+    else if (tsb > 15)  { fLabel = 'Race Ready';    fColor = '#00e5a0'; fHint = 'Target A-priority races now'; }
+    else if (tsb > 5)   { fLabel = 'Fresh';         fColor = '#88c860'; fHint = 'Good for B-priority races'; }
+    else if (tsb > -5)  { fLabel = 'Neutral';       fColor = '#f0c429'; fHint = 'Transitioning'; }
+    else if (tsb > -15) { fLabel = 'Training';      fColor = '#f0c429'; fHint = 'Building fitness load'; }
+    else if (tsb > -25) { fLabel = 'Deep Training'; fColor = '#ff6b35'; fHint = 'High load — monitor fatigue'; }
+    else                { fLabel = 'Overreaching';  fColor = '#ff4757'; fHint = 'Recovery needed soon'; }
+
+    formNumEl.style.color = fColor;
+    if (formStat) { formStat.textContent = fLabel; formStat.style.color = fColor; }
+    if (formHint) formHint.textContent   = fHint;
+  }
+
+  // ── AEROBIC EFFICIENCY sparkline ───────────────────────────
+  // Qualifying rides: must have both power (NP) and HR data, duration > 30 min
+  const qualifying = [...state.activities]
+    .filter(a => {
+      const pwr = actVal(a, 'icu_weighted_avg_watts', 'average_watts');
+      const hr  = actVal(a, 'average_heartrate', 'icu_average_heartrate');
+      const dur = actVal(a, 'moving_time', 'icu_moving_time', 'elapsed_time');
+      return pwr > 50 && hr > 50 && dur > 1800;
+    })
+    .sort((a, b) => new Date(a.start_date_local || a.start_date) - new Date(b.start_date_local || b.start_date))
+    .slice(-10);
+
+  const efCurEl   = document.getElementById('trsEFCurrent');
+  const efDeltaEl = document.getElementById('trsEFDelta');
+
+  if (qualifying.length < 3) {
+    if (efCurEl)   efCurEl.textContent   = '—';
+    if (efDeltaEl) { efDeltaEl.textContent = 'Need 3+ power+HR rides'; efDeltaEl.style.color = 'var(--text-muted)'; }
+    if (state.efSparkChart) { state.efSparkChart.destroy(); state.efSparkChart = null; }
+    return;
+  }
+
+  const efs = qualifying.map(a => {
+    const pwr = actVal(a, 'icu_weighted_avg_watts', 'average_watts');
+    const hr  = actVal(a, 'average_heartrate', 'icu_average_heartrate');
+    return +(pwr / hr).toFixed(3);
+  });
+
+  // Compare average EF of most recent 3 vs oldest 3 to get trend
+  const n       = Math.min(3, efs.length);
+  const efRecent = efs.slice(-n).reduce((s, v) => s + v, 0) / n;
+  const efOld    = efs.slice(0, n).reduce((s, v) => s + v, 0) / n;
+  const efPct    = (efRecent - efOld) / efOld * 100;
+
+  if (efCurEl) efCurEl.textContent = efRecent.toFixed(2) + ' w/bpm';
+  if (efDeltaEl) {
+    const sign = efPct >= 0 ? '+' : '';
+    efDeltaEl.textContent = `${sign}${efPct.toFixed(1)}%`;
+    efDeltaEl.style.color = efPct >= 0 ? 'var(--accent)' : 'var(--red)';
+  }
+
+  const ctx = document.getElementById('trsEFChart');
+  if (!ctx) return;
+  if (state.efSparkChart) { state.efSparkChart.destroy(); state.efSparkChart = null; }
+
+  state.efSparkChart = new Chart(ctx.getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: qualifying.map(a => fmtDate(a.start_date_local || a.start_date)),
+      datasets: [{
+        data: efs,
+        borderColor: '#00e5a0',
+        backgroundColor: 'rgba(0,229,160,0.08)',
+        borderWidth: 2,
+        pointRadius:          efs.map((_, i) => i === efs.length - 1 ? 5 : 2.5),
+        pointBackgroundColor: efs.map((_, i) => i === efs.length - 1 ? '#00e5a0' : 'rgba(0,229,160,0.6)'),
+        pointBorderColor: 'transparent',
+        fill: true,
+        tension: 0.35
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { ...C_TOOLTIP, callbacks: { label: c => `EF: ${c.raw} w/bpm` } }
+      },
+      scales: cScales({ xGrid: false, yExtra: { maxTicksLimit: 3 } })
+    }
+  });
+}
+
+/* ====================================================
    CHARTS
 ==================================================== */
 function renderFitnessChart(activities, days) {
@@ -1069,16 +1245,31 @@ function renderFitnessChart(activities, days) {
     if (d) dailyTSS[d] = (dailyTSS[d] || 0) + (a.icu_training_load || a.tss || 0);
   });
 
-  // Seed fallback EMA from oldest available wellness entry
-  let ctlFallback = 30, atlFallback = 30;
-  const welKeys = Object.keys(wellness).sort();
-  if (welKeys.length > 0) {
-    const oldest = wellness[welKeys[0]];
-    if (oldest.ctl != null) { ctlFallback = oldest.ctl; atlFallback = oldest.atl; }
+  // Seed EMA from the most recent wellness entry at or before chart start
+  // (avoids divergence caused by using a stale seed 400 days away with no warmup)
+  let ctl = 30, atl = 30;
+  let seedBack = -1;
+  for (let back = 0; back <= 90; back++) {
+    const sd = toDateStr(daysAgo(days + back));
+    const sw = wellness[sd];
+    if (sw && sw.ctl != null) {
+      ctl = sw.ctl;
+      atl = sw.atl ?? sw.ctl;
+      seedBack = back;
+      break;
+    }
+  }
+  // Bridge gap days between seed date and chart start
+  if (seedBack > 0) {
+    for (let g = seedBack - 1; g >= 1; g--) {
+      const gd = toDateStr(daysAgo(days + g));
+      const t = dailyTSS[gd] || 0;
+      ctl = ctl + (t - ctl) / 42;
+      atl = atl + (t - atl) / 7;
+    }
   }
 
   const labels = [], ctlD = [], atlD = [], tsbD = [];
-  let ctl = ctlFallback, atl = atlFallback;
 
   for (let i = days; i >= 0; i--) {
     const d = toDateStr(daysAgo(i));
@@ -1706,15 +1897,30 @@ function renderFitnessHistoryChart(days) {
     if (d) dailyTSS[d] = (dailyTSS[d] || 0) + (a.icu_training_load || a.tss || 0);
   });
 
-  let ctlSeed = 30, atlSeed = 30;
-  const welKeys = Object.keys(wellness).sort();
-  if (welKeys.length > 0) {
-    const oldest = wellness[welKeys[0]];
-    if (oldest.ctl != null) { ctlSeed = oldest.ctl; atlSeed = oldest.atl; }
+  // Seed EMA from the most recent wellness entry at or before chart start
+  let ctl = 30, atl = 30;
+  let seedBack = -1;
+  for (let back = 0; back <= 90; back++) {
+    const sd = toDateStr(daysAgo(days + back));
+    const sw = wellness[sd];
+    if (sw && sw.ctl != null) {
+      ctl = sw.ctl;
+      atl = sw.atl ?? sw.ctl;
+      seedBack = back;
+      break;
+    }
+  }
+  // Bridge gap days between seed date and chart start
+  if (seedBack > 0) {
+    for (let g = seedBack - 1; g >= 1; g--) {
+      const gd = toDateStr(daysAgo(days + g));
+      const t = dailyTSS[gd] || 0;
+      ctl = ctl + (t - ctl) / 42;
+      atl = atl + (t - atl) / 7;
+    }
   }
 
   const labels = [], ctlD = [], atlD = [], tsbD = [];
-  let ctl = ctlSeed, atl = atlSeed;
 
   for (let i = days; i >= 0; i--) {
     const d = toDateStr(daysAgo(i));

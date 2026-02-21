@@ -1275,33 +1275,31 @@ code { font-family: 'JetBrains Mono', monospace; font-size: 0.82em; background: 
 ============================================================ */
 .wkp-body {
   display: flex;
-  gap: 20px;
-  align-items: stretch;
+  flex-direction: column;
+  gap: 14px;
 }
 .wkp-chart {
-  flex: 1;
-  min-width: 0;
-  height: 168px;
+  width: 100%;
+  height: 190px;
 }
 .wkp-stats {
   display: flex;
-  flex-direction: column;
-  min-width: 164px;
+  flex-direction: row;
   background: var(--bg-elevated);
   border-radius: var(--radius);
   border: 1px solid var(--border);
   overflow: hidden;
-  flex-shrink: 0;
 }
 .wkp-stat {
-  padding: 14px 16px;
+  padding: 12px 16px;
   flex: 1;
   display: flex;
   flex-direction: column;
   justify-content: center;
 }
 .wkp-divider {
-  height: 1px;
+  width: 1px;
+  height: auto;
   background: var(--border);
   flex-shrink: 0;
 }
@@ -1351,11 +1349,158 @@ code { font-family: 'JetBrains Mono', monospace; font-size: 0.82em; background: 
 .wkp-badge--flat { background: rgba(74,158,255,0.12); color: var(--blue);   }
 
 @media (max-width: 600px) {
-  .wkp-body        { flex-direction: column; }
-  .wkp-stats       { flex-direction: row; min-width: 0; }
-  .wkp-divider     { width: 1px; height: auto; }
-  .wkp-stat-val    { font-size: 1.3rem; }
-  .wkp-ctl-delta   { font-size: 0.9rem; }
+  .wkp-stat-val  { font-size: 1.25rem; }
+  .wkp-ctl-delta { font-size: 0.88rem; }
+}
+
+/* ============================================================
+   TRAINING STATUS CARD
+============================================================ */
+.trs-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+/* Top row: ramp gauge (left) + form status (right) */
+.trs-top-row {
+  display: flex;
+  gap: 14px;
+  align-items: stretch;
+}
+.trs-ramp-wrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.trs-form-wrap {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+.trs-metric-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+  align-self: flex-start;
+  width: 100%;
+}
+/* Ramp gauge SVG */
+.trs-gauge-container {
+  position: relative;
+  width: 100%;
+  max-width: 200px;
+}
+.trs-gauge-svg {
+  width: 100%;
+  display: block;
+}
+.trs-gauge-overlay {
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.trs-gauge-num {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.trs-gauge-unit {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+  letter-spacing: 0.04em;
+}
+/* Reusable badge used for ramp zone labels */
+.trs-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 20px;
+  letter-spacing: 0.03em;
+  margin-top: 6px;
+}
+.trs-badge--green     { background: rgba(0,229,160,0.15);  color: var(--accent); }
+.trs-badge--green-dim { background: rgba(136,200,96,0.12); color: #88c860; }
+.trs-badge--yellow    { background: rgba(240,196,41,0.15); color: var(--yellow); }
+.trs-badge--red       { background: rgba(255,71,87,0.15);  color: var(--red);    }
+.trs-badge--blue      { background: rgba(74,158,255,0.15); color: var(--blue);   }
+/* Form/TSB values */
+.trs-form-num {
+  font-size: 2.2rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  margin: 2px 0 4px;
+}
+.trs-form-status {
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+.trs-form-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+/* Aerobic Efficiency sparkline section */
+.trs-ef-wrap {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+}
+.trs-ef-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.trs-ef-nums {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-shrink: 0;
+}
+#trsEFCurrent {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+#trsEFDelta {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+.trs-ef-chart-area { height: 72px; }
+.trs-ef-footer {
+  font-size: 0.67rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: 5px;
+}
+
+@media (max-width: 600px) {
+  .trs-top-row  { flex-direction: column; }
+  .trs-form-num { font-size: 1.8rem; }
 }
 
 /* Note shown below the activities list for placeholder/no-data entries */
