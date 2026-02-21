@@ -52,7 +52,7 @@ input, select { font-family: inherit; }
 /* ============================================================
    SIDEBAR
 ============================================================ */
-.sidebar { width: var(--sidebar-w); min-height: 100vh; min-height: 100dvh; background: var(--bg-surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; position: fixed; top: 0; left: 0; bottom: 0; z-index: 300; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+.sidebar { width: var(--sidebar-w); min-height: 100vh; min-height: 100dvh; background: var(--bg-surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); transition: transform 0.28s cubic-bezier(0.4,0,0.2,1); }
 .sidebar-logo { display: flex; align-items: center; gap: 10px; padding: 22px 20px; border-bottom: 1px solid var(--border); }
 .logo-icon { width: 34px; height: 34px; background: var(--accent); border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .logo-icon svg { width: 18px; height: 18px; }
@@ -80,8 +80,6 @@ input, select { font-family: inherit; }
 /* ============================================================
    MAIN LAYOUT
 ============================================================ */
-/* Topbar: fixed so Safari can't scroll it away */
---topbar-h: calc(48px + env(safe-area-inset-top));
 .main { margin-left: var(--sidebar-w); min-height: 100svh; min-height: 100vh; display: flex; flex-direction: column; min-width: 0; }
 .topbar {
   height: calc(48px + env(safe-area-inset-top));
@@ -93,9 +91,6 @@ input, select { font-family: inherit; }
   z-index: 150;
   flex-shrink: 0;
 }
-/* Push content down to sit below the fixed topbar */
-.page-content { padding-top: calc(48px + env(safe-area-inset-top) + 24px); }
-
 .topbar-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 
 /* ── Page headline ── */
@@ -251,7 +246,6 @@ input, select { font-family: inherit; }
 .activity-row:active { transform: translateY(0); box-shadow: none; }
 
 /* Icon */
-.act-card-body { display: contents; }
 .activity-type-icon { width: 34px; height: 34px; border-radius: 10px; background: var(--accent-dim); color: var(--accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .activity-type-icon svg { width: 17px; height: 17px; }
 .activity-type-icon.run     { background: var(--orange-dim); color: var(--orange); }
@@ -474,9 +468,6 @@ input, select { font-family: inherit; }
 @media (max-width: 600px) {
   .cal-dow-row > div { font-size: 0.6rem; letter-spacing: 0; }
 }
-/* ── Sidebar slide transition (always present) ── */
-.sidebar { transition: transform 0.28s cubic-bezier(0.4,0,0.2,1); }
-
 /* ── Backdrop: always in DOM, invisible + non-interactive when closed ── */
 .sidebar-backdrop {
   position: fixed; inset: 0;
@@ -516,7 +507,7 @@ input, select { font-family: inherit; }
   .sidebar {
     width: 220px;
     transform: translateX(-220px);
-    position: fixed; z-index: 300;
+    z-index: 300;
     pointer-events: none;
   }
   .sidebar.open { transform: translateX(0); pointer-events: auto; }
