@@ -406,18 +406,10 @@
                 </button>
                 <div class="topbar-actions">
                     <div class="date-range-pill" id="dateRangePill">
-                        <button onclick="setRange(7)" id="range7">7d</button>
-                        <button
-                            onclick="setRange(30)"
-                            id="range30"
-                            class="active"
-                        >
-                            30d
-                        </button>
-                        <button onclick="setRange(90)" id="range90">90d</button>
-                        <button onclick="setRange(365)" id="range365">
-                            1y
-                        </button>
+                        <button onclick="setRange(7)"   id="range7">7d</button>
+                        <button onclick="setRange(30)"  id="range30" class="active">30d</button>
+                        <button onclick="setRange(90)"  id="range90">90d</button>
+                        <button onclick="setRange(365)" id="range365">1y</button>
                     </div>
                 </div>
             </header>
@@ -435,10 +427,11 @@
 
                 <!-- ==================== DASHBOARD ==================== -->
                 <div class="page active" id="page-dashboard">
+                    <div class="stat-grid-label">This week <span id="statGridWeekRange"></span></div>
                     <div class="stat-grid">
                         <div class="stat-card">
                             <div class="stat-card-header">
-                                <div class="stat-label">Total TSS</div>
+                                <div class="stat-label">Training Load</div>
                                 <div class="stat-icon green">
                                     <svg
                                         viewBox="0 0 24 24"
@@ -529,7 +522,7 @@
                         </div>
                         <div class="stat-card">
                             <div class="stat-card-header">
-                                <div class="stat-label">Activities</div>
+                                <div class="stat-label">Rides</div>
                                 <div class="stat-icon green">
                                     <svg
                                         viewBox="0 0 24 24"
@@ -580,11 +573,19 @@
                             <div class="card-header">
                                 <div>
                                     <div class="card-title">Week Progress</div>
-                                    <div class="card-subtitle">Daily TSS · Mon → Sun</div>
+                                    <div class="card-subtitle" id="wpSubtitle">Training Load · Mon → Sun</div>
                                 </div>
-                                <div class="chart-legend">
-                                    <span class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--accent)"></span>This week</span>
-                                    <span class="chart-legend-item"><span class="chart-legend-dot" style="background:rgba(136,145,168,0.5)"></span>Last week</span>
+                                <div class="wkp-header-right">
+                                    <div class="wkp-toggles">
+                                        <button class="wkp-toggle-btn wkp-toggle-btn--active" data-metric="tss"      onclick="renderWeekProgress('tss')">Load</button>
+                                        <button class="wkp-toggle-btn"                         data-metric="distance" onclick="renderWeekProgress('distance')">Distance</button>
+                                        <button class="wkp-toggle-btn"                         data-metric="time"     onclick="renderWeekProgress('time')">Time</button>
+                                        <button class="wkp-toggle-btn"                         data-metric="elevation" onclick="renderWeekProgress('elevation')">Elevation</button>
+                                    </div>
+                                    <div class="chart-legend">
+                                        <span class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--accent)"></span>This week</span>
+                                        <span class="chart-legend-item"><span class="chart-legend-dot" style="background:rgba(136,145,168,0.5)"></span>Last week</span>
+                                    </div>
                                 </div>
                             </div>
                             <div class="wkp-body">
@@ -601,7 +602,7 @@
                                     <div class="wkp-stat">
                                         <div class="wkp-stat-label">Last week</div>
                                         <div class="wkp-stat-val" id="wpLastWeek">—</div>
-                                        <div class="wkp-stat-sub">TSS</div>
+                                        <div class="wkp-stat-sub" id="wpUnit">TSS</div>
                                     </div>
                                     <div class="wkp-divider"></div>
                                     <div class="wkp-stat">
@@ -622,7 +623,7 @@
                                 </div>
                             </div>
                             <div class="trs-body">
-                                <!-- Top: Ramp Rate gauge + Form/TSB -->
+                                <!-- Top: Ramp Rate gauge + CTL / ATL / TSB -->
                                 <div class="trs-top-row">
                                     <div class="trs-ramp-wrap">
                                         <div class="trs-metric-label">Ramp Rate</div>
@@ -636,8 +637,22 @@
                                         <div id="rampBadge" class="trs-badge">—</div>
                                     </div>
                                     <div class="trs-form-wrap">
-                                        <div class="trs-metric-label">Form / TSB</div>
-                                        <div class="trs-form-num" id="trsFormNum">—</div>
+                                        <div class="trs-fitness-row">
+                                            <div class="trs-fitness-metric">
+                                                <div class="trs-metric-label">Fitness / CTL</div>
+                                                <div class="trs-form-num" id="trsCTLNum">—</div>
+                                            </div>
+                                            <div class="trs-fitness-div"></div>
+                                            <div class="trs-fitness-metric">
+                                                <div class="trs-metric-label">Fatigue / ATL</div>
+                                                <div class="trs-form-num" id="trsATLNum">—</div>
+                                            </div>
+                                            <div class="trs-fitness-div"></div>
+                                            <div class="trs-fitness-metric">
+                                                <div class="trs-metric-label">Form / TSB</div>
+                                                <div class="trs-form-num" id="trsFormNum">—</div>
+                                            </div>
+                                        </div>
                                         <div class="trs-form-status" id="trsFormStatus">—</div>
                                         <div class="trs-form-hint" id="trsFormHint">—</div>
                                     </div>
@@ -661,88 +676,24 @@
 
                     </div><!-- /card-row week+status -->
 
-                    <div class="fitness-row">
-                        <!-- Training Load chart -->
-                        <div class="card">
-                            <div class="card-header">
-                                <div>
-                                    <div class="card-title">Training Load</div>
-                                    <div class="card-subtitle">
-                                        CTL (Fitness) · ATL (Fatigue) · TSB
-                                        (Form)
-                                    </div>
-                                </div>
-                                <div class="chart-legend">
-                                    <span class="chart-legend-item"
-                                        ><span class="chart-legend-dot" style="background:var(--accent)"></span>CTL</span>
-                                    <span class="chart-legend-item"
-                                        ><span class="chart-legend-dot" style="background:var(--orange)"></span>ATL</span>
-                                    <span class="chart-legend-item"
-                                        ><span class="chart-legend-dot" style="background:var(--blue)"></span>TSB</span>
-                                </div>
+                    <!-- Training Load chart -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">Training Load</div>
+                                <div class="card-subtitle">CTL (Fitness) · ATL (Fatigue) · TSB (Form)</div>
                             </div>
-                            <div class="chart-wrap">
-                                <canvas id="fitnessChart"></canvas>
+                            <div class="card-header-controls">
+                                <div class="chart-legend">
+                                    <span class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--accent)"></span>CTL</span>
+                                    <span class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--orange)"></span>ATL</span>
+                                    <span class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--blue)"></span>TSB</span>
+                                </div>
+                                <span class="fitness-range-label" id="fitnessRangeLabel">Last 30 days</span>
                             </div>
                         </div>
-
-                        <!-- Fitness Status gauges -->
-                        <div class="card">
-                            <div class="card-header">
-                                <div>
-                                    <div class="card-title">Fitness Status</div>
-                                    <div class="card-subtitle">
-                                        Today's values
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="fitness-gauges">
-                                <div class="gauge-card">
-                                    <div class="gauge-label">CTL</div>
-                                    <div class="gauge-value" id="gaugeCTL">
-                                        —
-                                    </div>
-                                    <div class="gauge-name">Fitness</div>
-                                    <div class="gauge-bar">
-                                        <div
-                                            class="gauge-bar-fill"
-                                            id="barCTL"
-                                        ></div>
-                                    </div>
-                                </div>
-                                <div class="gauge-card">
-                                    <div class="gauge-label">ATL</div>
-                                    <div class="gauge-value" id="gaugeATL">
-                                        —
-                                    </div>
-                                    <div class="gauge-name">Fatigue</div>
-                                    <div class="gauge-bar">
-                                        <div
-                                            class="gauge-bar-fill"
-                                            id="barATL"
-                                        ></div>
-                                    </div>
-                                </div>
-                                <div class="gauge-card">
-                                    <div class="gauge-label">TSB</div>
-                                    <div class="gauge-value" id="gaugeTSB">
-                                        —
-                                    </div>
-                                    <div class="gauge-name">Form</div>
-                                    <div class="gauge-bar">
-                                        <div
-                                            class="gauge-bar-fill"
-                                            id="barTSB"
-                                        ></div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="weekly-tss-section">
-                                <div class="weekly-tss-label">Weekly TSS</div>
-                                <div class="chart-wrap">
-                                    <canvas id="weeklyTssChart"></canvas>
-                                </div>
-                            </div>
+                        <div class="chart-wrap chart-wrap--fitness">
+                            <canvas id="fitnessChart"></canvas>
                         </div>
                     </div>
 
@@ -989,44 +940,41 @@
 
                 <!-- ==================== CALENDAR PAGE ==================== -->
                 <div class="page" id="page-calendar">
-                    <div class="card cal-card">
-                        <!-- Month navigation -->
-                        <div class="cal-nav">
-                            <button
-                                class="btn btn-ghost btn-icon"
-                                onclick="calPrevMonth()"
-                                title="Previous month"
-                            >
-                                <svg
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2.5"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                >
-                                    <polyline points="15 18 9 12 15 6" />
-                                </svg>
-                            </button>
-                            <span class="cal-nav-label" id="calMonthLabel"
-                                >—</span
-                            >
-                            <button
-                                class="btn btn-ghost btn-icon"
-                                onclick="calNextMonth()"
-                                title="Next month"
-                            >
-                                <svg
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2.5"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                >
-                                    <polyline points="9 18 15 12 9 6" />
-                                </svg>
-                            </button>
+                    <div class="cal-shell">
+
+                        <!-- Header: navigation + month stats -->
+                        <div class="cal-header">
+                            <div class="cal-header-nav">
+                                <button class="btn btn-ghost btn-icon" onclick="calPrevMonth()" title="Previous month">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                                </button>
+                                <span class="cal-month-title" id="calMonthLabel">—</span>
+                                <button class="btn btn-ghost btn-icon" onclick="calNextMonth()" title="Next month">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                                </button>
+                                <button class="cal-today-btn" onclick="calGoToday()">Today</button>
+                            </div>
+                            <div class="cal-header-stats">
+                                <div class="cal-hstat">
+                                    <span class="cal-hstat-val" id="calStatActivities">—</span>
+                                    <span class="cal-hstat-label">Activities</span>
+                                </div>
+                                <div class="cal-hstat-div"></div>
+                                <div class="cal-hstat">
+                                    <span class="cal-hstat-val" id="calStatDist">—</span>
+                                    <span class="cal-hstat-label">Distance</span>
+                                </div>
+                                <div class="cal-hstat-div"></div>
+                                <div class="cal-hstat">
+                                    <span class="cal-hstat-val" id="calStatTSS">—</span>
+                                    <span class="cal-hstat-label">Load</span>
+                                </div>
+                                <div class="cal-hstat-div"></div>
+                                <div class="cal-hstat">
+                                    <span class="cal-hstat-val" id="calStatTime">—</span>
+                                    <span class="cal-hstat-label">Time</span>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Day-of-week header -->
@@ -1042,6 +990,7 @@
 
                         <!-- Calendar grid (filled by renderCalendar) -->
                         <div class="cal-grid" id="calGrid"></div>
+
                     </div>
                 </div>
 
@@ -1431,6 +1380,20 @@
                                     id="settingsApiKey"
                                 >
                                     —
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-section">
+                            <div class="settings-section-title">Preferences</div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <div class="settings-row-label">Week starts on</div>
+                                    <div class="settings-row-sub">Affects weekly stats, week progress card &amp; calendar</div>
+                                </div>
+                                <div class="date-range-pill">
+                                    <button data-weekstart="1" onclick="setWeekStartDay(1)" class="active">Mon</button>
+                                    <button data-weekstart="0" onclick="setWeekStartDay(0)">Sun</button>
                                 </div>
                             </div>
                         </div>

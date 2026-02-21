@@ -114,6 +114,8 @@ code { font-family: 'JetBrains Mono', monospace; font-size: 0.82em; background: 
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-ghost { background: var(--bg-elevated); color: var(--text-secondary); border: 1px solid var(--border); }
 .btn-ghost:hover { color: var(--text-primary); border-color: var(--border-active); }
+.btn-icon { width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 8px; padding: 0; }
+.btn-icon svg { width: 18px; height: 18px; }
 .btn-danger { background: rgba(255,71,87,0.12); color: var(--red); border: 1px solid rgba(255,71,87,0.25); }
 .btn-danger:hover { background: rgba(255,71,87,0.2); }
 .btn-spinning svg { animation: spin 0.7s linear infinite; }
@@ -166,6 +168,15 @@ code { font-family: 'JetBrains Mono', monospace; font-size: 0.82em; background: 
 /* ============================================================
    STAT CARDS
 ============================================================ */
+.stat-grid-label {
+  font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--text-muted);
+  margin-bottom: 8px; display: flex; align-items: center; gap: 8px;
+}
+.stat-grid-label span {
+  font-weight: 500; text-transform: none; letter-spacing: 0;
+  color: var(--text-secondary); font-size: 0.68rem;
+}
 .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 14px; }
 .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; transition: border-color var(--transition), box-shadow var(--transition); }
 .stat-card:hover { border-color: var(--border-active); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
@@ -187,8 +198,8 @@ code { font-family: 'JetBrains Mono', monospace; font-size: 0.82em; background: 
 /* ============================================================
    CARD
 ============================================================ */
-.card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; min-width: 0; }
-.card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px 16px; min-width: 0; }
+.card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .card-title { font-size: 0.9rem; font-weight: 700; }
 .card-subtitle { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
 .card--narrow { max-width: 580px; }
@@ -238,6 +249,20 @@ code { font-family: 'JetBrains Mono', monospace; font-size: 0.82em; background: 
    CHART
 ============================================================ */
 .chart-wrap { position: relative; height: 200px; }
+.chart-wrap--fitness { height: 270px; }
+
+/* Range label shown in Training Load card header (replaces the pill) */
+.fitness-range-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 9px;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
 
 /* ============================================================
    ACTIVITY LIST
@@ -535,56 +560,201 @@ code { font-family: 'JetBrains Mono', monospace; font-size: 0.82em; background: 
   padding: 0 !important;
   gap: 0 !important;
 }
-.page-content--calendar .cal-card {
-  border-radius: 0;
-  border-left: none;
-  border-right: none;
-  border-bottom: none;
+
+/* Shell is fixed to fill the exact viewport area below the topbar and beside the sidebar */
+.cal-shell {
+  position: fixed;
+  left: var(--sidebar-w);
+  right: 0;
+  top: calc(48px + env(safe-area-inset-top));
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card);
+  overflow: hidden;
 }
 
-/* Cal card is a flex column so the grid can stretch */
-.cal-card { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+/* ── Header (nav + month stats) ── */
+.cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+  flex-shrink: 0;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.cal-header-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.cal-month-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+  color: var(--text-primary);
+  min-width: 168px;
+  text-align: center;
+}
+.cal-today-btn {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-dim);
+  border: 1px solid rgba(0,229,160,0.18);
+  border-radius: 20px;
+  padding: 4px 13px;
+  cursor: pointer;
+  margin-left: 6px;
+  transition: background var(--transition), border-color var(--transition);
+}
+.cal-today-btn:hover { background: rgba(0,229,160,0.22); border-color: var(--accent); }
 
-.cal-nav { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-.cal-nav-label { font-size: 1rem; font-weight: 700; letter-spacing: -0.3px; }
-.btn-icon { width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 8px; padding: 0; }
-.btn-icon svg { width: 18px; height: 18px; }
+/* Month stats pill */
+.cal-header-stats {
+  display: flex;
+  align-items: stretch;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.cal-hstat {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 5px 16px;
+  gap: 1px;
+}
+.cal-hstat-div { width: 1px; background: var(--border); align-self: stretch; }
+.cal-hstat-val {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.15;
+}
+.cal-hstat-label {
+  font-size: 0.61rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
 
-.cal-dow-row { display: grid; grid-template-columns: repeat(7, 1fr); border-bottom: 1px solid var(--border); background: var(--bg-surface); flex-shrink: 0; }
-.cal-dow-row > div { padding: 8px 0; text-align: center; font-size: 0.68rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em; }
-.cal-dow--weekend { color: var(--text-muted); opacity: 0.6; }
+/* ── Day-of-week strip ── */
+.cal-dow-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+  flex-shrink: 0;
+}
+.cal-dow-row > div {
+  padding: 9px 0;
+  text-align: center;
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.cal-dow--weekend { opacity: 0.45; }
 
-/* Grid fills remaining height; each row gets an equal share */
-.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); grid-auto-rows: 1fr; flex: 1; min-height: 0; overflow-y: auto; }
+/* ── Calendar grid ── */
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-auto-rows: 1fr;
+  flex: 1;
+  min-height: 0;
+}
 
-.cal-day { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 6px 5px 5px; overflow: hidden; transition: background var(--transition); }
+/* ── Day cells ── */
+.cal-day {
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 8px 5px;
+  overflow: hidden;
+  transition: background var(--transition);
+  display: flex;
+  flex-direction: column;
+  cursor: default;
+}
 .cal-day:nth-child(7n) { border-right: none; }
 .cal-day:hover { background: var(--bg-elevated); }
-
 .cal-day--other-month { background: var(--bg-base); }
 .cal-day--other-month:hover { background: var(--bg-base); }
-.cal-day--other-month .cal-day-num { opacity: 0.3; }
-.cal-day--other-month .cal-event { opacity: 0.4; }
+.cal-day--other-month .cal-day-num { opacity: 0.2; }
+.cal-day--other-month .cal-event  { opacity: 0.35; }
+.cal-day--weekend:not(.cal-day--other-month) { background: rgba(255,255,255,0.013); }
 
-.cal-day-num { font-size: 0.72rem; font-weight: 600; color: var(--text-muted); width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 50%; margin-bottom: 4px; flex-shrink: 0; }
-.cal-day--today .cal-day-num { background: var(--accent); color: var(--bg-base); font-weight: 800; }
-.cal-day--weekend:not(.cal-day--other-month) { background: rgba(0,0,0,0.15); }
+/* Day number badge */
+.cal-day-num {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  margin-bottom: 5px;
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+.cal-day--today .cal-day-num {
+  background: var(--accent);
+  color: #0d0f14;
+  font-weight: 800;
+}
 
-.cal-event { border-radius: 5px; padding: 3px 6px; margin-bottom: 3px; cursor: pointer; transition: filter var(--transition), transform var(--transition); font-size: 0.67rem; line-height: 1.3; border-left: 2px solid transparent; overflow: hidden; }
-.cal-event:hover { filter: brightness(1.2); transform: translateY(-1px); }
+/* Events list inside a day */
+.cal-events {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+  min-height: 0;
+}
+.cal-event {
+  border-radius: 4px;
+  padding: 3px 6px;
+  cursor: pointer;
+  transition: filter var(--transition), transform var(--transition);
+  font-size: 0.66rem;
+  line-height: 1.3;
+  border-left: 2px solid transparent;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.cal-event:hover  { filter: brightness(1.25); transform: translateY(-1px); }
 .cal-event:active { transform: translateY(0); }
-
-/* Activity type colour themes */
-.cal-event--ride    { background: var(--accent-dim);  border-left-color: var(--accent);  }
-.cal-event--run     { background: var(--orange-dim);  border-left-color: var(--orange);  }
-.cal-event--swim    { background: var(--blue-dim);    border-left-color: var(--blue);    }
-.cal-event--virtual { background: var(--purple-dim);  border-left-color: var(--purple);  }
-.cal-event--other   { background: rgba(136,145,168,0.1); border-left-color: var(--text-muted); }
-
+.cal-event--ride    { background: var(--accent-dim);          border-left-color: var(--accent); }
+.cal-event--run     { background: var(--orange-dim);          border-left-color: var(--orange); }
+.cal-event--swim    { background: var(--blue-dim);            border-left-color: var(--blue); }
+.cal-event--virtual { background: var(--purple-dim);          border-left-color: var(--purple); }
+.cal-event--other   { background: rgba(136,145,168,0.10);     border-left-color: var(--text-muted); }
 .cal-event-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; color: var(--text-primary); }
-.cal-event-meta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-muted); font-size: 0.63rem; margin-top: 1px; }
+.cal-event-meta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-muted); font-size: 0.61rem; margin-top: 1px; }
+.cal-more { font-size: 0.61rem; color: var(--accent); padding: 1px 2px; font-weight: 600; }
 
-.cal-more { font-size: 0.63rem; color: var(--text-muted); padding: 1px 3px; cursor: default; }
+/* TSS load bar at bottom of each day */
+.cal-day-tss {
+  margin-top: auto;
+  padding-top: 5px;
+}
+.cal-day-tss-bar {
+  height: 3px;
+  border-radius: 2px;
+  min-width: 4px;
+  opacity: 0.55;
+}
 
 /* ============================================================
    ACTIVITY DETAIL PAGE
@@ -855,12 +1025,16 @@ code { font-family: 'JetBrains Mono', monospace; font-size: 0.82em; background: 
 }
 @media (max-width: 900px) {
   .stream-charts { grid-template-columns: 1fr; }
-  .cal-day { padding: 4px 3px; }
+  .cal-day { padding: 5px 4px; }
   .cal-event-meta { display: none; }
-  .cal-event { padding: 2px 4px; }
+  .cal-event { padding: 2px 5px; }
+  .cal-header-stats { display: none; }
 }
 @media (max-width: 600px) {
-  .cal-dow-row > div { font-size: 0.6rem; letter-spacing: 0; }
+  .cal-dow-row > div { font-size: 0.58rem; letter-spacing: 0; }
+  .cal-month-title { min-width: 130px; font-size: 0.95rem; }
+  .cal-day { padding: 4px 2px; }
+  .cal-day-num { width: 20px; height: 20px; font-size: 0.68rem; }
 }
 /* ── Backdrop: always in DOM, invisible + non-interactive when closed ── */
 .sidebar-backdrop {
@@ -908,6 +1082,7 @@ code { font-family: 'JetBrains Mono', monospace; font-size: 0.82em; background: 
   /* Topbar spans full width on mobile since sidebar-w is 0 */
   .topbar { left: 0; }
   .main { margin-left: 0; min-height: 100svh; min-height: 100vh; }
+  .cal-shell { left: 0; }
   .burger-btn { display: flex; }
   .stat-grid { grid-template-columns: repeat(2, 1fr); }
 }
@@ -1273,6 +1448,39 @@ code { font-family: 'JetBrains Mono', monospace; font-size: 0.82em; background: 
 /* ============================================================
    WEEK PROGRESS CARD
 ============================================================ */
+/* Week Progress header right side */
+.wkp-header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+.wkp-toggles {
+  display: flex;
+  gap: 4px;
+}
+.wkp-toggle-btn {
+  font-size: 0.69rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
+}
+.wkp-toggle-btn:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border-color: var(--border-active);
+}
+.wkp-toggle-btn--active {
+  background: var(--accent-dim);
+  color: var(--accent);
+  border-color: rgba(0,229,160,0.3);
+}
+
 .wkp-body {
   display: flex;
   flex-direction: column;
@@ -1385,6 +1593,26 @@ code { font-family: 'JetBrains Mono', monospace; font-size: 0.82em; background: 
   flex-direction: column;
   justify-content: center;
   gap: 4px;
+}
+.trs-fitness-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0;
+}
+.trs-fitness-metric {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.trs-fitness-div {
+  width: 1px;
+  height: 48px;
+  background: var(--border);
+  margin: 0 14px;
+  align-self: center;
+  flex-shrink: 0;
 }
 .trs-metric-label {
   font-size: 0.68rem;

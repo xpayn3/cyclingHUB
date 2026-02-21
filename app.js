@@ -24,6 +24,8 @@ const state = {
   powerCurve: null,
   powerCurveRange: null,
   weekProgressChart: null,
+  weekProgressMetric: 'tss',
+  weekStartDay: 1,          // 0=Sunday, 1=Monday
   efSparkChart: null,
   calMonth: null,
   currentPage: 'dashboard',
@@ -465,12 +467,14 @@ function navigate(page) {
   const [title, sub] = info[page] || ['CycleIQ', ''];
   document.getElementById('pageTitle').textContent    = title;
   document.getElementById('pageSubtitle').textContent = sub;
-  document.getElementById('dateRangePill').style.display =
-    (page === 'dashboard' || page === 'activities') ? 'flex' : 'none';
 
   // Calendar fills full viewport height — toggle padding-less mode on the scroll container
   const pc = document.getElementById('pageContent');
   if (pc) pc.classList.toggle('page-content--calendar', page === 'calendar');
+
+  // Show topbar range pill only on pages where it makes sense
+  const pill = document.getElementById('dateRangePill');
+  if (pill) pill.style.display = (page === 'dashboard' || page === 'activities') ? 'flex' : 'none';
 
   if (page === 'calendar') renderCalendar();
   if (page === 'fitness')  renderFitnessPage();
@@ -480,14 +484,37 @@ function navigate(page) {
 }
 
 /* ====================================================
-   DATE RANGE
+   DATE RANGE & WEEK START
 ==================================================== */
+function setWeekStartDay(day) {
+  // day: 0=Sunday, 1=Monday
+  state.weekStartDay = day;
+  localStorage.setItem('icu_week_start_day', day);
+  // Sync toggle buttons in settings
+  document.querySelectorAll('[data-weekstart]').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.weekstart) === day);
+  });
+  // Re-render all week-dependent views
+  if (state.synced) {
+    renderWeekProgress();
+    renderFitnessStreak();
+  }
+  if (state.currentPage === 'calendar') renderCalendar();
+}
+
+function rangeLabel(days) {
+  return days === 365 ? 'Last year' : `Last ${days} days`;
+}
+
 function setRange(days) {
   state.rangeDays = days;
   localStorage.setItem('icu_range_days', days);
+  // Sync topbar pill
   document.querySelectorAll('#dateRangePill button').forEach(b => b.classList.remove('active'));
-  document.getElementById('range' + days).classList.add('active');
-  document.getElementById('pageSubtitle').textContent = `Overview · Last ${days} days`;
+  document.getElementById('range' + days)?.classList.add('active');
+  // Update Training Load card range label
+  const lbl = document.getElementById('fitnessRangeLabel');
+  if (lbl) lbl.textContent = rangeLabel(days);
   if (state.synced) renderDashboard();
 }
 
@@ -623,51 +650,100 @@ function renderDashboard() {
     new Date(a.start_date_local || a.start_date) >= cutoff && !isEmptyActivity(a)
   );
 
-  let tss = 0, dist = 0, time = 0, elev = 0, power = 0, powerN = 0;
-  recent.forEach(a => {
-    tss  += actVal(a, 'icu_training_load', 'tss');
-    dist += actVal(a, 'distance', 'icu_distance') / 1000;
-    time += actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time', 'icu_elapsed_time') / 3600;
-    elev += actVal(a, 'total_elevation_gain', 'icu_total_elevation_gain');
-    const w = actVal(a, 'icu_weighted_avg_watts', 'average_watts', 'icu_average_watts');
-    if (w > 0) { power += w; powerN++; }
-  });
+  // ── Weekly aggregates for top stat cards ───────────────────────────────────
+  const today         = new Date();
+  const thisWeekStart = getWeekStart(today);
+  const lastWeekStart = new Date(thisWeekStart);
+  lastWeekStart.setDate(thisWeekStart.getDate() - 7);
+  const thisWeekStr = toDateStr(thisWeekStart);
+  const lastWeekStr = toDateStr(lastWeekStart);
 
-  document.getElementById('statTSS').innerHTML   = `${Math.round(tss)}<span class="unit"> tss</span>`;
-  document.getElementById('statDist').innerHTML  = `${dist.toFixed(0)}<span class="unit"> km</span>`;
-  document.getElementById('statTime').innerHTML  = `${time.toFixed(1)}<span class="unit"> h</span>`;
-  document.getElementById('statElev').innerHTML  = `${Math.round(elev).toLocaleString()}<span class="unit"> m</span>`;
-  document.getElementById('statCount').textContent = recent.length;
-  document.getElementById('statPower').innerHTML = powerN
-    ? `${Math.round(power / powerN)}<span class="unit"> w</span>`
+  function aggWeek(startStr, endStr) {
+    let tss = 0, dist = 0, time = 0, elev = 0, pow = 0, powN = 0, count = 0;
+    state.activities.forEach(a => {
+      if (isEmptyActivity(a)) return;
+      const d = (a.start_date_local || a.start_date || '').slice(0, 10);
+      if (d < startStr || (endStr && d >= endStr)) return;
+      count++;
+      tss  += actVal(a, 'icu_training_load', 'tss');
+      dist += actVal(a, 'distance', 'icu_distance') / 1000;
+      time += actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time', 'icu_elapsed_time') / 3600;
+      elev += actVal(a, 'total_elevation_gain', 'icu_total_elevation_gain');
+      const w = actVal(a, 'icu_weighted_avg_watts', 'average_watts', 'icu_average_watts');
+      if (w > 0) { pow += w; powN++; }
+    });
+    return { tss, dist, time, elev, pow: powN > 0 ? Math.round(pow / powN) : 0, powN, count };
+  }
+
+  const tw = aggWeek(thisWeekStr, null);       // this week: Mon → today
+  const lw = aggWeek(lastWeekStr, thisWeekStr); // last week: Mon → Sun
+
+  // Trend helper — returns { text, cls } for stat-delta
+  function trend(cur, prev, opts = {}) {
+    if (cur === 0 && prev === 0) return { text: 'no data yet', cls: 'neutral' };
+    if (prev === 0) return { text: 'new this week', cls: 'up' };
+    const pct = (cur - prev) / prev * 100;
+    if (Math.abs(pct) < 1) return { text: '→ same as last wk', cls: 'neutral' };
+    const arrow = pct > 0 ? '↑' : '↓';
+    const cls   = pct > 0 ? 'up' : 'down';
+    const label = opts.fmt
+      ? `${arrow} ${opts.fmt(cur - prev)} vs last wk`
+      : `${arrow} ${Math.abs(Math.round(pct))}% vs last wk`;
+    return { text: label, cls };
+  }
+
+  function applyTrend(id, cur, prev, opts) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const { text, cls } = trend(cur, prev, opts);
+    el.textContent = text;
+    el.className   = `stat-delta ${cls}`;
+  }
+
+  // ── Update stat values (this week) ─────────────────────────────────────────
+  document.getElementById('statTSS').innerHTML   = `${Math.round(tw.tss)}<span class="unit"> tss</span>`;
+  document.getElementById('statDist').innerHTML  = `${tw.dist.toFixed(1)}<span class="unit"> km</span>`;
+  document.getElementById('statTime').innerHTML  = `${tw.time.toFixed(1)}<span class="unit"> h</span>`;
+  document.getElementById('statElev').innerHTML  = `${Math.round(tw.elev).toLocaleString()}<span class="unit"> m</span>`;
+  document.getElementById('statCount').textContent = tw.count;
+  document.getElementById('statPower').innerHTML = tw.powN
+    ? `${tw.pow}<span class="unit"> w</span>`
     : `—<span class="unit"> w</span>`;
 
-  document.getElementById('statTSSDelta').textContent   = `${recent.length} rides in ${days}d`;
-  document.getElementById('statDistDelta').textContent  = 'total distance';
-  document.getElementById('statTimeDelta').textContent  = 'total riding time';
-  document.getElementById('statElevDelta').textContent  = 'total climbing';
-  document.getElementById('statCountDelta').textContent = `in last ${days} days`;
-  document.getElementById('statPowerDelta').textContent = powerN
-    ? `avg from ${powerN} power rides`
-    : 'no power data';
+  // ── Trend deltas ───────────────────────────────────────────────────────────
+  applyTrend('statTSSDelta',  tw.tss,   lw.tss);
+  applyTrend('statDistDelta', tw.dist,  lw.dist);
+  applyTrend('statTimeDelta', tw.time,  lw.time);
+  applyTrend('statElevDelta', tw.elev,  lw.elev);
+  applyTrend('statPowerDelta', tw.pow,  lw.pow,
+    { fmt: d => `${d >= 0 ? '+' : ''}${d} W` });
+
+  // Activity count: show absolute diff (small numbers, % not meaningful)
+  const countEl = document.getElementById('statCountDelta');
+  if (countEl) {
+    const diff = tw.count - lw.count;
+    if      (tw.count === 0 && lw.count === 0) { countEl.textContent = 'no rides yet';       countEl.className = 'stat-delta neutral'; }
+    else if (lw.count === 0)                   { countEl.textContent = 'new this week';       countEl.className = 'stat-delta up'; }
+    else if (diff === 0)                        { countEl.textContent = '→ same as last wk';  countEl.className = 'stat-delta neutral'; }
+    else {
+      const arrow = diff > 0 ? '↑' : '↓';
+      countEl.textContent = `${arrow} ${Math.abs(diff)} vs last wk`;
+      countEl.className   = `stat-delta ${diff > 0 ? 'up' : 'down'}`;
+    }
+  }
+
+  // Week range label above stat grid  (e.g. "Mon Feb 17 – today")
+  const wkRangeEl = document.getElementById('statGridWeekRange');
+  if (wkRangeEl) {
+    const startFmt = thisWeekStart.toLocaleDateString('default', { month: 'short', day: 'numeric' });
+    const endFmt   = today.toLocaleDateString('default', { month: 'short', day: 'numeric' });
+    wkRangeEl.textContent = `${startFmt} – ${endFmt}`;
+  }
 
   document.getElementById('activitiesSubtitle').textContent    = `Last ${days} days · ${recent.length} activities`;
   document.getElementById('allActivitiesSubtitle').textContent = `${state.activities.filter(a => !isEmptyActivity(a)).length} total`;
 
-  // Fitness gauges — tsb can be null from API, fall back to ctl - atl
-  if (state.fitness) {
-    const ctl = state.fitness.ctl ?? 0;
-    const atl = state.fitness.atl ?? 0;
-    const tsb = state.fitness.tsb != null ? state.fitness.tsb : (ctl - atl);
-    document.getElementById('gaugeCTL').textContent = Math.round(ctl);
-    document.getElementById('gaugeATL').textContent = Math.round(atl);
-    document.getElementById('gaugeTSB').textContent = (tsb >= 0 ? '+' : '') + Math.round(tsb);
-    document.getElementById('barCTL').style.width = Math.min(100, ctl / 1.5) + '%';
-    document.getElementById('barATL').style.width = Math.min(100, atl / 1.5) + '%';
-    document.getElementById('barTSB').style.width = Math.min(100, Math.abs(tsb) * 2) + '%';
-    document.getElementById('barTSB').style.background  = tsb >= 0 ? 'var(--accent)' : 'var(--red)';
-    document.getElementById('gaugeTSB').style.color     = tsb >= 0 ? 'var(--accent)' : 'var(--red)';
-  }
+  // Fitness gauges removed — elements no longer in DOM
 
   renderActivityList('activityList', recent.slice(0, 10));
   renderAllActivitiesList();
@@ -687,8 +763,9 @@ function resetDashboard() {
     if (el) { const u = el.querySelector('.unit'); el.innerHTML = '—'; if (u) el.appendChild(u); }
   });
   document.getElementById('statCount').textContent = '—';
-  ['gaugeCTL', 'gaugeATL', 'gaugeTSB'].forEach(id => {
-    document.getElementById(id).textContent = '—';
+  ['statTSSDelta','statDistDelta','statTimeDelta','statElevDelta','statCountDelta','statPowerDelta'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = 'Sync to load'; el.className = 'stat-delta neutral'; }
   });
   document.getElementById('activityList').innerHTML = `
     <div class="empty-state">
@@ -923,48 +1000,78 @@ function computeCTLfromActivities(activities, atDate) {
   return ctl;
 }
 
-function renderWeekProgress() {
+function renderWeekProgress(metric) {
+  metric = metric || state.weekProgressMetric || 'tss';
+  state.weekProgressMetric = metric;
+
+  // Update active toggle button
+  document.querySelectorAll('.wkp-toggle-btn').forEach(btn =>
+    btn.classList.toggle('wkp-toggle-btn--active', btn.dataset.metric === metric)
+  );
+
+  // Metric config
+  const cfg = {
+    tss:       { label: 'Training Load', unit: 'TSS',  color: '#00e5a0', dimColor: 'rgba(0,229,160,0.08)',    fmt: v => Math.round(v),           tooltip: v => `${Math.round(v)} TSS` },
+    distance:  { label: 'Distance',      unit: 'km',   color: '#4a9eff', dimColor: 'rgba(74,158,255,0.08)',   fmt: v => (v/1000).toFixed(1),     tooltip: v => `${(v/1000).toFixed(1)} km` },
+    time:      { label: 'Time Riding',   unit: '',     color: '#9b59ff', dimColor: 'rgba(155,89,255,0.08)',   fmt: v => fmtDur(v),               tooltip: v => fmtDur(v) },
+    elevation: { label: 'Elevation',     unit: 'm',    color: '#ff6b35', dimColor: 'rgba(255,107,53,0.08)',   fmt: v => Math.round(v).toLocaleString(), tooltip: v => `${Math.round(v)} m` },
+  };
+  const m = cfg[metric];
+
+  // Update subtitle + unit label
+  const allDayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const wkStartName = allDayNames[state.weekStartDay];
+  const wkEndName   = allDayNames[(state.weekStartDay + 6) % 7];
+  const subtitleEl  = document.getElementById('wpSubtitle');
+  if (subtitleEl) subtitleEl.textContent = `${m.label} · ${wkStartName} → ${wkEndName}`;
+  const unitEl = document.getElementById('wpUnit');
+  if (unitEl) unitEl.textContent = m.unit || '—';
+
+  // Update legend dot colour to match metric
+  const legendDots = document.querySelectorAll('#weekProgressCard .chart-legend-item:first-child .chart-legend-dot');
+  legendDots.forEach(d => d.style.background = m.color);
+
   const todayStr = toDateStr(new Date());
-  const today = new Date();
+  const today    = new Date();
 
-  // Find Monday of this week and last week
-  const dow = today.getDay(); // 0=Sun
-  const daysToMon = dow === 0 ? 6 : dow - 1;
-  const thisMonday = new Date(today);
-  thisMonday.setDate(today.getDate() - daysToMon);
-  thisMonday.setHours(0, 0, 0, 0);
-
+  // Week start/end using configurable day (state.weekStartDay: 0=Sun, 1=Mon)
+  const thisMonday = getWeekStart(today);
   const lastMonday = new Date(thisMonday);
   lastMonday.setDate(thisMonday.getDate() - 7);
 
-  // Build daily TSS map
-  const dailyTSS = {};
+  // Build daily maps for all metrics at once, using actVal for proper icu_ fallbacks
+  const maps = { tss: {}, distance: {}, time: {}, elevation: {} };
   state.activities.filter(a => !isEmptyActivity(a)).forEach(a => {
     const d = (a.start_date_local || a.start_date || '').slice(0, 10);
     if (!d) return;
-    dailyTSS[d] = (dailyTSS[d] || 0) + actVal(a, 'icu_training_load', 'tss');
+    maps.tss[d]       = (maps.tss[d]       || 0) + actVal(a, 'icu_training_load', 'tss');
+    maps.distance[d]  = (maps.distance[d]  || 0) + actVal(a, 'distance', 'icu_distance');
+    maps.time[d]      = (maps.time[d]      || 0) + actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time', 'icu_elapsed_time');
+    maps.elevation[d] = (maps.elevation[d] || 0) + actVal(a, 'total_elevation_gain', 'icu_total_elevation_gain');
   });
+  const dayMap = maps[metric];
 
-  const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const thisWeekData = [];
-  const lastWeekData = [];
+  // Day labels starting from the configured week start
+  const allDayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const dayLabels    = Array.from({ length: 7 }, (_, i) => allDayLabels[(state.weekStartDay + i) % 7]);
+  const thisWeekData = [], lastWeekData = [];
   let thisTotal = 0, lastTotal = 0;
 
   for (let i = 0; i < 7; i++) {
-    const td = new Date(thisMonday); td.setDate(thisMonday.getDate() + i);
-    const ld = new Date(lastMonday); ld.setDate(lastMonday.getDate() + i);
+    const td    = new Date(thisMonday); td.setDate(thisMonday.getDate() + i);
+    const ld    = new Date(lastMonday); ld.setDate(lastMonday.getDate() + i);
     const tdStr = toDateStr(td);
-    const tss1  = tdStr > todayStr ? null : Math.round(dailyTSS[tdStr] || 0);
-    const tss2  = Math.round(dailyTSS[toDateStr(ld)] || 0);
-    thisWeekData.push(tss1);
-    lastWeekData.push(tss2);
-    if (tss1 !== null) thisTotal += tss1;
-    lastTotal += tss2;
+    const v1    = tdStr > todayStr ? null : (dayMap[tdStr] || 0);
+    const v2    = dayMap[toDateStr(ld)] || 0;
+    thisWeekData.push(v1);
+    lastWeekData.push(v2);
+    if (v1 !== null) thisTotal += v1;
+    lastTotal += v2;
   }
 
-  // Stat labels
-  document.getElementById('wpThisWeek').textContent = Math.round(thisTotal);
-  document.getElementById('wpLastWeek').textContent = Math.round(lastTotal);
+  // Stat values
+  document.getElementById('wpThisWeek').textContent = m.fmt(thisTotal);
+  document.getElementById('wpLastWeek').textContent = m.fmt(lastTotal);
 
   const deltaEl = document.getElementById('wpDelta');
   if (lastTotal > 0) {
@@ -977,37 +1084,26 @@ function renderWeekProgress() {
     deltaEl.style.color = 'var(--text-muted)';
   }
 
-  // Fitness trend: compute BOTH from activities so the delta is on a consistent scale.
-  // Mixing API CTL (built from full history) with a locally-computed value (starts from 0)
-  // creates a false offset that inflates the delta.
+  // Fitness trend (always CTL-based)
   const d7      = new Date(today); d7.setDate(d7.getDate() - 7);
   const ctlNow  = computeCTLfromActivities(state.activities, today);
   const ctlPrev = computeCTLfromActivities(state.activities, d7);
   const ctlDiff = ctlNow - ctlPrev;
-
-  const ctlEl  = document.getElementById('wpCTLDelta');
-  const sign   = ctlDiff >= 0 ? '+' : '';
-  ctlEl.textContent = `CTL ${sign}${ctlDiff.toFixed(1)}`;
+  const ctlEl   = document.getElementById('wpCTLDelta');
+  const ctlSign = ctlDiff >= 0 ? '+' : '';
+  ctlEl.textContent = `CTL ${ctlSign}${ctlDiff.toFixed(1)}`;
   ctlEl.style.color = ctlDiff > 0.5 ? 'var(--accent)' : ctlDiff < -0.5 ? 'var(--red)' : 'var(--text-secondary)';
 
   const badgeEl = document.getElementById('wpTrendBadge');
-  if (ctlDiff > 1.5) {
-    badgeEl.textContent = '▲ Building';
-    badgeEl.className   = 'wkp-badge wkp-badge--up';
-  } else if (ctlDiff < -1.5) {
-    badgeEl.textContent = '▼ Declining';
-    badgeEl.className   = 'wkp-badge wkp-badge--down';
-  } else {
-    badgeEl.textContent = '→ Maintaining';
-    badgeEl.className   = 'wkp-badge wkp-badge--flat';
-  }
+  if      (ctlDiff > 1.5)  { badgeEl.textContent = '▲ Building';   badgeEl.className = 'wkp-badge wkp-badge--up'; }
+  else if (ctlDiff < -1.5) { badgeEl.textContent = '▼ Declining';  badgeEl.className = 'wkp-badge wkp-badge--down'; }
+  else                     { badgeEl.textContent = '→ Maintaining'; badgeEl.className = 'wkp-badge wkp-badge--flat'; }
 
-  // Chart — line graph: this week (solid green) vs last week (dashed grey)
+  // Chart
   const ctx = document.getElementById('weekProgressChart');
   if (!ctx) return;
   if (state.weekProgressChart) { state.weekProgressChart.destroy(); state.weekProgressChart = null; }
 
-  // Find index of today (last non-null point) to highlight it
   const todayIdx = thisWeekData.reduce((idx, v, i) => (v !== null ? i : idx), 0);
 
   state.weekProgressChart = new Chart(ctx.getContext('2d'), {
@@ -1018,24 +1114,24 @@ function renderWeekProgress() {
         {
           label: 'Last week',
           data: lastWeekData,
-          borderColor:      'rgba(136,145,168,0.45)',
-          backgroundColor:  'transparent',
+          borderColor:         'rgba(136,145,168,0.45)',
+          backgroundColor:     'transparent',
           borderWidth: 2,
           borderDash: [5, 4],
           pointRadius: 3,
           pointBackgroundColor: 'rgba(136,145,168,0.5)',
-          pointBorderColor: 'transparent',
+          pointBorderColor:    'transparent',
           tension: 0.35,
           order: 2
         },
         {
           label: 'This week',
           data: thisWeekData,
-          borderColor:     '#00e5a0',
-          backgroundColor: 'rgba(0,229,160,0.08)',
+          borderColor:          m.color,
+          backgroundColor:      m.dimColor,
           borderWidth: 2.5,
           pointRadius:          thisWeekData.map((_, i) => i === todayIdx ? 6 : 3),
-          pointBackgroundColor: thisWeekData.map((_, i) => i === todayIdx ? '#00e5a0' : 'rgba(0,229,160,0.6)'),
+          pointBackgroundColor: thisWeekData.map((_, i) => i === todayIdx ? m.color : m.color + '99'),
           pointBorderColor:     thisWeekData.map((_, i) => i === todayIdx ? 'var(--bg-card)' : 'transparent'),
           pointBorderWidth: 2,
           fill: true,
@@ -1053,7 +1149,7 @@ function renderWeekProgress() {
         tooltip: {
           ...C_TOOLTIP,
           callbacks: {
-            label: c => `${c.dataset.label}: ${c.raw ?? 0} TSS`
+            label: c => `${c.dataset.label}: ${c.raw != null ? m.tooltip(c.raw) : '—'}`
           }
         }
       },
@@ -1133,11 +1229,18 @@ function renderTrainingStatus() {
 
   drawRampGaugeSVG(ramp);
 
-  // ── FORM / TSB ─────────────────────────────────────────────
+  // ── CTL / ATL / TSB ────────────────────────────────────────
   const tsb       = state.fitness?.tsb ?? (state.fitness ? (state.fitness.ctl - state.fitness.atl) : null);
+  const ctl       = state.fitness?.ctl ?? null;
+  const atl       = state.fitness?.atl ?? null;
   const formNumEl = document.getElementById('trsFormNum');
   const formStat  = document.getElementById('trsFormStatus');
   const formHint  = document.getElementById('trsFormHint');
+  const ctlNumEl  = document.getElementById('trsCTLNum');
+  const atlNumEl  = document.getElementById('trsATLNum');
+
+  if (ctl !== null && ctlNumEl) ctlNumEl.textContent = Math.round(ctl);
+  if (atl !== null && atlNumEl) atlNumEl.textContent = Math.round(atl);
 
   if (tsb !== null && formNumEl) {
     formNumEl.textContent = (tsb >= 0 ? '+' : '') + Math.round(tsb);
@@ -1312,7 +1415,9 @@ function renderFitnessChart(activities, days) {
 }
 
 function renderWeeklyChart(activities) {
-  const ctx = document.getElementById('weeklyTssChart').getContext('2d');
+  const canvas = document.getElementById('weeklyTssChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
   if (state.weeklyChart) state.weeklyChart.destroy();
   const weeks = {};
   activities.forEach(a => {
@@ -1667,12 +1772,14 @@ function renderFitnessStreak() {
     else break;
   }
 
-  // This week (Mon → today)
-  const dow = (today.getDay() + 6) % 7;
-  const weekStart = new Date(today.getTime() - dow * 86400000);
-  weekStart.setHours(0, 0, 0, 0);
-  const weekActs = activities.filter(a => new Date(a.start_date_local || a.start_date) >= weekStart);
-  const weekTSS  = weekActs.reduce((s, a) => s + (a.icu_training_load || a.tss || 0), 0);
+  // This week (from configured week start day → today)
+  const weekStart    = getWeekStart(today);
+  const weekStartStr = toDateStr(weekStart);
+  const weekActs = activities.filter(a => {
+    const d = (a.start_date_local || a.start_date || '').slice(0, 10);
+    return d >= weekStartStr;
+  });
+  const weekTSS  = weekActs.reduce((s, a) => s + actVal(a, 'icu_training_load', 'tss'), 0);
 
   const streakEl   = document.getElementById('fitStreak');
   const streakHint = document.getElementById('fitStreakHint');
@@ -2063,7 +2170,27 @@ function fmtTime(str) {
   if (!str) return '';
   try { return new Date(str).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); } catch { return ''; }
 }
-function toDateStr(d) { return d.toISOString().slice(0, 10); }
+function toDateStr(d) {
+  // Use local time — NOT toISOString() which converts to UTC and shifts the date
+  // for users in UTC+ timezones, causing activities to appear on the wrong day.
+  const y  = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, '0');
+  const dy = String(d.getDate()).padStart(2, '0');
+  return `${y}-${mo}-${dy}`;
+}
+
+// Returns midnight of the week-start day (per state.weekStartDay) containing 'date'.
+// startDay: 0=Sunday, 1=Monday. Defaults to state.weekStartDay.
+function getWeekStart(date, startDay) {
+  if (startDay === undefined) startDay = state.weekStartDay;
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  const dow  = d.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+  const diff = (dow - startDay + 7) % 7;
+  d.setDate(d.getDate() - diff);
+  return d;
+}
+
 function daysAgo(n)   { const d = new Date(); d.setDate(d.getDate() - n); return d; }
 
 // Returns how many days to fetch so we always cover Jan 1 of the previous calendar year.
@@ -2108,6 +2235,12 @@ function calNextMonth() {
   renderCalendar();
 }
 
+function calGoToday() {
+  const now = new Date();
+  state.calMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  renderCalendar();
+}
+
 function calEventClass(a) {
   const t = (a.sport_type || a.type || '').toLowerCase();
   if (t.includes('virtualride') || t.includes('virtual')) return 'cal-event--virtual';
@@ -2118,8 +2251,8 @@ function calEventClass(a) {
 }
 
 function renderCalendar() {
-  const m    = getCalMonth();
-  const year = m.getFullYear();
+  const m     = getCalMonth();
+  const year  = m.getFullYear();
   const month = m.getMonth(); // 0-based
 
   // Month label
@@ -2135,58 +2268,92 @@ function renderCalendar() {
     actMap[d].push({ a, stateIdx });
   });
 
-  const firstDay  = new Date(year, month, 1);
-  const lastDay   = new Date(year, month + 1, 0);
-  const todayStr  = toDateStr(new Date());
+  // ── Month stats ──
+  let totalActs = 0, totalDist = 0, totalTSS = 0, totalSecs = 0;
+  const dailyTSSMap = {};
+  Object.entries(actMap).forEach(([d, acts]) => {
+    const [y, mo] = d.split('-').map(Number);
+    if (y === year && mo === month + 1) {
+      let dayTSS = 0;
+      acts.forEach(({ a }) => {
+        if (isEmptyActivity(a)) return;
+        totalActs++;
+        totalDist += actVal(a, 'distance', 'icu_distance');
+        const tss = actVal(a, 'icu_training_load', 'tss');
+        totalTSS  += tss;
+        dayTSS    += tss;
+        totalSecs += actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time', 'icu_elapsed_time');
+      });
+      if (dayTSS > 0) dailyTSSMap[d] = dayTSS;
+    }
+  });
+  const maxDayTSS = Math.max(...Object.values(dailyTSSMap), 1);
 
-  // Monday-first: convert JS Sunday=0 to Mon=0…Sun=6
-  const startDow = (firstDay.getDay() + 6) % 7;
-  const endDow   = (lastDay.getDay() + 6) % 7;
+  const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  setEl('calStatActivities', totalActs || '0');
+  setEl('calStatDist',       totalDist > 0 ? (totalDist / 1000).toFixed(0) + ' km' : '—');
+  setEl('calStatTSS',        totalTSS > 0  ? Math.round(totalTSS) : '—');
+  setEl('calStatTime',       totalSecs > 0 ? fmtDur(totalSecs) : '—');
 
-  const cells = [];
+  // ── Build grid cells ──
+  const firstDay = new Date(year, month, 1);
+  const lastDay  = new Date(year, month + 1, 0);
+  const todayStr = toDateStr(new Date());
+  // How many cells to pad before the 1st, based on configured week start day
+  const startDow = (firstDay.getDay() - state.weekStartDay + 7) % 7;
 
-  // Leading days from previous month
-  for (let i = startDow - 1; i >= 0; i--) {
-    cells.push({ date: new Date(year, month, -i), thisMonth: false });
-  }
-  // Days in this month
-  for (let d = 1; d <= lastDay.getDate(); d++) {
-    cells.push({ date: new Date(year, month, d), thisMonth: true });
-  }
-  // Trailing days to complete last row
-  const rem = cells.length % 7;
-  if (rem > 0) {
-    for (let i = 1; i <= 7 - rem; i++) {
-      cells.push({ date: new Date(year, month + 1, i), thisMonth: false });
+  // Update DOW header labels to match the configured week start
+  const calDowNames  = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const calWeekendDays = [0, 6]; // 0=Sunday, 6=Saturday (JS getDay values)
+  const dowRow = document.querySelector('.cal-dow-row');
+  if (dowRow) {
+    dowRow.innerHTML = '';
+    for (let i = 0; i < 7; i++) {
+      const dayIdx = (state.weekStartDay + i) % 7;
+      const div = document.createElement('div');
+      if (calWeekendDays.includes(dayIdx)) div.className = 'cal-dow--weekend';
+      div.textContent = calDowNames[dayIdx];
+      dowRow.appendChild(div);
     }
   }
 
+  const cells = [];
+  for (let i = startDow - 1; i >= 0; i--)
+    cells.push({ date: new Date(year, month, -i),     thisMonth: false });
+  for (let d = 1; d <= lastDay.getDate(); d++)
+    cells.push({ date: new Date(year, month, d),      thisMonth: true });
+  const rem = cells.length % 7;
+  if (rem > 0)
+    for (let i = 1; i <= 7 - rem; i++)
+      cells.push({ date: new Date(year, month + 1, i), thisMonth: false });
+
   const grid = document.getElementById('calGrid');
   grid.innerHTML = cells.map(({ date, thisMonth }) => {
-    const dateStr = toDateStr(date);
-    const acts    = actMap[dateStr] || [];
-    const isToday = dateStr === todayStr;
-    const dow     = date.getDay(); // 0=Sun, 6=Sat
+    const dateStr   = toDateStr(date);
+    const acts      = actMap[dateStr] || [];
+    const realActs  = acts.filter(({ a }) => !isEmptyActivity(a));
+    const isToday   = dateStr === todayStr;
+    const dow       = date.getDay();
     const isWeekend = dow === 0 || dow === 6;
 
     const cls = [
       'cal-day',
-      !thisMonth   ? 'cal-day--other-month' : '',
-      isToday      ? 'cal-day--today'       : '',
-      isWeekend    ? 'cal-day--weekend'     : '',
+      !thisMonth  ? 'cal-day--other-month' : '',
+      isToday     ? 'cal-day--today'       : '',
+      isWeekend   ? 'cal-day--weekend'     : '',
     ].filter(Boolean).join(' ');
 
     const maxShow = 3;
-    const shown   = acts.slice(0, maxShow);
-    const extra   = acts.length - maxShow;
+    const shown   = realActs.slice(0, maxShow);
+    const extra   = realActs.length - maxShow;
 
     const eventsHtml = shown.map(({ a, stateIdx }) => {
-      const name  = (a.name && a.name.trim()) ? a.name.trim() : activityFallbackName(a);
-      const dist  = (a.distance || 0) / 1000;
-      const secs  = a.moving_time || a.elapsed_time || 0;
-      const meta  = dist > 0.1 ? dist.toFixed(1) + ' km'
-                  : secs > 0   ? fmtDur(secs)
-                  : '';
+      const name = (a.name && a.name.trim()) ? a.name.trim() : activityFallbackName(a);
+      const dist = (a.distance || 0) / 1000;
+      const secs = a.moving_time || a.elapsed_time || 0;
+      const meta = dist > 0.1 ? dist.toFixed(1) + ' km'
+                 : secs > 0   ? fmtDur(secs)
+                 : '';
       const tc = calEventClass(a);
       return `<div class="cal-event ${tc}" onclick="navigateToActivity(${stateIdx})">
         <div class="cal-event-name">${name}</div>
@@ -2194,13 +2361,24 @@ function renderCalendar() {
       </div>`;
     }).join('');
 
-    const moreHtml = extra > 0
-      ? `<div class="cal-more">+${extra} more</div>`
+    const moreHtml = extra > 0 ? `<div class="cal-more">+${extra} more</div>` : '';
+
+    // TSS load bar
+    const dayTSS = dailyTSSMap[dateStr] || 0;
+    const barPct = dayTSS > 0 ? Math.max(8, Math.round(dayTSS / maxDayTSS * 100)) : 0;
+    const firstTc = realActs.length > 0 ? calEventClass(realActs[0].a) : '';
+    const barColor = firstTc.includes('run')  ? 'var(--orange)'
+                   : firstTc.includes('swim') ? 'var(--blue)'
+                   : firstTc.includes('virtual') ? 'var(--purple)'
+                   : 'var(--accent)';
+    const tssBarHtml = barPct > 0
+      ? `<div class="cal-day-tss"><div class="cal-day-tss-bar" style="width:${barPct}%;background:${barColor}"></div></div>`
       : '';
 
     return `<div class="${cls}">
       <div class="cal-day-num">${date.getDate()}</div>
-      ${eventsHtml}${moreHtml}
+      <div class="cal-events">${eventsHtml}${moreHtml}</div>
+      ${tssBarHtml}
     </div>`;
   }).join('');
 }
@@ -2244,8 +2422,6 @@ async function navigateToActivity(actKey, fromStep = false) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-activity').classList.add('active');
-  document.getElementById('dateRangePill').style.display = 'none';
-
   // Scroll back to top and remove calendar's full-bleed layout so normal padding is restored
   const pageContent = document.getElementById('pageContent');
   if (pageContent) pageContent.classList.remove('page-content--calendar');
@@ -2845,8 +3021,19 @@ const savedRange = parseInt(localStorage.getItem('icu_range_days'));
 if ([7, 30, 90, 365].includes(savedRange)) {
   state.rangeDays = savedRange;
   document.querySelectorAll('#dateRangePill button').forEach(b => b.classList.remove('active'));
-  document.getElementById('range' + savedRange).classList.add('active');
+  document.getElementById('range' + savedRange)?.classList.add('active');
 }
+// Init Training Load range label
+const initRangeLabel = document.getElementById('fitnessRangeLabel');
+if (initRangeLabel) initRangeLabel.textContent = rangeLabel(state.rangeDays);
+
+const savedWeekStart = parseInt(localStorage.getItem('icu_week_start_day'));
+if (savedWeekStart === 0 || savedWeekStart === 1) {
+  state.weekStartDay = savedWeekStart;
+}
+document.querySelectorAll('[data-weekstart]').forEach(btn => {
+  btn.classList.toggle('active', parseInt(btn.dataset.weekstart) === state.weekStartDay);
+});
 
 navigate('dashboard');
 
