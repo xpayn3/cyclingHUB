@@ -23,6 +23,7 @@ const state = {
   powerCurveChart: null,
   powerCurve: null,
   powerCurveRange: null,
+  weekProgressChart: null,
   calMonth: null,
   currentPage: 'dashboard',
   previousPage: null,
@@ -545,8 +546,6 @@ function renderAllActivitiesList() {
   const yearLabel = state.activitiesYear !== null ? ` · ${state.activitiesYear}` : '';
   document.getElementById('allActivitiesSubtitle').textContent =
     `${sorted.length} activities${yearLabel}`;
-  renderActivityList('allActivityList', sorted);
-
   // Count placeholder activities (planned workouts never completed — all metrics zero).
   // These exist in the intervals.icu /activities endpoint but have no recorded data.
   let allPool = state.activities.filter(a => !!(a.start_date_local || a.start_date));
@@ -557,12 +556,15 @@ function renderAllActivitiesList() {
     });
   }
   const emptyCount = allPool.filter(a => isEmptyActivity(a)).length;
+
+  // Render the list first (it overwrites innerHTML), then prepend the note at the top
+  renderActivityList('allActivityList', sorted);
   const listEl = document.getElementById('allActivityList');
   if (listEl && emptyCount > 0) {
     const note = document.createElement('div');
     note.className = 'act-empty-note';
     note.textContent = `+ ${emptyCount} planned ${emptyCount === 1 ? 'workout' : 'workouts'} with no recorded data`;
-    listEl.appendChild(note);
+    listEl.insertBefore(note, listEl.firstChild);
   }
 
   _refreshYearDropdown();
@@ -669,6 +671,7 @@ function renderDashboard() {
   renderActivityList('activityList', recent.slice(0, 10));
   renderAllActivitiesList();
   updateSortButtons();
+  renderWeekProgress();
   renderFitnessChart(recent, days);
   renderWeeklyChart(recent);
   renderAvgPowerChart(recent);
@@ -691,8 +694,9 @@ function resetDashboard() {
       <p>Connect your account to see activities.</p>
       <button class="btn btn-primary" onclick="openModal()">Connect intervals.icu</button>
     </div>`;
-  if (state.avgPowerChart)   { state.avgPowerChart.destroy();   state.avgPowerChart   = null; }
-  if (state.powerCurveChart) { state.powerCurveChart.destroy(); state.powerCurveChart = null; }
+  if (state.avgPowerChart)      { state.avgPowerChart.destroy();      state.avgPowerChart      = null; }
+  if (state.powerCurveChart)    { state.powerCurveChart.destroy();    state.powerCurveChart    = null; }
+  if (state.weekProgressChart)  { state.weekProgressChart.destroy();  state.weekProgressChart  = null; }
   state.powerCurve = null; state.powerCurveRange = null;
   const zc = document.getElementById('zoneDistCard');
   if (zc) zc.style.display = 'none';
@@ -888,6 +892,166 @@ const C_LABEL_COLOR = ctx => ({
   borderColor:     ctx.dataset.borderColor,
   borderWidth: 0, borderRadius: 3,
 });
+
+/* ====================================================
+   WEEK PROGRESS
+==================================================== */
+
+// Compute approximate CTL (42-day EMA of daily TSS) at a given date from local activities.
+// Used to derive a 7-day fitness delta without needing historical wellness API data.
+function computeCTLfromActivities(activities, atDate) {
+  const end = new Date(atDate);
+  end.setHours(23, 59, 59, 999);
+  const start = new Date(end);
+  start.setDate(start.getDate() - 126); // 3× CTL tau for EMA warmup
+
+  const dailyTSS = {};
+  activities.forEach(a => {
+    const d = (a.start_date_local || a.start_date || '').slice(0, 10);
+    if (!d) return;
+    const tss = actVal(a, 'icu_training_load', 'tss');
+    if (tss > 0) dailyTSS[d] = (dailyTSS[d] || 0) + tss;
+  });
+
+  let ctl = 0;
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    ctl += ((dailyTSS[toDateStr(new Date(d))] || 0) - ctl) / 42;
+  }
+  return ctl;
+}
+
+function renderWeekProgress() {
+  const todayStr = toDateStr(new Date());
+  const today = new Date();
+
+  // Find Monday of this week and last week
+  const dow = today.getDay(); // 0=Sun
+  const daysToMon = dow === 0 ? 6 : dow - 1;
+  const thisMonday = new Date(today);
+  thisMonday.setDate(today.getDate() - daysToMon);
+  thisMonday.setHours(0, 0, 0, 0);
+
+  const lastMonday = new Date(thisMonday);
+  lastMonday.setDate(thisMonday.getDate() - 7);
+
+  // Build daily TSS map
+  const dailyTSS = {};
+  state.activities.filter(a => !isEmptyActivity(a)).forEach(a => {
+    const d = (a.start_date_local || a.start_date || '').slice(0, 10);
+    if (!d) return;
+    dailyTSS[d] = (dailyTSS[d] || 0) + actVal(a, 'icu_training_load', 'tss');
+  });
+
+  const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const thisWeekData = [];
+  const lastWeekData = [];
+  let thisTotal = 0, lastTotal = 0;
+
+  for (let i = 0; i < 7; i++) {
+    const td = new Date(thisMonday); td.setDate(thisMonday.getDate() + i);
+    const ld = new Date(lastMonday); ld.setDate(lastMonday.getDate() + i);
+    const tdStr = toDateStr(td);
+    const tss1  = tdStr > todayStr ? null : Math.round(dailyTSS[tdStr] || 0);
+    const tss2  = Math.round(dailyTSS[toDateStr(ld)] || 0);
+    thisWeekData.push(tss1);
+    lastWeekData.push(tss2);
+    if (tss1 !== null) thisTotal += tss1;
+    lastTotal += tss2;
+  }
+
+  // Stat labels
+  document.getElementById('wpThisWeek').textContent = Math.round(thisTotal);
+  document.getElementById('wpLastWeek').textContent = Math.round(lastTotal);
+
+  const deltaEl = document.getElementById('wpDelta');
+  if (lastTotal > 0) {
+    const pct  = (thisTotal - lastTotal) / lastTotal * 100;
+    const sign = pct >= 0 ? '+' : '';
+    deltaEl.textContent = `${sign}${pct.toFixed(0)}% vs last week`;
+    deltaEl.style.color = pct >= 0 ? 'var(--accent)' : 'var(--red)';
+  } else {
+    deltaEl.textContent = 'vs last week';
+    deltaEl.style.color = 'var(--text-muted)';
+  }
+
+  // Fitness trend: use API CTL for today, compute 7-days-ago CTL from activities
+  const ctlNow  = state.fitness?.ctl ?? computeCTLfromActivities(state.activities, today);
+  const d7      = new Date(today); d7.setDate(d7.getDate() - 7);
+  const ctlPrev = computeCTLfromActivities(state.activities, d7);
+  const ctlDiff = ctlNow - ctlPrev;
+
+  const ctlEl  = document.getElementById('wpCTLDelta');
+  const sign   = ctlDiff >= 0 ? '+' : '';
+  ctlEl.textContent = `CTL ${sign}${ctlDiff.toFixed(1)}`;
+  ctlEl.style.color = ctlDiff > 0.5 ? 'var(--accent)' : ctlDiff < -0.5 ? 'var(--red)' : 'var(--text-secondary)';
+
+  const badgeEl = document.getElementById('wpTrendBadge');
+  if (ctlDiff > 1.5) {
+    badgeEl.textContent = '▲ Building';
+    badgeEl.className   = 'wkp-badge wkp-badge--up';
+  } else if (ctlDiff < -1.5) {
+    badgeEl.textContent = '▼ Declining';
+    badgeEl.className   = 'wkp-badge wkp-badge--down';
+  } else {
+    badgeEl.textContent = '→ Maintaining';
+    badgeEl.className   = 'wkp-badge wkp-badge--flat';
+  }
+
+  // Chart
+  const ctx = document.getElementById('weekProgressChart');
+  if (!ctx) return;
+  if (state.weekProgressChart) { state.weekProgressChart.destroy(); state.weekProgressChart = null; }
+
+  // Capture thisMonday for the backgroundColor callback
+  const capturedMonday = new Date(thisMonday);
+
+  state.weekProgressChart = new Chart(ctx.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: dayLabels,
+      datasets: [
+        {
+          label: 'Last week',
+          data: lastWeekData,
+          backgroundColor: 'rgba(136,145,168,0.18)',
+          borderColor:      'rgba(136,145,168,0.3)',
+          borderWidth: 1,
+          borderRadius: 5,
+          order: 2
+        },
+        {
+          label: 'This week',
+          data: thisWeekData,
+          backgroundColor: thisWeekData.map((_, i) => {
+            const td = new Date(capturedMonday);
+            td.setDate(capturedMonday.getDate() + i);
+            return toDateStr(td) === todayStr ? 'rgba(0,229,160,0.9)' : 'rgba(0,229,160,0.45)';
+          }),
+          hoverBackgroundColor: '#00e5a0',
+          borderColor:   'rgba(0,229,160,0.65)',
+          borderWidth: 1,
+          borderRadius: 5,
+          skipNull: true,
+          order: 1
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          ...C_TOOLTIP,
+          callbacks: {
+            label: c => `${c.dataset.label}: ${c.raw ?? 0} TSS`
+          }
+        }
+      },
+      scales: cScales({ xGrid: false, yExtra: { maxTicksLimit: 4 } })
+    }
+  });
+}
 
 /* ====================================================
    CHARTS

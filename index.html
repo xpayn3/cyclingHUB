@@ -573,6 +573,44 @@
                         </div>
                     </div>
 
+                    <!-- ── Week Progress Card ── -->
+                    <div class="card" id="weekProgressCard">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">Week Progress</div>
+                                <div class="card-subtitle">Daily TSS · Mon → Sun</div>
+                            </div>
+                            <div class="chart-legend">
+                                <span class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--accent)"></span>This week</span>
+                                <span class="chart-legend-item"><span class="chart-legend-dot" style="background:rgba(136,145,168,0.5)"></span>Last week</span>
+                            </div>
+                        </div>
+                        <div class="wkp-body">
+                            <div class="wkp-chart">
+                                <canvas id="weekProgressChart"></canvas>
+                            </div>
+                            <div class="wkp-stats">
+                                <div class="wkp-stat">
+                                    <div class="wkp-stat-label">This week</div>
+                                    <div class="wkp-stat-val" id="wpThisWeek">—</div>
+                                    <div class="wkp-stat-delta" id="wpDelta">—</div>
+                                </div>
+                                <div class="wkp-divider"></div>
+                                <div class="wkp-stat">
+                                    <div class="wkp-stat-label">Last week</div>
+                                    <div class="wkp-stat-val" id="wpLastWeek">—</div>
+                                    <div class="wkp-stat-sub">TSS</div>
+                                </div>
+                                <div class="wkp-divider"></div>
+                                <div class="wkp-stat">
+                                    <div class="wkp-stat-label">Fitness trend</div>
+                                    <div class="wkp-ctl-delta" id="wpCTLDelta">—</div>
+                                    <div class="wkp-badge" id="wpTrendBadge">—</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="fitness-row">
                         <!-- Training Load chart -->
                         <div class="card">
