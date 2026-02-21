@@ -69,9 +69,11 @@ code { font-family: 'JetBrains Mono', monospace; font-size: 0.82em; background: 
 .nav-item:hover { background: var(--bg-elevated); color: var(--text-primary); }
 .nav-item.active { background: var(--accent-dim); color: var(--accent); }
 .nav-item .badge { margin-left: auto; background: var(--accent); color: var(--bg-base); font-size: 0.65rem; font-weight: 700; padding: 2px 7px; border-radius: 20px; }
-.sidebar-footer { padding: 14px 10px; border-top: 1px solid var(--border); }
+.sidebar-footer { padding: 14px 10px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
 .athlete-chip { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; background: var(--bg-elevated); border: 1px solid var(--border); cursor: pointer; transition: border-color var(--transition); }
 .athlete-chip:hover { border-color: var(--border-active); }
+.sidebar-actions { display: flex; gap: 8px; }
+.sidebar-action-btn { flex: 1; justify-content: center; gap: 7px; font-size: 0.8rem; padding: 8px 10px; }
 .athlete-avatar { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--blue)); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; color: var(--bg-base); flex-shrink: 0; }
 .athlete-info { flex: 1; min-width: 0; }
 .athlete-name { font-size: 0.8rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -242,6 +244,44 @@ code { font-family: 'JetBrains Mono', monospace; font-size: 0.82em; background: 
 ============================================================ */
 /* ---- Activity list containers ---- */
 .activity-list { display: flex; flex-direction: column; gap: 10px; }
+
+/* ── Activities page sort bar ─────────────────────────────────────── */
+.sort-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 0 14px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+.sort-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-right: 2px;
+}
+.sort-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 4px 11px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color var(--transition), color var(--transition), background var(--transition);
+  white-space: nowrap;
+}
+.sort-btn:hover { border-color: var(--border-active); color: var(--text-primary); }
+.sort-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+.sort-arrow { font-size: 0.7rem; }
 
 /* ---- Activity row — single horizontal line ---- */
 .activity-row {
@@ -447,7 +487,11 @@ code { font-family: 'JetBrains Mono', monospace; font-size: 0.82em; background: 
 /* ============================================================
    ACTIVITY DETAIL PAGE
 ============================================================ */
-.detail-back { margin-bottom: -8px; }
+.detail-back { margin-bottom: -8px; display: flex; align-items: center; justify-content: space-between; }
+.detail-nav-arrows { display: flex; align-items: center; gap: 2px; }
+.detail-nav-btn { padding: 6px 8px; line-height: 0; }
+.detail-nav-btn:disabled { opacity: 0.25; pointer-events: none; }
+.detail-nav-counter { font-size: 0.7rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; min-width: 46px; text-align: center; letter-spacing: 0.02em; }
 
 .activity-hero-card { display: flex; align-items: center; gap: 18px; }
 .activity-type-icon.lg { width: 52px; height: 52px; border-radius: 14px; flex-shrink: 0; }
@@ -465,6 +509,58 @@ code { font-family: 'JetBrains Mono', monospace; font-size: 0.82em; background: 
 
 .stream-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .detail-chart-wrap { height: 210px; }
+
+/* ── Activity detail: power zone table ────────────────────────────── */
+.detail-zone-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+}
+.detail-zone-row:last-child { border-bottom: none; }
+.detail-zone-tag {
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  min-width: 26px;
+  letter-spacing: 0.03em;
+}
+.detail-zone-name {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  min-width: 86px;
+}
+.detail-zone-bar-track {
+  flex: 1;
+  height: 5px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.detail-zone-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s cubic-bezier(.4,0,.2,1);
+}
+.detail-zone-time {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  font-family: 'JetBrains Mono', monospace;
+  min-width: 52px;
+  text-align: right;
+}
+.detail-zone-pct {
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+  min-width: 38px;
+  text-align: right;
+}
+@media (max-width: 480px) {
+  .detail-zone-name { display: none; }
+  .detail-zone-time { min-width: 44px; font-size: 0.7rem; }
+}
 
 .detail-charts-loading { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 28px; color: var(--text-muted); font-size: 0.85rem; }
 .detail-charts-loading .spinner { width: 20px; height: 20px; border-width: 2px; flex-shrink: 0; }

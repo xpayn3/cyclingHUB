@@ -15,15 +15,20 @@ const state = {
   fitnessPageChart: null,
   fitnessWeeklyPageChart: null,
   fitnessRangeDays: 90,
+  currentActivityIdx: null,
   activityPowerChart: null,
   activityHRChart: null,
+  activityCurveChart: null,
+  activityHistogramChart: null,
   powerCurveChart: null,
   powerCurve: null,
   powerCurveRange: null,
   calMonth: null,
   currentPage: 'dashboard',
   previousPage: null,
-  synced: false
+  synced: false,
+  activitiesSort: 'date',
+  activitiesSortDir: 'desc'
 };
 
 const ICU_BASE = 'https://intervals.icu/api/v1';
@@ -36,6 +41,38 @@ function saveCredentials(athleteId, apiKey) {
   localStorage.setItem('icu_api_key', apiKey);
   state.athleteId = athleteId;
   state.apiKey = apiKey;
+}
+
+/* ====================================================
+   ACTIVITY CACHE  (localStorage — survives page refresh)
+==================================================== */
+function saveActivityCache(activities) {
+  try {
+    localStorage.setItem('icu_activities_cache', JSON.stringify(activities));
+    localStorage.setItem('icu_last_sync', new Date().toISOString());
+  } catch (e) {
+    // Quota exceeded — not fatal, next sync will just be a full fetch
+    localStorage.removeItem('icu_activities_cache');
+  }
+}
+
+function loadActivityCache() {
+  try {
+    const raw      = localStorage.getItem('icu_activities_cache');
+    const lastSync = localStorage.getItem('icu_last_sync');
+    if (raw && lastSync) {
+      const activities = JSON.parse(raw);
+      if (Array.isArray(activities) && activities.length > 0) {
+        return { activities, lastSync: new Date(lastSync) };
+      }
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+function clearActivityCache() {
+  localStorage.removeItem('icu_activities_cache');
+  localStorage.removeItem('icu_last_sync');
 }
 
 function loadCredentials() {
@@ -81,10 +118,10 @@ async function fetchAthleteProfile() {
   return data;
 }
 
-async function fetchActivities(daysBack = 365) {
+// since: optional Date — if provided, only fetches activities on/after that date (incremental mode)
+async function fetchActivities(daysBack = 365, since = null) {
   const newest = toDateStr(new Date());
-  const oldest = toDateStr(daysAgo(daysBack));
-  // No ?fields= restriction — fetch all fields so `id` and all metrics are always present
+  const oldest = since ? toDateStr(since) : toDateStr(daysAgo(daysBack));
   let all = [];
   let page = 0;
   const pageSize = 200;
@@ -96,9 +133,23 @@ async function fetchActivities(daysBack = 365) {
     all = all.concat(chunk);
     if (chunk.length < pageSize) break;
     page++;
-    if (page > 20) break; // safety cap at 4000 activities
+    if (page > 20) break;
   }
-  state.activities = all;
+
+  if (since) {
+    // Incremental: merge fresh activities into existing cache
+    // New fetch supersedes any existing entry with the same id
+    const freshIds = new Set(all.map(a => a.id));
+    const cutoff   = daysAgo(365); // drop anything older than 365 days from cache
+    const retained = state.activities.filter(
+      a => !freshIds.has(a.id) && new Date(a.start_date_local || a.start_date) >= cutoff
+    );
+    state.activities = [...retained, ...all].sort(
+      (a, b) => new Date(b.start_date_local || b.start_date) - new Date(a.start_date_local || a.start_date)
+    );
+  } else {
+    state.activities = all;
+  }
   return state.activities;
 }
 
@@ -218,23 +269,59 @@ async function syncData() {
   const btn = document.getElementById('syncBtn');
   btn.classList.add('btn-spinning');
   btn.disabled = true;
-  setLoading(true, 'Loading activities…');
 
   try {
     if (!state.athlete) await fetchAthleteProfile();
 
-    setLoading(true, 'Loading activities (this may take a moment)…');
-    await fetchActivities(365);
+    // Decide between incremental and full sync
+    const cache = loadActivityCache();
+    const isIncremental = !!(cache && cache.activities.length > 0);
+
+    if (isIncremental) {
+      // Load cache into state immediately so the UI can render while we fetch
+      state.activities = cache.activities;
+      state.synced = true;
+      updateConnectionUI(true);
+      renderDashboard();
+
+      // Fetch only activities since last sync minus 1-day buffer
+      const since = new Date(cache.lastSync);
+      since.setDate(since.getDate() - 1);
+      setLoading(true, 'Checking for new activities…');
+      await fetchActivities(365, since);
+    } else {
+      setLoading(true, 'Loading activities — first sync may take a moment…');
+      await fetchActivities(365);
+    }
+
+    // Save updated cache after a successful fetch
+    saveActivityCache(state.activities);
 
     setLoading(true, 'Loading fitness data…');
     await fetchFitness().catch(() => null); // non-fatal
+
+    // Invalidate power curve cache so it re-fetches with fresh range
+    state.powerCurve = null;
+    state.powerCurveRange = null;
 
     state.synced = true;
     updateConnectionUI(true);
     renderDashboard();
     if (state.currentPage === 'calendar') renderCalendar();
-    const validCount = state.activities.filter(a => !isEmptyActivity(a)).length;
-    showToast(`Synced ${validCount} activities`, 'success');
+
+    const newCount = isIncremental
+      ? state.activities.filter(a => {
+          const d = new Date(a.start_date_local || a.start_date);
+          return d >= new Date(cache.lastSync - 86400000);
+        }).length
+      : state.activities.filter(a => !isEmptyActivity(a)).length;
+
+    showToast(
+      isIncremental
+        ? `Up to date · ${newCount} new activit${newCount === 1 ? 'y' : 'ies'}`
+        : `Synced ${newCount} activities`,
+      'success'
+    );
   } catch (err) {
     const msg = err.message.includes('401') || err.message.includes('403')
       ? 'Authentication failed. Please reconnect.'
@@ -250,6 +337,7 @@ async function syncData() {
 function disconnect() {
   if (!confirm('Disconnect and clear saved credentials?')) return;
   clearCredentials();
+  clearActivityCache();
   updateConnectionUI(false);
   resetDashboard();
   showToast('Disconnected', 'info');
@@ -355,6 +443,53 @@ function setRange(days) {
 }
 
 /* ====================================================
+   ACTIVITIES SORT
+==================================================== */
+const SORT_FIELDS = {
+  date:      a => new Date(a.start_date_local || a.start_date).getTime(),
+  distance:  a => a.distance || 0,
+  time:      a => a.moving_time || a.elapsed_time || 0,
+  elevation: a => a.total_elevation_gain || 0,
+  power:     a => a.icu_weighted_avg_watts || a.average_watts || 0,
+  bpm:       a => a.average_heartrate || 0,
+};
+
+function sortedAllActivities() {
+  const pool = state.activities.filter(a => !isEmptyActivity(a));
+  const fn   = SORT_FIELDS[state.activitiesSort] || SORT_FIELDS.date;
+  const dir  = state.activitiesSortDir === 'asc' ? 1 : -1;
+  return [...pool].sort((a, b) => dir * (fn(a) - fn(b)));
+}
+
+function setActivitiesSort(field) {
+  if (state.activitiesSort === field) {
+    state.activitiesSortDir = state.activitiesSortDir === 'desc' ? 'asc' : 'desc';
+  } else {
+    state.activitiesSort    = field;
+    state.activitiesSortDir = 'desc';
+  }
+  renderAllActivitiesList();
+  updateSortButtons();
+}
+
+function updateSortButtons() {
+  document.querySelectorAll('.sort-btn').forEach(btn => {
+    const f = btn.dataset.sort;
+    const active = f === state.activitiesSort;
+    btn.classList.toggle('active', active);
+    const arrow = btn.querySelector('.sort-arrow');
+    if (arrow) arrow.textContent = active ? (state.activitiesSortDir === 'desc' ? ' ↓' : ' ↑') : '';
+  });
+}
+
+function renderAllActivitiesList() {
+  const sorted = sortedAllActivities();
+  document.getElementById('allActivitiesSubtitle').textContent =
+    `${sorted.length} activities`;
+  renderActivityList('allActivityList', sorted);
+}
+
+/* ====================================================
    RENDER DASHBOARD
 ==================================================== */
 function renderDashboard() {
@@ -410,8 +545,9 @@ function renderDashboard() {
     document.getElementById('gaugeTSB').style.color     = tsb >= 0 ? 'var(--accent)' : 'var(--red)';
   }
 
-  renderActivityList('activityList',    recent.slice(0, 10));
-  renderActivityList('allActivityList', state.activities.filter(a => !isEmptyActivity(a)));
+  renderActivityList('activityList', recent.slice(0, 10));
+  renderAllActivitiesList();
+  updateSortButtons();
   renderFitnessChart(recent, days);
   renderWeeklyChart(recent);
   renderAvgPowerChart(recent);
@@ -498,6 +634,30 @@ function renderActivityList(containerId, activities) {
     el.innerHTML = `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><p>No activities in this period.</p></div>`;
     return;
   }
+
+  // Precompute power percentile thresholds from all loaded activities so colours
+  // always span the full spectrum relative to this athlete's own power range.
+  // Z1 blue → Z2 green → Z3 yellow → Z4 orange → Z5 red
+  const PWR_COLORS = ['#4a9eff', '#00e5a0', '#ffcc00', '#ff6b35', '#ff5252'];
+  const allPwrs = state.activities
+    .map(a => a.icu_weighted_avg_watts || a.average_watts || 0)
+    .filter(w => w > 0)
+    .sort((a, b) => a - b);
+  const pThresh = allPwrs.length > 4 ? [
+    allPwrs[Math.floor(allPwrs.length * 0.2)],
+    allPwrs[Math.floor(allPwrs.length * 0.4)],
+    allPwrs[Math.floor(allPwrs.length * 0.6)],
+    allPwrs[Math.floor(allPwrs.length * 0.8)],
+  ] : null;
+  function powerColor(w) {
+    if (!w || !pThresh) return null;
+    if (w < pThresh[0]) return PWR_COLORS[0];
+    if (w < pThresh[1]) return PWR_COLORS[1];
+    if (w < pThresh[2]) return PWR_COLORS[2];
+    if (w < pThresh[3]) return PWR_COLORS[3];
+    return PWR_COLORS[4];
+  }
+
   el.innerHTML = filtered.map((a, fi) => {
     const actKey  = containerId + '_' + fi;
     window._actLookup[actKey] = a;
@@ -522,14 +682,14 @@ function renderActivityList(containerId, activities) {
     const badge = a.sport_type || a.type || '';
 
     // Build stat pills — only include what has a value
-    const statPill = (val, lbl) =>
-      `<div class="act-stat"><div class="act-stat-val">${val}</div><div class="act-stat-lbl">${lbl}</div></div>`;
+    const statPill = (val, lbl, color = null) =>
+      `<div class="act-stat"><div class="act-stat-val"${color ? ` style="color:${color}"` : ''}>${val}</div><div class="act-stat-lbl">${lbl}</div></div>`;
 
     const stats = [];
     if (distKm > 0.05) stats.push(statPill(distKm.toFixed(2), 'km'));
     if (secs > 0)       stats.push(statPill(fmtDur(secs), 'time'));
     if (elev > 0)       stats.push(statPill(elev.toLocaleString(), 'm elev'));
-    if (pwr > 0)        stats.push(statPill(Math.round(pwr) + 'w', 'power'));
+    if (pwr > 0)        stats.push(statPill(Math.round(pwr) + 'w', 'power', powerColor(pwr)));
     if (hr > 0)         stats.push(statPill(hr, 'bpm'));
     if (speedKmh > 1 && !pwr) stats.push(statPill(speedKmh.toFixed(1), 'km/h'));
 
@@ -547,6 +707,37 @@ function renderActivityList(containerId, activities) {
     </div>`;
   }).join('');
 }
+
+/* ====================================================
+   CHART STYLE TOKENS  (single source of truth)
+==================================================== */
+const C_TOOLTIP = {
+  backgroundColor: '#1e2330',
+  borderColor:     '#252b3a',
+  borderWidth:     1,
+  titleColor:      '#8891a8',
+  bodyColor:       '#eef0f8',
+  padding:         10,
+  boxWidth:        8,
+  boxHeight:       8,
+  boxPadding:      3,
+};
+const C_TICK  = { color: '#525d72', font: { size: 10 } };
+const C_GRID  = { color: 'rgba(255,255,255,0.04)' };
+const C_NOGRID = { display: false };
+// Standard scale pair — pass xGrid:false for bar charts
+function cScales({ xGrid = true, xExtra = {}, yExtra = {} } = {}) {
+  return {
+    x: { grid: xGrid ? C_GRID : C_NOGRID, ticks: { ...C_TICK, ...xExtra } },
+    y: { grid: C_GRID,                    ticks: { ...C_TICK, ...yExtra } },
+  };
+}
+// labelColor swatch callback (used on multi-series charts)
+const C_LABEL_COLOR = ctx => ({
+  backgroundColor: ctx.dataset.borderColor,
+  borderColor:     ctx.dataset.borderColor,
+  borderWidth: 0, borderRadius: 3,
+});
 
 /* ====================================================
    CHARTS
@@ -599,33 +790,18 @@ function renderFitnessChart(activities, days) {
   state.fitnessChart = new Chart(ctx, {
     type: 'line',
     data: { labels, datasets: [
-      { label: 'CTL', data: ctlD, borderColor: '#00e5a0', backgroundColor: 'rgba(0,229,160,0.07)', borderWidth: 2, pointRadius: 0, tension: 0.4, fill: true },
-      { label: 'ATL', data: atlD, borderColor: '#ff6b35', backgroundColor: 'rgba(255,107,53,0.05)', borderWidth: 2, pointRadius: 0, tension: 0.4 },
-      { label: 'TSB', data: tsbD, borderColor: '#4a9eff', backgroundColor: 'rgba(74,158,255,0.05)', borderWidth: 1.5, pointRadius: 0, tension: 0.4, borderDash: [4, 3] }
+      { label: 'CTL', data: ctlD, borderColor: '#00e5a0', backgroundColor: 'rgba(0,229,160,0.07)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.4, fill: true },
+      { label: 'ATL', data: atlD, borderColor: '#ff6b35', backgroundColor: 'rgba(255,107,53,0.05)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.4 },
+      { label: 'TSB', data: tsbD, borderColor: '#4a9eff', backgroundColor: 'rgba(74,158,255,0.05)', borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, tension: 0.4, borderDash: [4, 3] }
     ]},
     options: {
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: false },
-        tooltip: {
-          backgroundColor: '#1e2330', borderColor: '#252b3a', borderWidth: 1,
-          titleColor: '#8891a8', bodyColor: '#eef0f8', padding: 10,
-          boxWidth: 8, boxHeight: 8,
-          callbacks: {
-            labelColor: ctx => ({
-              backgroundColor: ctx.dataset.borderColor,
-              borderColor:     ctx.dataset.borderColor,
-              borderWidth: 0,
-              borderRadius: 4
-            })
-          }
-        }
+        tooltip: { ...C_TOOLTIP, callbacks: { labelColor: C_LABEL_COLOR } }
       },
-      scales: {
-        x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#525d72', maxTicksLimit: 8, font: { size: 11 } } },
-        y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#525d72', font: { size: 11 } } }
-      }
+      scales: cScales({ xExtra: { maxTicksLimit: 8 } })
     }
   });
 }
@@ -648,11 +824,8 @@ function renderWeeklyChart(activities) {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${c.raw} TSS` } } },
-      scales: {
-        x: { grid: { display: false }, ticks: { color: '#525d72', font: { size: 10 } } },
-        y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#525d72', font: { size: 10 }, maxTicksLimit: 4 } }
-      }
+      plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP, callbacks: { label: c => `${c.raw} TSS` } } },
+      scales: cScales({ xGrid: false, yExtra: { maxTicksLimit: 4 } })
     }
   });
 }
@@ -694,7 +867,7 @@ function renderAvgPowerChart(activities) {
           hoverBackgroundColor: 'rgba(0,229,160,0.5)',
           borderColor: 'rgba(0,229,160,0.6)',
           borderWidth: 1,
-          borderRadius: 3,
+          borderRadius: 4,
           order: 2
         },
         {
@@ -705,6 +878,7 @@ function renderAvgPowerChart(activities) {
           backgroundColor: 'transparent',
           borderWidth: 2,
           pointRadius: 0,
+          pointHoverRadius: 4,
           tension: 0.4,
           order: 1
         }
@@ -715,23 +889,9 @@ function renderAvgPowerChart(activities) {
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: false },
-        tooltip: {
-          backgroundColor: '#1e2330', borderColor: '#252b3a', borderWidth: 1,
-          titleColor: '#8891a8', bodyColor: '#eef0f8', padding: 10,
-          callbacks: { label: c => `${c.dataset.label}: ${c.raw}w` }
-        }
+        tooltip: { ...C_TOOLTIP, callbacks: { labelColor: C_LABEL_COLOR, label: c => `${c.dataset.label}: ${c.raw}w` } }
       },
-      scales: {
-        x: {
-          grid: { display: false },
-          ticks: { color: '#525d72', font: { size: 10 }, maxTicksLimit: 10,
-            maxRotation: 0, autoSkip: true }
-        },
-        y: {
-          grid: { color: 'rgba(255,255,255,0.04)' },
-          ticks: { color: '#525d72', font: { size: 11 }, callback: v => v + 'w' }
-        }
-      }
+      scales: cScales({ xGrid: false, xExtra: { maxTicksLimit: 10, maxRotation: 0, autoSkip: true }, yExtra: { callback: v => v + 'w' } })
     }
   });
 }
@@ -854,6 +1014,19 @@ const CURVE_PEAKS = [
 // Tick labels shown on the logarithmic x-axis
 const CURVE_TICK_MAP = { 1:'1s', 5:'5s', 10:'10s', 30:'30s', 60:'1m', 300:'5m', 600:'10m', 1200:'20m', 1800:'30m', 3600:'1h' };
 
+// Detect the most common cycling activity type from loaded activities.
+// Falls back through common types so we always try something valid.
+function dominantRideType() {
+  const CYCLING_RE = /ride|cycling|bike|velo/i;
+  const counts = {};
+  state.activities.forEach(a => {
+    const t = a.sport_type || a.type || '';
+    if (CYCLING_RE.test(t)) counts[t] = (counts[t] || 0) + 1;
+  });
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  return sorted[0]?.[0] || 'Ride';
+}
+
 async function renderPowerCurve() {
   const card = document.getElementById('powerCurveCard');
   if (!card) return;
@@ -862,17 +1035,23 @@ async function renderPowerCurve() {
   if (!state.powerCurve || state.powerCurveRange !== state.rangeDays) {
     const newest = toDateStr(new Date());
     const oldest = toDateStr(daysAgo(state.rangeDays));
-    try {
-      const data = await icuFetch(
-        `/athlete/${state.athleteId}/power-curves?type=Ride&oldest=${oldest}&newest=${newest}`
-      );
-      // API returns an array; first item is the primary curve
-      const raw = Array.isArray(data) ? data[0] : data;
-      state.powerCurve      = (raw && Array.isArray(raw.secs) && raw.secs.length > 0) ? raw : null;
-      state.powerCurveRange = state.rangeDays;
-    } catch (e) {
-      state.powerCurve = null;
+    // Try dominant type first, then common fallbacks
+    const types = [dominantRideType(), 'Ride', 'VirtualRide', 'MountainBikeRide']
+      .filter((t, i, a) => a.indexOf(t) === i); // dedupe
+    let raw = null;
+    for (const type of types) {
+      try {
+        const data = await icuFetch(
+          `/athlete/${state.athleteId}/power-curves?type=${type}&oldest=${oldest}&newest=${newest}`
+        );
+        const candidate = Array.isArray(data) ? data[0] : (data.list?.[0] ?? data);
+        if (candidate && Array.isArray(candidate.secs) && candidate.secs.length > 0) {
+          raw = candidate; break;
+        }
+      } catch (e) { /* try next type */ }
     }
+    state.powerCurve      = raw;
+    state.powerCurveRange = state.rangeDays;
   }
 
   const pc = state.powerCurve;
@@ -927,49 +1106,31 @@ async function renderPowerCurve() {
         borderColor: '#00e5a0',
         backgroundColor: 'rgba(0,229,160,0.07)',
         fill: true,
-        tension: 0.35,
+        tension: 0.4,
         pointRadius: 0,
-        pointHoverRadius: 5,
-        pointHoverBackgroundColor: '#00e5a0',
+        pointHoverRadius: 4,
         borderWidth: 2,
       }]
     },
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
+      responsive: true, maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: false },
-        tooltip: {
-          backgroundColor: '#1e2330', borderColor: '#252b3a', borderWidth: 1,
-          titleColor: '#8891a8', bodyColor: '#eef0f8', padding: 10,
-          callbacks: {
-            title: items => fmtSecsShort(items[0].parsed.x),
-            label: ctx  => `${Math.round(ctx.parsed.y)}w`,
-          }
-        }
+        tooltip: { ...C_TOOLTIP, callbacks: {
+          title: items => fmtSecsShort(items[0].parsed.x),
+          label: ctx  => `${Math.round(ctx.parsed.y)}w`,
+        }}
       },
       scales: {
         x: {
-          type: 'logarithmic',
-          min: 1,
-          max: maxSecs,
-          grid: { color: 'rgba(255,255,255,0.04)' },
-          ticks: {
-            color: '#525d72',
-            font: { size: 10 },
-            autoSkip: false,
-            maxRotation: 0,
-            callback: val => CURVE_TICK_MAP[val] ?? null,
-          }
+          type: 'logarithmic', min: 1, max: maxSecs,
+          grid: C_GRID,
+          ticks: { ...C_TICK, autoSkip: false, maxRotation: 0, callback: val => CURVE_TICK_MAP[val] ?? null }
         },
         y: {
-          grid: { color: 'rgba(255,255,255,0.04)' },
-          ticks: {
-            color: '#525d72',
-            font: { size: 11 },
-            callback: v => v + 'w',
-          }
+          grid: C_GRID,
+          ticks: { ...C_TICK, callback: v => v + 'w' }
         }
       }
     }
@@ -1075,26 +1236,17 @@ function renderFitnessHistoryChart(days) {
     interaction: { mode: 'index', intersect: false },
     plugins: {
       legend: { display: false },
-      tooltip: {
-        backgroundColor: '#1e2330', borderColor: '#252b3a', borderWidth: 1,
-        titleColor: '#8891a8', bodyColor: '#eef0f8', padding: 10,
-        callbacks: {
-          labelColor: c => ({ backgroundColor: c.dataset.borderColor, borderColor: c.dataset.borderColor, borderWidth: 0, borderRadius: 3 })
-        }
-      }
+      tooltip: { ...C_TOOLTIP, callbacks: { labelColor: C_LABEL_COLOR } }
     },
-    scales: {
-      x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#525d72', maxTicksLimit: 10, font: { size: 11 } } },
-      y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#525d72', font: { size: 11 } } }
-    }
+    scales: cScales({ xExtra: { maxTicksLimit: 10 } })
   };
 
   state.fitnessPageChart = new Chart(canvas.getContext('2d'), {
     type: 'line',
     data: { labels, datasets: [
-      { label: 'CTL', data: ctlD, borderColor: '#00e5a0', backgroundColor: 'rgba(0,229,160,0.08)', borderWidth: 2.5, pointRadius: 0, tension: 0.4, fill: true },
-      { label: 'ATL', data: atlD, borderColor: '#ff6b35', backgroundColor: 'rgba(255,107,53,0.05)', borderWidth: 2,   pointRadius: 0, tension: 0.4 },
-      { label: 'TSB', data: tsbD, borderColor: '#4a9eff', backgroundColor: 'rgba(74,158,255,0.05)', borderWidth: 1.5, pointRadius: 0, tension: 0.4, borderDash: [4, 3] }
+      { label: 'CTL', data: ctlD, borderColor: '#00e5a0', backgroundColor: 'rgba(0,229,160,0.08)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.4, fill: true },
+      { label: 'ATL', data: atlD, borderColor: '#ff6b35', backgroundColor: 'rgba(255,107,53,0.05)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.4 },
+      { label: 'TSB', data: tsbD, borderColor: '#4a9eff', backgroundColor: 'rgba(74,158,255,0.05)', borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, tension: 0.4, borderDash: [4, 3] }
     ]},
     options: chartOpts
   });
@@ -1129,12 +1281,9 @@ function renderFitnessWeeklyPageChart() {
       responsive: true, maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: c => `${c.raw} TSS` } }
+        tooltip: { ...C_TOOLTIP, callbacks: { label: c => `${c.raw} TSS` } }
       },
-      scales: {
-        x: { grid: { display: false }, ticks: { color: '#525d72', font: { size: 10 }, maxRotation: 0 } },
-        y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#525d72', font: { size: 10 }, maxTicksLimit: 5 } }
-      }
+      scales: cScales({ xGrid: false, xExtra: { maxRotation: 0 }, yExtra: { maxTicksLimit: 5 } })
     }
   });
 }
@@ -1340,20 +1489,37 @@ function renderCalendar() {
 /* ====================================================
    ACTIVITY DETAIL — NAVIGATION
 ==================================================== */
-async function navigateToActivity(actKey) {
-  // Resolve activity via lookup map (set when the list was rendered)
-  let activity = window._actLookup && window._actLookup[actKey];
-  // Fallback: numeric index in state.activities (legacy)
+async function navigateToActivity(actKey, fromStep = false) {
+  // Accept an activity object directly (used when stepping prev/next)
+  let activity = (actKey && typeof actKey === 'object') ? actKey : null;
+
   if (!activity) {
-    const numIdx = Number(actKey);
-    if (!isNaN(numIdx) && numIdx >= 0 && numIdx < state.activities.length) {
-      activity = state.activities[numIdx];
+    // Resolve via lookup map (set when the activity list was rendered)
+    activity = window._actLookup && window._actLookup[actKey];
+    // Fallback: numeric index in state.activities (legacy)
+    if (!activity) {
+      const numIdx = Number(actKey);
+      if (!isNaN(numIdx) && numIdx >= 0 && numIdx < state.activities.length) {
+        activity = state.activities[numIdx];
+      }
     }
   }
   if (!activity) { showToast('Activity data not found', 'error'); return; }
 
-  state.previousPage = state.currentPage;
+  if (!fromStep) state.previousPage = state.currentPage;
   state.currentPage  = 'activity';
+
+  // Track position in the non-empty pool for prev/next navigation
+  const pool = state.activities.filter(a => !isEmptyActivity(a));
+  const poolIdx = pool.findIndex(a => (a.id && a.id === activity.id) || a === activity);
+  state.currentActivityIdx = poolIdx >= 0 ? poolIdx : null;
+
+  const prevBtn = document.getElementById('detailNavPrev');
+  const nextBtn = document.getElementById('detailNavNext');
+  const counter = document.getElementById('detailNavCounter');
+  if (prevBtn) prevBtn.disabled = poolIdx <= 0;
+  if (nextBtn) nextBtn.disabled = poolIdx < 0 || poolIdx >= pool.length - 1;
+  if (counter) counter.textContent = poolIdx >= 0 ? `${poolIdx + 1} / ${pool.length}` : '';
 
   // Show the activity page
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -1361,9 +1527,12 @@ async function navigateToActivity(actKey) {
   document.getElementById('page-activity').classList.add('active');
   document.getElementById('dateRangePill').style.display = 'none';
 
-  // Scroll back to top
+  // Scroll back to top and remove calendar's full-bleed layout so normal padding is restored
   const pageContent = document.getElementById('pageContent');
-  if (pageContent) pageContent.scrollTop = 0;
+  if (pageContent) {
+    pageContent.scrollTop = 0;
+    pageContent.classList.remove('page-content--calendar');
+  }
 
   // Back button label
   const fromLabel = state.previousPage === 'dashboard' ? 'Dashboard' : 'Activities';
@@ -1402,11 +1571,19 @@ async function navigateToActivity(actKey) {
 
     document.getElementById('detailChartsLoading').style.display = 'none';
 
+    const richActivity = fullDetail ? { ...activity, ...fullDetail } : activity;
+
+    // Stream charts only when data actually came back
     if (streams) {
-      renderStreamCharts(normalizeStreams(streams), fullDetail ? { ...activity, ...fullDetail } : activity);
+      const norm = normalizeStreams(streams);
+      renderStreamCharts(norm, richActivity);
     }
+
+    // Supplementary cards — each shows/hides itself based on data availability
+    renderDetailZones(richActivity);
+    renderDetailHistogram(richActivity);
+    renderDetailCurve(actId); // async — shows/hides its own card
   } catch (err) {
-    console.error('Activity detail error:', err);
     document.getElementById('detailChartsLoading').style.display = 'none';
   }
 }
@@ -1415,34 +1592,77 @@ function navigateBack() {
   navigate(state.previousPage || 'activities');
 }
 
+// Step to the adjacent activity in the sorted list.
+// delta = -1 → newer (toward index 0), delta = +1 → older (toward end of array)
+function stepActivity(delta) {
+  if (state.currentActivityIdx === null) return;
+  const pool = state.activities.filter(a => !isEmptyActivity(a));
+  const newIdx = state.currentActivityIdx + delta;
+  if (newIdx < 0 || newIdx >= pool.length) return;
+  navigateToActivity(pool[newIdx], true);
+}
+
 function destroyActivityCharts() {
-  if (state.activityPowerChart) { state.activityPowerChart.destroy(); state.activityPowerChart = null; }
-  if (state.activityHRChart)    { state.activityHRChart.destroy();    state.activityHRChart    = null; }
+  if (state.activityPowerChart)     { state.activityPowerChart.destroy();     state.activityPowerChart     = null; }
+  if (state.activityHRChart)        { state.activityHRChart.destroy();        state.activityHRChart        = null; }
+  if (state.activityCurveChart)     { state.activityCurveChart.destroy();     state.activityCurveChart     = null; }
+  if (state.activityHistogramChart) { state.activityHistogramChart.destroy(); state.activityHistogramChart = null; }
+  ['detailZonesCard', 'detailHistogramCard', 'detailCurveCard'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
 }
 
 /* ====================================================
    ACTIVITY DETAIL — DATA FETCHING
 ==================================================== */
 async function fetchActivityDetail(activityId) {
-  return await icuFetch(`/athlete/${state.athleteId}/activities/${activityId}`);
+  const raw = await icuFetch(`/athlete/${state.athleteId}/activities/${activityId}`);
+  // intervals.icu returns an array with a single activity object
+  return Array.isArray(raw) ? raw[0] : raw;
 }
 
 async function fetchActivityStreams(activityId) {
-  // Fetch all available streams — filter client-side
-  return await icuFetch(
-    `/athlete/${state.athleteId}/activities/${activityId}/streams`
-  );
+  const types = 'time,watts,heartrate,cadence,velocity_smooth,altitude,distance';
+  // First attempt: standard path with explicit stream types
+  try {
+    return await icuFetch(
+      `/athlete/${state.athleteId}/activities/${activityId}/streams?streams=${types}`
+    );
+  } catch (e1) {
+    // Second attempt: strip the 'i' prefix — some paths need a plain numeric ID
+    const numId = String(activityId).replace(/^i/, '');
+    if (numId !== String(activityId)) {
+      try {
+        return await icuFetch(
+          `/athlete/${state.athleteId}/activities/${numId}/streams?streams=${types}`
+        );
+      } catch (e2) { /* fall through */ }
+    }
+    throw e1;
+  }
 }
 
-// Normalise stream data — handles both object {watts:[…]} and array [{type:'watts',data:[…]}] formats
+// Normalise stream data into a flat { key: number[] } map.
+// intervals.icu can return several shapes — handle all of them.
 function normalizeStreams(raw) {
   if (!raw) return {};
-  if (Array.isArray(raw)) {
+
+  // Shape 1: already a flat object { watts: [...], heartrate: [...], ... }
+  if (!Array.isArray(raw) && typeof raw === 'object') {
+    const obj = {};
+    Object.entries(raw).forEach(([k, v]) => { if (Array.isArray(v)) obj[k] = v; });
+    return obj;
+  }
+
+  // Shape 2: array of { type, data } objects  →  [{ type:'watts', data:[...] }, ...]
+  if (Array.isArray(raw) && raw.length > 0 && raw[0] && typeof raw[0] === 'object' && raw[0].type) {
     const obj = {};
     raw.forEach(s => { if (s.type && Array.isArray(s.data)) obj[s.type] = s.data; });
     return obj;
   }
-  return typeof raw === 'object' ? raw : {};
+
+  return {};
 }
 
 // Downsample all stream arrays together so they stay time-aligned
@@ -1471,6 +1691,7 @@ function downsampleStreams(streams, targetLen = 300) {
    ACTIVITY DETAIL — RENDERING
 ==================================================== */
 function renderActivityBasic(a) {
+  // ── Hero ──────────────────────────────────────────────────────────────────
   const aName = (a.name && a.name.trim()) ? a.name.trim() : activityFallbackName(a);
   document.getElementById('detailName').textContent = aName;
 
@@ -1485,10 +1706,10 @@ function renderActivityBasic(a) {
 
   const tss   = Math.round(a.icu_training_load || a.tss || 0);
   const tssEl = document.getElementById('detailTSSBadge');
-  tssEl.textContent    = tss > 0 ? tss : '';
-  tssEl.style.display  = tss > 0 ? 'inline-block' : 'none';
+  tssEl.textContent   = tss > 0 ? `${tss} TSS` : '';
+  tssEl.style.display = tss > 0 ? 'flex' : 'none';
 
-  // Build stats — handle both fields-restricted and full API response field names
+  // ── Metrics strip ─────────────────────────────────────────────────────────
   const distKm   = (a.distance || 0) / 1000;
   const secs     = a.moving_time || a.elapsed_time || a.moving_time_seconds || a.elapsed_time_seconds || 0;
   const speedMs  = a.average_speed || a.average_speed_meters_per_sec ||
@@ -1496,41 +1717,34 @@ function renderActivityBasic(a) {
   const speedKmh = speedMs * 3.6;
   const avgW     = a.average_watts || 0;
   const np       = a.icu_weighted_avg_watts || 0;
+  const maxW     = a.max_watts || 0;
+  const ifVal    = a.intensity_factor || 0;
   const avgHR    = a.average_heartrate || (a.heart_rate && a.heart_rate.average) || 0;
+  const maxHR    = a.max_heartrate || (a.heart_rate && a.heart_rate.max) || 0;
+  const avgCad   = a.average_cadence || (a.cadence && a.cadence.average) || 0;
+  const cals     = a.calories || (a.other && a.other.calories) || 0;
+  const elev     = Math.round(a.total_elevation_gain || 0);
 
-  const stats = [
-    { label: 'Distance',    value: distKm > 0 ? distKm.toFixed(2) : '—',                            unit: 'km'   },
-    { label: 'Moving Time', value: secs > 0 ? fmtDur(secs) : '—',                                   unit: ''     },
-    { label: 'Elevation',   value: Math.round(a.total_elevation_gain || 0).toLocaleString(),          unit: 'm'    },
-    { label: 'Avg Speed',   value: speedKmh > 0.5 ? speedKmh.toFixed(1) : '—',                      unit: 'km/h' },
-  ];
+  // chip(value, label, accent?)
+  const chip = (v, lbl, accent = false) =>
+    `<div class="mc${accent ? ' mc--accent' : ''}"><div class="mc-val">${v}</div><div class="mc-lbl">${lbl}</div></div>`;
 
-  if (avgW > 0) stats.push(
-    { label: 'Avg Power',   value: Math.round(avgW),                                                  unit: 'w'   },
-    { label: 'Norm Power',  value: np > 0 ? Math.round(np) : '—',                                    unit: 'w'   },
-    { label: 'Max Power',   value: a.max_watts ? Math.round(a.max_watts) : '—',                       unit: 'w'   },
-    { label: 'Int. Factor', value: a.intensity_factor ? a.intensity_factor.toFixed(2) : '—',          unit: ''    }
-  );
+  let html = '';
+  if (distKm > 0.05)  html += chip(distKm.toFixed(1), 'km');
+  if (secs > 0)        html += chip(fmtDur(secs), 'time');
+  if (elev > 0)        html += chip(elev.toLocaleString(), 'm elev');
+  if (speedKmh > 0.5)  html += chip(speedKmh.toFixed(1), 'km/h');
+  if (avgW > 0)        html += chip(Math.round(avgW) + 'w', 'avg power', true);
+  if (np > 0)          html += chip(Math.round(np) + 'w', 'norm power', true);
+  if (maxW > 0)        html += chip(Math.round(maxW) + 'w', 'max power');
+  if (ifVal > 0)       html += chip(ifVal.toFixed(2), 'int. factor');
+  if (avgHR > 0)       html += chip(Math.round(avgHR), 'avg bpm');
+  if (maxHR > 0)       html += chip(Math.round(maxHR), 'max bpm');
+  if (avgCad > 0)      html += chip(Math.round(avgCad), 'rpm');
+  if (cals > 0)        html += chip(Math.round(cals).toLocaleString(), 'kcal');
+  if (tss > 0)         html += chip(tss, 'TSS', true);
 
-  const maxHR  = a.max_heartrate || (a.heart_rate && a.heart_rate.max) || 0;
-  const avgCad = a.average_cadence || (a.cadence && a.cadence.average) || 0;
-  const cals   = a.calories || (a.other && a.other.calories) || 0;
-
-  if (avgHR > 0) stats.push(
-    { label: 'Avg HR',      value: Math.round(avgHR),                                                 unit: 'bpm' },
-    { label: 'Max HR',      value: maxHR ? Math.round(maxHR) : '—',                                   unit: 'bpm' }
-  );
-
-  if (avgCad > 0) stats.push({ label: 'Avg Cadence', value: Math.round(avgCad),                       unit: 'rpm'  });
-  if (cals > 0)   stats.push({ label: 'Calories',    value: Math.round(cals).toLocaleString(),        unit: 'kcal' });
-  if (tss > 0)    stats.push({ label: 'TSS',         value: tss,                                      unit: ''    });
-
-  document.getElementById('detailStatsGrid').innerHTML = stats.map(s =>
-    `<div class="detail-stat">
-      <div class="detail-stat-label">${s.label}</div>
-      <div class="detail-stat-value">${s.value}${s.unit ? `<span class="detail-stat-unit"> ${s.unit}</span>` : ''}</div>
-    </div>`
-  ).join('');
+  document.getElementById('detailMetrics').innerHTML = html;
 }
 
 function renderStreamCharts(streams, activity) {
@@ -1584,7 +1798,97 @@ function renderStreamCharts(streams, activity) {
     );
   }
 
+  if (hasCharts) {
+    const chartsRow = document.getElementById('detailChartsRow');
+    const both = powerCard.style.display !== 'none' && hrCard.style.display !== 'none';
+    chartsRow.style.gridTemplateColumns = both ? '1fr 1fr' : '1fr';
+    chartsRow.style.display = 'grid';
+  }
+}
+
+// Hex colours that map to our zone CSS vars (used in Chart.js which needs actual colour values)
+const ZONE_HEX = ['#4a9eff', '#00e5a0', '#ffcc00', '#ff6b35', '#ff5252', '#b482ff'];
+
+// Render zone bar charts when time-series streams are not available.
+// Uses icu_zone_times (power) and icu_hr_zone_times (HR) from the activity object.
+function renderActivityZoneCharts(activity) {
   const chartsRow = document.getElementById('detailChartsRow');
+  const powerCard = document.getElementById('detailPowerCard');
+  const hrCard    = document.getElementById('detailHRCard');
+  if (state.activityPowerChart) { state.activityPowerChart.destroy(); state.activityPowerChart = null; }
+  if (state.activityHRChart)    { state.activityHRChart.destroy();    state.activityHRChart    = null; }
+  powerCard.style.display = 'none';
+  hrCard.style.display    = 'none';
+
+  function zoneBarConfig(labels, data, colors) {
+    return {
+      type: 'bar',
+      data: { labels, datasets: [{ data, backgroundColor: colors, borderRadius: 4 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { ...C_TOOLTIP, callbacks: { label: c => `${c.raw} min` } }
+        },
+        scales: cScales({ xGrid: false, yExtra: { callback: v => v + 'm' } })
+      }
+    };
+  }
+
+  let hasCharts = false;
+
+  // ── Power zones ────────────────────────────────────────────────────────────
+  const zt = activity.icu_zone_times;
+  if (Array.isArray(zt) && zt.length > 0) {
+    const labels = [], data = [], colors = [];
+    zt.forEach(z => {
+      if (!z || typeof z.id !== 'string') return;
+      const m = z.id.match(/^Z(\d)$/);
+      if (!m) return;
+      const idx = parseInt(m[1], 10) - 1;
+      if (idx >= 0 && idx < 6 && (z.secs || 0) > 0) {
+        labels.push(`${z.id} · ${ZONE_NAMES[idx]}`);
+        data.push(+(z.secs / 60).toFixed(1));
+        colors.push(ZONE_HEX[idx] + 'b3'); // ~70% opacity
+      }
+    });
+    if (data.length > 0) {
+      hasCharts = true;
+      powerCard.style.display = 'block';
+      document.getElementById('detailPowerSubtitle').textContent = 'Time in power zone';
+      state.activityPowerChart = new Chart(
+        document.getElementById('activityPowerChart').getContext('2d'),
+        zoneBarConfig(labels, data, colors)
+      );
+    }
+  }
+
+  // ── HR zones ───────────────────────────────────────────────────────────────
+  const hzt = activity.icu_hr_zone_times;
+  if (Array.isArray(hzt) && hzt.length > 0) {
+    const labels = [], data = [], colors = [];
+    hzt.forEach(z => {
+      if (!z || typeof z.id !== 'string') return;
+      const m = z.id.match(/^Z(\d)$/);
+      if (!m) return;
+      const idx = parseInt(m[1], 10) - 1;
+      if (idx >= 0 && idx < 6 && (z.secs || 0) > 0) {
+        labels.push(`${z.id} · ${ZONE_NAMES[idx]}`);
+        data.push(+(z.secs / 60).toFixed(1));
+        colors.push(ZONE_HEX[idx] + 'b3');
+      }
+    });
+    if (data.length > 0) {
+      hasCharts = true;
+      hrCard.style.display = 'block';
+      document.getElementById('detailHRSubtitle').textContent = 'Time in HR zone';
+      state.activityHRChart = new Chart(
+        document.getElementById('activityHRChart').getContext('2d'),
+        zoneBarConfig(labels, data, colors)
+      );
+    }
+  }
+
   if (hasCharts) {
     const both = powerCard.style.display !== 'none' && hrCard.style.display !== 'none';
     chartsRow.style.gridTemplateColumns = both ? '1fr 1fr' : '1fr';
@@ -1592,25 +1896,203 @@ function renderStreamCharts(streams, activity) {
   }
 }
 
+/* ====================================================
+   ACTIVITY DETAIL — SUPPLEMENTARY ANALYSIS CARDS
+==================================================== */
+
+// Detailed zone table (power zones with bars + time + %)
+function renderDetailZones(activity) {
+  const card = document.getElementById('detailZonesCard');
+  if (!card) return;
+
+  const zt = activity.icu_zone_times;
+  if (!Array.isArray(zt) || zt.length === 0) { card.style.display = 'none'; return; }
+
+  // Build index → secs map for Z1–Z6
+  const totals = new Array(6).fill(0);
+  let totalSecs = 0;
+  zt.forEach(z => {
+    if (!z || typeof z.id !== 'string') return;
+    const m = z.id.match(/^Z(\d)$/);
+    if (!m) return;
+    const idx = parseInt(m[1], 10) - 1;
+    if (idx >= 0 && idx < 6) { totals[idx] += (z.secs || 0); totalSecs += (z.secs || 0); }
+  });
+
+  if (totalSecs === 0) { card.style.display = 'none'; return; }
+
+  document.getElementById('detailZonesTotalBadge').textContent = fmtDur(totalSecs) + ' total';
+  document.getElementById('detailZonesSubtitle').textContent   = 'Time in power zone · this ride';
+
+  document.getElementById('detailZoneList').innerHTML = totals.map((secs, i) => {
+    if (secs === 0) return '';
+    const pct   = (secs / totalSecs * 100).toFixed(1);
+    const color = ZONE_HEX[i];
+    return `<div class="detail-zone-row">
+      <span class="detail-zone-tag" style="color:${color}">${ZONE_TAGS[i]}</span>
+      <span class="detail-zone-name">${ZONE_NAMES[i]}</span>
+      <div class="detail-zone-bar-track">
+        <div class="detail-zone-bar-fill" style="width:${pct}%;background:${color}"></div>
+      </div>
+      <span class="detail-zone-time">${fmtDur(secs)}</span>
+      <span class="detail-zone-pct" style="color:${color}">${pct}%</span>
+    </div>`;
+  }).join('');
+
+  card.style.display = '';
+}
+
+// Power histogram — time (mins) at each watt bucket
+function renderDetailHistogram(activity) {
+  const card = document.getElementById('detailHistogramCard');
+  if (!card) return;
+
+  // power_histogram is typically [{watts: N, secs: N}, ...] in the full detail response
+  const hist = activity.power_histogram;
+  if (!Array.isArray(hist) || hist.length === 0) { card.style.display = 'none'; return; }
+
+  const filtered = hist.filter(h => h && h.watts >= 0 && (h.secs || h.seconds) > 0);
+  if (filtered.length === 0) { card.style.display = 'none'; return; }
+
+  // Group into 20 w buckets for a clean bar chart
+  const BUCKET = 20;
+  const buckets = {};
+  filtered.forEach(h => {
+    const key = Math.floor((h.watts || 0) / BUCKET) * BUCKET;
+    buckets[key] = (buckets[key] || 0) + (h.secs || h.seconds || 0);
+  });
+
+  const entries = Object.entries(buckets)
+    .map(([k, v]) => ({ watts: +k, mins: +(v / 60).toFixed(1) }))
+    .sort((a, b) => a.watts - b.watts);
+
+  if (entries.length === 0) { card.style.display = 'none'; return; }
+  card.style.display = '';
+
+  if (state.activityHistogramChart) { state.activityHistogramChart.destroy(); state.activityHistogramChart = null; }
+  state.activityHistogramChart = new Chart(
+    document.getElementById('activityHistogramChart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: entries.map(e => e.watts + 'w'),
+        datasets: [{
+          data:  entries.map(e => e.mins),
+          backgroundColor: 'rgba(0,229,160,0.45)',
+          hoverBackgroundColor: '#00e5a0',
+          borderRadius: 2,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { ...C_TOOLTIP, callbacks: { label: c => `${c.raw} min` } }
+        },
+        scales: cScales({ xGrid: false, xExtra: { maxTicksLimit: 12, maxRotation: 0 }, yExtra: { callback: v => v + 'm' } })
+      }
+    }
+  );
+}
+
+// Fetch and render per-ride power curve
+async function fetchActivityPowerCurve(activityId) {
+  try {
+    return await icuFetch(`/athlete/${state.athleteId}/activities/${activityId}/power-curve`);
+  } catch (e1) {
+    const numId = String(activityId).replace(/^i/, '');
+    if (numId !== String(activityId)) {
+      return await icuFetch(`/athlete/${state.athleteId}/activities/${numId}/power-curve`);
+    }
+    throw e1;
+  }
+}
+
+async function renderDetailCurve(actId) {
+  const card = document.getElementById('detailCurveCard');
+  if (!card) return;
+
+  let raw = null;
+  try {
+    const data = await fetchActivityPowerCurve(actId);
+    const candidate = Array.isArray(data) ? data[0] : (data.list?.[0] ?? data);
+    if (candidate && Array.isArray(candidate.secs) && candidate.secs.length > 0) raw = candidate;
+  } catch (e) { /* endpoint not available */ }
+
+  if (!raw) { card.style.display = 'none'; return; }
+  card.style.display = '';
+
+  // Peak stat pills
+  const lookup = {};
+  raw.secs.forEach((s, i) => { if (raw.watts[i]) lookup[s] = raw.watts[i]; });
+  function peakWatts(target) {
+    if (lookup[target]) return lookup[target];
+    let best = null, minDiff = Infinity;
+    raw.secs.forEach(s => {
+      const d = Math.abs(s - target);
+      if (d < minDiff && lookup[s]) { minDiff = d; best = lookup[s]; }
+    });
+    return best;
+  }
+
+  document.getElementById('detailCurvePeaks').innerHTML = CURVE_PEAKS.map(p => {
+    const w = Math.round(peakWatts(p.secs) || 0);
+    if (!w) return '';
+    return `<div class="curve-peak">
+      <div class="curve-peak-val">${w}<span class="curve-peak-unit">w</span></div>
+      <div class="curve-peak-dur">${p.label}</div>
+    </div>`;
+  }).join('');
+
+  const chartData = raw.secs.map((s, i) => ({ x: s, y: raw.watts[i] })).filter(pt => pt.y > 0);
+  const maxSecs   = chartData[chartData.length - 1]?.x || 3600;
+
+  if (state.activityCurveChart) { state.activityCurveChart.destroy(); state.activityCurveChart = null; }
+  state.activityCurveChart = new Chart(
+    document.getElementById('activityCurveChart').getContext('2d'), {
+      type: 'line',
+      data: {
+        datasets: [{
+          data: chartData,
+          borderColor: '#00e5a0',
+          backgroundColor: 'rgba(0,229,160,0.07)',
+          fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 4, borderWidth: 2,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: { ...C_TOOLTIP, callbacks: {
+            title: items => fmtSecsShort(items[0].parsed.x),
+            label: ctx  => `${Math.round(ctx.parsed.y)}w`,
+          }}
+        },
+        scales: {
+          x: {
+            type: 'logarithmic', min: 1, max: maxSecs,
+            grid: C_GRID,
+            ticks: { ...C_TICK, autoSkip: false, maxRotation: 0, callback: val => CURVE_TICK_MAP[val] ?? null }
+          },
+          y: { grid: C_GRID, ticks: { ...C_TICK, callback: v => v + 'w' } }
+        }
+      }
+    }
+  );
+}
+
 function streamChartConfig(labels, data, color, fill, unit) {
   return {
     type: 'line',
-    data: { labels, datasets: [{ data, borderColor: color, backgroundColor: fill, borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: true, spanGaps: true }] },
+    data: { labels, datasets: [{ data, borderColor: color, backgroundColor: fill, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.4, fill: true, spanGaps: true }] },
     options: {
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: false },
-        tooltip: {
-          backgroundColor: '#1e2330', borderColor: '#252b3a', borderWidth: 1,
-          titleColor: '#8891a8', bodyColor: '#eef0f8', padding: 10,
-          callbacks: { label: c => `${c.raw} ${unit}` }
-        }
+        tooltip: { ...C_TOOLTIP, callbacks: { label: c => `${c.raw} ${unit}` } }
       },
-      scales: {
-        x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#525d72', maxTicksLimit: 8, font: { size: 10 } } },
-        y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#525d72', font: { size: 10 } } }
-      }
+      scales: cScales({ xExtra: { maxTicksLimit: 8 } })
     }
   };
 }
@@ -1662,7 +2144,17 @@ navigate('dashboard');
 
 const hasCredentials = loadCredentials();
 if (hasCredentials) {
-  updateConnectionUI(false);
+  // Pre-load cached activities so the dashboard renders instantly,
+  // then syncData() will fetch only what's new in the background.
+  const cached = loadActivityCache();
+  if (cached) {
+    state.activities = cached.activities;
+    state.synced = true;
+    updateConnectionUI(true);
+    renderDashboard();
+  } else {
+    updateConnectionUI(false);
+  }
   syncData();
 } else {
   openModal();

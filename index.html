@@ -367,6 +367,22 @@
                         id="connectionDot"
                     ></div>
                 </div>
+                <div class="sidebar-actions">
+                    <button class="btn btn-ghost sidebar-action-btn" id="syncBtn" onclick="syncData()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="23 4 23 10 17 10"/>
+                            <path d="M20.49 15a9 9 0 1 1-.08-8.58"/>
+                        </svg>
+                        Sync
+                    </button>
+                    <button class="btn btn-primary sidebar-action-btn" onclick="openModal()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                        </svg>
+                        <span id="connectBtnLabel">Connect</span>
+                    </button>
+                </div>
             </div>
         </aside>
 
@@ -396,41 +412,6 @@
                             1y
                         </button>
                     </div>
-                    <button
-                        class="btn btn-ghost"
-                        id="syncBtn"
-                        onclick="syncData()"
-                    >
-                        <svg
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                        >
-                            <polyline points="23 4 23 10 17 10" />
-                            <path d="M20.49 15a9 9 0 1 1-.08-8.58" />
-                        </svg>
-                    </button>
-                    <button class="btn btn-primary" onclick="openModal()">
-                        <svg
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2.5"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                        >
-                            <path
-                                d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
-                            />
-                            <path
-                                d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
-                            />
-                        </svg>
-                        <span id="connectBtnLabel">Connect</span>
-                    </button>
                 </div>
             </header>
 
@@ -768,13 +749,17 @@
                         <div class="card-header">
                             <div>
                                 <div class="card-title">All Activities</div>
-                                <div
-                                    class="card-subtitle"
-                                    id="allActivitiesSubtitle"
-                                >
-                                    —
-                                </div>
+                                <div class="card-subtitle" id="allActivitiesSubtitle">—</div>
                             </div>
+                        </div>
+                        <div class="sort-bar">
+                            <span class="sort-label">Sort</span>
+                            <button class="sort-btn active" data-sort="date"      onclick="setActivitiesSort('date')">Date<span class="sort-arrow"> ↓</span></button>
+                            <button class="sort-btn"        data-sort="distance"  onclick="setActivitiesSort('distance')">Distance<span class="sort-arrow"></span></button>
+                            <button class="sort-btn"        data-sort="time"      onclick="setActivitiesSort('time')">Time<span class="sort-arrow"></span></button>
+                            <button class="sort-btn"        data-sort="elevation" onclick="setActivitiesSort('elevation')">Elevation<span class="sort-arrow"></span></button>
+                            <button class="sort-btn"        data-sort="power"     onclick="setActivitiesSort('power')">Power<span class="sort-arrow"></span></button>
+                            <button class="sort-btn"        data-sort="bpm"       onclick="setActivitiesSort('bpm')">BPM<span class="sort-arrow"></span></button>
                         </div>
                         <div class="activity-list" id="allActivityList">
                             <div class="empty-state">
@@ -796,117 +781,112 @@
 
                 <!-- ==================== ACTIVITY DETAIL PAGE ==================== -->
                 <div class="page" id="page-activity">
-                    <!-- Back navigation -->
+
+                    <!-- Back nav + prev/next -->
                     <div class="detail-back">
                         <button class="btn btn-ghost" onclick="navigateBack()">
-                            <svg
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2.5"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                            >
-                                <polyline points="15 18 9 12 15 6" />
-                            </svg>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
                             Back to <span id="detailBackLabel">Activities</span>
                         </button>
+                        <div class="detail-nav-arrows">
+                            <span class="detail-nav-counter" id="detailNavCounter"></span>
+                            <button class="btn btn-ghost detail-nav-btn" id="detailNavPrev" onclick="stepActivity(-1)" title="Previous" disabled>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg>
+                            </button>
+                            <button class="btn btn-ghost detail-nav-btn" id="detailNavNext" onclick="stepActivity(1)" title="Next" disabled>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg>
+                            </button>
+                        </div>
                     </div>
 
-                    <!-- Hero card -->
-                    <div class="card activity-hero-card">
+                    <!-- Hero -->
+                    <div class="adh">
                         <div class="activity-type-icon lg" id="detailIcon">
-                            <svg
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                            >
-                                <polyline
-                                    points="22 12 18 12 15 21 9 3 6 12 2 12"
-                                />
-                            </svg>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                         </div>
-                        <div class="activity-hero-body">
-                            <div class="activity-hero-name" id="detailName">
-                                Activity
-                            </div>
-                            <div class="activity-hero-meta">
+                        <div class="adh-body">
+                            <div class="adh-name" id="detailName">Activity</div>
+                            <div class="adh-meta">
                                 <span id="detailDate"></span>
-                                <span id="detailType"></span>
+                                <span class="adh-sport" id="detailType"></span>
                             </div>
                         </div>
-                        <div
-                            class="activity-tss"
-                            id="detailTSSBadge"
-                            style="display: none"
-                        ></div>
+                        <div class="adh-tss" id="detailTSSBadge" style="display:none"></div>
                     </div>
 
-                    <!-- Stats grid -->
-                    <div class="card">
-                        <div class="card-header">
-                            <div class="card-title">Stats</div>
-                        </div>
-                        <div
-                            class="detail-stats-grid"
-                            id="detailStatsGrid"
-                        ></div>
+                    <!-- Metrics strip -->
+                    <div class="metrics-strip" id="detailMetrics"></div>
+
+                    <!-- Loading -->
+                    <div class="detail-charts-loading" id="detailChartsLoading" style="display:none">
+                        <div class="spinner"></div>Loading chart data…
                     </div>
 
-                    <!-- Charts loading state -->
-                    <div
-                        class="card detail-charts-loading"
-                        id="detailChartsLoading"
-                        style="display: none"
-                    >
-                        <div class="spinner"></div>
-                        Loading chart data…
-                    </div>
-
-                    <!-- Power + HR charts (shown when streams load) -->
-                    <div
-                        class="stream-charts"
-                        id="detailChartsRow"
-                        style="display: none"
-                    >
-                        <div
-                            class="card"
-                            id="detailPowerCard"
-                            style="display: none"
-                        >
+                    <!-- Power + HR stream charts (only if streams available) -->
+                    <div class="detail-charts-row" id="detailChartsRow" style="display:none">
+                        <div class="card" id="detailPowerCard" style="display:none">
                             <div class="card-header">
                                 <div>
                                     <div class="card-title">Power</div>
-                                    <div
-                                        class="card-subtitle"
-                                        id="detailPowerSubtitle"
-                                    ></div>
+                                    <div class="card-subtitle" id="detailPowerSubtitle"></div>
                                 </div>
                             </div>
-                            <div class="chart-wrap detail-chart-wrap">
+                            <div class="chart-wrap" style="height:200px">
                                 <canvas id="activityPowerChart"></canvas>
                             </div>
                         </div>
-                        <div
-                            class="card"
-                            id="detailHRCard"
-                            style="display: none"
-                        >
+                        <div class="card" id="detailHRCard" style="display:none">
                             <div class="card-header">
                                 <div>
                                     <div class="card-title">Heart Rate</div>
-                                    <div
-                                        class="card-subtitle"
-                                        id="detailHRSubtitle"
-                                    ></div>
+                                    <div class="card-subtitle" id="detailHRSubtitle"></div>
                                 </div>
                             </div>
-                            <div class="chart-wrap detail-chart-wrap">
+                            <div class="chart-wrap" style="height:200px">
                                 <canvas id="activityHRChart"></canvas>
                             </div>
                         </div>
                     </div>
+
+                    <!-- Power zones (always shown if icu_zone_times exists) -->
+                    <div class="card" id="detailZonesCard" style="display:none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">Power Zones</div>
+                                <div class="card-subtitle" id="detailZonesSubtitle"></div>
+                            </div>
+                            <span class="badge" id="detailZonesTotalBadge"></span>
+                        </div>
+                        <div id="detailZoneList"></div>
+                    </div>
+
+                    <!-- Ride power curve (only if API returns data) -->
+                    <div class="card" id="detailCurveCard" style="display:none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">Ride Power Curve</div>
+                                <div class="card-subtitle" id="detailCurveSubtitle">Best efforts this ride</div>
+                            </div>
+                        </div>
+                        <div class="curve-peaks" id="detailCurvePeaks"></div>
+                        <div class="chart-wrap" style="height:200px">
+                            <canvas id="activityCurveChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Power histogram (only if histogram data in API response) -->
+                    <div class="card" id="detailHistogramCard" style="display:none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">Power Distribution</div>
+                                <div class="card-subtitle">Time at each watt level</div>
+                            </div>
+                        </div>
+                        <div class="chart-wrap" style="height:200px">
+                            <canvas id="activityHistogramChart"></canvas>
+                        </div>
+                    </div>
+
                 </div>
 
                 <!-- ==================== CALENDAR PAGE ==================== -->
