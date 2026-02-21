@@ -449,6 +449,8 @@ function closeSidebar() {
 function navigate(page) {
   state.previousPage = state.currentPage;
   state.currentPage  = page;
+  try { sessionStorage.setItem('icu_route', JSON.stringify({ type: 'page', page })); } catch {}
+
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + page)?.classList.add('active');
@@ -2408,6 +2410,9 @@ async function navigateToActivity(actKey, fromStep = false) {
   }
   if (!activity) { showToast('Activity data not found', 'error'); return; }
 
+  const _routeId = activity.id || activity.icu_activity_id;
+  try { sessionStorage.setItem('icu_route', JSON.stringify({ type: 'activity', actId: String(_routeId) })); } catch {}
+
   if (!fromStep) state.previousPage = state.currentPage;
   state.currentPage  = 'activity';
 
@@ -2553,23 +2558,13 @@ async function fetchActivityDetail(activityId) {
 
 async function fetchActivityStreams(activityId) {
   const types = 'time,watts,heartrate,cadence,velocity_smooth,altitude,distance';
-  // First attempt: standard path with explicit stream types
-  try {
-    return await icuFetch(
-      `/athlete/${state.athleteId}/activities/${activityId}/streams?streams=${types}`
-    );
-  } catch (e1) {
-    // Second attempt: strip the 'i' prefix — some paths need a plain numeric ID
-    const numId = String(activityId).replace(/^i/, '');
-    if (numId !== String(activityId)) {
-      try {
-        return await icuFetch(
-          `/athlete/${state.athleteId}/activities/${numId}/streams?streams=${types}`
-        );
-      } catch (e2) { /* fall through */ }
-    }
-    throw e1;
-  }
+  const res = await fetch(
+    ICU_BASE + `/athlete/${state.athleteId}/activities/${activityId}/streams?streams=${types}`,
+    { headers: { ...authHeader(), 'Accept': 'application/json' } }
+  );
+  if (res.status === 404) return null; // activity has no stream data — not an error
+  if (!res.ok) throw new Error(`${res.status}: ${await res.text().catch(() => res.statusText)}`);
+  return res.json();
 }
 
 // Normalise stream data into a flat { key: number[] } map.
@@ -2679,20 +2674,34 @@ function renderActivityBasic(a) {
   primaryEl.innerHTML = primary.slice(0, 4).join('');
   primaryEl.style.gridTemplateColumns = `repeat(${Math.min(primary.length, 4)}, 1fr)`;
 
-  // ── Secondary stats: remaining chips ─────────────────────────────────────
-  const sStat = (val, lbl) =>
-    `<div class="act-sstat"><div class="act-sstat-val">${val}</div><div class="act-sstat-lbl">${lbl}</div></div>`;
+  // ── Secondary stats: icon tiles ──────────────────────────────────────────
+  const SICONS = {
+    elev:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 20 9 8 15 14 20 6"/></svg>`,
+    speed:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+    zap:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
+    target: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`,
+    heart:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`,
+    cad:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>`,
+    fire:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 3z"/></svg>`,
+    pulse:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`,
+  };
+  const sStat = (val, lbl, icon, color) =>
+    `<div class="act-sstat">
+       <div class="act-sstat-icon ${color}">${SICONS[icon]}</div>
+       <div class="act-sstat-val">${val}</div>
+       <div class="act-sstat-lbl">${lbl}</div>
+     </div>`;
 
   let sec = '';
-  if (elev > 0)       sec += sStat(elev.toLocaleString() + ' m', 'elevation');
-  if (speedKmh > 0.5 && np > 0) sec += sStat(speedKmh.toFixed(1), 'km/h');
-  if (avgW > 0 && np > 0) sec += sStat(Math.round(avgW) + 'W', 'avg power');
-  if (maxW > 0)       sec += sStat(Math.round(maxW) + 'W', 'max power');
-  if (ifVal > 0)      sec += sStat(ifVal.toFixed(2), 'int. factor');
-  if (maxHR > 0)      sec += sStat(Math.round(maxHR), 'max bpm');
-  if (avgCad > 0)     sec += sStat(Math.round(avgCad), 'cadence');
-  if (cals > 0)       sec += sStat(Math.round(cals).toLocaleString(), 'kcal');
-  if (tss > 0)        sec += sStat(tss, 'TSS');
+  if (elev > 0)                  sec += sStat(elev.toLocaleString() + ' m', 'Elevation',    'elev',   'green');
+  if (speedKmh > 0.5 && np > 0) sec += sStat(speedKmh.toFixed(1) + ' km/h','Avg Speed',    'speed',  'blue');
+  if (avgW > 0 && np > 0)        sec += sStat(Math.round(avgW) + 'W',       'Avg Power',    'zap',    'orange');
+  if (maxW > 0)                  sec += sStat(Math.round(maxW) + 'W',       'Max Power',    'zap',    'orange');
+  if (ifVal > 0)                 sec += sStat(ifVal.toFixed(2),              'Int. Factor',  'target', 'purple');
+  if (maxHR > 0)                 sec += sStat(Math.round(maxHR) + ' bpm',   'Max HR',       'heart',  'red');
+  if (avgCad > 0)                sec += sStat(Math.round(avgCad) + ' rpm',  'Cadence',      'cad',    'yellow');
+  if (cals > 0)                  sec += sStat(Math.round(cals).toLocaleString(), 'Calories', 'fire',   'orange');
+  if (tss > 0)                   sec += sStat(tss,                           'TSS',          'pulse',  'green');
 
   document.getElementById('actSecondaryStats').innerHTML = sec;
 }
@@ -3021,15 +3030,13 @@ function renderDetailHistogram(activity) {
 
 // Fetch and render per-ride power curve
 async function fetchActivityPowerCurve(activityId) {
-  try {
-    return await icuFetch(`/athlete/${state.athleteId}/activities/${activityId}/power-curve`);
-  } catch (e1) {
-    const numId = String(activityId).replace(/^i/, '');
-    if (numId !== String(activityId)) {
-      return await icuFetch(`/athlete/${state.athleteId}/activities/${numId}/power-curve`);
-    }
-    throw e1;
-  }
+  const res = await fetch(
+    ICU_BASE + `/athlete/${state.athleteId}/activities/${activityId}/power-curve`,
+    { headers: { ...authHeader(), 'Accept': 'application/json' } }
+  );
+  if (res.status === 404) return null; // no power data for this activity — not an error
+  if (!res.ok) throw new Error(`${res.status}: ${await res.text().catch(() => res.statusText)}`);
+  return res.json();
 }
 
 async function renderDetailCurve(actId) {
@@ -3161,6 +3168,9 @@ document.querySelectorAll('[data-weekstart]').forEach(btn => {
   btn.classList.toggle('active', parseInt(btn.dataset.weekstart) === state.weekStartDay);
 });
 
+// Capture any saved route before navigate('dashboard') overwrites sessionStorage
+const _initRoute = (() => { try { return JSON.parse(sessionStorage.getItem('icu_route')); } catch { return null; } })();
+
 navigate('dashboard');
 
 // Check URL hash for setup link credentials (e.g. #id=i12345&key=abc...)
@@ -3190,6 +3200,15 @@ if (hasCredentials) {
     renderDashboard();
   } else {
     updateConnectionUI(false);
+  }
+  // Restore the page the user was on before refresh
+  const _validPages = ['dashboard','activities','calendar','fitness','power','zones','settings','workout'];
+  if (_initRoute && _initRoute.type === 'activity' && _initRoute.actId) {
+    // Find by ID directly — _actLookup may not be built yet so search state.activities
+    const _restoredAct = state.activities.find(a => String(a.id) === String(_initRoute.actId));
+    if (_restoredAct) navigateToActivity(_restoredAct);
+  } else if (_initRoute && _initRoute.type === 'page' && _validPages.includes(_initRoute.page)) {
+    navigate(_initRoute.page);
   }
   syncData();
 } else {
