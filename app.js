@@ -412,6 +412,7 @@ function renderDashboard() {
   renderFitnessChart(recent, days);
   renderWeeklyChart(recent);
   renderAvgPowerChart(recent);
+  renderZoneDist(recent);
 }
 
 function resetDashboard() {
@@ -430,6 +431,8 @@ function resetDashboard() {
       <button class="btn btn-primary" onclick="openModal()">Connect intervals.icu</button>
     </div>`;
   if (state.avgPowerChart) { state.avgPowerChart.destroy(); state.avgPowerChart = null; }
+  const zc = document.getElementById('zoneDistCard');
+  if (zc) zc.style.display = 'none';
 }
 
 /* ====================================================
@@ -723,6 +726,92 @@ function renderAvgPowerChart(activities) {
       }
     }
   });
+}
+
+/* ====================================================
+   ZONE DISTRIBUTION CARD
+==================================================== */
+const ZONE_COLORS = [
+  'var(--blue)',    // Z1 Recovery
+  'var(--accent)', // Z2 Endurance
+  'var(--yellow)', // Z3 Tempo
+  'var(--orange)', // Z4 Threshold
+  'var(--red)',     // Z5 VO₂max
+  'var(--purple)'  // Z6 Anaerobic
+];
+const ZONE_NAMES = ['Recovery', 'Endurance', 'Tempo', 'Threshold', 'VO₂max', 'Anaerobic'];
+const ZONE_TAGS  = ['Z1', 'Z2', 'Z3', 'Z4', 'Z5', 'Z6'];
+
+function renderZoneDist(activities) {
+  const card = document.getElementById('zoneDistCard');
+  if (!card) return;
+
+  // Sum icu_zone_times (seconds per zone) across all activities in range
+  const totals = [0, 0, 0, 0, 0, 0];
+  let hasData = false;
+
+  activities.forEach(a => {
+    const zt = a.icu_zone_times;
+    if (Array.isArray(zt) && zt.length >= 2) {
+      hasData = true;
+      zt.forEach((t, i) => { if (i < 6) totals[i] += (t || 0); });
+    }
+  });
+
+  const totalSecs = totals.reduce((s, t) => s + t, 0);
+  if (!hasData || totalSecs === 0) { card.style.display = 'none'; return; }
+  card.style.display = '';
+
+  document.getElementById('zoneTotalBadge').textContent = fmtDur(totalSecs) + ' total';
+  document.getElementById('zoneDistSubtitle').textContent =
+    `Time in power zone · Last ${state.rangeDays} days`;
+
+  // Zone rows
+  document.getElementById('zoneList').innerHTML = ZONE_TAGS.map((tag, i) => {
+    const secs  = totals[i];
+    const pct   = Math.round(secs / totalSecs * 100);
+    const color = ZONE_COLORS[i];
+    if (secs === 0) return '';
+    return `<div class="zone-row">
+      <span class="zone-tag" style="color:${color}">${tag}</span>
+      <span class="zone-row-name">${ZONE_NAMES[i]}</span>
+      <div class="zone-bar-track">
+        <div class="zone-bar-fill" style="width:${pct}%;background:${color}"></div>
+      </div>
+      <span class="zone-pct" style="color:${color}">${pct}%</span>
+      <span class="zone-time">${fmtDur(secs)}</span>
+    </div>`;
+  }).join('');
+
+  // Stacked balance bar + training style hint
+  const balEl = document.getElementById('zoneBalanceSection');
+  const segs = ZONE_TAGS.map((_, i) => {
+    const pct = totals[i] / totalSecs * 100;
+    return pct > 0.5
+      ? `<div class="zone-balance-seg" style="flex:${pct};background:${ZONE_COLORS[i]}"></div>`
+      : '';
+  }).join('');
+
+  const z12 = (totals[0] + totals[1]) / totalSecs;
+  const z34 = (totals[2] + totals[3]) / totalSecs;
+  const z56 = (totals[4] + totals[5]) / totalSecs;
+
+  let style, hint;
+  if (z12 >= 0.65 && z56 >= 0.10) {
+    style = 'Polarized'; hint = 'strong contrast between easy base and hard efforts';
+  } else if (z34 >= 0.40) {
+    style = 'Sweet-spot'; hint = 'focused on productive threshold work';
+  } else if (z12 >= 0.60) {
+    style = 'Pyramidal'; hint = 'broad aerobic base with moderate intensity work';
+  } else {
+    style = 'Mixed'; hint = 'varied intensity across all zones';
+  }
+
+  balEl.style.display = '';
+  balEl.innerHTML = `
+    <div class="zone-balance-label">Zone Balance</div>
+    <div class="zone-balance-bar">${segs}</div>
+    <div class="zone-style-hint"><strong>${style}</strong> — ${hint}</div>`;
 }
 
 /* ====================================================

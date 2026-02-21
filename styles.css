@@ -18,6 +18,8 @@
   --purple:        #9b59ff;
   --purple-dim:    rgba(155,89,255,0.12);
   --red:           #ff4757;
+  --yellow:        #f0c429;
+  --yellow-dim:    rgba(240,196,41,0.12);
   --text-primary:  #eef0f8;
   --text-secondary:#8891a8;
   --text-muted:    #525d72;
@@ -461,6 +463,48 @@ code { font-family: 'JetBrains Mono', monospace; font-size: 0.82em; background: 
 
 .detail-charts-loading { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 28px; color: var(--text-muted); font-size: 0.85rem; }
 .detail-charts-loading .spinner { width: 20px; height: 20px; border-width: 2px; flex-shrink: 0; }
+
+/* ============================================================
+   ZONE DISTRIBUTION CARD
+============================================================ */
+.zone-total-badge {
+  background: var(--accent-dim); color: var(--accent);
+  border: 1px solid var(--accent-glow);
+  border-radius: 20px; padding: 3px 12px;
+  font-size: 0.72rem; font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  white-space: nowrap; flex-shrink: 0;
+}
+.zone-list { display: flex; flex-direction: column; gap: 9px; }
+.zone-row { display: flex; align-items: center; gap: 10px; }
+.zone-tag {
+  font-size: 0.67rem; font-weight: 800; letter-spacing: 0.04em;
+  font-family: 'JetBrains Mono', monospace;
+  width: 22px; flex-shrink: 0;
+}
+.zone-row-name {
+  font-size: 0.78rem; font-weight: 500; color: var(--text-secondary);
+  width: 74px; flex-shrink: 0;
+}
+.zone-bar-track { flex: 1; height: 6px; background: var(--bg-elevated); border-radius: 3px; overflow: hidden; }
+.zone-bar-fill   { height: 100%; border-radius: 3px; transition: width 0.7s cubic-bezier(0.4,0,0.2,1); }
+.zone-pct {
+  font-size: 0.72rem; font-weight: 700; width: 34px; text-align: right;
+  font-family: 'JetBrains Mono', monospace; flex-shrink: 0;
+}
+.zone-time {
+  font-size: 0.67rem; color: var(--text-muted); width: 46px; text-align: right; flex-shrink: 0;
+}
+/* Bottom balance section */
+.zone-balance-section { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
+.zone-balance-label {
+  font-size: 0.63rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.09em; color: var(--text-muted); margin-bottom: 8px;
+}
+.zone-balance-bar { display: flex; height: 8px; border-radius: 5px; overflow: hidden; }
+.zone-balance-seg { height: 100%; transition: width 0.7s cubic-bezier(0.4,0,0.2,1); }
+.zone-style-hint { font-size: 0.73rem; color: var(--text-muted); margin-top: 9px; }
+.zone-style-hint strong { color: var(--text-primary); }
 
 /* ============================================================
    RESPONSIVE
