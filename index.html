@@ -1,0 +1,1379 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+        />
+        <title>CycleIQ — Training Dashboard</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="styles.css" />
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    </head>
+    <body>
+        <!-- ============================================================  CONNECT MODAL  ============================================================ -->
+        <div class="modal-backdrop" id="connectModal">
+            <div class="modal">
+                <div class="modal-header">
+                    <div>
+                        <div class="modal-header-icon">
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            >
+                                <path
+                                    d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
+                                />
+                                <path
+                                    d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
+                                />
+                            </svg>
+                        </div>
+                        <div class="modal-title">Connect to intervals.icu</div>
+                        <div class="modal-desc">
+                            Enter your Athlete ID and API key to sync your
+                            training data.
+                        </div>
+                    </div>
+                    <button
+                        class="modal-close"
+                        id="modalCloseBtn"
+                        onclick="closeModal()"
+                    >
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.5"
+                        >
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="callout">
+                        <strong>How to find your credentials:</strong>
+                        <ol>
+                            <li>
+                                Go to
+                                <a href="https://intervals.icu" target="_blank"
+                                    >intervals.icu</a
+                                >
+                                → Settings → API
+                            </li>
+                            <li>
+                                Copy your <strong>Athlete ID</strong> (starts
+                                with <code>i</code>, e.g. <code>i12345</code>)
+                            </li>
+                            <li>
+                                Click <strong>Show API Key</strong> and copy it
+                            </li>
+                        </ol>
+                    </div>
+
+                    <div class="field">
+                        <label>Athlete ID</label>
+                        <input
+                            type="text"
+                            id="inputAthleteId"
+                            placeholder="e.g. i12345"
+                            autocomplete="off"
+                        />
+                        <div class="field-hint">
+                            Your profile ID from intervals.icu (visible in the
+                            URL)
+                        </div>
+                        <div class="field-error" id="errAthleteId">
+                            Please enter your Athlete ID
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label>API Key</label>
+                        <div class="input-with-toggle">
+                            <input
+                                type="password"
+                                id="inputApiKey"
+                                placeholder="Paste your API key here"
+                                autocomplete="off"
+                            />
+                            <button
+                                class="toggle-visibility"
+                                onclick="toggleApiKeyVisibility()"
+                                id="apiKeyToggle"
+                                title="Show/hide API key"
+                            >
+                                <svg
+                                    id="eyeIcon"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                >
+                                    <path
+                                        d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"
+                                    />
+                                    <circle cx="12" cy="12" r="3" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="field-hint">
+                            Found in intervals.icu → Settings → API → Show API
+                            Key. Stored only in your browser.
+                        </div>
+                        <div class="field-error" id="errApiKey">
+                            Please enter your API key
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button class="btn btn-ghost" onclick="closeModal()">
+                            Cancel
+                        </button>
+                        <button
+                            class="btn btn-primary"
+                            id="connectBtn"
+                            onclick="handleConnect()"
+                        >
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2.5"
+                            >
+                                <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                            Connect &amp; Sync
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================  SIDEBAR  ============================================================ -->
+        <div
+            class="sidebar-backdrop"
+            id="sidebarBackdrop"
+            onclick="closeSidebar()"
+        ></div>
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-logo">
+                <div class="logo-icon">
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="#0d0f14"
+                        stroke-width="2.5"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    >
+                        <circle cx="12" cy="12" r="9" />
+                        <circle cx="12" cy="12" r="2" />
+                        <line x1="12" y1="3" x2="12" y2="10" />
+                        <line x1="12" y1="14" x2="12" y2="21" />
+                        <line x1="3" y1="12" x2="10" y2="12" />
+                        <line x1="14" y1="12" x2="21" y2="12" />
+                    </svg>
+                </div>
+                <div class="logo-text">Cycle<span>IQ</span></div>
+            </div>
+            <nav class="sidebar-nav">
+                <span class="nav-section-label">Training</span>
+                <div
+                    class="nav-item active"
+                    data-page="dashboard"
+                    onclick="
+                        navigate('dashboard');
+                        closeSidebar();
+                    "
+                >
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    >
+                        <rect x="3" y="3" width="7" height="7" />
+                        <rect x="14" y="3" width="7" height="7" />
+                        <rect x="14" y="14" width="7" height="7" />
+                        <rect x="3" y="14" width="7" height="7" />
+                    </svg>
+                    Dashboard
+                </div>
+                <div
+                    class="nav-item"
+                    data-page="activities"
+                    onclick="
+                        navigate('activities');
+                        closeSidebar();
+                    "
+                >
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    >
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                    </svg>
+                    Activities
+                </div>
+                <div
+                    class="nav-item"
+                    data-page="calendar"
+                    onclick="
+                        navigate('calendar');
+                        closeSidebar();
+                    "
+                >
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    >
+                        <rect x="3" y="4" width="18" height="18" rx="2" />
+                        <line x1="16" y1="2" x2="16" y2="6" />
+                        <line x1="8" y1="2" x2="8" y2="6" />
+                        <line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                    Calendar
+                </div>
+                <div
+                    class="nav-item"
+                    data-page="fitness"
+                    onclick="
+                        navigate('fitness');
+                        closeSidebar();
+                    "
+                >
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    >
+                        <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                    </svg>
+                    Fitness
+                    <span class="badge">CTL</span>
+                </div>
+                <span class="nav-section-label">Analysis</span>
+                <div
+                    class="nav-item"
+                    data-page="power"
+                    onclick="
+                        navigate('power');
+                        closeSidebar();
+                    "
+                >
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    >
+                        <polygon
+                            points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"
+                        />
+                    </svg>
+                    Power Curve
+                </div>
+                <div
+                    class="nav-item"
+                    data-page="zones"
+                    onclick="
+                        navigate('zones');
+                        closeSidebar();
+                    "
+                >
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    >
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M12 8v4l3 3" />
+                    </svg>
+                    Zones
+                </div>
+                <span class="nav-section-label">Account</span>
+                <div
+                    class="nav-item"
+                    data-page="settings"
+                    onclick="
+                        navigate('settings');
+                        closeSidebar();
+                    "
+                >
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    >
+                        <circle cx="12" cy="12" r="3" />
+                        <path
+                            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+                        />
+                    </svg>
+                    Settings
+                </div>
+            </nav>
+            <div class="sidebar-footer">
+                <div
+                    class="athlete-chip"
+                    onclick="openModal()"
+                    title="Manage connection"
+                >
+                    <div class="athlete-avatar" id="athleteAvatar">?</div>
+                    <div class="athlete-info">
+                        <div class="athlete-name" id="athleteName">
+                            Not connected
+                        </div>
+                        <div class="athlete-sub" id="athleteSub">
+                            Click to connect
+                        </div>
+                    </div>
+                    <div
+                        class="connection-dot disconnected"
+                        id="connectionDot"
+                    ></div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ============================================================  MAIN  ============================================================ -->
+        <main class="main">
+            <header class="topbar">
+                <button
+                    class="burger-btn"
+                    id="burgerBtn"
+                    onclick="toggleSidebar()"
+                    aria-label="Menu"
+                >
+                    <span></span><span></span><span></span>
+                </button>
+                <div class="topbar-actions">
+                    <div class="date-range-pill" id="dateRangePill">
+                        <button onclick="setRange(7)" id="range7">7d</button>
+                        <button
+                            onclick="setRange(30)"
+                            id="range30"
+                            class="active"
+                        >
+                            30d
+                        </button>
+                        <button onclick="setRange(90)" id="range90">90d</button>
+                        <button onclick="setRange(365)" id="range365">
+                            1y
+                        </button>
+                    </div>
+                    <button
+                        class="btn btn-ghost"
+                        id="syncBtn"
+                        onclick="syncData()"
+                    >
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
+                            <polyline points="23 4 23 10 17 10" />
+                            <path d="M20.49 15a9 9 0 1 1-.08-8.58" />
+                        </svg>
+                    </button>
+                    <button class="btn btn-primary" onclick="openModal()">
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.5"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
+                            <path
+                                d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
+                            />
+                            <path
+                                d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
+                            />
+                        </svg>
+                        <span id="connectBtnLabel">Connect</span>
+                    </button>
+                </div>
+            </header>
+
+            <div class="page-content" id="pageContent">
+                <!-- ── Page headline ── -->
+                <div class="page-headline">
+                    <div class="page-headline-title" id="pageTitle">
+                        Dashboard
+                    </div>
+                    <div class="page-headline-sub" id="pageSubtitle">
+                        Overview · Last 30 days
+                    </div>
+                </div>
+
+                <!-- ==================== DASHBOARD ==================== -->
+                <div class="page active" id="page-dashboard">
+                    <div class="stat-grid">
+                        <div class="stat-card">
+                            <div class="stat-card-header">
+                                <div class="stat-label">Total TSS</div>
+                                <div class="stat-icon green">
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <polygon
+                                            points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"
+                                        />
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="stat-value" id="statTSS">
+                                —<span class="unit"> tss</span>
+                            </div>
+                            <div class="stat-delta neutral" id="statTSSDelta">
+                                Sync to load
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-card-header">
+                                <div class="stat-label">Distance</div>
+                                <div class="stat-icon blue">
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <path
+                                            d="M3 12h18M3 6l9-3 9 3M3 18l9 3 9-3"
+                                        />
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="stat-value" id="statDist">
+                                —<span class="unit"> km</span>
+                            </div>
+                            <div class="stat-delta neutral" id="statDistDelta">
+                                Sync to load
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-card-header">
+                                <div class="stat-label">Ride Time</div>
+                                <div class="stat-icon orange">
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <circle cx="12" cy="12" r="10" />
+                                        <polyline points="12 6 12 12 16 14" />
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="stat-value" id="statTime">
+                                —<span class="unit"> h</span>
+                            </div>
+                            <div class="stat-delta neutral" id="statTimeDelta">
+                                Sync to load
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-card-header">
+                                <div class="stat-label">Elevation</div>
+                                <div class="stat-icon purple">
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <polyline
+                                            points="22 12 18 12 15 21 9 3 6 12 2 12"
+                                        />
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="stat-value" id="statElev">
+                                —<span class="unit"> m</span>
+                            </div>
+                            <div class="stat-delta neutral" id="statElevDelta">
+                                Sync to load
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-card-header">
+                                <div class="stat-label">Activities</div>
+                                <div class="stat-icon green">
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <polyline
+                                            points="22 12 18 12 15 21 9 3 6 12 2 12"
+                                        />
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="stat-value" id="statCount">—</div>
+                            <div class="stat-delta neutral" id="statCountDelta">
+                                Sync to load
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-card-header">
+                                <div class="stat-label">Avg Power</div>
+                                <div class="stat-icon orange">
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <polygon
+                                            points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"
+                                        />
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="stat-value" id="statPower">
+                                —<span class="unit"> w</span>
+                            </div>
+                            <div class="stat-delta neutral" id="statPowerDelta">
+                                Sync to load
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="fitness-row">
+                        <!-- Training Load chart -->
+                        <div class="card">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">Training Load</div>
+                                    <div class="card-subtitle">
+                                        CTL (Fitness) · ATL (Fatigue) · TSB
+                                        (Form)
+                                    </div>
+                                </div>
+                                <div class="chart-legend">
+                                    <span class="chart-legend-item"
+                                        ><span
+                                            class="chart-legend-dot"
+                                            style="background: #00e5a0"
+                                        ></span
+                                        >CTL</span
+                                    >
+                                    <span class="chart-legend-item"
+                                        ><span
+                                            class="chart-legend-dot"
+                                            style="background: #ff6b35"
+                                        ></span
+                                        >ATL</span
+                                    >
+                                    <span class="chart-legend-item"
+                                        ><span
+                                            class="chart-legend-dot"
+                                            style="background: #4a9eff"
+                                        ></span
+                                        >TSB</span
+                                    >
+                                </div>
+                            </div>
+                            <div class="chart-wrap">
+                                <canvas id="fitnessChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Fitness Status gauges -->
+                        <div class="card">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">Fitness Status</div>
+                                    <div class="card-subtitle">
+                                        Today's values
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="fitness-gauges">
+                                <div class="gauge-card">
+                                    <div class="gauge-label">CTL</div>
+                                    <div class="gauge-value" id="gaugeCTL">
+                                        —
+                                    </div>
+                                    <div class="gauge-name">Fitness</div>
+                                    <div class="gauge-bar">
+                                        <div
+                                            class="gauge-bar-fill"
+                                            id="barCTL"
+                                        ></div>
+                                    </div>
+                                </div>
+                                <div class="gauge-card">
+                                    <div class="gauge-label">ATL</div>
+                                    <div class="gauge-value" id="gaugeATL">
+                                        —
+                                    </div>
+                                    <div class="gauge-name">Fatigue</div>
+                                    <div class="gauge-bar">
+                                        <div
+                                            class="gauge-bar-fill"
+                                            id="barATL"
+                                        ></div>
+                                    </div>
+                                </div>
+                                <div class="gauge-card">
+                                    <div class="gauge-label">TSB</div>
+                                    <div class="gauge-value" id="gaugeTSB">
+                                        —
+                                    </div>
+                                    <div class="gauge-name">Form</div>
+                                    <div class="gauge-bar">
+                                        <div
+                                            class="gauge-bar-fill"
+                                            id="barTSB"
+                                        ></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="weekly-tss-section">
+                                <div class="weekly-tss-label">Weekly TSS</div>
+                                <div class="chart-wrap">
+                                    <canvas id="weeklyTssChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Average Power over time -->
+                    <div class="card" id="avgPowerCard">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">Average Power</div>
+                                <div class="card-subtitle">
+                                    Per ride · 7-ride trend
+                                </div>
+                            </div>
+                            <div class="chart-legend">
+                                <span class="chart-legend-item"
+                                    ><span
+                                        class="chart-legend-dot"
+                                        style="background: #00e5a0"
+                                    ></span
+                                    >Trend</span
+                                >
+                            </div>
+                        </div>
+                        <div class="chart-wrap">
+                            <canvas id="avgPowerChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">Recent Activities</div>
+                                <div
+                                    class="card-subtitle"
+                                    id="activitiesSubtitle"
+                                >
+                                    Last 30 days
+                                </div>
+                            </div>
+                            <button
+                                class="btn btn-ghost"
+                                onclick="navigate('activities')"
+                            >
+                                View all →
+                            </button>
+                        </div>
+                        <div class="activity-list" id="activityList">
+                            <div class="empty-state">
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.5"
+                                >
+                                    <polyline
+                                        points="22 12 18 12 15 21 9 3 6 12 2 12"
+                                    />
+                                </svg>
+                                <p>
+                                    No activities yet.<br />Connect your
+                                    intervals.icu account and sync.
+                                </p>
+                                <button
+                                    class="btn btn-primary"
+                                    onclick="openModal()"
+                                >
+                                    Connect intervals.icu
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==================== ACTIVITIES PAGE ==================== -->
+                <div class="page" id="page-activities">
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">All Activities</div>
+                                <div
+                                    class="card-subtitle"
+                                    id="allActivitiesSubtitle"
+                                >
+                                    —
+                                </div>
+                            </div>
+                        </div>
+                        <div class="activity-list" id="allActivityList">
+                            <div class="empty-state">
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.5"
+                                >
+                                    <polyline
+                                        points="22 12 18 12 15 21 9 3 6 12 2 12"
+                                    />
+                                </svg>
+                                <p>Sync data to view all activities.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==================== ACTIVITY DETAIL PAGE ==================== -->
+                <div class="page" id="page-activity">
+                    <!-- Back navigation -->
+                    <div class="detail-back">
+                        <button class="btn btn-ghost" onclick="navigateBack()">
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2.5"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            >
+                                <polyline points="15 18 9 12 15 6" />
+                            </svg>
+                            Back to <span id="detailBackLabel">Activities</span>
+                        </button>
+                    </div>
+
+                    <!-- Hero card -->
+                    <div class="card activity-hero-card">
+                        <div class="activity-type-icon lg" id="detailIcon">
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                            >
+                                <polyline
+                                    points="22 12 18 12 15 21 9 3 6 12 2 12"
+                                />
+                            </svg>
+                        </div>
+                        <div class="activity-hero-body">
+                            <div class="activity-hero-name" id="detailName">
+                                Activity
+                            </div>
+                            <div class="activity-hero-meta">
+                                <span id="detailDate"></span>
+                                <span id="detailType"></span>
+                            </div>
+                        </div>
+                        <div
+                            class="activity-tss"
+                            id="detailTSSBadge"
+                            style="display: none"
+                        ></div>
+                    </div>
+
+                    <!-- Stats grid -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Stats</div>
+                        </div>
+                        <div
+                            class="detail-stats-grid"
+                            id="detailStatsGrid"
+                        ></div>
+                    </div>
+
+                    <!-- Charts loading state -->
+                    <div
+                        class="card detail-charts-loading"
+                        id="detailChartsLoading"
+                        style="display: none"
+                    >
+                        <div class="spinner"></div>
+                        Loading chart data…
+                    </div>
+
+                    <!-- Power + HR charts (shown when streams load) -->
+                    <div
+                        class="stream-charts"
+                        id="detailChartsRow"
+                        style="display: none"
+                    >
+                        <div
+                            class="card"
+                            id="detailPowerCard"
+                            style="display: none"
+                        >
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">Power</div>
+                                    <div
+                                        class="card-subtitle"
+                                        id="detailPowerSubtitle"
+                                    ></div>
+                                </div>
+                            </div>
+                            <div class="chart-wrap detail-chart-wrap">
+                                <canvas id="activityPowerChart"></canvas>
+                            </div>
+                        </div>
+                        <div
+                            class="card"
+                            id="detailHRCard"
+                            style="display: none"
+                        >
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">Heart Rate</div>
+                                    <div
+                                        class="card-subtitle"
+                                        id="detailHRSubtitle"
+                                    ></div>
+                                </div>
+                            </div>
+                            <div class="chart-wrap detail-chart-wrap">
+                                <canvas id="activityHRChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==================== CALENDAR PAGE ==================== -->
+                <div class="page" id="page-calendar">
+                    <div class="card cal-card">
+                        <!-- Month navigation -->
+                        <div class="cal-nav">
+                            <button
+                                class="btn btn-ghost btn-icon"
+                                onclick="calPrevMonth()"
+                                title="Previous month"
+                            >
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2.5"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                >
+                                    <polyline points="15 18 9 12 15 6" />
+                                </svg>
+                            </button>
+                            <span class="cal-nav-label" id="calMonthLabel"
+                                >—</span
+                            >
+                            <button
+                                class="btn btn-ghost btn-icon"
+                                onclick="calNextMonth()"
+                                title="Next month"
+                            >
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2.5"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                >
+                                    <polyline points="9 18 15 12 9 6" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <!-- Day-of-week header -->
+                        <div class="cal-dow-row">
+                            <div>Mon</div>
+                            <div>Tue</div>
+                            <div>Wed</div>
+                            <div>Thu</div>
+                            <div>Fri</div>
+                            <div class="cal-dow--weekend">Sat</div>
+                            <div class="cal-dow--weekend">Sun</div>
+                        </div>
+
+                        <!-- Calendar grid (filled by renderCalendar) -->
+                        <div class="cal-grid" id="calGrid"></div>
+                    </div>
+                </div>
+
+                <div class="page" id="page-fitness">
+                    <!-- ── Key metrics row ── -->
+                    <div class="fit-kpi-row">
+                        <div class="fit-kpi-card">
+                            <div class="fit-kpi-label">CTL</div>
+                            <div
+                                class="fit-kpi-value"
+                                id="fitCTL"
+                                style="color: var(--accent)"
+                            >
+                                —
+                            </div>
+                            <div class="fit-kpi-name">Fitness</div>
+                            <div class="fit-kpi-bar">
+                                <div
+                                    class="fit-kpi-bar-fill"
+                                    id="fitBarCTL"
+                                    style="background: var(--accent)"
+                                ></div>
+                            </div>
+                        </div>
+                        <div class="fit-kpi-card">
+                            <div class="fit-kpi-label">ATL</div>
+                            <div
+                                class="fit-kpi-value"
+                                id="fitATL"
+                                style="color: var(--orange)"
+                            >
+                                —
+                            </div>
+                            <div class="fit-kpi-name">Fatigue</div>
+                            <div class="fit-kpi-bar">
+                                <div
+                                    class="fit-kpi-bar-fill"
+                                    id="fitBarATL"
+                                    style="background: var(--orange)"
+                                ></div>
+                            </div>
+                        </div>
+                        <div class="fit-kpi-card">
+                            <div class="fit-kpi-label">TSB</div>
+                            <div class="fit-kpi-value" id="fitTSB">—</div>
+                            <div class="fit-kpi-name">Form</div>
+                            <div class="fit-kpi-bar">
+                                <div
+                                    class="fit-kpi-bar-fill"
+                                    id="fitBarTSB"
+                                ></div>
+                            </div>
+                        </div>
+                        <div class="fit-kpi-card">
+                            <div class="fit-kpi-label">Ramp Rate</div>
+                            <div class="fit-kpi-value" id="fitRamp">—</div>
+                            <div class="fit-kpi-name">CTL / week</div>
+                            <div class="fit-kpi-hint" id="fitRampHint"></div>
+                        </div>
+                    </div>
+
+                    <!-- ── Training Load History chart ── -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">
+                                    Training Load History
+                                </div>
+                                <div class="card-subtitle">
+                                    Chronic (CTL) · Acute (ATL) · Form (TSB)
+                                </div>
+                            </div>
+                            <div
+                                style="
+                                    display: flex;
+                                    align-items: center;
+                                    gap: 16px;
+                                "
+                            >
+                                <div class="chart-legend">
+                                    <span class="chart-legend-item"
+                                        ><span
+                                            class="chart-legend-dot"
+                                            style="background: #00e5a0"
+                                        ></span
+                                        >CTL</span
+                                    >
+                                    <span class="chart-legend-item"
+                                        ><span
+                                            class="chart-legend-dot"
+                                            style="background: #ff6b35"
+                                        ></span
+                                        >ATL</span
+                                    >
+                                    <span class="chart-legend-item"
+                                        ><span
+                                            class="chart-legend-dot"
+                                            style="background: #4a9eff"
+                                        ></span
+                                        >TSB</span
+                                    >
+                                </div>
+                                <div class="fit-range-pills" id="fitRangePills">
+                                    <button
+                                        id="fitRange30"
+                                        onclick="setFitnessRange(30)"
+                                    >
+                                        30d
+                                    </button>
+                                    <button
+                                        id="fitRange90"
+                                        onclick="setFitnessRange(90)"
+                                        class="active"
+                                    >
+                                        90d
+                                    </button>
+                                    <button
+                                        id="fitRange180"
+                                        onclick="setFitnessRange(180)"
+                                    >
+                                        6m
+                                    </button>
+                                    <button
+                                        id="fitRange365"
+                                        onclick="setFitnessRange(365)"
+                                    >
+                                        1y
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="chart-wrap chart-wrap--lg">
+                            <canvas id="fitnessPageChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- ── Bottom row: Weekly Load + Monthly Summary ── -->
+                    <div class="fit-bottom-row">
+                        <!-- Weekly Load bars -->
+                        <div class="card">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">Weekly Load</div>
+                                    <div class="card-subtitle">
+                                        TSS per week · last 16 weeks
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="chart-wrap chart-wrap--md">
+                                <canvas id="fitnessWeeklyPageChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Monthly Summary table -->
+                        <div class="card">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">
+                                        Monthly Summary
+                                    </div>
+                                    <div class="card-subtitle">
+                                        Rolling 6 months
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="fit-monthly-wrap">
+                                <table
+                                    class="fit-monthly-table"
+                                    id="fitMonthlyTable"
+                                >
+                                    <thead>
+                                        <tr>
+                                            <th>Month</th>
+                                            <th>Rides</th>
+                                            <th>Distance</th>
+                                            <th>Time</th>
+                                            <th>TSS</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="fitMonthlyBody">
+                                        <tr>
+                                            <td
+                                                colspan="5"
+                                                style="
+                                                    text-align: center;
+                                                    color: var(--text-muted);
+                                                    padding: 24px;
+                                                "
+                                            >
+                                                Sync to load
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="page" id="page-power">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Power Curve</div>
+                        </div>
+                        <div class="empty-state empty-state--xl">
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.5"
+                            >
+                                <polygon
+                                    points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"
+                                />
+                            </svg>
+                            <p>Power curve analysis — next step</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="page" id="page-zones">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Training Zones</div>
+                        </div>
+                        <div class="empty-state empty-state--xl">
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.5"
+                            >
+                                <circle cx="12" cy="12" r="10" />
+                            </svg>
+                            <p>Zone distribution — next step</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==================== SETTINGS PAGE ==================== -->
+                <div class="page" id="page-settings">
+                    <div class="card card--narrow">
+                        <div class="card-header">
+                            <div class="card-title">
+                                Account &amp; Connection
+                            </div>
+                        </div>
+
+                        <div class="settings-section">
+                            <div class="settings-section-title">
+                                Connection Status
+                            </div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <div class="settings-row-label">
+                                        intervals.icu
+                                    </div>
+                                    <div class="settings-row-sub">
+                                        Training data source
+                                    </div>
+                                </div>
+                                <div
+                                    class="connection-status-badge disconnected"
+                                    id="settingsConnectionBadge"
+                                >
+                                    <span id="settingsConnectionText"
+                                        >Not connected</span
+                                    >
+                                </div>
+                            </div>
+                        </div>
+
+                        <div
+                            class="settings-section"
+                            id="settingsCredentialsSection"
+                        >
+                            <div class="settings-section-title">
+                                Saved Credentials
+                            </div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <div class="settings-row-label">
+                                        Athlete ID
+                                    </div>
+                                    <div class="settings-row-sub">
+                                        Your intervals.icu athlete ID
+                                    </div>
+                                </div>
+                                <div
+                                    class="settings-row-value"
+                                    id="settingsAthleteId"
+                                >
+                                    —
+                                </div>
+                            </div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <div class="settings-row-label">
+                                        API Key
+                                    </div>
+                                    <div class="settings-row-sub">
+                                        Stored locally in your browser
+                                    </div>
+                                </div>
+                                <div
+                                    class="settings-row-value"
+                                    id="settingsApiKey"
+                                >
+                                    —
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-section">
+                            <div class="settings-section-title">Actions</div>
+                            <div class="settings-actions">
+                                <button
+                                    class="btn btn-primary"
+                                    onclick="openModal()"
+                                >
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2.5"
+                                    >
+                                        <path
+                                            d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
+                                        />
+                                        <path
+                                            d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
+                                        />
+                                    </svg>
+                                    Change Credentials
+                                </button>
+                                <button
+                                    class="btn btn-ghost"
+                                    onclick="syncData()"
+                                >
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <polyline points="23 4 23 10 17 10" />
+                                        <path
+                                            d="M20.49 15a9 9 0 1 1-.08-8.58"
+                                        />
+                                    </svg>
+                                    Sync Now
+                                </button>
+                                <button
+                                    class="btn btn-ghost"
+                                    onclick="copySetupLink()"
+                                >
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <rect
+                                            x="9"
+                                            y="9"
+                                            width="13"
+                                            height="13"
+                                            rx="2"
+                                        />
+                                        <path
+                                            d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                                        />
+                                    </svg>
+                                    Copy Setup Link
+                                </button>
+                                <button
+                                    class="btn btn-danger"
+                                    onclick="disconnect()"
+                                >
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <line x1="18" y1="6" x2="6" y2="18" />
+                                        <line x1="6" y1="6" x2="18" y2="18" />
+                                    </svg>
+                                    Disconnect
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="settings-section">
+                            <div class="settings-section-title">About</div>
+                            <p class="about-text">
+                                CycleIQ pulls data directly from intervals.icu
+                                using their REST API. Your API key is stored
+                                only in your browser's localStorage and is never
+                                sent anywhere except intervals.icu's own
+                                servers. No backend, no accounts — just your
+                                data.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- end page-content -->
+        </main>
+
+        <!-- LOADING OVERLAY -->
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="spinner"></div>
+            <div class="loading-text" id="loadingText">Syncing data…</div>
+        </div>
+
+        <!-- TOAST -->
+        <div class="toast-container" id="toastContainer"></div>
+
+        <script src="app.js" defer></script>
+    </body>
+</html>
