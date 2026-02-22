@@ -2482,11 +2482,21 @@ function setLoading(show, text = 'Loading…') {
 }
 
 function showToast(msg, type = 'success') {
+  const ICONS = {
+    success: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`,
+    error:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg>`,
+    info:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>`,
+  };
   const t = document.createElement('div');
-  t.className   = 'toast ' + type;
-  t.textContent = msg;
+  t.className = 'toast ' + type;
+  t.innerHTML = `<span class="toast-icon">${ICONS[type] || ICONS.info}</span><span>${msg}</span>`;
   document.getElementById('toastContainer').appendChild(t);
-  setTimeout(() => t.remove(), 4000);
+  setTimeout(() => {
+    t.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+    t.style.opacity = '0';
+    t.style.transform = 'translateY(6px) scale(0.95)';
+    setTimeout(() => t.remove(), 220);
+  }, 3500);
 }
 
 function fmtDur(secs) {
