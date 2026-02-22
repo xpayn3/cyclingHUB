@@ -21,6 +21,7 @@ const state = {
   activityPowerChart: null,
   activityHRChart: null,
   activityCurveChart: null,
+  activityHRCurveChart: null,
   activityHistogramChart: null,
   powerCurveChart: null,
   powerCurve: null,
@@ -2383,7 +2384,7 @@ function renderFitnessZoneDist(days) {
   }).join('');
 
   document.getElementById('fitZoneBalance').innerHTML = `
-    <div class="fit-zone-balance-bar" style="display:flex;height:8px;border-radius:6px;overflow:hidden;gap:2px">${segs}</div>
+    <div class="fit-zone-balance-bar" style="display:flex;height:12px;border-radius:3px;overflow:hidden;gap:2px">${segs}</div>
     <div class="fit-zone-balance-label">
       <span class="fit-zone-style-tag" style="background:${styleColor}22;color:${styleColor}">${style}</span>
       <span class="fit-zone-style-hint">${hint}</span>
@@ -3117,7 +3118,8 @@ async function navigateToActivity(actKey, fromStep = false) {
       zonesRow.classList.toggle('detail-zones-row--single', powerHidden || hrHidden);
     }
     renderDetailHistogram(richActivity);
-    renderDetailCurve(actId, normStreams); // async — shows/hides its own card
+    renderDetailCurve(actId, normStreams);   // async — shows/hides its own card
+    renderDetailHRCurve(normStreams);        // async — shows/hides its own card
   } catch (err) {
     console.error('[Activity detail] Unhandled error:', err);
     document.getElementById('detailChartsLoading').style.display = 'none';
@@ -3144,8 +3146,9 @@ function destroyActivityCharts() {
   if (state.activityPowerChart)     { state.activityPowerChart.destroy();     state.activityPowerChart     = null; }
   if (state.activityHRChart)        { state.activityHRChart.destroy();        state.activityHRChart        = null; }
   if (state.activityCurveChart)     { state.activityCurveChart.destroy();     state.activityCurveChart     = null; }
+  if (state.activityHRCurveChart)   { state.activityHRCurveChart.destroy();   state.activityHRCurveChart   = null; }
   if (state.activityHistogramChart) { state.activityHistogramChart.destroy(); state.activityHistogramChart = null; }
-  ['detailMapCard', 'detailStreamsCard', 'detailChartsRow', 'detailZonesCard', 'detailHRZonesCard', 'detailHistogramCard', 'detailCurveCard', 'detailPerfCard'].forEach(id => {
+  ['detailMapCard', 'detailStreamsCard', 'detailChartsRow', 'detailZonesCard', 'detailHRZonesCard', 'detailHistogramCard', 'detailCurveCard', 'detailHRCurveCard', 'detailPerfCard'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
@@ -4986,6 +4989,158 @@ async function renderDetailCurve(actId, streams) {
             ticks: { ...C_TICK, autoSkip: false, maxRotation: 0, callback: val => CURVE_TICK_MAP[val] ?? null }
           },
           y: { grid: C_GRID, ticks: { ...C_TICK, callback: v => v + 'w' } }
+        }
+      }
+    }
+  );
+}
+
+// Build an HR curve {secs, heartrate} from a raw heartrate stream using sliding-window max.
+function buildHRCurveFromStream(hrArr) {
+  if (!Array.isArray(hrArr) || hrArr.length === 0) return null;
+  const cleaned = hrArr.map(v => (v > 0 ? v : null)); // treat 0 as no data
+  const n = cleaned.length;
+  const DURS = [1,2,3,5,8,10,15,20,30,45,60,90,120,180,300,420,600,900,1200,1800,2700,3600,5400,7200];
+  const secs = [], heartrate = [];
+  for (const dur of DURS) {
+    if (dur > n) break;
+    // collect valid windows of exactly `dur` non-null samples
+    let best = 0;
+    for (let i = 0; i <= n - dur; i++) {
+      let sum = 0, valid = true;
+      for (let j = i; j < i + dur; j++) { if (cleaned[j] == null) { valid = false; break; } sum += cleaned[j]; }
+      if (valid) { const avg = sum / dur; if (avg > best) best = avg; }
+    }
+    const peak = Math.round(best);
+    if (peak > 0) { secs.push(dur); heartrate.push(peak); }
+  }
+  return secs.length ? { secs, heartrate } : null;
+}
+
+// Fetch athlete-level HR curve for a date range
+async function fetchRangeHRCurve(oldest, newest) {
+  try {
+    const data = await icuFetch(
+      `/athlete/${state.athleteId}/hr-curves?oldest=${oldest}&newest=${newest}`
+    );
+    const candidate = Array.isArray(data) ? data[0] : (data?.list?.[0] ?? data);
+    if (candidate && Array.isArray(candidate.secs) && candidate.secs.length > 0 &&
+        Array.isArray(candidate.heartrate) && candidate.heartrate.some(h => h != null && h > 0)) {
+      return candidate;
+    }
+  } catch (_) {}
+  return null;
+}
+
+const HR_CURVE_PEAKS = [
+  { secs: 1,    label: '1s'    },
+  { secs: 60,   label: '1 min' },
+  { secs: 300,  label: '5 min' },
+  { secs: 1200, label: '20 min'},
+  { secs: 3600, label: '1 hr'  },
+];
+
+async function renderDetailHRCurve(streams) {
+  const card = document.getElementById('detailHRCurveCard');
+  if (!card) return;
+
+  const hrStream = streams && (streams.heartrate || streams.heart_rate);
+  let raw = null;
+  if (Array.isArray(hrStream) && hrStream.length > 0)
+    raw = buildHRCurveFromStream(hrStream);
+
+  const yearPromise = fetchRangeHRCurve(toDateStr(daysAgo(365)), toDateStr(new Date())).catch(() => null);
+  const rawYear = await yearPromise;
+
+  if (!raw && !rawYear) { card.style.display = 'none'; return; }
+  card.style.display = '';
+
+  // Peak pills
+  const peaksEl = document.getElementById('detailHRCurvePeaks');
+  if (peaksEl) {
+    if (raw) {
+      const lookup = {};
+      raw.secs.forEach((s, i) => { if (raw.heartrate[i]) lookup[s] = raw.heartrate[i]; });
+      const peakHR = target => {
+        if (lookup[target]) return lookup[target];
+        let best = null, minDiff = Infinity;
+        raw.secs.forEach(s => { const d = Math.abs(s - target); if (d < minDiff && lookup[s]) { minDiff = d; best = lookup[s]; } });
+        return best;
+      };
+      peaksEl.innerHTML = HR_CURVE_PEAKS.map(p => {
+        const bpm = Math.round(peakHR(p.secs) || 0);
+        if (!bpm) return '';
+        return `<div class="curve-peak">
+          <div class="curve-peak-val">${bpm}<span class="curve-peak-unit">bpm</span></div>
+          <div class="curve-peak-dur">${p.label}</div>
+        </div>`;
+      }).join('');
+    } else {
+      peaksEl.innerHTML = '';
+    }
+  }
+
+  // Legend
+  const legendEl = document.getElementById('detailHRCurveLegend');
+  if (legendEl) {
+    const items = [
+      raw     && { label: 'This ride', color: '#f87171' },
+      rawYear && { label: '1 year',    color: '#fb923c' },
+    ].filter(Boolean);
+    legendEl.innerHTML = items.map(l =>
+      `<div class="curve-legend-item">
+         <div class="curve-legend-dot" style="background:${l.color}"></div>
+         ${l.label}
+       </div>`
+    ).join('');
+  }
+
+  const toPoints = c => c
+    ? c.secs.map((s, i) => ({ x: s, y: c.heartrate[i] })).filter(pt => pt.y > 0)
+    : [];
+
+  const rideData = toPoints(raw);
+  const yearData = toPoints(rawYear);
+  const maxSecs  = [...rideData, ...yearData].reduce((m, pt) => Math.max(m, pt.x), 0) || 3600;
+
+  const datasets = [];
+  if (yearData.length)
+    datasets.push({
+      label: '1 year', data: yearData,
+      borderColor: '#fb923c', backgroundColor: 'rgba(251,146,60,0.04)',
+      borderWidth: 1.5, borderDash: [4, 3], fill: false,
+      tension: 0.4, pointRadius: 0, pointHoverRadius: 3,
+    });
+  if (rideData.length)
+    datasets.push({
+      label: 'This ride', data: rideData,
+      borderColor: '#f87171', backgroundColor: 'rgba(248,113,113,0.08)',
+      borderWidth: 2.5, fill: true,
+      tension: 0.4, pointRadius: 0, pointHoverRadius: 4,
+    });
+
+  if (state.activityHRCurveChart) { state.activityHRCurveChart.destroy(); state.activityHRCurveChart = null; }
+  state.activityHRCurveChart = new Chart(
+    document.getElementById('activityHRCurveChart').getContext('2d'), {
+      type: 'line',
+      data: { datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: { ...C_TOOLTIP, callbacks: {
+            title: items => fmtSecsShort(items[0].parsed.x),
+            label: ctx   => `${ctx.dataset.label}: ${Math.round(ctx.parsed.y)} bpm`,
+          }}
+        },
+        scales: {
+          x: {
+            type: 'logarithmic', min: 1, max: maxSecs,
+            grid: C_GRID,
+            ticks: { ...C_TICK, autoSkip: false, maxRotation: 0, callback: val => CURVE_TICK_MAP[val] ?? null }
+          },
+          y: { grid: C_GRID, ticks: { ...C_TICK, callback: v => v + ' bpm' } }
         }
       }
     }

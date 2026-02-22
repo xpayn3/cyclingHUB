@@ -172,7 +172,7 @@
             onclick="closeSidebar()"
         ></div>
         <aside class="sidebar" id="sidebar">
-            <div class="sidebar-logo">
+            <div class="sidebar-logo" onclick="navigate('dashboard')" style="cursor:pointer">
                 <div class="logo-icon">
                     <svg
                         viewBox="0 0 24 24"
@@ -990,6 +990,21 @@
                         <div class="curve-peaks" id="detailCurvePeaks"></div>
                         <div class="chart-wrap" style="height:220px">
                             <canvas id="activityCurveChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- HR Curve -->
+                    <div class="card" id="detailHRCurveCard" style="display:none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">Heart Rate Curve</div>
+                                <div class="card-subtitle">Best avg HR over duration · this ride</div>
+                            </div>
+                            <div class="curve-legend" id="detailHRCurveLegend"></div>
+                        </div>
+                        <div class="curve-peaks" id="detailHRCurvePeaks"></div>
+                        <div class="chart-wrap" style="height:220px">
+                            <canvas id="activityHRCurveChart"></canvas>
                         </div>
                     </div>
 

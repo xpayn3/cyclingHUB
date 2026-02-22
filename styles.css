@@ -1250,7 +1250,7 @@ code {
     letter-spacing: 0.03em;
 }
 .fit-kpi-bar {
-    height: 3px;
+    height: 6px;
     background: var(--border);
     border-radius: 2px;
     margin-top: 14px;
@@ -2776,9 +2776,9 @@ code {
 }
 .detail-cmp-bar-wrap {
     position: relative;
-    height: 10px;
+    height: 14px;
     background: var(--bg-elevated);
-    border-radius: 6px;
+    border-radius: 3px;
     overflow: visible;
 }
 .detail-cmp-bar-avg {
@@ -2792,7 +2792,7 @@ code {
 }
 .detail-cmp-bar-fill {
     height: 100%;
-    border-radius: 6px;
+    border-radius: 3px;
     transition: width 0.5s cubic-bezier(0.25, 1, 0.5, 1);
     max-width: 100%;
 }
@@ -3039,14 +3039,14 @@ code {
 }
 .detail-zone-bar-track {
     flex: 1;
-    height: 10px;
+    height: 14px;
     background: rgba(255, 255, 255, 0.06);
-    border-radius: 6px;
+    border-radius: 3px;
     overflow: hidden;
 }
 .detail-zone-bar-fill {
     height: 100%;
-    border-radius: 6px;
+    border-radius: 3px;
     transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .detail-zone-time {
@@ -3157,14 +3157,14 @@ code {
 }
 .zone-bar-track {
     flex: 1;
-    height: 10px;
+    height: 14px;
     background: var(--bg-elevated);
-    border-radius: 6px;
+    border-radius: 3px;
     overflow: hidden;
 }
 .zone-bar-fill {
     height: 100%;
-    border-radius: 6px;
+    border-radius: 3px;
     transition: width 0.7s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .zone-pct {
@@ -3198,8 +3198,8 @@ code {
 }
 .zone-balance-bar {
     display: flex;
-    height: 8px;
-    border-radius: 5px;
+    height: 12px;
+    border-radius: 3px;
     overflow: hidden;
 }
 .zone-balance-seg {
@@ -3336,7 +3336,7 @@ code {
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.55);
-    z-index: 250;
+    z-index: 1150;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.28s ease;
@@ -3399,7 +3399,7 @@ code {
     .sidebar {
         width: 220px;
         transform: translateX(-220px);
-        z-index: 300;
+        z-index: 1200;
         pointer-events: none;
     }
     .sidebar.open {
@@ -4256,7 +4256,7 @@ code {
     gap: 10px;
 }
 .guide-zone-bar {
-    height: 4px;
+    height: 8px;
     border-radius: 2px;
     max-width: 100%;
 }
@@ -4450,7 +4450,7 @@ code {
     margin-left: auto;
 }
 .fit-zone-bar-track {
-    height: 6px;
+    height: 12px;
     background: var(--bg-elevated);
     border-radius: 3px;
     overflow: hidden;
