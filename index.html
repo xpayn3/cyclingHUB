@@ -868,6 +868,18 @@
                     <!-- Secondary stats strip -->
                     <div class="act-secondary-strip" id="actSecondaryStats"></div>
 
+                    <!-- vs-average comparison card -->
+                    <div class="card" id="detailCompareCard" style="display:none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">How You Compare</div>
+                                <div class="card-subtitle" id="detailCompareSubtitle"></div>
+                            </div>
+                            <span class="detail-cmp-badge" id="detailCmpBadge"></span>
+                        </div>
+                        <div class="detail-cmp-rows" id="detailCmpRows"></div>
+                    </div>
+
                     <!-- Loading -->
                     <div class="detail-charts-loading" id="detailChartsLoading" style="display:none">
                         <div class="spinner"></div>Loading chart data…
@@ -1222,6 +1234,36 @@
                             </div>
                         </div>
                 </div>
+                        <!-- ── Zone Distribution (Fitness page) ── -->
+                        <div class="card" id="fitZoneCard" style="display:none">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">Power Zone Distribution</div>
+                                    <div class="card-subtitle" id="fitZoneSubtitle">Time in zone · all activities</div>
+                                </div>
+                                <div class="fit-zone-tabs">
+                                    <button class="fit-zone-tab active" onclick="setFitZoneRange(90)"  id="fitZoneTab90">90d</button>
+                                    <button class="fit-zone-tab"        onclick="setFitZoneRange(365)" id="fitZoneTab365">1y</button>
+                                    <button class="fit-zone-tab"        onclick="setFitZoneRange(0)"   id="fitZoneTabAll">All</button>
+                                </div>
+                            </div>
+
+                            <!-- KPI strip -->
+                            <div class="fit-zone-kpis" id="fitZoneKpis"></div>
+
+                            <!-- Chart + zone rows side by side -->
+                            <div class="fit-zone-body">
+                                <div class="fit-zone-chart-wrap">
+                                    <canvas id="fitZonePie"></canvas>
+                                    <div class="fit-zone-pie-center" id="fitZonePieCenter"></div>
+                                </div>
+                                <div class="fit-zone-rows" id="fitZoneRows"></div>
+                            </div>
+
+                            <!-- Stacked balance bar + style -->
+                            <div class="fit-zone-balance" id="fitZoneBalance"></div>
+                        </div>
+
                 </div><!-- /page-fitness -->
 
                 <div class="page" id="page-power">

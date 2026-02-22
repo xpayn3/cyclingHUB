@@ -1105,7 +1105,6 @@ function renderActivityList(containerId, activities) {
         </div>
       </div>
       ${stats.length ? `<div class="act-card-stats">${stats.join('')}</div>` : ''}
-      ${tss ? `<div class="activity-tss">${tss}</div>` : ''}
     </div>`;
   }).join('');
 }
@@ -2165,6 +2164,166 @@ function renderFitnessPage() {
   renderFitnessHeatmap();
   renderFitnessWeeklyPageChart();
   renderFitnessMonthlyTable();
+  state._fitZoneRange = state._fitZoneRange || 90;
+  renderFitnessZoneDist(state._fitZoneRange);
+}
+
+function setFitZoneRange(days) {
+  state._fitZoneRange = days;
+  document.getElementById('fitZoneTab90')  ?.classList.toggle('active', days === 90);
+  document.getElementById('fitZoneTab365') ?.classList.toggle('active', days === 365);
+  document.getElementById('fitZoneTabAll') ?.classList.toggle('active', days === 0);
+  renderFitnessZoneDist(days);
+}
+
+function renderFitnessZoneDist(days) {
+  const card = document.getElementById('fitZoneCard');
+  if (!card || !state.synced) return;
+
+  const now = new Date();
+  const acts = days > 0
+    ? state.activities.filter(a => {
+        const d = new Date(a.start_date_local || a.start_date);
+        return (now - d) / 86400000 <= days;
+      })
+    : state.activities;
+
+  const totals  = [0, 0, 0, 0, 0, 0];
+  const pwrSums = [0, 0, 0, 0, 0, 0];
+  const pwrCnts = [0, 0, 0, 0, 0, 0];
+  let hasData = false;
+
+  acts.forEach(a => {
+    const zt = a.icu_zone_times;
+    if (!Array.isArray(zt)) return;
+    zt.forEach(z => {
+      if (!z || typeof z.id !== 'string') return;
+      const m = z.id.match(/^Z(\d)$/);
+      if (!m) return;
+      const i = parseInt(m[1], 10) - 1;
+      if (i < 0 || i > 5) return;
+      hasData = true;
+      totals[i] += (z.secs || 0);
+      if (z.avg_watts) { pwrSums[i] += z.avg_watts * (z.secs || 0); pwrCnts[i] += (z.secs || 0); }
+    });
+  });
+
+  const totalSecs = totals.reduce((s, v) => s + v, 0);
+  if (!hasData || totalSecs === 0) { card.style.display = 'none'; return; }
+  card.style.display = '';
+
+  const lbl = days === 0 ? 'all activities' : `last ${days} days`;
+  document.getElementById('fitZoneSubtitle').textContent = `Time in zone · ${lbl}`;
+
+  const RAW_COLORS = ['#4a9eff','#00e5a0','#f0c429','#ff6b35','#ff4757','#9b59ff'];
+
+  // ── Doughnut chart ──
+  const canvas = document.getElementById('fitZonePie');
+  if (canvas) {
+    if (state._fitZonePieChart) { state._fitZonePieChart.destroy(); state._fitZonePieChart = null; }
+    state._fitZonePieChart = new Chart(canvas, {
+      type: 'doughnut',
+      data: {
+        labels: ZONE_TAGS.map((t, i) => `${t} ${ZONE_NAMES[i]}`),
+        datasets: [{
+          data: totals.map(v => v > 0 ? v : null),
+          backgroundColor: RAW_COLORS.map((c, i) => totals[i] > 0 ? c + 'cc' : 'transparent'),
+          borderColor:     RAW_COLORS.map((c, i) => totals[i] > 0 ? c        : 'transparent'),
+          borderWidth: 2,
+          hoverOffset: 6,
+        }]
+      },
+      options: {
+        cutout: '68%',
+        animation: { animateRotate: true, duration: 600 },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            ...C_TOOLTIP,
+            callbacks: {
+              label: ctx => {
+                const i = ctx.dataIndex;
+                const pct = Math.round(totals[i] / totalSecs * 100);
+                return ` ${ZONE_NAMES[i]}: ${pct}% · ${fmtDur(totals[i])}`;
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // ── Pie centre: dominant zone ──
+  const domIdx  = totals.indexOf(Math.max(...totals));
+  const domPct  = Math.round(totals[domIdx] / totalSecs * 100);
+  const centerEl = document.getElementById('fitZonePieCenter');
+  if (centerEl) centerEl.innerHTML =
+    `<div class="fit-zone-pie-pct" style="color:${RAW_COLORS[domIdx]}">${domPct}%</div>
+     <div class="fit-zone-pie-lbl">${ZONE_TAGS[domIdx]}</div>`;
+
+  // ── KPI strip ──
+  const ftp = state.athlete?.ftp || null;
+  const trackedCount = acts.filter(a => Array.isArray(a.icu_zone_times) && a.icu_zone_times.some(z => z.id?.match(/^Z\d$/))).length;
+  const z12pct = Math.round((totals[0]+totals[1]) / totalSecs * 100);
+  const z56pct = Math.round((totals[4]+totals[5]) / totalSecs * 100);
+  document.getElementById('fitZoneKpis').innerHTML = `
+    <div class="fit-zone-kpi"><div class="fit-zone-kpi-val">${fmtDur(totalSecs)}</div><div class="fit-zone-kpi-lbl">Total time</div></div>
+    <div class="fit-zone-kpi"><div class="fit-zone-kpi-val">${trackedCount}</div><div class="fit-zone-kpi-lbl">Rides tracked</div></div>
+    <div class="fit-zone-kpi"><div class="fit-zone-kpi-val" style="color:${RAW_COLORS[domIdx]}">${ZONE_NAMES[domIdx]}</div><div class="fit-zone-kpi-lbl">Dominant zone</div></div>
+    <div class="fit-zone-kpi"><div class="fit-zone-kpi-val">${z12pct}%</div><div class="fit-zone-kpi-lbl">Easy (Z1–Z2)</div></div>
+    <div class="fit-zone-kpi"><div class="fit-zone-kpi-val">${z56pct}%</div><div class="fit-zone-kpi-lbl">Hard (Z5–Z6)</div></div>
+  `;
+
+  // ── Zone rows ──
+  const FTP_PCTS = [[0,0.55],[0.55,0.75],[0.75,0.90],[0.90,1.05],[1.05,1.20],[1.20,99]];
+  document.getElementById('fitZoneRows').innerHTML = ZONE_TAGS.map((tag, i) => {
+    if (totals[i] === 0) return '';
+    const pct    = Math.round(totals[i] / totalSecs * 100);
+    const color  = RAW_COLORS[i];
+    const avgPwr = pwrCnts[i] > 0
+      ? Math.round(pwrSums[i] / pwrCnts[i]) + ' W'
+      : ftp ? (() => { const [lo,hi]=FTP_PCTS[i]; return hi>=99?`${Math.round(ftp*lo)}+ W`:`${Math.round(ftp*lo)}–${Math.round(ftp*hi)} W`; })()
+      : '';
+    return `<div class="fit-zone-row">
+      <div class="fit-zone-dot" style="background:${color}"></div>
+      <div class="fit-zone-row-info">
+        <div class="fit-zone-row-top">
+          <span class="fit-zone-tag" style="color:${color}">${tag}</span>
+          <span class="fit-zone-name">${ZONE_NAMES[i]}</span>
+          ${avgPwr ? `<span class="fit-zone-watts">${avgPwr}</span>` : ''}
+        </div>
+        <div class="fit-zone-bar-track">
+          <div class="fit-zone-bar-fill" style="width:${pct}%;background:${color}aa"></div>
+        </div>
+      </div>
+      <div class="fit-zone-row-stats">
+        <span class="fit-zone-pct" style="color:${color}">${pct}%</span>
+        <span class="fit-zone-time">${fmtDur(totals[i])}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  // ── Balance bar + training style ──
+  const z12r = (totals[0]+totals[1]) / totalSecs;
+  const z34r = (totals[2]+totals[3]) / totalSecs;
+  const z56r = (totals[4]+totals[5]) / totalSecs;
+  let style, hint, styleColor;
+  if      (z12r >= 0.65 && z56r >= 0.10) { style='Polarized';  styleColor='#4a9eff'; hint='Strong contrast between easy base and hard efforts'; }
+  else if (z34r >= 0.40)                  { style='Sweet-spot'; styleColor='#00e5a0'; hint='Focused on productive threshold work'; }
+  else if (z12r >= 0.60)                  { style='Pyramidal';  styleColor='#f0c429'; hint='Broad aerobic base with moderate intensity work'; }
+  else                                    { style='Mixed';      styleColor='#ff6b35'; hint='Varied intensity across all zones'; }
+
+  const segs = totals.map((v, i) => {
+    const p = v / totalSecs * 100;
+    return p > 0.5 ? `<div style="flex:${p};background:${RAW_COLORS[i]};height:100%"></div>` : '';
+  }).join('');
+
+  document.getElementById('fitZoneBalance').innerHTML = `
+    <div class="fit-zone-balance-bar" style="display:flex;height:8px;border-radius:6px;overflow:hidden;gap:2px">${segs}</div>
+    <div class="fit-zone-balance-label">
+      <span class="fit-zone-style-tag" style="background:${styleColor}22;color:${styleColor}">${style}</span>
+      <span class="fit-zone-style-hint">${hint}</span>
+    </div>`;
 }
 
 function renderFitnessHistoryChart(days) {
@@ -2823,24 +2982,65 @@ function renderActivityBasic(a) {
                    (a.other && a.other.calories) || 0;
   const elev     = Math.round(actVal(a, 'total_elevation_gain', 'icu_total_elevation_gain'));
 
+  // ── Compute per-type averages for comparison ──────────────────────────────
+  const thisType = (a.sport_type || a.type || '').toLowerCase();
+  const peers = (state.activities || []).filter(act => {
+    const t = (act.sport_type || act.type || '').toLowerCase();
+    return t === thisType && act.id !== a.id;
+  });
+  const avgOf = (...keys) => {
+    const vals = peers.map(act => actVal(act, ...keys)).filter(v => v > 0);
+    return vals.length >= 3 ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
+  };
+  const pctDiff = (actual, avg) => (avg && avg > 0 && actual > 0)
+    ? ((actual - avg) / avg) * 100 : null;
+
+  const avgDistM  = avgOf('distance', 'icu_distance');
+  const avgSecsV  = avgOf('moving_time', 'elapsed_time', 'icu_moving_time', 'icu_elapsed_time',
+                          'moving_time_seconds', 'elapsed_time_seconds');
+  const avgPowV   = avgOf('icu_weighted_avg_watts', 'normalized_power', 'average_watts', 'icu_average_watts');
+  const avgHrV    = avgOf('average_heartrate', 'icu_average_heartrate');
+  const avgSpdMs  = avgOf('average_speed', 'icu_average_speed', 'average_speed_meters_per_sec');
+
+  const pctDist   = pctDiff(dist,    avgDistM);
+  const pctSecs   = pctDiff(secs,    avgSecsV);
+  const pctPow    = pctDiff(np || avgW, avgPowV);
+  const pctHR     = pctDiff(avgHR,   avgHrV);
+  const pctSpd    = pctDiff(speedMs, avgSpdMs);
+
   // ── Primary stats: up to 4 hero numbers ───────────────────────────────────
-  const pStat = (val, lbl, accent = false) =>
-    `<div class="act-pstat${accent ? ' act-pstat--accent' : ''}">
+  const pStat = (val, lbl, accent = false, cmpPct = null) => {
+    let cmpHtml = '';
+    if (cmpPct !== null && !isNaN(cmpPct)) {
+      const up = cmpPct >= 1;
+      const dn = cmpPct <= -1;
+      const cls = up ? 'cmp-up' : (dn ? 'cmp-down' : 'cmp-same');
+      const arrow = up ? '↑' : (dn ? '↓' : '→');
+      const pctAbs = Math.abs(Math.round(cmpPct));
+      const label = pctAbs < 1 ? 'on avg' : `${arrow} ${pctAbs}% vs avg`;
+      cmpHtml = `<div class="act-pstat-cmp ${cls}">${label}</div>`;
+    }
+    return `<div class="act-pstat${accent ? ' act-pstat--accent' : ''}">
        <div class="act-pstat-val">${val}</div>
        <div class="act-pstat-lbl">${lbl}</div>
+       ${cmpHtml}
      </div>`;
+  };
 
   const primary = [];
-  if (distKm > 0.05) primary.push(pStat(distKm.toFixed(1), 'km'));
-  if (secs > 0)      primary.push(pStat(fmtDur(secs), 'duration'));
-  if (np > 0)        primary.push(pStat(Math.round(np) + 'W', 'norm power', true));
-  else if (avgW > 0) primary.push(pStat(Math.round(avgW) + 'W', 'avg power', true));
-  if (avgHR > 0)     primary.push(pStat(Math.round(avgHR), 'avg bpm'));
-  else if (speedKmh > 0.5) primary.push(pStat(speedKmh.toFixed(1), 'km/h'));
+  if (distKm > 0.05) primary.push(pStat(distKm.toFixed(1), 'km', false, pctDist));
+  if (secs > 0)      primary.push(pStat(fmtDur(secs), 'duration', false, pctSecs));
+  if (np > 0)        primary.push(pStat(Math.round(np) + 'W', 'norm power', true, pctPow));
+  else if (avgW > 0) primary.push(pStat(Math.round(avgW) + 'W', 'avg power', true, pctPow));
+  if (avgHR > 0)     primary.push(pStat(Math.round(avgHR), 'avg bpm', false, pctHR));
+  else if (speedKmh > 0.5) primary.push(pStat(speedKmh.toFixed(1), 'km/h', false, pctSpd));
 
   const primaryEl = document.getElementById('actPrimaryStats');
   primaryEl.innerHTML = primary.slice(0, 4).join('');
   primaryEl.style.gridTemplateColumns = `repeat(${Math.min(primary.length, 4)}, 1fr)`;
+
+  // Store computed avgs for comparison card
+  a._avgs = { avgDistM, avgSecsV, avgPowV, avgHrV, avgSpdMs, peerCount: peers.length };
 
   // ── Secondary stats: icon tiles ──────────────────────────────────────────
   const SICONS = {
@@ -2872,6 +3072,125 @@ function renderActivityBasic(a) {
   if (tss > 0)                   sec += sStat(tss,                           'TSS',          'pulse',  'green');
 
   document.getElementById('actSecondaryStats').innerHTML = sec;
+
+  // ── Render the "How You Compare" card ────────────────────────────────────
+  renderDetailComparison(a);
+}
+
+function renderDetailComparison(a) {
+  const card    = document.getElementById('detailCompareCard');
+  const rowsEl  = document.getElementById('detailCmpRows');
+  const subtEl  = document.getElementById('detailCompareSubtitle');
+  const badgeEl = document.getElementById('detailCmpBadge');
+  if (!card) return;
+
+  const avgs = a._avgs || {};
+  if (!avgs.peerCount || avgs.peerCount < 3) { card.style.display = 'none'; return; }
+
+  const thisType = (a.sport_type || a.type || '');
+  subtEl.textContent = `vs. your last ${avgs.peerCount} ${thisType.toLowerCase()} averages`;
+
+  // Determine overall vibe for the badge
+  const allPcts = [];
+
+  // Helper: build one comparison row
+  // bar fills up to 150% of avg, so avg line sits at ~66.7%
+  const makeRow = (label, actual, avg, fmtFn, higherIsGood = true) => {
+    if (!actual || !avg || avg <= 0) return '';
+    const pct = ((actual - avg) / avg) * 100;
+    // Normalise bar: avg = 66.7%, max shown = 2× avg
+    const ratio = Math.min(actual / avg, 2.0);
+    const fillPct = (ratio / 2.0) * 100;
+    const avgLinePct = 50; // avg sits at 50% of the bar track (since max = 2×avg)
+    const up = pct >= 1;
+    const dn = pct <= -1;
+    const positive = higherIsGood ? up : dn;
+    const cls = positive ? 'cmp-up' : (up || dn ? 'cmp-down' : 'cmp-same');
+    const fillColor = positive ? '#22c55e' : (up || dn ? 'var(--accent)' : 'var(--text-muted)');
+    const pctAbs = Math.abs(Math.round(pct));
+    const pctLabel = pctAbs < 1 ? '≈ avg' : `${up ? '+' : '-'}${pctAbs}%`;
+    allPcts.push(positive ? pct : -Math.abs(pct));
+    return `<div class="detail-cmp-row">
+      <div class="detail-cmp-label">${label}</div>
+      <div class="detail-cmp-bar-wrap">
+        <div class="detail-cmp-bar-fill" style="width:${fillPct.toFixed(1)}%;background:${fillColor}"></div>
+        <div class="detail-cmp-bar-avg" style="left:${avgLinePct}%"></div>
+      </div>
+      <div class="detail-cmp-vals">
+        <div class="detail-cmp-this">${fmtFn(actual)}</div>
+        <div class="detail-cmp-avg-val">avg ${fmtFn(avg)}</div>
+        <div class="detail-cmp-pct ${cls}">${pctLabel}</div>
+      </div>
+    </div>`;
+  };
+
+  // Gather raw values
+  const dist    = actVal(a, 'distance', 'icu_distance');
+  const distKm  = dist / 1000;
+  const secs    = actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time', 'icu_elapsed_time',
+                         'moving_time_seconds', 'elapsed_time_seconds');
+  const np      = actVal(a, 'icu_weighted_avg_watts', 'normalized_power');
+  const avgW    = actVal(a, 'average_watts', 'icu_average_watts');
+  const pow     = np || avgW;
+  const avgHR   = actVal(a, 'average_heartrate', 'icu_average_heartrate') ||
+                  (a.heart_rate && a.heart_rate.average) || 0;
+  const rawSpd  = actVal(a, 'average_speed', 'icu_average_speed', 'average_speed_meters_per_sec');
+  const speedMs = rawSpd || (secs > 0 && dist ? dist / secs : 0);
+  const elev    = Math.round(actVal(a, 'total_elevation_gain', 'icu_total_elevation_gain'));
+  const tss     = Math.round(actVal(a, 'icu_training_load', 'tss'));
+
+  const avgElev = (() => {
+    const thisType = (a.sport_type || a.type || '').toLowerCase();
+    const peers = (state.activities || []).filter(act => {
+      const t = (act.sport_type || act.type || '').toLowerCase();
+      return t === thisType && act.id !== a.id;
+    });
+    const vals = peers.map(act => Math.round(actVal(act, 'total_elevation_gain', 'icu_total_elevation_gain'))).filter(v => v > 0);
+    return vals.length >= 3 ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
+  })();
+
+  const avgTSS = (() => {
+    const thisType = (a.sport_type || a.type || '').toLowerCase();
+    const peers = (state.activities || []).filter(act => {
+      const t = (act.sport_type || act.type || '').toLowerCase();
+      return t === thisType && act.id !== a.id;
+    });
+    const vals = peers.map(act => Math.round(actVal(act, 'icu_training_load', 'tss'))).filter(v => v > 0);
+    return vals.length >= 3 ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
+  })();
+
+  let html = '';
+  html += makeRow('Distance',  distKm,   avgs.avgDistM  ? avgs.avgDistM / 1000 : null, v => v.toFixed(1) + ' km');
+  html += makeRow('Duration',  secs,     avgs.avgSecsV,  v => fmtDur(v));
+  html += makeRow('Power',     pow,      avgs.avgPowV,   v => Math.round(v) + ' W');
+  html += makeRow('Heart Rate',avgHR,    avgs.avgHrV,    v => Math.round(v) + ' bpm', false); // lower HR = better at same power
+  html += makeRow('Speed',     speedMs,  avgs.avgSpdMs,  v => (v * 3.6).toFixed(1) + ' km/h');
+  html += makeRow('Elevation', elev,     avgElev,        v => Math.round(v).toLocaleString() + ' m');
+  html += makeRow('Load (TSS)', tss,     avgTSS,         v => Math.round(v));
+
+  if (!html.trim()) { card.style.display = 'none'; return; }
+
+  // Overall badge: average of all pct differences
+  if (allPcts.length > 0) {
+    const overallPct = allPcts.reduce((s, v) => s + v, 0) / allPcts.length;
+    const good = overallPct >= 3;
+    const weak = overallPct <= -3;
+    const label = good ? '🔥 Above your average' : (weak ? 'Below your average' : '≈ On par');
+    badgeEl.textContent = label;
+    if (good) {
+      badgeEl.style.background = '#22c55e22';
+      badgeEl.style.color = '#22c55e';
+    } else if (weak) {
+      badgeEl.style.background = 'var(--bg-elevated)';
+      badgeEl.style.color = 'var(--text-muted)';
+    } else {
+      badgeEl.style.background = 'var(--bg-elevated)';
+      badgeEl.style.color = 'var(--accent)';
+    }
+  }
+
+  rowsEl.innerHTML = html;
+  card.style.display = '';
 }
 
 function renderStreamCharts(streams, activity) {
