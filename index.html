@@ -413,6 +413,8 @@
                 >
                     <span></span><span></span><span></span>
                 </button>
+                <!-- Month label — shown on the LEFT only on the calendar page -->
+                <span class="topbar-month-label" id="calTopbarMonth" style="display:none"></span>
                 <!-- Back button — shown on the LEFT only when viewing a single activity -->
                 <button class="btn btn-ghost detail-topbar-back" id="detailTopbarBack" onclick="navigateBack()" style="display:none">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg>
@@ -1016,7 +1018,6 @@
                                 <button class="btn btn-ghost btn-icon" onclick="calPrevMonth()" title="Previous month">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
                                 </button>
-                                <span class="cal-month-title" id="calMonthLabel">—</span>
                                 <button class="btn btn-ghost btn-icon" onclick="calNextMonth()" title="Next month">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
                                 </button>

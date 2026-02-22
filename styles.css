@@ -335,6 +335,13 @@ code {
 .topbar--hidden {
     display: none;
 }
+.topbar-month-label {
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
 
 /* ── Page headline ── */
 .page-headline {
@@ -1824,12 +1831,12 @@ code {
     gap: 0 !important;
 }
 
-/* Shell is fixed to fill the exact viewport area (topbar hidden on calendar) */
+/* Shell is fixed, sits below the topbar */
 .cal-shell {
     position: fixed;
     left: var(--sidebar-w);
     right: 0;
-    top: env(safe-area-inset-top);
+    top: calc(48px + env(safe-area-inset-top));
     bottom: 0;
     z-index: 2;
     display: flex;
@@ -2679,6 +2686,8 @@ code {
     border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
     gap: 6px;
     transition: background var(--transition);
 }
@@ -2827,53 +2836,47 @@ code {
 /* secondary stats: icon tile grid */
 .act-secondary-strip {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
     gap: var(--gap-layout);
-    padding: 0 0 20px;
-    margin-bottom: 20px;
 }
 .act-sstat {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 6px;
-    padding: 16px 12px 14px;
+    align-items: flex-start;
+    padding: 13px 14px 12px;
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: 14px;
     cursor: default;
-    text-align: center;
     transition: border-color var(--transition), background var(--transition);
 }
 .act-sstat:hover {
     border-color: var(--border-active);
     background: var(--bg-elevated);
 }
+.act-sstat-top {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 9px;
+    width: 100%;
+}
 .act-sstat-icon {
-    width: 38px;
-    height: 38px;
-    border-radius: 11px;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 2px;
+    flex-shrink: 0;
 }
-.act-sstat-icon svg { width: 18px; height: 18px; }
+.act-sstat-icon svg { width: 13px; height: 13px; }
 .act-sstat-icon.green  { background: var(--accent-dim);          color: var(--accent); }
 .act-sstat-icon.orange { background: var(--orange-dim);          color: var(--orange); }
 .act-sstat-icon.blue   { background: var(--blue-dim);            color: var(--blue); }
 .act-sstat-icon.purple { background: var(--purple-dim);          color: var(--purple); }
 .act-sstat-icon.red    { background: rgba(255,71,87,0.12);       color: var(--red); }
 .act-sstat-icon.yellow { background: var(--yellow-dim);          color: var(--yellow); }
-.act-sstat-val {
-    font-size: var(--text-lg);
-    font-weight: 800;
-    font-family: var(--font-num);
-    letter-spacing: -0.5px;
-    color: var(--text-primary);
-    white-space: nowrap;
-    line-height: 1;
-}
 .act-sstat-lbl {
     font-size: var(--text-2xs);
     font-weight: 700;
@@ -2882,6 +2885,24 @@ code {
     color: var(--text-muted);
     white-space: nowrap;
 }
+.act-sstat-val {
+    font-size: clamp(1.25rem, 2.4vw, 1.55rem);
+    font-weight: 800;
+    font-family: var(--font-num);
+    letter-spacing: -0.5px;
+    color: var(--text-primary);
+    white-space: nowrap;
+    line-height: 1;
+    margin-bottom: 5px;
+}
+.act-sstat-cmp {
+    font-size: var(--text-2xs);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+.act-sstat-cmp.cmp-pos     { color: #22c55e; }
+.act-sstat-cmp.cmp-neg     { color: #f87171; }
+.act-sstat-cmp.cmp-neutral { color: var(--text-muted); }
 
 /* ── Stream charts row ───────────────────────────────────────────────── */
 .detail-charts-row {

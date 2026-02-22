@@ -634,10 +634,13 @@ function navigate(page) {
   const pill = document.getElementById('dateRangePill');
   if (pill) pill.style.display = (page === 'dashboard') ? 'flex' : 'none';
 
-  // Hide topbar + headline on calendar (full-viewport layout)
-  const isFullViewport = (page === 'calendar');
-  document.querySelector('.topbar')?.classList.toggle('topbar--hidden', isFullViewport);
-  document.querySelector('.page-headline')?.classList.toggle('page-headline--hidden', isFullViewport);
+  // Show month label in topbar only on calendar
+  const calLabel = document.getElementById('calTopbarMonth');
+  if (calLabel) calLabel.style.display = (page === 'calendar') ? '' : 'none';
+
+  // Ensure topbar is always visible (never hide on calendar)
+  document.querySelector('.topbar')?.classList.remove('topbar--hidden');
+  document.querySelector('.page-headline')?.classList.remove('page-headline--hidden');
 
   if (page === 'calendar') renderCalendar();
   if (page === 'fitness')  renderFitnessPage();
@@ -2712,9 +2715,10 @@ function renderCalendar() {
   const year  = m.getFullYear();
   const month = m.getMonth(); // 0-based
 
-  // Month label
-  document.getElementById('calMonthLabel').textContent =
-    m.toLocaleString('default', { month: 'long', year: 'numeric' });
+  // Month label (topbar only)
+  const monthStr = m.toLocaleString('default', { month: 'long', year: 'numeric' });
+  const calTopbar = document.getElementById('calTopbarMonth');
+  if (calTopbar) calTopbar.textContent = monthStr;
 
   const actMap   = buildCalActMap();
   const todayStr = toDateStr(new Date());
@@ -3589,11 +3593,18 @@ function renderActivityBasic(a) {
   const avgHrV    = avgOf('average_heartrate', 'icu_average_heartrate');
   const avgSpdMs  = avgOf('average_speed', 'icu_average_speed', 'average_speed_meters_per_sec');
 
+  const avgElevV  = avgOf('total_elevation_gain', 'icu_total_elevation_gain');
+  const avgCadV   = avgOf('average_cadence', 'icu_average_cadence');
+  const avgTssV   = avgOf('icu_training_load', 'tss');
+
   const pctDist   = pctDiff(dist,    avgDistM);
   const pctSecs   = pctDiff(secs,    avgSecsV);
   const pctPow    = pctDiff(np || avgW, avgPowV);
   const pctHR     = pctDiff(avgHR,   avgHrV);
   const pctSpd    = pctDiff(speedMs, avgSpdMs);
+  const pctElev   = pctDiff(elev,    avgElevV);
+  const pctCad    = pctDiff(avgCad,  avgCadV);
+  const pctTss    = pctDiff(tss,     avgTssV);
 
   // ── Primary stats: up to 4 hero numbers ───────────────────────────────────
   const pStat = (val, lbl, accent = false, cmpPct = null) => {
@@ -3640,23 +3651,36 @@ function renderActivityBasic(a) {
     fire:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 3z"/></svg>`,
     pulse:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`,
   };
-  const sStat = (val, lbl, icon, color) =>
-    `<div class="act-sstat">
-       <div class="act-sstat-icon ${color}">${SICONS[icon]}</div>
+  const sStat = (val, lbl, icon, color, cmpPct = null, colored = false) => {
+    let cmpHtml = '';
+    if (cmpPct !== null && !isNaN(cmpPct)) {
+      const up = cmpPct >= 1;
+      const dn = cmpPct <= -1;
+      const cls = colored ? (up ? 'cmp-pos' : (dn ? 'cmp-neg' : 'cmp-neutral')) : 'cmp-neutral';
+      const pctAbs = Math.abs(Math.round(cmpPct));
+      const label = pctAbs < 1 ? '≈ avg' : `${up ? '↑' : '↓'} ${pctAbs}% vs avg`;
+      cmpHtml = `<div class="act-sstat-cmp ${cls}">${label}</div>`;
+    }
+    return `<div class="act-sstat">
+       <div class="act-sstat-top">
+         <div class="act-sstat-icon ${color}">${SICONS[icon]}</div>
+         <div class="act-sstat-lbl">${lbl}</div>
+       </div>
        <div class="act-sstat-val">${val}</div>
-       <div class="act-sstat-lbl">${lbl}</div>
+       ${cmpHtml}
      </div>`;
+  };
 
   let sec = '';
-  if (elev > 0)                  sec += sStat(elev.toLocaleString() + ' m', 'Elevation',    'elev',   'green');
-  if (speedKmh > 0.5 && np > 0) sec += sStat(speedKmh.toFixed(1) + ' km/h','Avg Speed',    'speed',  'blue');
-  if (avgW > 0 && np > 0)        sec += sStat(Math.round(avgW) + 'W',       'Avg Power',    'zap',    'orange');
-  if (maxW > 0)                  sec += sStat(Math.round(maxW) + 'W',       'Max Power',    'zap',    'orange');
-  if (ifVal > 0)                 sec += sStat(ifVal.toFixed(2),              'Int. Factor',  'target', 'purple');
-  if (maxHR > 0)                 sec += sStat(Math.round(maxHR) + ' bpm',   'Max HR',       'heart',  'red');
-  if (avgCad > 0)                sec += sStat(Math.round(avgCad) + ' rpm',  'Cadence',      'cad',    'yellow');
-  if (cals > 0)                  sec += sStat(Math.round(cals).toLocaleString(), 'Calories', 'fire',   'orange');
-  if (tss > 0)                   sec += sStat(tss,                           'TSS',          'pulse',  'green');
+  if (elev > 0)                  sec += sStat(elev.toLocaleString() + ' m', 'Elevation',   'elev',   'green',  pctElev, false);
+  if (speedKmh > 0.5 && np > 0) sec += sStat(speedKmh.toFixed(1) + ' km/h','Avg Speed',   'speed',  'blue',   pctSpd,  true);
+  if (avgW > 0 && np > 0)        sec += sStat(Math.round(avgW) + 'W',       'Avg Power',   'zap',    'orange', pctPow,  true);
+  if (maxW > 0)                  sec += sStat(Math.round(maxW) + 'W',       'Max Power',   'zap',    'orange', null,    false);
+  if (ifVal > 0)                 sec += sStat(ifVal.toFixed(2),              'Int. Factor', 'target', 'purple', null,    false);
+  if (maxHR > 0)                 sec += sStat(Math.round(maxHR) + ' bpm',   'Max HR',      'heart',  'red',    null,    false);
+  if (avgCad > 0)                sec += sStat(Math.round(avgCad) + ' rpm',  'Cadence',     'cad',    'yellow', pctCad,  false);
+  if (cals > 0)                  sec += sStat(Math.round(cals).toLocaleString(), 'Calories','fire',   'orange', null,    false);
+  if (tss > 0)                   sec += sStat(tss,                           'TSS',         'pulse',  'green',  pctTss,  false);
 
   document.getElementById('actSecondaryStats').innerHTML = sec;
 
