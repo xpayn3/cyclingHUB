@@ -16,6 +16,8 @@ const state = {
   fitnessWeeklyPageChart: null,
   fitnessRangeDays: 90,
   currentActivityIdx: null,
+  activityMap: null,
+  activityStreamsChart: null,
   activityPowerChart: null,
   activityHRChart: null,
   activityCurveChart: null,
@@ -80,6 +82,40 @@ function clearActivityCache() {
   localStorage.removeItem('icu_last_sync');
 }
 
+/* ====================================================
+   FITNESS / WELLNESS CACHE  (localStorage)
+   Stores CTL/ATL/TSB, wellness history & athlete profile
+   so the fitness page renders instantly after a refresh.
+==================================================== */
+function saveFitnessCache() {
+  try {
+    localStorage.setItem('icu_fitness_cache', JSON.stringify({
+      fitness:        state.fitness,
+      wellnessHistory: state.wellnessHistory,
+      athlete:        state.athlete,
+    }));
+  } catch (e) {
+    // Quota exceeded — drop the cache gracefully
+    localStorage.removeItem('icu_fitness_cache');
+  }
+}
+
+function loadFitnessCache() {
+  try {
+    const raw = localStorage.getItem('icu_fitness_cache');
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    if (data.fitness)         state.fitness         = data.fitness;
+    if (data.wellnessHistory) state.wellnessHistory = data.wellnessHistory;
+    if (data.athlete)         state.athlete         = data.athlete;
+    return true;
+  } catch (e) { return false; }
+}
+
+function clearFitnessCache() {
+  localStorage.removeItem('icu_fitness_cache');
+}
+
 function loadCredentials() {
   state.athleteId = localStorage.getItem('icu_athlete_id') || null;
   state.apiKey    = localStorage.getItem('icu_api_key')    || null;
@@ -89,6 +125,7 @@ function loadCredentials() {
 function clearCredentials() {
   localStorage.removeItem('icu_athlete_id');
   localStorage.removeItem('icu_api_key');
+  clearFitnessCache();
   state.athleteId = null;
   state.apiKey = null;
   state.athlete = null;
@@ -336,6 +373,7 @@ async function syncData() {
 
     setLoading(true, 'Loading fitness data…');
     await fetchFitness().catch(() => null); // non-fatal
+    saveFitnessCache();
 
     // Invalidate power curve cache so it re-fetches with fresh range
     state.powerCurve = null;
@@ -345,6 +383,7 @@ async function syncData() {
     updateConnectionUI(true);
     renderDashboard();
     if (state.currentPage === 'calendar') renderCalendar();
+    if (state.currentPage === 'fitness')  renderFitnessPage();
 
     const newCount = isIncremental
       ? state.activities.filter(a => {
@@ -373,7 +412,7 @@ async function syncData() {
 
 function disconnect() {
   if (!confirm('Disconnect and clear saved credentials?')) return;
-  clearCredentials();
+  clearCredentials();   // also calls clearFitnessCache()
   clearActivityCache();
   updateConnectionUI(false);
   resetDashboard();
@@ -448,6 +487,7 @@ function removeAvatar() {
 function forceFullSync() {
   if (!state.athleteId || !state.apiKey) { openModal(); return; }
   clearActivityCache();          // wipe local cache so syncData() treats this as a fresh install
+  clearFitnessCache();           // also wipe fitness/wellness cache
   state.activities = [];         // clear in-memory list too
   showToast('Cache cleared — starting full re-sync…', 'info');
   syncData();
@@ -554,34 +594,26 @@ function closeSidebar() {
   document.getElementById('burgerBtn')?.classList.remove('is-open');
 }
 
-// ── Navigation history stack ──────────────────────────────────────────────
-const _navHistory = [];
-
-function navigate(page, direction = 'forward') {
-  const prevPage = state.currentPage;
-  if (prevPage === page) return; // no-op
-
-  // History management
-  if (direction === 'forward') {
-    if (prevPage) _navHistory.push(prevPage);
-  } else {
-    _navHistory.pop();
-  }
-
-  state.previousPage = prevPage;
+function navigate(page) {
+  state.previousPage = state.currentPage;
   state.currentPage  = page;
   try { sessionStorage.setItem('icu_route', JSON.stringify({ type: 'page', page })); } catch {}
 
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page)?.classList.add('active');
+  document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
+
   const info = {
-    dashboard: ['Dashboard', `Overview · Last ${state.rangeDays} days`],
-    activities: ['Activities', 'All recorded rides & workouts'],
-    calendar:   ['Calendar', 'Planned workouts & events'],
-    fitness:    ['Fitness', 'CTL · ATL · TSB history'],
-    power:      ['Power Curve', 'Best efforts across durations'],
+    dashboard:  ['Dashboard',      `Overview · Last ${state.rangeDays} days`],
+    activities: ['Activities',     'All recorded rides & workouts'],
+    calendar:   ['Calendar',       'Planned workouts & events'],
+    fitness:    ['Fitness',        'CTL · ATL · TSB history'],
+    power:      ['Power Curve',    'Best efforts across durations'],
     zones:      ['Training Zones', 'Time in zone breakdown'],
-    settings:   ['Settings', 'Account & connection'],
+    settings:   ['Settings',       'Account & connection'],
     workout:    ['Create Workout', 'Build & export custom cycling workouts'],
-    guide:      ['Training Guide', 'Understanding CTL · ATL · TSB & training load']
+    guide:      ['Training Guide', 'Understanding CTL · ATL · TSB & training load'],
   };
   const [title, sub] = info[page] || ['CycleIQ', ''];
   document.getElementById('pageTitle').textContent    = title;
@@ -591,7 +623,13 @@ function navigate(page, direction = 'forward') {
   const pc = document.getElementById('pageContent');
   if (pc) pc.classList.toggle('page-content--calendar', page === 'calendar');
 
-  // Show topbar range pill only on pages where it makes sense
+  // Always restore the activity-detail topbar elements when leaving the activity page
+  const detailNav  = document.getElementById('detailTopbarNav');
+  const detailBack = document.getElementById('detailTopbarBack');
+  if (detailNav)  detailNav.style.display  = 'none';
+  if (detailBack) detailBack.style.display = 'none';
+
+  // Show topbar range pill only on dashboard
   const pill = document.getElementById('dateRangePill');
   if (pill) pill.style.display = (page === 'dashboard') ? 'flex' : 'none';
 
@@ -600,37 +638,11 @@ function navigate(page, direction = 'forward') {
   document.querySelector('.topbar')?.classList.toggle('topbar--hidden', isFullViewport);
   document.querySelector('.page-headline')?.classList.toggle('page-headline--hidden', isFullViewport);
 
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
-
-  // ── Slide animation ───────────────────────────────────────────────────────
-  const prevEl = prevPage ? document.getElementById('page-' + prevPage) : null;
-  const nextEl = document.getElementById('page-' + page);
-  const isBack = direction === 'back';
-
-  if (prevEl && nextEl && prevEl !== nextEl) {
-    pc?.classList.add('page-content--transitioning');
-
-    // Show both during transition
-    prevEl.classList.add('active', isBack ? 'page-slide-exit-back' : 'page-slide-exit');
-    nextEl.classList.add('active', isBack ? 'page-slide-enter-back' : 'page-slide-enter');
-
-    const DURATION = 360;
-    setTimeout(() => {
-      prevEl.classList.remove('active', 'page-slide-exit', 'page-slide-exit-back');
-      nextEl.classList.remove('page-slide-enter', 'page-slide-enter-back');
-      pc?.classList.remove('page-content--transitioning');
-      window.scrollTo(0, 0);
-    }, DURATION);
-  } else {
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    nextEl?.classList.add('active');
-    window.scrollTo(0, 0);
-  }
-
   if (page === 'calendar') renderCalendar();
   if (page === 'fitness')  renderFitnessPage();
   if (page === 'workout')  { wrkRefreshStats(); wrkRender(); }
+
+  window.scrollTo(0, 0);
 }
 
 /* ====================================================
@@ -1034,6 +1046,21 @@ function activityFallbackName(a) {
   return raw || 'Activity';
 }
 
+// Known platform prefixes to strip from activity titles.
+// Returns { title: string, platformTag: string|null }
+const PLATFORM_PREFIXES = ['Zwift', 'Garmin', 'TrainerRoad', 'Wahoo', 'Rouvy', 'MyWhoosh', 'FulGaz'];
+function cleanActivityName(rawName) {
+  if (!rawName) return { title: rawName || '', platformTag: null };
+  for (const platform of PLATFORM_PREFIXES) {
+    // Match "Platform - " at the very start (case-sensitive, with optional extra spaces)
+    const prefix = platform + ' - ';
+    if (rawName.startsWith(prefix)) {
+      return { title: rawName.slice(prefix.length).trim(), platformTag: platform };
+    }
+  }
+  return { title: rawName, platformTag: null };
+}
+
 // Helper: pull a metric from an activity checking both plain and icu_ prefixed field names.
 // The intervals.icu API sometimes stores data under icu_distance, icu_moving_time etc.
 // depending on the source device / manual entry.
@@ -1114,7 +1141,8 @@ function renderActivityList(containerId, activities) {
     const isVirtual = sportRaw.includes('virtual');
     const rowClass  = isVirtual ? 'virtual' : tc;
 
-    const name  = (a.name && a.name.trim()) ? a.name.trim() : activityFallbackName(a);
+    const rawName = (a.name && a.name.trim()) ? a.name.trim() : activityFallbackName(a);
+    const { title: name, platformTag } = cleanActivityName(rawName);
     const badge = a.sport_type || a.type || '';
 
     // Build stat pills — only include what has a value
@@ -1135,6 +1163,7 @@ function renderActivityList(containerId, activities) {
         <div class="act-card-name">${name}</div>
         <div class="act-card-sub">
           <span class="act-card-date">${date}</span>
+          ${platformTag ? `<span class="act-platform-tag">${platformTag}</span>` : ''}
           ${badge ? `<span class="act-card-badge">${badge}</span>` : ''}
         </div>
       </div>
@@ -2198,8 +2227,8 @@ function renderFitnessPage() {
   renderFitnessHeatmap();
   renderFitnessWeeklyPageChart();
   renderFitnessMonthlyTable();
-  state._fitZoneRange = state._fitZoneRange || 90;
-  renderFitnessZoneDist(state._fitZoneRange);
+  state._fitZoneRange = state._fitZoneRange ?? 90;
+  setFitZoneRange(state._fitZoneRange);
 }
 
 function setFitZoneRange(days) {
@@ -2726,7 +2755,7 @@ function renderCalendar() {
     const extra   = realActs.length - maxShow;
 
     const eventsHtml = shown.map(({ a, stateIdx }) => {
-      const name = (a.name && a.name.trim()) ? a.name.trim() : activityFallbackName(a);
+      const { title: name } = cleanActivityName((a.name && a.name.trim()) ? a.name.trim() : activityFallbackName(a));
       const dist = (a.distance || 0) / 1000;
       const secs = a.moving_time || a.elapsed_time || 0;
       const meta = dist > 0.1 ? dist.toFixed(1) + ' km'
@@ -2784,10 +2813,7 @@ async function navigateToActivity(actKey, fromStep = false) {
   const _routeId = activity.id || activity.icu_activity_id;
   try { sessionStorage.setItem('icu_route', JSON.stringify({ type: 'activity', actId: String(_routeId) })); } catch {}
 
-  if (!fromStep) {
-    state.previousPage = state.currentPage;
-    _navHistory.push(state.currentPage);
-  }
+  if (!fromStep) state.previousPage = state.currentPage;
   state.currentPage = 'activity';
 
   // Track position in the non-empty pool for prev/next navigation
@@ -2802,46 +2828,32 @@ async function navigateToActivity(actKey, fromStep = false) {
   if (nextBtn) nextBtn.disabled = poolIdx < 0 || poolIdx >= pool.length - 1;
   if (counter) counter.textContent = poolIdx >= 0 ? `${poolIdx + 1} / ${pool.length}` : '';
 
-  // Hide topbar and page headline — activity page has its own back nav
-  document.querySelector('.topbar')?.classList.add('topbar--hidden');
+  // Show the activity page
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-activity').classList.add('active');
+  // Swap topbar: hide date-range pill; show back button (left) + prev/next (right)
+  const _pill = document.getElementById('dateRangePill');
+  if (_pill) _pill.style.display = 'none';
+  const _back = document.getElementById('detailTopbarBack');
+  if (_back) _back.style.display = '';
+  const _detailNav = document.getElementById('detailTopbarNav');
+  if (_detailNav) _detailNav.style.display = 'flex';
   document.querySelector('.page-headline')?.classList.add('page-headline--hidden');
-
+  // Remove calendar's full-bleed layout so normal padding is restored
   const pageContent = document.getElementById('pageContent');
   if (pageContent) pageContent.classList.remove('page-content--calendar');
-
-  // Slide in the activity page
-  const prevPageEl = state.previousPage ? document.getElementById('page-' + state.previousPage) : null;
-  const actPageEl  = document.getElementById('page-activity');
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-
-  if (prevPageEl && actPageEl && !fromStep) {
-    pageContent?.classList.add('page-content--transitioning');
-    prevPageEl.classList.add('active', 'page-slide-exit');
-    actPageEl.classList.add('active', 'page-slide-enter');
-    setTimeout(() => {
-      prevPageEl.classList.remove('active', 'page-slide-exit');
-      actPageEl.classList.remove('page-slide-enter');
-      pageContent?.classList.remove('page-content--transitioning');
-      window.scrollTo(0, 0);
-    }, 360);
-  } else {
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    actPageEl?.classList.add('active');
-    window.scrollTo(0, 0);
-  }
+  window.scrollTo(0, 0);
 
   // Back button label
   const fromLabel = state.previousPage === 'dashboard' ? 'Dashboard' : 'Activities';
   document.getElementById('detailBackLabel').textContent = fromLabel;
 
-  // Topbar is hidden on activity page — title/date are shown in the hero section instead
-
   // Render basic info immediately from cached data
   renderActivityBasic(activity);
 
-  // Reset charts
+  // Reset charts (destroyActivityCharts hides detailStreamsCard + detailChartsRow too)
   destroyActivityCharts();
-  document.getElementById('detailChartsRow').style.display     = 'none';
   document.getElementById('detailChartsLoading').style.display = 'none';
 
   // Only try to fetch detail/streams if we have an id
@@ -2857,13 +2869,10 @@ async function navigateToActivity(actKey, fromStep = false) {
     ]);
 
     const fullDetail = detailResult.status === 'fulfilled' ? detailResult.value : null;
-    const streams    = streamsResult.status === 'fulfilled' ? streamsResult.value : null;
-
+    let   streams    = streamsResult.status === 'fulfilled' ? streamsResult.value : null;
 
     // Re-render stats with richer fields from full detail response
     if (fullDetail) renderActivityBasic({ ...activity, ...fullDetail });
-
-    document.getElementById('detailChartsLoading').style.display = 'none';
 
     const richActivity = fullDetail ? { ...activity, ...fullDetail } : activity;
 
@@ -2876,12 +2885,38 @@ async function navigateToActivity(actKey, fromStep = false) {
       }
     });
 
-    // Normalize streams once here so we can use it for both zone computation and charts.
-    // normalizeStreams converts the raw API shape ({type,data}[] or flat object) → flat {key: []}
-    const normStreams = streams ? normalizeStreams(streams) : {};
+    // If the streams endpoint returned nothing, try downloading the original FIT file
+    // and parsing it client-side — this gives full second-by-second data from Garmin.
+    if (!streams) {
+      const loadingEl = document.getElementById('detailChartsLoading');
+      loadingEl.innerHTML = '<div class="spinner"></div><span>Parsing FIT file…</span>';
+      loadingEl.style.display = 'flex';
+      try {
+        const fitBuf = await fetchFitFile(actId);
+        if (fitBuf) {
+          const fitRecords = parseFitBuffer(fitBuf);
+          const fitStreams  = fitRecordsToStreams(fitRecords);
+          if (fitStreams) streams = fitStreams;
+        }
+      } catch (_) { /* FIT unavailable — fall through to zone bar charts */ }
+      loadingEl.style.display = 'none';
+    } else {
+      document.getElementById('detailChartsLoading').style.display = 'none';
+    }
+
+    // Normalize streams (handles both intervals.icu API shape and our FIT-derived flat object)
+    let normStreams = streams ? normalizeStreams(streams) : {};
+
+    // FIT streams are already flat { time, watts, … } — normalizeStreams passes them through unchanged.
+    // But if they came from the FIT parser directly, assign them as-is.
+    if (streams && !Object.keys(normStreams).length) normStreams = streams;
+
+    // Derive grade_smooth from altitude + distance when the API didn't return it
+    if (!normStreams.grade_smooth && normStreams.altitude && normStreams.distance) {
+      normStreams.grade_smooth = computeGradeStream(normStreams.altitude, normStreams.distance);
+    }
 
     // If icu_hr_zone_times still not present, compute it from the HR stream
-    // using the athlete's configured icu_hr_zones boundaries (bpm upper limits per zone).
     if (!Array.isArray(richActivity.icu_hr_zone_times) || richActivity.icu_hr_zone_times.length === 0) {
       const hrArr    = normStreams.heartrate || normStreams.heart_rate || [];
       const zoneBnds = richActivity.icu_hr_zones;
@@ -2889,10 +2924,57 @@ async function navigateToActivity(actKey, fromStep = false) {
       if (computed) richActivity.icu_hr_zone_times = computed;
     }
 
-    // Stream charts only when data actually came back
+    // Route map — resolve GPS to [[lat,lng],...] pairs.
+    // The streams API only returns latitude; the /map endpoint has full pairs.
+    let latlngForMap = null;
+
+    const latArr = normStreams.lat || normStreams.latlng;
+    const lngArr = normStreams.lng;
+
+    if (latArr && lngArr && latArr.length === lngArr.length && !Array.isArray(latArr[0])) {
+      latlngForMap = latArr.map((lat, i) =>
+        lat != null && lngArr[i] != null ? [lat, lngArr[i]] : null
+      );
+    } else if (latArr && Array.isArray(latArr[0])) {
+      latlngForMap = latArr;
+    }
+
+    // GPS fallback 1: intervals.icu's internal /api/activity/{id}/map endpoint
+    // (the same one their website Route tab uses — returns full GPS + weather JSON)
+    if (!latlngForMap) {
+      latlngForMap = await fetchMapGPS(actId);
+    }
+
+    // GPS fallback 2: try fetching just the 'lng' stream in a targeted call
+    if (!latlngForMap && latArr && !Array.isArray(latArr[0])) {
+      latlngForMap = await fetchLngStream(actId, latArr);
+    }
+
+    // GPS fallback 3: FIT binary file
+    if (!latlngForMap) {
+      try {
+        const gpsFitBuf = await fetchFitFile(actId);
+        if (gpsFitBuf) {
+          const gpsFitRecords = parseFitBuffer(gpsFitBuf);
+          if (gpsFitRecords) {
+            const gpsFitStreams = fitRecordsToStreams(gpsFitRecords);
+            if (gpsFitStreams?.latlng) latlngForMap = gpsFitStreams.latlng;
+          }
+        }
+      } catch (_) { /* FIT unavailable */ }
+    }
+
+    // GPS fallback 4: GPX file
+    if (!latlngForMap) {
+      latlngForMap = await fetchGPSFromGPX(actId);
+    }
+    renderActivityMap(latlngForMap, normStreams);
+
+    // Stream charts when data came back; fall back to zone bar charts if not
     if (streams) {
-      const norm = normStreams;
-      renderStreamCharts(norm, richActivity);
+      renderStreamCharts(normStreams, richActivity);
+    } else {
+      renderActivityZoneCharts(richActivity);
     }
 
     // Supplementary cards — each shows/hides itself based on data availability
@@ -2908,13 +2990,13 @@ async function navigateToActivity(actKey, fromStep = false) {
     renderDetailHistogram(richActivity);
     renderDetailCurve(actId); // async — shows/hides its own card
   } catch (err) {
+    console.error('[Activity detail] Unhandled error:', err);
     document.getElementById('detailChartsLoading').style.display = 'none';
   }
 }
 
 function navigateBack() {
-  const target = _navHistory[_navHistory.length - 1] || state.previousPage || 'activities';
-  navigate(target, 'back');
+  navigate(state.previousPage || 'activities');
 }
 
 // Step to the adjacent activity in the sorted list.
@@ -2928,11 +3010,13 @@ function stepActivity(delta) {
 }
 
 function destroyActivityCharts() {
+  if (state.activityMap)            { state.activityMap.remove();            state.activityMap            = null; }
+  if (state.activityStreamsChart)   { state.activityStreamsChart.destroy();   state.activityStreamsChart   = null; }
   if (state.activityPowerChart)     { state.activityPowerChart.destroy();     state.activityPowerChart     = null; }
   if (state.activityHRChart)        { state.activityHRChart.destroy();        state.activityHRChart        = null; }
   if (state.activityCurveChart)     { state.activityCurveChart.destroy();     state.activityCurveChart     = null; }
   if (state.activityHistogramChart) { state.activityHistogramChart.destroy(); state.activityHistogramChart = null; }
-  ['detailZonesCard', 'detailHRZonesCard', 'detailHistogramCard', 'detailCurveCard'].forEach(id => {
+  ['detailMapCard', 'detailStreamsCard', 'detailChartsRow', 'detailZonesCard', 'detailHRZonesCard', 'detailHistogramCard', 'detailCurveCard'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
@@ -2948,14 +3032,321 @@ async function fetchActivityDetail(activityId) {
 }
 
 async function fetchActivityStreams(activityId) {
-  const types = 'time,watts,heartrate,cadence,velocity_smooth,altitude,distance';
-  const res = await fetch(
+  const types   = 'time,watts,heartrate,cadence,velocity_smooth,altitude,distance,latlng,lat,lng,grade_smooth';
+  const headers = { ...authHeader(), 'Accept': 'application/json' };
+
+  // Try both known endpoint shapes — intervals.icu exposes streams under two paths
+  const urls = [
     ICU_BASE + `/athlete/${state.athleteId}/activities/${activityId}/streams?streams=${types}`,
-    { headers: { ...authHeader(), 'Accept': 'application/json' } }
-  );
-  if (res.status === 404) return null; // activity has no stream data — not an error
-  if (!res.ok) throw new Error(`${res.status}: ${await res.text().catch(() => res.statusText)}`);
-  return res.json();
+    ICU_BASE + `/activity/${activityId}/streams?streams=${types}`,
+    ICU_BASE + `/activity/${activityId}/streams`,
+  ];
+
+  for (const url of urls) {
+    const res = await fetch(url, { headers });
+    if (res.status === 404) continue;                                          // try next
+    if (!res.ok) throw new Error(`${res.status}: ${await res.text().catch(() => res.statusText)}`);
+    const data = await res.json();
+    if (data && (Array.isArray(data) ? data.length : Object.keys(data).length)) return data;
+  }
+  return null; // no stream data available on any endpoint
+}
+
+/* ====================================================
+   FIT FILE FETCH + MINIMAL BINARY PARSER
+   Used as fallback when the /streams endpoint returns 404.
+   Parses Garmin FIT record messages (msg #20) directly from the
+   binary file stored on intervals.icu, extracting:
+   power, heart_rate, cadence, speed (m/s), altitude (m), timestamp.
+==================================================== */
+async function fetchFitFile(activityId) {
+  // Try several URL patterns intervals.icu uses for FIT file export
+  const headers = { ...authHeader(), 'Accept': 'application/octet-stream' };
+  const urls = [
+    ICU_BASE + `/activity/${activityId}.fit`,
+    ICU_BASE + `/athlete/${state.athleteId}/activities/${activityId}.fit`,
+    ICU_BASE + `/activity/${activityId}/original`,
+    ICU_BASE + `/athlete/${state.athleteId}/activities/${activityId}/original`,
+  ];
+  for (const url of urls) {
+    const res = await fetch(url, { headers });
+    if (res.ok) return res.arrayBuffer();
+  }
+  return null;
+}
+
+// Fetch GPS track from intervals.icu's map endpoint.
+// Their website uses /api/activity/{id}/map but that lacks CORS headers.
+// We try /api/v1/ variants first (CORS-enabled), then the internal one as a last hope.
+// Returns [[lat,lng],...] pairs or null.
+async function fetchMapGPS(activityId) {
+  const numericId = String(activityId).replace(/^i/, '');
+  const urls = [
+    // Public API variants — have CORS headers but may 404
+    ICU_BASE + `/activity/${activityId}/map`,
+    ICU_BASE + `/athlete/${state.athleteId}/activities/${activityId}/map`,
+    // Local proxy (proxy.py adds CORS) — only works when served via serve.bat
+    `http://localhost:8080/icu-internal/activity/${numericId}/map?weather=true`,
+    // Direct internal endpoint — CORS-blocked from file:// but works from same-origin
+    `https://intervals.icu/api/activity/${numericId}/map?weather=true`,
+  ];
+  let data = null;
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, { headers: authHeader() });
+      if (!res.ok) continue;
+      data = await res.json();
+      break;
+    } catch (_) {}
+  }
+  if (!data) return null;
+
+  // intervals.icu returns GPS as "latlngs" — already [[lat,lng],...] pairs
+  const track =
+    data.latlngs     ||
+    data.latlng      ||
+    data.track       ||
+    data.route       ||
+    data.coordinates ||
+    null;
+
+  if (Array.isArray(track) && track.length > 0) {
+    if (Array.isArray(track[0])) return track;
+    if (typeof track[0] === 'number' && track.length % 2 === 0) {
+      const pairs = [];
+      for (let i = 0; i < track.length; i += 2) pairs.push([track[i], track[i+1]]);
+      return pairs;
+    }
+  }
+
+  const latData = data.lat || data.latitude;
+  const lngData = data.lng || data.lon || data.longitude;
+  if (Array.isArray(latData) && Array.isArray(lngData) && latData.length === lngData.length) {
+    return latData.map((lat, i) =>
+      lat != null && lngData[i] != null ? [lat, lngData[i]] : null
+    );
+  }
+
+  return null;
+}
+
+// Try to fetch the longitude stream separately from the streams endpoint.
+// intervals.icu's /activity/{id}/streams endpoint works when /athlete/{id}/activities/{id}/streams 404s.
+// We already have latitudes from the main streams fetch; this tries to pair them with longitudes.
+// Returns [[lat,lng],...] pairs or null.
+async function fetchLngStream(activityId, latArr) {
+  const headers = { ...authHeader(), 'Accept': 'application/json' };
+  // Try each streams base URL with only the lng (and lon) stream types
+  const baseUrls = [
+    ICU_BASE + `/activity/${activityId}/streams`,
+    ICU_BASE + `/athlete/${state.athleteId}/activities/${activityId}/streams`,
+  ];
+  for (const base of baseUrls) {
+    for (const type of ['lng', 'lon']) {
+      try {
+        const res = await fetch(`${base}?streams=${type}`, { headers });
+        if (!res.ok) continue;
+        const data = await res.json();
+        if (!data) continue;
+        // Normalize — could be [{type:'lng',data:[...]}] or {lng:[...]}
+        let lngData = null;
+        if (Array.isArray(data)) {
+          const s = data.find(s => s.type === type || s.type === 'lng' || s.type === 'lon');
+          lngData = s?.data;
+        } else if (data[type] || data.lng || data.lon) {
+          lngData = data[type] || data.lng || data.lon;
+        }
+        if (Array.isArray(lngData) && lngData.length === latArr.length) {
+          return latArr.map((lat, i) =>
+            lat != null && lngData[i] != null ? [lat, lngData[i]] : null
+          );
+        }
+      } catch (_) {}
+    }
+  }
+  return null;
+}
+
+// Fetch GPS track from a GPX file — intervals.icu can generate GPX for most activities.
+// Returns [[lat,lng],...] pairs or null.
+async function fetchGPSFromGPX(activityId) {
+  // Try both URL patterns
+  const gpxUrls = [
+    ICU_BASE + `/activity/${activityId}.gpx`,
+    ICU_BASE + `/athlete/${state.athleteId}/activities/${activityId}.gpx`,
+  ];
+  try {
+    let res = null;
+    for (const url of gpxUrls) {
+      res = await fetch(url, { headers: authHeader() });
+      if (res.ok) break;
+      res = null;
+    }
+    if (!res) return null;
+    const text = await res.text();
+    const doc  = new DOMParser().parseFromString(text, 'text/xml');
+    const pts  = doc.querySelectorAll('trkpt');
+    if (!pts.length) return null;
+    const pairs = [];
+    pts.forEach(pt => {
+      const lat = parseFloat(pt.getAttribute('lat'));
+      const lon = parseFloat(pt.getAttribute('lon'));
+      if (!isNaN(lat) && !isNaN(lon)) pairs.push([lat, lon]);
+    });
+    return pairs.length >= 2 ? pairs : null;
+  } catch (_) { return null; }
+}
+
+function parseFitBuffer(buffer) {
+  const bytes = new Uint8Array(buffer);
+  const view  = new DataView(buffer);
+  if (bytes.length < 12) return null;
+  if (String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11]) !== '.FIT') return null;
+
+  const headerSize = bytes[0];
+  const dataSize   = view.getUint32(4, true);
+  const end        = headerSize + dataSize;
+
+  const localDefs    = {};
+  const records      = [];
+  let   offset       = headerSize;
+  let   lastTimestamp = 0;
+
+  // Read a single field value from the DataView
+  function readField(pos, baseType, le) {
+    switch (baseType) {
+      case 0x00: case 0x0A: case 0x02: { const v = bytes[pos]; return v === 0xFF       ? null : v; }
+      case 0x01:                        { const v = view.getInt8(pos);              return v === 0x7F         ? null : v; }
+      case 0x84:                        { const v = view.getUint16(pos, le);        return v === 0xFFFF       ? null : v; }
+      case 0x83:                        { const v = view.getInt16(pos, le);         return v === 0x7FFF       ? null : v; }
+      case 0x86:                        { const v = view.getUint32(pos, le);        return v === 0xFFFFFFFF   ? null : v; }
+      case 0x85:                        { const v = view.getInt32(pos, le);         return v === 0x7FFFFFFF   ? null : v; }
+      case 0x88:                        { const v = view.getFloat32(pos, le);       return isFinite(v)        ? v    : null; }
+      default: return null;
+    }
+  }
+
+  // Extract a record message into a plain object
+  function readRecordMsg(pos, def, forcedTimestamp) {
+    const rec = forcedTimestamp !== null ? { timestamp: forcedTimestamp } : {};
+    const le  = !def.bigEndian;
+    for (const f of def.fields) {
+      const raw = readField(pos, f.baseType, le);
+      if (raw !== null) {
+        switch (f.fieldNum) {
+          case 253: rec.timestamp  = raw;              break;
+          case 0:   rec.lat        = raw * (180 / 2147483648); break; // semicircles → degrees
+          case 1:   rec.lng        = raw * (180 / 2147483648); break; // semicircles → degrees
+          case 2:   rec.altitude   = raw / 5 - 500;   break; // scale 1/5, offset -500 → metres
+          case 3:   rec.heart_rate = raw;              break;
+          case 4:   rec.cadence    = raw;              break;
+          case 5:   rec.distance   = raw / 100;        break; // cm → m
+          case 6:   rec.speed      = raw / 1000;       break; // mm/s → m/s
+          case 7:   rec.power      = raw;              break;
+        }
+      }
+      pos += f.size;
+    }
+    return rec;
+  }
+
+  while (offset < end && offset < bytes.length) {
+    if (offset >= bytes.length) break;
+    const header = bytes[offset++];
+
+    // Compressed timestamp header (bit 7 set)
+    if (header & 0x80) {
+      const localMsgNum = (header >> 5) & 0x03;
+      const timeDelta   = header & 0x1F;
+      lastTimestamp     = ((lastTimestamp & ~0x1F) + timeDelta) >>> 0;
+      if (timeDelta < (lastTimestamp & 0x1F)) lastTimestamp += 0x20;
+      const def = localDefs[localMsgNum];
+      if (def) {
+        if (def.globalMsgNum === 20) records.push(readRecordMsg(offset, def, lastTimestamp));
+        offset += def.recordSize;
+      }
+      continue;
+    }
+
+    const hasDevData   = (header & 0x60) === 0x60;
+    const isDefinition = !!(header & 0x40);
+    const localMsgNum  = header & 0x0F;
+
+    if (isDefinition) {
+      offset++;                                          // reserved
+      const bigEndian    = bytes[offset++] === 1;
+      const globalMsgNum = bigEndian ? view.getUint16(offset, false) : view.getUint16(offset, true);
+      offset += 2;
+      const numFields = bytes[offset++];
+      const fields = [];
+      let   recordSize = 0;
+      for (let i = 0; i < numFields; i++) {
+        const fieldNum = bytes[offset++];
+        const size     = bytes[offset++];
+        const baseType = bytes[offset++] & 0x9F;        // mask reserved bits
+        fields.push({ fieldNum, size, baseType });
+        recordSize += size;
+      }
+      if (hasDevData) {
+        const nDev = bytes[offset++];
+        for (let i = 0; i < nDev; i++) { recordSize += bytes[offset + 1]; offset += 3; }
+      }
+      localDefs[localMsgNum] = { globalMsgNum, fields, bigEndian, recordSize };
+    } else {
+      const def = localDefs[localMsgNum];
+      if (!def) break;                                   // malformed — bail
+      if (def.globalMsgNum === 20) {
+        const rec = readRecordMsg(offset, def, null);
+        if (rec.timestamp) lastTimestamp = rec.timestamp;
+        records.push(rec);
+      }
+      offset += def.recordSize;
+    }
+  }
+
+  return records.length > 0 ? records : null;
+}
+
+// Convert parsed FIT records → { time, watts, heartrate, cadence, velocity_smooth, altitude }
+function fitRecordsToStreams(records) {
+  if (!records || !records.length) return null;
+  const t0 = (records.find(r => r.timestamp) || {}).timestamp || 0;
+  const out = { time: [], watts: [], heartrate: [], cadence: [], velocity_smooth: [], altitude: [], latlng: [] };
+  records.forEach(r => {
+    out.time.push((r.timestamp || 0) - t0);
+    out.watts.push(r.power      ?? null);
+    out.heartrate.push(r.heart_rate ?? null);
+    out.cadence.push(r.cadence  ?? null);
+    out.velocity_smooth.push(r.speed ?? null);  // m/s — renderStreamCharts converts to km/h
+    out.altitude.push(r.altitude ?? null);
+    out.latlng.push((r.lat != null && r.lng != null) ? [r.lat, r.lng] : null);
+  });
+  // Drop latlng stream entirely if no GPS data was recorded (all nulls)
+  if (out.latlng.every(p => p === null)) delete out.latlng;
+  return out;
+}
+
+// Compute a smoothed grade (%) stream from altitude + distance arrays.
+// Uses a ±8-sample window so brief GPS noise doesn't spike the value.
+function computeGradeStream(altArr, distArr) {
+  const n = altArr.length;
+  const W = 8;
+  const raw = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const lo = Math.max(0, i - W);
+    const hi = Math.min(n - 1, i + W);
+    const dDist = distArr[hi] - distArr[lo];
+    raw[i] = dDist > 1 ? ((altArr[hi] - altArr[lo]) / dDist) * 100 : 0;
+  }
+  // Light smoothing pass to further reduce noise
+  const S = 4;
+  return Array.from(raw).map((_, i) => {
+    let sum = 0, cnt = 0;
+    for (let j = Math.max(0, i - S); j <= Math.min(n - 1, i + S); j++) {
+      sum += raw[j]; cnt++;
+    }
+    return Math.round((sum / cnt) * 10) / 10;  // 1 decimal
+  });
 }
 
 // Normalise stream data into a flat { key: number[] } map.
@@ -3018,8 +3409,15 @@ function renderActivityBasic(a) {
   tssEl.style.display = tss > 0 ? 'flex' : 'none';
 
   // ── Title & date ──────────────────────────────────────────────────────────
-  const aName = (a.name && a.name.trim()) ? a.name.trim() : activityFallbackName(a);
+  const rawAName = (a.name && a.name.trim()) ? a.name.trim() : activityFallbackName(a);
+  const { title: aName, platformTag: aPlatformTag } = cleanActivityName(rawAName);
   document.getElementById('detailName').textContent = aName;
+  // Platform tag (e.g. "Zwift") shown in the eyebrow next to sport type
+  const platformTagEl = document.getElementById('detailPlatformTag');
+  if (platformTagEl) {
+    platformTagEl.textContent  = aPlatformTag || '';
+    platformTagEl.style.display = aPlatformTag ? '' : 'none';
+  }
   const dateStr = fmtDate(a.start_date_local || a.start_date);
   const timeStr = fmtTime(a.start_date_local || a.start_date);
   document.getElementById('detailDate').textContent = dateStr + (timeStr ? ' · ' + timeStr : '');
@@ -3257,63 +3655,689 @@ function renderDetailComparison(a) {
   card.style.display = '';
 }
 
-function renderStreamCharts(streams, activity) {
-  const ds = downsampleStreams(streams, 300);
+/* ====================================================
+   ROUTE MAP  (Leaflet.js)
+==================================================== */
 
-  // Normalise stream key names (intervals.icu may use 'watts' or 'power', 'heartrate' or 'heart_rate')
-  if (!ds.watts && ds.power)      ds.watts     = ds.power;
+// ── Route colour-gradient helpers ────────────────────────────────────────
+
+// Linear interpolation between two hex colours (t = 0..1)
+function lerpColor(hex1, hex2, t) {
+  const p = (h) => [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)];
+  const [r1,g1,b1] = p(hex1), [r2,g2,b2] = p(hex2);
+  const r = Math.round(r1 + (r2-r1)*t);
+  const g = Math.round(g1 + (g2-g1)*t);
+  const b = Math.round(b1 + (b2-b1)*t);
+  return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+}
+
+// Return a quantised colour for a given stream index and colour mode.
+// Quantising to BUCKETS values prevents creating thousands of unique hex strings
+// (and therefore thousands of Leaflet polyline segments).
+function routePointColor(mode, streams, si, maxes, BUCKETS = 32) {
+  const get = (...keys) => {
+    for (const k of keys) {
+      const a = streams[k];
+      if (Array.isArray(a) && si < a.length && a[si] != null) return a[si];
+    }
+    return null;
+  };
+  const quantize = (pct) => Math.round(Math.min(1, Math.max(0, pct)) * BUCKETS) / BUCKETS;
+
+  switch (mode) {
+    case 'hr': {
+      const hr = get('heartrate', 'heart_rate');
+      return hr != null ? hrZoneColor(hr, maxes.maxHR) : '#4b5563';
+    }
+    case 'speed': {
+      const spd = get('velocity_smooth');
+      if (spd == null) return '#3b82f6';
+      const q = quantize((spd * 3.6) / (maxes.maxSpdKmh || 50));
+      return lerpColor('#bfdbfe', '#1e3a8a', q);   // light → dark blue
+    }
+    case 'power': {
+      const w = get('watts', 'power');
+      if (w == null) return '#4b5563';
+      const q = quantize(w / (maxes.maxWatts || 400));
+      return q < 0.5
+        ? lerpColor('#fde68a', '#f97316', q * 2)   // yellow → orange
+        : lerpColor('#f97316', '#dc2626', (q-0.5)*2); // orange → red
+    }
+    case 'altitude': {
+      const alt = get('altitude');
+      if (alt == null) return '#4b5563';
+      const range = (maxes.maxAlt - maxes.minAlt) || 1;
+      const q = quantize((alt - maxes.minAlt) / range);
+      return lerpColor('#34d399', '#7c3aed', q);   // green → violet
+    }
+    default:
+      return '#00c87a';
+  }
+}
+
+// Build an array of { color, points[] } segments from the GPS track.
+// Consecutive points that share the same quantised colour are merged into one
+// segment (with a 1-point overlap) so Leaflet only renders O(transitions) polylines.
+function buildColoredSegments(points, streams, mode, maxes) {
+  const timeLen = streams.time?.length || points.length;
+  const result  = [];
+  let curColor  = null;
+  let curPts    = [];
+
+  for (let i = 0; i < points.length; i++) {
+    const si    = Math.round(i * (timeLen - 1) / (points.length - 1));
+    const color = routePointColor(mode, streams, si, maxes);
+
+    if (color !== curColor) {
+      if (curPts.length >= 2) result.push({ color: curColor, points: curPts });
+      // Start new segment, sharing the last point for a seamless join
+      curColor = color;
+      curPts   = curPts.length ? [curPts[curPts.length - 1], points[i]] : [points[i]];
+    } else {
+      curPts.push(points[i]);
+    }
+  }
+  if (curPts.length >= 2) result.push({ color: curColor, points: curPts });
+  return result;
+}
+
+// ── Map stats panel: SVG speed gauge + metric rows ───────────────────────
+
+// Build the panel HTML once (skeleton with — placeholders).
+// Call this BEFORE adding hover event listeners to avoid re-creating DOM on every event.
+// Feather-style inline SVG icons (24×24 viewBox, sized via CSS)
+const MAP_ICONS = {
+  power: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
+  hr:    `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`,
+  cad:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`,
+  alt:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>`,
+  grade: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="20" x2="21" y2="20"/><polyline points="3 20 13 8 17 13 21 4"/></svg>`,
+  time:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+};
+
+// HR zone colour based on % of max HR
+function hrZoneColor(hr, maxHR) {
+  const p = hr / (maxHR || 190);
+  if (p < 0.60) return '#94a3b8';  // Z1 recovery — muted blue-gray
+  if (p < 0.70) return '#60a5fa';  // Z2 endurance — blue
+  if (p < 0.80) return '#4ade80';  // Z3 aerobic   — green
+  if (p < 0.90) return '#fb923c';  // Z4 threshold — orange
+  return '#f87171';                 // Z5 VO2max    — red
+}
+
+// Compute an SVG arc path for the speed gauge.
+// Gauge geometry: CX=60, CY=68, R=44, 270° sweep clockwise starting at 135° (7:30 position).
+// pct = 0..1 → returns path string for setAttribute('d', …).
+// Using <path> instead of <circle stroke-dasharray> gives reliable stroke-linecap="round" endpoints.
+function gaugeArcPath(pct) {
+  const CX = 60, CY = 68, R = 44;
+  if (pct <= 0) return 'M 0 0';
+  pct = Math.min(0.9999, pct);   // prevent degenerate arc when start ≈ end
+  const toR = d => d * (Math.PI / 180);
+  const sx = (CX + R * Math.cos(toR(135))).toFixed(2);
+  const sy = (CY + R * Math.sin(toR(135))).toFixed(2);
+  const ex = (CX + R * Math.cos(toR(135 + pct * 270))).toFixed(2);
+  const ey = (CY + R * Math.sin(toR(135 + pct * 270))).toFixed(2);
+  const large = (pct * 270) > 180 ? 1 : 0;
+  return `M ${sx} ${sy} A ${R} ${R} 0 ${large} 1 ${ex} ${ey}`;
+}
+// Full 270° track arc (static — precomputed: start 135°→28.89,99.11, end 45°→91.11,99.11)
+const GAUGE_TRACK_PATH = 'M 28.89 99.11 A 44 44 0 1 1 91.11 99.11';
+
+function buildMapStatsHTML(streams, maxSpdKmh, maxHR) {
+  const hasWatts = !!(streams.watts || streams.power);
+  const hasHR    = !!(streams.heartrate || streams.heart_rate);
+  const hasCad   = !!streams.cadence;
+  const hasAlt   = !!streams.altitude;
+  const hasGrade = !!streams.grade_smooth;
+
+  const maxLabel = maxSpdKmh != null ? maxSpdKmh.toFixed(0) : '—';
+
+  // Tick marks every 10 km/h — short radial notches spanning the arc stroke width
+  // Arc geometry: cx=60, cy=68, r=44, stroke-width=8 → stroke spans r=40..48
+  const CX = 60, CY = 68, R = 44;
+  const tickMarks = (() => {
+    const lines = [];
+    for (let v = 10; v < (maxSpdKmh || 50); v += 10) {
+      const pct  = v / (maxSpdKmh || 50);
+      const aRad = (135 + pct * 270) * (Math.PI / 180);
+      const cos  = Math.cos(aRad), sin = Math.sin(aRad);
+      const r1   = R - 4;   // inner edge of arc stroke
+      const r2   = R + 4;   // outer edge of arc stroke
+      lines.push(
+        `<line x1="${(CX + r1*cos).toFixed(2)}" y1="${(CY + r1*sin).toFixed(2)}" ` +
+             `x2="${(CX + r2*cos).toFixed(2)}" y2="${(CY + r2*sin).toFixed(2)}" ` +
+             `stroke="rgba(0,0,0,0.45)" stroke-width="1.5" stroke-linecap="round"/>`
+      );
+    }
+    return lines.join('');
+  })();
+
+  // SVG speedometer — 270° arc, r=44, cx=60, cy=68
+  // stroke-linecap="round" gives rounded arc endpoints; ticks sit on top for section markers
+  const gaugeHtml = `
+    <div class="speed-gauge">
+      <svg viewBox="0 0 120 114" overflow="visible" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%"   stop-color="#00a86b"/>
+            <stop offset="100%" stop-color="#00e5a0"/>
+          </linearGradient>
+        </defs>
+        <path class="g-track" d="${GAUGE_TRACK_PATH}"/>
+        <path class="g-fill"  d="M 0 0"/>
+        ${tickMarks}
+        <text class="g-num"  x="60" y="72"
+              fill="#e2e8f0" text-anchor="middle">—</text>
+        <text class="g-unit" x="60" y="85"
+              fill="#94a3b8" text-anchor="middle">km/h</text>
+        <text class="g-zero" x="20.4" y="108"
+              fill="#64748b" text-anchor="middle">0</text>
+        <text class="g-max"  x="99.6" y="108"
+              fill="#64748b" text-anchor="middle">${maxLabel}</text>
+      </svg>
+      <div class="g-label">SPEED</div>
+    </div>`;
+
+  // Garmin-style data field cell: label + icon on top, big number below
+  const cell = (icon, iconClass, lbl, mkey, unt, full = false) =>
+    `<div class="mm-cell${full ? ' mm-full' : ''}">
+       <div class="mm-header">
+         <span class="mm-icon ${iconClass}">${icon}</span>
+         <span class="mm-lbl">${lbl}</span>
+       </div>
+       <div class="mm-data">
+         <span class="mm-val" data-mkey="${mkey}">—</span>${unt ? `<span class="mm-unt">${unt}</span>` : ''}
+       </div>
+     </div>`;
+
+  // Build cells; bottom row: Time (left) + Grade (right), or Time full-width if no grade
+  const cells = [
+    hasWatts ? cell(MAP_ICONS.power, '',        'PWR',   'watts', 'W')   : null,
+    hasHR    ? cell(MAP_ICONS.hr,    'hr-icon', 'HR',    'hr',    'bpm') : null,
+    hasCad   ? cell(MAP_ICONS.cad,   '',        'CAD',   'cad',   'rpm') : null,
+    hasAlt   ? cell(MAP_ICONS.alt,   '',        'ALT',   'alt',   'm')   : null,
+    hasGrade ? cell(MAP_ICONS.grade, '',        'GRADE', 'grade', '%')   : null,
+               cell(MAP_ICONS.time,  '',        'TIME',  'time',  '',    false),
+  ].filter(Boolean).join('');
+
+  return gaugeHtml + `<div class="map-metrics">${cells}</div>`;
+}
+
+// Update panel DOM in-place — no full innerHTML rebuild on every mousemove.
+function refreshMapStats(panel, streams, idx, maxSpdKmh, maxHR) {
+  if (!panel) return;
+  const get = (key) => {
+    const arr = streams[key];
+    return (Array.isArray(arr) && idx < arr.length && arr[idx] != null) ? arr[idx] : null;
+  };
+
+  const watts  = get('watts') ?? get('power');
+  const hr     = get('heartrate') ?? get('heart_rate');
+  const cad    = get('cadence');
+  const spd    = get('velocity_smooth');  // m/s
+  const alt    = get('altitude');
+  const grade  = get('grade_smooth');     // percent, signed
+  const t      = get('time');
+
+  const fmt = (v, dec = 0) => v != null ? (+v).toFixed(dec) : '—';
+  const fmtTime = (s) => {
+    if (s == null) return '—';
+    const h  = Math.floor(s / 3600);
+    const m  = Math.floor((s % 3600) / 60);
+    const sc = Math.floor(s % 60);
+    return h > 0
+      ? `${h}:${String(m).padStart(2,'0')}:${String(sc).padStart(2,'0')}`
+      : `${m}:${String(sc).padStart(2,'0')}`;
+  };
+
+  // ── Gauge ─────────────────────────────────────────────────────────────
+  const spdKmh = spd != null ? spd * 3.6 : null;
+  const maxSpd = maxSpdKmh || 50;
+  const pct    = spdKmh != null ? Math.min(1, Math.max(0, spdKmh / maxSpd)) : 0;
+  const gFill = panel.querySelector('.g-fill');
+  const gNum  = panel.querySelector('.g-num');
+  if (gFill) gFill.setAttribute('d', gaugeArcPath(pct));
+  if (gNum)  gNum.textContent = spdKmh != null ? spdKmh.toFixed(1) : '—';
+
+  // ── Metric rows ───────────────────────────────────────────────────────
+  const setVal = (key, val, color) => {
+    const el = panel.querySelector(`[data-mkey="${key}"]`);
+    if (!el) return;
+    el.textContent = val;
+    if (color !== undefined) el.style.color = color;
+  };
+  setVal('watts', fmt(watts));
+  setVal('cad',   fmt(cad));
+  setVal('alt',   fmt(alt));
+  setVal('time',  fmtTime(t));
+
+  // Grade: show sign, 1 decimal, colour by slope direction/steepness
+  if (grade != null) {
+    const gStr  = (grade >= 0 ? '+' : '') + grade.toFixed(1);
+    const gColor = grade >  6  ? '#f87171'   // steep climb  — red
+                 : grade >  2  ? '#fb923c'   // moderate climb — orange
+                 : grade > -2  ? '#e2e8f0'   // flat          — white
+                 : grade > -6  ? '#60a5fa'   // moderate descent — blue
+                 :               '#818cf8';  // steep descent — indigo
+    setVal('grade', gStr, gColor);
+  }
+
+  // HR — zone-specific color on the number
+  const hrColor = (hr != null) ? hrZoneColor(hr, maxHR) : '';
+  setVal('hr', fmt(hr), hrColor);
+
+  // ── HR icon heartbeat — animation speed matches actual BPM ────────────
+  const hrIcon = panel.querySelector('.hr-icon');
+  if (hrIcon) {
+    if (hr != null) {
+      const newPeriod = `${(60 / Math.max(30, hr)).toFixed(2)}s`;
+      const oldPeriod = hrIcon.style.getPropertyValue('--hr-period');
+      hrIcon.style.color = hrColor;
+      if (!hrIcon.classList.contains('hr-beating')) {
+        // First beat — just start it
+        hrIcon.style.setProperty('--hr-period', newPeriod);
+        hrIcon.classList.add('hr-beating');
+      } else if (oldPeriod !== newPeriod) {
+        // HR changed — restart animation immediately instead of waiting
+        // for the current cycle to finish (CSS only picks up duration changes
+        // at the next iteration boundary)
+        hrIcon.classList.remove('hr-beating');
+        void hrIcon.offsetWidth;  // force reflow to reset the animation
+        hrIcon.style.setProperty('--hr-period', newPeriod);
+        hrIcon.classList.add('hr-beating');
+      }
+    } else {
+      hrIcon.classList.remove('hr-beating');
+      hrIcon.style.color = '';
+    }
+  }
+}
+
+// Reset all values back to dashes (called on mouseout).
+function resetMapStats(panel) {
+  if (!panel) return;
+  const gFill = panel.querySelector('.g-fill');
+  const gNum  = panel.querySelector('.g-num');
+  if (gFill) gFill.setAttribute('d', 'M 0 0');
+  if (gNum)  gNum.textContent = '—';
+  panel.querySelectorAll('[data-mkey]').forEach(el => {
+    el.textContent = '—';
+    el.style.color = '';
+  });
+  // Stop heartbeat animation and clear zone colour from icon
+  const hrIcon = panel.querySelector('.hr-icon');
+  if (hrIcon) {
+    hrIcon.classList.remove('hr-beating');
+    hrIcon.style.color = '';
+  }
+}
+
+function renderActivityMap(latlng, streams) {
+
+  const card = document.getElementById('detailMapCard');
+  if (!card) return;
+
+  if (!latlng || latlng.length < 2) { card.style.display = 'none'; return; }
+
+  const pairs = latlng.filter(p => Array.isArray(p) && p[0] != null && p[1] != null);
+  const valid = pairs.filter(p => Math.abs(p[0]) <= 90 && Math.abs(p[1]) <= 180);
+  if (valid.length < 2) { card.style.display = 'none'; return; }
+
+  // Downsample for rendering — keep full `valid` array for hover detection
+  const step   = Math.max(1, Math.floor(valid.length / 600));
+  const points = valid.filter((_, i) => i % step === 0);
+  if (points[points.length - 1] !== valid[valid.length - 1]) points.push(valid[valid.length - 1]);
+
+  card.style.display = '';
+
+  requestAnimationFrame(() => {
+    if (state.activityMap) return;
+    try {
+      const map = L.map('activityMap', {
+        zoomControl:        true,
+        scrollWheelZoom:    false,
+        attributionControl: true,
+      });
+
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        subdomains: 'abcd', maxZoom: 19,
+      }).addTo(map);
+
+      // ── Pre-compute per-mode maxima ──────────────────────────────────────
+      const spdArr  = streams.velocity_smooth;
+      const maxSpdKmh = (Array.isArray(spdArr) && spdArr.length)
+        ? Math.ceil(Math.max(...spdArr.filter(v => v != null)) * 3.6 / 5) * 5
+        : 50;
+
+      const hrArr = streams.heartrate || streams.heart_rate;
+      const maxHR = (Array.isArray(hrArr) && hrArr.length)
+        ? Math.round(Math.max(...hrArr.filter(v => v != null)))
+        : 190;
+
+      const wArr = streams.watts || streams.power;
+      const maxWatts = (Array.isArray(wArr) && wArr.length)
+        ? Math.ceil(Math.max(...wArr.filter(v => v != null)) / 50) * 50
+        : 400;
+
+      const altArr = streams.altitude;
+      const minAlt = (Array.isArray(altArr) && altArr.length)
+        ? Math.min(...altArr.filter(v => v != null)) : 0;
+      const maxAlt = (Array.isArray(altArr) && altArr.length)
+        ? Math.max(...altArr.filter(v => v != null)) : 100;
+
+      const maxes = { maxSpdKmh, maxHR, maxWatts, minAlt, maxAlt };
+
+      // ── Colour layer (cleared & rebuilt on mode toggle) ──────────────────
+      const colorLayer = L.layerGroup().addTo(map);
+      let activeMode   = 'default';
+
+      const applyColorMode = (mode) => {
+        activeMode = mode;
+        colorLayer.clearLayers();
+        const segs = buildColoredSegments(points, streams, mode, maxes);
+        segs.forEach(seg => L.polyline(seg.points, {
+          color: seg.color, weight: 5, opacity: 1,
+        }).addTo(colorLayer));
+
+        // Keep toggle buttons in sync
+        document.querySelectorAll('.map-mode-btn').forEach(btn =>
+          btn.classList.toggle('active', btn.dataset.mode === mode));
+      };
+
+      // Initial render (default green)
+      applyColorMode('default');
+
+      // ── Fit bounds + start/end markers ───────────────────────────────────
+      // Compute bounds from the points array for fitBounds
+      const tempPoly = L.polyline(points);
+      map.fitBounds(tempPoly.getBounds(), { padding: [24, 24] });
+      map.invalidateSize();
+      state.activityMap = map;
+
+      const dotIcon = (color) => L.divIcon({
+        className: '',
+        html: `<div style="width:10px;height:10px;border-radius:50%;background:${color};border:2px solid rgba(255,255,255,0.8);box-shadow:0 0 4px rgba(0,0,0,0.6)"></div>`,
+        iconSize: [10, 10], iconAnchor: [5, 5],
+      });
+      L.marker(points[0],                 { icon: dotIcon('#00e5a0'), zIndexOffset: 200 }).addTo(map);
+      L.marker(points[points.length - 1], { icon: dotIcon('#888'),    zIndexOffset: 200 }).addTo(map);
+
+      // ── Alt + scroll to zoom ─────────────────────────────────────────────
+      const mapEl = map.getContainer();
+      let hintTimer;
+
+      mapEl.addEventListener('wheel', (e) => {
+        if (e.altKey) {
+          e.preventDefault();
+          e.stopPropagation();
+          const delta  = e.deltaY < 0 ? 1 : -1;
+          const pt     = map.mouseEventToContainerPoint(e);
+          const latlng = map.containerPointToLatLng(pt);
+          map.setZoomAround(latlng, map.getZoom() + delta);
+        } else {
+          // Show "hold Alt to zoom" nudge
+          let hint = mapEl.querySelector('.map-scroll-hint');
+          if (!hint) {
+            hint = document.createElement('div');
+            hint.className = 'map-scroll-hint';
+            hint.textContent = 'Hold Alt to zoom';
+            mapEl.appendChild(hint);
+          }
+          hint.classList.add('visible');
+          clearTimeout(hintTimer);
+          hintTimer = setTimeout(() => hint.classList.remove('visible'), 1600);
+        }
+      }, { passive: false });
+
+      // Cursor feedback when Alt is held over the map
+      const onKeyDown = (e) => { if (e.key === 'Alt') mapEl.classList.add('alt-zoom');    };
+      const onKeyUp   = (e) => { if (e.key === 'Alt') mapEl.classList.remove('alt-zoom'); };
+      window.addEventListener('keydown', onKeyDown);
+      window.addEventListener('keyup',   onKeyUp);
+      // Clean up global listeners if the map is ever removed
+      map.on('remove', () => {
+        window.removeEventListener('keydown', onKeyDown);
+        window.removeEventListener('keyup',   onKeyUp);
+      });
+
+      // ── Toggle buttons ────────────────────────────────────────────────────
+      const togglesEl = document.getElementById('mapColorToggles');
+      if (togglesEl) {
+        const modes = [
+          { key: 'default',  label: 'Route',    icon: '◉' },
+          hrArr?.length   ? { key: 'hr',       label: 'HR',       icon: '♥' } : null,
+          spdArr?.length  ? { key: 'speed',    label: 'Speed',    icon: '⚡' } : null,
+          wArr?.length    ? { key: 'power',    label: 'Power',    icon: '◈' } : null,
+          altArr?.length  ? { key: 'altitude', label: 'Altitude', icon: '▲' } : null,
+        ].filter(Boolean);
+
+        togglesEl.innerHTML = modes.map(m =>
+          `<button class="map-mode-btn${m.key === 'default' ? ' active' : ''}" data-mode="${m.key}">
+             <span class="map-mode-icon">${m.icon}</span>${m.label}
+           </button>`
+        ).join('');
+
+        togglesEl.querySelectorAll('.map-mode-btn').forEach(btn =>
+          btn.addEventListener('click', () => applyColorMode(btn.dataset.mode)));
+      }
+
+      // ── Hover scrubbing ──────────────────────────────────────────────────
+      const statsEl = document.getElementById('mapStatsPanel');
+      const hasStreams = streams && (streams.watts || streams.heartrate || streams.cadence
+                                     || streams.velocity_smooth || streams.altitude);
+      if (!hasStreams || !statsEl) return;
+
+      const timeLen = streams.time?.length || valid.length;
+
+      // Build the panel skeleton once (gauge + metric rows).
+      // Do this BEFORE invalidateSize so the panel's full height is established
+      // and the map can stretch to match via flexbox.
+      statsEl.innerHTML = buildMapStatsHTML(streams, maxSpdKmh, maxHR);
+      // Panel content has now set the container's true height — tell Leaflet to
+      // re-render tiles/layers at the new size.
+      requestAnimationFrame(() => map.invalidateSize());
+
+      // Dedicated pane above overlayPane (z 400) so the dot always paints
+      // on top of the colour-gradient polylines, even after colorLayer redraws.
+      map.createPane('hoverPane');
+      map.getPane('hoverPane').style.zIndex = 450;
+
+      // Circle marker that snaps to the nearest GPS point on hover
+      const hoverDot = L.circleMarker(valid[0], {
+        pane: 'hoverPane',
+        radius: 7, color: '#fff', weight: 2.5,
+        fillColor: '#fff', fillOpacity: 0, opacity: 0,
+      }).addTo(map);
+
+      map.on('mousemove', (e) => {
+        const { lat, lng } = e.latlng;
+
+        // Linear scan — find the nearest GPS point (fast enough at ~6k points)
+        let bestIdx = 0, bestDist = Infinity;
+        for (let i = 0; i < valid.length; i++) {
+          const dlat = valid[i][0] - lat;
+          const dlng = valid[i][1] - lng;
+          const d    = dlat * dlat + dlng * dlng;
+          if (d < bestDist) { bestDist = d; bestIdx = i; }
+        }
+
+        // Map GPS index → stream index (proportional, handles slight length differences)
+        const si = Math.round(bestIdx * (timeLen - 1) / (valid.length - 1));
+
+        // Dot colour reflects the active colour mode at this exact point
+        const dotColor = routePointColor(activeMode, streams, si, maxes);
+        hoverDot.setLatLng(valid[bestIdx]);
+        hoverDot.setStyle({ fillOpacity: 1, opacity: 1, fillColor: dotColor });
+        refreshMapStats(statsEl, streams, si, maxSpdKmh, maxHR);
+      });
+
+      map.on('mouseout', () => {
+        hoverDot.setStyle({ fillOpacity: 0, opacity: 0 });
+        resetMapStats(statsEl);
+      });
+
+    } catch(e) { console.error('[Map] Leaflet error:', e); }
+  });
+}
+
+function renderStreamCharts(streams, activity) {
+  const ds = downsampleStreams(streams, 400);
+
+  // Normalise alternate key names
+  if (!ds.watts     && ds.power)      ds.watts     = ds.power;
   if (!ds.heartrate && ds.heart_rate) ds.heartrate = ds.heart_rate;
 
-  // Time axis labels from time stream, or fallback to minutes
+  // Time axis raw values (seconds from start)
   const rawTime = ds.time || [];
-  const refLen  = (ds.watts || ds.heartrate || []).length;
-  const labels  = Array.from({ length: refLen }, (_, i) => {
+
+  // Ordered stream definitions — altitude drawn first so it sits behind everything
+  const STREAM_DEFS = [
+    { key: 'altitude',        label: 'Altitude', color: '#9b59ff', unit: 'm',    yAxis: 'yAlt',     borderWidth: 0,   fill: 'origin', alpha: 0.18 },
+    { key: 'watts',           label: 'Power',    color: '#00e5a0', unit: 'w',    yAxis: 'yPower',   borderWidth: 1.5, fill: false,    alpha: 0 },
+    { key: 'heartrate',       label: 'HR',       color: '#ff6b35', unit: ' bpm', yAxis: 'yHR',      borderWidth: 1.5, fill: false,    alpha: 0 },
+    { key: 'cadence',         label: 'Cadence',  color: '#4a9eff', unit: ' rpm', yAxis: 'yCadence', borderWidth: 1.5, fill: false,    alpha: 0 },
+    { key: 'velocity_smooth', label: 'Speed',    color: '#f0c429', unit: ' km/h',yAxis: 'ySpeed',   borderWidth: 1.5, fill: false,    alpha: 0 },
+  ];
+
+  const datasets = [];
+  const presentKeys = [];
+
+  STREAM_DEFS.forEach(def => {
+    let data = ds[def.key];
+    if (!data || !data.length || !data.some(v => v != null && v > 0)) return;
+
+    // Convert speed m/s → km/h
+    if (def.key === 'velocity_smooth') data = data.map(v => v != null ? Math.round(v * 36) / 10 : null);
+
+    presentKeys.push(def.key);
+    datasets.push({
+      streamKey:       def.key,
+      label:           def.label,
+      data,
+      yAxisID:         def.yAxis,
+      borderColor:     def.color,
+      backgroundColor: def.alpha > 0 ? def.color + Math.round(def.alpha * 255).toString(16).padStart(2, '0') : 'transparent',
+      fill:            def.fill,
+      pointRadius:     0,
+      pointHoverRadius: 3,
+      borderWidth:     def.borderWidth,
+      tension:         0.3,
+      spanGaps:        true,
+      order:           STREAM_DEFS.findIndex(d => d.key === def.key),
+    });
+  });
+
+  if (!datasets.length) return;
+
+  const refLen = datasets[0].data.length;
+  const labels = Array.from({ length: refLen }, (_, i) => {
     const s = rawTime[i] != null ? rawTime[i] : i;
     const h = Math.floor(s / 3600);
     const m = Math.floor((s % 3600) / 60);
-    return h > 0 ? `${h}:${String(m).padStart(2, '0')}` : `${m}m`;
+    const sec = s % 60;
+    return h > 0
+      ? `${h}:${String(m).padStart(2, '0')}`
+      : `${m}:${String(sec).padStart(2, '0')}`;
   });
 
-  let hasCharts = false;
-  const powerCard = document.getElementById('detailPowerCard');
-  const hrCard    = document.getElementById('detailHRCard');
-  powerCard.style.display = 'none';
-  hrCard.style.display    = 'none';
+  // Y-axis config — power (left) and HR (right) show tick labels; others are hidden but still scale correctly
+  const hasPower = presentKeys.includes('watts');
+  const hasHR    = presentKeys.includes('heartrate');
 
-  if (ds.watts && ds.watts.some(v => v > 0)) {
-    hasCharts = true;
-    powerCard.style.display = 'block';
-    const avgW = Math.round(activity.average_watts || 0);
-    const npW  = Math.round(activity.icu_weighted_avg_watts || 0);
-    document.getElementById('detailPowerSubtitle').textContent =
-      [avgW > 0 ? `Avg ${avgW}w` : '', npW > 0 ? `NP ${npW}w` : ''].filter(Boolean).join(' · ');
-    if (state.activityPowerChart) state.activityPowerChart.destroy();
-    state.activityPowerChart = new Chart(
-      document.getElementById('activityPowerChart').getContext('2d'),
-      streamChartConfig(labels, ds.watts, '#00e5a0', 'rgba(0,229,160,0.08)', 'w')
-    );
+  const scales = {
+    x: {
+      grid:  { color: 'rgba(255,255,255,0.04)' },
+      ticks: { color: 'var(--text-muted)', maxTicksLimit: 8, font: { size: 10 } },
+    },
+    yPower:   { display: hasPower,  position: 'left',  min: 0,  grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#00e5a0', font: { size: 10 }, maxTicksLimit: 5, callback: v => v + 'w' } },
+    yHR:      { display: hasHR,     position: 'right', min: 30, grid: { display: false },                  ticks: { color: '#ff6b35', font: { size: 10 }, maxTicksLimit: 5, callback: v => v + '' } },
+    yCadence: { display: false, min: 0  },
+    ySpeed:   { display: false, min: 0  },
+    yAlt:     { display: false        },
+  };
+
+  // Build subtitle from available metrics
+  const subtitleParts = [];
+  if (hasPower) {
+    const avg = Math.round(activity.average_watts || 0);
+    const np  = Math.round(activity.icu_weighted_avg_watts || 0);
+    if (avg > 0) subtitleParts.push(`Avg ${avg}w`);
+    if (np  > 0) subtitleParts.push(`NP ${np}w`);
+  }
+  if (hasHR) {
+    const avg = Math.round(activity.average_heartrate || 0);
+    if (avg > 0) subtitleParts.push(`Avg HR ${avg} bpm`);
+  }
+  document.getElementById('detailStreamsSubtitle').textContent = subtitleParts.join(' · ');
+
+  // Toggle chips
+  const STREAM_META = { watts: '#00e5a0', heartrate: '#ff6b35', cadence: '#4a9eff', velocity_smooth: '#f0c429', altitude: '#9b59ff' };
+  const STREAM_LABEL = { watts: 'Power', heartrate: 'HR', cadence: 'Cadence', velocity_smooth: 'Speed', altitude: 'Altitude' };
+  const togContainer = document.getElementById('streamToggleChips');
+  if (togContainer) {
+    togContainer.innerHTML = presentKeys.map(k =>
+      `<button class="stream-toggle-btn active" data-metric="${k}" style="--sc:${STREAM_META[k]}" onclick="toggleStreamLayer('${k}')">${STREAM_LABEL[k]}</button>`
+    ).join('');
   }
 
-  if (ds.heartrate && ds.heartrate.some(v => v > 0)) {
-    hasCharts = true;
-    hrCard.style.display = 'block';
-    const avgHR = Math.round(activity.average_heartrate || 0);
-    const maxHR = Math.round(activity.max_heartrate || 0);
-    document.getElementById('detailHRSubtitle').textContent =
-      [avgHR > 0 ? `Avg ${avgHR} bpm` : '', maxHR > 0 ? `Max ${maxHR} bpm` : ''].filter(Boolean).join(' · ');
-    if (state.activityHRChart) state.activityHRChart.destroy();
-    state.activityHRChart = new Chart(
-      document.getElementById('activityHRChart').getContext('2d'),
-      streamChartConfig(labels, ds.heartrate, '#ff6b35', 'rgba(255,107,53,0.08)', 'bpm')
-    );
-  }
+  // Render chart
+  if (state.activityStreamsChart) { state.activityStreamsChart.destroy(); state.activityStreamsChart = null; }
+  const canvas = document.getElementById('activityStreamsChart');
+  if (!canvas) return;
 
-  if (hasCharts) {
-    const chartsRow = document.getElementById('detailChartsRow');
-    const both = powerCard.style.display !== 'none' && hrCard.style.display !== 'none';
-    chartsRow.style.gridTemplateColumns = both ? '1fr 1fr' : '1fr';
-    chartsRow.style.display = 'grid';
-  }
+  state.activityStreamsChart = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 400 },
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          ...C_TOOLTIP,
+          callbacks: {
+            title: items => {
+              const s = rawTime[items[0].dataIndex];
+              if (s == null) return '';
+              const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+              return h > 0
+                ? `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
+                : `${m}:${String(sec).padStart(2,'0')}`;
+            },
+            label: ctx => {
+              if (ctx.parsed.y == null) return null;
+              const units = { watts: 'w', heartrate: ' bpm', cadence: ' rpm', velocity_smooth: ' km/h', altitude: ' m' };
+              const v = Math.round(ctx.parsed.y * 10) / 10;
+              return ` ${ctx.dataset.label}: ${v}${units[ctx.dataset.streamKey] || ''}`;
+            },
+          },
+        },
+      },
+      scales,
+    },
+  });
+
+  // Show the combined card, hide the old separate cards row
+  document.getElementById('detailStreamsCard').style.display = '';
+  document.getElementById('detailChartsRow').style.display  = 'none';
+}
+
+// Toggle a single stream dataset on/off via the chip buttons
+function toggleStreamLayer(metric) {
+  const chart = state.activityStreamsChart;
+  if (!chart) return;
+  const dsIdx = chart.data.datasets.findIndex(d => d.streamKey === metric);
+  if (dsIdx === -1) return;
+  const meta = chart.getDatasetMeta(dsIdx);
+  meta.hidden = !meta.hidden;
+  chart.update();
+  document.querySelectorAll(`.stream-toggle-btn[data-metric="${metric}"]`).forEach(btn => {
+    btn.classList.toggle('active', !meta.hidden);
+  });
 }
 
 // Hex colours that map to our zone CSS vars (used in Chart.js which needs actual colour values)
@@ -3760,6 +4784,7 @@ if (hasCredentials) {
   const cached = loadActivityCache();
   if (cached) {
     state.activities = cached.activities;
+    loadFitnessCache(); // restore CTL/ATL/TSB, wellness history & athlete profile
     state.synced = true;
     updateConnectionUI(true);
     renderDashboard();
@@ -4416,195 +5441,4 @@ function buildFitWorkout(segments, name, ftp) {
     clearTimeout(_wrkRaf);
     _wrkRaf = setTimeout(wrkDrawChart, 80);
   });
-})();
-
-/* ====================================================
-   iOS-STYLE SWIPE NAVIGATION
-==================================================== */
-(function initSwipeNav() {
-  const EDGE_ZONE    = 28;   // px from left edge to start a back swipe
-  const COMMIT_DIST  = 72;   // px drag to commit back navigation
-  const CANCEL_DIST  = 10;   // px drift back before cancelling
-  const AXIS_LOCK    = 30;   // px vertical drift = cancel (user is scrolling)
-  const DURATION     = 320;
-
-  let touchStartX   = 0;
-  let touchStartY   = 0;
-  let tracking      = false;  // gesture is being tracked
-  let committed     = false;  // crossed the commit threshold
-  let currentEl     = null;   // the outgoing page element
-  let previousEl    = null;   // the incoming (behind) page element
-  let snapRAF       = null;
-
-  function getBackTarget() {
-    return _navHistory[_navHistory.length - 1] || state.previousPage || null;
-  }
-
-  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
-
-  function applyDrag(dx) {
-    if (!currentEl || !previousEl) return;
-    const w = window.innerWidth;
-    const pct = clamp(dx / w, 0, 1);
-
-    // Current page: slide right 0 → 100%
-    currentEl.style.transform  = `translateX(${(pct * 100).toFixed(2)}%)`;
-    currentEl.style.opacity    = '1';
-
-    // Previous page: peek from left (-28% → 0%)
-    const prevPct = -28 + pct * 28;
-    previousEl.style.transform = `translateX(${prevPct.toFixed(2)}%)`;
-    previousEl.style.opacity   = (0.6 + pct * 0.4).toFixed(3);
-  }
-
-  function snapForward() {
-    // Animate current page off-screen right
-    if (!currentEl || !previousEl) return;
-    currentEl.style.transition  = `transform ${DURATION}ms cubic-bezier(0.4,0,0.2,1), opacity ${DURATION}ms`;
-    previousEl.style.transition = `transform ${DURATION}ms cubic-bezier(0.4,0,0.2,1), opacity ${DURATION}ms`;
-    currentEl.style.transform   = 'translateX(100%)';
-    previousEl.style.transform  = 'translateX(0)';
-    previousEl.style.opacity    = '1';
-    setTimeout(finaliseBack, DURATION);
-  }
-
-  function snapBack() {
-    // Rubber-band back to original position
-    if (!currentEl || !previousEl) return;
-    currentEl.style.transition  = `transform ${DURATION}ms cubic-bezier(0.4,0,0.2,1), opacity ${DURATION}ms`;
-    previousEl.style.transition = `transform ${DURATION}ms cubic-bezier(0.4,0,0.2,1), opacity ${DURATION}ms`;
-    currentEl.style.transform   = 'translateX(0)';
-    previousEl.style.transform  = 'translateX(-28%)';
-    previousEl.style.opacity    = '0.6';
-    setTimeout(cleanupDrag, DURATION);
-  }
-
-  function finaliseBack() {
-    // Commit the back navigation — update state without re-animating
-    const target = getBackTarget();
-    if (!target) { cleanupDrag(); return; }
-
-    _navHistory.pop();
-    state.previousPage = state.currentPage;
-    state.currentPage  = target;
-    try { sessionStorage.setItem('icu_route', JSON.stringify({ type: 'page', page: target })); } catch {}
-
-    // Update nav sidebar highlight
-    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    document.querySelector(`[data-page="${target}"]`)?.classList.add('active');
-
-    // Topbar / headline for the target page
-    const isFullVP = (target === 'calendar');
-    document.querySelector('.topbar')?.classList.toggle('topbar--hidden', isFullVP);
-    document.querySelector('.page-headline')?.classList.toggle('page-headline--hidden', isFullVP);
-
-    const pill = document.getElementById('dateRangePill');
-    if (pill) pill.style.display = (target === 'dashboard') ? 'flex' : 'none';
-
-    const info = {
-      dashboard: ['Dashboard', `Overview · Last ${state.rangeDays} days`],
-      activities: ['Activities', 'All recorded rides & workouts'],
-      calendar:   ['Calendar', 'Planned workouts & events'],
-      fitness:    ['Fitness', 'CTL · ATL · TSB history'],
-      power:      ['Power Curve', 'Best efforts across durations'],
-      zones:      ['Training Zones', 'Time in zone breakdown'],
-      settings:   ['Settings', 'Account & connection'],
-      workout:    ['Create Workout', 'Build & export custom cycling workouts'],
-      guide:      ['Training Guide', 'Understanding CTL · ATL · TSB & training load']
-    };
-    const [title, sub] = info[target] || ['CycleIQ', ''];
-    document.getElementById('pageTitle').textContent    = title;
-    document.getElementById('pageSubtitle').textContent = sub;
-
-    cleanupDrag();
-
-    // Re-render target page if needed
-    if (target === 'calendar') renderCalendar();
-    if (target === 'fitness')  renderFitnessPage();
-  }
-
-  function cleanupDrag() {
-    if (currentEl) {
-      currentEl.classList.remove('page-dragging', 'active');
-      currentEl.style.cssText = '';
-    }
-    if (previousEl) {
-      previousEl.classList.remove('page-dragging');
-      // If we just committed the back nav, previousEl is now the active page
-      if (state.currentPage && previousEl.id === 'page-' + state.currentPage) {
-        previousEl.classList.add('active');
-      }
-      previousEl.style.cssText = '';
-    }
-    document.getElementById('pageContent')?.classList.remove('page-content--transitioning');
-    tracking   = false;
-    committed  = false;
-    currentEl  = null;
-    previousEl = null;
-    if (snapRAF) { cancelAnimationFrame(snapRAF); snapRAF = null; }
-  }
-
-  document.addEventListener('touchstart', (e) => {
-    // Only handle single-touch starting within the left edge zone
-    if (e.touches.length !== 1) return;
-    const x = e.touches[0].clientX;
-    if (x > EDGE_ZONE) return;
-
-    // Need a back target
-    if (!getBackTarget()) return;
-
-    touchStartX = x;
-    touchStartY = e.touches[0].clientY;
-    tracking    = true;
-    committed   = false;
-
-    // Prepare elements
-    const cur  = state.currentPage;
-    const prev = getBackTarget();
-    currentEl  = cur  ? document.getElementById('page-' + cur)  : null;
-    previousEl = prev ? document.getElementById('page-' + prev) : null;
-
-    if (!currentEl || !previousEl) { tracking = false; return; }
-
-    // Make both visible and position them
-    document.getElementById('pageContent')?.classList.add('page-content--transitioning');
-    currentEl.classList.add('page-dragging', 'active');
-    previousEl.classList.add('page-dragging', 'active');
-    previousEl.style.transform = 'translateX(-28%)';
-    previousEl.style.opacity   = '0.6';
-
-  }, { passive: true });
-
-  document.addEventListener('touchmove', (e) => {
-    if (!tracking) return;
-    const dx = e.touches[0].clientX - touchStartX;
-    const dy = Math.abs(e.touches[0].clientY - touchStartY);
-
-    // If the user is mostly scrolling vertically, cancel the swipe
-    if (dy > AXIS_LOCK && dx < COMMIT_DIST) { snapBack(); tracking = false; return; }
-
-    // Only track rightward drag
-    if (dx < 0) return;
-
-    if (snapRAF) cancelAnimationFrame(snapRAF);
-    snapRAF = requestAnimationFrame(() => applyDrag(Math.max(0, dx)));
-
-    if (dx >= COMMIT_DIST) committed = true;
-  }, { passive: true });
-
-  document.addEventListener('touchend', (e) => {
-    if (!tracking) return;
-    const dx = e.changedTouches[0].clientX - touchStartX;
-    tracking = false;
-
-    if (committed || dx >= COMMIT_DIST) {
-      snapForward();
-    } else {
-      snapBack();
-    }
-  }, { passive: true });
-
-  document.addEventListener('touchcancel', () => {
-    if (tracking) snapBack();
-  }, { passive: true });
 })();

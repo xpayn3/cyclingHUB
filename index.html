@@ -15,7 +15,9 @@
             rel="stylesheet"
         />
         <link rel="stylesheet" href="styles.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
         <script src="app.js" defer></script>
     </head>
     <body>
@@ -411,12 +413,27 @@
                 >
                     <span></span><span></span><span></span>
                 </button>
+                <!-- Back button — shown on the LEFT only when viewing a single activity -->
+                <button class="btn btn-ghost detail-topbar-back" id="detailTopbarBack" onclick="navigateBack()" style="display:none">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg>
+                    Back to <span id="detailBackLabel">Activities</span>
+                </button>
                 <div class="topbar-actions">
                     <div class="date-range-pill" id="dateRangePill">
                         <button onclick="setRange(7)"   id="range7">7d</button>
                         <button onclick="setRange(30)"  id="range30" class="active">30d</button>
                         <button onclick="setRange(90)"  id="range90">90d</button>
                         <button onclick="setRange(365)" id="range365">1y</button>
+                    </div>
+                    <!-- Prev/next arrows — shown on the RIGHT only when viewing a single activity -->
+                    <div class="detail-nav-arrows" id="detailTopbarNav" style="display:none">
+                        <button class="btn btn-ghost detail-nav-btn" id="detailNavPrev" onclick="stepActivity(-1)" title="Newer activity" disabled>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg>
+                        </button>
+                        <span class="detail-nav-counter" id="detailNavCounter"></span>
+                        <button class="btn btn-ghost detail-nav-btn" id="detailNavNext" onclick="stepActivity(1)" title="Older activity" disabled>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg>
+                        </button>
                     </div>
                 </div>
             </header>
@@ -833,33 +850,17 @@
                 <!-- ==================== ACTIVITY DETAIL PAGE ==================== -->
                 <div class="page" id="page-activity">
 
-                    <!-- Back nav + prev/next -->
-                    <div class="detail-back">
-                        <button class="btn btn-ghost" onclick="navigateBack()">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-                            Back to <span id="detailBackLabel">Activities</span>
-                        </button>
-                        <div class="detail-nav-arrows">
-                            <span class="detail-nav-counter" id="detailNavCounter"></span>
-                            <button class="btn btn-ghost detail-nav-btn" id="detailNavPrev" onclick="stepActivity(-1)" title="Previous" disabled>
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg>
-                            </button>
-                            <button class="btn btn-ghost detail-nav-btn" id="detailNavNext" onclick="stepActivity(1)" title="Next" disabled>
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg>
-                            </button>
-                        </div>
-                    </div>
-
                     <!-- Activity hero -->
                     <div class="act-hero">
+                        <h1 class="act-hero-title" id="detailName">—</h1>
                         <div class="act-hero-eyebrow">
                             <div class="activity-type-icon" id="detailIcon">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                             </div>
+                            <span class="act-platform-tag" id="detailPlatformTag" style="display:none"></span>
                             <span class="act-type-badge" id="detailType"></span>
                             <div class="act-tss-badge" id="detailTSSBadge" style="display:none"></div>
                         </div>
-                        <h1 class="act-hero-title" id="detailName">—</h1>
                         <div class="act-hero-date" id="detailDate"></div>
                         <!-- 4 primary stats -->
                         <div class="act-primary-stats" id="actPrimaryStats"></div>
@@ -880,9 +881,37 @@
                         <div class="detail-cmp-rows" id="detailCmpRows"></div>
                     </div>
 
+                    <!-- Route map -->
+                    <div class="card" id="detailMapCard" style="display:none">
+                        <div class="card-header">
+                            <div class="card-title">Route</div>
+                        </div>
+                        <div id="mapColorToggles" class="map-color-toggles"></div>
+                        <div class="map-with-stats">
+                            <div id="activityMap" class="activity-map"></div>
+                            <div id="mapStatsPanel" class="map-stats-panel">
+                                <p class="map-stat-hint">Hover the<br>route to<br>see stats</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Combined activity streams chart -->
+                    <div class="card" id="detailStreamsCard" style="display:none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">Activity Data</div>
+                                <div class="card-subtitle" id="detailStreamsSubtitle"></div>
+                            </div>
+                            <div class="stream-toggles" id="streamToggleChips"></div>
+                        </div>
+                        <div class="chart-wrap" style="height:280px">
+                            <canvas id="activityStreamsChart"></canvas>
+                        </div>
+                    </div>
+
                     <!-- Loading -->
                     <div class="detail-charts-loading" id="detailChartsLoading" style="display:none">
-                        <div class="spinner"></div>Loading chart data…
+                        <div class="spinner"></div><span>Loading chart data…</span>
                     </div>
 
                     <!-- Power + HR stream charts (only if streams available) -->

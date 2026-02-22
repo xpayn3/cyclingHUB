@@ -361,9 +361,8 @@ code {
     display: flex;
     flex-direction: column;
     gap: var(--gap-layout);
-    position: relative;
 }
-/* When topbar is hidden (activity page), remove the reserved topbar space */
+/* When topbar is hidden (calendar full-viewport layout), remove reserved topbar space */
 .topbar--hidden ~ .page-content {
     padding-top: var(--pad-page);
 }
@@ -1078,19 +1077,18 @@ code {
     color: var(--purple);
 }
 
-/* Name + date — fixed width so stats align */
+/* Name + date — grows to fill available space; stats stay right-aligned */
 .act-card-info {
-    flex: 0 0 210px;
+    flex: 1 1 0;
     min-width: 0;
-    overflow: hidden;
 }
 .act-card-name {
     font-size: var(--text-base);
     font-weight: 700;
     letter-spacing: -0.2px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 .act-card-sub {
     display: flex;
@@ -1111,6 +1109,18 @@ code {
     font-weight: 600;
     letter-spacing: 0.04em;
     color: var(--text-secondary);
+}
+/* Platform source tag (e.g. "Zwift") — accent-tinted pill */
+.act-platform-tag {
+    background: rgba(0, 229, 160, 0.10);
+    border: 1px solid rgba(0, 229, 160, 0.28);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: var(--text-2xs);
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+    text-transform: uppercase;
 }
 .activity-tss {
     padding: 2px 8px;
@@ -1798,89 +1808,11 @@ code {
 /* ============================================================
    PAGE VISIBILITY
 ============================================================ */
-/* ── page visiblity & slide navigation ───────────────────────────────────── */
 .page {
     display: none;
 }
 .page.active {
-    display: flex;
-    flex-direction: column;
-    gap: var(--gap-layout);
-    width: 100%;
-    min-height: 100%;
-    position: relative;
-}
-
-/* shared layout for pages mid-transition */
-.page.page-slide-enter,
-.page.page-slide-exit,
-.page.page-slide-enter-back,
-.page.page-slide-exit-back {
-    display: flex;
-    flex-direction: column;
-    gap: var(--gap-layout);
-    width: 100%;
-    min-height: 100%;
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    pointer-events: none;
-    will-change: transform, opacity;
-}
-
-/* forward: new page enters from right */
-.page.page-slide-enter {
-    animation: pageSlideEnterRight 0.36s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-/* forward: current page exits to left */
-.page.page-slide-exit {
-    animation: pageSlideExitLeft 0.36s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-/* back: new page (previous) enters from left */
-.page.page-slide-enter-back {
-    animation: pageSlideEnterLeft 0.36s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-/* back: current page exits to right */
-.page.page-slide-exit-back {
-    animation: pageSlideExitRight 0.36s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-
-@keyframes pageSlideEnterRight {
-    from { transform: translateX(100%); }
-    to   { transform: translateX(0);    }
-}
-@keyframes pageSlideExitLeft {
-    from { transform: translateX(0);     opacity: 1;   }
-    to   { transform: translateX(-28%);  opacity: 0.6; }
-}
-@keyframes pageSlideEnterLeft {
-    from { transform: translateX(-28%);  opacity: 0.6; }
-    to   { transform: translateX(0);     opacity: 1;   }
-}
-@keyframes pageSlideExitRight {
-    from { transform: translateX(0);    }
-    to   { transform: translateX(100%); }
-}
-
-/* interactive swipe: real-time dragging state */
-.page.page-dragging {
-    display: flex;
-    flex-direction: column;
-    gap: var(--gap-layout);
-    width: 100%;
-    min-height: 100%;
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    transition: none !important;
-    will-change: transform, opacity;
-}
-
-/* clip overflow during transitions */
-.page-content--transitioning {
-    overflow-x: hidden;
+    display: contents;
 }
 
 /* ============================================================
@@ -2155,12 +2087,281 @@ code {
 /* ============================================================
    ACTIVITY DETAIL PAGE
 ============================================================ */
-.detail-back {
-    margin-bottom: -8px;
+
+/* ── Colour-mode toggle bar ─────────────────────────────── */
+.map-color-toggles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 0 0 10px 0;
+    min-height: 0;   /* collapses if JS hasn't populated it yet */
+}
+.map-mode-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 11px 4px 9px;
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.05);
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    white-space: nowrap;
+}
+.map-mode-btn:hover {
+    background: rgba(255,255,255,0.10);
+    color: var(--text);
+    border-color: rgba(255,255,255,0.22);
+}
+.map-mode-btn.active {
+    background: rgba(0,200,122,0.18);
+    border-color: #00c87a;
+    color: #00e5a0;
+}
+/* Per-mode accent colours when active */
+.map-mode-btn.active[data-mode="hr"]       { background: rgba(239,68,68,0.15);  border-color: #f87171; color: #fca5a5; }
+.map-mode-btn.active[data-mode="speed"]    { background: rgba(30,58,138,0.35);  border-color: #3b82f6; color: #93c5fd; }
+.map-mode-btn.active[data-mode="power"]    { background: rgba(251,146,60,0.18); border-color: #f97316; color: #fdba74; }
+.map-mode-btn.active[data-mode="altitude"] { background: rgba(124,58,237,0.18); border-color: #7c3aed; color: #c4b5fd; }
+.map-mode-icon {
+    font-size: 10px;
+    opacity: 0.85;
+}
+
+/* Route map + hover stats layout */
+.map-with-stats {
+    display: flex;
+    gap: 16px;
+    align-items: stretch;
+    min-height: 320px; /* floor — panel content drives the actual height */
+}
+.activity-map {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 200px; /* hard floor — map never collapses below this */
+    /* no fixed height: flexbox stretches to match the panel height */
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--bg-elevated);
+    cursor: crosshair;
+}
+.map-stats-panel {
+    width: 205px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* gauge at top, metrics at bottom, full height used */
+    gap: 14px;
+    padding: 6px 0 4px;
+    position: relative;   /* sit above Leaflet canvas layers */
+    z-index: 2;
+}
+
+/* ── Speed gauge ────────────────────────────────────────── */
+.speed-gauge {
+    width: 100%;
+}
+.speed-gauge svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    /* viewBox is sized to contain all elements — no overflow needed */
+}
+.g-track {
+    fill: none;
+    stroke: rgba(255,255,255,0.09);
+    stroke-width: 8;
+    stroke-linecap: round;
+}
+.g-fill {
+    fill: none;
+    stroke: url(#gaugeGrad);
+    stroke-width: 8;
+    stroke-linecap: round;
+    transition: stroke-dasharray 0.07s linear;
+}
+/* SVG text colours are set via inline fill= attributes so they always
+   render white/light regardless of CSS variable support in SVG context */
+.g-num  { font-size: 22px; font-weight: 700; font-family: inherit; }
+.g-unit { font-size: 8px;  font-weight: 500; letter-spacing: 0.06em; }
+.g-zero, .g-max { font-size: 7.5px; font-weight: 500; }
+.g-label {
+    text-align: center;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-top: 0;
+}
+
+/* ── Garmin-style data grid ──────────────────────────────── */
+.map-metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+}
+/* A single data field cell */
+.mm-cell {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 8px;
+    padding: 5px 7px 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+/* Time (and any other full-width cells) span both columns */
+.mm-full {
+    grid-column: 1 / -1;
+}
+/* Label row: icon + text */
+.mm-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 3px;
 }
+.mm-icon {
+    flex-shrink: 0;
+    width: 9px;
+    height: 9px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    opacity: 0.7;
+}
+.mm-icon svg { width: 100%; height: 100%; }
+
+/* Heartbeat — duration driven by --hr-period set in JS */
+@keyframes hrPulse {
+    0%   { transform: scale(1);    }
+    20%  { transform: scale(1.6);  }
+    36%  { transform: scale(1);    }
+    52%  { transform: scale(1.25); }
+    68%  { transform: scale(1);    }
+    100% { transform: scale(1);    }
+}
+.hr-icon    { transform-origin: center; }
+.hr-beating { animation: hrPulse var(--hr-period, 0.75s) linear infinite; }
+
+.mm-lbl {
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    line-height: 1;
+}
+/* Number + unit row */
+.mm-data {
+    display: flex;
+    align-items: baseline;
+    gap: 2px;
+    margin-top: 1px;
+}
+.mm-val {
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    transition: color 0.25s ease;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: clip;
+}
+
+.mm-unt {
+    font-size: 9px;
+    font-weight: 500;
+    color: var(--text-muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* ── Responsive: stack map above data panel ─────────────────────────────
+   Kicks in at 640 px so the map never gets squeezed below ~470 px wide   */
+@media (max-width: 640px) {
+    .map-with-stats {
+        flex-direction: column;
+        gap: 12px;
+    }
+    /* Map goes full-width; locked height — flex: 0 0 prevents any shrinking */
+    .activity-map {
+        flex: 0 0 260px;
+        height: 260px;
+        min-height: 260px;
+    }
+    /* Panel goes full-width and lays out horizontally:
+       gauge on the left, data cells filling the rest */
+    .map-stats-panel {
+        width: 100%;
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 0;
+    }
+    .speed-gauge {
+        width: 130px;
+        flex-shrink: 0;
+    }
+    .map-metrics {
+        flex: 1 1 0;
+        min-width: 0;
+        /* Keep 2-col grid but let it fill available width */
+        grid-template-columns: 1fr 1fr;
+    }
+}
+/* Alt + scroll zoom — cursor + hint overlay */
+.activity-map.alt-zoom,
+.activity-map.alt-zoom * { cursor: zoom-in !important; }
+
+.map-scroll-hint {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.72);
+    color: #e2e8f0;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    padding: 7px 16px;
+    border-radius: 20px;
+    pointer-events: none;
+    z-index: 800;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    white-space: nowrap;
+}
+.map-scroll-hint.visible { opacity: 1; }
+
+/* Attribution — small and unobtrusive */
+.activity-map .leaflet-control-attribution {
+    background: rgba(255,255,255,0.75) !important;
+    color: rgba(0,0,0,0.5) !important;
+    font-size: 9px !important;
+}
+.activity-map .leaflet-control-attribution a {
+    color: rgba(0,0,0,0.6) !important;
+}
+
+/* Back button — sits on the LEFT of the topbar, right after the burger */
+.detail-topbar-back {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--text-sm);
+    white-space: nowrap;
+    margin-left: 4px;
+}
+/* Prev/next arrows — sit on the RIGHT in topbar-actions */
 .detail-nav-arrows {
     display: flex;
     align-items: center;
@@ -2186,16 +2387,16 @@ code {
 /* ── Activity hero ───────────────────────────────────────────────────── */
 .act-hero {
     padding: 20px 0 28px;
-    border-bottom: 1px solid var(--border);
     margin-bottom: 20px;
 }
 
-/* eyebrow: icon · type badge · TSS */
+/* eyebrow: icon · type badge · TSS — sits below the title */
 .act-hero-eyebrow {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 14px;
+    margin-top: 8px;
+    margin-bottom: 10px;
 }
 .act-type-badge {
     background: var(--bg-elevated);
@@ -2404,7 +2605,6 @@ code {
     grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
     gap: var(--gap-layout);
     padding: 0 0 20px;
-    border-bottom: 1px solid var(--border);
     margin-bottom: 20px;
 }
 .act-sstat {
@@ -2542,6 +2742,32 @@ code {
         min-width: 44px;
         font-size: var(--text-xs);
     }
+}
+
+/* ── Activity streams combined chart ─────────────────────────────────────── */
+.stream-toggles {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+.stream-toggle-btn {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    padding: 3px 9px;
+    border-radius: 999px;
+    border: 1.5px solid var(--sc, var(--border));
+    background: transparent;
+    color: var(--sc, var(--text-muted));
+    cursor: pointer;
+    transition: opacity 0.15s, background 0.15s;
+    opacity: 0.38;
+    white-space: nowrap;
+}
+.stream-toggle-btn.active {
+    opacity: 1;
+    background: rgba(255,255,255,0.06);
 }
 
 .detail-charts-loading {
