@@ -361,6 +361,7 @@ code {
     display: flex;
     flex-direction: column;
     gap: var(--gap-layout);
+    position: relative;
 }
 /* When topbar is hidden (activity page), remove the reserved topbar space */
 .topbar--hidden ~ .page-content {
@@ -1797,11 +1798,89 @@ code {
 /* ============================================================
    PAGE VISIBILITY
 ============================================================ */
+/* ── page visiblity & slide navigation ───────────────────────────────────── */
 .page {
     display: none;
 }
 .page.active {
-    display: contents;
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-layout);
+    width: 100%;
+    min-height: 100%;
+    position: relative;
+}
+
+/* shared layout for pages mid-transition */
+.page.page-slide-enter,
+.page.page-slide-exit,
+.page.page-slide-enter-back,
+.page.page-slide-exit-back {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-layout);
+    width: 100%;
+    min-height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    pointer-events: none;
+    will-change: transform, opacity;
+}
+
+/* forward: new page enters from right */
+.page.page-slide-enter {
+    animation: pageSlideEnterRight 0.36s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+/* forward: current page exits to left */
+.page.page-slide-exit {
+    animation: pageSlideExitLeft 0.36s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+/* back: new page (previous) enters from left */
+.page.page-slide-enter-back {
+    animation: pageSlideEnterLeft 0.36s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+/* back: current page exits to right */
+.page.page-slide-exit-back {
+    animation: pageSlideExitRight 0.36s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes pageSlideEnterRight {
+    from { transform: translateX(100%); }
+    to   { transform: translateX(0);    }
+}
+@keyframes pageSlideExitLeft {
+    from { transform: translateX(0);     opacity: 1;   }
+    to   { transform: translateX(-28%);  opacity: 0.6; }
+}
+@keyframes pageSlideEnterLeft {
+    from { transform: translateX(-28%);  opacity: 0.6; }
+    to   { transform: translateX(0);     opacity: 1;   }
+}
+@keyframes pageSlideExitRight {
+    from { transform: translateX(0);    }
+    to   { transform: translateX(100%); }
+}
+
+/* interactive swipe: real-time dragging state */
+.page.page-dragging {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-layout);
+    width: 100%;
+    min-height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    transition: none !important;
+    will-change: transform, opacity;
+}
+
+/* clip overflow during transitions */
+.page-content--transitioning {
+    overflow-x: hidden;
 }
 
 /* ============================================================

@@ -554,15 +554,23 @@ function closeSidebar() {
   document.getElementById('burgerBtn')?.classList.remove('is-open');
 }
 
-function navigate(page) {
-  state.previousPage = state.currentPage;
+// ── Navigation history stack ──────────────────────────────────────────────
+const _navHistory = [];
+
+function navigate(page, direction = 'forward') {
+  const prevPage = state.currentPage;
+  if (prevPage === page) return; // no-op
+
+  // History management
+  if (direction === 'forward') {
+    if (prevPage) _navHistory.push(prevPage);
+  } else {
+    _navHistory.pop();
+  }
+
+  state.previousPage = prevPage;
   state.currentPage  = page;
   try { sessionStorage.setItem('icu_route', JSON.stringify({ type: 'page', page })); } catch {}
-
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('page-' + page)?.classList.add('active');
-  document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
 
   const info = {
     dashboard: ['Dashboard', `Overview · Last ${state.rangeDays} days`],
@@ -587,16 +595,42 @@ function navigate(page) {
   const pill = document.getElementById('dateRangePill');
   if (pill) pill.style.display = (page === 'dashboard') ? 'flex' : 'none';
 
-  // Hide topbar + headline on calendar (full-viewport layout) and activity pages
+  // Hide topbar + headline on calendar (full-viewport layout)
   const isFullViewport = (page === 'calendar');
   document.querySelector('.topbar')?.classList.toggle('topbar--hidden', isFullViewport);
   document.querySelector('.page-headline')?.classList.toggle('page-headline--hidden', isFullViewport);
 
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
+
+  // ── Slide animation ───────────────────────────────────────────────────────
+  const prevEl = prevPage ? document.getElementById('page-' + prevPage) : null;
+  const nextEl = document.getElementById('page-' + page);
+  const isBack = direction === 'back';
+
+  if (prevEl && nextEl && prevEl !== nextEl) {
+    pc?.classList.add('page-content--transitioning');
+
+    // Show both during transition
+    prevEl.classList.add('active', isBack ? 'page-slide-exit-back' : 'page-slide-exit');
+    nextEl.classList.add('active', isBack ? 'page-slide-enter-back' : 'page-slide-enter');
+
+    const DURATION = 360;
+    setTimeout(() => {
+      prevEl.classList.remove('active', 'page-slide-exit', 'page-slide-exit-back');
+      nextEl.classList.remove('page-slide-enter', 'page-slide-enter-back');
+      pc?.classList.remove('page-content--transitioning');
+      window.scrollTo(0, 0);
+    }, DURATION);
+  } else {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    nextEl?.classList.add('active');
+    window.scrollTo(0, 0);
+  }
+
   if (page === 'calendar') renderCalendar();
   if (page === 'fitness')  renderFitnessPage();
   if (page === 'workout')  { wrkRefreshStats(); wrkRender(); }
-
-  window.scrollTo(0, 0);
 }
 
 /* ====================================================
@@ -2750,8 +2784,11 @@ async function navigateToActivity(actKey, fromStep = false) {
   const _routeId = activity.id || activity.icu_activity_id;
   try { sessionStorage.setItem('icu_route', JSON.stringify({ type: 'activity', actId: String(_routeId) })); } catch {}
 
-  if (!fromStep) state.previousPage = state.currentPage;
-  state.currentPage  = 'activity';
+  if (!fromStep) {
+    state.previousPage = state.currentPage;
+    _navHistory.push(state.currentPage);
+  }
+  state.currentPage = 'activity';
 
   // Track position in the non-empty pool for prev/next navigation
   const pool = state.activities.filter(a => !isEmptyActivity(a));
@@ -2765,17 +2802,33 @@ async function navigateToActivity(actKey, fromStep = false) {
   if (nextBtn) nextBtn.disabled = poolIdx < 0 || poolIdx >= pool.length - 1;
   if (counter) counter.textContent = poolIdx >= 0 ? `${poolIdx + 1} / ${pool.length}` : '';
 
-  // Show the activity page
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('page-activity').classList.add('active');
   // Hide topbar and page headline — activity page has its own back nav
   document.querySelector('.topbar')?.classList.add('topbar--hidden');
   document.querySelector('.page-headline')?.classList.add('page-headline--hidden');
-  // Scroll back to top and remove calendar's full-bleed layout so normal padding is restored
+
   const pageContent = document.getElementById('pageContent');
   if (pageContent) pageContent.classList.remove('page-content--calendar');
-  window.scrollTo(0, 0);
+
+  // Slide in the activity page
+  const prevPageEl = state.previousPage ? document.getElementById('page-' + state.previousPage) : null;
+  const actPageEl  = document.getElementById('page-activity');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+  if (prevPageEl && actPageEl && !fromStep) {
+    pageContent?.classList.add('page-content--transitioning');
+    prevPageEl.classList.add('active', 'page-slide-exit');
+    actPageEl.classList.add('active', 'page-slide-enter');
+    setTimeout(() => {
+      prevPageEl.classList.remove('active', 'page-slide-exit');
+      actPageEl.classList.remove('page-slide-enter');
+      pageContent?.classList.remove('page-content--transitioning');
+      window.scrollTo(0, 0);
+    }, 360);
+  } else {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    actPageEl?.classList.add('active');
+    window.scrollTo(0, 0);
+  }
 
   // Back button label
   const fromLabel = state.previousPage === 'dashboard' ? 'Dashboard' : 'Activities';
@@ -2860,7 +2913,8 @@ async function navigateToActivity(actKey, fromStep = false) {
 }
 
 function navigateBack() {
-  navigate(state.previousPage || 'activities');
+  const target = _navHistory[_navHistory.length - 1] || state.previousPage || 'activities';
+  navigate(target, 'back');
 }
 
 // Step to the adjacent activity in the sorted list.
@@ -4362,4 +4416,195 @@ function buildFitWorkout(segments, name, ftp) {
     clearTimeout(_wrkRaf);
     _wrkRaf = setTimeout(wrkDrawChart, 80);
   });
+})();
+
+/* ====================================================
+   iOS-STYLE SWIPE NAVIGATION
+==================================================== */
+(function initSwipeNav() {
+  const EDGE_ZONE    = 28;   // px from left edge to start a back swipe
+  const COMMIT_DIST  = 72;   // px drag to commit back navigation
+  const CANCEL_DIST  = 10;   // px drift back before cancelling
+  const AXIS_LOCK    = 30;   // px vertical drift = cancel (user is scrolling)
+  const DURATION     = 320;
+
+  let touchStartX   = 0;
+  let touchStartY   = 0;
+  let tracking      = false;  // gesture is being tracked
+  let committed     = false;  // crossed the commit threshold
+  let currentEl     = null;   // the outgoing page element
+  let previousEl    = null;   // the incoming (behind) page element
+  let snapRAF       = null;
+
+  function getBackTarget() {
+    return _navHistory[_navHistory.length - 1] || state.previousPage || null;
+  }
+
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+  function applyDrag(dx) {
+    if (!currentEl || !previousEl) return;
+    const w = window.innerWidth;
+    const pct = clamp(dx / w, 0, 1);
+
+    // Current page: slide right 0 → 100%
+    currentEl.style.transform  = `translateX(${(pct * 100).toFixed(2)}%)`;
+    currentEl.style.opacity    = '1';
+
+    // Previous page: peek from left (-28% → 0%)
+    const prevPct = -28 + pct * 28;
+    previousEl.style.transform = `translateX(${prevPct.toFixed(2)}%)`;
+    previousEl.style.opacity   = (0.6 + pct * 0.4).toFixed(3);
+  }
+
+  function snapForward() {
+    // Animate current page off-screen right
+    if (!currentEl || !previousEl) return;
+    currentEl.style.transition  = `transform ${DURATION}ms cubic-bezier(0.4,0,0.2,1), opacity ${DURATION}ms`;
+    previousEl.style.transition = `transform ${DURATION}ms cubic-bezier(0.4,0,0.2,1), opacity ${DURATION}ms`;
+    currentEl.style.transform   = 'translateX(100%)';
+    previousEl.style.transform  = 'translateX(0)';
+    previousEl.style.opacity    = '1';
+    setTimeout(finaliseBack, DURATION);
+  }
+
+  function snapBack() {
+    // Rubber-band back to original position
+    if (!currentEl || !previousEl) return;
+    currentEl.style.transition  = `transform ${DURATION}ms cubic-bezier(0.4,0,0.2,1), opacity ${DURATION}ms`;
+    previousEl.style.transition = `transform ${DURATION}ms cubic-bezier(0.4,0,0.2,1), opacity ${DURATION}ms`;
+    currentEl.style.transform   = 'translateX(0)';
+    previousEl.style.transform  = 'translateX(-28%)';
+    previousEl.style.opacity    = '0.6';
+    setTimeout(cleanupDrag, DURATION);
+  }
+
+  function finaliseBack() {
+    // Commit the back navigation — update state without re-animating
+    const target = getBackTarget();
+    if (!target) { cleanupDrag(); return; }
+
+    _navHistory.pop();
+    state.previousPage = state.currentPage;
+    state.currentPage  = target;
+    try { sessionStorage.setItem('icu_route', JSON.stringify({ type: 'page', page: target })); } catch {}
+
+    // Update nav sidebar highlight
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.querySelector(`[data-page="${target}"]`)?.classList.add('active');
+
+    // Topbar / headline for the target page
+    const isFullVP = (target === 'calendar');
+    document.querySelector('.topbar')?.classList.toggle('topbar--hidden', isFullVP);
+    document.querySelector('.page-headline')?.classList.toggle('page-headline--hidden', isFullVP);
+
+    const pill = document.getElementById('dateRangePill');
+    if (pill) pill.style.display = (target === 'dashboard') ? 'flex' : 'none';
+
+    const info = {
+      dashboard: ['Dashboard', `Overview · Last ${state.rangeDays} days`],
+      activities: ['Activities', 'All recorded rides & workouts'],
+      calendar:   ['Calendar', 'Planned workouts & events'],
+      fitness:    ['Fitness', 'CTL · ATL · TSB history'],
+      power:      ['Power Curve', 'Best efforts across durations'],
+      zones:      ['Training Zones', 'Time in zone breakdown'],
+      settings:   ['Settings', 'Account & connection'],
+      workout:    ['Create Workout', 'Build & export custom cycling workouts'],
+      guide:      ['Training Guide', 'Understanding CTL · ATL · TSB & training load']
+    };
+    const [title, sub] = info[target] || ['CycleIQ', ''];
+    document.getElementById('pageTitle').textContent    = title;
+    document.getElementById('pageSubtitle').textContent = sub;
+
+    cleanupDrag();
+
+    // Re-render target page if needed
+    if (target === 'calendar') renderCalendar();
+    if (target === 'fitness')  renderFitnessPage();
+  }
+
+  function cleanupDrag() {
+    if (currentEl) {
+      currentEl.classList.remove('page-dragging', 'active');
+      currentEl.style.cssText = '';
+    }
+    if (previousEl) {
+      previousEl.classList.remove('page-dragging');
+      // If we just committed the back nav, previousEl is now the active page
+      if (state.currentPage && previousEl.id === 'page-' + state.currentPage) {
+        previousEl.classList.add('active');
+      }
+      previousEl.style.cssText = '';
+    }
+    document.getElementById('pageContent')?.classList.remove('page-content--transitioning');
+    tracking   = false;
+    committed  = false;
+    currentEl  = null;
+    previousEl = null;
+    if (snapRAF) { cancelAnimationFrame(snapRAF); snapRAF = null; }
+  }
+
+  document.addEventListener('touchstart', (e) => {
+    // Only handle single-touch starting within the left edge zone
+    if (e.touches.length !== 1) return;
+    const x = e.touches[0].clientX;
+    if (x > EDGE_ZONE) return;
+
+    // Need a back target
+    if (!getBackTarget()) return;
+
+    touchStartX = x;
+    touchStartY = e.touches[0].clientY;
+    tracking    = true;
+    committed   = false;
+
+    // Prepare elements
+    const cur  = state.currentPage;
+    const prev = getBackTarget();
+    currentEl  = cur  ? document.getElementById('page-' + cur)  : null;
+    previousEl = prev ? document.getElementById('page-' + prev) : null;
+
+    if (!currentEl || !previousEl) { tracking = false; return; }
+
+    // Make both visible and position them
+    document.getElementById('pageContent')?.classList.add('page-content--transitioning');
+    currentEl.classList.add('page-dragging', 'active');
+    previousEl.classList.add('page-dragging', 'active');
+    previousEl.style.transform = 'translateX(-28%)';
+    previousEl.style.opacity   = '0.6';
+
+  }, { passive: true });
+
+  document.addEventListener('touchmove', (e) => {
+    if (!tracking) return;
+    const dx = e.touches[0].clientX - touchStartX;
+    const dy = Math.abs(e.touches[0].clientY - touchStartY);
+
+    // If the user is mostly scrolling vertically, cancel the swipe
+    if (dy > AXIS_LOCK && dx < COMMIT_DIST) { snapBack(); tracking = false; return; }
+
+    // Only track rightward drag
+    if (dx < 0) return;
+
+    if (snapRAF) cancelAnimationFrame(snapRAF);
+    snapRAF = requestAnimationFrame(() => applyDrag(Math.max(0, dx)));
+
+    if (dx >= COMMIT_DIST) committed = true;
+  }, { passive: true });
+
+  document.addEventListener('touchend', (e) => {
+    if (!tracking) return;
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    tracking = false;
+
+    if (committed || dx >= COMMIT_DIST) {
+      snapForward();
+    } else {
+      snapBack();
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchcancel', () => {
+    if (tracking) snapBack();
+  }, { passive: true });
 })();
