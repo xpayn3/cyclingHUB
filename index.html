@@ -453,6 +453,26 @@
 
                 <!-- ==================== DASHBOARD ==================== -->
                 <div class="page active" id="page-dashboard">
+
+                    <!-- ── Recent Activity ── -->
+                    <div class="section-label" id="recentActSectionLabel" style="display:none">Last workout</div>
+                    <div class="card card--clickable" id="recentActivityCard" style="display:none">
+                        <div class="recent-act-body">
+                            <div class="recent-act-info">
+                                <div class="recent-act-header">
+                                    <div class="recent-act-icon" id="recentActIcon"></div>
+                                    <div class="recent-act-text">
+                                        <div class="recent-act-name" id="recentActName">—</div>
+                                        <div class="recent-act-date" id="recentActDate">—</div>
+                                    </div>
+                                </div>
+                                <div id="recentActTss"></div>
+                                <div class="recent-act-stats" id="recentActStats"></div>
+                            </div>
+                            <div class="recent-act-map" id="recentActMap"></div>
+                        </div>
+                    </div>
+
                     <div class="stat-grid-label">This week <span id="statGridWeekRange"></span></div>
                     <div class="stat-grid">
                         <div class="stat-card">
@@ -589,30 +609,6 @@
                             <div class="stat-delta neutral" id="statPowerDelta">
                                 Sync to load
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- ── Recent Activity ── -->
-                    <div class="card" id="recentActivityCard" style="display:none">
-                        <div class="card-header">
-                            <div>
-                                <div class="card-title">Recent Activity</div>
-                                <div class="card-subtitle" id="recentActSubtitle">Latest ride</div>
-                            </div>
-                            <button class="btn btn-ghost" id="recentActViewBtn">View →</button>
-                        </div>
-                        <div class="recent-act-body">
-                            <div class="recent-act-info">
-                                <div class="recent-act-header">
-                                    <div class="recent-act-icon" id="recentActIcon"></div>
-                                    <div>
-                                        <div class="recent-act-name" id="recentActName">—</div>
-                                        <div class="recent-act-date" id="recentActDate">—</div>
-                                    </div>
-                                </div>
-                                <div class="recent-act-stats" id="recentActStats"></div>
-                            </div>
-                            <div class="recent-act-map" id="recentActMap"></div>
                         </div>
                     </div>
 

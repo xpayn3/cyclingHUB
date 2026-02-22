@@ -864,8 +864,13 @@ async function renderRecentActivity() {
   const card = document.getElementById('recentActivityCard');
   if (!card) return;
 
+  const sectionLabel = document.getElementById('recentActSectionLabel');
   const pool = (state.activities || []).filter(a => !isEmptyActivity(a));
-  if (!pool.length) { card.style.display = 'none'; return; }
+  if (!pool.length) {
+    card.style.display = 'none';
+    if (sectionLabel) sectionLabel.style.display = 'none';
+    return;
+  }
 
   const a   = pool[0];
   const actId = a.id || a.icu_activity_id;
@@ -881,24 +886,20 @@ async function renderRecentActivity() {
     ? dateObj.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
     : '';
 
-  document.getElementById('recentActName').textContent    = name;
-  document.getElementById('recentActDate').textContent    = dateFmt + (timeFmt ? ' · ' + timeFmt : '');
-  document.getElementById('recentActSubtitle').textContent = fmtDate(dateStr);
+  document.getElementById('recentActName').textContent = name;
+  document.getElementById('recentActDate').textContent = dateFmt + (timeFmt ? ' · ' + timeFmt : '');
 
   // Sport icon
   const iconEl = document.getElementById('recentActIcon');
   if (iconEl) iconEl.innerHTML = activityTypeIcon(a);
 
-  // View button
-  const viewBtn = document.getElementById('recentActViewBtn');
-  if (viewBtn) viewBtn.onclick = () => navigateToActivity(a);
+  // Whole card is clickable
+  card.onclick = () => navigateToActivity(a);
 
   // Stats
   const dist  = actVal(a, 'distance', 'icu_distance');
   const secs  = actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time', 'icu_elapsed_time');
   const elev  = actVal(a, 'total_elevation_gain', 'icu_total_elevation_gain');
-  const watts = actVal(a, 'icu_weighted_avg_watts', 'average_watts', 'icu_average_watts');
-  const hr    = actVal(a, 'average_heartrate', 'icu_average_heartrate');
   const tss   = actVal(a, 'icu_training_load', 'tss');
   const speed = actVal(a, 'average_speed', 'icu_average_speed');
 
@@ -907,23 +908,31 @@ async function renderRecentActivity() {
   const sFmt = speed > 0 ? fmtSpeed(speed) : null;
 
   const statItems = [
-    dFmt   && { icon: '📏', val: dFmt.val,           unit: dFmt.unit,  lbl: 'Distance' },
-    secs   && { icon: '⏱',  val: fmtDur(secs),        unit: '',         lbl: 'Time' },
-    eFmt   && { icon: '⛰',  val: eFmt.val,            unit: eFmt.unit,  lbl: 'Elevation' },
-    sFmt   && { icon: '💨',  val: sFmt.val,            unit: sFmt.unit,  lbl: 'Avg Speed' },
-    watts  && { icon: '⚡',  val: Math.round(watts),   unit: 'w',        lbl: 'Avg Power' },
-    hr     && { icon: '❤️', val: Math.round(hr),       unit: 'bpm',      lbl: 'Avg HR' },
-    tss    && { icon: '🔥',  val: Math.round(tss),     unit: 'TSS',      lbl: 'Load' },
+    dFmt && { val: dFmt.val, unit: dFmt.unit, lbl: 'Distance' },
+    secs && { val: fmtDur(secs), unit: '',    lbl: 'Time' },
+    eFmt && { val: eFmt.val, unit: eFmt.unit, lbl: 'Elevation' },
+    sFmt && { val: sFmt.val, unit: sFmt.unit, lbl: 'Avg Speed' },
   ].filter(Boolean);
+
+  const tssPill = tss > 0
+    ? `<div class="ra-tss">
+        <div class="ra-tss-lbl">Training Load</div>
+        <div class="ra-tss-val">${Math.round(tss)}<span> TSS</span></div>
+      </div>`
+    : '';
+
+  const tssEl = document.getElementById('recentActTss');
+  if (tssEl) tssEl.innerHTML = tssPill;
 
   document.getElementById('recentActStats').innerHTML = statItems.map(s =>
     `<div class="ra-stat">
-      <div class="ra-stat-val">${s.val}<span class="ra-stat-unit"> ${s.unit}</span></div>
       <div class="ra-stat-lbl">${s.lbl}</div>
+      <div class="ra-stat-val">${s.val}${s.unit ? `<span class="ra-stat-unit"> ${s.unit}</span>` : ''}</div>
     </div>`
   ).join('');
 
   card.style.display = '';
+  if (sectionLabel) sectionLabel.style.display = '';
 
   // Map preview — destroy previous instance first
   if (state.recentActivityMap) {
@@ -967,8 +976,9 @@ async function renderRecentActivity() {
         attributionControl: false,
         boxZoom:            false,
       });
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        subdomains: 'abcd', maxZoom: 19,
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19,
+        attribution: '',
       }).addTo(map);
 
       L.polyline(points, { color: '#00e5a0', weight: 3, opacity: 1 }).addTo(map);
@@ -1130,6 +1140,8 @@ function resetDashboard() {
   if (state.recentActivityMap)  { state.recentActivityMap.remove();   state.recentActivityMap  = null; }
   const rac = document.getElementById('recentActivityCard');
   if (rac) rac.style.display = 'none';
+  const racLabel = document.getElementById('recentActSectionLabel');
+  if (racLabel) racLabel.style.display = 'none';
   state.powerCurve = null; state.powerCurveRange = null;
   const zc = document.getElementById('zoneDistCard');
   if (zc) zc.style.display = 'none';
@@ -4443,25 +4455,34 @@ function renderActivityMap(latlng, streams) {
           `<button class="map-mode-btn${m.key === 'default' ? ' active' : ''}" data-mode="${m.key}">
              <span class="map-mode-icon">${m.icon}</span>${m.label}
            </button>`
-        ).join('') +
-        `<button class="map-layer-btn" id="mapLayerToggle" title="Toggle satellite imagery">
-           <span class="map-mode-icon">🛰</span>Satellite
-         </button>`;
+        ).join('');
 
         togglesEl.querySelectorAll('.map-mode-btn').forEach(btn =>
           btn.addEventListener('click', () => applyColorMode(btn.dataset.mode)));
 
-        document.getElementById('mapLayerToggle')?.addEventListener('click', () => {
-          isSatellite = !isSatellite;
-          if (isSatellite) {
-            map.removeLayer(streetTile);
-            satelliteTile.addTo(map);
-          } else {
-            map.removeLayer(satelliteTile);
-            streetTile.addTo(map);
-          }
-          document.getElementById('mapLayerToggle')?.classList.toggle('active', isSatellite);
+        // Satellite toggle as a Leaflet control (bottom-left)
+        const SatControl = L.Control.extend({
+          options: { position: 'bottomleft' },
+          onAdd() {
+            const btn = L.DomUtil.create('button', 'map-sat-control');
+            btn.title = 'Toggle satellite imagery';
+            btn.innerHTML = '<span class="map-mode-icon">🛰</span>Satellite';
+            L.DomEvent.disableClickPropagation(btn);
+            L.DomEvent.on(btn, 'click', () => {
+              isSatellite = !isSatellite;
+              if (isSatellite) {
+                map.removeLayer(streetTile);
+                satelliteTile.addTo(map);
+              } else {
+                map.removeLayer(satelliteTile);
+                streetTile.addTo(map);
+              }
+              btn.classList.toggle('active', isSatellite);
+            });
+            return btn;
+          },
         });
+        new SatControl().addTo(map);
       }
 
       // ── Hover scrubbing ──────────────────────────────────────────────────
