@@ -4248,11 +4248,11 @@ function renderStreamCharts(streams, activity) {
 
   const scales = {
     x: {
-      grid:  { color: 'rgba(255,255,255,0.04)' },
-      ticks: { color: 'var(--text-muted)', maxTicksLimit: 8, font: { size: 10 } },
+      grid:  C_GRID,
+      ticks: { ...C_TICK, maxTicksLimit: 8 },
     },
-    yPower:   { display: hasPower,  position: 'left',  min: 0,  grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#00e5a0', font: { size: 10 }, maxTicksLimit: 5, callback: v => v + 'w' } },
-    yHR:      { display: hasHR,     position: 'right', min: 30, grid: { display: false },                  ticks: { color: '#ff6b35', font: { size: 10 }, maxTicksLimit: 5, callback: v => v + '' } },
+    yPower:   { display: hasPower,  position: 'left',  min: 0,  grid: C_GRID,              ticks: { ...C_TICK, maxTicksLimit: 5, callback: v => v + 'w' } },
+    yHR:      { display: hasHR,     position: 'right', min: 30, grid: { display: false },   ticks: { ...C_TICK, maxTicksLimit: 5, callback: v => v + ''  } },
     yCadence: { display: false, min: 0  },
     ySpeed:   { display: false, min: 0  },
     yAlt:     { display: false        },
