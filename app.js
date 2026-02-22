@@ -17,6 +17,7 @@ const state = {
   fitnessRangeDays: 90,
   currentActivityIdx: null,
   activityMap: null,
+  recentActivityMap: null,
   activityStreamsChart: null,
   activityPowerChart: null,
   activityHRChart: null,
@@ -857,6 +858,138 @@ function _refreshYearDropdown() {
 }
 
 /* ====================================================
+   RECENT ACTIVITY CARD (dashboard)
+==================================================== */
+async function renderRecentActivity() {
+  const card = document.getElementById('recentActivityCard');
+  if (!card) return;
+
+  const pool = (state.activities || []).filter(a => !isEmptyActivity(a));
+  if (!pool.length) { card.style.display = 'none'; return; }
+
+  const a   = pool[0];
+  const actId = a.id || a.icu_activity_id;
+
+  // Basic info
+  const name    = a.name || a.icu_name || 'Activity';
+  const dateStr = a.start_date_local || a.start_date || '';
+  const dateObj = dateStr ? new Date(dateStr) : null;
+  const dateFmt = dateObj
+    ? dateObj.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+    : '—';
+  const timeFmt = dateObj
+    ? dateObj.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+    : '';
+
+  document.getElementById('recentActName').textContent    = name;
+  document.getElementById('recentActDate').textContent    = dateFmt + (timeFmt ? ' · ' + timeFmt : '');
+  document.getElementById('recentActSubtitle').textContent = fmtDate(dateStr);
+
+  // Sport icon
+  const iconEl = document.getElementById('recentActIcon');
+  if (iconEl) iconEl.innerHTML = activityTypeIcon(a);
+
+  // View button
+  const viewBtn = document.getElementById('recentActViewBtn');
+  if (viewBtn) viewBtn.onclick = () => navigateToActivity(a);
+
+  // Stats
+  const dist  = actVal(a, 'distance', 'icu_distance');
+  const secs  = actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time', 'icu_elapsed_time');
+  const elev  = actVal(a, 'total_elevation_gain', 'icu_total_elevation_gain');
+  const watts = actVal(a, 'icu_weighted_avg_watts', 'average_watts', 'icu_average_watts');
+  const hr    = actVal(a, 'average_heartrate', 'icu_average_heartrate');
+  const tss   = actVal(a, 'icu_training_load', 'tss');
+  const speed = actVal(a, 'average_speed', 'icu_average_speed');
+
+  const dFmt = dist  > 0 ? fmtDist(dist)  : null;
+  const eFmt = elev  > 0 ? fmtElev(elev)  : null;
+  const sFmt = speed > 0 ? fmtSpeed(speed) : null;
+
+  const statItems = [
+    dFmt   && { icon: '📏', val: dFmt.val,           unit: dFmt.unit,  lbl: 'Distance' },
+    secs   && { icon: '⏱',  val: fmtDur(secs),        unit: '',         lbl: 'Time' },
+    eFmt   && { icon: '⛰',  val: eFmt.val,            unit: eFmt.unit,  lbl: 'Elevation' },
+    sFmt   && { icon: '💨',  val: sFmt.val,            unit: sFmt.unit,  lbl: 'Avg Speed' },
+    watts  && { icon: '⚡',  val: Math.round(watts),   unit: 'w',        lbl: 'Avg Power' },
+    hr     && { icon: '❤️', val: Math.round(hr),       unit: 'bpm',      lbl: 'Avg HR' },
+    tss    && { icon: '🔥',  val: Math.round(tss),     unit: 'TSS',      lbl: 'Load' },
+  ].filter(Boolean);
+
+  document.getElementById('recentActStats').innerHTML = statItems.map(s =>
+    `<div class="ra-stat">
+      <div class="ra-stat-val">${s.val}<span class="ra-stat-unit"> ${s.unit}</span></div>
+      <div class="ra-stat-lbl">${s.lbl}</div>
+    </div>`
+  ).join('');
+
+  card.style.display = '';
+
+  // Map preview — destroy previous instance first
+  if (state.recentActivityMap) {
+    state.recentActivityMap.remove();
+    state.recentActivityMap = null;
+  }
+  const mapEl = document.getElementById('recentActMap');
+  if (!mapEl) return;
+  mapEl.innerHTML = '';
+
+  // Fetch GPS
+  let latlng = null;
+  try { latlng = await fetchMapGPS(actId); } catch (_) {}
+
+  if (!latlng || latlng.length < 2) {
+    mapEl.innerHTML = '<div class="ra-map-empty">No GPS data</div>';
+    return;
+  }
+
+  const pairs = latlng.filter(p => Array.isArray(p) && p[0] != null && p[1] != null
+    && Math.abs(p[0]) <= 90 && Math.abs(p[1]) <= 180);
+  if (pairs.length < 2) {
+    mapEl.innerHTML = '<div class="ra-map-empty">No GPS data</div>';
+    return;
+  }
+
+  // Downsample
+  const step   = Math.max(1, Math.floor(pairs.length / 400));
+  const points = pairs.filter((_, i) => i % step === 0);
+  if (points[points.length - 1] !== pairs[pairs.length - 1]) points.push(pairs[pairs.length - 1]);
+
+  requestAnimationFrame(() => {
+    try {
+      const map = L.map(mapEl, {
+        zoomControl:        false,
+        scrollWheelZoom:    false,
+        dragging:           false,
+        doubleClickZoom:    false,
+        touchZoom:          false,
+        keyboard:           false,
+        attributionControl: false,
+        boxZoom:            false,
+      });
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        subdomains: 'abcd', maxZoom: 19,
+      }).addTo(map);
+
+      L.polyline(points, { color: '#00e5a0', weight: 3, opacity: 1 }).addTo(map);
+
+      const dotIcon = (color) => L.divIcon({
+        className: '',
+        html: `<div style="width:8px;height:8px;border-radius:50%;background:${color};border:2px solid rgba(255,255,255,0.9);box-shadow:0 0 3px rgba(0,0,0,0.5)"></div>`,
+        iconSize: [8, 8], iconAnchor: [4, 4],
+      });
+      L.marker(points[0],                 { icon: dotIcon('#00e5a0') }).addTo(map);
+      L.marker(points[points.length - 1], { icon: dotIcon('#888')    }).addTo(map);
+
+      const tempPoly = L.polyline(points);
+      map.fitBounds(tempPoly.getBounds(), { padding: [12, 12] });
+      map.invalidateSize();
+      state.recentActivityMap = map;
+    } catch (_) {}
+  });
+}
+
+/* ====================================================
    RENDER DASHBOARD
 ==================================================== */
 function renderDashboard() {
@@ -970,7 +1103,8 @@ function renderDashboard() {
   renderWeeklyChart(recent);
   renderAvgPowerChart(recent);
   renderZoneDist(recent);
-  renderPowerCurve(); // async — fetches if range changed
+  renderPowerCurve();      // async — fetches if range changed
+  renderRecentActivity();  // async — fetches GPS for map preview
 }
 
 function resetDashboard() {
@@ -993,6 +1127,9 @@ function resetDashboard() {
   if (state.powerCurveChart)    { state.powerCurveChart.destroy();    state.powerCurveChart    = null; }
   if (state.weekProgressChart)  { state.weekProgressChart.destroy();  state.weekProgressChart  = null; }
   if (state.efSparkChart)       { state.efSparkChart.destroy();       state.efSparkChart       = null; }
+  if (state.recentActivityMap)  { state.recentActivityMap.remove();   state.recentActivityMap  = null; }
+  const rac = document.getElementById('recentActivityCard');
+  if (rac) rac.style.display = 'none';
   state.powerCurve = null; state.powerCurveRange = null;
   const zc = document.getElementById('zoneDistCard');
   if (zc) zc.style.display = 'none';
@@ -1177,6 +1314,12 @@ function renderActivityList(containerId, activities) {
 /* ====================================================
    CHART STYLE TOKENS  (single source of truth)
 ==================================================== */
+// Custom positioner: always to the right of the cursor, never jumps vertically
+Chart.Tooltip.positioners.offsetFromCursor = function(items, eventPosition) {
+  if (!items.length) return false;
+  return { x: eventPosition.x + 14, y: eventPosition.y, xAlign: 'left', yAlign: 'center' };
+};
+
 const C_TOOLTIP = {
   backgroundColor: '#1e2330',
   borderColor:     '#252b3a',
@@ -1187,10 +1330,27 @@ const C_TOOLTIP = {
   boxWidth:        8,
   boxHeight:       8,
   boxPadding:      3,
+  caretSize:       0,
+  xAlign:          'left',
+  yAlign:          'center',
+  position:        'offsetFromCursor',
 };
 const C_TICK  = { color: '#525d72', font: { size: 10 } };
 const C_GRID  = { color: 'rgba(255,255,255,0.04)' };
 const C_NOGRID = { display: false };
+// Solid hover dots: auto-fill with the dataset's line colour, no border ring
+Chart.register({
+  id: 'solidHoverDots',
+  beforeUpdate(chart) {
+    chart.data.datasets.forEach(ds => {
+      ds.pointHoverBorderWidth = 0;
+      if (ds.borderColor && !ds._hoverColorOverridden) {
+        ds.pointHoverBackgroundColor = ds.borderColor;
+        ds._hoverColorOverridden = true;
+      }
+    });
+  }
+});
 // Standard scale pair — pass xGrid:false for bar charts
 function cScales({ xGrid = true, xExtra = {}, yExtra = {} } = {}) {
   return {
@@ -1350,7 +1510,7 @@ function renderWeekProgress(metric) {
           backgroundColor:     'transparent',
           borderWidth: 2,
           borderDash: [5, 4],
-          pointRadius: 3,
+          pointRadius: 5,
           pointBackgroundColor: 'rgba(136,145,168,0.5)',
           pointBorderColor:    'transparent',
           tension: 0.35,
@@ -1362,7 +1522,7 @@ function renderWeekProgress(metric) {
           borderColor:          m.color,
           backgroundColor:      m.dimColor,
           borderWidth: 2.5,
-          pointRadius:          thisWeekData.map((_, i) => i === todayIdx ? 6 : 3),
+          pointRadius:          thisWeekData.map((_, i) => i === todayIdx ? 9 : 5),
           pointBackgroundColor: thisWeekData.map((_, i) => i === todayIdx ? m.color : m.color + '99'),
           pointBorderColor:     thisWeekData.map((_, i) => i === todayIdx ? 'var(--bg-card)' : 'transparent'),
           pointBorderWidth: 2,
@@ -1385,7 +1545,7 @@ function renderWeekProgress(metric) {
           }
         }
       },
-      scales: cScales({ xGrid: false, yExtra: { maxTicksLimit: 4 } })
+      scales: cScales({ xGrid: false, yExtra: { maxTicksLimit: 4, display: false } })
     }
   });
 }
@@ -1549,7 +1709,7 @@ function renderTrainingStatus() {
         borderColor: '#00e5a0',
         backgroundColor: 'rgba(0,229,160,0.08)',
         borderWidth: 2,
-        pointRadius:          efs.map((_, i) => i === efs.length - 1 ? 5 : 2.5),
+        pointRadius:          efs.map((_, i) => i === efs.length - 1 ? 8 : 5),
         pointBackgroundColor: efs.map((_, i) => i === efs.length - 1 ? '#00e5a0' : 'rgba(0,229,160,0.6)'),
         pointBorderColor: 'transparent',
         fill: true,
@@ -1634,9 +1794,9 @@ function renderFitnessChart(activities, days) {
   state.fitnessChart = new Chart(ctx, {
     type: 'line',
     data: { labels, datasets: [
-      { label: 'CTL', data: ctlD, borderColor: '#00e5a0', backgroundColor: 'rgba(0,229,160,0.07)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.4, fill: true },
-      { label: 'ATL', data: atlD, borderColor: '#ff6b35', backgroundColor: 'rgba(255,107,53,0.05)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.4 },
-      { label: 'TSB', data: tsbD, borderColor: '#4a9eff', backgroundColor: 'rgba(74,158,255,0.05)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.4 }
+      { label: 'CTL', data: ctlD, borderColor: '#00e5a0', backgroundColor: 'rgba(0,229,160,0.07)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 7, tension: 0.4, fill: true },
+      { label: 'ATL', data: atlD, borderColor: '#ff6b35', backgroundColor: 'rgba(255,107,53,0.05)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 7, tension: 0.4 },
+      { label: 'TSB', data: tsbD, borderColor: '#4a9eff', backgroundColor: 'rgba(74,158,255,0.05)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 7, tension: 0.4 }
     ]},
     options: {
       responsive: true, maintainAspectRatio: false,
@@ -1724,7 +1884,7 @@ function renderAvgPowerChart(activities) {
           backgroundColor: 'transparent',
           borderWidth: 2,
           pointRadius: 0,
-          pointHoverRadius: 4,
+          pointHoverRadius: 7,
           tension: 0.4,
           order: 1
         }
@@ -1754,7 +1914,7 @@ const ZONE_COLORS = [
   'var(--purple)'  // Z6 Anaerobic
 ];
 const ZONE_NAMES    = ['Recovery', 'Endurance', 'Tempo', 'Threshold', 'VO₂max', 'Anaerobic'];
-const HR_ZONE_NAMES = ['Active Recovery', 'Aerobic Base', 'Aerobic', 'Threshold', 'VO₂max', 'Anaerobic', 'Neuromuscular'];
+const HR_ZONE_NAMES = ['Active Rec.', 'Aerobic Base', 'Aerobic', 'Threshold', 'VO₂max', 'Anaerobic', 'Neuromuscular'];
 const ZONE_TAGS     = ['Z1', 'Z2', 'Z3', 'Z4', 'Z5', 'Z6'];
 
 function renderZoneDist(activities) {
@@ -1955,7 +2115,7 @@ async function renderPowerCurve() {
         fill: true,
         tension: 0.4,
         pointRadius: 0,
-        pointHoverRadius: 4,
+        pointHoverRadius: 7,
         borderWidth: 2,
       }]
     },
@@ -2460,9 +2620,9 @@ function renderFitnessHistoryChart(days) {
   state.fitnessPageChart = new Chart(canvas.getContext('2d'), {
     type: 'line',
     data: { labels, datasets: [
-      { label: 'CTL', data: ctlD, borderColor: '#00e5a0', backgroundColor: 'rgba(0,229,160,0.08)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.4, fill: true },
-      { label: 'ATL', data: atlD, borderColor: '#ff6b35', backgroundColor: 'rgba(255,107,53,0.05)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.4 },
-      { label: 'TSB', data: tsbD, borderColor: '#4a9eff', backgroundColor: 'rgba(74,158,255,0.05)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.4 }
+      { label: 'CTL', data: ctlD, borderColor: '#00e5a0', backgroundColor: 'rgba(0,229,160,0.08)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 7, tension: 0.4, fill: true },
+      { label: 'ATL', data: atlD, borderColor: '#ff6b35', backgroundColor: 'rgba(255,107,53,0.05)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 7, tension: 0.4 },
+      { label: 'TSB', data: tsbD, borderColor: '#4a9eff', backgroundColor: 'rgba(74,158,255,0.05)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 7, tension: 0.4 }
     ]},
     options: chartOpts
   });
@@ -2954,6 +3114,8 @@ async function navigateToActivity(actKey, fromStep = false) {
   document.getElementById('page-activity').classList.add('active');
   // Swap topbar: ensure it's visible (calendar hides it), hide date-range pill; show back + prev/next
   document.querySelector('.topbar')?.classList.remove('topbar--hidden');
+  const _calLabel = document.getElementById('calTopbarMonth');
+  if (_calLabel) _calLabel.style.display = 'none';
   const _pill = document.getElementById('dateRangePill');
   if (_pill) _pill.style.display = 'none';
   const _back = document.getElementById('detailTopbarBack');
@@ -3728,11 +3890,12 @@ function renderDetailComparison(a) {
       <div class="detail-cmp-label">${label}</div>
       <div class="detail-cmp-bar-wrap">
         <div class="detail-cmp-bar-fill" style="width:${fillPct.toFixed(1)}%;background:${fillColor}"></div>
-        <div class="detail-cmp-bar-avg" style="left:${avgLinePct}%"></div>
+        <div class="detail-cmp-bar-avg" style="left:${avgLinePct}%">
+          <div class="detail-cmp-avg-val">avg ${fmtFn(avg)}</div>
+        </div>
       </div>
       <div class="detail-cmp-vals">
         <div class="detail-cmp-this">${fmtFn(actual)}</div>
-        <div class="detail-cmp-avg-val">avg ${fmtFn(avg)}</div>
         <div class="detail-cmp-pct ${cls}">${pctLabel}</div>
       </div>
     </div>`;
@@ -4399,7 +4562,7 @@ function renderStreamCharts(streams, activity) {
       backgroundColor: def.alpha > 0 ? def.color + Math.round(def.alpha * 255).toString(16).padStart(2, '0') : 'transparent',
       fill:            def.fill,
       pointRadius:     0,
-      pointHoverRadius: 3,
+      pointHoverRadius: 6,
       borderWidth:     def.borderWidth,
       tension:         0.3,
       spanGaps:        true,
@@ -4949,7 +5112,10 @@ async function renderDetailCurve(actId, streams) {
 
   const rideData = toPoints(raw);
   const yearData = toPoints(rawYear);
-  const maxSecs  = [...rideData, ...yearData].reduce((m, pt) => Math.max(m, pt.x), 0) || 3600;
+  // Use the ride's last duration as x-axis max so both lines reach the right edge
+  const rideMaxX = rideData.length ? rideData[rideData.length - 1].x : 0;
+  const yearMaxX = yearData.length ? yearData[yearData.length - 1].x : 0;
+  const maxSecs  = rideMaxX || yearMaxX || 3600;
 
   const datasets = [];
   if (yearData.length)
@@ -4957,14 +5123,14 @@ async function renderDetailCurve(actId, streams) {
       label: '1 year', data: yearData,
       borderColor: '#fb923c', backgroundColor: 'rgba(251,146,60,0.04)',
       borderWidth: 1.5, borderDash: [4, 3], fill: false,
-      tension: 0.4, pointRadius: 0, pointHoverRadius: 3,
+      tension: 0.4, pointRadius: 0, pointHoverRadius: 6,
     });
   if (rideData.length)
     datasets.push({
       label: 'This ride', data: rideData,
       borderColor: '#00e5a0', backgroundColor: 'rgba(0,229,160,0.08)',
       borderWidth: 2.5, fill: true,
-      tension: 0.4, pointRadius: 0, pointHoverRadius: 4,
+      tension: 0.4, pointRadius: 0, pointHoverRadius: 7,
     });
 
   if (state.activityCurveChart) { state.activityCurveChart.destroy(); state.activityCurveChart = null; }
@@ -5109,14 +5275,14 @@ async function renderDetailHRCurve(streams) {
       label: '1 year', data: yearData,
       borderColor: '#fb923c', backgroundColor: 'rgba(251,146,60,0.04)',
       borderWidth: 1.5, borderDash: [4, 3], fill: false,
-      tension: 0.4, pointRadius: 0, pointHoverRadius: 3,
+      tension: 0.4, pointRadius: 0, pointHoverRadius: 6,
     });
   if (rideData.length)
     datasets.push({
       label: 'This ride', data: rideData,
       borderColor: '#f87171', backgroundColor: 'rgba(248,113,113,0.08)',
       borderWidth: 2.5, fill: true,
-      tension: 0.4, pointRadius: 0, pointHoverRadius: 4,
+      tension: 0.4, pointRadius: 0, pointHoverRadius: 7,
     });
 
   if (state.activityHRCurveChart) { state.activityHRCurveChart.destroy(); state.activityHRCurveChart = null; }
@@ -5150,7 +5316,7 @@ async function renderDetailHRCurve(streams) {
 function streamChartConfig(labels, data, color, fill, unit) {
   return {
     type: 'line',
-    data: { labels, datasets: [{ data, borderColor: color, backgroundColor: fill, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.4, fill: true, spanGaps: true }] },
+    data: { labels, datasets: [{ data, borderColor: color, backgroundColor: fill, borderWidth: 2, pointRadius: 0, pointHoverRadius: 7, tension: 0.4, fill: true, spanGaps: true }] },
     options: {
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
