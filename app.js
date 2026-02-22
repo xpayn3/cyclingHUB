@@ -30,6 +30,7 @@ const state = {
   weekStartDay: 1,          // 0=Sunday, 1=Monday
   efSparkChart: null,
   calMonth: null,
+  calSelectedDate: null,
   currentPage: 'dashboard',
   previousPage: null,
   synced: false,
@@ -728,9 +729,6 @@ function setRange(days) {
   if (lbl) lbl.textContent = rangeLabel(days);
   if (state.synced) renderDashboard();
 }
-
-// Alias used by the settings page default-range buttons
-function setDefaultRange(days) { setRange(days); }
 
 /* ====================================================
    ACTIVITIES SORT
@@ -1881,8 +1879,7 @@ async function renderPowerCurve() {
     const newest = toDateStr(new Date());
     const oldest = toDateStr(daysAgo(state.rangeDays));
     // Try dominant type first, then common fallbacks
-    const types = [dominantRideType(), 'Ride', 'VirtualRide', 'MountainBikeRide']
-      .filter((t, i, a) => a.indexOf(t) === i); // dedupe
+    const types = CYCLING_POWER_TYPES();
     let raw = null;
     for (const type of types) {
       try {
@@ -1890,7 +1887,8 @@ async function renderPowerCurve() {
           `/athlete/${state.athleteId}/power-curves?type=${type}&oldest=${oldest}&newest=${newest}`
         );
         const candidate = Array.isArray(data) ? data[0] : (data.list?.[0] ?? data);
-        if (candidate && Array.isArray(candidate.secs) && candidate.secs.length > 0) {
+        if (candidate && Array.isArray(candidate.secs) && candidate.secs.length > 0 &&
+            Array.isArray(candidate.watts) && candidate.watts.some(w => w != null && w > 0)) {
           raw = candidate; break;
         }
       } catch (e) { /* try next type */ }
@@ -2645,7 +2643,47 @@ function calNextMonth() {
 function calGoToday() {
   const now = new Date();
   state.calMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  state.calSelectedDate = toDateStr(now);
   renderCalendar();
+}
+
+// Returns a tiny SVG intensity bar icon (4 ascending bars, bottom-aligned)
+function calIntensityBars(tss) {
+  if (!tss || tss <= 0) return '';
+  const level  = tss < 30 ? 1 : tss < 60 ? 2 : tss < 100 ? 3 : 4;
+  const color  = level === 1 ? '#4caf7d' : level === 2 ? '#e0c040' : level === 3 ? '#f0a500' : '#e84b3a';
+  const dim    = 'rgba(255,255,255,0.12)';
+  const W = 2, GAP = 1.5, H = 10;
+  const heights = [3, 5, 7, 10];
+  const totalW  = 4 * W + 3 * GAP; // 12.5
+  const rects   = heights.map((h, i) => {
+    const x    = i * (W + GAP);
+    const fill = i < level ? color : dim;
+    return `<rect x="${x}" y="${H - h}" width="${W}" height="${h}" rx="0.8" fill="${fill}"/>`;
+  }).join('');
+  return `<svg class="cal-intensity" width="${totalW}" height="${H}" viewBox="0 0 ${totalW} ${H}" xmlns="http://www.w3.org/2000/svg">${rects}</svg>`;
+}
+
+// Returns 'indoor' or 'outdoor' for an activity
+function calActivityEnvironment(a) {
+  const t = (a.sport_type || a.type || '').toLowerCase();
+  if (a.trainer || t.includes('virtual') || t.includes('treadmill') || t.includes('indoor'))
+    return 'indoor';
+  return 'outdoor';
+}
+
+// Returns a small inline SVG icon for a sport type (12×12, stroked)
+function calSportIcon(a) {
+  const t = (a.sport_type || a.type || '').toLowerCase();
+  const p = 'width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="cal-card-icon"';
+  if (t.includes('run'))
+    return `<svg ${p}><circle cx="12" cy="5" r="2"/><path d="M10 9l-2 5h8l-2-5"/><path d="M8 14l-1 5m9-5l1 5"/><path d="M10 9c0 0-2 2-2 4"/><path d="M14 9c0 0 2 2 2 4"/></svg>`;
+  if (t.includes('swim'))
+    return `<svg ${p}><path d="M2 14c2-3 4-3 6 0s4 3 6 0 4-3 6 0"/><path d="M2 18c2-3 4-3 6 0s4 3 6 0 4-3 6 0"/><circle cx="15" cy="7" r="2"/><path d="M17 9l-4 3-3-2"/></svg>`;
+  if (t.includes('virtual') || t.includes('workout'))
+    return `<svg ${p}><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>`;
+  // Ride / default bicycle
+  return `<svg ${p}><circle cx="6" cy="16" r="3.5"/><circle cx="18" cy="16" r="3.5"/><path d="M6 16l3-8h6l3 8"/><path d="M9 8l-3 8"/><path d="M12 8v4"/></svg>`;
 }
 
 function calEventClass(a) {
@@ -2657,6 +2695,18 @@ function calEventClass(a) {
   return 'cal-event--other';
 }
 
+// Build the date → [{a, stateIdx}] lookup (used by calendar and day panel)
+function buildCalActMap() {
+  const actMap = {};
+  state.activities.forEach((a, stateIdx) => {
+    const d = (a.start_date_local || a.start_date || '').slice(0, 10);
+    if (!d) return;
+    if (!actMap[d]) actMap[d] = [];
+    actMap[d].push({ a, stateIdx });
+  });
+  return actMap;
+}
+
 function renderCalendar() {
   const m     = getCalMonth();
   const year  = m.getFullYear();
@@ -2666,35 +2716,26 @@ function renderCalendar() {
   document.getElementById('calMonthLabel').textContent =
     m.toLocaleString('default', { month: 'long', year: 'numeric' });
 
-  // Build date → [{a, stateIdx}] lookup from all activities
-  const actMap = {};
-  state.activities.forEach((a, stateIdx) => {
-    const d = (a.start_date_local || a.start_date || '').slice(0, 10);
-    if (!d) return;
-    if (!actMap[d]) actMap[d] = [];
-    actMap[d].push({ a, stateIdx });
-  });
+  const actMap   = buildCalActMap();
+  const todayStr = toDateStr(new Date());
+
+  // Default selected date to today on first render
+  if (!state.calSelectedDate) state.calSelectedDate = todayStr;
 
   // ── Month stats ──
   let totalActs = 0, totalDist = 0, totalTSS = 0, totalSecs = 0;
-  const dailyTSSMap = {};
   Object.entries(actMap).forEach(([d, acts]) => {
     const [y, mo] = d.split('-').map(Number);
     if (y === year && mo === month + 1) {
-      let dayTSS = 0;
       acts.forEach(({ a }) => {
         if (isEmptyActivity(a)) return;
         totalActs++;
         totalDist += actVal(a, 'distance', 'icu_distance');
-        const tss = actVal(a, 'icu_training_load', 'tss');
-        totalTSS  += tss;
-        dayTSS    += tss;
+        totalTSS  += actVal(a, 'icu_training_load', 'tss');
         totalSecs += actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time', 'icu_elapsed_time');
       });
-      if (dayTSS > 0) dailyTSSMap[d] = dayTSS;
     }
   });
-  const maxDayTSS = Math.max(...Object.values(dailyTSSMap), 1);
 
   const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   setEl('calStatActivities', totalActs || '0');
@@ -2702,16 +2743,9 @@ function renderCalendar() {
   setEl('calStatTSS',        totalTSS > 0  ? Math.round(totalTSS) : '—');
   setEl('calStatTime',       totalSecs > 0 ? fmtDur(totalSecs) : '—');
 
-  // ── Build grid cells ──
-  const firstDay = new Date(year, month, 1);
-  const lastDay  = new Date(year, month + 1, 0);
-  const todayStr = toDateStr(new Date());
-  // How many cells to pad before the 1st, based on configured week start day
-  const startDow = (firstDay.getDay() - state.weekStartDay + 7) % 7;
-
-  // Update DOW header labels to match the configured week start
-  const calDowNames  = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const calWeekendDays = [0, 6]; // 0=Sunday, 6=Saturday (JS getDay values)
+  // ── DOW header labels (respects configured week start) ──
+  const calDowNames    = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const calWeekendDays = [0, 6];
   const dowRow = document.querySelector('.cal-dow-row');
   if (dowRow) {
     dowRow.innerHTML = '';
@@ -2724,11 +2758,16 @@ function renderCalendar() {
     }
   }
 
+  // ── Build grid cells ──
+  const firstDay = new Date(year, month, 1);
+  const lastDay  = new Date(year, month + 1, 0);
+  const startDow = (firstDay.getDay() - state.weekStartDay + 7) % 7;
+
   const cells = [];
   for (let i = startDow - 1; i >= 0; i--)
-    cells.push({ date: new Date(year, month, -i),     thisMonth: false });
+    cells.push({ date: new Date(year, month, -i),      thisMonth: false });
   for (let d = 1; d <= lastDay.getDate(); d++)
-    cells.push({ date: new Date(year, month, d),      thisMonth: true });
+    cells.push({ date: new Date(year, month, d),       thisMonth: true });
   const rem = cells.length % 7;
   if (rem > 0)
     for (let i = 1; i <= 7 - rem; i++)
@@ -2739,53 +2778,127 @@ function renderCalendar() {
     const dateStr   = toDateStr(date);
     const acts      = actMap[dateStr] || [];
     const realActs  = acts.filter(({ a }) => !isEmptyActivity(a));
-    const isToday   = dateStr === todayStr;
-    const dow       = date.getDay();
-    const isWeekend = dow === 0 || dow === 6;
+    const isToday    = dateStr === todayStr;
+    const isSelected = dateStr === state.calSelectedDate;
+    const dow        = date.getDay();
+    const isWeekend  = dow === 0 || dow === 6;
 
     const cls = [
       'cal-day',
       !thisMonth  ? 'cal-day--other-month' : '',
       isToday     ? 'cal-day--today'       : '',
+      isSelected  ? 'cal-day--selected'    : '',
       isWeekend   ? 'cal-day--weekend'     : '',
     ].filter(Boolean).join(' ');
 
-    const maxShow = 3;
-    const shown   = realActs.slice(0, maxShow);
-    const extra   = realActs.length - maxShow;
+    // ── Desktop: mini activity cards (hidden on mobile via CSS) ──
+    const maxCards = 2;
+    const shownActs = realActs.slice(0, maxCards);
+    const extraActs = realActs.length - maxCards;
 
-    const eventsHtml = shown.map(({ a, stateIdx }) => {
+    const cardsHtml = shownActs.map(({ a, stateIdx }) => {
       const { title: name } = cleanActivityName((a.name && a.name.trim()) ? a.name.trim() : activityFallbackName(a));
       const dist = (a.distance || 0) / 1000;
       const secs = a.moving_time || a.elapsed_time || 0;
-      const meta = dist > 0.1 ? dist.toFixed(1) + ' km'
-                 : secs > 0   ? fmtDur(secs)
-                 : '';
-      const tc = calEventClass(a);
-      return `<div class="cal-event ${tc}" onclick="navigateToActivity(${stateIdx})">
-        <div class="cal-event-name">${name}</div>
-        ${meta ? `<div class="cal-event-meta">${meta}</div>` : ''}
+      const statParts = [];
+      if (secs > 0)   statParts.push(fmtDur(secs));
+      if (dist > 0.1) statParts.push(dist.toFixed(1) + ' km');
+      const stats = statParts.join(' · ');
+      const tss   = actVal(a, 'icu_training_load', 'tss');
+      const tc    = calEventClass(a);
+      const icon  = calSportIcon(a);
+      const sport = tc.replace('cal-event--', '');
+      const bars  = calIntensityBars(tss);
+      const env   = calActivityEnvironment(a);
+      return `<div class="cal-day-card ${tc}" onclick="event.stopPropagation();navigateToActivity(${stateIdx})">
+        <div class="cal-day-card-top">
+          <div class="cal-card-icon-box ${sport}">${icon}</div>
+          <span class="cal-day-card-stats">${stats}</span>
+          ${bars}
+        </div>
+        <div class="cal-day-card-name">
+          <span class="cal-env-tag cal-env-tag--${env}">${env === 'indoor' ? 'Indoor' : 'Outdoor'}</span>${name}
+        </div>
       </div>`;
     }).join('');
+    const moreHtml = extraActs > 0 ? `<div class="cal-day-more">+${extraActs} more</div>` : '';
+    const desktopHtml = `<div class="cal-day-cards">${cardsHtml}${moreHtml}</div>`;
 
-    const moreHtml = extra > 0 ? `<div class="cal-more">+${extra} more</div>` : '';
+    // ── Mobile: dot indicators (hidden on desktop via CSS) ──
+    const seenTypes = new Set();
+    const dots = realActs.reduce((acc, { a }) => {
+      const tc = calEventClass(a);
+      if (!seenTypes.has(tc) && seenTypes.size < 3) {
+        seenTypes.add(tc);
+        acc += `<div class="cal-dot ${tc}"></div>`;
+      }
+      return acc;
+    }, '');
+    const mobileHtml = `<div class="cal-dots">${dots}</div>`;
 
-    // TSS load bar
-    const dayTSS = dailyTSSMap[dateStr] || 0;
-    const barPct = dayTSS > 0 ? Math.max(8, Math.round(dayTSS / maxDayTSS * 100)) : 0;
-    const firstTc = realActs.length > 0 ? calEventClass(realActs[0].a) : '';
-    const barColor = firstTc.includes('run')  ? 'var(--orange)'
-                   : firstTc.includes('swim') ? 'var(--blue)'
-                   : firstTc.includes('virtual') ? 'var(--purple)'
-                   : 'var(--accent)';
-    const tssBarHtml = barPct > 0
-      ? `<div class="cal-day-tss"><div class="cal-day-tss-bar" style="width:${barPct}%;background:${barColor}"></div></div>`
-      : '';
-
-    return `<div class="${cls}">
+    return `<div class="${cls}" data-date="${dateStr}" onclick="selectCalDay('${dateStr}')">
       <div class="cal-day-num">${date.getDate()}</div>
-      <div class="cal-events">${eventsHtml}${moreHtml}</div>
-      ${tssBarHtml}
+      ${desktopHtml}
+      ${mobileHtml}
+    </div>`;
+  }).join('');
+
+  // Render the day panel for the currently selected date
+  renderCalDayList(state.calSelectedDate, actMap);
+}
+
+// Select a day in the calendar and update the bottom panel
+function selectCalDay(dateStr) {
+  state.calSelectedDate = dateStr;
+  // Update visual selection on grid cells without full re-render
+  document.querySelectorAll('#calGrid .cal-day').forEach(el => {
+    el.classList.toggle('cal-day--selected', el.dataset.date === dateStr);
+  });
+  renderCalDayList(dateStr);
+}
+
+// Render the activity list in the bottom day panel
+function renderCalDayList(dateStr, actMap) {
+  const header = document.getElementById('calDayPanelHeader');
+  const list   = document.getElementById('calDayPanelList');
+  if (!header || !list) return;
+
+  // Format header: "Monday, February 22" (parse as local date to avoid UTC offset shift)
+  const [y, mo, d] = dateStr.split('-').map(Number);
+  const dateObj = new Date(y, mo - 1, d);
+  header.textContent = dateObj.toLocaleDateString('default', {
+    weekday: 'long', month: 'long', day: 'numeric',
+  });
+
+  // Build actMap lazily if not passed in
+  const map = actMap || buildCalActMap();
+  const acts = (map[dateStr] || []).filter(({ a }) => !isEmptyActivity(a));
+
+  if (acts.length === 0) {
+    list.innerHTML = '<div class="cal-day-empty">No activities</div>';
+    return;
+  }
+
+  const chevronSvg = `<svg class="cal-list-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
+
+  list.innerHTML = acts.map(({ a, stateIdx }) => {
+    const { title: name } = cleanActivityName((a.name && a.name.trim()) ? a.name.trim() : activityFallbackName(a));
+    const dist = (a.distance || 0) / 1000;
+    const secs = a.moving_time || a.elapsed_time || 0;
+    const tss  = actVal(a, 'icu_training_load', 'tss');
+    const meta = [
+      dist > 0.1 ? dist.toFixed(1) + ' km' : '',
+      secs > 0   ? fmtDur(secs) : '',
+    ].filter(Boolean).join(' · ');
+    const tc = calEventClass(a);
+    return `<div class="cal-list-item" onclick="navigateToActivity(${stateIdx})">
+      <div class="cal-list-dot ${tc}"></div>
+      <div class="cal-list-info">
+        <div class="cal-list-name">${name}</div>
+        ${meta ? `<div class="cal-list-meta">${meta}</div>` : ''}
+      </div>
+      ${tss > 0 ? `<div class="cal-list-tss">${Math.round(tss)} TSS</div>` : ''}
+      ${chevronSvg}
     </div>`;
   }).join('');
 }
@@ -2793,6 +2906,8 @@ function renderCalendar() {
 /* ====================================================
    ACTIVITY DETAIL — NAVIGATION
 ==================================================== */
+let _stepHeightTimer = null; // tracks the active min-height freeze timer
+
 async function navigateToActivity(actKey, fromStep = false) {
   // Accept an activity object directly (used when stepping prev/next)
   let activity = (actKey && typeof actKey === 'object') ? actKey : null;
@@ -2832,7 +2947,8 @@ async function navigateToActivity(actKey, fromStep = false) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-activity').classList.add('active');
-  // Swap topbar: hide date-range pill; show back button (left) + prev/next (right)
+  // Swap topbar: ensure it's visible (calendar hides it), hide date-range pill; show back + prev/next
+  document.querySelector('.topbar')?.classList.remove('topbar--hidden');
   const _pill = document.getElementById('dateRangePill');
   if (_pill) _pill.style.display = 'none';
   const _back = document.getElementById('detailTopbarBack');
@@ -2843,7 +2959,7 @@ async function navigateToActivity(actKey, fromStep = false) {
   // Remove calendar's full-bleed layout so normal padding is restored
   const pageContent = document.getElementById('pageContent');
   if (pageContent) pageContent.classList.remove('page-content--calendar');
-  window.scrollTo(0, 0);
+  if (!fromStep) window.scrollTo(0, 0);
 
   // Back button label
   const fromLabel = state.previousPage === 'dashboard' ? 'Dashboard' : 'Activities';
@@ -2852,7 +2968,15 @@ async function navigateToActivity(actKey, fromStep = false) {
   // Render basic info immediately from cached data
   renderActivityBasic(activity);
 
-  // Reset charts (destroyActivityCharts hides detailStreamsCard + detailChartsRow too)
+  // Reset charts — but when stepping prev/next, freeze the page height first so the
+  // browser doesn't snap the scroll position when cards collapse to display:none.
+  const _pc = document.getElementById('pageContent');
+  if (fromStep && _pc) {
+    if (_stepHeightTimer) { clearTimeout(_stepHeightTimer); _stepHeightTimer = null; }
+    // Pin to at least viewport height so rapid clicks never let it shrink
+    _pc.style.minHeight = Math.max(_pc.offsetHeight, window.innerHeight) + 'px';
+    _stepHeightTimer = setTimeout(() => { _pc.style.minHeight = ''; _stepHeightTimer = null; }, 800);
+  }
   destroyActivityCharts();
   document.getElementById('detailChartsLoading').style.display = 'none';
 
@@ -2978,6 +3102,7 @@ async function navigateToActivity(actKey, fromStep = false) {
     }
 
     // Supplementary cards — each shows/hides itself based on data availability
+    renderDetailPerformance(richActivity, actId, normStreams);
     renderDetailZones(richActivity);
     renderDetailHRZones(richActivity);
     // Adjust zones row: force single column when only one card is visible
@@ -2988,7 +3113,7 @@ async function navigateToActivity(actKey, fromStep = false) {
       zonesRow.classList.toggle('detail-zones-row--single', powerHidden || hrHidden);
     }
     renderDetailHistogram(richActivity);
-    renderDetailCurve(actId); // async — shows/hides its own card
+    renderDetailCurve(actId, normStreams); // async — shows/hides its own card
   } catch (err) {
     console.error('[Activity detail] Unhandled error:', err);
     document.getElementById('detailChartsLoading').style.display = 'none';
@@ -3016,7 +3141,7 @@ function destroyActivityCharts() {
   if (state.activityHRChart)        { state.activityHRChart.destroy();        state.activityHRChart        = null; }
   if (state.activityCurveChart)     { state.activityCurveChart.destroy();     state.activityCurveChart     = null; }
   if (state.activityHistogramChart) { state.activityHistogramChart.destroy(); state.activityHistogramChart = null; }
-  ['detailMapCard', 'detailStreamsCard', 'detailChartsRow', 'detailZonesCard', 'detailHRZonesCard', 'detailHistogramCard', 'detailCurveCard'].forEach(id => {
+  ['detailMapCard', 'detailStreamsCard', 'detailChartsRow', 'detailZonesCard', 'detailHRZonesCard', 'detailHistogramCard', 'detailCurveCard', 'detailPerfCard'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
@@ -3793,21 +3918,26 @@ function buildMapStatsHTML(streams, maxSpdKmh, maxHR) {
 
   const maxLabel = maxSpdKmh != null ? maxSpdKmh.toFixed(0) : '—';
 
-  // Tick marks every 10 km/h — short radial notches spanning the arc stroke width
+  // Tick marks — 10 km/h major + 5 km/h minor notches inside the arc stroke
   // Arc geometry: cx=60, cy=68, r=44, stroke-width=8 → stroke spans r=40..48
   const CX = 60, CY = 68, R = 44;
   const tickMarks = (() => {
     const lines = [];
-    for (let v = 10; v < (maxSpdKmh || 50); v += 10) {
-      const pct  = v / (maxSpdKmh || 50);
+    const maxSpd = maxSpdKmh || 50;
+    for (let v = 5; v < maxSpd; v += 5) {
+      const isMajor = (v % 10 === 0);
+      const pct  = v / maxSpd;
       const aRad = (135 + pct * 270) * (Math.PI / 180);
       const cos  = Math.cos(aRad), sin = Math.sin(aRad);
-      const r1   = R - 4;   // inner edge of arc stroke
-      const r2   = R + 4;   // outer edge of arc stroke
+      // Major ticks span more of the stroke; minor ticks are shorter
+      const r1 = isMajor ? R - 3 : R - 1.5;
+      const r2 = isMajor ? R + 3 : R + 1.5;
+      const sw  = isMajor ? 1    : 0.75;
+      const col = isMajor ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.11)';
       lines.push(
         `<line x1="${(CX + r1*cos).toFixed(2)}" y1="${(CY + r1*sin).toFixed(2)}" ` +
              `x2="${(CX + r2*cos).toFixed(2)}" y2="${(CY + r2*sin).toFixed(2)}" ` +
-             `stroke="rgba(0,0,0,0.45)" stroke-width="1.5" stroke-linecap="round"/>`
+             `stroke="${col}" stroke-width="${sw}" stroke-linecap="round"/>`
       );
     }
     return lines.join('');
@@ -4000,10 +4130,16 @@ function renderActivityMap(latlng, streams) {
         attributionControl: true,
       });
 
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      const streetTile = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
         subdomains: 'abcd', maxZoom: 19,
-      }).addTo(map);
+      });
+      const satelliteTile = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: '&copy; <a href="https://www.esri.com/">Esri</a> &mdash; Source: Esri, Maxar, GeoEye, Earthstar Geographics',
+        maxZoom: 19,
+      });
+      streetTile.addTo(map);
+      let isSatellite = false;
 
       // ── Pre-compute per-mode maxima ──────────────────────────────────────
       const spdArr  = streams.velocity_smooth;
@@ -4117,10 +4253,25 @@ function renderActivityMap(latlng, streams) {
           `<button class="map-mode-btn${m.key === 'default' ? ' active' : ''}" data-mode="${m.key}">
              <span class="map-mode-icon">${m.icon}</span>${m.label}
            </button>`
-        ).join('');
+        ).join('') +
+        `<button class="map-layer-btn" id="mapLayerToggle" title="Toggle satellite imagery">
+           <span class="map-mode-icon">🛰</span>Satellite
+         </button>`;
 
         togglesEl.querySelectorAll('.map-mode-btn').forEach(btn =>
           btn.addEventListener('click', () => applyColorMode(btn.dataset.mode)));
+
+        document.getElementById('mapLayerToggle')?.addEventListener('click', () => {
+          isSatellite = !isSatellite;
+          if (isSatellite) {
+            map.removeLayer(streetTile);
+            satelliteTile.addTo(map);
+          } else {
+            map.removeLayer(satelliteTile);
+            streetTile.addTo(map);
+          }
+          document.getElementById('mapLayerToggle')?.classList.toggle('active', isSatellite);
+        });
       }
 
       // ── Hover scrubbing ──────────────────────────────────────────────────
@@ -4340,6 +4491,12 @@ function toggleStreamLayer(metric) {
   });
 }
 
+// Ordered list of cycling activity types to try when querying power curves.
+// dominantRideType() is tried first, then common fallbacks.
+const CYCLING_POWER_TYPES = () =>
+  [dominantRideType(), 'Ride', 'VirtualRide', 'MountainBikeRide', 'EBikeRide', 'Workout']
+    .filter((t, i, a) => a.indexOf(t) === i);
+
 // Hex colours that map to our zone CSS vars (used in Chart.js which needs actual colour values)
 const ZONE_HEX = ['#4a9eff', '#00e5a0', '#ffcc00', '#ff6b35', '#ff5252', '#b482ff'];
 
@@ -4435,6 +4592,50 @@ function renderActivityZoneCharts(activity) {
 ==================================================== */
 
 // Detailed zone table (power zones with bars + time + %)
+async function renderDetailPerformance(a, actId, streams) {
+  const card        = document.getElementById('detailPerfCard');
+  const gridEl      = document.getElementById('detailPerfGrid');
+  if (!card || !gridEl) return;
+
+  // ── Sync metric tiles ─────────────────────────────────────────────
+  const np      = a.icu_weighted_avg_watts || a.normalized_power || a.weighted_avg_watts || 0;
+  const avgW    = a.average_watts || a.icu_average_watts || 0;
+  const avgHR   = a.average_heartrate || a.icu_average_heartrate ||
+                  (a.heart_rate && a.heart_rate.average) || 0;
+  const rawIF   = a.intensity_factor || a.icu_intensity_factor || 0;
+  const ifVal   = rawIF > 1 ? rawIF / 100 : rawIF;
+  const vi      = (np > 0 && avgW > 0) ? np / avgW   : null;
+  const ef      = (np > 0 && avgHR > 0) ? np / avgHR : null;
+  const decouple = (a.icu_aerobic_decoupling != null) ? a.icu_aerobic_decoupling : null;
+  const trimp   = a.icu_trimp || a.trimp || 0;
+  const rawSpd  = a.max_speed_meters_per_sec || a.icu_max_speed || a.max_speed || 0;
+  const maxSpd  = rawSpd > 0 ? rawSpd * 3.6 : null;
+
+  const tile = (val, lbl, sub, color) =>
+    `<div class="perf-metric">
+       <div class="perf-metric-val" style="color:${color}">${val}</div>
+       <div class="perf-metric-lbl">${lbl}</div>
+       ${sub ? `<div class="perf-metric-sub">${sub}</div>` : ''}
+     </div>`;
+
+  const ifColor = v => v < 0.75 ? '#60a5fa' : v < 0.85 ? '#34d399' : v < 0.95 ? '#fbbf24' : '#f87171';
+  const dcColor = v => Math.abs(v) < 5 ? '#34d399' : Math.abs(v) < 8 ? '#fbbf24' : '#f87171';
+
+  const metrics = [];
+  if (np > 0)           metrics.push(tile(Math.round(np) + 'w',       'Normalized Power',   'NP',               '#00e5a0'));
+  if (ifVal > 0.01)     metrics.push(tile(ifVal.toFixed(2),            'Intensity Factor',   'IF = NP / FTP',    ifColor(ifVal)));
+  if (vi !== null)      metrics.push(tile(vi.toFixed(2),               'Variability Index',  'VI = NP / avg W',  vi < 1.05 ? '#34d399' : vi < 1.10 ? '#fbbf24' : '#f87171'));
+  if (ef !== null)      metrics.push(tile(ef.toFixed(2),               'Efficiency Factor',  'EF = NP / avg HR', '#818cf8'));
+  if (decouple !== null) metrics.push(tile(decouple.toFixed(1) + '%', 'Aerobic Decoupling', 'HR drift vs power', dcColor(decouple)));
+  if (trimp > 0)        metrics.push(tile(Math.round(trimp),           'TRIMP',              'Training load score','#fb923c'));
+  if (maxSpd !== null)  metrics.push(tile(maxSpd.toFixed(1) + ' km/h','Max Speed',          'Peak speed this ride','#38bdf8'));
+
+  gridEl.innerHTML = metrics.join('');
+  document.getElementById('detailPerfSubtitle').textContent = 'Power & efficiency metrics · this ride';
+
+  card.style.display = metrics.length > 0 ? '' : 'none';
+}
+
 function renderDetailZones(activity) {
   const card = document.getElementById('detailZonesCard');
   if (!card) return;
@@ -4614,57 +4815,136 @@ async function fetchActivityPowerCurve(activityId) {
   return res.json();
 }
 
-async function renderDetailCurve(actId) {
+// Fetch athlete-level power curve for a date range + activity type
+async function fetchRangePowerCurve(oldest, newest) {
+  const types = CYCLING_POWER_TYPES();
+  for (const type of types) {
+    try {
+      const data = await icuFetch(
+        `/athlete/${state.athleteId}/power-curves?type=${type}&oldest=${oldest}&newest=${newest}`
+      );
+      const candidate = Array.isArray(data) ? data[0] : (data?.list?.[0] ?? data);
+      // Require at least one non-null watt value — API returns all-null watts when there's no data for this type
+      if (candidate && Array.isArray(candidate.secs) && candidate.secs.length > 0 &&
+          Array.isArray(candidate.watts) && candidate.watts.some(w => w != null && w > 0)) {
+        return candidate;
+      }
+    } catch (_) { /* try next type */ }
+  }
+  return null;
+}
+
+// Build a power curve object from a raw watts stream using a sliding-window max.
+// Returns {secs, watts} at logarithmically-spaced durations.
+function buildCurveFromStream(wattsArr) {
+  if (!Array.isArray(wattsArr) || wattsArr.length === 0) return null;
+  const n = wattsArr.length;
+  // Key durations (seconds) — only include those shorter than the ride
+  const DURS = [1,2,3,5,8,10,15,20,30,45,60,90,120,180,300,420,600,900,1200,1800,2700,3600,5400,7200];
+  const secs = [], watts = [];
+  for (const dur of DURS) {
+    if (dur > n) break;
+    let sum = 0;
+    for (let i = 0; i < dur; i++) sum += (wattsArr[i] || 0);
+    let best = sum;
+    for (let i = dur; i < n; i++) {
+      sum += (wattsArr[i] || 0) - (wattsArr[i - dur] || 0);
+      if (sum > best) best = sum;
+    }
+    const peak = Math.round(best / dur);
+    if (peak > 0) { secs.push(dur); watts.push(peak); }
+  }
+  return secs.length ? { secs, watts } : null;
+}
+
+async function renderDetailCurve(actId, streams) {
   const card = document.getElementById('detailCurveCard');
   if (!card) return;
 
+  // Fetch current activity curve and 1-year best in parallel
   let raw = null;
-  try {
-    const data = await fetchActivityPowerCurve(actId);
-    const candidate = Array.isArray(data) ? data[0] : (data.list?.[0] ?? data);
-    if (candidate && Array.isArray(candidate.secs) && candidate.secs.length > 0) raw = candidate;
-  } catch (e) { /* endpoint not available */ }
+  const yearPromise = fetchRangePowerCurve(toDateStr(daysAgo(365)), toDateStr(new Date())).catch(() => null);
 
-  if (!raw) { card.style.display = 'none'; return; }
+  try {
+    const rideRaw = await fetchActivityPowerCurve(actId);
+    if (rideRaw && Array.isArray(rideRaw.secs) && rideRaw.secs.length) raw = rideRaw;
+  } catch (_) {}
+  if (!raw && streams) raw = buildCurveFromStream(streams.watts || streams.power);
+
+  const rawYear = await yearPromise;
+
+  if (!raw && !rawYear) { card.style.display = 'none'; return; }
   card.style.display = '';
 
-  // Peak stat pills
-  const lookup = {};
-  raw.secs.forEach((s, i) => { if (raw.watts[i]) lookup[s] = raw.watts[i]; });
-  function peakWatts(target) {
-    if (lookup[target]) return lookup[target];
-    let best = null, minDiff = Infinity;
-    raw.secs.forEach(s => {
-      const d = Math.abs(s - target);
-      if (d < minDiff && lookup[s]) { minDiff = d; best = lookup[s]; }
-    });
-    return best;
+  // Peak stat pills (from this activity only)
+  const peaksEl = document.getElementById('detailCurvePeaks');
+  if (peaksEl) {
+    if (raw) {
+      const lookup = {};
+      raw.secs.forEach((s, i) => { if (raw.watts[i]) lookup[s] = raw.watts[i]; });
+      const peakW = target => {
+        if (lookup[target]) return lookup[target];
+        let best = null, minDiff = Infinity;
+        raw.secs.forEach(s => { const d = Math.abs(s - target); if (d < minDiff && lookup[s]) { minDiff = d; best = lookup[s]; } });
+        return best;
+      };
+      peaksEl.innerHTML = CURVE_PEAKS.map(p => {
+        const w = Math.round(peakW(p.secs) || 0);
+        if (!w) return '';
+        return `<div class="curve-peak">
+          <div class="curve-peak-val">${w}<span class="curve-peak-unit">w</span></div>
+          <div class="curve-peak-dur">${p.label}</div>
+        </div>`;
+      }).join('');
+    } else {
+      peaksEl.innerHTML = '';
+    }
   }
 
-  document.getElementById('detailCurvePeaks').innerHTML = CURVE_PEAKS.map(p => {
-    const w = Math.round(peakWatts(p.secs) || 0);
-    if (!w) return '';
-    return `<div class="curve-peak">
-      <div class="curve-peak-val">${w}<span class="curve-peak-unit">w</span></div>
-      <div class="curve-peak-dur">${p.label}</div>
-    </div>`;
-  }).join('');
+  // Legend
+  const legendEl = document.getElementById('detailCurveLegend');
+  if (legendEl) {
+    const items = [
+      raw     && { label: 'This ride', color: '#00e5a0' },
+      rawYear && { label: '1 year',    color: '#fb923c' },
+    ].filter(Boolean);
+    legendEl.innerHTML = items.map(l =>
+      `<div class="curve-legend-item">
+         <div class="curve-legend-dot" style="background:${l.color}"></div>
+         ${l.label}
+       </div>`
+    ).join('');
+  }
 
-  const chartData = raw.secs.map((s, i) => ({ x: s, y: raw.watts[i] })).filter(pt => pt.y > 0);
-  const maxSecs   = chartData[chartData.length - 1]?.x || 3600;
+  const toPoints = c => c
+    ? c.secs.map((s, i) => ({ x: s, y: c.watts[i] })).filter(pt => pt.y > 0)
+    : [];
+
+  const rideData = toPoints(raw);
+  const yearData = toPoints(rawYear);
+  const maxSecs  = [...rideData, ...yearData].reduce((m, pt) => Math.max(m, pt.x), 0) || 3600;
+
+  const datasets = [];
+  if (yearData.length)
+    datasets.push({
+      label: '1 year', data: yearData,
+      borderColor: '#fb923c', backgroundColor: 'rgba(251,146,60,0.04)',
+      borderWidth: 1.5, borderDash: [4, 3], fill: false,
+      tension: 0.4, pointRadius: 0, pointHoverRadius: 3,
+    });
+  if (rideData.length)
+    datasets.push({
+      label: 'This ride', data: rideData,
+      borderColor: '#00e5a0', backgroundColor: 'rgba(0,229,160,0.08)',
+      borderWidth: 2.5, fill: true,
+      tension: 0.4, pointRadius: 0, pointHoverRadius: 4,
+    });
 
   if (state.activityCurveChart) { state.activityCurveChart.destroy(); state.activityCurveChart = null; }
   state.activityCurveChart = new Chart(
     document.getElementById('activityCurveChart').getContext('2d'), {
       type: 'line',
-      data: {
-        datasets: [{
-          data: chartData,
-          borderColor: '#00e5a0',
-          backgroundColor: 'rgba(0,229,160,0.07)',
-          fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 4, borderWidth: 2,
-        }]
-      },
+      data: { datasets },
       options: {
         responsive: true, maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
@@ -4672,7 +4952,7 @@ async function renderDetailCurve(actId) {
           legend: { display: false },
           tooltip: { ...C_TOOLTIP, callbacks: {
             title: items => fmtSecsShort(items[0].parsed.x),
-            label: ctx  => `${Math.round(ctx.parsed.y)}w`,
+            label: ctx   => `${ctx.dataset.label}: ${Math.round(ctx.parsed.y)}w`,
           }}
         },
         scales: {

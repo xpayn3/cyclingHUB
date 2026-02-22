@@ -940,6 +940,17 @@
                         </div>
                     </div>
 
+                    <!-- Performance analysis metrics -->
+                    <div class="card" id="detailPerfCard" style="display:none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">Performance Analysis</div>
+                                <div class="card-subtitle" id="detailPerfSubtitle"></div>
+                            </div>
+                        </div>
+                        <div class="perf-metrics-grid" id="detailPerfGrid"></div>
+                    </div>
+
                     <!-- Power zones + HR zones side by side -->
                     <div class="detail-zones-row">
                         <div class="card" id="detailZonesCard" style="display:none">
@@ -972,9 +983,10 @@
                                 <div class="card-title">Ride Power Curve</div>
                                 <div class="card-subtitle" id="detailCurveSubtitle">Best efforts this ride</div>
                             </div>
+                            <div class="curve-legend" id="detailCurveLegend"></div>
                         </div>
                         <div class="curve-peaks" id="detailCurvePeaks"></div>
-                        <div class="chart-wrap" style="height:200px">
+                        <div class="chart-wrap" style="height:220px">
                             <canvas id="activityCurveChart"></canvas>
                         </div>
                     </div>
@@ -1033,19 +1045,27 @@
                             </div>
                         </div>
 
-                        <!-- Day-of-week header -->
-                        <div class="cal-dow-row">
-                            <div>Mon</div>
-                            <div>Tue</div>
-                            <div>Wed</div>
-                            <div>Thu</div>
-                            <div>Fri</div>
-                            <div class="cal-dow--weekend">Sat</div>
-                            <div class="cal-dow--weekend">Sun</div>
+                        <!-- Top 60%: month grid -->
+                        <div class="cal-top">
+                            <!-- Day-of-week header -->
+                            <div class="cal-dow-row">
+                                <div>Mon</div>
+                                <div>Tue</div>
+                                <div>Wed</div>
+                                <div>Thu</div>
+                                <div>Fri</div>
+                                <div class="cal-dow--weekend">Sat</div>
+                                <div class="cal-dow--weekend">Sun</div>
+                            </div>
+                            <!-- Calendar grid (filled by renderCalendar) -->
+                            <div class="cal-grid" id="calGrid"></div>
                         </div>
 
-                        <!-- Calendar grid (filled by renderCalendar) -->
-                        <div class="cal-grid" id="calGrid"></div>
+                        <!-- Bottom 40%: selected day's activities -->
+                        <div class="cal-day-panel" id="calDayPanel">
+                            <div class="cal-day-panel-header" id="calDayPanelHeader">Select a day</div>
+                            <div class="cal-day-panel-list" id="calDayPanelList"></div>
+                        </div>
 
                     </div>
                 </div>
@@ -1693,11 +1713,11 @@
                                             <div class="settings-row-sub">Dashboard &amp; activities default view</div>
                                         </div>
                                         <div class="date-range-pill">
-                                            <button data-defrange="7"  onclick="setDefaultRange(7)">7d</button>
-                                            <button data-defrange="14" onclick="setDefaultRange(14)">14d</button>
-                                            <button data-defrange="30" onclick="setDefaultRange(30)" class="active">30d</button>
-                                            <button data-defrange="60" onclick="setDefaultRange(60)">60d</button>
-                                            <button data-defrange="90" onclick="setDefaultRange(90)">90d</button>
+                                            <button data-defrange="7"  onclick="setRange(7)">7d</button>
+                                            <button data-defrange="14" onclick="setRange(14)">14d</button>
+                                            <button data-defrange="30" onclick="setRange(30)" class="active">30d</button>
+                                            <button data-defrange="60" onclick="setRange(60)">60d</button>
+                                            <button data-defrange="90" onclick="setRange(90)">90d</button>
                                         </div>
                                     </div>
                                 </div>
