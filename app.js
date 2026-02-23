@@ -929,7 +929,6 @@ function buildRecentActCardHTML(a, idx) {
     <div class="recent-act-body">
       <div class="recent-act-info">
         <div class="recent-act-header">
-          <div class="recent-act-icon">${activityTypeIcon(a)}</div>
           <div class="recent-act-text">
             <div class="recent-act-name">${name}</div>
             <div class="recent-act-date">${dateFmt}${timeFmt ? ' · ' + timeFmt : ''}</div>
