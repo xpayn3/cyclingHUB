@@ -17,7 +17,6 @@ const state = {
   fitnessRangeDays: 90,
   currentActivityIdx: null,
   activityMap: null,
-  recentActivityMap: null,
   activityStreamsChart: null,
   activityPowerChart: null,
   activityHRChart: null,
@@ -64,10 +63,23 @@ const GREETINGS = [
   "Looking strong — keep pushing forward!",
 ];
 
-function setDashGreeting() {
-  const el = document.getElementById('pageTitle');
+/* ====================================================
+   UTILITIES
+==================================================== */
+/** Destroy a Chart.js instance and return null for easy assignment */
+function destroyChart(chart) {
+  if (chart) chart.destroy();
+  return null;
+}
+
+/** Update the sidebar CTL badge from state.fitness — call any time fitness data is available */
+function updateSidebarCTL() {
+  const el = document.getElementById('sidebarCTL');
   if (!el) return;
-  el.textContent = GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
+  const ctl = state.fitness?.ctl;
+  if (ctl != null) {
+    el.textContent = `CTL ${Math.round(ctl)}`;
+  }
 }
 
 /* ====================================================
@@ -404,6 +416,7 @@ async function syncData() {
     setLoading(true, 'Loading fitness data…');
     await fetchFitness().catch(() => null); // non-fatal
     saveFitnessCache();
+    updateSidebarCTL(); // refresh badge with latest fetched value
 
     // Invalidate power curve cache so it re-fetches with fresh range
     state.powerCurve = null;
@@ -1098,22 +1111,34 @@ function snapshotRecentMap(map, container, actId) {
       img.onload = () => {
         ctx.drawImage(img, ox, oy, svgRect.width, svgRect.height);
         URL.revokeObjectURL(url);
-        saveSnapshot(canvas, actId);
+        saveSnapshot(canvas, actId, map, container);
       };
-      img.onerror = () => { URL.revokeObjectURL(url); saveSnapshot(canvas, actId); };
+      img.onerror = () => { URL.revokeObjectURL(url); saveSnapshot(canvas, actId, map, container); };
       img.src = url;
     } else {
-      saveSnapshot(canvas, actId);
+      saveSnapshot(canvas, actId, map, container);
     }
   } catch (_) {}
 }
 
-function saveSnapshot(canvas, actId) {
+function saveSnapshot(canvas, actId, map, container) {
   try {
     // WebP is ~30% smaller than JPEG at equal quality; fall back to JPEG if unsupported
     const fmt  = canvas.toDataURL('image/webp', 0.01).startsWith('data:image/webp') ? 'image/webp' : 'image/jpeg';
     const data = canvas.toDataURL(fmt, 0.7);
     localStorage.setItem(`icu_map_snap_${actId}`, data);
+
+    // Swap the live Leaflet map out for a static img immediately —
+    // prevents Leaflet from glitching during carousel scroll on first load
+    if (container) {
+      try { map.remove(); } catch (_) {}
+      // Remove from tracked maps array
+      if (state.recentActivityMaps) {
+        const idx = state.recentActivityMaps.indexOf(map);
+        if (idx !== -1) state.recentActivityMaps.splice(idx, 1);
+      }
+      container.innerHTML = `<img src="${data}" style="width:100%;height:100%;object-fit:cover;display:block;">`;
+    }
   } catch (_) {
     // localStorage quota exceeded — silently skip
   }
@@ -1253,10 +1278,10 @@ function resetDashboard() {
       <p>Connect your account to see activities.</p>
       <button class="btn btn-primary" onclick="openModal()">Connect intervals.icu</button>
     </div>`;
-  if (state.avgPowerChart)      { state.avgPowerChart.destroy();      state.avgPowerChart      = null; }
-  if (state.powerCurveChart)    { state.powerCurveChart.destroy();    state.powerCurveChart    = null; }
-  if (state.weekProgressChart)  { state.weekProgressChart.destroy();  state.weekProgressChart  = null; }
-  if (state.efSparkChart)       { state.efSparkChart.destroy();       state.efSparkChart       = null; }
+  state.avgPowerChart     = destroyChart(state.avgPowerChart);
+  state.powerCurveChart   = destroyChart(state.powerCurveChart);
+  state.weekProgressChart = destroyChart(state.weekProgressChart);
+  state.efSparkChart      = destroyChart(state.efSparkChart);
   (state.recentActivityMaps || []).forEach(m => { try { m.remove(); } catch (_) {} });
   state.recentActivityMaps = [];
   const rail = document.getElementById('recentActScrollRail');
@@ -1656,7 +1681,7 @@ function renderWeekProgress(metric) {
   // Chart
   const ctx = document.getElementById('weekProgressChart');
   if (!ctx) return;
-  if (state.weekProgressChart) { state.weekProgressChart.destroy(); state.weekProgressChart = null; }
+  state.weekProgressChart = destroyChart(state.weekProgressChart);
 
   const todayIdx = thisWeekData.reduce((idx, v, i) => (v !== null ? i : idx), 0);
 
@@ -1835,7 +1860,7 @@ function renderTrainingStatus() {
   if (qualifying.length < 3) {
     if (efCurEl)   efCurEl.textContent   = '—';
     if (efDeltaEl) { efDeltaEl.textContent = 'Need 3+ power+HR rides'; efDeltaEl.style.color = 'var(--text-muted)'; }
-    if (state.efSparkChart) { state.efSparkChart.destroy(); state.efSparkChart = null; }
+    state.efSparkChart = destroyChart(state.efSparkChart);
     return;
   }
 
@@ -1860,7 +1885,7 @@ function renderTrainingStatus() {
 
   const ctx = document.getElementById('trsEFChart');
   if (!ctx) return;
-  if (state.efSparkChart) { state.efSparkChart.destroy(); state.efSparkChart = null; }
+  state.efSparkChart = destroyChart(state.efSparkChart);
 
   state.efSparkChart = new Chart(ctx.getContext('2d'), {
     type: 'line',
@@ -1908,7 +1933,7 @@ function renderTrainingStatus() {
 ==================================================== */
 function renderFitnessChart(activities, days) {
   const ctx = document.getElementById('fitnessChart').getContext('2d');
-  if (state.fitnessChart) state.fitnessChart.destroy();
+  state.fitnessChart = destroyChart(state.fitnessChart);
 
   const wellness = state.wellnessHistory || {};
 
@@ -1989,7 +2014,7 @@ function renderWeeklyChart(activities) {
   const canvas = document.getElementById('weeklyTssChart');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
-  if (state.weeklyChart) state.weeklyChart.destroy();
+  state.weeklyChart = destroyChart(state.weeklyChart);
   const weeks = {};
   activities.forEach(a => {
     const d  = new Date(a.start_date_local || a.start_date);
@@ -2014,7 +2039,7 @@ function renderWeeklyChart(activities) {
 function renderAvgPowerChart(activities) {
   const ctx = document.getElementById('avgPowerChart');
   if (!ctx) return;
-  if (state.avgPowerChart) { state.avgPowerChart.destroy(); state.avgPowerChart = null; }
+  state.avgPowerChart = destroyChart(state.avgPowerChart);
 
   // Only rides with power data, sorted chronologically
   const powered = activities
@@ -2277,7 +2302,7 @@ async function renderPowerCurve() {
   const maxSecs = chartData[chartData.length - 1]?.x || 3600;
 
   // Destroy old chart
-  if (state.powerCurveChart) { state.powerCurveChart.destroy(); state.powerCurveChart = null; }
+  state.powerCurveChart = destroyChart(state.powerCurveChart);
 
   const canvas = document.getElementById('powerCurveChart');
   state.powerCurveChart = new Chart(canvas.getContext('2d'), {
@@ -2530,8 +2555,7 @@ function renderFitnessPage() {
     const ramp = state.fitness.rampRate;
 
     document.getElementById('fitCTL').textContent = Math.round(ctl);
-    const sidebarCTL = document.getElementById('sidebarCTL');
-    if (sidebarCTL) sidebarCTL.textContent = `CTL ${Math.round(ctl)}`;
+    updateSidebarCTL();
     document.getElementById('fitATL').textContent = Math.round(atl);
 
     const tsbEl  = document.getElementById('fitTSB');
@@ -2620,7 +2644,7 @@ function renderFitnessZoneDist(days) {
   // ── Doughnut chart ──
   const canvas = document.getElementById('fitZonePie');
   if (canvas) {
-    if (state._fitZonePieChart) { state._fitZonePieChart.destroy(); state._fitZonePieChart = null; }
+    state._fitZonePieChart = destroyChart(state._fitZonePieChart);
     state._fitZonePieChart = new Chart(canvas, {
       type: 'doughnut',
       data: {
@@ -2730,7 +2754,7 @@ function renderFitnessZoneDist(days) {
 function renderFitnessHistoryChart(days) {
   const canvas = document.getElementById('fitnessPageChart');
   if (!canvas) return;
-  if (state.fitnessPageChart) { state.fitnessPageChart.destroy(); state.fitnessPageChart = null; }
+  state.fitnessPageChart = destroyChart(state.fitnessPageChart);
 
   const wellness  = state.wellnessHistory || {};
   const dailyTSS  = {};
@@ -2807,7 +2831,7 @@ function renderFitnessHistoryChart(days) {
 function renderFitnessWeeklyPageChart() {
   const canvas = document.getElementById('fitnessWeeklyPageChart');
   if (!canvas) return;
-  if (state.fitnessWeeklyPageChart) { state.fitnessWeeklyPageChart.destroy(); state.fitnessWeeklyPageChart = null; }
+  state.fitnessWeeklyPageChart = destroyChart(state.fitnessWeeklyPageChart);
 
   const weeks = {};
   state.activities.forEach(a => {
@@ -3491,13 +3515,15 @@ function stepActivity(delta) {
 }
 
 function destroyActivityCharts() {
-  if (state.activityMap)            { state.activityMap.remove();            state.activityMap            = null; }
-  if (state.activityStreamsChart)   { state.activityStreamsChart.destroy();   state.activityStreamsChart   = null; }
-  if (state.activityPowerChart)     { state.activityPowerChart.destroy();     state.activityPowerChart     = null; }
-  if (state.activityHRChart)        { state.activityHRChart.destroy();        state.activityHRChart        = null; }
-  if (state.activityCurveChart)     { state.activityCurveChart.destroy();     state.activityCurveChart     = null; }
-  if (state.activityHRCurveChart)   { state.activityHRCurveChart.destroy();   state.activityHRCurveChart   = null; }
-  if (state.activityHistogramChart) { state.activityHistogramChart.destroy(); state.activityHistogramChart = null; }
+  if (state.activityMap) { state.activityMap.remove(); state.activityMap = null; }
+  state._streetTileRef = null;
+  state._colorLayerRef = null;
+  state.activityStreamsChart   = destroyChart(state.activityStreamsChart);
+  state.activityPowerChart     = destroyChart(state.activityPowerChart);
+  state.activityHRChart        = destroyChart(state.activityHRChart);
+  state.activityCurveChart     = destroyChart(state.activityCurveChart);
+  state.activityHRCurveChart   = destroyChart(state.activityHRCurveChart);
+  state.activityHistogramChart = destroyChart(state.activityHistogramChart);
   ['detailMapCard', 'detailStreamsCard', 'detailChartsRow', 'detailZonesCard', 'detailHRZonesCard', 'detailHistogramCard', 'detailCurveCard', 'detailHRCurveCard', 'detailPerfCard'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
@@ -4180,10 +4206,9 @@ function lerpColor(hex1, hex2, t) {
   return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
 }
 
-// Return a quantised colour for a given stream index and colour mode.
-// Quantising to BUCKETS values prevents creating thousands of unique hex strings
-// (and therefore thousands of Leaflet polyline segments).
-function routePointColor(mode, streams, si, maxes, BUCKETS = 32) {
+// Return an exact colour for a given stream index and colour mode.
+// No quantisation — caller draws one segment per GPS pair for smooth gradients.
+function routePointColor(mode, streams, si, maxes) {
   const get = (...keys) => {
     for (const k of keys) {
       const a = streams[k];
@@ -4191,7 +4216,7 @@ function routePointColor(mode, streams, si, maxes, BUCKETS = 32) {
     }
     return null;
   };
-  const quantize = (pct) => Math.round(Math.min(1, Math.max(0, pct)) * BUCKETS) / BUCKETS;
+  const clamp = (pct) => Math.min(1, Math.max(0, pct));
 
   switch (mode) {
     case 'hr': {
@@ -4201,13 +4226,13 @@ function routePointColor(mode, streams, si, maxes, BUCKETS = 32) {
     case 'speed': {
       const spd = get('velocity_smooth');
       if (spd == null) return '#3b82f6';
-      const q = quantize((spd * 3.6) / (maxes.maxSpdKmh || 50));
+      const q = clamp((spd * 3.6) / (maxes.maxSpdKmh || 50));
       return lerpColor('#bfdbfe', '#1e3a8a', q);   // light → dark blue
     }
     case 'power': {
       const w = get('watts', 'power');
       if (w == null) return '#4b5563';
-      const q = quantize(w / (maxes.maxWatts || 400));
+      const q = clamp(w / (maxes.maxWatts || 400));
       return q < 0.5
         ? lerpColor('#fde68a', '#f97316', q * 2)   // yellow → orange
         : lerpColor('#f97316', '#dc2626', (q-0.5)*2); // orange → red
@@ -4216,7 +4241,7 @@ function routePointColor(mode, streams, si, maxes, BUCKETS = 32) {
       const alt = get('altitude');
       if (alt == null) return '#4b5563';
       const range = (maxes.maxAlt - maxes.minAlt) || 1;
-      const q = quantize((alt - maxes.minAlt) / range);
+      const q = clamp((alt - maxes.minAlt) / range);
       return lerpColor('#34d399', '#7c3aed', q);   // green → violet
     }
     default:
@@ -4224,30 +4249,24 @@ function routePointColor(mode, streams, si, maxes, BUCKETS = 32) {
   }
 }
 
-// Build an array of { color, points[] } segments from the GPS track.
-// Consecutive points that share the same quantised colour are merged into one
-// segment (with a 1-point overlap) so Leaflet only renders O(transitions) polylines.
+// Build one segment per consecutive GPS point pair with a colour smoothly
+// interpolated between the exact values at each endpoint — no quantisation,
+// no visible steps.  The Canvas renderer handles hundreds of short polylines
+// efficiently in a single <canvas> element.
 function buildColoredSegments(points, streams, mode, maxes) {
   const timeLen = streams.time?.length || points.length;
-  const result  = [];
-  let curColor  = null;
-  let curPts    = [];
 
-  for (let i = 0; i < points.length; i++) {
-    const si    = Math.round(i * (timeLen - 1) / (points.length - 1));
-    const color = routePointColor(mode, streams, si, maxes);
+  // Exact color at every GPS point
+  const colors = points.map((_, i) => {
+    const si = Math.round(i * (timeLen - 1) / (points.length - 1));
+    return routePointColor(mode, streams, si, maxes);
+  });
 
-    if (color !== curColor) {
-      if (curPts.length >= 2) result.push({ color: curColor, points: curPts });
-      // Start new segment, sharing the last point for a seamless join
-      curColor = color;
-      curPts   = curPts.length ? [curPts[curPts.length - 1], points[i]] : [points[i]];
-    } else {
-      curPts.push(points[i]);
-    }
-  }
-  if (curPts.length >= 2) result.push({ color: curColor, points: curPts });
-  return result;
+  // One 2-point segment per consecutive pair; color = lerp midpoint of its two endpoints
+  return points.slice(0, -1).map((pt, i) => ({
+    color:  lerpColor(colors[i], colors[i + 1], 0.5),
+    points: [pt, points[i + 1]],
+  }));
 }
 
 // ── Map stats panel: SVG speed gauge + metric rows ───────────────────────
@@ -4514,21 +4533,36 @@ function renderActivityMap(latlng, streams) {
         attributionControl: true,
       });
 
-      const streetTile = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
-        subdomains: 'abcd', maxZoom: 19,
+      const themeKey = loadMapTheme();
+      const theme    = MAP_THEMES[themeKey] || MAP_THEMES.voyager;
+      document.getElementById('activityMap').style.background = theme.bg;
+      const streetTile = L.tileLayer(theme.url, {
+        attribution: theme.attr, subdomains: theme.sub || 'abc', maxZoom: 19,
       });
       const satelliteTile = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
         attribution: '&copy; <a href="https://www.esri.com/">Esri</a> &mdash; Source: Esri, Maxar, GeoEye, Earthstar Geographics',
         maxZoom: 19,
       });
       streetTile.addTo(map);
+      state._streetTileRef = streetTile; // store ref for hot-swap
       let isSatellite = false;
 
+      // Line weight scales with zoom — thinner when zoomed out, fuller when close in
+      const lineWeightForZoom = (zoom) => {
+        if (zoom <= 10) return 2;
+        if (zoom <= 12) return 3;
+        if (zoom <= 14) return 4.5;
+        return 6;
+      };
+
       // Fix: reset cursor after zoom so it never gets stuck on zoom-in/zoom-out icon
+      // Also update route line weight to match new zoom level
       map.on('zoomend zoomcancel', () => {
-        const container = map.getContainer();
-        container.style.cursor = '';
+        map.getContainer().style.cursor = '';
+        const w = lineWeightForZoom(map.getZoom());
+        colorLayer.eachLayer(l => {
+          l.setStyle({ weight: l.options.color === '#000' ? w + 3 : w });
+        });
       });
 
       // ── Pre-compute per-mode maxima ──────────────────────────────────────
@@ -4557,15 +4591,33 @@ function renderActivityMap(latlng, streams) {
 
       // ── Colour layer (cleared & rebuilt on mode toggle) ──────────────────
       const colorLayer = L.layerGroup().addTo(map);
+      state._colorLayerRef = colorLayer; // store ref for hot-swap bringToFront
       let activeMode   = 'default';
+
+      // Single Canvas renderer shared by all route segments — one <canvas> element,
+      // much faster than hundreds of individual SVG nodes.
+      const canvasRenderer = L.canvas({ padding: 0.5 });
 
       const applyColorMode = (mode) => {
         activeMode = mode;
         colorLayer.clearLayers();
         const segs = buildColoredSegments(points, streams, mode, maxes);
-        segs.forEach(seg => L.polyline(seg.points, {
-          color: seg.color, weight: 5, opacity: 1,
-        }).addTo(colorLayer));
+
+        const w = lineWeightForZoom(map.getZoom());
+
+        // One shadow pass as a single polyline (no need for per-segment shadows)
+        L.polyline(points, {
+          color: '#000', weight: w + 3, opacity: 0.28,
+          renderer: canvasRenderer, smoothFactor: 0,
+        }).addTo(colorLayer);
+
+        // Per-segment gradient coloring — Canvas handles hundreds cheaply
+        segs.forEach(seg => {
+          L.polyline(seg.points, {
+            color: seg.color, weight: w, opacity: 1,
+            renderer: canvasRenderer, smoothFactor: 0,
+          }).addTo(colorLayer);
+        });
 
         // Keep toggle buttons in sync
         document.querySelectorAll('.map-mode-btn').forEach(btn =>
@@ -4583,13 +4635,19 @@ function renderActivityMap(latlng, streams) {
       map.invalidateSize();
       state.activityMap = map;
 
-      const dotIcon = (color) => L.divIcon({
+      const dotIcon = (color, label) => L.divIcon({
         className: '',
-        html: `<div style="width:10px;height:10px;border-radius:50%;background:${color};border:2px solid rgba(255,255,255,0.8);box-shadow:0 0 4px rgba(0,0,0,0.6)"></div>`,
-        iconSize: [10, 10], iconAnchor: [5, 5],
+        html: `<div style="
+          width:14px;height:14px;border-radius:50%;
+          background:${color};
+          border:2.5px solid #fff;
+          box-shadow:0 2px 8px rgba(0,0,0,0.7),0 0 0 2px rgba(0,0,0,0.3);
+          display:flex;align-items:center;justify-content:center;
+        ">${label ? `<span style="color:#fff;font-size:7px;font-weight:900;line-height:1">${label}</span>` : ''}</div>`,
+        iconSize: [14, 14], iconAnchor: [7, 7],
       });
-      L.marker(points[0],                 { icon: dotIcon('#00e5a0'), zIndexOffset: 200 }).addTo(map);
-      L.marker(points[points.length - 1], { icon: dotIcon('#888'),    zIndexOffset: 200 }).addTo(map);
+      L.marker(points[0],                 { icon: dotIcon('#00e5a0', 'S'), zIndexOffset: 200 }).addTo(map);
+      L.marker(points[points.length - 1], { icon: dotIcon('#ff4444',  'F'), zIndexOffset: 200 }).addTo(map);
 
       // ── Alt + scroll to zoom ─────────────────────────────────────────────
       const mapEl = map.getContainer();
@@ -4873,7 +4931,7 @@ function renderStreamCharts(streams, activity) {
   }
 
   // Render chart
-  if (state.activityStreamsChart) { state.activityStreamsChart.destroy(); state.activityStreamsChart = null; }
+  state.activityStreamsChart = destroyChart(state.activityStreamsChart);
   const canvas = document.getElementById('activityStreamsChart');
   if (!canvas) return;
 
@@ -4944,8 +5002,8 @@ function renderActivityZoneCharts(activity) {
   const chartsRow = document.getElementById('detailChartsRow');
   const powerCard = document.getElementById('detailPowerCard');
   const hrCard    = document.getElementById('detailHRCard');
-  if (state.activityPowerChart) { state.activityPowerChart.destroy(); state.activityPowerChart = null; }
-  if (state.activityHRChart)    { state.activityHRChart.destroy();    state.activityHRChart    = null; }
+  state.activityPowerChart = destroyChart(state.activityPowerChart);
+  state.activityHRChart    = destroyChart(state.activityHRChart);
   powerCard.style.display = 'none';
   hrCard.style.display    = 'none';
 
@@ -5220,7 +5278,7 @@ function renderDetailHistogram(activity) {
   if (entries.length === 0) { card.style.display = 'none'; return; }
   card.style.display = '';
 
-  if (state.activityHistogramChart) { state.activityHistogramChart.destroy(); state.activityHistogramChart = null; }
+  state.activityHistogramChart = destroyChart(state.activityHistogramChart);
   state.activityHistogramChart = new Chart(
     document.getElementById('activityHistogramChart').getContext('2d'), {
       type: 'bar',
@@ -5400,7 +5458,7 @@ async function renderDetailCurve(actId, streams) {
       tension: 0.4, pointRadius: 0, pointHoverRadius: 7,
     });
 
-  if (state.activityCurveChart) { state.activityCurveChart.destroy(); state.activityCurveChart = null; }
+  state.activityCurveChart = destroyChart(state.activityCurveChart);
   state.activityCurveChart = new Chart(
     document.getElementById('activityCurveChart').getContext('2d'), {
       type: 'line',
@@ -5566,7 +5624,7 @@ async function renderDetailHRCurve(streams) {
       tension: 0.4, pointRadius: 0, pointHoverRadius: 7,
     });
 
-  if (state.activityHRCurveChart) { state.activityHRCurveChart.destroy(); state.activityHRCurveChart = null; }
+  state.activityHRCurveChart = destroyChart(state.activityHRCurveChart);
   state.activityHRCurveChart = new Chart(
     document.getElementById('activityHRCurveChart').getContext('2d'), {
       type: 'line',
@@ -5691,6 +5749,7 @@ if (hasCredentials) {
   if (cached) {
     state.activities = cached.activities;
     loadFitnessCache(); // restore CTL/ATL/TSB, wellness history & athlete profile
+    updateSidebarCTL(); // show cached CTL in sidebar immediately
     state.synced = true;
     updateConnectionUI(true);
     renderDashboard();
@@ -6470,6 +6529,44 @@ function setPhysicsScroll(enabled) {
 (function() {
   const toggle = document.getElementById('physicsScrollToggle');
   if (toggle) toggle.checked = loadPhysicsScroll();
+})();
+
+// ── Map theme setting ─────────────────────────────────────────────────────────
+const MAP_THEMES = {
+  voyager:  { label: 'Voyager',  url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', sub: 'abcd', attr: '&copy; OpenStreetMap &copy; CARTO',       bg: '#f0ede4' },
+  light:    { label: 'Light',    url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',            sub: 'abcd', attr: '&copy; OpenStreetMap &copy; CARTO',       bg: '#f5f4f0' },
+  dark:     { label: 'Dark',     url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',             sub: 'abcd', attr: '&copy; OpenStreetMap &copy; CARTO',       bg: '#1a1c22' },
+  topo:     { label: 'Topo',     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',      sub: null,   attr: '&copy; Esri',                  bg: '#dde8c8' },
+  outdoors: { label: 'Outdoors', url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',    sub: null,   attr: '&copy; Esri &copy; OpenStreetMap', bg: '#e8f0e4' },
+};
+
+function loadMapTheme() {
+  return localStorage.getItem('icu_map_theme') || 'topo';
+}
+function setMapTheme(key) {
+  if (!MAP_THEMES[key]) return;
+  localStorage.setItem('icu_map_theme', key);
+  // Update active state on picker buttons
+  document.querySelectorAll('.map-theme-option').forEach(b =>
+    b.classList.toggle('active', b.dataset.theme === key));
+  // Hot-swap tile on live activity map if open
+  if (state.activityMap && state._streetTileRef) {
+    const t = MAP_THEMES[key];
+    state.activityMap.removeLayer(state._streetTileRef);
+    state._streetTileRef = L.tileLayer(t.url, {
+      attribution: t.attr, subdomains: t.sub || 'abc', maxZoom: 19,
+    }).addTo(state.activityMap);
+    // Move route layer above new tiles
+    if (state._colorLayerRef) state._colorLayerRef.bringToFront();
+  }
+  // Clear cached map snapshots so they regenerate with the new theme
+  Object.keys(localStorage)
+    .filter(k => k.startsWith('icu_map_snap_'))
+    .forEach(k => localStorage.removeItem(k));
+}
+(function initMapThemePicker() {
+  document.querySelectorAll('.map-theme-option').forEach(b =>
+    b.classList.toggle('active', b.dataset.theme === loadMapTheme()));
 })();
 
 // ── Page-level grab-to-scroll with momentum (Figma-style) ────────────────────
