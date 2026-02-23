@@ -195,7 +195,7 @@ code {
     padding: 9px 12px;
     border-radius: 8px;
     color: var(--text-secondary);
-    font-size: var(--text-base);
+    font-size: var(--text-md);
     font-weight: 500;
     transition:
         background var(--transition),
@@ -346,7 +346,7 @@ code {
 
 /* ── Page headline ── */
 .page-headline {
-    padding: 4px 0 8px;
+    padding: 16px 0 8px;
 }
 .page-headline--hidden {
     display: none;
@@ -1938,6 +1938,49 @@ code {
     border-radius: 6px;
     border: 1px solid var(--border);
 }
+/* iOS-style toggle switch */
+.settings-ios-toggle {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 26px;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+.settings-ios-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+}
+.settings-ios-slider {
+    position: absolute;
+    inset: 0;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 26px;
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+.settings-ios-slider::before {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    left: 2px;
+    top: 2px;
+    background: var(--text-muted);
+    border-radius: 50%;
+    transition: transform 0.2s ease, background 0.2s ease;
+}
+.settings-ios-toggle input:checked + .settings-ios-slider {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+.settings-ios-toggle input:checked + .settings-ios-slider::before {
+    transform: translateX(18px);
+    background: #fff;
+}
+
 .connection-status-badge {
     display: inline-flex;
     align-items: center;
@@ -3391,10 +3434,47 @@ code {
     border-radius: 14px;
     cursor: default;
     transition: border-color var(--transition), background var(--transition);
+    position: relative;
+    --mouse-x: 50%;
+    --mouse-y: 50%;
+}
+.act-sstat::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y),
+        rgba(255,255,255,0.055) 0%, transparent 65%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 0;
+}
+.act-sstat::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y),
+        rgba(255,255,255,0.35) 0%, transparent 60%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 0;
+    -webkit-mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
 }
 .act-sstat:hover {
-    border-color: var(--border-active);
+    border-color: transparent;
     background: var(--bg-elevated);
+}
+.act-sstat:hover::before,
+.act-sstat:hover::after {
+    opacity: 1;
 }
 .act-sstat-top {
     display: flex;

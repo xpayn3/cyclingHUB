@@ -4035,7 +4035,11 @@ function renderActivityBasic(a) {
   if (cals > 0)                  sec += sStat(Math.round(cals).toLocaleString(), 'Calories','fire',   'orange', null,    false);
   if (tss > 0)                   sec += sStat(tss,                           'TSS',         'pulse',  'green',  pctTss,  false);
 
-  document.getElementById('actSecondaryStats').innerHTML = sec;
+  const secEl = document.getElementById('actSecondaryStats');
+  secEl.innerHTML = sec;
+  secEl.querySelectorAll('.act-sstat').forEach(el => {
+    if (!el.dataset.glow) { el.dataset.glow = '1'; window.attachCardGlow && window.attachCardGlow(el); }
+  });
 
   // ── Render the "How You Compare" card ────────────────────────────────────
   renderDetailComparison(a);
@@ -4717,6 +4721,10 @@ function renderActivityMap(latlng, streams) {
       // Do this BEFORE invalidateSize so the panel's full height is established
       // and the map can stretch to match via flexbox.
       statsEl.innerHTML = buildMapStatsHTML(streams, maxSpdKmh, maxHR);
+      // Attach glow effect to the newly created mm-cell elements
+      statsEl.querySelectorAll('.mm-cell').forEach(el => {
+        if (!el.dataset.glow) { el.dataset.glow = '1'; window.attachCardGlow && window.attachCardGlow(el); }
+      });
       // Panel content has now set the container's true height — tell Leaflet to
       // re-render tiles/layers at the new size.
       requestAnimationFrame(() => map.invalidateSize());
@@ -5061,6 +5069,9 @@ async function renderDetailPerformance(a, actId, streams) {
   if (maxSpd !== null)  metrics.push(tile(maxSpd.toFixed(1) + ' km/h','Max Speed',          'Peak speed this ride','#38bdf8'));
 
   gridEl.innerHTML = metrics.join('');
+  gridEl.querySelectorAll('.perf-metric').forEach(el => {
+    if (!el.dataset.glow) { el.dataset.glow = '1'; window.attachCardGlow && window.attachCardGlow(el); }
+  });
   document.getElementById('detailPerfSubtitle').textContent = 'Power & efficiency metrics · this ride';
 
   card.style.display = metrics.length > 0 ? '' : 'none';
@@ -6445,6 +6456,22 @@ function buildFitWorkout(segments, name, ftp) {
   }
 })();
 
+// ── Physics scroll setting ────────────────────────────────────────────────────
+function loadPhysicsScroll() {
+  const saved = localStorage.getItem('icu_physics_scroll');
+  return saved === null ? true : saved === 'true'; // default ON
+}
+function setPhysicsScroll(enabled) {
+  localStorage.setItem('icu_physics_scroll', String(enabled));
+  const toggle = document.getElementById('physicsScrollToggle');
+  if (toggle) toggle.checked = enabled;
+}
+// Init toggle state on settings page load
+(function() {
+  const toggle = document.getElementById('physicsScrollToggle');
+  if (toggle) toggle.checked = loadPhysicsScroll();
+})();
+
 // ── Page-level grab-to-scroll with momentum (Figma-style) ────────────────────
 (function() {
   // Only skip elements that need their own mouse behaviour (text inputs, maps, sidebar)
@@ -6489,6 +6516,7 @@ function buildFitWorkout(segments, name, ftp) {
   }
 
   document.addEventListener('mousedown', e => {
+    if (!loadPhysicsScroll()) return;
     if (e.button !== 0) return;
     if (e.target.closest(SKIP)) return;
     cancelMomentum();
@@ -6545,6 +6573,8 @@ function buildFitWorkout(segments, name, ftp) {
       el.style.setProperty('--mouse-y', y);
     });
   }
+  // expose so other parts of the app can attach glow to late-rendered elements
+  window.attachCardGlow = attachGlow;
 
   const GLOW_SEL = '.stat-card, .recent-act-card, .perf-metric, .act-pstat, .mm-cell';
 
