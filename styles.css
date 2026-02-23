@@ -81,6 +81,7 @@ html {
     font-size: 15px;
     overflow-x: hidden; /* prevent horizontal scroll on html */
     max-width: 100%;
+    background: var(--bg-base); /* match body — prevents black strip showing behind fixed body on iOS Safari */
 }
 body {
     font-family: var(--font-ui);
@@ -667,7 +668,7 @@ code {
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--text-muted);
-    margin-bottom: 8px;
+    margin-bottom: 4px;
 }
 .stat-grid-label {
     font-size: var(--text-xs);
@@ -675,7 +676,7 @@ code {
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--text-muted);
-    margin-bottom: 8px;
+    margin-bottom: 4px;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -686,6 +687,13 @@ code {
     letter-spacing: 0;
     color: var(--text-secondary);
     font-size: var(--text-xs);
+}
+
+/* Visual divider between dashboard sections */
+.dash-section-divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 4px 0;
 }
 .stat-grid {
     display: grid;
@@ -851,7 +859,7 @@ code {
     flex-wrap: nowrap;
     gap: 0;
     align-items: stretch;
-    height: 200px;                 /* explicit height = consistent across all cards */
+    height: 230px;                 /* explicit height = consistent across all cards */
 }
 .recent-act-info {
     flex: 1;
@@ -930,7 +938,7 @@ code {
     line-height: 1;
 }
 .ra-stat-val {
-    font-size: 1rem;
+    font-size: 1.2rem;
     font-weight: 700;
     font-family: var(--font-num);
     color: var(--text-primary);
@@ -947,6 +955,7 @@ code {
     display: flex;
     flex-direction: column;
     gap: 3px;
+    margin-top: 6px;
     margin-bottom: 8px;
 }
 .ra-tss-lbl {
@@ -1003,6 +1012,21 @@ code {
         height: 160px;
         border-radius: 0 0 var(--radius-lg) var(--radius-lg);
         order: -1;
+    }
+    .recent-act-stats {
+        padding-bottom: 10px;
+        width: 100%;
+    }
+    .ra-stat {
+        flex: 1;
+        min-width: 0;
+        padding: 0;
+        margin: 0;
+        text-align: left;
+        align-items: flex-start;
+    }
+    .ra-stat:not(:last-child)::after {
+        display: none;
     }
 }
 
@@ -3725,10 +3749,12 @@ code {
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.28s ease;
+    visibility: hidden;
 }
 .sidebar-backdrop.open {
     opacity: 1;
     pointer-events: auto;
+    visibility: visible;
 }
 
 /* ── Burger button (hidden on desktop) ── */

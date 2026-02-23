@@ -44,6 +44,33 @@ const state = {
 const ICU_BASE = 'https://intervals.icu/api/v1';
 
 /* ====================================================
+   GREETING
+==================================================== */
+const GREETINGS = [
+  "Welcome back! 💪",
+  "Good to see you! Let's ride.",
+  "Ready to crush it today?",
+  "Keep up the great work!",
+  "Your progress is looking great 🚴",
+  "Every ride counts. Let's go!",
+  "You're on a roll — keep it up!",
+  "Another day, another ride 🔥",
+  "Stay consistent, stay strong.",
+  "Great athletes review their data 📊",
+  "You've got this. One pedal at a time.",
+  "Champions train even when it's hard.",
+  "Your legs are stronger than you think.",
+  "Pain is temporary. Fitness is forever.",
+  "Looking strong — keep pushing forward!",
+];
+
+function setDashGreeting() {
+  const el = document.getElementById('pageTitle');
+  if (!el) return;
+  el.textContent = GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
+}
+
+/* ====================================================
    CREDENTIALS (localStorage)
 ==================================================== */
 function saveCredentials(athleteId, apiKey) {
@@ -629,7 +656,7 @@ function navigate(page) {
   document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
 
   const info = {
-    dashboard:  ['Dashboard',      `Overview · Last ${state.rangeDays} days`],
+    dashboard:  [GREETINGS[Math.floor(Math.random() * GREETINGS.length)], `Overview · Last ${state.rangeDays} days`],
     activities: ['Activities',     'All recorded rides & workouts'],
     calendar:   ['Calendar',       'Planned workouts & events'],
     fitness:    ['Fitness',        'CTL · ATL · TSB history'],
@@ -907,7 +934,7 @@ function buildRecentActCardHTML(a, idx) {
   const statItems = [
     dFmt && { val: dFmt.val, unit: dFmt.unit, lbl: 'Distance' },
     secs && { val: fmtDur(secs), unit: '',    lbl: 'Time' },
-    eFmt && { val: eFmt.val, unit: eFmt.unit, lbl: 'Elevation' },
+    eFmt && { val: eFmt.val, unit: eFmt.unit, lbl: 'Elev' },
     sFmt && { val: sFmt.val, unit: sFmt.unit, lbl: 'Avg Speed' },
   ].filter(Boolean);
 
@@ -930,8 +957,8 @@ function buildRecentActCardHTML(a, idx) {
       <div class="recent-act-info">
         <div class="recent-act-header">
           <div class="recent-act-text">
-            <div class="recent-act-name">${name}</div>
             <div class="recent-act-date">${dateFmt}${timeFmt ? ' · ' + timeFmt : ''}</div>
+            <div class="recent-act-name">${name}</div>
           </div>
         </div>
         ${tssPill}
