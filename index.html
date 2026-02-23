@@ -714,19 +714,36 @@
                         <div class="card-header">
                             <div>
                                 <div class="card-title">Training Load</div>
-                                <div class="card-subtitle">CTL (Fitness) · ATL (Fatigue) · TSB (Form)</div>
                             </div>
                             <div class="card-header-controls">
-                                <div class="chart-legend">
-                                    <span class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--accent)"></span>CTL</span>
-                                    <span class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--orange)"></span>ATL</span>
-                                    <span class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--blue)"></span>TSB</span>
-                                </div>
                                 <span class="fitness-range-label" id="fitnessRangeLabel">Last 30 days</span>
                             </div>
                         </div>
                         <div class="chart-wrap chart-wrap--fitness">
                             <canvas id="fitnessChart"></canvas>
+                        </div>
+                        <div class="fitness-legend-footer">
+                            <div class="flf-item">
+                                <span class="flf-dot" style="background:var(--accent)"></span>
+                                <div class="flf-text">
+                                    <span class="flf-label">CTL — Fitness</span>
+                                    <span class="flf-desc">Chronic Training Load. Your long-term fitness built over ~6 weeks. Higher is fitter.</span>
+                                </div>
+                            </div>
+                            <div class="flf-item">
+                                <span class="flf-dot" style="background:var(--orange)"></span>
+                                <div class="flf-text">
+                                    <span class="flf-label">ATL — Fatigue</span>
+                                    <span class="flf-desc">Acute Training Load. Recent training stress over ~1 week. Rises fast, drops fast.</span>
+                                </div>
+                            </div>
+                            <div class="flf-item">
+                                <span class="flf-dot" style="background:var(--blue)"></span>
+                                <div class="flf-text">
+                                    <span class="flf-label">TSB — Form</span>
+                                    <span class="flf-desc">Training Stress Balance (CTL − ATL). Positive = fresh &amp; ready. Negative = fatigued.</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
