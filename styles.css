@@ -850,8 +850,11 @@ code {
 }
 
 @media (max-width: 600px) {
+    .recent-act-scroll-rail {
+        padding-right: 40px; /* leave room for next card to peek */
+    }
     .recent-act-card {
-        flex: 0 0 calc(100vw - 28px);
+        flex: 0 0 calc(100vw - 68px); /* narrower so ~40px of next card peeks */
     }
 }
 .recent-act-body {
