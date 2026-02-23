@@ -582,6 +582,25 @@ function updateConnectionUI(connected) {
 /* ====================================================
    NAVIGATION
 ==================================================== */
+// iOS Safari requires position:fixed on body to prevent background scroll
+// behind the sidebar (overflow:hidden alone is ignored by Safari).
+let _sidebarScrollY = 0;
+function _lockBodyScroll(lock) {
+  if (lock) {
+    _sidebarScrollY = window.scrollY;
+    document.body.style.position  = 'fixed';
+    document.body.style.top       = `-${_sidebarScrollY}px`;
+    document.body.style.width     = '100%';
+    document.body.style.overflow  = 'hidden';
+  } else {
+    document.body.style.position  = '';
+    document.body.style.top       = '';
+    document.body.style.width     = '';
+    document.body.style.overflow  = '';
+    window.scrollTo(0, _sidebarScrollY);
+  }
+}
+
 function toggleSidebar() {
   const sidebar  = document.getElementById('sidebar');
   const backdrop = document.getElementById('sidebarBackdrop');
@@ -589,12 +608,14 @@ function toggleSidebar() {
   const open     = sidebar.classList.toggle('open');
   backdrop.classList.toggle('open', open);
   burger?.classList.toggle('is-open', open);
+  _lockBodyScroll(open);
 }
 
 function closeSidebar() {
   document.getElementById('sidebar')?.classList.remove('open');
   document.getElementById('sidebarBackdrop')?.classList.remove('open');
   document.getElementById('burgerBtn')?.classList.remove('is-open');
+  _lockBodyScroll(false);
 }
 
 function navigate(page) {
@@ -644,6 +665,7 @@ function navigate(page) {
   document.querySelector('.topbar')?.classList.remove('topbar--hidden');
   document.querySelector('.page-headline')?.classList.remove('page-headline--hidden');
 
+  if (page === 'dashboard' && state.synced) renderDashboard();
   if (page === 'calendar') renderCalendar();
   if (page === 'fitness')  renderFitnessPage();
   if (page === 'workout')  { wrkRefreshStats(); wrkRender(); }
@@ -1074,9 +1096,11 @@ function snapshotRecentMap(map, container, actId) {
 
 function saveSnapshot(canvas, actId) {
   try {
-    const jpeg = canvas.toDataURL('image/jpeg', 0.7);
+    // WebP is ~30% smaller than JPEG at equal quality; fall back to JPEG if unsupported
+    const fmt  = canvas.toDataURL('image/webp', 0.01).startsWith('data:image/webp') ? 'image/webp' : 'image/jpeg';
+    const data = canvas.toDataURL(fmt, 0.7);
     localStorage.setItem('icu_map_snap_id',  String(actId));
-    localStorage.setItem('icu_map_snap_img', jpeg);
+    localStorage.setItem('icu_map_snap_img', data);
   } catch (_) {
     // localStorage quota exceeded — silently skip
   }
