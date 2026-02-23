@@ -821,11 +821,30 @@ code {
 }
 /* Two cards sitting side by side in one row, equal height */
 /* ── Recent Activity card ──────────────────────────────────────────────── */
-#recentActivityCard {
-    max-width: 520px;
+/* Scroll rail — App Store-style horizontal carousel */
+.recent-act-scroll-rail {
+    display: flex;
+    gap: 14px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 4px; /* prevent box-shadow clipping */
 }
-#recentActSectionLabel {
-    max-width: 520px;
+.recent-act-scroll-rail::-webkit-scrollbar {
+    display: none;
+}
+
+/* Each card: fixed width, never shrinks */
+.recent-act-card {
+    flex: 0 0 460px;
+    scroll-snap-align: start;
+}
+
+@media (max-width: 600px) {
+    .recent-act-card {
+        flex: 0 0 calc(100vw - 28px);
+    }
 }
 .recent-act-body {
     display: flex;
@@ -2001,6 +2020,14 @@ code {
     display: contents;
 }
 
+@keyframes pageFadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0);   }
+}
+.page.active > * {
+    animation: pageFadeIn 0.22s ease-out both;
+}
+
 /* ============================================================
    CALENDAR PAGE
 ============================================================ */
@@ -2619,6 +2646,32 @@ code {
     color: #fde68a;
 }
 
+.map-recentre-control {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.13);
+    background: rgba(20,23,32,0.82);
+    color: var(--text-primary);
+    cursor: pointer !important;
+    box-shadow: 0 1px 5px rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px);
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    margin-top: 8px;
+    margin-right: 8px;
+}
+.map-recentre-control:hover {
+    background: rgba(37,43,58,0.92);
+    border-color: rgba(255,255,255,0.22);
+    color: #fff;
+}
+.map-recentre-control:active {
+    background: rgba(255,255,255,0.08);
+}
+
 /* Route map + hover stats layout */
 .map-with-stats {
     display: flex;
@@ -2830,14 +2883,18 @@ code {
 }
 .map-scroll-hint.visible { opacity: 1; }
 
-/* Attribution — small and unobtrusive */
-.activity-map .leaflet-control-attribution {
-    background: rgba(255,255,255,0.75) !important;
-    color: rgba(0,0,0,0.5) !important;
+/* Attribution — small and unobtrusive, dark theme */
+.activity-map .leaflet-control-attribution,
+#recentActMap .leaflet-control-attribution {
+    background: rgba(10,12,18,0.55) !important;
+    color: rgba(255,255,255,0.3) !important;
     font-size: 9px !important;
+    border-radius: 4px !important;
+    backdrop-filter: blur(4px);
 }
-.activity-map .leaflet-control-attribution a {
-    color: rgba(0,0,0,0.6) !important;
+.activity-map .leaflet-control-attribution a,
+#recentActMap .leaflet-control-attribution a {
+    color: rgba(255,255,255,0.4) !important;
 }
 
 /* Back button — sits on the LEFT of the topbar, right after the burger */
@@ -3083,9 +3140,9 @@ code {
     border-radius: 10px;
     text-align: center;
 }
-.detail-cmp-pct.cmp-up   { background: #22c55e22; color: #22c55e; }
-.detail-cmp-pct.cmp-down { background: var(--bg-elevated); color: var(--text-muted); }
-.detail-cmp-pct.cmp-same { background: var(--bg-elevated); color: var(--text-muted); }
+.detail-cmp-pct.cmp-up   { background: rgba(0,229,160,0.12);  color: #00e5a0; }
+.detail-cmp-pct.cmp-down { background: rgba(251,146,60,0.12); color: #fb923c; }
+.detail-cmp-pct.cmp-same { background: var(--bg-elevated);    color: var(--text-muted); }
 
 /* ── grid swap on mobile ─────────────────────────────────────────────────── */
 @media (max-width: 480px) {
@@ -3174,6 +3231,28 @@ code {
 }
 @media (max-width: 600px) {
     .detail-charts-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Power curve + HR curve side by side */
+.detail-curves-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+.detail-curves-row > .card[style*="display:none"],
+.detail-curves-row > .card[style*="display: none"] {
+    display: none !important;
+}
+/* If only one card is visible, let it span full width */
+.detail-curves-row:has(> .card:only-child),
+.detail-curves-row:has(> .card[style*="display:none"]:first-child),
+.detail-curves-row:has(> .card[style*="display:none"]:last-child) {
+    grid-template-columns: 1fr;
+}
+@media (max-width: 700px) {
+    .detail-curves-row {
         grid-template-columns: 1fr;
     }
 }
@@ -3487,8 +3566,8 @@ code {
 ============================================================ */
 .curve-peaks {
     display: flex;
-    gap: 10px;
-    margin-bottom: 18px;
+    gap: 6px;
+    margin-bottom: 10px;
     flex-wrap: wrap;
 }
 .curve-peak {
@@ -3496,8 +3575,8 @@ code {
     min-width: 60px;
     background: var(--bg-elevated);
     border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 10px 12px;
+    border-radius: 8px;
+    padding: 6px 8px;
     text-align: center;
 }
 .curve-peak-val {
@@ -3516,7 +3595,7 @@ code {
 .curve-peak-dur {
     font-size: var(--text-2xs);
     color: var(--text-muted);
-    margin-top: 5px;
+    margin-top: 3px;
     text-transform: uppercase;
     letter-spacing: 0.07em;
     font-family: var(--font-num);
@@ -4223,10 +4302,15 @@ code {
 /* ============================================================
    TRAINING STATUS CARD
 ============================================================ */
+#trainingStatusCard {
+    display: flex;
+    flex-direction: column;
+}
 .trs-body {
     display: flex;
     flex-direction: column;
     gap: 14px;
+    flex: 1;
 }
 /* Top row: ramp gauge (left) + form status (right) */
 .trs-top-row {
@@ -4377,13 +4461,16 @@ code {
     background: var(--bg-elevated);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 12px 14px;
+    padding: 12px 0 0;
+    overflow: hidden;
+    margin-top: auto;
 }
 .trs-ef-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
+    padding: 0 14px;
 }
 .trs-ef-nums {
     display: flex;
@@ -4403,13 +4490,10 @@ code {
     color: var(--accent);
 }
 .trs-ef-chart-area {
-    height: 72px;
+    height: 96px;
 }
 .trs-ef-footer {
-    font-size: var(--text-2xs);
-    color: var(--text-muted);
-    text-align: center;
-    margin-top: 5px;
+    display: none;
 }
 
 @media (max-width: 600px) {

@@ -882,22 +882,8 @@ function _refreshYearDropdown() {
 /* ====================================================
    RECENT ACTIVITY CARD (dashboard)
 ==================================================== */
-async function renderRecentActivity() {
-  const card = document.getElementById('recentActivityCard');
-  if (!card) return;
-
-  const sectionLabel = document.getElementById('recentActSectionLabel');
-  const pool = (state.activities || []).filter(a => !isEmptyActivity(a));
-  if (!pool.length) {
-    card.style.display = 'none';
-    if (sectionLabel) sectionLabel.style.display = 'none';
-    return;
-  }
-
-  const a   = pool[0];
-  const actId = a.id || a.icu_activity_id;
-
-  // Basic info
+// Build HTML for a single recent-activity carousel card
+function buildRecentActCardHTML(a, idx) {
   const name    = a.name || a.icu_name || 'Activity';
   const dateStr = a.start_date_local || a.start_date || '';
   const dateObj = dateStr ? new Date(dateStr) : null;
@@ -908,17 +894,6 @@ async function renderRecentActivity() {
     ? dateObj.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
     : '';
 
-  document.getElementById('recentActName').textContent = name;
-  document.getElementById('recentActDate').textContent = dateFmt + (timeFmt ? ' · ' + timeFmt : '');
-
-  // Sport icon
-  const iconEl = document.getElementById('recentActIcon');
-  if (iconEl) iconEl.innerHTML = activityTypeIcon(a);
-
-  // Whole card is clickable
-  card.onclick = () => navigateToActivity(a);
-
-  // Stats
   const dist  = actVal(a, 'distance', 'icu_distance');
   const secs  = actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time', 'icu_elapsed_time');
   const elev  = actVal(a, 'total_elevation_gain', 'icu_total_elevation_gain');
@@ -943,41 +918,43 @@ async function renderRecentActivity() {
       </div>`
     : '';
 
-  const tssEl = document.getElementById('recentActTss');
-  if (tssEl) tssEl.innerHTML = tssPill;
-
-  document.getElementById('recentActStats').innerHTML = statItems.map(s =>
+  const statsHTML = statItems.map(s =>
     `<div class="ra-stat">
       <div class="ra-stat-lbl">${s.lbl}</div>
       <div class="ra-stat-val">${s.val}${s.unit ? `<span class="ra-stat-unit"> ${s.unit}</span>` : ''}</div>
     </div>`
   ).join('');
 
-  card.style.display = '';
-  if (sectionLabel) sectionLabel.style.display = '';
+  return `<div class="card card--clickable recent-act-card" id="recentActCard_${idx}">
+    <div class="recent-act-body">
+      <div class="recent-act-info">
+        <div class="recent-act-header">
+          <div class="recent-act-icon">${activityTypeIcon(a)}</div>
+          <div class="recent-act-text">
+            <div class="recent-act-name">${name}</div>
+            <div class="recent-act-date">${dateFmt}${timeFmt ? ' · ' + timeFmt : ''}</div>
+          </div>
+        </div>
+        ${tssPill}
+        <div class="recent-act-stats">${statsHTML}</div>
+      </div>
+      <div class="recent-act-map" id="recentActMap_${idx}"></div>
+    </div>
+  </div>`;
+}
 
-  // Map preview — destroy previous instance first
-  if (state.recentActivityMap) {
-    state.recentActivityMap.remove();
-    state.recentActivityMap = null;
-  }
-  const mapEl = document.getElementById('recentActMap');
+// Fetch GPS and render the mini-map for one carousel card
+async function renderRecentActCardMap(a, idx) {
+  const actId = a.id || a.icu_activity_id;
+  const mapEl = document.getElementById(`recentActMap_${idx}`);
   if (!mapEl) return;
-  mapEl.innerHTML = '';
 
-  // ── Check for a cached snapshot for this activity ──────────────────────
-  const snapKey   = 'icu_map_snap_id';
-  const snapImgKey = 'icu_map_snap_img';
-  const cachedId  = localStorage.getItem(snapKey);
-  const cachedImg = localStorage.getItem(snapImgKey);
-
-  if (cachedId === String(actId) && cachedImg) {
-    // Show cached image instantly — no Leaflet needed
+  const cachedImg = localStorage.getItem(`icu_map_snap_${actId}`);
+  if (cachedImg) {
     mapEl.innerHTML = `<img src="${cachedImg}" style="width:100%;height:100%;object-fit:cover;display:block;">`;
     return;
   }
 
-  // ── Fetch GPS ───────────────────────────────────────────────────────────
   let latlng = null;
   try { latlng = await fetchMapGPS(actId); } catch (_) {}
 
@@ -993,7 +970,6 @@ async function renderRecentActivity() {
     return;
   }
 
-  // Downsample
   const step   = Math.max(1, Math.floor(pairs.length / 400));
   const points = pairs.filter((_, i) => i % step === 0);
   if (points[points.length - 1] !== pairs[pairs.length - 1]) points.push(pairs[pairs.length - 1]);
@@ -1001,50 +977,62 @@ async function renderRecentActivity() {
   requestAnimationFrame(() => {
     try {
       const map = L.map(mapEl, {
-        zoomControl:        false,
-        scrollWheelZoom:    false,
-        dragging:           false,
-        doubleClickZoom:    false,
-        touchZoom:          false,
-        keyboard:           false,
-        attributionControl: false,
-        boxZoom:            false,
+        zoomControl: false, scrollWheelZoom: false, dragging: false,
+        doubleClickZoom: false, touchZoom: false, keyboard: false,
+        attributionControl: false, boxZoom: false,
       });
-
-      // crossOrigin: 'anonymous' is required to read tile pixels for the canvas snapshot
       L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        maxZoom: 19,
-        attribution: '',
-        crossOrigin: 'anonymous',
+        maxZoom: 19, attribution: '', crossOrigin: 'anonymous',
       }).addTo(map);
-
       L.polyline(points, { color: '#00e5a0', weight: 3, opacity: 1 }).addTo(map);
-
-      const dotIcon = (color) => L.divIcon({
+      const dotIcon = color => L.divIcon({
         className: '',
         html: `<div style="width:8px;height:8px;border-radius:50%;background:${color};border:2px solid rgba(255,255,255,0.9);box-shadow:0 0 3px rgba(0,0,0,0.5)"></div>`,
         iconSize: [8, 8], iconAnchor: [4, 4],
       });
       L.marker(points[0],                 { icon: dotIcon('#00e5a0') }).addTo(map);
       L.marker(points[points.length - 1], { icon: dotIcon('#888')    }).addTo(map);
-
       const bounds = L.polyline(points).getBounds();
       map.fitBounds(bounds, { padding: [12, 12] });
       map.invalidateSize();
-      state.recentActivityMap = map;
-
-      // Re-invalidate after a short delay
+      state.recentActivityMaps = state.recentActivityMaps || [];
+      state.recentActivityMaps.push(map);
       setTimeout(() => {
         try { map.invalidateSize(); map.fitBounds(bounds, { padding: [12, 12] }); } catch (_) {}
       }, 300);
-
-      // ── Snapshot after all tiles are loaded ────────────────────────────
       map.once('load', () => {
         setTimeout(() => snapshotRecentMap(map, mapEl, actId), 400);
       });
     } catch (_) {}
   });
 }
+
+async function renderRecentActivity() {
+  const rail         = document.getElementById('recentActScrollRail');
+  const sectionLabel = document.getElementById('recentActSectionLabel');
+  if (!rail) return;
+
+  (state.recentActivityMaps || []).forEach(m => { try { m.remove(); } catch (_) {} });
+  state.recentActivityMaps = [];
+
+  const pool = (state.activities || []).filter(a => !isEmptyActivity(a));
+  if (!pool.length) {
+    rail.innerHTML = '';
+    if (sectionLabel) sectionLabel.style.display = 'none';
+    return;
+  }
+
+  const recent = pool.slice(0, 3);
+  rail.innerHTML = recent.map((a, i) => buildRecentActCardHTML(a, i)).join('');
+  if (sectionLabel) sectionLabel.style.display = '';
+
+  recent.forEach((a, i) => {
+    const card = document.getElementById(`recentActCard_${i}`);
+    if (card) card.onclick = () => navigateToActivity(a);
+    renderRecentActCardMap(a, i);
+  });
+}
+
 
 function snapshotRecentMap(map, container, actId) {
   try {
@@ -1099,8 +1087,7 @@ function saveSnapshot(canvas, actId) {
     // WebP is ~30% smaller than JPEG at equal quality; fall back to JPEG if unsupported
     const fmt  = canvas.toDataURL('image/webp', 0.01).startsWith('data:image/webp') ? 'image/webp' : 'image/jpeg';
     const data = canvas.toDataURL(fmt, 0.7);
-    localStorage.setItem('icu_map_snap_id',  String(actId));
-    localStorage.setItem('icu_map_snap_img', data);
+    localStorage.setItem(`icu_map_snap_${actId}`, data);
   } catch (_) {
     // localStorage quota exceeded — silently skip
   }
@@ -1244,9 +1231,10 @@ function resetDashboard() {
   if (state.powerCurveChart)    { state.powerCurveChart.destroy();    state.powerCurveChart    = null; }
   if (state.weekProgressChart)  { state.weekProgressChart.destroy();  state.weekProgressChart  = null; }
   if (state.efSparkChart)       { state.efSparkChart.destroy();       state.efSparkChart       = null; }
-  if (state.recentActivityMap)  { state.recentActivityMap.remove();   state.recentActivityMap  = null; }
-  const rac = document.getElementById('recentActivityCard');
-  if (rac) rac.style.display = 'none';
+  (state.recentActivityMaps || []).forEach(m => { try { m.remove(); } catch (_) {} });
+  state.recentActivityMaps = [];
+  const rail = document.getElementById('recentActScrollRail');
+  if (rail) rail.innerHTML = '';
   const racLabel = document.getElementById('recentActSectionLabel');
   if (racLabel) racLabel.style.display = 'none';
   state.powerCurve = null; state.powerCurveRange = null;
@@ -1440,8 +1428,8 @@ Chart.Tooltip.positioners.offsetFromCursor = function(items, eventPosition) {
 };
 
 const C_TOOLTIP = {
-  backgroundColor: '#1e2330',
-  borderColor:     '#252b3a',
+  backgroundColor: '#10131a',
+  borderColor:     '#1e2432',
   borderWidth:     1,
   titleColor:      '#8891a8',
   bodyColor:       '#eef0f8',
@@ -1457,6 +1445,16 @@ const C_TOOLTIP = {
 const C_TICK  = { color: '#525d72', font: { size: 10 } };
 const C_GRID  = { color: 'rgba(255,255,255,0.04)' };
 const C_NOGRID = { display: false };
+// Shared grow-from-bottom animation applied globally to all charts
+const C_ANIM = {
+  x: { duration: 0 },
+  y: {
+    duration: 900,
+    easing: 'easeOutQuart',
+    from: ctx => ctx.chart.chartArea?.bottom ?? 0,
+  },
+};
+Chart.defaults.animations = C_ANIM;
 // Solid hover dots: auto-fill with the dataset's line colour, no border ring
 Chart.register({
   id: 'solidHoverDots',
@@ -1469,6 +1467,25 @@ Chart.register({
       }
     });
   }
+});
+// Vertical crosshair line drawn at the hovered x position
+Chart.register({
+  id: 'crosshairLine',
+  afterDraw(chart) {
+    const active = chart.tooltip?._active;
+    if (!active || !active.length) return;
+    const { ctx, chartArea: { top, bottom } } = chart;
+    const x = active[0].element.x;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(x, top);
+    ctx.lineTo(x, bottom);
+    ctx.lineWidth   = 1;
+    ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+    ctx.setLineDash([3, 3]);
+    ctx.stroke();
+    ctx.restore();
+  },
 });
 // Standard scale pair — pass xGrid:false for bar charts
 function cScales({ xGrid = true, xExtra = {}, yExtra = {} } = {}) {
@@ -1842,7 +1859,11 @@ function renderTrainingStatus() {
         legend: { display: false },
         tooltip: { ...C_TOOLTIP, callbacks: { label: c => `EF: ${c.raw} w/bpm` } }
       },
-      scales: cScales({ xGrid: false, yExtra: { maxTicksLimit: 3 } })
+      layout: { padding: 0 },
+      scales: {
+        x: { grid: C_NOGRID, ticks: { ...C_TICK } },
+        y: { display: false },
+      }
     }
   });
 }
@@ -2016,7 +2037,7 @@ function renderAvgPowerChart(activities) {
         legend: { display: false },
         tooltip: { ...C_TOOLTIP, callbacks: { labelColor: C_LABEL_COLOR, label: c => `${c.dataset.label}: ${c.raw}w` } }
       },
-      scales: cScales({ xGrid: false, xExtra: { maxTicksLimit: 10, maxRotation: 0, autoSkip: true }, yExtra: { callback: v => v + 'w' } })
+      scales: cScales({ xGrid: false, xExtra: { maxTicksLimit: 10, maxRotation: 0, autoSkip: true } })
     }
   });
 }
@@ -2256,7 +2277,7 @@ async function renderPowerCurve() {
         },
         y: {
           grid: C_GRID,
-          ticks: { ...C_TICK, callback: v => v + 'w' }
+          ticks: { ...C_TICK }
         }
       }
     }
@@ -2580,6 +2601,7 @@ function renderFitnessZoneDist(days) {
       options: {
         cutout: '68%',
         animation: { animateRotate: true, duration: 600 },
+        animations: false,
         plugins: {
           legend: { display: false },
           tooltip: {
@@ -4001,7 +4023,9 @@ function renderDetailComparison(a) {
     const dn = pct <= -1;
     const positive = higherIsGood ? up : dn;
     const cls = positive ? 'cmp-up' : (up || dn ? 'cmp-down' : 'cmp-same');
-    const fillColor = positive ? '#22c55e' : (up || dn ? 'var(--accent)' : 'var(--text-muted)');
+    const fillColor = (!up && !dn) ? '#3d4459'   // at average → neutral grey
+                    : positive     ? '#00e5a0'   // performing better than avg → green
+                    :                '#fb923c';  // performing worse than avg → amber
     const pctAbs = Math.abs(Math.round(pct));
     const pctLabel = pctAbs < 1 ? '≈ avg' : `${up ? '+' : '-'}${pctAbs}%`;
     allPcts.push(positive ? pct : -Math.abs(pct));
@@ -4503,7 +4527,8 @@ function renderActivityMap(latlng, streams) {
       // ── Fit bounds + start/end markers ───────────────────────────────────
       // Compute bounds from the points array for fitBounds
       const tempPoly = L.polyline(points);
-      map.fitBounds(tempPoly.getBounds(), { padding: [24, 24] });
+      const routeBounds = tempPoly.getBounds();
+      map.fitBounds(routeBounds, { padding: [24, 24] });
       map.invalidateSize();
       state.activityMap = map;
 
@@ -4609,6 +4634,28 @@ function renderActivityMap(latlng, streams) {
           },
         });
         new SatControl().addTo(map);
+
+        // Recentre button — snaps back to route bounds
+        const RecentreControl = L.Control.extend({
+          options: { position: 'topright' },
+          onAdd() {
+            const btn = L.DomUtil.create('button', 'map-recentre-control');
+            btn.title = 'Recentre map';
+            btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+              <circle cx="9" cy="9" r="3"/>
+              <line x1="9" y1="1" x2="9" y2="5"/>
+              <line x1="9" y1="13" x2="9" y2="17"/>
+              <line x1="1" y1="9" x2="5" y2="9"/>
+              <line x1="13" y1="9" x2="17" y2="9"/>
+            </svg>`;
+            L.DomEvent.disableClickPropagation(btn);
+            L.DomEvent.on(btn, 'click', () => {
+              map.flyToBounds(routeBounds, { padding: [24, 24], duration: 0.6 });
+            });
+            return btn;
+          },
+        });
+        new RecentreControl().addTo(map);
       }
 
       // ── Hover scrubbing ──────────────────────────────────────────────────
@@ -4781,7 +4828,6 @@ function renderStreamCharts(streams, activity) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      animation: { duration: 400 },
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: false },
@@ -4822,7 +4868,7 @@ function toggleStreamLayer(metric) {
   if (dsIdx === -1) return;
   const meta = chart.getDatasetMeta(dsIdx);
   meta.hidden = !meta.hidden;
-  chart.update();
+  chart.update('none');
   document.querySelectorAll(`.stream-toggle-btn[data-metric="${metric}"]`).forEach(btn => {
     btn.classList.toggle('active', !meta.hidden);
   });
@@ -5172,12 +5218,13 @@ async function fetchRangePowerCurve(oldest, newest) {
 }
 
 // Build a power curve object from a raw watts stream using a sliding-window max.
+// Shared duration ticks (seconds) used by power and HR curve builders + normalization
+const DURS = [1,2,3,5,8,10,15,20,30,45,60,90,120,180,300,420,600,900,1200,1800,2700,3600,5400,7200];
+
 // Returns {secs, watts} at logarithmically-spaced durations.
 function buildCurveFromStream(wattsArr) {
   if (!Array.isArray(wattsArr) || wattsArr.length === 0) return null;
   const n = wattsArr.length;
-  // Key durations (seconds) — only include those shorter than the ride
-  const DURS = [1,2,3,5,8,10,15,20,30,45,60,90,120,180,300,420,600,900,1200,1800,2700,3600,5400,7200];
   const secs = [], watts = [];
   for (const dur of DURS) {
     if (dur > n) break;
@@ -5253,16 +5300,31 @@ async function renderDetailCurve(actId, streams) {
     ).join('');
   }
 
-  const toPoints = c => c
-    ? c.secs.map((s, i) => ({ x: s, y: c.watts[i] })).filter(pt => pt.y > 0)
-    : [];
+  // Normalize a curve to the shared DURS ticks via nearest-neighbour lookup
+  // so both datasets share the same x-values and hover dots stay aligned.
+  const normalizeCurve = (c, yKey = 'watts') => {
+    if (!c) return [];
+    const lookup = {};
+    c.secs.forEach((s, i) => { if (c[yKey][i] > 0) lookup[s] = c[yKey][i]; });
+    const maxDur = c.secs[c.secs.length - 1] || 0;
+    return DURS
+      .filter(d => d <= maxDur)
+      .map(d => {
+        // find closest available duration
+        let best = null, minDiff = Infinity;
+        Object.keys(lookup).forEach(s => {
+          const diff = Math.abs(s - d);
+          if (diff < minDiff) { minDiff = diff; best = lookup[s]; }
+        });
+        return best != null ? { x: d, y: best } : null;
+      })
+      .filter(Boolean);
+  };
 
-  const rideData = toPoints(raw);
-  const yearData = toPoints(rawYear);
-  // Use the ride's last duration as x-axis max so both lines reach the right edge
-  const rideMaxX = rideData.length ? rideData[rideData.length - 1].x : 0;
-  const yearMaxX = yearData.length ? yearData[yearData.length - 1].x : 0;
-  const maxSecs  = rideMaxX || yearMaxX || 3600;
+  const rideData = normalizeCurve(raw, 'watts');
+  const rideMaxSecs = rideData.length ? rideData[rideData.length - 1].x : 0;
+  const yearData = normalizeCurve(rawYear, 'watts').filter(p => p.x <= rideMaxSecs);
+  const maxSecs  = rideMaxSecs || (yearData.length ? yearData[yearData.length - 1].x : 3600);
 
   const datasets = [];
   if (yearData.length)
@@ -5301,7 +5363,7 @@ async function renderDetailCurve(actId, streams) {
             grid: C_GRID,
             ticks: { ...C_TICK, autoSkip: false, maxRotation: 0, callback: val => CURVE_TICK_MAP[val] ?? null }
           },
-          y: { grid: C_GRID, ticks: { ...C_TICK, callback: v => v + 'w' } }
+          y: { grid: C_GRID, ticks: { ...C_TICK } }
         }
       }
     }
@@ -5313,7 +5375,6 @@ function buildHRCurveFromStream(hrArr) {
   if (!Array.isArray(hrArr) || hrArr.length === 0) return null;
   const cleaned = hrArr.map(v => (v > 0 ? v : null)); // treat 0 as no data
   const n = cleaned.length;
-  const DURS = [1,2,3,5,8,10,15,20,30,45,60,90,120,180,300,420,600,900,1200,1800,2700,3600,5400,7200];
   const secs = [], heartrate = [];
   for (const dur of DURS) {
     if (dur > n) break;
@@ -5408,13 +5469,28 @@ async function renderDetailHRCurve(streams) {
     ).join('');
   }
 
-  const toPoints = c => c
-    ? c.secs.map((s, i) => ({ x: s, y: c.heartrate[i] })).filter(pt => pt.y > 0)
-    : [];
+  const normalizeHRCurve = c => {
+    if (!c) return [];
+    const lookup = {};
+    c.secs.forEach((s, i) => { if (c.heartrate[i] > 0) lookup[s] = c.heartrate[i]; });
+    const maxDur = c.secs[c.secs.length - 1] || 0;
+    return DURS
+      .filter(d => d <= maxDur)
+      .map(d => {
+        let best = null, minDiff = Infinity;
+        Object.keys(lookup).forEach(s => {
+          const diff = Math.abs(s - d);
+          if (diff < minDiff) { minDiff = diff; best = lookup[s]; }
+        });
+        return best != null ? { x: d, y: best } : null;
+      })
+      .filter(Boolean);
+  };
 
-  const rideData = toPoints(raw);
-  const yearData = toPoints(rawYear);
-  const maxSecs  = [...rideData, ...yearData].reduce((m, pt) => Math.max(m, pt.x), 0) || 3600;
+  const rideData = normalizeHRCurve(raw);
+  const rideMaxSecs = rideData.length ? rideData[rideData.length - 1].x : 0;
+  const yearData = normalizeHRCurve(rawYear).filter(p => p.x <= rideMaxSecs);
+  const maxSecs  = rideMaxSecs || (yearData.length ? yearData[yearData.length - 1].x : 3600);
 
   const datasets = [];
   if (yearData.length)
@@ -5453,7 +5529,7 @@ async function renderDetailHRCurve(streams) {
             grid: C_GRID,
             ticks: { ...C_TICK, autoSkip: false, maxRotation: 0, callback: val => CURVE_TICK_MAP[val] ?? null }
           },
-          y: { grid: C_GRID, ticks: { ...C_TICK, callback: v => v + ' bpm' } }
+          y: { grid: C_GRID, ticks: { ...C_TICK } }
         }
       }
     }
