@@ -2,12 +2,12 @@
    DESIGN TOKENS
 ============================================================ */
 :root {
-    --bg-base: #0d0f14;
-    --bg-surface: #13161e;
-    --bg-elevated: #1a1e2a;
-    --bg-card: #1e2330;
-    --border: #252b3a;
-    --border-active: #3a4260;
+    --bg-base: #0a0c10;
+    --bg-surface: #10131a;
+    --bg-elevated: #161a24;
+    --bg-card: #1a1f2c;
+    --border: #212736;
+    --border-active: #36405a;
     --accent: #00e5a0;
     --accent-dim: rgba(0, 229, 160, 0.12);
     --accent-glow: rgba(0, 229, 160, 0.25);
@@ -20,9 +20,9 @@
     --red: #ff4757;
     --yellow: #f0c429;
     --yellow-dim: rgba(240, 196, 41, 0.12);
-    --text-primary: #eef0f8;
-    --text-secondary: #8891a8;
-    --text-muted: #525d72;
+    --text-primary: #f0f2fa;
+    --text-secondary: #9ba5be;
+    --text-muted: #62708a;
     --sidebar-w: 220px;
     --radius: 10px;
     --radius-lg: 16px;
@@ -109,6 +109,55 @@ input,
 select {
     font-family: inherit;
 }
+
+/* ============================================================
+   UNIVERSAL CUSTOM SELECT / DROPDOWN
+   Apply .app-select to every <select> across the app.
+============================================================ */
+.app-select {
+    appearance: none;
+    -webkit-appearance: none;
+    display: block;
+    width: 100%;
+    background:
+        var(--bg-elevated)
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7' viewBox='0 0 12 7'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238891a8' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+        no-repeat right 13px center;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-primary);
+    font-family: var(--font-ui);
+    font-size: var(--text-base);
+    font-weight: 500;
+    padding: 9px 38px 9px 13px;
+    cursor: pointer;
+    outline: none;
+    transition:
+        border-color var(--transition),
+        box-shadow var(--transition),
+        color var(--transition);
+    line-height: 1.4;
+}
+.app-select:hover {
+    border-color: var(--border-active);
+}
+.app-select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+}
+.app-select option {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+}
+/* Compact variant — used in card headers / toolbars */
+.app-select--sm {
+    font-size: var(--text-sm);
+    padding: 6px 32px 6px 10px;
+    border-radius: 8px;
+    background-position: right 10px center;
+    width: auto;
+}
+
 code {
     font-family: var(--font-num);
     font-size: 0.82em;
@@ -946,14 +995,14 @@ code {
     flex-wrap: nowrap;
     gap: 0;
     align-items: stretch;
-    height: 230px;                 /* explicit height = consistent across all cards */
+    height: 168px;                 /* explicit height = consistent across all cards */
 }
 .recent-act-info {
     flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
     justify-content: space-between;
     padding: 10px 10px 10px 12px;  /* padding lives here, not on the card */
 }
@@ -989,10 +1038,11 @@ code {
     font-size: var(--text-xs);
     color: var(--text-muted);
     margin-top: 2px;
+    margin-bottom: 5px;
 }
 .recent-act-stats {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 0;
     padding-top: 8px;
     border-top: 1px solid var(--border);
@@ -1023,6 +1073,7 @@ code {
     letter-spacing: 0.08em;
     color: var(--text-muted);
     line-height: 1;
+    white-space: nowrap;
 }
 .ra-stat-val {
     font-size: 1.2rem;
@@ -1068,7 +1119,7 @@ code {
     letter-spacing: 0;
 }
 .recent-act-map {
-    width: 190px;
+    width: 160px;
     flex-shrink: 0;
     border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
     overflow: hidden;
@@ -4629,41 +4680,7 @@ code {
     }
 }
 
-/* ============================================================
-   YEAR FILTER DROPDOWN  (Activities page)
-============================================================ */
-.year-select {
-    appearance: none;
-    -webkit-appearance: none;
-    background: var(--bg-elevated)
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238891a8'/%3E%3C/svg%3E")
-        no-repeat right 10px center;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    color: var(--text-secondary);
-    font-family: inherit;
-    font-size: var(--text-sm);
-    font-weight: 500;
-    padding: 6px 30px 6px 12px;
-    cursor: pointer;
-    outline: none;
-    transition:
-        border-color var(--transition),
-        color var(--transition);
-    flex-shrink: 0;
-}
-.year-select:hover {
-    border-color: var(--border-active);
-    color: var(--text-primary);
-}
-.year-select:focus {
-    border-color: var(--accent);
-    color: var(--text-primary);
-}
-.year-select option {
-    background: var(--bg-elevated);
-    color: var(--text-primary);
-}
+/* .year-select → now uses .app-select.app-select--sm  (see universal select block above) */
 
 /* ============================================================
    WEEK PROGRESS CARD
@@ -5059,12 +5076,16 @@ code {
 .guide-metric-card {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 16px;
 }
 .guide-metric-header {
     display: flex;
     align-items: center;
     gap: 14px;
+    justify-content: space-between;
+}
+.guide-metric-header > div {
+    flex: 1;
 }
 .guide-metric-badge {
     font-family: var(--font-num);
@@ -5096,32 +5117,38 @@ code {
 .guide-zones {
     display: flex;
     flex-direction: column;
-    gap: 7px;
+    gap: 4px;
     background: var(--bg-elevated);
     border-radius: var(--radius);
-    padding: 12px;
+    padding: 10px 14px;
 }
 .guide-zone-row {
     display: grid;
-    grid-template-columns: 64px minmax(80px, max-content) 1fr;
+    grid-template-columns: 56px 90px 1fr;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+}
+.guide-zone-row:last-child {
+    border-bottom: none;
 }
 .guide-zone-bar {
-    height: 8px;
-    border-radius: 2px;
+    height: 7px;
+    border-radius: 3px;
     max-width: 100%;
 }
 .guide-zone-label {
     font-family: var(--font-num);
     font-size: var(--text-xs);
-    font-weight: 600;
+    font-weight: 700;
     color: var(--text-primary);
     white-space: nowrap;
 }
 .guide-zone-desc {
-    font-size: var(--text-xs);
+    font-size: var(--text-sm);
     color: var(--text-muted);
+    line-height: 1.4;
 }
 
 /* Tip row */
@@ -6037,38 +6064,50 @@ code {
 /* Today ride window card */
 .wxp-window-card {
     margin-bottom: 16px;
-    background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-elevated) 100%);
-    border: 1px solid var(--accent-subtle, rgba(0,229,160,0.2));
 }
 .wxp-window-inner {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 18px;
 }
-.wxp-window-icon { width: 44px; height: 44px; flex-shrink: 0; }
+.wxp-window-icon {
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+    background: var(--bg-elevated);
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+}
 .wxp-window-icon svg { width: 100%; height: 100%; }
 .wxp-window-text { flex: 1; min-width: 0; }
 .wxp-window-label {
-    font-size: 11px;
+    font-size: var(--text-xs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--accent);
-    margin-bottom: 2px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
 }
 .wxp-window-time {
-    font-size: 22px;
+    font-size: var(--text-xl);
     font-weight: 800;
     font-family: var(--font-num);
     color: var(--text-primary);
     letter-spacing: -0.5px;
 }
 .wxp-window-temps {
-    font-size: 15px;
+    font-size: var(--text-lg);
     font-weight: 700;
     font-family: var(--font-num);
     color: var(--text-secondary);
     flex-shrink: 0;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 14px;
 }
 
 /* Weekly summary stats row */
@@ -6773,4 +6812,360 @@ code {
     color: var(--text-muted);
     flex-shrink: 0;
     transition: opacity 0.3s ease;
+}
+
+/* ── Gear Page ─────────────────────────────────────────────────────────────── */
+.gear-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+.gear-section-title {
+    font-size: var(--text-lg);
+    font-weight: 700;
+    color: var(--text-primary);
+}
+.gear-section-sub {
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+/* Bike cards row */
+.gear-bikes-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.gear-bikes-loading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+    padding: 16px 0;
+}
+.gear-bike-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 18px 24px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all var(--transition);
+    min-width: 130px;
+    text-align: center;
+}
+.gear-bike-card:hover {
+    border-color: var(--accent);
+    background: var(--bg-elevated);
+}
+.gear-bike-card--active {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+}
+.gear-bike-icon {
+    color: var(--accent);
+    opacity: 0.8;
+}
+.gear-bike-card--active .gear-bike-icon {
+    opacity: 1;
+}
+.gear-bike-name {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--text-primary);
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.gear-bike-km {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    font-weight: 500;
+}
+.gear-bike-card--active .gear-bike-km {
+    color: var(--accent);
+}
+
+/* Components grid */
+.gear-components-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+}
+.gear-cat-group {}
+.gear-cat-label {
+    font-size: var(--text-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 10px;
+}
+.gear-cat-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 12px;
+}
+
+/* Individual component card */
+.gear-comp-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    transition: border-color var(--transition);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.gear-comp-card--warn {
+    border-color: #f9731640;
+}
+.gear-comp-card--overdue {
+    border-color: var(--red);
+}
+.gear-comp-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+}
+.gear-comp-name {
+    font-size: var(--text-base);
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.3;
+}
+.gear-comp-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+.gear-icon-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all var(--transition);
+    padding: 0;
+}
+.gear-icon-btn:hover {
+    background: var(--border);
+    color: var(--text-primary);
+}
+.gear-icon-btn--del:hover {
+    background: rgba(248,113,113,0.15);
+    border-color: var(--red);
+    color: var(--red);
+}
+.gear-comp-meta {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+}
+.gear-comp-dot {
+    color: var(--text-muted);
+    font-size: 10px;
+}
+.gear-comp-km {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+.gear-comp-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+}
+.gear-comp-bar-track {
+    flex: 1;
+    height: 5px;
+    background: var(--border);
+    border-radius: 99px;
+    overflow: hidden;
+}
+.gear-comp-bar-fill {
+    height: 100%;
+    border-radius: 99px;
+    transition: width 0.4s ease;
+}
+.gear-comp-bar-label {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--text-muted);
+    white-space: nowrap;
+    min-width: 40px;
+    text-align: right;
+}
+.gear-comp-bar-label--warn { color: #f97316; }
+.gear-comp-bar-label--red  { color: var(--red); }
+
+/* Empty state */
+.gear-empty-state {
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+    padding: 12px 0;
+}
+.gear-empty-state--comp {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 48px 0;
+    text-align: center;
+}
+
+/* Gear modal form grid */
+.gear-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 16px;
+}
+.gear-form-grid .field {
+    margin-bottom: 14px;
+}
+/* gear selects → now use .app-select  (see universal select block above) */
+
+/* ── Training Guide: live data enhancements ─────────────────────────────── */
+
+/* Active zone row highlight */
+.guide-zone-row--active {
+    background: rgba(255,255,255,0.04);
+    border-radius: 8px;
+    padding: 6px 10px;
+    margin: 0 -10px;
+    border-bottom-color: transparent !important;
+}
+.guide-zone-row--active .guide-zone-desc {
+    color: var(--text-secondary);
+}
+
+/* "You are here" badge */
+.guide-you-badge {
+    display: inline-flex;
+    align-items: center;
+    background: var(--accent);
+    color: #000;
+    font-size: var(--text-2xs);
+    font-weight: 800;
+    padding: 4px 12px;
+    border-radius: 99px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-left: 4px;
+}
+
+/* Personal status card */
+.guide-status-card {
+    grid-column: 1 / -1;
+    background: linear-gradient(135deg, var(--bg-card) 0%, rgba(0,229,160,0.04) 100%);
+    border-color: rgba(0,229,160,0.2);
+}
+.guide-status-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 20px;
+}
+.guide-status-icon {
+    width: 44px;
+    height: 44px;
+    background: var(--accent-dim);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+    flex-shrink: 0;
+}
+.guide-status-title {
+    font-size: var(--text-lg);
+    font-weight: 800;
+    color: var(--text-primary);
+}
+.guide-status-sub {
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+.guide-status-kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 12px;
+}
+.guide-status-kpi {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+}
+.guide-status-kpi-val {
+    font-size: 1.5rem;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 6px;
+}
+.guide-status-kpi-label {
+    font-size: var(--text-xs);
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 3px;
+}
+.guide-status-kpi-desc {
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+    line-height: 1.3;
+}
+
+/* ============================================================
+   WELLNESS PAGE
+============================================================ */
+#page-wellness #wellnessPageContent {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-layout);
+}
+.wellness-kpi-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--gap-layout);
+}
+@media (max-width: 700px) {
+    .wellness-kpi-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* ============================================================
+   CADENCE DISTRIBUTION — highlight label for peak bin
+============================================================ */
+#detailCadenceChart {
+    /* nothing extra needed — chart handles colour */
+}
+
+/* Wellness page — no-data hint shown when a metric isn't logged */
+.wellness-no-data {
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+    text-align: center;
+    padding: 10px 16px 14px;
+    font-style: italic;
 }

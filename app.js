@@ -23,6 +23,13 @@ const state = {
   activityCurveChart: null,
   activityHRCurveChart: null,
   activityHistogramChart: null,
+  activityGradientChart: null,
+  activityCadenceChart: null,
+  znpZoneTimeChart: null,
+  wellnessHrvChart: null,
+  wellnessSleepChart: null,
+  wellnessSubjChart: null,
+  wellnessCorrelChart: null,
   powerCurveChart: null,
   powerCurve: null,
   powerCurveRange: null,
@@ -435,6 +442,7 @@ async function syncData() {
     if (state.currentPage === 'calendar') renderCalendar();
     if (state.currentPage === 'fitness')  renderFitnessPage();
     if (state.currentPage === 'power')    renderPowerPage();
+    if (state.currentPage === 'wellness') renderWellnessPage();
 
     const newCount = isIncremental
       ? state.activities.filter(a => {
@@ -722,6 +730,9 @@ function navigate(page) {
   if (page === 'workout')  { wrkRefreshStats(); wrkRender(); }
   if (page === 'settings') initWeatherLocationUI();
   if (page === 'weather')  renderWeatherPage();
+  if (page === 'gear')     renderGearPage();
+  if (page === 'guide')    renderGuidePage();
+  if (page === 'wellness') renderWellnessPage();
 
   window.scrollTo(0, 0);
 }
@@ -1033,16 +1044,10 @@ function buildRecentActCardHTML(a, idx) {
   const statItems = [
     dFmt && { val: dFmt.val, unit: dFmt.unit, lbl: 'Distance' },
     secs && { val: fmtDur(secs), unit: '',    lbl: 'Time' },
-    eFmt && { val: eFmt.val, unit: eFmt.unit, lbl: 'Elev' },
     sFmt && { val: sFmt.val, unit: sFmt.unit, lbl: 'Avg Speed' },
   ].filter(Boolean);
 
-  const tssPill = tss > 0
-    ? `<div class="ra-tss">
-        <div class="ra-tss-lbl">Training Load</div>
-        <div class="ra-tss-val">${Math.round(tss)}<span> TSS</span></div>
-      </div>`
-    : '';
+  const tssPill = '';
 
   const wxChip = a.weather_temp != null
     ? `<div class="ra-wx-chip">
@@ -1812,36 +1817,71 @@ async function renderWeatherPage() {
     <!-- Today's ride window -->
     ${rideWindow ? `
     <div class="card wxp-window-card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Best Ride Window</div>
+          <div class="card-subtitle">Today's optimal riding hours</div>
+        </div>
+        <div class="wxp-window-temps">${Math.round(highs[0])}° / ${Math.round(lows[0])}°</div>
+      </div>
       <div class="wxp-window-inner">
         <div class="wxp-window-icon">${wmoIcon(codes[0])}</div>
         <div class="wxp-window-text">
-          <div class="wxp-window-label">Best ride window today</div>
+          <div class="wxp-window-label">Recommended window</div>
           <div class="wxp-window-time">${rideWindow}</div>
         </div>
-        <div class="wxp-window-temps">${Math.round(highs[0])}° / ${Math.round(lows[0])}°</div>
       </div>
     </div>` : ''}
 
     <!-- Weekly summary stats -->
-    <div class="wxp-stats-row">
-      <div class="wxp-stat"><div class="wxp-stat-val">${avgHigh}${deg}</div><div class="wxp-stat-lbl">Avg high</div></div>
-      <div class="wxp-stat"><div class="wxp-stat-val">${maxWind} <span style="font-size:12px">${windLbl}</span></div><div class="wxp-stat-lbl">Max wind</div></div>
-      <div class="wxp-stat"><div class="wxp-stat-val">${rainDays}<span style="font-size:12px">d</span></div><div class="wxp-stat-lbl">Rain days</div></div>
-      <div class="wxp-stat"><div class="wxp-stat-val">${bestDayName.slice(0,3)}</div><div class="wxp-stat-lbl">Best day</div></div>
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">7-Day Summary</div>
+          <div class="card-subtitle">Weekly weather overview</div>
+        </div>
+      </div>
+      <div class="wxp-stats-row">
+        <div class="wxp-stat"><div class="wxp-stat-val">${avgHigh}${deg}</div><div class="wxp-stat-lbl">Avg high</div></div>
+        <div class="wxp-stat"><div class="wxp-stat-val">${maxWind} <span style="font-size:12px">${windLbl}</span></div><div class="wxp-stat-lbl">Max wind</div></div>
+        <div class="wxp-stat"><div class="wxp-stat-val">${rainDays}<span style="font-size:12px">d</span></div><div class="wxp-stat-lbl">Rain days</div></div>
+        <div class="wxp-stat"><div class="wxp-stat-val">${bestDayName.slice(0,3)}</div><div class="wxp-stat-lbl">Best day</div></div>
+      </div>
     </div>
 
     <!-- Best days to ride -->
-    <div class="wxp-section-title">Best days to ride</div>
-    <div class="wxp-rec-list">${bestDaysHtml}</div>
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Best Days to Ride</div>
+          <div class="card-subtitle">Top conditions this week</div>
+        </div>
+      </div>
+      <div class="wxp-rec-list">${bestDaysHtml}</div>
+    </div>
 
     ${badDaysHtml ? `
     <!-- Days to avoid -->
-    <div class="wxp-section-title wxp-section-title--bad">Days to skip</div>
-    <div class="wxp-avoid-list">${badDaysHtml}</div>` : ''}
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Days to Skip</div>
+          <div class="card-subtitle">Poor riding conditions</div>
+        </div>
+      </div>
+      <div class="wxp-avoid-list">${badDaysHtml}</div>
+    </div>` : ''}
 
     <!-- Full weekly breakdown -->
-    <div class="wxp-section-title">This week</div>
-    <div class="wxp-week-scroll">${weekCards}</div>
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">This Week</div>
+          <div class="card-subtitle">Full 7-day forecast</div>
+        </div>
+      </div>
+      <div class="wxp-week-scroll">${weekCards}</div>
+    </div>
 
     <!-- Data source footer -->
     <div class="wxp-data-source">
@@ -2263,7 +2303,7 @@ const C_TOOLTIP = {
   yAlign:          'center',
   position:        'offsetFromCursor',
 };
-const C_TICK  = { color: '#525d72', font: { size: 10 } };
+const C_TICK  = { color: '#62708a', font: { size: 10 } };
 const C_GRID  = { color: 'rgba(255,255,255,0.04)' };
 const C_NOGRID = { display: false };
 // Shared grow-from-bottom animation applied globally to all charts
@@ -3174,6 +3214,8 @@ async function renderPowerPage() {
   renderPwrHero(ftp, weight, wkg, days);
   renderPwrZones(ftp, weight);
   await renderPwrCurveChart(days, ftp, weight);
+  // Re-render hero now that curve data has loaded (peak values were null on first pass)
+  renderPwrHero(ftp, weight, wkg, days);
   renderPwrZoneDist(days);
   renderPwrTrend(days);
   renderPwrInsights(ftp, weight, wkg, days);
@@ -4312,6 +4354,7 @@ function renderZonesPage() {
   renderZnpHRZones(recent, prev, days);
   renderZnpPwrZones(recent, prev, days);
   renderZnpDecoupleChart();
+  renderZnpZoneTimeChart();
   renderZnpInsights(recent, prev);
 }
 
@@ -5217,6 +5260,8 @@ async function navigateToActivity(actKey, fromStep = false) {
     // Both zone cards always show now (with NA if no data), so the row is always two-column
     renderDetailHistogram(richActivity, normStreams);
     renderDetailTempChart(normStreams, richActivity);
+    renderDetailGradientProfile(normStreams, richActivity);
+    renderDetailCadenceHist(normStreams, richActivity);
     renderDetailCurve(actId, normStreams);   // async — shows/hides its own card
     renderDetailHRCurve(normStreams);        // async — shows/hides its own card
   } catch (err) {
@@ -5249,11 +5294,14 @@ function destroyActivityCharts() {
   state.activityCurveChart     = destroyChart(state.activityCurveChart);
   state.activityHRCurveChart   = destroyChart(state.activityHRCurveChart);
   state.activityHistogramChart = destroyChart(state.activityHistogramChart);
+  state.activityGradientChart  = destroyChart(state.activityGradientChart);
+  state.activityCadenceChart   = destroyChart(state.activityCadenceChart);
   if (window._tempChart) { window._tempChart.destroy(); window._tempChart = null; }
   if (state._detailDecoupleChart) { state._detailDecoupleChart.destroy(); state._detailDecoupleChart = null; }
   ['detailMapCard', 'detailStreamsCard', 'detailChartsRow', 'detailZonesCard', 'detailHRZonesCard',
    'detailHistogramCard', 'detailCurveCard', 'detailHRCurveCard', 'detailPerfCard',
-   'detailWeatherCard', 'detailTempCard', 'detailDecoupleCard'].forEach(id => {
+   'detailWeatherCard', 'detailTempCard', 'detailDecoupleCard',
+   'detailGradientCard', 'detailCadenceCard'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     el.style.display = 'none';
@@ -7482,6 +7530,684 @@ async function fetchRangePowerCurve(oldest, newest) {
   return null;
 }
 
+// ── Feature 1: Elevation / Gradient Profile ─────────────────────────────────
+function renderDetailGradientProfile(streams, activity) {
+  const card = document.getElementById('detailGradientCard');
+  if (!card) return;
+  const alt  = streams?.altitude;
+  const dist = streams?.distance;
+  if (!Array.isArray(alt) || alt.length < 2) { card.style.display = 'none'; return; }
+
+  // Downsample to max 500 points for chart performance
+  const N = alt.length;
+  const step = Math.max(1, Math.floor(N / 500));
+  const altDS = [], distDS = [], gradeDS = [];
+  for (let i = 0; i < N; i += step) {
+    altDS.push(alt[i]);
+    distDS.push(dist ? +(dist[i] / 1000).toFixed(3) : i);
+    // gradient = rise/run over ~10 samples (smoothed)
+    const prev = Math.max(0, i - 10 * step);
+    const dAlt = alt[i] - alt[prev];
+    const dDist = dist ? (dist[i] - dist[prev]) : (10 * step);
+    gradeDS.push(dDist > 0 ? +(dAlt / dDist * 100).toFixed(1) : 0);
+  }
+
+  // Colour each segment by gradient steepness
+  const segColors = gradeDS.map(g => {
+    const a = Math.abs(g);
+    if (a < 2)  return 'rgba(0,229,160,0.6)';    // flat — accent green
+    if (a < 5)  return 'rgba(240,196,41,0.7)';   // gentle — yellow
+    if (a < 10) return 'rgba(255,107,53,0.75)';  // moderate — orange
+    return 'rgba(255,71,87,0.85)';               // steep — red
+  });
+
+  const sub = document.getElementById('detailGradientSubtitle');
+  if (sub && dist) {
+    const totalElev = activity?.total_elevation_gain || activity?.icu_total_elevation_gain;
+    sub.textContent = `${(dist[N-1]/1000).toFixed(1)} km${totalElev ? ` · +${Math.round(totalElev)}m` : ''}`;
+  }
+
+  card.style.display = '';
+  state.activityGradientChart = destroyChart(state.activityGradientChart);
+  state.activityGradientChart = new Chart(
+    document.getElementById('detailGradientChart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: distDS,
+        datasets: [{
+          data: altDS,
+          backgroundColor: segColors,
+          borderWidth: 0,
+          barPercentage: 1.0,
+          categoryPercentage: 1.0,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        animation: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: items => `${items[0].label} km`,
+              label: item => {
+                const g = gradeDS[item.dataIndex];
+                return [`${Math.round(item.raw)}m elevation`, `${g > 0 ? '+' : ''}${g}% grade`];
+              }
+            },
+            ...C_TOOLTIP,
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: '#62708a', font: { size: 10 }, maxTicksLimit: 8,
+              callback: v => distDS[v] !== undefined ? distDS[v] + ' km' : '' },
+            grid: { display: false },
+            border: { display: false },
+          },
+          y: {
+            ticks: { color: '#62708a', font: { size: 10 },
+              callback: v => v + 'm' },
+            grid: { color: 'rgba(255,255,255,0.04)' },
+            border: { display: false },
+          }
+        }
+      }
+    }
+  );
+}
+
+// ── Feature 2: Cadence Distribution ─────────────────────────────────────────
+function renderDetailCadenceHist(streams, activity) {
+  const card = document.getElementById('detailCadenceCard');
+  if (!card) return;
+  const cad = streams?.cadence;
+  if (!Array.isArray(cad) || !cad.some(v => v != null && v > 0)) {
+    card.style.display = 'none'; return;
+  }
+
+  // Bins: 0-49 (too slow), 50-59, 60-69, 70-79, 80-89, 90-99, 100-109, 110+
+  const BIN_START = 50, BIN_SIZE = 10, BIN_COUNT = 7;
+  const bins = new Array(BIN_COUNT + 1).fill(0); // last bin = 110+
+  let totalSecs = 0;
+  cad.forEach(v => {
+    if (v == null || v <= 0) return;
+    totalSecs++;
+    if (v < BIN_START)                              bins[0] += 1;
+    else if (v >= BIN_START + BIN_SIZE * BIN_COUNT) bins[BIN_COUNT] += 1;
+    else {
+      const idx = Math.floor((v - BIN_START) / BIN_SIZE) + 1;
+      if (idx < bins.length) bins[idx] += 1;
+    }
+  });
+
+  const labels = ['<50', '50–59', '60–69', '70–79', '80–89', '90–99', '100–109', '110+'];
+  const minutes = bins.map(b => +(b / 60).toFixed(1));
+
+  // Find sweet spot (highest bin) to highlight
+  const maxIdx = minutes.indexOf(Math.max(...minutes));
+  const colors = minutes.map((_, i) =>
+    i === maxIdx ? '#00e5a0' : 'rgba(74,158,255,0.5)'
+  );
+
+  const sub = document.getElementById('detailCadenceSubtitle');
+  if (sub && totalSecs > 0) {
+    const avgCad = cad.filter(v => v > 0).reduce((s, v) => s + v, 0) /
+                   cad.filter(v => v > 0).length;
+    sub.textContent = `Avg ${Math.round(avgCad)} rpm · ${labels[maxIdx]} most common`;
+  }
+
+  card.style.display = '';
+  state.activityCadenceChart = destroyChart(state.activityCadenceChart);
+  state.activityCadenceChart = new Chart(
+    document.getElementById('detailCadenceChart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          data: minutes,
+          backgroundColor: colors,
+          hoverBackgroundColor: '#00e5a0',
+          borderRadius: 4,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        animation: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            ...C_TOOLTIP,
+            callbacks: {
+              title: items => items[0].label + ' rpm',
+              label: item => `${item.raw} min`,
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: '#62708a', font: { size: 10 } },
+            grid: { display: false },
+            border: { display: false },
+          },
+          y: {
+            ticks: { color: '#62708a', font: { size: 10 },
+              callback: v => v + ' min' },
+            grid: { color: 'rgba(255,255,255,0.04)' },
+            border: { display: false },
+          }
+        }
+      }
+    }
+  );
+}
+
+// ── Feature 3: Zone Distribution Over Time (weekly stacked bars) ─────────────
+function renderZnpZoneTimeChart() {
+  const canvas = document.getElementById('znpZoneTimeChart');
+  if (!canvas) return;
+  const days    = state.znpRangeDays || 90;
+  const cutoff  = Date.now() - days * 86400000;
+  const acts    = state.activities.filter(a =>
+    new Date(a.start_date_local || a.start_date).getTime() >= cutoff
+  );
+
+  // Group by ISO week (Mon–Sun)
+  const weekMap = {};
+  acts.forEach(a => {
+    const d = new Date(a.start_date_local || a.start_date);
+    // Get Monday of that week
+    const day = d.getDay(); // 0=Sun
+    const diff = (day === 0 ? -6 : 1 - day);
+    const mon = new Date(d); mon.setDate(d.getDate() + diff);
+    mon.setHours(0,0,0,0);
+    const key = mon.toISOString().slice(0,10);
+    if (!weekMap[key]) weekMap[key] = new Array(6).fill(0);
+    const zt = a.icu_zone_times;
+    if (!Array.isArray(zt)) return;
+    zt.forEach(z => {
+      if (!z?.id) return;
+      const m = z.id.match(/^Z(\d)$/);
+      if (!m) return;
+      const idx = +m[1] - 1;
+      if (idx >= 0 && idx < 6) weekMap[key][idx] += (z.secs || 0) / 3600;
+    });
+  });
+
+  const weeks = Object.keys(weekMap).sort();
+  if (!weeks.length) return;
+
+  const ZONE_COLORS_CHART = [
+    'rgba(100,180,255,0.85)',  // Z1 blue
+    'rgba(0,229,160,0.85)',    // Z2 green
+    'rgba(240,196,41,0.85)',   // Z3 yellow
+    'rgba(255,150,50,0.85)',   // Z4 orange
+    'rgba(255,71,87,0.85)',    // Z5 red
+    'rgba(180,80,220,0.85)',   // Z6 purple
+  ];
+  const ZONE_LABELS = ['Z1 Recovery','Z2 Endurance','Z3 Tempo','Z4 Threshold','Z5 VO2max','Z6 Anaerobic'];
+
+  const datasets = ZONE_LABELS.map((label, i) => ({
+    label,
+    data: weeks.map(w => +weekMap[w][i].toFixed(2)),
+    backgroundColor: ZONE_COLORS_CHART[i],
+    borderRadius: i === 5 ? 4 : 0,  // round top of last segment
+  }));
+
+  const sub = document.getElementById('znpZoneTimeSub');
+  if (sub) sub.textContent = `Weekly power zone breakdown · last ${days} days`;
+
+  state.znpZoneTimeChart = destroyChart(state.znpZoneTimeChart);
+  state.znpZoneTimeChart = new Chart(canvas.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: weeks.map(w => {
+        const d = new Date(w);
+        return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+      }),
+      datasets,
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      animation: false,
+      plugins: {
+        legend: {
+          display: true,
+          position: 'bottom',
+          labels: { color: '#9ba5be', boxWidth: 12, font: { size: 10 }, padding: 12 }
+        },
+        tooltip: {
+          ...C_TOOLTIP,
+          mode: 'index',
+          callbacks: {
+            label: item => `${item.dataset.label}: ${item.raw}h`,
+          }
+        }
+      },
+      scales: {
+        x: {
+          stacked: true,
+          ticks: { color: '#62708a', font: { size: 10 }, maxTicksLimit: 12 },
+          grid: { display: false },
+          border: { display: false },
+        },
+        y: {
+          stacked: true,
+          ticks: { color: '#62708a', font: { size: 10 },
+            callback: v => v + 'h' },
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          border: { display: false },
+        }
+      }
+    }
+  });
+}
+
+// ── Feature 4 + 5: Wellness / Recovery Dashboard ─────────────────────────────
+function renderWellnessPage() {
+  const container = document.getElementById('wellnessPageContent');
+  if (!container) return;
+  if (!state.synced) { container.innerHTML = '<div class="empty-state">Loading…</div>'; return; }
+
+  const entries = Object.values(state.wellnessHistory)
+    .filter(e => e.id)
+    .sort((a, b) => a.id.localeCompare(b.id));
+
+  const last90 = entries.filter(e => {
+    const d = new Date(e.id);
+    return Date.now() - d.getTime() <= 90 * 86400000;
+  });
+
+  if (!last90.length) {
+    container.innerHTML = `<div class="empty-state">No wellness data found.<br>Log HRV, sleep or mood in intervals.icu to see this dashboard.</div>`;
+    return;
+  }
+
+  // Summary KPI pills
+  const hrvData  = last90.filter(e => e.hrv != null);
+  const sleepData = last90.filter(e => e.sleepSecs != null && e.sleepSecs > 0);
+  const hrData   = last90.filter(e => e.restingHR != null);
+  const readData = last90.filter(e => e.readiness != null);
+
+  const latestHrv  = hrvData.length  ? hrvData[hrvData.length-1].hrv : null;
+  const latestSleep= sleepData.length ? +(sleepData[sleepData.length-1].sleepSecs/3600).toFixed(1) : null;
+  const latestHR   = hrData.length   ? hrData[hrData.length-1].restingHR : null;
+  const latestRead = readData.length ? readData[readData.length-1].readiness : null;
+
+  const kpis = [
+    { label:'HRV',          value: latestHrv  != null ? latestHrv  : '—', unit: latestHrv  ? 'ms' : '',  color:'var(--accent)' },
+    { label:'Resting HR',   value: latestHR   != null ? latestHR   : '—', unit: latestHR   ? 'bpm' : '', color:'var(--red)' },
+    { label:'Sleep',        value: latestSleep!= null ? latestSleep: '—', unit: latestSleep ? 'h' : '',  color:'var(--blue)' },
+    { label:'Readiness',    value: latestRead  != null ? latestRead : '—', unit: latestRead  ? '/100' : '',color:'var(--yellow)' },
+  ];
+
+  container.innerHTML = `
+    <div class="wellness-kpi-row">
+      ${kpis.map(k => `
+        <div class="stat-card">
+          <div class="stat-label">${k.label}</div>
+          <div class="stat-value" style="color:${k.color}">${k.value}${k.unit ? `<span class="unit"> ${k.unit}</span>` : ''}</div>
+        </div>
+      `).join('')}
+    </div>
+
+    <!-- HRV + Resting HR over time -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">HRV &amp; Resting HR</div>
+          <div class="card-subtitle">Daily values · last 90 days</div>
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:220px"><canvas id="wellnessHrvChart"></canvas></div>
+    </div>
+
+    <!-- Sleep duration -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Sleep Duration</div>
+          <div class="card-subtitle">Hours per night</div>
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:180px"><canvas id="wellnessSleepChart"></canvas></div>
+    </div>
+
+    <!-- Subjective scores: mood, fatigue, soreness, stress -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Subjective Scores</div>
+          <div class="card-subtitle">Mood · Fatigue · Soreness · Stress (1–5 scale)</div>
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:200px"><canvas id="wellnessSubjChart"></canvas></div>
+    </div>
+
+    <!-- Training Load vs Recovery correlation -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Training Load vs Recovery</div>
+          <div class="card-subtitle">ATL (fatigue) overlaid with HRV — see how load impacts recovery</div>
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:220px"><canvas id="wellnessCorrelChart"></canvas></div>
+    </div>
+  `;
+
+  // Render all 4 charts
+  _renderWellnessHrvChart(last90);
+  _renderWellnessSleepChart(last90);
+  _renderWellnessSubjChart(last90);
+  _renderWellnessCorrelChart(last90);
+}
+
+function _renderWellnessHrvChart(entries) {
+  const card   = document.getElementById('wellnessHrvChart')?.closest('.card');
+  const canvas = document.getElementById('wellnessHrvChart');
+  if (!canvas) return;
+
+  const hasHrv = entries.some(e => e.hrv != null);
+  const hasHr  = entries.some(e => e.restingHR != null);
+
+  // Remove any previous no-data note
+  card?.querySelectorAll('.wellness-no-data').forEach(el => el.remove());
+
+  if (!hasHrv && !hasHr) {
+    canvas.style.display = 'none';
+    if (card) {
+      const note = document.createElement('div');
+      note.className = 'wellness-no-data';
+      note.textContent = 'No HRV or resting HR data logged yet. Sync a wearable with intervals.icu to see this chart.';
+      card.appendChild(note);
+    }
+    return;
+  }
+  canvas.style.display = '';
+
+  const datasets = [];
+  const scales   = {
+    x: {
+      ticks: { color: '#62708a', font: { size: 10 }, maxTicksLimit: 10,
+        callback(_, i) { return entries[i]?.id ? new Date(entries[i].id).toLocaleDateString('en-GB',{day:'numeric',month:'short'}) : ''; }
+      },
+      grid: { display: false }, border: { display: false }
+    }
+  };
+
+  if (hasHrv) {
+    datasets.push({
+      label: 'HRV (ms)',
+      data: entries.map(e => e.hrv ?? null),
+      borderColor: '#00e5a0',
+      backgroundColor: 'rgba(0,229,160,0.08)',
+      borderWidth: 2, pointRadius: 0, tension: 0.35, fill: true,
+      yAxisID: 'yHrv', spanGaps: true,
+    });
+    scales.yHrv = {
+      position: 'left',
+      ticks: { color: '#00e5a0', font: { size: 10 }, callback: v => v + ' ms' },
+      grid: { color: 'rgba(255,255,255,0.04)' }, border: { display: false }
+    };
+  }
+  if (hasHr) {
+    datasets.push({
+      label: 'Resting HR (bpm)',
+      data: entries.map(e => e.restingHR ?? null),
+      borderColor: '#ff4757',
+      backgroundColor: 'transparent',
+      borderWidth: 1.5, pointRadius: 0, tension: 0.35, fill: false,
+      yAxisID: 'yHr', spanGaps: true, borderDash: [4, 3],
+    });
+    scales.yHr = {
+      position: hasHrv ? 'right' : 'left',
+      ticks: { color: '#ff4757', font: { size: 10 }, callback: v => v + ' bpm' },
+      grid: hasHrv ? { display: false } : { color: 'rgba(255,255,255,0.04)' },
+      border: { display: false }
+    };
+  }
+
+  // Add a no-HRV note below the chart if only HR is present
+  if (!hasHrv && card) {
+    const note = document.createElement('div');
+    note.className = 'wellness-no-data';
+    note.textContent = 'HRV data not found — sync a wearable with intervals.icu to enable the HRV line.';
+    card.appendChild(note);
+  }
+
+  state.wellnessHrvChart = destroyChart(state.wellnessHrvChart);
+  state.wellnessHrvChart = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: { labels: entries.map(e => e.id), datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: datasets.length > 1, position: 'bottom',
+          labels: { color: '#9ba5be', boxWidth: 12, font: { size: 10 }, padding: 14 } },
+        tooltip: { ...C_TOOLTIP,
+          callbacks: { title: items => items[0].label } }
+      },
+      scales
+    }
+  });
+}
+
+function _renderWellnessSleepChart(entries) {
+  const canvas = document.getElementById('wellnessSleepChart');
+  if (!canvas) return;
+  const withSleep = entries.filter(e => e.sleepSecs != null && e.sleepSecs > 0);
+  if (!withSleep.length) { canvas.closest('.card').style.display = 'none'; return; }
+
+  const labels = withSleep.map(e => e.id);
+  const hours  = withSleep.map(e => +(e.sleepSecs / 3600).toFixed(2));
+  const avg    = hours.reduce((s,v)=>s+v,0) / hours.length;
+
+  state.wellnessSleepChart = destroyChart(state.wellnessSleepChart);
+  state.wellnessSleepChart = new Chart(canvas.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Sleep',
+          data: hours,
+          backgroundColor: hours.map(h => h >= 7 ? 'rgba(74,158,255,0.6)' : h >= 6 ? 'rgba(240,196,41,0.65)' : 'rgba(255,71,87,0.65)'),
+          hoverBackgroundColor: '#4a9eff',
+          borderRadius: 3,
+        },
+        {
+          label: '8h target',
+          data: labels.map(() => 8),
+          type: 'line',
+          borderColor: 'rgba(255,255,255,0.15)',
+          borderDash: [5,4],
+          borderWidth: 1,
+          pointRadius: 0,
+          fill: false,
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { ...C_TOOLTIP,
+          callbacks: {
+            title: items => items[0].label,
+            label: item => item.datasetIndex === 0 ? `${item.raw}h sleep` : '8h target'
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#62708a', font: { size: 10 }, maxTicksLimit: 10,
+            callback(_, i) { return withSleep[i]?.id ? new Date(withSleep[i].id).toLocaleDateString('en-GB',{day:'numeric',month:'short'}) : ''; }
+          },
+          grid: { display: false }, border: { display: false }
+        },
+        y: {
+          min: 0, max: 10,
+          ticks: { color: '#62708a', font: { size: 10 }, callback: v => v + 'h', stepSize: 2 },
+          grid: { color: 'rgba(255,255,255,0.04)' }, border: { display: false }
+        }
+      }
+    }
+  });
+}
+
+function _renderWellnessSubjChart(entries) {
+  const canvas = document.getElementById('wellnessSubjChart');
+  if (!canvas) return;
+  const keys = ['mood','fatigue','soreness','stress'];
+  const hasAny = entries.some(e => keys.some(k => e[k] != null));
+  if (!hasAny) { canvas.closest('.card').style.display = 'none'; return; }
+
+  const labels  = entries.map(e => e.id);
+  const colors  = { mood:'#00e5a0', fatigue:'#ff6b35', soreness:'#ff4757', stress:'#9b59ff' };
+  const display = { mood:'Mood', fatigue:'Fatigue', soreness:'Soreness', stress:'Stress' };
+
+  state.wellnessSubjChart = destroyChart(state.wellnessSubjChart);
+  state.wellnessSubjChart = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: keys.map(k => ({
+        label: display[k],
+        data: entries.map(e => e[k] ?? null),
+        borderColor: colors[k],
+        backgroundColor: 'transparent',
+        borderWidth: 1.5,
+        pointRadius: 0,
+        tension: 0.35,
+        fill: false,
+        spanGaps: true,
+      }))
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: true, position: 'bottom',
+          labels: { color: '#9ba5be', boxWidth: 12, font: { size: 10 }, padding: 14 } },
+        tooltip: { ...C_TOOLTIP,
+          callbacks: { title: items => items[0].label } }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#62708a', font: { size: 10 }, maxTicksLimit: 10,
+            callback(_, i) { return entries[i]?.id ? new Date(entries[i].id).toLocaleDateString('en-GB',{day:'numeric',month:'short'}) : ''; }
+          },
+          grid: { display: false }, border: { display: false }
+        },
+        y: {
+          min: 0, max: 5,
+          ticks: { color: '#62708a', font: { size: 10 }, stepSize: 1,
+            callback: v => ['','Very Low','Low','Normal','High','Very High'][v] || v },
+          grid: { color: 'rgba(255,255,255,0.04)' }, border: { display: false }
+        }
+      }
+    }
+  });
+}
+
+function _renderWellnessCorrelChart(entries) {
+  const card   = document.getElementById('wellnessCorrelChart')?.closest('.card');
+  const canvas = document.getElementById('wellnessCorrelChart');
+  if (!canvas) return;
+  const withAtl = entries.filter(e => e.atl != null);
+  if (withAtl.length < 3) { card?.style && (card.style.display = 'none'); return; }
+
+  const labels = withAtl.map(e => e.id);
+  const atl    = withAtl.map(e => e.atl);
+  const hrv    = withAtl.map(e => e.hrv ?? null);
+  const hasHrv = hrv.some(v => v != null);
+
+  // Remove any old notes
+  card?.querySelectorAll('.wellness-no-data').forEach(el => el.remove());
+
+  // Update subtitle to reflect what's actually shown
+  const subEl = card?.querySelector('.card-subtitle');
+  if (subEl) {
+    subEl.textContent = hasHrv
+      ? 'ATL (fatigue) overlaid with HRV — see how load impacts recovery'
+      : 'ATL (fatigue) over time — sync a wearable to add HRV correlation';
+  }
+
+  // Show note if HRV is missing
+  if (!hasHrv && card) {
+    const note = document.createElement('div');
+    note.className = 'wellness-no-data';
+    note.textContent = 'HRV data not available — sync a heart rate monitor or HRV app with intervals.icu to see the correlation.';
+    card.appendChild(note);
+  }
+
+  state.wellnessCorrelChart = destroyChart(state.wellnessCorrelChart);
+  state.wellnessCorrelChart = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'ATL (Fatigue)',
+          data: atl,
+          borderColor: '#ff6b35',
+          backgroundColor: 'rgba(255,107,53,0.10)',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.35,
+          fill: true,
+          yAxisID: 'yAtl',
+          spanGaps: true,
+        },
+        ...(hasHrv ? [{
+          label: 'HRV (ms)',
+          data: hrv,
+          borderColor: '#00e5a0',
+          backgroundColor: 'transparent',
+          borderWidth: 1.5,
+          pointRadius: 0,
+          tension: 0.35,
+          fill: false,
+          yAxisID: 'yHrv',
+          spanGaps: true,
+        }] : [])
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: true, position: 'bottom',
+          labels: { color: '#9ba5be', boxWidth: 12, font: { size: 10 }, padding: 14 } },
+        tooltip: { ...C_TOOLTIP,
+          callbacks: { title: items => items[0].label } }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#62708a', font: { size: 10 }, maxTicksLimit: 10,
+            callback(_, i) { return withAtl[i]?.id ? new Date(withAtl[i].id).toLocaleDateString('en-GB',{day:'numeric',month:'short'}) : ''; }
+          },
+          grid: { display: false }, border: { display: false }
+        },
+        yAtl: {
+          position: 'left',
+          ticks: { color: '#ff6b35', font: { size: 10 } },
+          grid: { color: 'rgba(255,255,255,0.04)' }, border: { display: false }
+        },
+        ...(hasHrv ? {
+          yHrv: {
+            position: 'right',
+            ticks: { color: '#00e5a0', font: { size: 10 }, callback: v => v + ' ms' },
+            grid: { display: false }, border: { display: false }
+          }
+        } : {})
+      }
+    }
+  });
+}
+
 // Build a power curve object from a raw watts stream using a sliding-window max.
 // Shared duration ticks (seconds) used by power and HR curve builders + normalization
 const DURS = [1,2,3,5,8,10,15,20,30,45,60,90,120,180,300,420,600,900,1200,1800,2700,3600,5400,7200];
@@ -7871,6 +8597,606 @@ document.querySelectorAll('[data-units]').forEach(btn =>
 );
 const elevEl = document.getElementById('settingsElevUnit');
 if (elevEl) elevEl.textContent = state.units === 'imperial' ? 'feet' : 'metres';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GEAR PAGE
+// ─────────────────────────────────────────────────────────────────────────────
+
+const GEAR_STORE_KEY = 'icu_gear_components';
+const GEAR_CATEGORY_COLORS = {
+  Drivetrain: '#60a5fa',
+  Wheels:     '#34d399',
+  Cockpit:    '#a78bfa',
+  Frame:      '#f97316',
+  Brakes:     '#f87171',
+  Tyres:      '#fbbf24',
+  Pedals:     '#e879f9',
+  Saddle:     '#fb923c',
+  Other:      '#94a3b8',
+};
+
+function loadGearComponents() {
+  try { return JSON.parse(localStorage.getItem(GEAR_STORE_KEY)) || []; }
+  catch { return []; }
+}
+function saveGearComponents(arr) {
+  localStorage.setItem(GEAR_STORE_KEY, JSON.stringify(arr));
+}
+
+// ── State for selected bike filter ──
+let _gearSelectedBike = null; // null = all
+let _gearBikeCache    = [];   // [{id, name, km}]
+
+async function renderGearPage() {
+  // Fetch bikes from intervals.icu via MCP (already available in state or refetch)
+  const bikeRow = document.getElementById('gearBikesRow');
+  const compGrid = document.getElementById('gearComponentsGrid');
+  if (!bikeRow || !compGrid) return;
+
+  bikeRow.innerHTML = '<div class="gear-bikes-loading"><div class="spinner"></div> Loading bikes…</div>';
+
+  let bikes = [];
+  try {
+    const raw = state.gearBikes; // cached from last fetch
+    if (raw && raw.length) {
+      bikes = raw;
+    } else {
+      // Pull via the MCP tool result already stored in state after sync
+      // Fallback: use activityData to derive bike list if no direct API
+      // We'll call the gear list endpoint through a fetch wrapper
+      const apiKey  = localStorage.getItem('icu_api_key');
+      const athlete = localStorage.getItem('icu_athlete_id');
+      if (apiKey && athlete) {
+        const resp = await fetch(
+          `https://intervals.icu/api/v1/athlete/${athlete}/gear`,
+          { headers: { 'Authorization': 'Basic ' + btoa('API_KEY:' + apiKey) } }
+        );
+        if (resp.ok) {
+          const data = await resp.json();
+          bikes = (data || []).map(g => ({
+            id:   g.id,
+            name: g.name || 'Unnamed bike',
+            km:   g.distance ? Math.round(g.distance / 1000) : 0,
+            type: g.type || 'Bike',
+          }));
+          state.gearBikes = bikes;
+        }
+      }
+    }
+  } catch(e) { console.warn('Gear fetch error', e); }
+
+  _gearBikeCache = bikes;
+
+  // Render bike cards
+  if (bikes.length === 0) {
+    bikeRow.innerHTML = '<div class="gear-empty-state">No bikes found on intervals.icu</div>';
+  } else {
+    bikeRow.innerHTML = bikes.map(b => {
+      const sel = _gearSelectedBike === b.id ? ' gear-bike-card--active' : '';
+      const kmFmt = b.km >= 1000 ? (b.km / 1000).toFixed(1) + 'k' : b.km;
+      return `<div class="gear-bike-card${sel}" onclick="gearSelectBike('${b.id}')">
+        <div class="gear-bike-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" width="32" height="32">
+            <circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/>
+            <path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5L9 11l-3.5 3.5M15 6l-4 5.5H5.5M15 6l3 5.5"/>
+          </svg>
+        </div>
+        <div class="gear-bike-name">${b.name}</div>
+        <div class="gear-bike-km">${kmFmt} km</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Populate bike select in modal
+  const sel = document.getElementById('gearFormBike');
+  if (sel) {
+    const opts = bikes.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+    sel.innerHTML = '<option value="">— All bikes / General —</option>' + opts;
+  }
+
+  renderGearComponents();
+}
+
+function gearSelectBike(id) {
+  _gearSelectedBike = (_gearSelectedBike === id) ? null : id; // toggle
+  // Re-highlight cards
+  document.querySelectorAll('.gear-bike-card').forEach(el => {
+    const elId = el.getAttribute('onclick').match(/'([^']+)'/)?.[1];
+    el.classList.toggle('gear-bike-card--active', elId === _gearSelectedBike);
+  });
+  renderGearComponents();
+}
+
+function renderGearComponents() {
+  const grid   = document.getElementById('gearComponentsGrid');
+  const title  = document.getElementById('gearComponentsTitle');
+  const sub    = document.getElementById('gearComponentsSub');
+  if (!grid) return;
+
+  const allComps = loadGearComponents();
+  const filtered = _gearSelectedBike
+    ? allComps.filter(c => c.bikeId === _gearSelectedBike)
+    : allComps;
+
+  // Update header
+  const bike = _gearBikeCache.find(b => b.id === _gearSelectedBike);
+  if (title) title.textContent = bike ? `${bike.name} — Components` : 'All Components';
+  if (sub)   sub.textContent   = filtered.length
+    ? `${filtered.length} component${filtered.length !== 1 ? 's' : ''} tracked`
+    : 'No components yet — add your first one above';
+
+  if (filtered.length === 0) {
+    grid.innerHTML = `<div class="gear-empty-state gear-empty-state--comp">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="40" height="40" style="opacity:.3"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+      <div>No components tracked yet.</div>
+      <button class="btn btn-primary btn-sm" onclick="openGearModal()">Add your first component</button>
+    </div>`;
+    return;
+  }
+
+  // Group by category
+  const groups = {};
+  filtered.forEach(c => {
+    const cat = c.category || 'Other';
+    if (!groups[cat]) groups[cat] = [];
+    groups[cat].push(c);
+  });
+
+  grid.innerHTML = Object.entries(groups).map(([cat, items]) => {
+    const color = GEAR_CATEGORY_COLORS[cat] || '#94a3b8';
+    const cards = items.map(c => gearComponentCard(c)).join('');
+    return `<div class="gear-cat-group">
+      <div class="gear-cat-label" style="color:${color}">${cat}</div>
+      <div class="gear-cat-cards">${cards}</div>
+    </div>`;
+  }).join('');
+}
+
+function gearComponentCard(c) {
+  const color   = GEAR_CATEGORY_COLORS[c.category] || '#94a3b8';
+  const bike    = _gearBikeCache.find(b => b.id === c.bikeId);
+  const bikeKm  = bike ? bike.km : 0;
+  const kmAtInst = parseFloat(c.kmAtInstall) || 0;
+  const ridden  = Math.max(0, bikeKm - kmAtInst);
+  const remind  = parseFloat(c.reminderKm)  || 0;
+  const pct     = remind > 0 ? Math.min(100, Math.round(ridden / remind * 100)) : null;
+  const warn    = pct !== null && pct >= 90;
+  const overdue = pct !== null && pct >= 100;
+
+  const progressHtml = pct !== null ? `
+    <div class="gear-comp-bar-wrap">
+      <div class="gear-comp-bar-track">
+        <div class="gear-comp-bar-fill" style="width:${pct}%;background:${overdue ? 'var(--red)' : warn ? '#f97316' : color}"></div>
+      </div>
+      <span class="gear-comp-bar-label ${overdue ? 'gear-comp-bar-label--red' : warn ? 'gear-comp-bar-label--warn' : ''}">
+        ${overdue ? '⚠ Replace' : warn ? '⚠ Soon' : `${pct}%`}
+      </span>
+    </div>` : '';
+
+  const meta = [];
+  if (c.brand || c.model) meta.push(`<span>${[c.brand, c.model].filter(Boolean).join(' ')}</span>`);
+  if (c.purchaseDate)     meta.push(`<span>${c.purchaseDate}</span>`);
+  if (c.price)            meta.push(`<span>€${parseFloat(c.price).toFixed(0)}</span>`);
+  if (bike)               meta.push(`<span style="color:var(--accent)">${bike.name}</span>`);
+
+  return `<div class="gear-comp-card ${overdue ? 'gear-comp-card--overdue' : warn ? 'gear-comp-card--warn' : ''}">
+    <div class="gear-comp-top">
+      <div class="gear-comp-name">${c.name || 'Component'}</div>
+      <div class="gear-comp-actions">
+        <button class="gear-icon-btn" title="Edit" onclick="openGearModal('${c.id}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
+        </button>
+        <button class="gear-icon-btn gear-icon-btn--del" title="Delete" onclick="deleteGearComponent('${c.id}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        </button>
+      </div>
+    </div>
+    ${meta.length ? `<div class="gear-comp-meta">${meta.join('<span class="gear-comp-dot">·</span>')}</div>` : ''}
+    ${ridden > 0 || remind > 0 ? `<div class="gear-comp-km">${Math.round(ridden).toLocaleString()} km ridden${remind > 0 ? ` / ${remind.toLocaleString()} km` : ''}</div>` : ''}
+    ${progressHtml}
+  </div>`;
+}
+
+function openGearModal(editId) {
+  const modal = document.getElementById('gearModal');
+  const titleEl = document.getElementById('gearModalTitle');
+  if (!modal) return;
+
+  // Reset form
+  document.getElementById('gearEditId').value         = editId || '';
+  document.getElementById('gearFormName').value       = '';
+  document.getElementById('gearFormBrand').value      = '';
+  document.getElementById('gearFormModel').value      = '';
+  document.getElementById('gearFormDate').value       = '';
+  document.getElementById('gearFormPrice').value      = '';
+  document.getElementById('gearFormKmAtInstall').value= '';
+  document.getElementById('gearFormReminderKm').value = '';
+  document.getElementById('gearFormBike').value       = _gearSelectedBike || '';
+  document.getElementById('gearFormCategory').value   = 'Drivetrain';
+
+  if (editId) {
+    const comp = loadGearComponents().find(c => c.id === editId);
+    if (comp) {
+      titleEl.textContent = 'Edit Component';
+      document.getElementById('gearFormName').value        = comp.name        || '';
+      document.getElementById('gearFormBrand').value       = comp.brand       || '';
+      document.getElementById('gearFormModel').value       = comp.model       || '';
+      document.getElementById('gearFormDate').value        = comp.purchaseDate|| '';
+      document.getElementById('gearFormPrice').value       = comp.price       || '';
+      document.getElementById('gearFormKmAtInstall').value = comp.kmAtInstall || '';
+      document.getElementById('gearFormReminderKm').value  = comp.reminderKm  || '';
+      document.getElementById('gearFormBike').value        = comp.bikeId      || '';
+      document.getElementById('gearFormCategory').value    = comp.category    || 'Drivetrain';
+    }
+  } else {
+    titleEl.textContent = 'Add Component';
+  }
+
+  modal.classList.add('open');
+}
+
+function closeGearModal() {
+  const modal = document.getElementById('gearModal');
+  if (modal) modal.classList.remove('open');
+}
+
+function submitGearForm() {
+  const name = document.getElementById('gearFormName').value.trim();
+  if (!name) {
+    document.getElementById('gearFormName').focus();
+    return;
+  }
+  const editId = document.getElementById('gearEditId').value;
+  const comp = {
+    id:           editId || ('g_' + Date.now() + '_' + Math.random().toString(36).slice(2,7)),
+    bikeId:       document.getElementById('gearFormBike').value        || '',
+    category:     document.getElementById('gearFormCategory').value    || 'Other',
+    name,
+    brand:        document.getElementById('gearFormBrand').value.trim() || '',
+    model:        document.getElementById('gearFormModel').value.trim() || '',
+    purchaseDate: document.getElementById('gearFormDate').value        || '',
+    price:        parseFloat(document.getElementById('gearFormPrice').value)        || 0,
+    kmAtInstall:  parseFloat(document.getElementById('gearFormKmAtInstall').value)  || 0,
+    reminderKm:   parseFloat(document.getElementById('gearFormReminderKm').value)   || 0,
+  };
+
+  let all = loadGearComponents();
+  if (editId) {
+    all = all.map(c => c.id === editId ? comp : c);
+  } else {
+    all.push(comp);
+  }
+  saveGearComponents(all);
+  closeGearModal();
+  renderGearComponents();
+}
+
+function deleteGearComponent(id) {
+  if (!confirm('Delete this component?')) return;
+  const all = loadGearComponents().filter(c => c.id !== id);
+  saveGearComponents(all);
+  renderGearComponents();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TRAINING GUIDE PAGE
+// ─────────────────────────────────────────────────────────────────────────────
+
+function renderGuidePage() {
+  const wrap = document.getElementById('guidePageContent');
+  if (!wrap) return;
+
+  const f      = state.fitness || {};
+  const ctl    = f.ctl    != null ? Math.round(f.ctl)    : null;
+  const atl    = f.atl    != null ? Math.round(f.atl)    : null;
+  const tsb    = f.tsb    != null ? Math.round(f.tsb)    : (ctl != null && atl != null ? ctl - atl : null);
+  const rr     = f.rampRate != null ? +f.rampRate.toFixed(1) : null;
+  const ftp    = state.athlete?.ftp    || null;
+  const weight = state.athlete?.weight || null;
+  const wkg    = ftp && weight ? +(ftp / weight).toFixed(2) : null;
+  const name   = state.athlete ? (state.athlete.name || state.athlete.firstname || 'You') : 'You';
+
+  // ── helper: build a zone row (highlight only, no inline badge) ──
+  function zoneRow(barPct, color, label, desc, isActive) {
+    return `<div class="guide-zone-row${isActive ? ' guide-zone-row--active' : ''}">
+      <span class="guide-zone-bar" style="width:${barPct}%;background:${color}"></span>
+      <span class="guide-zone-label">${label}</span>
+      <span class="guide-zone-desc">${desc}</span>
+    </div>`;
+  }
+
+  // ── helper: green pill for top-right of card ──
+  function youBadge(value, suffix) {
+    if (value == null) return '';
+    return `<span class="guide-you-badge">${value}${suffix || ''}</span>`;
+  }
+
+  // ── CTL zone detection ──
+  function ctlZone(v) {
+    if (v == null) return -1;
+    if (v < 30)  return 0;
+    if (v < 60)  return 1;
+    if (v < 90)  return 2;
+    if (v < 120) return 3;
+    return 4;
+  }
+  // ── TSB zone detection ──
+  function tsbZone(v) {
+    if (v == null) return -1;
+    if (v < -30) return 0;
+    if (v < -10) return 1;
+    if (v < 5)   return 2;
+    if (v <= 25) return 3;
+    return 4;
+  }
+  // ── ATL vs CTL zone ──
+  function atlZone(a, c) {
+    if (a == null || c == null) return -1;
+    const diff = a - c;
+    if (diff < 0)  return 0;
+    if (diff < 10) return 1;
+    if (diff < 30) return 2;
+    return 3;
+  }
+  // ── Ramp Rate zone ──
+  function rrZone(v) {
+    if (v == null) return -1;
+    if (v < 0)  return 0;
+    if (v < 5)  return 1;
+    if (v < 8)  return 2;
+    return 3;
+  }
+
+  const ctlZ = ctlZone(ctl);
+  const tsbZ = tsbZone(tsb);
+  const atlZ = atlZone(atl, ctl);
+  const rrZ  = rrZone(rr);
+
+  // ── Personalised summary line ──
+  function ctlLabel(v) {
+    if (v == null) return null;
+    if (v < 30)  return 'beginner level';
+    if (v < 60)  return 'recreational level';
+    if (v < 90)  return 'fit amateur level';
+    if (v < 120) return 'serious racer level';
+    return 'elite level';
+  }
+  function tsbLabel(v) {
+    if (v == null) return null;
+    if (v < -30) return 'heavily overreached — you need rest immediately';
+    if (v < -10) return 'in a training block, carrying fatigue';
+    if (v < 5)   return 'in a good training sweet spot';
+    if (v <= 25) return 'fresh and in peak form';
+    return 'well rested but fitness may be declining';
+  }
+  function wkgLabel(v) {
+    if (v == null) return null;
+    if (v < 2.5) return 'beginner';
+    if (v < 3.5) return 'recreational';
+    if (v < 4.5) return 'sportive / cat 4';
+    if (v < 5.5) return 'cat 3 / strong amateur';
+    return 'elite / pro territory';
+  }
+
+  const hasFitness = ctl != null;
+
+  // ── Personal status card ──
+  const statusCard = hasFitness ? `
+    <div class="card guide-status-card">
+      <div class="guide-status-header">
+        <div class="guide-status-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="22" height="22"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </div>
+        <div>
+          <div class="guide-status-title">Your current status, ${name}</div>
+          <div class="guide-status-sub">Based on your live intervals.icu data</div>
+        </div>
+      </div>
+      <div class="guide-status-kpis">
+        ${ctl  != null ? `<div class="guide-status-kpi">
+          <div class="guide-status-kpi-val" style="color:var(--accent)">${ctl}</div>
+          <div class="guide-status-kpi-label">CTL · Fitness</div>
+          <div class="guide-status-kpi-desc">${ctlLabel(ctl)}</div>
+        </div>` : ''}
+        ${atl  != null ? `<div class="guide-status-kpi">
+          <div class="guide-status-kpi-val" style="color:var(--orange)">${atl}</div>
+          <div class="guide-status-kpi-label">ATL · Fatigue</div>
+          <div class="guide-status-kpi-desc">${atl > ctl ? `${atl - ctl} above CTL` : `${ctl - atl} below CTL`}</div>
+        </div>` : ''}
+        ${tsb  != null ? `<div class="guide-status-kpi">
+          <div class="guide-status-kpi-val" style="color:${tsb >= 0 ? 'var(--blue)' : 'var(--orange)'}">${tsb > 0 ? '+' : ''}${tsb}</div>
+          <div class="guide-status-kpi-label">TSB · Form</div>
+          <div class="guide-status-kpi-desc">${tsbLabel(tsb)}</div>
+        </div>` : ''}
+        ${rr   != null ? `<div class="guide-status-kpi">
+          <div class="guide-status-kpi-val" style="color:${rr >= 0 ? 'var(--accent)' : 'var(--red)'}">${rr > 0 ? '+' : ''}${rr}</div>
+          <div class="guide-status-kpi-label">Ramp Rate</div>
+          <div class="guide-status-kpi-desc">per week</div>
+        </div>` : ''}
+        ${ftp  != null ? `<div class="guide-status-kpi">
+          <div class="guide-status-kpi-val" style="color:var(--yellow)">${ftp}w</div>
+          <div class="guide-status-kpi-label">FTP</div>
+          <div class="guide-status-kpi-desc">${wkg ? wkg + ' w/kg' : ''}</div>
+        </div>` : ''}
+        ${wkg  != null ? `<div class="guide-status-kpi">
+          <div class="guide-status-kpi-val" style="color:var(--purple)">${wkgLabel(wkg)}</div>
+          <div class="guide-status-kpi-label">W/kg Level</div>
+          <div class="guide-status-kpi-desc">${wkg} w/kg</div>
+        </div>` : ''}
+      </div>
+    </div>` : `
+    <div class="card guide-intro-card">
+      <div class="guide-intro-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+      </div>
+      <div>
+        <div class="guide-intro-title">Training Load Explained</div>
+        <div class="guide-intro-sub">Sync your intervals.icu data to see how these numbers apply to your own training.</div>
+      </div>
+    </div>`;
+
+  // ── W/kg benchmarks card ──
+  const wkgCard = ftp ? (() => {
+    const rows = [
+      { label: '< 2.5', desc: 'Beginner', pct: 20, color: '#62708a' },
+      { label: '2.5–3.5', desc: 'Recreational', pct: 40, color: 'var(--blue)' },
+      { label: '3.5–4.5', desc: 'Sportive / Cat 4', pct: 60, color: 'var(--accent)' },
+      { label: '4.5–5.5', desc: 'Cat 3 / Strong amateur', pct: 80, color: 'var(--orange)' },
+      { label: '5.5+', desc: 'Elite / Pro', pct: 100, color: 'var(--red)' },
+    ];
+    function wkgZone(v) {
+      if (v < 2.5) return 0; if (v < 3.5) return 1; if (v < 4.5) return 2; if (v < 5.5) return 3; return 4;
+    }
+    const activeZ = wkg ? wkgZone(wkg) : -1;
+    const zoneRows = rows.map((r, i) => zoneRow(r.pct, r.color, r.label, r.desc, i === activeZ)).join('');
+    return `<div class="card guide-metric-card">
+      <div class="guide-metric-header">
+        <div class="guide-metric-badge" style="background:rgba(240,196,41,0.12);color:var(--yellow)">W/kg</div>
+        <div>
+          <div class="guide-metric-name">Watts per Kilogram</div>
+          <div class="guide-metric-aka">your power-to-weight ratio</div>
+        </div>
+        ${youBadge(wkg, ' w/kg')}
+      </div>
+      <p class="guide-metric-desc">Dividing your FTP by your bodyweight gives a weight-normalised power score that lets you compare performance regardless of size. It's the most common benchmark for road cycling performance.${ftp && weight ? ` Your FTP of <strong>${ftp}w</strong> at <strong>${weight}kg</strong> gives you <strong>${wkg} w/kg</strong>.` : ''}</p>
+      <div class="guide-zones">${zoneRows}</div>
+      <div class="guide-tip">💡 Improving w/kg comes from raising FTP, reducing weight, or both. Most cyclists find raising FTP easier.</div>
+    </div>`;
+  })() : '';
+
+  // ── Main grid ──
+  wrap.innerHTML = `<div class="guide-grid">
+    ${statusCard}
+
+    <!-- CTL -->
+    <div class="card guide-metric-card">
+      <div class="guide-metric-header">
+        <div class="guide-metric-badge" style="background:rgba(0,229,160,0.12);color:var(--accent)">CTL</div>
+        <div>
+          <div class="guide-metric-name">Chronic Training Load</div>
+          <div class="guide-metric-aka">aka <strong>Fitness</strong></div>
+        </div>
+        ${youBadge(ctl)}
+      </div>
+      <p class="guide-metric-desc">Your 42-day rolling average of daily training stress. Think of it as your long-term fitness bank — the higher it is, the more your body is adapted to hard training.${ctl != null ? ` Your current CTL is <strong>${ctl}</strong>.` : ''}</p>
+      <div class="guide-zones">
+        ${zoneRow(20,  'var(--text-muted)', '0–30',   'Beginner / returning from break',               ctlZ===0)}
+        ${zoneRow(40,  'var(--blue)',       '30–60',  'Recreational cyclist, training regularly',      ctlZ===1)}
+        ${zoneRow(65,  'var(--accent)',     '60–90',  'Fit amateur, racing or hard sportives',         ctlZ===2)}
+        ${zoneRow(85,  'var(--orange)',     '90–120', 'Serious club racer / part-time athlete',        ctlZ===3)}
+        ${zoneRow(100, 'var(--red)',        '120+',   'Elite / pro level — needs full recovery cycles', ctlZ===4)}
+      </div>
+      <div class="guide-tip">💡 Aim to build CTL no faster than 5–8 points per week to reduce injury risk.</div>
+    </div>
+
+    <!-- ATL -->
+    <div class="card guide-metric-card">
+      <div class="guide-metric-header">
+        <div class="guide-metric-badge" style="background:rgba(255,107,53,0.12);color:var(--orange)">ATL</div>
+        <div>
+          <div class="guide-metric-name">Acute Training Load</div>
+          <div class="guide-metric-aka">aka <strong>Fatigue</strong></div>
+        </div>
+        ${youBadge(atl)}
+      </div>
+      <p class="guide-metric-desc">Your 7-day rolling average of daily training stress. It reacts fast — a big week shoots it up, a few easy days brings it down quickly.${atl != null && ctl != null ? ` Your ATL is <strong>${atl}</strong> vs CTL <strong>${ctl}</strong> — you're ${atl > ctl ? `<strong>${atl-ctl} points above</strong> CTL, in a fatigue hole` : `<strong>${ctl-atl} points below</strong> CTL, recovering well`}.` : ''}</p>
+      <div class="guide-zones">
+        ${zoneRow(25,  'var(--accent)', 'ATL &lt; CTL',          'Recovering — feeling fresh, performance may peak',   atlZ===0)}
+        ${zoneRow(55,  'var(--blue)',   'ATL ≈ CTL',             'Maintaining — steady state training',                atlZ===1)}
+        ${zoneRow(80,  'var(--orange)', 'ATL &gt; CTL by 20–30', 'Hard training block — expected but monitor closely', atlZ===2)}
+        ${zoneRow(100, 'var(--red)',    'ATL &gt; CTL by 30+',   'Danger zone — high injury &amp; illness risk',       atlZ===3)}
+      </div>
+      <div class="guide-tip">💡 ATL drops about 13% per day of rest — a 3-day easy period makes a noticeable difference.</div>
+    </div>
+
+    <!-- TSB -->
+    <div class="card guide-metric-card">
+      <div class="guide-metric-header">
+        <div class="guide-metric-badge" style="background:rgba(74,158,255,0.12);color:var(--blue)">TSB</div>
+        <div>
+          <div class="guide-metric-name">Training Stress Balance</div>
+          <div class="guide-metric-aka">aka <strong>Form</strong> &nbsp;=&nbsp; CTL − ATL</div>
+        </div>
+        ${youBadge(tsb != null ? (tsb > 0 ? '+' + tsb : tsb) : null)}
+      </div>
+      <p class="guide-metric-desc">The difference between your fitness and your fatigue. A positive TSB means you're fresh and ready to perform.${tsb != null ? ` Your TSB is currently <strong>${tsb > 0 ? '+' : ''}${tsb}</strong> — ${tsbLabel(tsb)}.` : ''}</p>
+      <div class="guide-zones">
+        ${zoneRow(15,  'var(--purple)',     'Below −30',  'Overreaching — step back immediately',             tsbZ===0)}
+        ${zoneRow(40,  'var(--orange)',     '−30 to −10', 'Training load — tired but building fitness',       tsbZ===1)}
+        ${zoneRow(65,  'var(--accent)',     '−10 to +5',  'Sweet spot — training while managing fatigue',     tsbZ===2)}
+        ${zoneRow(85,  'var(--blue)',       '+5 to +25',  'Peak form — ideal for races &amp; hard efforts',   tsbZ===3)}
+        ${zoneRow(100, 'var(--text-muted)', 'Above +25',  'Detraining — too much rest, fitness declining',    tsbZ===4)}
+      </div>
+      <div class="guide-tip">💡 Aim for TSB between +5 and +15 on race day. Start your taper 7–14 days out.</div>
+    </div>
+
+    <!-- TSS -->
+    <div class="card guide-metric-card">
+      <div class="guide-metric-header">
+        <div class="guide-metric-badge" style="background:rgba(240,196,41,0.12);color:var(--yellow)">TSS</div>
+        <div>
+          <div class="guide-metric-name">Training Stress Score</div>
+          <div class="guide-metric-aka">per-ride training load</div>
+        </div>
+      </div>
+      <p class="guide-metric-desc">A single number representing the stress of one ride. 100 TSS = riding at your FTP for exactly one hour. Every workout gets a TSS; these feed into your ATL and CTL.${ftp ? ` With your FTP of ${ftp}w, a 2-hour endurance ride would score roughly 80–120 TSS.` : ''}</p>
+      <div class="guide-zones">
+        ${zoneRow(20,  'var(--accent)', 'Under 50', 'Easy recovery ride — minimal fatigue',              false)}
+        ${zoneRow(45,  'var(--blue)',   '50–100',   'Moderate training ride — recover in a day',         false)}
+        ${zoneRow(70,  'var(--orange)', '100–150',  'Hard session — 1–2 days recovery needed',           false)}
+        ${zoneRow(100, 'var(--red)',    '150+',     'Very hard / long ride — 2–3 days to fully recover', false)}
+      </div>
+      <div class="guide-tip">💡 Without a power meter, TSS is estimated from heart rate. A power meter gives more accurate numbers.</div>
+    </div>
+
+    <!-- Ramp Rate -->
+    <div class="card guide-metric-card">
+      <div class="guide-metric-header">
+        <div class="guide-metric-badge" style="background:rgba(155,89,255,0.12);color:var(--purple)">RR</div>
+        <div>
+          <div class="guide-metric-name">Ramp Rate</div>
+          <div class="guide-metric-aka">CTL change per week</div>
+        </div>
+        ${youBadge(rr != null ? (rr > 0 ? '+' + rr : rr) : null, '/wk')}
+      </div>
+      <p class="guide-metric-desc">How fast your fitness is rising or falling each week.${rr != null ? ` Your current ramp rate is <strong>${rr > 0 ? '+' : ''}${rr}/week</strong>${rr > 8 ? ' — that\'s quite aggressive, watch for fatigue' : rr >= 3 ? ' — right in the ideal zone' : rr > 0 ? ' — conservative, safe to push a little more' : ' — fitness is declining, time to ramp up'}.` : ''}</p>
+      <div class="guide-zones">
+        ${zoneRow(15,  'var(--text-muted)', 'Negative',  'Fitness declining — rest week or off-season',       rrZ===0)}
+        ${zoneRow(40,  'var(--accent)',     '+3 to +5',  'Ideal — safe, sustainable fitness gains',           rrZ===1)}
+        ${zoneRow(70,  'var(--orange)',     '+5 to +8',  'Aggressive — monitor for fatigue &amp; soreness',   rrZ===2)}
+        ${zoneRow(100, 'var(--red)',        'Above +8',  'Too fast — high injury risk, ease off',             rrZ===3)}
+      </div>
+      <div class="guide-tip">💡 New to structured training? Stay at +3–4/week. Experienced athletes can push to +5–6 for short blocks.</div>
+    </div>
+
+    ${wkgCard}
+
+    <!-- Quick reference -->
+    <div class="card guide-ref-card">
+      <div class="card-header"><div class="card-title">Quick Reference</div></div>
+      <div class="guide-ref-grid">
+        <div class="guide-ref-item">
+          <div class="guide-ref-label">I want to get fitter</div>
+          <div class="guide-ref-val">Keep ATL &gt; CTL for weeks at a time. Ramp rate +3–5/wk.</div>
+        </div>
+        <div class="guide-ref-item">
+          <div class="guide-ref-label">I have a race next weekend</div>
+          <div class="guide-ref-val">Reduce load now. Target TSB +5 to +15 on race day.</div>
+        </div>
+        <div class="guide-ref-item">
+          <div class="guide-ref-label">I feel exhausted all the time</div>
+          <div class="guide-ref-val">Check TSB — if below −20, take 3–5 easy days.</div>
+        </div>
+        <div class="guide-ref-item">
+          <div class="guide-ref-label">I haven't trained in weeks</div>
+          <div class="guide-ref-val">CTL is low — start easy and ramp slowly. Rushing causes injury.</div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 // Capture any saved route before navigate('dashboard') overwrites sessionStorage
 const _initRoute = (() => { try { return JSON.parse(sessionStorage.getItem('icu_route')); } catch { return null; } })();

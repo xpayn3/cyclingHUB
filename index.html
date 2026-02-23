@@ -167,6 +167,83 @@
             </div>
         </div>
 
+        <!-- ============================================================  GEAR MODAL  ============================================================ -->
+        <div class="modal-backdrop" id="gearModal">
+            <div class="modal" style="max-width:520px">
+                <div class="modal-header">
+                    <div>
+                        <div class="modal-header-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+                        </div>
+                        <div class="modal-title" id="gearModalTitle">Add Component</div>
+                        <div class="modal-desc">Track a bike part — brand, install date, and when to replace it.</div>
+                    </div>
+                    <button class="modal-close" onclick="closeGearModal()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="gearEditId">
+                    <div class="gear-form-grid">
+                        <div class="field">
+                            <label>Bike</label>
+                            <select id="gearFormBike" class="app-select">
+                                <option value="">— All bikes / General —</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>Category</label>
+                            <select id="gearFormCategory" class="app-select">
+                                <option>Drivetrain</option>
+                                <option>Wheels</option>
+                                <option>Cockpit</option>
+                                <option>Frame</option>
+                                <option>Brakes</option>
+                                <option>Tyres</option>
+                                <option>Pedals</option>
+                                <option>Saddle</option>
+                                <option>Other</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>Component Name</label>
+                            <input type="text" id="gearFormName" placeholder="e.g. Chain, Front tyre, Saddle…">
+                        </div>
+                        <div class="field">
+                            <label>Brand</label>
+                            <input type="text" id="gearFormBrand" placeholder="e.g. Shimano, Continental…">
+                        </div>
+                        <div class="field">
+                            <label>Model</label>
+                            <input type="text" id="gearFormModel" placeholder="e.g. Dura-Ace CN-HG901">
+                        </div>
+                        <div class="field">
+                            <label>Purchase Date</label>
+                            <input type="date" id="gearFormDate">
+                        </div>
+                        <div class="field">
+                            <label>Price (€)</label>
+                            <input type="number" id="gearFormPrice" placeholder="0" min="0" step="0.01">
+                        </div>
+                        <div class="field">
+                            <label>Bike km at Install</label>
+                            <input type="number" id="gearFormKmAtInstall" placeholder="0" min="0" step="1">
+                            <div class="field-hint">Total km on the bike when this component was installed.</div>
+                        </div>
+                        <div class="field" style="grid-column:1/-1">
+                            <label>Maintenance Reminder (km)</label>
+                            <input type="number" id="gearFormReminderKm" placeholder="e.g. 2000 for chain" min="0" step="100">
+                            <div class="field-hint">Get a warning badge when this component reaches this km threshold.</div>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:10px;margin-top:8px">
+                        <button class="btn btn-primary" style="flex:1" onclick="submitGearForm()">Save Component</button>
+                        <button class="btn btn-ghost" onclick="closeGearModal()">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- ============================================================  SIDEBAR  ============================================================ -->
         <div
             class="sidebar-backdrop"
@@ -327,6 +404,12 @@
                     </svg>
                     Zones
                 </div>
+                <div class="nav-item" data-page="wellness" onclick="navigate('wellness');closeSidebar();">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                    </svg>
+                    Wellness
+                </div>
                 <span class="nav-section-label">Tools</span>
                 <div class="nav-item" data-page="weather" onclick="navigate('weather');closeSidebar();">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -346,6 +429,12 @@
                         <circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>
                     </svg>
                     Training Guide
+                </div>
+                <div class="nav-item" data-page="gear" onclick="navigate('gear');closeSidebar();">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M4.93 4.93a10 10 0 0 0 0 14.14"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41"/>
+                    </svg>
+                    Gear
                 </div>
                 <span class="nav-section-label">Account</span>
                 <div
@@ -862,7 +951,7 @@
                             <button class="sort-btn"        data-sort="elevation" onclick="setActivitiesSort('elevation')">Elevation<span class="sort-arrow"></span></button>
                             <button class="sort-btn"        data-sort="power"     onclick="setActivitiesSort('power')">Power<span class="sort-arrow"></span></button>
                             <button class="sort-btn"        data-sort="bpm"       onclick="setActivitiesSort('bpm')">BPM<span class="sort-arrow"></span></button>
-                            <select class="year-select" id="activitiesYearSelect" onchange="setActivitiesYear(this.value)" style="margin-left:auto">
+                            <select class="app-select app-select--sm" id="activitiesYearSelect" onchange="setActivitiesYear(this.value)" style="margin-left:auto">
                                 <option value="all">All years</option>
                             </select>
                             <span id="allActivitiesSubtitle" style="display:none"></span>
@@ -1074,6 +1163,32 @@
                             <div class="chart-wrap" style="height:220px">
                                 <canvas id="activityHRCurveChart"></canvas>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Gradient / Elevation Profile -->
+                    <div class="card" id="detailGradientCard" style="display:none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">Elevation Profile</div>
+                                <div class="card-subtitle" id="detailGradientSubtitle">Altitude · gradient colour-coded by steepness</div>
+                            </div>
+                        </div>
+                        <div class="chart-wrap" style="height:160px">
+                            <canvas id="detailGradientChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Cadence Distribution -->
+                    <div class="card" id="detailCadenceCard" style="display:none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">Cadence Distribution</div>
+                                <div class="card-subtitle" id="detailCadenceSubtitle">Time spent at each cadence range</div>
+                            </div>
+                        </div>
+                        <div class="chart-wrap" style="height:180px">
+                            <canvas id="detailCadenceChart"></canvas>
                         </div>
                     </div>
 
@@ -1563,9 +1678,25 @@
                         </div>
                     </div>
 
+                    <!-- Zone Distribution Over Time -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">Zone Distribution Over Time</div>
+                                <div class="card-subtitle" id="znpZoneTimeSub">Weekly power zone breakdown</div>
+                            </div>
+                        </div>
+                        <div class="chart-wrap" style="height:220px"><canvas id="znpZoneTimeChart"></canvas></div>
+                    </div>
+
                     <!-- ── Training insights ── -->
                     <div id="znpInsightsRow" class="znp-insights-row"></div>
 
+                </div>
+
+                <!-- ==================== WELLNESS ==================== -->
+                <div class="page" id="page-wellness">
+                    <div id="wellnessPageContent"></div>
                 </div>
 
                 <!-- ==================== WORKOUT BUILDER ==================== -->
@@ -1634,139 +1765,8 @@
 
                 <!-- ==================== TRAINING GUIDE PAGE ==================== -->
                 <div class="page" id="page-guide">
-                    <div class="guide-grid">
-
-                        <!-- ── INTRO ── -->
-                        <div class="card guide-intro-card">
-                            <div class="guide-intro-icon">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-                            </div>
-                            <div>
-                                <div class="guide-intro-title">Training Load Explained</div>
-                                <div class="guide-intro-sub">Intervals.icu tracks your fitness using three numbers — CTL, ATL, and TSB. Together they tell you how fit you are, how tired you are, and whether you're ready to perform. Here's what each one means.</div>
-                            </div>
-                        </div>
-
-                        <!-- ── CTL ── -->
-                        <div class="card guide-metric-card">
-                            <div class="guide-metric-header">
-                                <div class="guide-metric-badge" style="background:rgba(0,229,160,0.12);color:var(--accent)">CTL</div>
-                                <div>
-                                    <div class="guide-metric-name">Chronic Training Load</div>
-                                    <div class="guide-metric-aka">aka <strong>Fitness</strong></div>
-                                </div>
-                            </div>
-                            <p class="guide-metric-desc">Your 42-day rolling average of daily training stress. Think of it as your long-term fitness bank — the higher it is, the more your body is adapted to hard training. It goes up slowly when you train consistently and drops when you rest or take time off.</p>
-                            <div class="guide-zones">
-                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:20%;background:var(--text-muted)"></span><span class="guide-zone-label">0–30</span><span class="guide-zone-desc">Beginner / returning from break</span></div>
-                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:40%;background:var(--blue)"></span><span class="guide-zone-label">30–60</span><span class="guide-zone-desc">Recreational cyclist, training regularly</span></div>
-                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:65%;background:var(--accent)"></span><span class="guide-zone-label">60–90</span><span class="guide-zone-desc">Fit amateur, racing or hard sportives</span></div>
-                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:85%;background:var(--orange)"></span><span class="guide-zone-label">90–120</span><span class="guide-zone-desc">Serious club racer / part-time athlete</span></div>
-                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:100%;background:var(--red)"></span><span class="guide-zone-label">120+</span><span class="guide-zone-desc">Elite / pro level — needs full recovery cycles</span></div>
-                            </div>
-                            <div class="guide-tip">💡 Aim to build CTL no faster than 5–8 points per week to reduce injury risk.</div>
-                        </div>
-
-                        <!-- ── ATL ── -->
-                        <div class="card guide-metric-card">
-                            <div class="guide-metric-header">
-                                <div class="guide-metric-badge" style="background:rgba(255,107,53,0.12);color:var(--orange)">ATL</div>
-                                <div>
-                                    <div class="guide-metric-name">Acute Training Load</div>
-                                    <div class="guide-metric-aka">aka <strong>Fatigue</strong></div>
-                                </div>
-                            </div>
-                            <p class="guide-metric-desc">Your 7-day rolling average of daily training stress. It reacts fast — a big week shoots it up, a few easy days brings it down quickly. When ATL is much higher than CTL you're digging a fatigue hole. When it's lower, you're recovering.</p>
-                            <div class="guide-zones">
-                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:25%;background:var(--accent)"></span><span class="guide-zone-label">ATL &lt; CTL</span><span class="guide-zone-desc">Recovering — feeling fresh, performance may peak</span></div>
-                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:55%;background:var(--blue)"></span><span class="guide-zone-label">ATL ≈ CTL</span><span class="guide-zone-desc">Maintaining — steady state training</span></div>
-                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:80%;background:var(--orange)"></span><span class="guide-zone-label">ATL &gt; CTL by 20–30</span><span class="guide-zone-desc">Hard training block — expected but monitor closely</span></div>
-                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:100%;background:var(--red)"></span><span class="guide-zone-label">ATL &gt; CTL by 30+</span><span class="guide-zone-desc">Danger zone — high injury &amp; illness risk</span></div>
-                            </div>
-                            <div class="guide-tip">💡 ATL drops about 13% per day of rest — a 3-day easy period makes a noticeable difference.</div>
-                        </div>
-
-                        <!-- ── TSB ── -->
-                        <div class="card guide-metric-card">
-                            <div class="guide-metric-header">
-                                <div class="guide-metric-badge" style="background:rgba(74,158,255,0.12);color:var(--blue)">TSB</div>
-                                <div>
-                                    <div class="guide-metric-name">Training Stress Balance</div>
-                                    <div class="guide-metric-aka">aka <strong>Form</strong> &nbsp;=&nbsp; CTL − ATL</div>
-                                </div>
-                            </div>
-                            <p class="guide-metric-desc">The difference between your fitness and your fatigue. A positive TSB means you're fresh and ready to perform. A negative TSB means you're carrying fatigue from recent training. Your best races and efforts usually happen when TSB is slightly positive.</p>
-                            <div class="guide-zones">
-                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:15%;background:var(--purple)"></span><span class="guide-zone-label">Below −30</span><span class="guide-zone-desc">Overreaching — step back immediately</span></div>
-                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:40%;background:var(--orange)"></span><span class="guide-zone-label">−30 to −10</span><span class="guide-zone-desc">Training load — tired but building fitness</span></div>
-                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:65%;background:var(--accent)"></span><span class="guide-zone-label">−10 to +5</span><span class="guide-zone-desc">Sweet spot — training while managing fatigue</span></div>
-                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:85%;background:var(--blue)"></span><span class="guide-zone-label">+5 to +25</span><span class="guide-zone-desc">Peak form — ideal for races &amp; hard efforts</span></div>
-                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:100%;background:var(--text-muted)"></span><span class="guide-zone-label">Above +25</span><span class="guide-zone-desc">Detraining — too much rest, fitness declining</span></div>
-                            </div>
-                            <div class="guide-tip">💡 Aim for TSB between +5 and +15 on race day. Start your taper 7–14 days out.</div>
-                        </div>
-
-                        <!-- ── TSS ── -->
-                        <div class="card guide-metric-card">
-                            <div class="guide-metric-header">
-                                <div class="guide-metric-badge" style="background:rgba(240,196,41,0.12);color:var(--yellow)">TSS</div>
-                                <div>
-                                    <div class="guide-metric-name">Training Stress Score</div>
-                                    <div class="guide-metric-aka">per-ride training load</div>
-                                </div>
-                            </div>
-                            <p class="guide-metric-desc">A single number representing the stress of one ride. 100 TSS = riding at your FTP (threshold) for exactly one hour. Every workout gets a TSS; these feed into your ATL and CTL calculations. It accounts for both intensity and duration.</p>
-                            <div class="guide-zones">
-                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:20%;background:var(--accent)"></span><span class="guide-zone-label">Under 50</span><span class="guide-zone-desc">Easy recovery ride — minimal fatigue</span></div>
-                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:45%;background:var(--blue)"></span><span class="guide-zone-label">50–100</span><span class="guide-zone-desc">Moderate training ride — recover in a day</span></div>
-                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:70%;background:var(--orange)"></span><span class="guide-zone-label">100–150</span><span class="guide-zone-desc">Hard session — 1–2 days recovery needed</span></div>
-                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:100%;background:var(--red)"></span><span class="guide-zone-label">150+</span><span class="guide-zone-desc">Very hard / long ride — 2–3 days to fully recover</span></div>
-                            </div>
-                            <div class="guide-tip">💡 Without a power meter, TSS is estimated from heart rate. A power meter gives more accurate numbers.</div>
-                        </div>
-
-                        <!-- ── Ramp Rate ── -->
-                        <div class="card guide-metric-card">
-                            <div class="guide-metric-header">
-                                <div class="guide-metric-badge" style="background:rgba(155,89,255,0.12);color:var(--purple)">RR</div>
-                                <div>
-                                    <div class="guide-metric-name">Ramp Rate</div>
-                                    <div class="guide-metric-aka">CTL change per week</div>
-                                </div>
-                            </div>
-                            <p class="guide-metric-desc">How fast your CTL (fitness) is rising or falling each week. Building fitness too quickly leads to injury and burnout. The sweet spot is a gradual, consistent rise that your body can adapt to.</p>
-                            <div class="guide-zones">
-                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:15%;background:var(--text-muted)"></span><span class="guide-zone-label">Negative</span><span class="guide-zone-desc">Fitness declining — rest week or off-season</span></div>
-                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:40%;background:var(--accent)"></span><span class="guide-zone-label">+3 to +5</span><span class="guide-zone-desc">Ideal — safe, sustainable fitness gains</span></div>
-                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:70%;background:var(--orange)"></span><span class="guide-zone-label">+5 to +8</span><span class="guide-zone-desc">Aggressive — monitor for fatigue &amp; soreness</span></div>
-                                <div class="guide-zone-row"><span class="guide-zone-bar" style="width:100%;background:var(--red)"></span><span class="guide-zone-label">Above +8</span><span class="guide-zone-desc">Too fast — high injury risk, ease off</span></div>
-                            </div>
-                            <div class="guide-tip">💡 New to structured training? Stay at +3–4/week. Experienced athletes can push to +5–6 for short blocks.</div>
-                        </div>
-
-                        <!-- ── Quick reference ── -->
-                        <div class="card guide-ref-card">
-                            <div class="card-header"><div class="card-title">Quick Reference</div></div>
-                            <div class="guide-ref-grid">
-                                <div class="guide-ref-item">
-                                    <div class="guide-ref-label">I want to get fitter</div>
-                                    <div class="guide-ref-val">Keep ATL &gt; CTL for weeks at a time. Ramp rate +3–5/wk.</div>
-                                </div>
-                                <div class="guide-ref-item">
-                                    <div class="guide-ref-label">I have a race next weekend</div>
-                                    <div class="guide-ref-val">Reduce load now. Target TSB +5 to +15 on race day.</div>
-                                </div>
-                                <div class="guide-ref-item">
-                                    <div class="guide-ref-label">I feel exhausted all the time</div>
-                                    <div class="guide-ref-val">Check TSB — if below −20, take 3–5 easy days.</div>
-                                </div>
-                                <div class="guide-ref-item">
-                                    <div class="guide-ref-label">I haven't trained in weeks</div>
-                                    <div class="guide-ref-val">CTL is low — start easy and ramp slowly. Rushing causes injury.</div>
-                                </div>
-                            </div>
-                        </div>
-
+                    <div id="guidePageContent">
+                        <!-- populated by renderGuidePage() -->
                     </div>
                 </div>
 
@@ -1778,6 +1778,37 @@
                             <div class="spinner"></div>
                             <p>Loading weather…</p>
                         </div>
+                    </div>
+                </div>
+
+                <!-- ==================== GEAR PAGE ==================== -->
+                <div class="page" id="page-gear">
+                    <!-- Bikes from intervals.icu -->
+                    <div class="gear-section-header">
+                        <div>
+                            <div class="gear-section-title">Your Bikes</div>
+                            <div class="gear-section-sub">Synced from intervals.icu</div>
+                        </div>
+                    </div>
+                    <div class="gear-bikes-row" id="gearBikesRow">
+                        <div class="gear-bikes-loading">
+                            <div class="spinner"></div> Loading bikes…
+                        </div>
+                    </div>
+
+                    <!-- Components -->
+                    <div class="gear-section-header" style="margin-top:28px">
+                        <div>
+                            <div class="gear-section-title" id="gearComponentsTitle">Components</div>
+                            <div class="gear-section-sub" id="gearComponentsSub">Select a bike above to filter by bike</div>
+                        </div>
+                        <button class="btn btn-primary btn-sm" onclick="openGearModal()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            Add Component
+                        </button>
+                    </div>
+                    <div id="gearComponentsGrid" class="gear-components-grid">
+                        <!-- populated by JS -->
                     </div>
                 </div>
 
@@ -2024,7 +2055,7 @@
                                             <div class="settings-row-label">Forecast model</div>
                                             <div class="settings-row-sub">Best match auto-selects the highest-res model for your location</div>
                                         </div>
-                                        <select id="wxModelSelect" class="settings-select" onchange="setWeatherModel(this.value)">
+                                        <select id="wxModelSelect" class="app-select app-select--sm" onchange="setWeatherModel(this.value)">
                                             <option value="best_match">Best match (auto)</option>
                                             <option value="icon_seamless">ICON — DWD (Europe)</option>
                                             <option value="ecmwf_ifs04">ECMWF IFS (global)</option>
