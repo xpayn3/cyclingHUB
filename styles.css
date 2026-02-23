@@ -1169,12 +1169,12 @@ code {
 }
 
 .card-row {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
     gap: var(--gap-layout);
     align-items: stretch;
 }
 .card-row > .card {
-    flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
@@ -1184,7 +1184,7 @@ code {
 }
 @media (max-width: 900px) {
     .card-row {
-        flex-direction: column;
+        grid-template-columns: 1fr;
     }
 }
 /* Reusable right-side slot in card headers (legend + controls) */
@@ -1404,15 +1404,84 @@ code {
 }
 
 /* ── Activities page sort bar ─────────────────────────────────────── */
-.sort-bar {
+/* ---- Activities toolbar ---- */
+.acts-toolbar {
+    padding: 12px 0 14px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.acts-toolbar-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.acts-search-wrap {
+    flex: 1;
+    min-width: 160px;
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+.acts-search-icon {
+    position: absolute;
+    left: 10px;
+    width: 14px;
+    height: 14px;
+    color: var(--text-muted);
+    pointer-events: none;
+    flex-shrink: 0;
+}
+.acts-search-input {
+    width: 100%;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-primary);
+    font-size: var(--text-sm);
+    padding: 6px 12px 6px 32px;
+    outline: none;
+    transition: border-color var(--transition), box-shadow var(--transition);
+}
+.acts-search-input::placeholder { color: var(--text-muted); }
+.acts-search-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+}
+.acts-count {
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+.acts-filters-row {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 10px 0 14px;
     flex-wrap: wrap;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 4px;
 }
+.acts-filter-group {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+.acts-toolbar-sep {
+    width: 1px;
+    height: 18px;
+    background: var(--border);
+    margin: 0 4px;
+    flex-shrink: 0;
+}
+@media (max-width: 600px) {
+    .acts-toolbar-sep { display: none; }
+    .acts-filters-row { gap: 4px; }
+    .acts-filter-group { gap: 4px; }
+}
+
 .sort-label {
     font-size: var(--text-xs);
     font-weight: 600;
@@ -2503,13 +2572,25 @@ code {
     opacity: 0.7;
 }
 
-/* ── Top section wrapper (60% of remaining space) ── */
-.cal-top {
-    flex: 3;
+/* ── Horizontal body: left = grid, right = day panel ── */
+.cal-body {
+    flex: 1;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     min-height: 0;
     overflow: hidden;
+}
+.cal-left {
+    flex: 1;                       /* fills remaining space */
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+    border-right: 1px solid var(--border);
+}
+.cal-day-panel {
+    width: 320px;
+    flex: none;                    /* fixed narrow right column */
 }
 
 /* ── Day-of-week strip ── */
@@ -2802,12 +2883,10 @@ code {
 .cal-dots      { display: none; }
 .cal-day-cards { display: flex; }
 
-/* ── Bottom panel: selected day's activities (40%) ── */
+/* ── Right panel: selected day's activities ── */
 .cal-day-panel {
-    flex: 2;
     display: flex;
     flex-direction: column;
-    border-top: 1px solid var(--border);
     min-height: 0;
     overflow: hidden;
     background: var(--bg-surface);
@@ -3074,6 +3153,128 @@ code {
 }
 .map-recentre-control:active {
     background: rgba(255,255,255,0.08);
+}
+
+/* ── Flythrough bar ───────────────────────────────────── */
+.flythrough-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 0 11px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2px;
+}
+.ft-play-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background var(--transition), transform var(--transition), box-shadow var(--transition);
+}
+.ft-play-btn:hover {
+    background: #00ffb3;
+    transform: scale(1.08);
+    box-shadow: 0 0 12px rgba(0,229,160,0.45);
+}
+.ft-play-btn:active { transform: scale(0.95); }
+
+/* Scrubber */
+.ft-scrubber-track {
+    flex: 1;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    position: relative;
+    cursor: pointer;
+    padding: 8px 0;
+    margin: -8px 0;
+    box-sizing: content-box;
+}
+.ft-scrubber-fill {
+    position: absolute;
+    top: 8px;
+    left: 0;
+    height: 4px;
+    background: var(--accent);
+    border-radius: 2px;
+    width: 0;
+    pointer-events: none;
+    transition: width 0.05s linear;
+}
+.ft-scrubber-thumb {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    transform: translate(-50%, -50%);
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2.5px solid var(--bg-card);
+    pointer-events: none;
+    transition: transform 0.1s, left 0.05s linear;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+.ft-scrubber-track:hover .ft-scrubber-thumb {
+    transform: translate(-50%, -50%) scale(1.35);
+}
+
+/* Follow / speed controls */
+.ft-follow-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all var(--transition);
+}
+.ft-follow-btn:hover,
+.ft-follow-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-dim);
+}
+
+/* Pulsing flythrough dot */
+.ft-dot-wrap {
+    width: 14px;
+    height: 14px;
+    position: relative;
+}
+.ft-dot-core {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #00e5a0;
+    border: 2.5px solid #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.6);
+    position: relative;
+    z-index: 1;
+}
+.ft-dot-ring {
+    position: absolute;
+    inset: -5px;
+    border-radius: 50%;
+    border: 2px solid rgba(0,229,160,0.7);
+    animation: ft-pulse 1.3s ease-out infinite;
+    pointer-events: none;
+}
+@keyframes ft-pulse {
+    0%   { transform: scale(1);   opacity: 0.85; }
+    100% { transform: scale(2.6); opacity: 0; }
 }
 
 /* Route map + hover stats layout */
@@ -4151,6 +4352,16 @@ code {
     font-family: var(--font-num);
 }
 
+/* "No power for this activity" note inside peaks row */
+.curve-no-power-msg {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    padding: 4px 2px;
+}
+
 /* Power curve comparison legend */
 .curve-legend {
     display: flex;
@@ -4197,6 +4408,19 @@ code {
     }
 }
 @media (max-width: 600px) {
+    /* Mobile: stack calendar above day panel again */
+    .cal-body {
+        flex-direction: column;
+    }
+    .cal-left {
+        flex: none;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+    }
+    .cal-day-panel {
+        width: 100%;
+        flex: 1;
+    }
     .cal-dow-row > div {
         font-size: var(--text-2xs);
         letter-spacing: 0;
@@ -4725,10 +4949,12 @@ code {
     display: flex;
     flex-direction: column;
     gap: 14px;
+    flex: 1;
 }
 .wkp-chart {
     width: 100%;
-    height: 190px;
+    flex: 1;
+    min-height: 140px;
 }
 .wkp-stats {
     display: flex;
@@ -4818,79 +5044,91 @@ code {
 }
 
 /* ============================================================
-   TRAINING STATUS CARD
+   TRAINING STATUS CARD  —  Hero card
 ============================================================ */
 #trainingStatusCard {
     display: flex;
     flex-direction: column;
+    padding: 0;
+    background: linear-gradient(160deg, #141828 0%, #1a1f2c 55%, #1a1f2c 100%);
+    border: 1px solid rgba(0, 229, 160, 0.18);
+    box-shadow: 0 0 0 1px rgba(0,229,160,0.06), 0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.04);
+    overflow: hidden;
+    position: relative;
 }
-.trs-body {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    flex: 1;
+#trainingStatusCard::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0,229,160,0.07) 0%, transparent 65%);
+    pointer-events: none;
 }
-/* Top row: ramp gauge (left) + form status (right) */
-.trs-top-row {
+
+/* Header */
+.trs-hero-header {
     display: flex;
-    gap: 14px;
-    align-items: stretch;
-}
-.trs-ramp-wrap {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
     align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px 0;
+    position: relative;
+    z-index: 1;
 }
-.trs-form-wrap {
-    flex: 1;
-    min-width: 0;
-    container-type: inline-size;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 14px 16px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 4px;
-}
-.trs-fitness-row {
-    display: flex;
-    align-items: flex-start;
-    gap: 0;
-}
-.trs-fitness-metric {
-    flex: 1;
-    min-width: 0;
+.trs-hero-titles {
     display: flex;
     flex-direction: column;
     gap: 2px;
 }
-.trs-fitness-div {
-    width: 1px;
-    height: 48px;
-    background: var(--border);
-    margin: 0 14px;
-    align-self: center;
+.trs-hero-title {
+    font-size: var(--text-base);
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: 0.01em;
+}
+.trs-hero-sub {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    letter-spacing: 0.04em;
+}
+.trs-form-status {
+    display: inline-flex;
+    align-items: center;
+    font-size: var(--text-xs);
+    font-weight: 700;
+    padding: 4px 11px;
+    border-radius: 20px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
     flex-shrink: 0;
 }
-.trs-metric-label {
-    font-size: var(--text-xs);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--text-muted);
-    margin-bottom: 2px;
-    align-self: flex-start;
-    width: 100%;
+
+/* Gauge section */
+.trs-gauge-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 4px 16px 2px;
+    position: relative;
+    z-index: 1;
 }
-/* Ramp gauge SVG */
+.trs-gauge-glow-wrap {
+    position: relative;
+    width: 100%;
+    max-width: 230px;
+}
+.trs-gauge-glow-wrap::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 70%;
+    height: 30px;
+    background: radial-gradient(ellipse, rgba(0,229,160,0.15) 0%, transparent 70%);
+    pointer-events: none;
+}
 .trs-gauge-container {
     position: relative;
     width: 100%;
-    max-width: 200px;
     container-type: inline-size;
 }
 .trs-gauge-svg {
@@ -4909,31 +5147,41 @@ code {
 }
 .trs-gauge-num {
     font-family: var(--font-num);
-    font-size: clamp(1.1rem, 12cqw, 2rem);
+    font-size: clamp(1.4rem, 14cqw, 2.4rem);
     font-weight: 700;
     line-height: 1;
     color: var(--text-primary);
     font-variant-numeric: tabular-nums;
+    text-shadow: 0 0 24px rgba(0,229,160,0.3);
 }
 .trs-gauge-unit {
-    font-size: clamp(0.55rem, 3cqw, var(--text-2xs));
+    font-size: clamp(0.6rem, 3.5cqw, var(--text-xs));
     color: var(--text-muted);
     margin-top: 2px;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
 }
-/* Reusable badge used for ramp zone labels */
+.trs-ramp-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    margin-top: 2px;
+}
+
+/* Badge */
 .trs-badge {
     display: inline-block;
     font-size: var(--text-xs);
     font-weight: 700;
-    padding: 3px 9px;
+    padding: 3px 10px;
     border-radius: 20px;
-    letter-spacing: 0.03em;
-    margin-top: 6px;
+    letter-spacing: 0.04em;
 }
 .trs-badge--green {
     background: rgba(0, 229, 160, 0.15);
     color: var(--accent);
+    box-shadow: 0 0 12px rgba(0,229,160,0.12);
 }
 .trs-badge--green-dim {
     background: rgba(136, 200, 96, 0.12);
@@ -4951,44 +5199,92 @@ code {
     background: rgba(74, 158, 255, 0.15);
     color: var(--blue);
 }
-/* Form/TSB values */
-.trs-form-num {
-    font-family: var(--font-num);
-    font-size: clamp(1.6rem, 6cqw, 2.8rem);
-    font-weight: 700;
-    line-height: 1;
-    font-variant-numeric: tabular-nums;
-    margin: 2px 0 4px;
-}
-.trs-form-status {
-    display: inline-block;
-    font-size: var(--text-sm);
-    font-weight: 700;
-    padding: 4px 12px;
-    border-radius: 20px;
-    letter-spacing: 0.02em;
-    margin-top: 2px;
-}
 .trs-form-hint {
     font-size: var(--text-xs);
     color: var(--text-muted);
-    margin-top: 2px;
+    text-align: center;
 }
+
+/* CTL / ATL / TSB metrics row */
+.trs-metrics-row {
+    display: flex;
+    align-items: stretch;
+    margin: 8px 16px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
+}
+.trs-metric-tile {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 14px 8px 12px;
+    gap: 2px;
+    text-align: center;
+    min-width: 0;
+}
+.trs-metrics-sep {
+    width: 1px;
+    background: rgba(255,255,255,0.07);
+    flex-shrink: 0;
+    align-self: stretch;
+}
+.trs-metric-val {
+    font-family: var(--font-num);
+    font-size: clamp(1.4rem, 5vw, 2rem);
+    font-weight: 700;
+    line-height: 1;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+}
+.trs-metric-val--form {
+    /* color is set inline by JS based on TSB value */
+}
+.trs-metric-name {
+    font-size: var(--text-xs);
+    font-weight: 700;
+    color: var(--text-secondary);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-top: 3px;
+}
+.trs-metric-desc {
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 0.03em;
+}
+
+/* Reused label style */
+.trs-metric-label {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 2px;
+}
+
 /* Aerobic Efficiency sparkline section */
 .trs-ef-wrap {
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+    background: rgba(255,255,255,0.025);
+    border-top: 1px solid rgba(255,255,255,0.06);
     padding: 12px 0 0;
     overflow: hidden;
     margin-top: auto;
+    position: relative;
+    z-index: 1;
 }
 .trs-ef-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     margin-bottom: 10px;
-    padding: 0 14px;
+    padding: 0 16px;
 }
 .trs-ef-nums {
     display: flex;
@@ -5014,13 +5310,33 @@ code {
     display: none;
 }
 
-@media (max-width: 600px) {
-    .trs-top-row {
-        flex-direction: column;
-    }
-    .trs-form-num {
-        font-size: 1.8rem;
-    }
+/* Activity detail — data source / device attribution footer */
+.detail-source-footer {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 10px 16px 18px;
+    line-height: 1.6;
+    opacity: 0.7;
+}
+.detail-source-footer strong {
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+.dsf-sep {
+    margin: 0 7px;
+    opacity: 0.4;
+}
+.dsf-link {
+    color: var(--text-muted);
+    text-decoration: underline;
+    text-decoration-color: rgba(148,163,184,0.3);
+    text-underline-offset: 2px;
+    transition: color var(--transition);
+}
+.dsf-link:hover {
+    color: var(--accent);
+    text-decoration-color: var(--accent);
 }
 
 /* Note shown below the activities list for placeholder/no-data entries */
@@ -5084,7 +5400,7 @@ code {
     gap: 14px;
     justify-content: space-between;
 }
-.guide-metric-header > div {
+.guide-metric-header > div:not(.guide-metric-badge) {
     flex: 1;
 }
 .guide-metric-badge {
@@ -5094,7 +5410,9 @@ code {
     padding: 6px 14px;
     border-radius: 10px;
     letter-spacing: -0.5px;
-    flex-shrink: 0;
+    flex: 0 0 auto;
+    align-self: flex-start;
+    width: fit-content;
 }
 .guide-metric-name {
     font-size: var(--text-base);
@@ -5617,15 +5935,24 @@ code {
 /* ── Universal "data not available" injected message ──
    Used by showCardNA() across all activity detail cards.
 ─────────────────────────────────────────────────────── */
+/* Card in "not available" state — flex column so the message can fill + centre */
+.card--na {
+    display: flex !important;
+    flex-direction: column;
+    min-height: 160px;
+}
+.card--na .card-header {
+    flex-shrink: 0;
+}
 .detail-na-inject {
+    flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 9px;
-    padding: 28px 16px;
+    padding: 24px 16px;
     color: var(--text-muted);
     font-size: var(--text-sm);
-    min-height: 72px;
 }
 
 /* ── Outside temperature chart card ── */
@@ -6098,6 +6425,19 @@ code {
     color: var(--text-primary);
     letter-spacing: -0.5px;
 }
+.wxp-window-time--missed {
+    color: var(--text-muted);
+    text-decoration: line-through;
+    text-decoration-color: var(--text-muted);
+}
+.wxp-window-missed-note {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    margin-top: 5px;
+}
+.wxp-window-card--missed .wxp-window-label {
+    color: var(--text-muted);
+}
 .wxp-window-temps {
     font-size: var(--text-lg);
     font-weight: 700;
@@ -6110,7 +6450,133 @@ code {
     padding: 8px 14px;
 }
 
-/* Weekly summary stats row */
+/* Mini 7-day icon strip */
+.wxp-mini-strip {
+    display: flex;
+    gap: 0;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 16px;
+}
+.wxp-ms-day {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 2px;
+}
+.wxp-ms-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+}
+.wxp-ms-icon { width: 28px; height: 28px; }
+.wxp-ms-icon svg { width: 100%; height: 100%; }
+.wxp-ms-temp {
+    font-size: 12px;
+    font-weight: 700;
+    font-family: var(--font-num);
+    color: var(--text-primary);
+}
+.wxp-ms-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    margin-top: 1px;
+}
+.wxp-ms-dot--great { background: var(--accent); }
+.wxp-ms-dot--good  { background: #86efac; }
+.wxp-ms-dot--fair  { background: var(--yellow); }
+.wxp-ms-dot--poor  { background: var(--red); opacity: 0.5; }
+
+/* Stat tiles grid */
+.wxp-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 28px;
+}
+.wxp-st {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 8px 10px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    transition: box-shadow 0.18s ease;
+    --mouse-x: 50%;
+    --mouse-y: 50%;
+}
+.wxp-st::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y),
+        rgba(255,255,255,0.055) 0%, transparent 65%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 0;
+}
+.wxp-st::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y),
+        rgba(255,255,255,0.35) 0%, transparent 60%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 0;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+}
+.wxp-st:hover::before,
+.wxp-st:hover::after { opacity: 1; }
+.wxp-st:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.25); }
+.wxp-st--highlight {
+    background: var(--bg-card);
+    border-color: rgba(0,229,160,0.25);
+}
+.wxp-st-icon { font-size: 18px; line-height: 1; position: relative; z-index: 1; }
+.wxp-st-val {
+    font-size: 22px;
+    font-weight: 800;
+    font-family: var(--font-num);
+    color: var(--text-primary);
+    line-height: 1;
+    position: relative;
+    z-index: 1;
+}
+.wxp-st-val span {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+.wxp-st-lbl {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    position: relative;
+    z-index: 1;
+}
+.wxp-st--highlight .wxp-st-val { color: var(--accent); }
+
+/* Legacy stats row (kept for safety) */
 .wxp-stats-row {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -6151,7 +6617,141 @@ code {
 }
 .wxp-section-title--bad { color: var(--red); margin-top: 20px; }
 
-/* Best-days recommendation list */
+/* ── Best Days to Ride — section label + 3-column card grid ── */
+.wxp-section-label {
+    font-size: var(--text-xs);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+    margin-top: 4px;
+}
+.wxp-best-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.wxp-best-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+    transition: box-shadow 0.18s ease;
+    cursor: pointer;
+    --mouse-x: 50%;
+    --mouse-y: 50%;
+}
+.wxp-best-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y),
+        rgba(255,255,255,0.055) 0%, transparent 65%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 0;
+}
+.wxp-best-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y),
+        rgba(255,255,255,0.35) 0%, transparent 60%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 0;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+}
+.wxp-best-card:hover::before,
+.wxp-best-card:hover::after { opacity: 1; }
+.wxp-best-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.25); }
+.wxp-best-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 6px;
+}
+.wxp-best-day {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+.wxp-best-icon {
+    width: 52px;
+    height: 52px;
+    margin: 2px auto 0;
+    flex-shrink: 0;
+}
+.wxp-best-icon svg { width: 100%; height: 100%; }
+.wxp-best-stats { display: flex; flex-direction: column; gap: 3px; }
+.wxp-best-temp {
+    font-size: var(--text-lg);
+    font-weight: 700;
+    color: var(--text-primary);
+    font-family: var(--font-num);
+    line-height: 1;
+}
+.wxp-best-low {
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: var(--text-muted);
+}
+.wxp-best-meta {
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+    font-family: var(--font-num);
+}
+.wxp-best-score-bar {
+    height: 4px;
+    background: var(--bg-elevated);
+    border-radius: 2px;
+    overflow: hidden;
+}
+.wxp-best-score-fill { height: 100%; border-radius: 2px; transition: width 0.4s ease; }
+.wxp-best-score--great { background: var(--accent); }
+.wxp-best-score--good  { background: #86efac; }
+.wxp-best-score--fair  { background: var(--yellow); }
+.wxp-best-tip {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    flex: 1;
+    line-height: 1.4;
+}
+.wxp-best-score-num {
+    font-size: 28px;
+    font-weight: 900;
+    font-family: var(--font-num);
+    color: var(--text-primary);
+    text-align: right;
+    line-height: 1;
+    margin-top: auto;
+}
+.wxp-best-score-num span {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+    display: block;
+    margin-top: 2px;
+}
+.wxp-no-rec-card .wxp-no-rec { margin-bottom: 0; }
+
+@media (max-width: 640px) {
+    .wxp-best-grid { grid-template-columns: 1fr; }
+}
+
+/* Best-days recommendation list (legacy — kept for safety) */
 .wxp-rec-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
 .wxp-rec-card {
     display: flex;
@@ -6422,8 +7022,293 @@ code {
 
 /* Responsive */
 @media (max-width: 640px) {
-    .wxp-stats-row { grid-template-columns: repeat(2, 1fr); }
+    .wxp-stats-row  { grid-template-columns: repeat(2, 1fr); }
+    .wxp-stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .wxp-best-grid  { grid-template-columns: 1fr; }
+    .wxp-ms-icon    { width: 22px; height: 22px; }
+    .wxp-ms-temp    { font-size: 10px; }
     .wxp-window-time { font-size: 18px; }
+}
+
+/* ============================================================
+   WEATHER DAY DETAIL  (wxd-)
+============================================================ */
+
+/* Hero section */
+.wxd-hero {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    margin-bottom: 16px;
+}
+.wxd-hero-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.wxd-hero-icon {
+    width: 56px;
+    height: 56px;
+    flex-shrink: 0;
+}
+.wxd-hero-icon svg { width: 100%; height: 100%; }
+.wxd-hero-temps {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+}
+.wxd-hero-high {
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1;
+}
+.wxd-hero-low {
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+.wxd-hero-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+    min-width: 120px;
+}
+.wxd-hero-badge {
+    font-size: 11px !important;
+    padding: 3px 9px !important;
+}
+.wxd-score-bar-wrap {
+    width: 100%;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.wxd-score-bar {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+}
+.wxd-score-bar--great { background: var(--accent); }
+.wxd-score-bar--good  { background: #86efac; }
+.wxd-score-bar--fair  { background: var(--yellow); }
+.wxd-score-bar--poor  { background: var(--red); }
+.wxd-score-num {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--text-primary);
+    text-align: right;
+}
+.wxd-score-num span {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
+/* Key stats row */
+.wxd-stats-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+.wxd-stat {
+    flex: 1;
+    min-width: 72px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 6px 8px;
+    text-align: center;
+}
+.wxd-stat-icon { font-size: 16px; line-height: 1; }
+.wxd-stat-val {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+.wxd-stat-lbl {
+    font-size: 10px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 90px;
+}
+
+/* Ride assessment reasons */
+.wxd-reasons {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 20px;
+}
+.wxd-reason {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 14px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+/* Best ride window banner */
+.wxd-window-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(0, 229, 160, 0.08);
+    border: 1px solid rgba(0, 229, 160, 0.25);
+    border-radius: var(--radius);
+    padding: 12px 18px;
+    margin-bottom: 20px;
+    gap: 12px;
+}
+.wxd-window-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+.wxd-window-time {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--accent);
+}
+
+/* Hourly scroll rail */
+.wxd-h-legend {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    padding: 0 4px 4px;
+    font-size: 10px;
+    color: var(--text-muted);
+    text-align: center;
+    /* shown above the scroll, roughly aligned */
+    padding-left: 56px; /* icon + time offset */
+}
+.wxd-hourly-scroll {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 4px 0 12px;
+    margin-bottom: 20px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    cursor: grab;
+}
+.wxd-hourly-scroll::-webkit-scrollbar { display: none; }
+.wxd-hourly-scroll.is-dragging { cursor: grabbing; }
+
+.wxd-h-card {
+    flex: 0 0 68px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 6px 8px;
+    text-align: center;
+}
+.wxd-h-time {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+.wxd-h-icon {
+    width: 28px;
+    height: 28px;
+}
+.wxd-h-icon svg { width: 100%; height: 100%; }
+.wxd-h-temp {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+.wxd-h-wind {
+    font-size: 10px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+.wxd-h-rain {
+    font-size: 10px;
+    color: var(--text-secondary);
+}
+.wxd-h-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-top: 2px;
+}
+.wxd-h-dot--great { background: var(--accent); }
+.wxd-h-dot--good  { background: #86efac; }
+.wxd-h-dot--fair  { background: var(--yellow); }
+.wxd-h-dot--poor  { background: var(--red); opacity: 0.6; }
+
+/* Ride planner tips */
+.wxd-tips {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 28px;
+}
+.wxd-tip-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+}
+.wxd-tip-icon {
+    font-size: 22px;
+    line-height: 1;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+.wxd-tip-body {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.wxd-tip-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+.wxd-tip-text {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+/* Add cursor pointer to clickable day cards */
+.wxp-day-card,
+.wxp-best-card {
+    cursor: pointer;
+}
+
+@media (max-width: 480px) {
+    .wxd-hero { flex-direction: column; align-items: flex-start; }
+    .wxd-hero-right { align-items: flex-start; width: 100%; }
+    .wxd-stats-row { gap: 6px; }
+    .wxd-stat { min-width: 58px; padding: 8px 4px 6px; }
+    .wxd-stat-val { font-size: 12px; }
 }
 
 /* ============================================================
@@ -7159,6 +8044,28 @@ code {
 ============================================================ */
 #detailCadenceChart {
     /* nothing extra needed — chart handles colour */
+}
+
+/* ============================================================
+   TOUCH / MOBILE — disable mouse-driven card glow entirely
+   (hover: none) catches touchscreens; (pointer: coarse) catches
+   any device where the primary input is a finger, not a mouse.
+============================================================ */
+@media (hover: none), (pointer: coarse) {
+    .stat-card::before,         .stat-card::after,
+    .recent-act-card::before,   .recent-act-card::after,
+    .fit-kpi-card::before,      .fit-kpi-card::after,
+    .mm-cell::before,           .mm-cell::after,
+    .act-pstat::before,         .act-pstat::after,
+    .act-sstat::before,         .act-sstat::after,
+    .perf-metric::before,       .perf-metric::after,
+    .wx-day::before,            .wx-day::after,
+    .wxp-st::before,            .wxp-st::after,
+    .wxp-best-card::before,     .wxp-best-card::after,
+    .wxp-day-card::before,      .wxp-day-card::after,
+    .znp-kpi-card::before,      .znp-kpi-card::after {
+        display: none !important;
+    }
 }
 
 /* Wellness page — no-data hint shown when a metric isn't logged */

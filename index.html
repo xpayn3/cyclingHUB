@@ -518,6 +518,11 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg>
                     Back to <span id="detailBackLabel">Activities</span>
                 </button>
+                <!-- Back button — shown when viewing weather day detail -->
+                <button class="btn btn-ghost detail-topbar-back" id="wxdTopbarBack" onclick="renderWeatherPage()" style="display:none">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg>
+                    Weather
+                </button>
                 <div class="topbar-actions">
                     <div class="date-range-pill" id="dateRangePill">
                         <button onclick="setRange(7)"   id="range7">7d</button>
@@ -749,62 +754,67 @@
                         </div>
 
                         <!-- Training Status card -->
-                        <div class="card" id="trainingStatusCard">
-                            <div class="card-header">
-                                <div>
-                                    <div class="card-title">Training Status</div>
-                                    <div class="card-subtitle">Pro fitness indicators</div>
+                        <div class="card trs-hero-card" id="trainingStatusCard">
+                            <!-- Hero header -->
+                            <div class="trs-hero-header">
+                                <div class="trs-hero-titles">
+                                    <div class="trs-hero-title">Training Status</div>
+                                    <div class="trs-hero-sub">Your readiness at a glance</div>
+                                </div>
+                                <div id="trsFormStatus" class="trs-form-status">—</div>
+                            </div>
+
+                            <!-- Gauge section -->
+                            <div class="trs-gauge-section">
+                                <div class="trs-gauge-glow-wrap">
+                                    <div class="trs-gauge-container">
+                                        <svg id="rampGaugeSVG" viewBox="0 0 200 116" class="trs-gauge-svg"></svg>
+                                        <div class="trs-gauge-overlay">
+                                            <div class="trs-gauge-num" id="rampNum">—</div>
+                                            <div class="trs-gauge-unit">CTL / wk</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="trs-ramp-meta">
+                                    <div id="rampBadge" class="trs-badge">—</div>
+                                    <div class="trs-form-hint" id="trsFormHint">—</div>
                                 </div>
                             </div>
-                            <div class="trs-body">
-                                <!-- Top: Ramp Rate gauge + CTL / ATL / TSB -->
-                                <div class="trs-top-row">
-                                    <div class="trs-ramp-wrap">
-                                        <div class="trs-metric-label">Ramp Rate</div>
-                                        <div class="trs-gauge-container">
-                                            <svg id="rampGaugeSVG" viewBox="0 0 200 116" class="trs-gauge-svg"></svg>
-                                            <div class="trs-gauge-overlay">
-                                                <div class="trs-gauge-num" id="rampNum">—</div>
-                                                <div class="trs-gauge-unit">CTL / wk</div>
-                                            </div>
-                                        </div>
-                                        <div id="rampBadge" class="trs-badge">—</div>
-                                    </div>
-                                    <div class="trs-form-wrap">
-                                        <div class="trs-fitness-row">
-                                            <div class="trs-fitness-metric">
-                                                <div class="trs-form-num" id="trsCTLNum">—</div>
-                                                <div class="trs-metric-label">Fitness / CTL</div>
-                                            </div>
-                                            <div class="trs-fitness-div"></div>
-                                            <div class="trs-fitness-metric">
-                                                <div class="trs-form-num" id="trsATLNum">—</div>
-                                                <div class="trs-metric-label">Fatigue / ATL</div>
-                                            </div>
-                                            <div class="trs-fitness-div"></div>
-                                            <div class="trs-fitness-metric">
-                                                <div class="trs-form-num" id="trsFormNum">—</div>
-                                                <div class="trs-metric-label">Form / TSB</div>
-                                            </div>
-                                        </div>
-                                        <div class="trs-form-status" id="trsFormStatus">—</div>
-                                        <div class="trs-form-hint" id="trsFormHint">—</div>
+
+                            <!-- CTL / ATL / TSB tiles -->
+                            <div class="trs-metrics-row">
+                                <div class="trs-metric-tile">
+                                    <div class="trs-metric-val" id="trsCTLNum">—</div>
+                                    <div class="trs-metric-name">CTL</div>
+                                    <div class="trs-metric-desc">Fitness</div>
+                                </div>
+                                <div class="trs-metrics-sep"></div>
+                                <div class="trs-metric-tile">
+                                    <div class="trs-metric-val" id="trsATLNum">—</div>
+                                    <div class="trs-metric-name">ATL</div>
+                                    <div class="trs-metric-desc">Fatigue</div>
+                                </div>
+                                <div class="trs-metrics-sep"></div>
+                                <div class="trs-metric-tile">
+                                    <div class="trs-metric-val trs-metric-val--form" id="trsFormNum">—</div>
+                                    <div class="trs-metric-name">TSB</div>
+                                    <div class="trs-metric-desc">Form</div>
+                                </div>
+                            </div>
+
+                            <!-- Aerobic Efficiency sparkline -->
+                            <div class="trs-ef-wrap">
+                                <div class="trs-ef-header">
+                                    <div class="trs-metric-label">Aerobic Efficiency · NP ÷ HR</div>
+                                    <div class="trs-ef-nums">
+                                        <span id="trsEFCurrent">—</span>
+                                        <span id="trsEFDelta">—</span>
                                     </div>
                                 </div>
-                                <!-- Bottom: Aerobic Efficiency sparkline -->
-                                <div class="trs-ef-wrap">
-                                    <div class="trs-ef-header">
-                                        <div class="trs-metric-label">Aerobic Efficiency · NP ÷ HR</div>
-                                        <div class="trs-ef-nums">
-                                            <span id="trsEFCurrent">—</span>
-                                            <span id="trsEFDelta">—</span>
-                                        </div>
-                                    </div>
-                                    <div class="trs-ef-chart-area">
-                                        <canvas id="trsEFChart"></canvas>
-                                    </div>
-                                    <div class="trs-ef-footer">Last 10 qualifying rides with power + HR · higher = more efficient</div>
+                                <div class="trs-ef-chart-area">
+                                    <canvas id="trsEFChart"></canvas>
                                 </div>
+                                <div class="trs-ef-footer">Last 10 qualifying rides with power + HR · higher = more efficient</div>
                             </div>
                         </div>
 
@@ -943,18 +953,37 @@
                 <!-- ==================== ACTIVITIES PAGE ==================== -->
                 <div class="page" id="page-activities">
                     <div class="card">
-                        <div class="sort-bar">
-                            <span class="sort-label">Sort</span>
-                            <button class="sort-btn active" data-sort="date"      onclick="setActivitiesSort('date')">Date<span class="sort-arrow"> ↓</span></button>
-                            <button class="sort-btn"        data-sort="distance"  onclick="setActivitiesSort('distance')">Distance<span class="sort-arrow"></span></button>
-                            <button class="sort-btn"        data-sort="time"      onclick="setActivitiesSort('time')">Time<span class="sort-arrow"></span></button>
-                            <button class="sort-btn"        data-sort="elevation" onclick="setActivitiesSort('elevation')">Elevation<span class="sort-arrow"></span></button>
-                            <button class="sort-btn"        data-sort="power"     onclick="setActivitiesSort('power')">Power<span class="sort-arrow"></span></button>
-                            <button class="sort-btn"        data-sort="bpm"       onclick="setActivitiesSort('bpm')">BPM<span class="sort-arrow"></span></button>
-                            <select class="app-select app-select--sm" id="activitiesYearSelect" onchange="setActivitiesYear(this.value)" style="margin-left:auto">
-                                <option value="all">All years</option>
-                            </select>
-                            <span id="allActivitiesSubtitle" style="display:none"></span>
+                        <div class="acts-toolbar">
+                            <!-- Row 1: search + year + count -->
+                            <div class="acts-toolbar-top">
+                                <div class="acts-search-wrap">
+                                    <svg class="acts-search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="13" y1="13" x2="18" y2="18"/></svg>
+                                    <input class="acts-search-input" id="activitiesSearch" type="text" placeholder="Search activities…" oninput="setActivitiesSearch(this.value)" autocomplete="off">
+                                </div>
+                                <select class="app-select app-select--sm" id="activitiesYearSelect" onchange="setActivitiesYear(this.value)">
+                                    <option value="all">All years</option>
+                                </select>
+                                <span class="acts-count" id="allActivitiesSubtitle"></span>
+                            </div>
+                            <!-- Row 2: sport filter + sort -->
+                            <div class="acts-filters-row">
+                                <div class="acts-filter-group">
+                                    <span class="sort-label">Type</span>
+                                    <button class="sort-btn active" data-sport="all"     onclick="setActivitiesSport('all')">All</button>
+                                    <button class="sort-btn"        data-sport="outdoor" onclick="setActivitiesSport('outdoor')">Outdoor</button>
+                                    <button class="sort-btn"        data-sport="indoor"  onclick="setActivitiesSport('indoor')">Indoor</button>
+                                </div>
+                                <div class="acts-toolbar-sep"></div>
+                                <div class="acts-filter-group">
+                                    <span class="sort-label">Sort</span>
+                                    <button class="sort-btn active" data-sort="date"      onclick="setActivitiesSort('date')">Date<span class="sort-arrow"> ↓</span></button>
+                                    <button class="sort-btn"        data-sort="distance"  onclick="setActivitiesSort('distance')">Distance<span class="sort-arrow"></span></button>
+                                    <button class="sort-btn"        data-sort="time"      onclick="setActivitiesSort('time')">Time<span class="sort-arrow"></span></button>
+                                    <button class="sort-btn"        data-sort="elevation" onclick="setActivitiesSort('elevation')">Elevation<span class="sort-arrow"></span></button>
+                                    <button class="sort-btn"        data-sort="power"     onclick="setActivitiesSort('power')">Power<span class="sort-arrow"></span></button>
+                                    <button class="sort-btn"        data-sort="bpm"       onclick="setActivitiesSort('bpm')">BPM<span class="sort-arrow"></span></button>
+                                </div>
+                            </div>
                         </div>
                         <div class="activity-list" id="allActivityList">
                             <div class="empty-state">
@@ -1014,6 +1043,28 @@
                             <div class="card-title">Route</div>
                         </div>
                         <div id="mapColorToggles" class="map-color-toggles"></div>
+
+                        <!-- Flythrough controls — shown once GPS data is available -->
+                        <div id="flythroughBar" class="flythrough-bar" style="display:none">
+                            <button class="ft-play-btn" id="ftPlayBtn" onclick="ftTogglePlay()" title="Play flythrough">
+                                <svg width="11" height="13" viewBox="0 0 11 13" fill="currentColor"><polygon points="0,0 11,6.5 0,13"/></svg>
+                            </button>
+                            <div class="ft-scrubber-track" id="ftScrubberTrack">
+                                <div class="ft-scrubber-fill" id="ftScrubberFill"></div>
+                                <div class="ft-scrubber-thumb" id="ftScrubberThumb"></div>
+                            </div>
+                            <select class="app-select app-select--sm" id="ftSpeedSelect" onchange="ftSetSpeed(this.value)">
+                                <option value="1">Realtime</option>
+                                <option value="5">5×</option>
+                                <option value="15">15×</option>
+                                <option value="30" selected>30×</option>
+                                <option value="60">60×</option>
+                            </select>
+                            <button class="ft-follow-btn active" id="ftFollowBtn" onclick="ftToggleFollow()" title="Follow dot on map">
+                                <svg width="13" height="13" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="9" r="3"/><line x1="9" y1="1" x2="9" y2="5"/><line x1="9" y1="13" x2="9" y2="17"/><line x1="1" y1="9" x2="5" y2="9"/><line x1="13" y1="9" x2="17" y2="9"/></svg>
+                            </button>
+                        </div>
+
                         <div class="map-with-stats">
                             <div id="activityMap" class="activity-map"></div>
                             <div id="mapStatsPanel" class="map-stats-panel">
@@ -1232,6 +1283,9 @@
                         <div class="wx-tiles" id="wxTiles"></div>
                     </div>
 
+                    <!-- Data source footer -->
+                    <div class="detail-source-footer" id="detailSourceFooter"></div>
+
                 </div>
 
                 <!-- ==================== CALENDAR PAGE ==================== -->
@@ -1294,26 +1348,29 @@
                             </div>
                         </div>
 
-                        <!-- Top 60%: month grid -->
-                        <div class="cal-top">
-                            <!-- Day-of-week header -->
-                            <div class="cal-dow-row">
-                                <div>Mon</div>
-                                <div>Tue</div>
-                                <div>Wed</div>
-                                <div>Thu</div>
-                                <div>Fri</div>
-                                <div class="cal-dow--weekend">Sat</div>
-                                <div class="cal-dow--weekend">Sun</div>
-                            </div>
-                            <!-- Calendar grid (filled by renderCalendar) -->
-                            <div class="cal-grid" id="calGrid"></div>
-                        </div>
+                        <!-- Horizontal body: month grid LEFT, day panel RIGHT -->
+                        <div class="cal-body">
 
-                        <!-- Bottom 40%: selected day's activities -->
-                        <div class="cal-day-panel" id="calDayPanel">
-                            <div class="cal-day-panel-header" id="calDayPanelHeader">Select a day</div>
-                            <div class="cal-day-panel-list" id="calDayPanelList"></div>
+                            <!-- Left: month grid -->
+                            <div class="cal-left">
+                                <div class="cal-dow-row">
+                                    <div>Mon</div>
+                                    <div>Tue</div>
+                                    <div>Wed</div>
+                                    <div>Thu</div>
+                                    <div>Fri</div>
+                                    <div class="cal-dow--weekend">Sat</div>
+                                    <div class="cal-dow--weekend">Sun</div>
+                                </div>
+                                <div class="cal-grid" id="calGrid"></div>
+                            </div>
+
+                            <!-- Right: selected day's activities -->
+                            <div class="cal-day-panel" id="calDayPanel">
+                                <div class="cal-day-panel-header" id="calDayPanelHeader">Select a day</div>
+                                <div class="cal-day-panel-list" id="calDayPanelList"></div>
+                            </div>
+
                         </div>
 
                     </div>

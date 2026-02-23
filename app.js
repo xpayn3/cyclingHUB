@@ -49,7 +49,12 @@ const state = {
   synced: false,
   activitiesSort: 'date',
   activitiesSortDir: 'desc',
-  activitiesYear: new Date().getFullYear()   // default to current year; null = all years
+  activitiesYear: new Date().getFullYear(),  // default to current year; null = all years
+  activitiesSportFilter: 'all',
+  activitiesSearch: '',
+  flythrough: null,
+  weatherPageData: null,
+  weatherPageMeta: null,
 };
 
 const ICU_BASE = 'https://intervals.icu/api/v1';
@@ -707,8 +712,10 @@ function navigate(page) {
   // Always restore the activity-detail topbar elements when leaving the activity page
   const detailNav  = document.getElementById('detailTopbarNav');
   const detailBack = document.getElementById('detailTopbarBack');
+  const wxdBack    = document.getElementById('wxdTopbarBack');
   if (detailNav)  detailNav.style.display  = 'none';
   if (detailBack) detailBack.style.display = 'none';
+  if (wxdBack)    wxdBack.style.display    = 'none';
 
   // Show topbar range pill only on dashboard
   const pill = document.getElementById('dateRangePill');
@@ -914,6 +921,17 @@ function sortedAllActivities() {
       return d.getFullYear() === state.activitiesYear;
     });
   }
+  if (state.activitiesSportFilter && state.activitiesSportFilter !== 'all') {
+    const env = state.activitiesSportFilter; // 'indoor' or 'outdoor'
+    pool = pool.filter(a => calActivityEnvironment(a) === env);
+  }
+  if (state.activitiesSearch && state.activitiesSearch.trim()) {
+    const q = state.activitiesSearch.trim().toLowerCase();
+    pool = pool.filter(a => {
+      const name = (a.name || a.icu_name || '').toLowerCase();
+      return name.includes(q);
+    });
+  }
   const fn  = SORT_FIELDS[state.activitiesSort] || SORT_FIELDS.date;
   const dir = state.activitiesSortDir === 'asc' ? 1 : -1;
   return [...pool].sort((a, b) => dir * (fn(a) - fn(b)));
@@ -921,6 +939,17 @@ function sortedAllActivities() {
 
 function setActivitiesYear(year) {
   state.activitiesYear = year === 'all' ? null : parseInt(year);
+  renderAllActivitiesList();
+}
+
+function setActivitiesSport(sport) {
+  state.activitiesSportFilter = sport;
+  renderAllActivitiesList();
+  _updateSportButtons();
+}
+
+function setActivitiesSearch(q) {
+  state.activitiesSearch = q;
   renderAllActivitiesList();
 }
 
@@ -935,8 +964,14 @@ function setActivitiesSort(field) {
   updateSortButtons();
 }
 
+function _updateSportButtons() {
+  document.querySelectorAll('[data-sport]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.sport === state.activitiesSportFilter);
+  });
+}
+
 function updateSortButtons() {
-  document.querySelectorAll('.sort-btn').forEach(btn => {
+  document.querySelectorAll('[data-sort]').forEach(btn => {
     const f = btn.dataset.sort;
     const active = f === state.activitiesSort;
     btn.classList.toggle('active', active);
@@ -947,9 +982,8 @@ function updateSortButtons() {
 
 function renderAllActivitiesList() {
   const sorted = sortedAllActivities();
-  const yearLabel = state.activitiesYear !== null ? ` · ${state.activitiesYear}` : '';
-  document.getElementById('allActivitiesSubtitle').textContent =
-    `${sorted.length} activities${yearLabel}`;
+  const subtitle = document.getElementById('allActivitiesSubtitle');
+  if (subtitle) subtitle.textContent = `${sorted.length} ${sorted.length === 1 ? 'activity' : 'activities'}`;
   // Count placeholder activities (planned workouts never completed — all metrics zero).
   // These exist in the intervals.icu /activities endpoint but have no recorded data.
   let allPool = state.activities.filter(a => !!(a.start_date_local || a.start_date));
@@ -1088,30 +1122,44 @@ async function renderRecentActCardMap(a, idx) {
   const mapEl = document.getElementById(`recentActMap_${idx}`);
   if (!mapEl) return;
 
+  // 1. Best case: snapshot image cached (instant, no re-render needed)
   const cachedImg = localStorage.getItem(`icu_map_snap_${actId}`);
   if (cachedImg) {
     mapEl.innerHTML = `<img src="${cachedImg}" style="width:100%;height:100%;object-fit:cover;display:block;">`;
     return;
   }
 
-  let latlng = null;
-  try { latlng = await fetchMapGPS(actId); } catch (_) {}
-
-  if (!latlng || latlng.length < 2) {
-    mapEl.innerHTML = '<div class="ra-map-empty">No GPS data</div>';
-    return;
+  // 2. GPS points cached — skip the API call entirely on refresh
+  let points = null;
+  const cachedGPS = localStorage.getItem(`icu_gps_pts_${actId}`);
+  if (cachedGPS) {
+    try { points = JSON.parse(cachedGPS); } catch (_) {}
   }
 
-  const pairs = latlng.filter(p => Array.isArray(p) && p[0] != null && p[1] != null
-    && Math.abs(p[0]) <= 90 && Math.abs(p[1]) <= 180);
-  if (pairs.length < 2) {
-    mapEl.innerHTML = '<div class="ra-map-empty">No GPS data</div>';
-    return;
-  }
+  // 3. Nothing cached — fetch from API then save GPS points for next refresh
+  if (!points || points.length < 2) {
+    let latlng = null;
+    try { latlng = await fetchMapGPS(actId); } catch (_) {}
 
-  const step   = Math.max(1, Math.floor(pairs.length / 400));
-  const points = pairs.filter((_, i) => i % step === 0);
-  if (points[points.length - 1] !== pairs[pairs.length - 1]) points.push(pairs[pairs.length - 1]);
+    if (!latlng || latlng.length < 2) {
+      mapEl.innerHTML = '<div class="ra-map-empty">No GPS data</div>';
+      return;
+    }
+
+    const pairs = latlng.filter(p => Array.isArray(p) && p[0] != null && p[1] != null
+      && Math.abs(p[0]) <= 90 && Math.abs(p[1]) <= 180);
+    if (pairs.length < 2) {
+      mapEl.innerHTML = '<div class="ra-map-empty">No GPS data</div>';
+      return;
+    }
+
+    const step = Math.max(1, Math.floor(pairs.length / 400));
+    points = pairs.filter((_, i) => i % step === 0);
+    if (points[points.length - 1] !== pairs[pairs.length - 1]) points.push(pairs[pairs.length - 1]);
+
+    // Cache the downsampled points (~8 KB) so we never need to re-fetch on refresh
+    try { localStorage.setItem(`icu_gps_pts_${actId}`, JSON.stringify(points)); } catch (_) {}
+  }
 
   requestAnimationFrame(() => {
     try {
@@ -1260,6 +1308,7 @@ const WEATHER_SVGS = {
   storm: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M30 23H13a7 7 0 1 1 1.4-13.86A8 8 0 1 1 30 23z" fill="#475569"/><polyline points="22,24 17,32 21,32 16,40" stroke="#FCD34D" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`,
   fog: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M28 15H15a5 5 0 1 1 1-9.9A6 6 0 1 1 28 15z" fill="#CBD5E1"/><g stroke="#94A3B8" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="21" x2="34" y2="21"/><line x1="9" y1="27" x2="31" y2="27"/><line x1="13" y1="33" x2="27" y2="33"/></g></svg>`,
   wind: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 15h18a4 4 0 1 0-4-4" stroke="#94A3B8" stroke-width="2.5" stroke-linecap="round" fill="none"/><path d="M6 22h24a4 4 0 1 1-4 4" stroke="#94A3B8" stroke-width="2.5" stroke-linecap="round" fill="none"/><path d="M6 29h14a3 3 0 1 0-3-3" stroke="#94A3B8" stroke-width="2.5" stroke-linecap="round" fill="none"/></svg>`,
+  temp: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="17" y="6" width="6" height="20" rx="3" fill="#94A3B8"/><circle cx="20" cy="30" r="5" fill="#F87171"/><rect x="18.5" y="14" width="3" height="14" rx="1.5" fill="#F87171"/></svg>`,
   moon: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M32 22.5A12 12 0 1 1 17.5 8a9 9 0 0 0 14.5 14.5z" fill="#FCD34D"/></svg>`,
 };
 
@@ -1516,6 +1565,15 @@ async function renderWeatherPage() {
   const container = document.getElementById('weatherPageContent');
   if (!container) return;
 
+  // Hide the day-detail back button if returning from detail sub-page
+  const wxdBack = document.getElementById('wxdTopbarBack');
+  if (wxdBack) wxdBack.style.display = 'none';
+  // Restore weather page title
+  const titleEl    = document.getElementById('pageTitle');
+  const subtitleEl = document.getElementById('pageSubtitle');
+  if (titleEl)    titleEl.textContent    = 'Weather';
+  if (subtitleEl) subtitleEl.textContent = '7-day cycling forecast';
+
   // Check for saved location
   let lat = null, lng = null, locationLabel = 'Your area';
   try {
@@ -1580,6 +1638,10 @@ async function renderWeatherPage() {
     return;
   }
 
+  // Save to state so day-detail sub-page can access it
+  state.weatherPageData = data;
+  state.weatherPageMeta = { deg, windLbl, locationLabel, lat, lng };
+
   const { time, weathercode: codes, temperature_2m_max: highs, temperature_2m_min: lows,
           precipitation_probability_max: precips, precipitation_sum: rainMm,
           windspeed_10m_max: winds, winddirection_10m_dominant: windDirs,
@@ -1605,34 +1667,47 @@ async function renderWeatherPage() {
     const isCloudy= [2,3].includes(code);
 
     const coldThresh  = isMetric ? 4  : 40;
-    const hotThresh   = isMetric ? 36 : 97;
-    const windThresh  = isMetric ? 40 : 25;
-    const windPoor    = isMetric ? 60 : 37;
+    const hotThresh   = isMetric ? 35 : 95;
+    const windThresh  = isMetric ? 32 : 20;   // starts feeling tough on a bike
+    const windPoor    = isMetric ? 52 : 32;   // genuinely hard riding
 
     const reasons = [];
     let score = 100;
 
-    if (isStorm)              { score -= 70; reasons.push('⛈ Thunderstorms expected'); }
-    else if (isSnow)          { score -= 60; reasons.push('❄️ Snow or sleet forecast'); }
-    else if (isRain && !isDriz){ score -= 30 + Math.min(precip, 40) * 0.5; reasons.push(`🌧 Rain (${Math.round(precip)}% chance)`); }
-    else if (isDriz)          { score -= 15; reasons.push(`🌦 Light drizzle possible`); }
-    else if (isFog)           { score -= 20; reasons.push('🌫 Foggy — low visibility'); }
+    // ── Weather condition ─────────────────────────────────────────────────
+    if (isStorm)               { score -= 75; reasons.push('⛈ Thunderstorms expected'); }
+    else if (isSnow)           { score -= 65; reasons.push('❄️ Snow or sleet forecast'); }
+    else if (isRain && !isDriz){ score -= 45 + Math.min(precip, 55) * 0.5; reasons.push(`🌧 Rain (${Math.round(precip)}% chance)`); }
+    else if (isDriz)           { score -= 30; reasons.push(`🌦 Drizzle expected`); }
+    else if (isFog)            { score -= 25; reasons.push('🌫 Foggy — low visibility'); }
 
-    if (high < coldThresh)    { score -= 30; reasons.push(`🥶 Very cold (high ${Math.round(high)}${deg})`); }
-    else if (high < (isMetric ? 8 : 46)) { score -= 15; reasons.push(`🌡 Chilly (high ${Math.round(high)}${deg})`); }
-    else if (high > hotThresh){ score -= 20; reasons.push(`🥵 Extreme heat (${Math.round(high)}${deg})`); }
+    // ── Precipitation probability (catches mismatches where code looks clear
+    //    but rain chance is still significant) ─────────────────────────────
+    if (!isRain && !isDriz && !isSnow && !isStorm) {
+      if      (precip >= 60) { score -= 30; reasons.push(`🌧 ${Math.round(precip)}% rain chance`); }
+      else if (precip >= 40) { score -= 18; reasons.push(`🌦 ${Math.round(precip)}% rain chance`); }
+      else if (precip >= 25) { score -= 8;  reasons.push(`🌂 ${Math.round(precip)}% rain chance`); }
+    }
 
-    if (wind > windPoor)      { score -= 30; reasons.push(`💨 Very strong winds (${Math.round(wind)} ${windLbl})`); }
-    else if (wind > windThresh){ score -= 15; reasons.push(`💨 Windy (${Math.round(wind)} ${windLbl})`); }
+    // ── Temperature ───────────────────────────────────────────────────────
+    if (high < coldThresh)               { score -= 35; reasons.push(`🥶 Very cold (high ${Math.round(high)}${deg})`); }
+    else if (high < (isMetric ? 8 : 46)) { score -= 20; reasons.push(`🌡 Chilly (high ${Math.round(high)}${deg})`); }
+    else if (high > hotThresh)           { score -= 25; reasons.push(`🥵 Extreme heat (${Math.round(high)}${deg})`); }
 
-    if (score >= 75) {
-      if (isClear) reasons.unshift('☀️ Clear skies');
+    // ── Wind ──────────────────────────────────────────────────────────────
+    if (wind > windPoor)       { score -= 35; reasons.push(`💨 Very strong winds (${Math.round(wind)} ${windLbl})`); }
+    else if (wind > windThresh){ score -= 20; reasons.push(`💨 Windy (${Math.round(wind)} ${windLbl})`); }
+
+    // ── Positive indicators (only on genuinely good days) ─────────────────
+    if (score >= 80) {
+      if (isClear)   reasons.unshift('☀️ Clear skies');
       else if (isCloudy) reasons.unshift('⛅ Mostly cloudy but dry');
-      if (uv >= 6) reasons.push(`🕶 High UV (${uv}) — wear sunscreen`);
+      if (uv >= 6)   reasons.push(`🕶 High UV (${uv}) — wear sunscreen`);
     }
 
     score = Math.max(0, Math.min(100, Math.round(score)));
-    const label = score >= 75 ? 'great' : score >= 50 ? 'good' : score >= 30 ? 'fair' : 'poor';
+    // Stricter thresholds — a great day should genuinely be great
+    const label = score >= 80 ? 'great' : score >= 55 ? 'good' : score >= 30 ? 'fair' : 'poor';
     return { score, label, reasons };
   }
 
@@ -1686,10 +1761,13 @@ async function renderWeatherPage() {
     if (!best?.length) return null;
 
     const fmt = h => { const ampm = h >= 12 ? 'pm' : 'am'; return `${h > 12 ? h-12 : h || 12}${ampm}`; };
-    return `${fmt(best[0].h)} – ${fmt(best[best.length-1].h + 1)}`;
+    const endH = best[best.length-1].h + 1;
+    return { label: `${fmt(best[0].h)} – ${fmt(endH)}`, endH };
   }
 
   const rideWindow = bestRideWindow();
+  const nowH = new Date().getHours() + new Date().getMinutes() / 60;
+  const rideWindowMissed = rideWindow && nowH >= rideWindow.endH;
 
   // ── Build HTML ────────────────────────────────────────────────────────────
   const DAYS_OF_WEEK = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -1718,7 +1796,7 @@ async function renderWeatherPage() {
     const reasonHtml = topReasons.map(r => `<div class="wxp-reason">${r}</div>`).join('');
 
     return `
-      <div class="wxp-day-card wxp-day-card--${label}">
+      <div class="wxp-day-card wxp-day-card--${label}" data-day-idx="${i}">
         <div class="wxp-day-header">
           <div class="wxp-day-name-wrap">
             <span class="wxp-day-name">${dayName}</span>
@@ -1731,7 +1809,7 @@ async function renderWeatherPage() {
         </div>
         <div class="wxp-day-conditions">
           <div class="wxp-cond-row">
-            <span class="wxp-cond-icon">${WEATHER_SVGS.sun}</span>
+            <span class="wxp-cond-icon">${WEATHER_SVGS.temp}</span>
             <span class="wxp-cond-val">${Math.round(highs[i])}° / ${Math.round(lows[i])}°</span>
           </div>
           <div class="wxp-cond-row">
@@ -1754,28 +1832,36 @@ async function renderWeatherPage() {
       </div>`;
   }).join('');
 
-  // Best days to ride (score ≥ 50, sorted)
+  // Best days to ride (score ≥ 50, top 3 sorted by score)
   const scored7 = time.map((_, i) => ({ i, ...rideScore(i) }))
     .filter(d => d.score >= 50)
     .sort((a, b) => b.score - a.score)
     .slice(0, 3);
 
-  const bestDaysHtml = scored7.length ? scored7.map(({ i, score, label, reasons }) => {
+  const bestCardsHtml = scored7.length ? scored7.map(({ i, score, label, reasons }) => {
     const d = new Date(time[i] + 'T12:00:00');
     const name = i === 0 ? 'Today' : i === 1 ? 'Tomorrow'
                : d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
     const tip = reasons.filter(r => r.startsWith('☀') || r.startsWith('⛅') || r.startsWith('🕶') || r.startsWith('👌')).join(' · ') || reasons[0] || 'Good conditions';
+    const badgeLabel = label === 'great' ? '🚴 Great' : label === 'good' ? '👍 Good' : '⚠️ Fair';
     return `
-      <div class="wxp-rec-card wxp-rec--${label}">
-        <div class="wxp-rec-icon">${wmoIcon(codes[i])}</div>
-        <div class="wxp-rec-info">
-          <div class="wxp-rec-day">${name}</div>
-          <div class="wxp-rec-detail">${Math.round(highs[i])}${deg} · ${Math.round(winds[i])} ${windLbl} · ${Math.round(precips[i]??0)}% rain</div>
-          <div class="wxp-rec-tip">${tip}</div>
+      <div class="card wxp-best-card wxp-best--${label}" data-day-idx="${i}">
+        <div class="wxp-best-head">
+          <div class="wxp-best-day">${name}</div>
+          <div class="wxp-score-badge wxp-score--${label}">${badgeLabel}</div>
         </div>
-        <div class="wxp-rec-score">${score}<span>/ 100</span></div>
+        <div class="wxp-best-icon">${wmoIcon(codes[i])}</div>
+        <div class="wxp-best-stats">
+          <div class="wxp-best-temp">${Math.round(highs[i])}${deg} <span class="wxp-best-low">/ ${Math.round(lows[i])}${deg}</span></div>
+          <div class="wxp-best-meta">💨 ${Math.round(winds[i])} ${windLbl} · 🌧 ${Math.round(precips[i] ?? 0)}%</div>
+        </div>
+        <div class="wxp-best-score-bar">
+          <div class="wxp-best-score-fill wxp-best-score--${label}" style="width:${score}%"></div>
+        </div>
+        <div class="wxp-best-tip">${tip}</div>
+        <div class="wxp-best-score-num">${score}<span>/ 100</span></div>
       </div>`;
-  }).join('') : `<div class="wxp-no-rec">No great riding days this week — looks like a tough stretch.</div>`;
+  }).join('') : '';
 
   // Days to avoid (score < 30)
   const badDays = time.map((_, i) => ({ i, ...rideScore(i) }))
@@ -1797,13 +1883,28 @@ async function renderWeatherPage() {
   }).join('') : '';
 
   // Weekly summary stats
-  const avgHigh   = Math.round(highs.reduce((s,v)=>s+v,0)/highs.length);
-  const maxWind   = Math.round(Math.max(...winds));
-  const rainDays  = codes.filter(c => [51,53,55,56,57,61,63,65,67,80,81,82,95,96,99].includes(c)).length;
-  const bestScore = Math.max(...time.map((_,i)=>rideScore(i).score));
-  const bestDayIdx= time.findIndex((_,i)=>rideScore(i).score===bestScore);
+  const avgHigh    = Math.round(highs.reduce((s,v)=>s+v,0)/highs.length);
+  const maxWind    = Math.round(Math.max(...winds));
+  const rainDays   = codes.filter(c => [51,53,55,56,57,61,63,65,67,80,81,82,95,96,99].includes(c)).length;
+  const rideableDays = time.filter((_, i) => rideScore(i).score >= 50).length;
+  const bestScore  = Math.max(...time.map((_,i)=>rideScore(i).score));
+  const bestDayIdx = time.findIndex((_,i)=>rideScore(i).score===bestScore);
   const bestDayName = bestDayIdx === 0 ? 'Today' : bestDayIdx === 1 ? 'Tomorrow'
     : new Date(time[bestDayIdx]+'T12:00:00').toLocaleDateString('en-US',{weekday:'long'});
+
+  // Mini 7-day strip for summary card
+  const miniStripHtml = time.map((dateStr, i) => {
+    const d       = new Date(dateStr + 'T12:00:00');
+    const dayAbbr = i === 0 ? 'Now' : DAYS_OF_WEEK[d.getDay()];
+    const { label } = rideScore(i);
+    return `
+      <div class="wxp-ms-day">
+        <div class="wxp-ms-label">${dayAbbr}</div>
+        <div class="wxp-ms-icon">${wmoIcon(codes[i])}</div>
+        <div class="wxp-ms-temp">${Math.round(highs[i])}°</div>
+        <div class="wxp-ms-dot wxp-ms-dot--${label}"></div>
+      </div>`;
+  }).join('');
 
   container.innerHTML = `
     <!-- Location header -->
@@ -1816,49 +1917,61 @@ async function renderWeatherPage() {
 
     <!-- Today's ride window -->
     ${rideWindow ? `
-    <div class="card wxp-window-card">
+    <div class="card wxp-window-card${rideWindowMissed ? ' wxp-window-card--missed' : ''}">
       <div class="card-header">
         <div>
           <div class="card-title">Best Ride Window</div>
-          <div class="card-subtitle">Today's optimal riding hours</div>
+          <div class="card-subtitle">${rideWindowMissed ? 'Today\'s window has passed' : 'Today\'s optimal riding hours'}</div>
         </div>
         <div class="wxp-window-temps">${Math.round(highs[0])}° / ${Math.round(lows[0])}°</div>
       </div>
       <div class="wxp-window-inner">
         <div class="wxp-window-icon">${wmoIcon(codes[0])}</div>
         <div class="wxp-window-text">
-          <div class="wxp-window-label">Recommended window</div>
-          <div class="wxp-window-time">${rideWindow}</div>
+          <div class="wxp-window-label">${rideWindowMissed ? 'Window missed' : 'Recommended window'}</div>
+          <div class="wxp-window-time${rideWindowMissed ? ' wxp-window-time--missed' : ''}">${rideWindow.label}</div>
+          ${rideWindowMissed ? '<div class="wxp-window-missed-note">You missed today\'s best window. Check tomorrow\'s forecast.</div>' : ''}
         </div>
       </div>
     </div>` : ''}
 
-    <!-- Weekly summary stats -->
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <div class="card-title">7-Day Summary</div>
-          <div class="card-subtitle">Weekly weather overview</div>
-        </div>
+    <!-- Weekly summary — no card wrapper -->
+    <div class="wxp-section-label">7-Day Summary</div>
+    <!-- Mini icon strip -->
+    <div class="wxp-mini-strip">${miniStripHtml}</div>
+    <!-- Stat tiles -->
+    <div class="wxp-stats-grid">
+      <div class="wxp-st">
+        <div class="wxp-st-icon">🌡</div>
+        <div class="wxp-st-val">${avgHigh}<span>${deg}</span></div>
+        <div class="wxp-st-lbl">Avg High</div>
       </div>
-      <div class="wxp-stats-row">
-        <div class="wxp-stat"><div class="wxp-stat-val">${avgHigh}${deg}</div><div class="wxp-stat-lbl">Avg high</div></div>
-        <div class="wxp-stat"><div class="wxp-stat-val">${maxWind} <span style="font-size:12px">${windLbl}</span></div><div class="wxp-stat-lbl">Max wind</div></div>
-        <div class="wxp-stat"><div class="wxp-stat-val">${rainDays}<span style="font-size:12px">d</span></div><div class="wxp-stat-lbl">Rain days</div></div>
-        <div class="wxp-stat"><div class="wxp-stat-val">${bestDayName.slice(0,3)}</div><div class="wxp-stat-lbl">Best day</div></div>
+      <div class="wxp-st">
+        <div class="wxp-st-icon">💨</div>
+        <div class="wxp-st-val">${maxWind}<span> ${windLbl}</span></div>
+        <div class="wxp-st-lbl">Max Wind</div>
+      </div>
+      <div class="wxp-st">
+        <div class="wxp-st-icon">🌧</div>
+        <div class="wxp-st-val">${rainDays}<span> d</span></div>
+        <div class="wxp-st-lbl">Rain Days</div>
+      </div>
+      <div class="wxp-st wxp-st--highlight">
+        <div class="wxp-st-icon">🚴</div>
+        <div class="wxp-st-val">${rideableDays}<span> d</span></div>
+        <div class="wxp-st-lbl">Rideable</div>
       </div>
     </div>
 
-    <!-- Best days to ride -->
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <div class="card-title">Best Days to Ride</div>
-          <div class="card-subtitle">Top conditions this week</div>
-        </div>
-      </div>
-      <div class="wxp-rec-list">${bestDaysHtml}</div>
+    <!-- Best days to ride — individual cards -->
+    ${bestCardsHtml ? `
+    <div class="wxp-section-label">Best Days to Ride</div>
+    <div class="wxp-best-grid">${bestCardsHtml}</div>
+    ` : `
+    <div class="card wxp-no-rec-card">
+      <div class="wxp-no-rec">No great riding days this week — looks like a tough stretch.</div>
     </div>
+    `}
 
     ${badDaysHtml ? `
     <!-- Days to avoid -->
@@ -1872,16 +1985,9 @@ async function renderWeatherPage() {
       <div class="wxp-avoid-list">${badDaysHtml}</div>
     </div>` : ''}
 
-    <!-- Full weekly breakdown -->
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <div class="card-title">This Week</div>
-          <div class="card-subtitle">Full 7-day forecast</div>
-        </div>
-      </div>
-      <div class="wxp-week-scroll">${weekCards}</div>
-    </div>
+    <!-- Full weekly breakdown — standalone day cards -->
+    <div class="wxp-section-label">This Week</div>
+    <div class="wxp-week-scroll">${weekCards}</div>
 
     <!-- Data source footer -->
     <div class="wxp-data-source">
@@ -1911,6 +2017,36 @@ async function renderWeatherPage() {
       </div>
     </div>
   `;
+
+  // Attach click handlers on day cards (with drag-detection guard)
+  container.querySelectorAll('.wxp-day-card, .wxp-best-card').forEach(card => {
+    let startX = 0, startY = 0, dragged = false;
+    card.addEventListener('mousedown', e => {
+      startX = e.clientX; startY = e.clientY; dragged = false;
+    });
+    card.addEventListener('mousemove', e => {
+      if (Math.abs(e.clientX - startX) > 5 || Math.abs(e.clientY - startY) > 5) dragged = true;
+    });
+    card.addEventListener('mouseup', e => {
+      if (!dragged) {
+        const idx = parseInt(card.dataset.dayIdx, 10);
+        if (!isNaN(idx)) renderWeatherDayDetail(idx);
+      }
+    });
+    // Touch support
+    card.addEventListener('touchstart', e => {
+      startX = e.touches[0].clientX; startY = e.touches[0].clientY; dragged = false;
+    }, { passive: true });
+    card.addEventListener('touchmove', e => {
+      if (Math.abs(e.touches[0].clientX - startX) > 8 || Math.abs(e.touches[0].clientY - startY) > 8) dragged = true;
+    }, { passive: true });
+    card.addEventListener('touchend', () => {
+      if (!dragged) {
+        const idx = parseInt(card.dataset.dayIdx, 10);
+        if (!isNaN(idx)) renderWeatherDayDetail(idx);
+      }
+    });
+  });
 
   // Attach drag-to-scroll on the week rail (desktop mouse drag)
   const rail = container.querySelector('.wxp-week-scroll');
@@ -1951,6 +2087,320 @@ function refreshWeatherPage() {
   localStorage.removeItem('icu_wx_forecast');
   localStorage.removeItem('icu_wx_forecast_ts');
   renderWeatherPage();
+}
+
+/* ====================================================
+   WEATHER DAY DETAIL SUB-PAGE
+==================================================== */
+function renderWeatherDayDetail(dayIdx) {
+  const container = document.getElementById('weatherPageContent');
+  if (!container) return;
+
+  const data = state.weatherPageData;
+  const meta = state.weatherPageMeta;
+  if (!data?.daily || !meta) { renderWeatherPage(); return; }
+
+  const { deg, windLbl } = meta;
+  const isMetric = deg !== '°F';
+
+  const { time, weathercode: codes, temperature_2m_max: highs, temperature_2m_min: lows,
+          precipitation_probability_max: precips, precipitation_sum: rainMm,
+          windspeed_10m_max: winds, winddirection_10m_dominant: windDirs,
+          uv_index_max: uvs, sunrise: sunrises, sunset: sunsets } = data.daily;
+
+  const i = dayIdx;
+  const dateStr = time[i];
+  const DAYS_OF_WEEK = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const d = new Date(dateStr + 'T12:00:00');
+  const dayName = i === 0 ? 'Today' : i === 1 ? 'Tomorrow'
+    : d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
+  // ── Re-compute ride score for this day ───────────────────────────────────
+  const code   = codes[i];
+  const wind   = winds?.[i] ?? 0;
+  const precip = precips?.[i] ?? 0;
+  const rain   = rainMm?.[i] ?? 0;
+  const high   = highs[i];
+  const low    = lows[i];
+  const uv     = uvs?.[i] ?? 0;
+  const wdir   = windDir(windDirs?.[i] ?? 0);
+
+  const isSnow  = [71,73,75,77,85,86].includes(code);
+  const isStorm = [95,96,99].includes(code);
+  const isRain  = [51,53,55,56,57,61,63,65,67,80,81,82].includes(code);
+  const isDriz  = [51,53,55].includes(code);
+  const isFog   = [45,48].includes(code);
+  const isClear = [0,1].includes(code);
+  const coldThresh = isMetric ? 4  : 40;
+  const hotThresh  = isMetric ? 35 : 95;
+  const windThresh = isMetric ? 32 : 20;
+  const windPoor   = isMetric ? 52 : 32;
+
+  const reasons = [];
+  let score = 100;
+  if (isStorm)               { score -= 75; reasons.push('⛈ Thunderstorms expected'); }
+  else if (isSnow)           { score -= 65; reasons.push('❄️ Snow or sleet forecast'); }
+  else if (isRain && !isDriz){ score -= 45 + Math.min(precip, 55) * 0.5; reasons.push(`🌧 Rain (${Math.round(precip)}% chance)`); }
+  else if (isDriz)           { score -= 30; reasons.push(`🌦 Drizzle expected`); }
+  else if (isFog)            { score -= 25; reasons.push('🌫 Foggy — low visibility'); }
+  if (!isRain && !isDriz && !isSnow && !isStorm) {
+    if      (precip >= 60) { score -= 30; reasons.push(`🌧 ${Math.round(precip)}% rain chance`); }
+    else if (precip >= 40) { score -= 18; reasons.push(`🌦 ${Math.round(precip)}% rain chance`); }
+    else if (precip >= 25) { score -= 8;  reasons.push(`🌂 ${Math.round(precip)}% rain chance`); }
+  }
+  if (high < coldThresh)               { score -= 35; reasons.push(`🥶 Very cold (high ${Math.round(high)}${deg})`); }
+  else if (high < (isMetric ? 8 : 46)) { score -= 20; reasons.push(`🌡 Chilly (high ${Math.round(high)}${deg})`); }
+  else if (high > hotThresh)           { score -= 25; reasons.push(`🥵 Extreme heat (${Math.round(high)}${deg})`); }
+  if (wind > windPoor)       { score -= 35; reasons.push(`💨 Very strong winds (${Math.round(wind)} ${windLbl})`); }
+  else if (wind > windThresh){ score -= 20; reasons.push(`💨 Windy (${Math.round(wind)} ${windLbl})`); }
+  if (score >= 80) {
+    if (isClear) reasons.unshift('☀️ Clear skies');
+    else         reasons.unshift('⛅ Mostly cloudy but dry');
+    if (uv >= 6) reasons.push(`🕶 High UV (${uv}) — wear sunscreen`);
+  }
+  score = Math.max(0, Math.min(100, Math.round(score)));
+  const label = score >= 80 ? 'great' : score >= 55 ? 'good' : score >= 30 ? 'fair' : 'poor';
+
+  // ── Sunrise / sunset ─────────────────────────────────────────────────────
+  let srStr = '—', ssStr = '—';
+  try {
+    srStr = new Date(sunrises[i]).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    ssStr = new Date(sunsets[i]).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  } catch (_) {}
+
+  // ── Hourly data for this day ──────────────────────────────────────────────
+  let hourlyHtml = '';
+  let bestWindowStr = null;
+  if (data.hourly) {
+    const { time: hTimes, temperature_2m: hTemps, precipitation_probability: hPrecip,
+            weathercode: hCodes, windspeed_10m: hWind } = data.hourly;
+
+    const dayHours = hTimes
+      .map((t, idx) => ({ t, idx }))
+      .filter(({ t }) => t.startsWith(dateStr));
+
+    // Best ride window for this day
+    const rideHours = dayHours.filter(({ idx }) => {
+      const h = new Date(hTimes[idx]).getHours();
+      return h >= 6 && h <= 20;
+    });
+    const scoredHours = rideHours.map(({ idx }) => {
+      const h    = new Date(hTimes[idx]).getHours();
+      const temp = hTemps[idx] ?? 15;
+      const prec = hPrecip[idx] ?? 0;
+      const wnd  = hWind[idx] ?? 0;
+      const cod  = hCodes[idx] ?? 0;
+      const coldT = isMetric ? 4 : 39;
+      let s = 100;
+      if ([95,96,99,71,73,75,77,85,86].includes(cod)) s -= 60;
+      else if ([61,63,65,67,80,81,82].includes(cod))  s -= 30;
+      else if ([51,53,55,56,57].includes(cod))        s -= 15;
+      if (temp < coldT) s -= 25;
+      if (prec > 60) s -= 25;
+      else if (prec > 30) s -= 10;
+      if (wnd > (isMetric ? 50 : 31)) s -= 20;
+      return { h, score: Math.max(0, s), idx };
+    });
+
+    let best = null, cur = [];
+    for (const pt of scoredHours) {
+      if (pt.score >= 60) { cur.push(pt); }
+      else { if (!best || cur.length > best.length) best = [...cur]; cur = []; }
+    }
+    if (!best || cur.length > best.length) best = [...cur];
+    if (best?.length) {
+      const fmt = h => { const ampm = h >= 12 ? 'pm' : 'am'; return `${h > 12 ? h-12 : h || 12}${ampm}`; };
+      bestWindowStr = `${fmt(best[0].h)} – ${fmt(best[best.length-1].h + 1)}`;
+    }
+
+    // Build hourly cards (every hour, 5am–9pm range shown)
+    const displayHours = dayHours.filter(({ idx }) => {
+      const h = new Date(hTimes[idx]).getHours();
+      return h >= 5 && h <= 21;
+    });
+
+    const hourlyScoreMap = new Map(scoredHours.map(pt => [pt.idx, pt.score]));
+
+    hourlyHtml = displayHours.map(({ idx }) => {
+      const h     = new Date(hTimes[idx]).getHours();
+      const ampm  = h >= 12 ? 'pm' : 'am';
+      const hDisp = `${h > 12 ? h-12 : h || 12}${ampm}`;
+      const temp  = hTemps[idx] != null ? Math.round(hTemps[idx]) : '—';
+      const pr    = hPrecip[idx] ?? 0;
+      const wnd   = hWind[idx] != null ? Math.round(hWind[idx]) : '—';
+      const cod   = hCodes[idx] ?? 0;
+      const hScore = hourlyScoreMap.get(idx);
+      const dotLabel = hScore == null ? '' : hScore >= 75 ? 'great' : hScore >= 55 ? 'good' : hScore >= 35 ? 'fair' : 'poor';
+      const dotHtml = dotLabel ? `<div class="wxd-h-dot wxd-h-dot--${dotLabel}"></div>` : '';
+      return `
+        <div class="wxd-h-card">
+          <div class="wxd-h-time">${hDisp}</div>
+          <div class="wxd-h-icon">${wmoIcon(cod)}</div>
+          <div class="wxd-h-temp">${temp}°</div>
+          <div class="wxd-h-wind">${wnd} ${windLbl}</div>
+          <div class="wxd-h-rain">${Math.round(pr)}%</div>
+          ${dotHtml}
+        </div>`;
+    }).join('');
+  }
+
+  // ── Ride Planner tips ─────────────────────────────────────────────────────
+  function plannerTips() {
+    const tips = [];
+
+    // Kit recommendation
+    if (high < coldThresh)               tips.push({ icon: '🧥', title: 'Kit', body: `Cold day — full thermal kit, wind vest, gloves & overshoes. Dress for ${Math.round(high)}${deg}.` });
+    else if (high < (isMetric ? 10 : 50)) tips.push({ icon: '🧤', title: 'Kit', body: `Chilly — bib tights, long-sleeve base layer, arm warmers. High: ${Math.round(high)}${deg}.` });
+    else if (high < (isMetric ? 18 : 65)) tips.push({ icon: '🚴', title: 'Kit', body: `Cool — jersey + arm warmers, knee warmers. May warm up midday.` });
+    else if (high > hotThresh)            tips.push({ icon: '🌡', title: 'Kit', body: `Hot day — minimal kit, light colours, cooling vest if available. ${Math.round(high)}${deg} expected.` });
+    else                                  tips.push({ icon: '🚴', title: 'Kit', body: `Comfortable temps — standard jersey & bibs. High: ${Math.round(high)}${deg}.` });
+
+    // Rain gear
+    if (isStorm)      tips.push({ icon: '⛈', title: 'Rain Gear', body: 'Thunderstorm forecast — consider an indoor session or reschedule.' });
+    else if (isSnow)  tips.push({ icon: '❄️', title: 'Rain Gear', body: 'Snow forecast — not recommended. If riding, use full waterproofs & studded tyres.' });
+    else if (isRain)  tips.push({ icon: '🌧', title: 'Rain Gear', body: 'Rain expected — waterproof jacket essential, mudguards recommended, check braking distance.' });
+    else if (isDriz)  tips.push({ icon: '🌦', title: 'Rain Gear', body: 'Drizzle possible — light rain jacket or gilet in back pocket. Avoid white kit.' });
+    else if (precip >= 40) tips.push({ icon: '🌂', title: 'Rain Gear', body: `${Math.round(precip)}% rain chance — pack a lightweight gilet as insurance.` });
+    else              tips.push({ icon: '✅', title: 'Rain Gear', body: 'Dry conditions expected — no rain gear needed. Leave the jacket at home.' });
+
+    // Wind strategy
+    if (wind > windPoor)        tips.push({ icon: '💨', title: 'Wind Strategy', body: `Strong winds (${Math.round(wind)} ${windLbl} ${wdir}) — ride into the wind on the way out so you have it at your back coming home.` });
+    else if (wind > windThresh) tips.push({ icon: '🍃', title: 'Wind Strategy', body: `Moderate wind (${Math.round(wind)} ${windLbl} ${wdir}) — expect effort spikes on exposed roads. Draft where possible.` });
+    else                        tips.push({ icon: '🌿', title: 'Wind Strategy', body: `Light winds (${Math.round(wind)} ${windLbl}) — great day for time-trial efforts or PB attempts.` });
+
+    // Sun / UV
+    if (uv >= 8)       tips.push({ icon: '🕶', title: 'Sun Protection', body: `Very high UV index (${uv}) — SPF 50+ on all exposed skin, quality sunglasses essential.` });
+    else if (uv >= 5)  tips.push({ icon: '☀️', title: 'Sun Protection', body: `Moderate UV (${uv}) — apply sunscreen before heading out, especially on shoulders & neck.` });
+    else               tips.push({ icon: '🌤', title: 'Sun Protection', body: `Low UV (${uv}) — no special precautions needed. Sunglasses still useful for road debris.` });
+
+    // Hydration
+    if (high > (isMetric ? 28 : 82))   tips.push({ icon: '💧', title: 'Hydration', body: `Hot day — aim for at least 1 bottle (500ml) per 45 min. Add electrolyte mix in one bottle.` });
+    else if (high > (isMetric ? 20 : 68)) tips.push({ icon: '🚰', title: 'Hydration', body: `Warm — 500ml/hr is a solid target. Note any cafes or water stops along the route.` });
+    else                                tips.push({ icon: '🫗', title: 'Hydration', body: `Cool weather suppresses thirst — still drink 400–500ml/hr to stay on top of it.` });
+
+    return tips;
+  }
+
+  const tips = plannerTips();
+  const tipsHtml = tips.map(t => `
+    <div class="wxd-tip-card">
+      <div class="wxd-tip-icon">${t.icon}</div>
+      <div class="wxd-tip-body">
+        <div class="wxd-tip-title">${t.title}</div>
+        <div class="wxd-tip-text">${t.body}</div>
+      </div>
+    </div>`).join('');
+
+  // ── Score color bar / badge ───────────────────────────────────────────────
+  const reasonsHtml = reasons.map(r => `<div class="wxd-reason">${r}</div>`).join('');
+
+  // ── Show back button in topbar, update page title ────────────────────────
+  const wxdBack = document.getElementById('wxdTopbarBack');
+  if (wxdBack) wxdBack.style.display = '';
+  const titleEl    = document.getElementById('pageTitle');
+  const subtitleEl = document.getElementById('pageSubtitle');
+  if (titleEl)    titleEl.textContent    = dayName;
+  if (subtitleEl) subtitleEl.textContent = 'Weather · Day detail';
+
+  // ── Build page ────────────────────────────────────────────────────────────
+  container.innerHTML = `
+    <!-- Hero card -->
+    <div class="wxd-hero">
+      <div class="wxd-hero-left">
+        <div class="wxd-hero-icon">${wmoIcon(codes[i])}</div>
+        <div class="wxd-hero-temps">
+          <span class="wxd-hero-high">${Math.round(high)}${deg}</span>
+          <span class="wxd-hero-low">/ ${Math.round(low)}${deg}</span>
+        </div>
+      </div>
+      <div class="wxd-hero-right">
+        <div class="wxp-score-badge wxp-score--${label} wxd-hero-badge">${label === 'great' ? '🚴 Great day' : label === 'good' ? '👍 Good day' : label === 'fair' ? '⚠️ Fair day' : '✗ Poor day'}</div>
+        <div class="wxd-score-bar-wrap">
+          <div class="wxd-score-bar wxd-score-bar--${label}" style="width:${score}%"></div>
+        </div>
+        <div class="wxd-score-num">${score}<span> / 100</span></div>
+      </div>
+    </div>
+
+    <!-- Key stats row -->
+    <div class="wxd-stats-row">
+      <div class="wxd-stat">
+        <div class="wxd-stat-icon">💨</div>
+        <div class="wxd-stat-val">${Math.round(wind)}</div>
+        <div class="wxd-stat-lbl">${windLbl} ${wdir}</div>
+      </div>
+      <div class="wxd-stat">
+        <div class="wxd-stat-icon">🌧</div>
+        <div class="wxd-stat-val">${Math.round(precip)}%</div>
+        <div class="wxd-stat-lbl">Rain chance</div>
+      </div>
+      <div class="wxd-stat">
+        <div class="wxd-stat-icon">☀️</div>
+        <div class="wxd-stat-val">${uv}</div>
+        <div class="wxd-stat-lbl">UV Index</div>
+      </div>
+      <div class="wxd-stat">
+        <div class="wxd-stat-icon">🌅</div>
+        <div class="wxd-stat-val">${srStr}</div>
+        <div class="wxd-stat-lbl">Sunrise</div>
+      </div>
+      <div class="wxd-stat">
+        <div class="wxd-stat-icon">🌇</div>
+        <div class="wxd-stat-val">${ssStr}</div>
+        <div class="wxd-stat-lbl">Sunset</div>
+      </div>
+    </div>
+
+    <!-- Ride score reasons -->
+    ${reasonsHtml ? `
+    <div class="wxp-section-label">Ride Assessment</div>
+    <div class="wxd-reasons">${reasonsHtml}</div>` : ''}
+
+    <!-- Best ride window for this day -->
+    ${bestWindowStr ? `
+    <div class="wxd-window-banner">
+      <span class="wxd-window-label">🚴 Best Ride Window</span>
+      <span class="wxd-window-time">${bestWindowStr}</span>
+    </div>` : ''}
+
+    <!-- Hourly conditions -->
+    ${hourlyHtml ? `
+    <div class="wxp-section-label">Hourly Conditions</div>
+    <div class="wxd-h-legend">
+      <span>Temp</span><span>Wind</span><span>Rain%</span>
+    </div>
+    <div class="wxd-hourly-scroll">${hourlyHtml}</div>` : ''}
+
+    <!-- Ride planner -->
+    <div class="wxp-section-label">Ride Planner</div>
+    <div class="wxd-tips">${tipsHtml}</div>
+  `;
+
+  // Drag-to-scroll on hourly rail
+  const hRail = container.querySelector('.wxd-hourly-scroll');
+  if (hRail) {
+    let isDown = false, startX = 0, scrollLeft = 0;
+    hRail.addEventListener('mousedown', e => {
+      isDown = true; hRail.classList.add('is-dragging');
+      startX = e.pageX - hRail.getBoundingClientRect().left;
+      scrollLeft = hRail.scrollLeft;
+      e.preventDefault();
+    });
+    document.addEventListener('mouseup', () => { isDown = false; hRail.classList.remove('is-dragging'); });
+    document.addEventListener('mousemove', e => {
+      if (!isDown) return;
+      const x = e.pageX - hRail.getBoundingClientRect().left;
+      hRail.scrollLeft = scrollLeft - (x - startX);
+    });
+    hRail.addEventListener('touchstart', e => {
+      startX = e.touches[0].pageX - hRail.getBoundingClientRect().left;
+      scrollLeft = hRail.scrollLeft;
+    }, { passive: true });
+    hRail.addEventListener('touchmove', e => {
+      const x = e.touches[0].pageX - hRail.getBoundingClientRect().left;
+      hRail.scrollLeft = scrollLeft - (x - startX);
+    }, { passive: true });
+  }
 }
 
 /* ====================================================
@@ -2061,6 +2511,7 @@ function renderDashboard() {
   renderActivityList('activityList', recent.slice(0, 10));
   renderAllActivitiesList();
   updateSortButtons();
+  _updateSportButtons();
   renderWeekProgress();
   renderTrainingStatus();
   renderFitnessChart(recent, days);
@@ -2568,27 +3019,56 @@ function drawRampGaugeSVG(rampRate) {
   const py = a => (CY - R * Math.sin(a)).toFixed(1);
 
   // Arc path from angle a1 to a2, sweep=1 (clockwise on screen = top arc)
-  const seg = (a1, a2, col, sw, op, cap) => {
+  const seg = (a1, a2, col, sw, op, cap, filt) => {
     op  = op  ?? 1;
     cap = cap ?? 'butt';
     const large = (a1 - a2) > Math.PI ? 1 : 0;
+    const fStr = filt ? ` filter="url(#${filt})"` : '';
     return `<path d="M${px(a1)} ${py(a1)} A${R} ${R} 0 ${large} 1 ${px(a2)} ${py(a2)}" `
-         + `fill="none" stroke="${col}" stroke-width="${sw}" stroke-linecap="${cap}" opacity="${op}"/>`;
+         + `fill="none" stroke="${col}" stroke-width="${sw}" stroke-linecap="${cap}" opacity="${op}"${fStr}/>`;
   };
 
   // Ramp-rate color zones (0–12 CTL/wk)
   const zones = [[0,3,'#00e5a0'],[3,8,'#00e5a0'],[8,10,'#f0c429'],[10,12,'#ff4757']];
   const color = val < 8 ? '#00e5a0' : val < 10 ? '#f0c429' : '#ff4757';
 
-  let s = '';
+  // Tick marks at zone boundaries
+  const tickVals = [0, 3, 8, 10, 12];
+  let ticks = '';
+  tickVals.forEach(v => {
+    const a  = toA(v);
+    const r1 = R + 5, r2 = R + 12;
+    ticks += `<line x1="${(CX + r1 * Math.cos(a)).toFixed(1)}" y1="${(CY - r1 * Math.sin(a)).toFixed(1)}" `
+           + `x2="${(CX + r2 * Math.cos(a)).toFixed(1)}" y2="${(CY - r2 * Math.sin(a)).toFixed(1)}" `
+           + `stroke="rgba(255,255,255,0.12)" stroke-width="1.5" stroke-linecap="round"/>`;
+  });
+
+  let s = `<defs>
+    <filter id="trsGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="trsDotGlow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="3.5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>`;
+
+  s += ticks;
   // 1. Background track
-  s += seg(Math.PI * 0.999, Math.PI * 0.001, 'rgba(255,255,255,0.07)', SW);
+  s += seg(Math.PI * 0.999, Math.PI * 0.001, 'rgba(255,255,255,0.06)', SW);
   // 2. Dimmed zone bands
-  zones.forEach(([lo, hi, c]) => s += seg(toA(lo), toA(hi), c, SW - 7, 0.28));
-  // 3. Active progress fill
-  if (val > 0.15) s += seg(Math.PI * 0.999, toA(val), color, SW, 0.88, 'round');
-  // 4. Indicator dot
-  s += `<circle cx="${px(toA(val))}" cy="${py(toA(val))}" r="7" fill="${color}" stroke="var(--bg-card)" stroke-width="3"/>`;
+  zones.forEach(([lo, hi, c]) => s += seg(toA(lo), toA(hi), c, SW - 7, 0.2));
+  // 3. Active progress fill — glow pass + solid pass
+  if (val > 0.15) {
+    s += seg(Math.PI * 0.999, toA(val), color, SW + 8, 0.22, 'round', 'trsGlow');
+    s += seg(Math.PI * 0.999, toA(val), color, SW, 0.92, 'round');
+  }
+  // 4. Indicator dot — glow pass + solid
+  const dx = px(toA(val)), dy = py(toA(val));
+  s += `<circle cx="${dx}" cy="${dy}" r="8" fill="${color}" opacity="0.35" filter="url(#trsDotGlow)"/>`;
+  s += `<circle cx="${dx}" cy="${dy}" r="7" fill="${color}" stroke="rgba(0,0,0,0.55)" stroke-width="2.5"/>`;
+  s += `<circle cx="${dx}" cy="${dy}" r="3" fill="rgba(255,255,255,0.7)"/>`;
 
   el.innerHTML = s;
 }
@@ -2722,16 +3202,7 @@ function renderTrainingStatus() {
       },
       layout: { padding: 0 },
       scales: {
-        x: { grid: C_NOGRID, ticks: { ...C_TICK, autoSkip: false,
-          callback: function(value, index, ticks) {
-            const total = ticks.length;
-            const isLast  = index === total - 1;
-            const isFirst = index === 0;
-            const hasSpace = this.chart.width >= total * 28;
-            if (hasSpace || isFirst || isLast) return this.getLabelForValue(value);
-            return null;
-          }
-        } },
+        x: { grid: C_NOGRID, ticks: { display: false } },
         y: { display: false },
       }
     }
@@ -5285,6 +5756,8 @@ function stepActivity(delta) {
 }
 
 function destroyActivityCharts() {
+  if (state.flythrough?.rafId) { cancelAnimationFrame(state.flythrough.rafId); }
+  state.flythrough = null;
   if (state.activityMap) { state.activityMap.remove(); state.activityMap = null; }
   state._streetTileRef = null;
   state._colorLayerRef = null;
@@ -5321,24 +5794,59 @@ async function fetchActivityDetail(activityId) {
 }
 
 async function fetchActivityStreams(activityId) {
-  const types   = 'time,watts,heartrate,cadence,velocity_smooth,altitude,distance,latlng,lat,lng,grade_smooth';
+  const types   = 'time,watts,heartrate,cadence,velocity_smooth,altitude,distance,latlng,lat,lng,grade_smooth,temp,temperature';
   const headers = { ...authHeader(), 'Accept': 'application/json' };
 
-  // Try both known endpoint shapes — intervals.icu exposes streams under two paths
-  const urls = [
+  // Try typed URLs first (faster, less data)
+  const typedUrls = [
     ICU_BASE + `/athlete/${state.athleteId}/activities/${activityId}/streams?streams=${types}`,
     ICU_BASE + `/activity/${activityId}/streams?streams=${types}`,
-    ICU_BASE + `/activity/${activityId}/streams`,
   ];
 
-  for (const url of urls) {
+  let streams = null;
+  for (const url of typedUrls) {
     const res = await fetch(url, { headers });
-    if (res.status === 404) continue;                                          // try next
+    if (res.status === 404) continue;
     if (!res.ok) throw new Error(`${res.status}: ${await res.text().catch(() => res.statusText)}`);
     const data = await res.json();
-    if (data && (Array.isArray(data) ? data.length : Object.keys(data).length)) return data;
+    if (data && (Array.isArray(data) ? data.length : Object.keys(data).length)) { streams = data; break; }
   }
-  return null; // no stream data available on any endpoint
+
+  // If typed fetch succeeded but temp is absent, try the unfiltered endpoint which returns
+  // all recorded streams including temperature (intervals.icu may not expose it in the typed path)
+  if (streams) {
+    const norm = normalizeStreams(streams);
+    if (!norm.temp && !norm.temperature) {
+      try {
+        const res = await fetch(ICU_BASE + `/activity/${activityId}/streams`, { headers });
+        if (res.ok) {
+          const allData = await res.json();
+          const allNorm = normalizeStreams(allData);
+          const tempArr = allNorm.temp || allNorm.temperature || null;
+          if (tempArr && tempArr.length > 0) {
+            // Merge temp into the existing streams array/object
+            if (Array.isArray(streams)) {
+              streams.push({ type: 'temp', data: tempArr });
+            } else {
+              streams.temp = tempArr;
+            }
+          }
+        }
+      } catch (_) {}
+    }
+    return streams;
+  }
+
+  // Full fallback: unfiltered endpoint
+  try {
+    const res = await fetch(ICU_BASE + `/activity/${activityId}/streams`, { headers });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && (Array.isArray(data) ? data.length : Object.keys(data).length)) return data;
+    }
+  } catch (_) {}
+
+  return null;
 }
 
 /* ====================================================
@@ -5529,9 +6037,10 @@ function parseFitBuffer(buffer) {
           case 2:   rec.altitude   = raw / 5 - 500;   break; // scale 1/5, offset -500 → metres
           case 3:   rec.heart_rate = raw;              break;
           case 4:   rec.cadence    = raw;              break;
-          case 5:   rec.distance   = raw / 100;        break; // cm → m
-          case 6:   rec.speed      = raw / 1000;       break; // mm/s → m/s
-          case 7:   rec.power      = raw;              break;
+          case 5:   rec.distance    = raw / 100;        break; // cm → m
+          case 6:   rec.speed       = raw / 1000;       break; // mm/s → m/s
+          case 7:   rec.power       = raw;              break;
+          case 13:  rec.temperature = raw;              break; // °C — Garmin ambient temp sensor
         }
       }
       pos += f.size;
@@ -5855,6 +6364,9 @@ function renderActivityBasic(a) {
 
   // ── Render the "How You Compare" card ────────────────────────────────────
   renderDetailComparison(a);
+
+  // ── Data source / device footer ───────────────────────────────────────────
+  renderDetailSourceFooter(a);
 }
 
 function renderDetailComparison(a) {
@@ -5974,6 +6486,43 @@ function renderDetailComparison(a) {
 
   rowsEl.innerHTML = html;
   card.style.display = '';
+}
+
+function renderDetailSourceFooter(a) {
+  const el = document.getElementById('detailSourceFooter');
+  if (!el) return;
+
+  const parts = [];
+
+  // Device that recorded the activity
+  const device = a.device_name || a.icu_device_name;
+  if (device) parts.push(`Recorded on <strong>${device}</strong>`);
+
+  // Data source / platform (Garmin Connect, Strava, Wahoo, manual, etc.)
+  // intervals.icu exposes this via external_id prefix or a dedicated source field
+  let source = a.source || a.icu_source || '';
+  if (!source && a.external_id) {
+    const eid = String(a.external_id).toLowerCase();
+    if (eid.startsWith('garmin'))       source = 'Garmin Connect';
+    else if (eid.startsWith('strava'))  source = 'Strava';
+    else if (eid.startsWith('wahoo'))   source = 'Wahoo';
+    else if (eid.startsWith('zwift'))   source = 'Zwift';
+    else if (eid.startsWith('polar'))   source = 'Polar Flow';
+    else if (eid.startsWith('suunto'))  source = 'Suunto';
+  }
+  // Normalise raw API values like "GARMIN_CONNECT" → "Garmin Connect"
+  if (source) {
+    source = source.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    parts.push(`Synced from <strong>${source}</strong>`);
+  }
+
+  // Always credit the data API
+  parts.push(`Data via <strong>intervals.icu</strong>`);
+
+  // Activity ID — links directly to the activity on intervals.icu
+  if (a.id) parts.push(`<a class="dsf-link" href="https://intervals.icu/activities/${a.id}" target="_blank" rel="noopener">View on intervals.icu</a>`);
+
+  el.innerHTML = parts.join('<span class="dsf-sep">·</span>');
 }
 
 /* ====================================================
@@ -6558,62 +7107,225 @@ function renderActivityMap(latlng, streams) {
       const statsEl = document.getElementById('mapStatsPanel');
       const hasStreams = streams && (streams.watts || streams.heartrate || streams.cadence
                                      || streams.velocity_smooth || streams.altitude);
-      if (!hasStreams || !statsEl) return;
 
       const timeLen = streams.time?.length || valid.length;
 
-      // Build the panel skeleton once (gauge + metric rows).
-      // Do this BEFORE invalidateSize so the panel's full height is established
-      // and the map can stretch to match via flexbox.
-      statsEl.innerHTML = buildMapStatsHTML(streams, maxSpdKmh, maxHR);
-      // Attach glow effect to the newly created mm-cell elements
-      statsEl.querySelectorAll('.mm-cell').forEach(el => {
-        if (!el.dataset.glow) { el.dataset.glow = '1'; window.attachCardGlow && window.attachCardGlow(el); }
-      });
-      // Panel content has now set the container's true height — tell Leaflet to
-      // re-render tiles/layers at the new size.
-      requestAnimationFrame(() => map.invalidateSize());
+      if (hasStreams && statsEl) {
+        // Build the panel skeleton once (gauge + metric rows).
+        // Do this BEFORE invalidateSize so the panel's full height is established
+        // and the map can stretch to match via flexbox.
+        statsEl.innerHTML = buildMapStatsHTML(streams, maxSpdKmh, maxHR);
+        // Attach glow effect to the newly created mm-cell elements
+        statsEl.querySelectorAll('.mm-cell').forEach(el => {
+          if (!el.dataset.glow) { el.dataset.glow = '1'; window.attachCardGlow && window.attachCardGlow(el); }
+        });
+        // Panel content has now set the container's true height — tell Leaflet to
+        // re-render tiles/layers at the new size.
+        requestAnimationFrame(() => map.invalidateSize());
 
-      // Dedicated pane above overlayPane (z 400) so the dot always paints
-      // on top of the colour-gradient polylines, even after colorLayer redraws.
-      map.createPane('hoverPane');
-      map.getPane('hoverPane').style.zIndex = 450;
+        // Dedicated pane above overlayPane (z 400) so the dot always paints
+        // on top of the colour-gradient polylines, even after colorLayer redraws.
+        map.createPane('hoverPane');
+        map.getPane('hoverPane').style.zIndex = 450;
 
-      // Circle marker that snaps to the nearest GPS point on hover
-      const hoverDot = L.circleMarker(valid[0], {
-        pane: 'hoverPane',
-        radius: 7, color: '#fff', weight: 2.5,
-        fillColor: '#fff', fillOpacity: 0, opacity: 0,
-      }).addTo(map);
+        // Circle marker that snaps to the nearest GPS point on hover
+        const hoverDot = L.circleMarker(valid[0], {
+          pane: 'hoverPane',
+          radius: 7, color: '#fff', weight: 2.5,
+          fillColor: '#fff', fillOpacity: 0, opacity: 0,
+        }).addTo(map);
 
-      map.on('mousemove', (e) => {
-        const { lat, lng } = e.latlng;
+        map.on('mousemove', (e) => {
+          // Don't fight flythrough — suppress hover dot while playing
+          if (state.flythrough?.playing) return;
+          const { lat, lng } = e.latlng;
 
-        // Linear scan — find the nearest GPS point (fast enough at ~6k points)
-        let bestIdx = 0, bestDist = Infinity;
-        for (let i = 0; i < valid.length; i++) {
-          const dlat = valid[i][0] - lat;
-          const dlng = valid[i][1] - lng;
-          const d    = dlat * dlat + dlng * dlng;
-          if (d < bestDist) { bestDist = d; bestIdx = i; }
-        }
+          // Linear scan — find the nearest GPS point (fast enough at ~6k points)
+          let bestIdx = 0, bestDist = Infinity;
+          for (let i = 0; i < valid.length; i++) {
+            const dlat = valid[i][0] - lat;
+            const dlng = valid[i][1] - lng;
+            const d    = dlat * dlat + dlng * dlng;
+            if (d < bestDist) { bestDist = d; bestIdx = i; }
+          }
 
-        // Map GPS index → stream index (proportional, handles slight length differences)
-        const si = Math.round(bestIdx * (timeLen - 1) / (valid.length - 1));
+          // Map GPS index → stream index (proportional, handles slight length differences)
+          const si = Math.round(bestIdx * (timeLen - 1) / (valid.length - 1));
 
-        // Dot colour reflects the active colour mode at this exact point
-        const dotColor = routePointColor(activeMode, streams, si, maxes);
-        hoverDot.setLatLng(valid[bestIdx]);
-        hoverDot.setStyle({ fillOpacity: 1, opacity: 1, fillColor: dotColor });
-        refreshMapStats(statsEl, streams, si, maxSpdKmh, maxHR);
-      });
+          // Dot colour reflects the active colour mode at this exact point
+          const dotColor = routePointColor(activeMode, streams, si, maxes);
+          hoverDot.setLatLng(valid[bestIdx]);
+          hoverDot.setStyle({ fillOpacity: 1, opacity: 1, fillColor: dotColor });
+          refreshMapStats(statsEl, streams, si, maxSpdKmh, maxHR);
+        });
 
-      map.on('mouseout', () => {
-        hoverDot.setStyle({ fillOpacity: 0, opacity: 0 });
-        resetMapStats(statsEl);
-      });
+        map.on('mouseout', () => {
+          if (state.flythrough?.playing) return;
+          hoverDot.setStyle({ fillOpacity: 0, opacity: 0 });
+          resetMapStats(statsEl);
+        });
+      }
+
+      // ── Flythrough (always initialised when GPS data is present) ─────────
+      initFlythrough(map, valid, streams, maxes, maxSpdKmh, maxHR,
+                     hasStreams ? statsEl : null, timeLen, () => activeMode);
 
     } catch(e) { console.error('[Map] Leaflet error:', e); }
+  });
+}
+
+/* ====================================================
+   MAP FLYTHROUGH — animated dot traverses the route
+==================================================== */
+function initFlythrough(map, valid, streams, maxes, maxSpdKmh, maxHR, statsEl, timeLen, getMode) {
+  const ft = {
+    playing: false,
+    idx: 0,
+    speed: 30,   // multiplier: GPS points are ~1Hz, so 30× ≈ 30 pts/sec
+    follow: true,
+    rafId: null,
+    lastTs: null,
+    _resumeOnRelease: false,
+  };
+  state.flythrough = ft;
+
+  // Show the flythrough bar now that GPS data is confirmed
+  const bar = document.getElementById('flythroughBar');
+  if (bar) bar.style.display = '';
+
+  // Flythrough dot — above hover pane (z 460)
+  map.createPane('flythroughPane');
+  map.getPane('flythroughPane').style.zIndex = 460;
+
+  const makeFtIcon = (color) => L.divIcon({
+    className: '',
+    html: `<div class="ft-dot-wrap">
+             <div class="ft-dot-core" style="background:${color}"></div>
+             <div class="ft-dot-ring" style="border-color:${color}aa"></div>
+           </div>`,
+    iconSize:   [14, 14],
+    iconAnchor: [7,  7],
+  });
+
+  const ftMarker = L.marker(valid[0], {
+    pane: 'flythroughPane',
+    icon: makeFtIcon('#00e5a0'),
+    zIndexOffset: 500,
+  });
+
+  // ── Core seek function ──────────────────────────────────────────────────
+  function goTo(idx) {
+    ft.idx = Math.max(0, Math.min(valid.length - 1, Math.round(idx)));
+    const pos = valid[ft.idx];
+
+    // Update marker colour to match active route-colour mode
+    const si = Math.round(ft.idx * (timeLen - 1) / (valid.length - 1));
+    const color = routePointColor(getMode(), streams, si, maxes);
+    ftMarker.setIcon(makeFtIcon(color));
+    ftMarker.setLatLng(pos);
+    if (!map.hasLayer(ftMarker)) ftMarker.addTo(map);
+
+    if (ft.follow) map.panTo(pos, { animate: true, duration: 0.15, easeLinearity: 1 });
+    if (statsEl)   refreshMapStats(statsEl, streams, si, maxSpdKmh, maxHR);
+
+    // Update scrubber UI
+    const pct = ft.idx / (valid.length - 1);
+    const fill  = document.getElementById('ftScrubberFill');
+    const thumb = document.getElementById('ftScrubberThumb');
+    if (fill)  fill.style.width = `${pct * 100}%`;
+    if (thumb) thumb.style.left = `${pct * 100}%`;
+  }
+
+  // ── RAF animation loop ──────────────────────────────────────────────────
+  function step(ts) {
+    if (!ft.playing) return;
+    if (ft.lastTs == null) ft.lastTs = ts;
+    const elapsed = Math.min(ts - ft.lastTs, 100); // cap delta to avoid huge jumps after tab switch
+    ft.lastTs = ts;
+
+    const advance = Math.max(1, elapsed * ft.speed / 1000);
+    if (ft.idx + advance >= valid.length - 1) {
+      goTo(valid.length - 1);
+      ftPause();
+      return;
+    }
+    goTo(ft.idx + advance);
+    ft.rafId = requestAnimationFrame(step);
+  }
+
+  // ── Play / Pause ────────────────────────────────────────────────────────
+  const ICON_PLAY  = `<svg width="11" height="13" viewBox="0 0 11 13" fill="currentColor"><polygon points="0,0 11,6.5 0,13"/></svg>`;
+  const ICON_PAUSE = `<svg width="11" height="13" viewBox="0 0 11 13" fill="currentColor"><rect x="0" y="0" width="4" height="13" rx="1"/><rect x="7" y="0" width="4" height="13" rx="1"/></svg>`;
+
+  function ftPlay() {
+    if (ft.idx >= valid.length - 1) goTo(0); // restart from beginning
+    ft.playing = true;
+    ft.lastTs  = null;
+    const btn = document.getElementById('ftPlayBtn');
+    if (btn) btn.innerHTML = ICON_PAUSE;
+    ft.rafId = requestAnimationFrame(step);
+  }
+
+  function ftPause() {
+    ft.playing = false;
+    if (ft.rafId) { cancelAnimationFrame(ft.rafId); ft.rafId = null; }
+    const btn = document.getElementById('ftPlayBtn');
+    if (btn) btn.innerHTML = ICON_PLAY;
+  }
+
+  // ── Window-level handlers (attached to buttons via onclick) ─────────────
+  window.ftTogglePlay = () => { ft.playing ? ftPause() : ftPlay(); };
+  window.ftSetSpeed   = (s) => { ft.speed = +s; };
+  window.ftToggleFollow = () => {
+    ft.follow = !ft.follow;
+    const btn = document.getElementById('ftFollowBtn');
+    if (btn) btn.classList.toggle('active', ft.follow);
+  };
+
+  // ── Scrubber drag (mouse + touch) ───────────────────────────────────────
+  const track = document.getElementById('ftScrubberTrack');
+  if (track) {
+    const idxFromEvent = (clientX) => {
+      const rect = track.getBoundingClientRect();
+      const pct  = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      return Math.round(pct * (valid.length - 1));
+    };
+
+    let dragging = false;
+
+    track.addEventListener('mousedown', (e) => {
+      dragging = true;
+      ft._resumeOnRelease = ft.playing;
+      ftPause();
+      goTo(idxFromEvent(e.clientX));
+    });
+    document.addEventListener('mousemove', (e) => { if (dragging) goTo(idxFromEvent(e.clientX)); });
+    document.addEventListener('mouseup',   ()  => {
+      if (!dragging) return;
+      dragging = false;
+      if (ft._resumeOnRelease) ftPlay();
+    });
+
+    track.addEventListener('touchstart', (e) => {
+      dragging = true;
+      ft._resumeOnRelease = ft.playing;
+      ftPause();
+      goTo(idxFromEvent(e.touches[0].clientX));
+    }, { passive: true });
+    document.addEventListener('touchmove', (e) => {
+      if (dragging) goTo(idxFromEvent(e.touches[0].clientX));
+    }, { passive: true });
+    document.addEventListener('touchend', () => {
+      if (!dragging) return;
+      dragging = false;
+      if (ft._resumeOnRelease) ftPlay();
+    });
+  }
+
+  // Clean up on map remove
+  map.on('remove', () => {
+    ftPause();
+    state.flythrough = null;
   });
 }
 
@@ -6935,9 +7647,10 @@ function showCardNA(cardId) {
     return;
   }
   card.style.display = '';
+  card.classList.add('card--na');
   card.querySelectorAll('.detail-na-inject').forEach(e => e.remove());
-  // Hide chart/map areas so they don't leave blank whitespace below the message
-  card.querySelectorAll('.chart-wrap, .map-container, .activity-map').forEach(e => { e.dataset.naHidden = '1'; e.style.display = 'none'; });
+  // Hide chart/map/peaks areas so they don't leave blank whitespace below the message
+  card.querySelectorAll('.chart-wrap, .map-container, .activity-map, .curve-peaks').forEach(e => { e.dataset.naHidden = '1'; e.style.display = 'none'; });
   const el = document.createElement('div');
   el.className = 'detail-na-inject';
   el.innerHTML = _NA_HTML;
@@ -6954,6 +7667,7 @@ function setHideEmptyCards(enabled) {
 
 function clearCardNA(card) {
   if (!card) return;
+  card.classList.remove('card--na');
   card.querySelectorAll('.detail-na-inject').forEach(e => e.remove());
   card.querySelectorAll('[data-na-hidden]').forEach(e => { e.style.display = ''; delete e.dataset.naHidden; });
 }
@@ -7296,6 +8010,9 @@ function renderDetailTempChart(streams, activity) {
   const subtitle    = document.getElementById('detailTempSubtitle');
   const canvas      = document.getElementById('activityTempChart');
   if (!card || !canvas) return;
+
+  // Always show the card — destroyActivityCharts() hides it, we must re-show it
+  card.style.display = '';
 
   // Temperature comes as 'temp' from the intervals.icu streams API
   // or from our FIT parser which also writes it as 'temp'
@@ -8248,33 +8965,30 @@ async function renderDetailCurve(actId, streams) {
 
   const rawYear = await yearPromise;
 
-  if (!raw && !rawYear) { showCardNA('detailCurveCard'); return; }
+  // No power for this activity → always show NA, regardless of year history
+  if (!raw) { showCardNA('detailCurveCard'); return; }
   clearCardNA(card);
   card.style.display = '';
 
-  // Peak stat pills (from this activity only)
+  // Peak stat pills (from this activity — raw is guaranteed non-null here)
   const peaksEl = document.getElementById('detailCurvePeaks');
   if (peaksEl) {
-    if (raw) {
-      const lookup = {};
-      raw.secs.forEach((s, i) => { if (raw.watts[i]) lookup[s] = raw.watts[i]; });
-      const peakW = target => {
-        if (lookup[target]) return lookup[target];
-        let best = null, minDiff = Infinity;
-        raw.secs.forEach(s => { const d = Math.abs(s - target); if (d < minDiff && lookup[s]) { minDiff = d; best = lookup[s]; } });
-        return best;
-      };
-      peaksEl.innerHTML = CURVE_PEAKS.map(p => {
-        const w = Math.round(peakW(p.secs) || 0);
-        if (!w) return '';
-        return `<div class="curve-peak">
-          <div class="curve-peak-val">${w}<span class="curve-peak-unit">w</span></div>
-          <div class="curve-peak-dur">${p.label}</div>
-        </div>`;
-      }).join('');
-    } else {
-      peaksEl.innerHTML = '';
-    }
+    const lookup = {};
+    raw.secs.forEach((s, i) => { if (raw.watts[i]) lookup[s] = raw.watts[i]; });
+    const peakW = target => {
+      if (lookup[target]) return lookup[target];
+      let best = null, minDiff = Infinity;
+      raw.secs.forEach(s => { const d = Math.abs(s - target); if (d < minDiff && lookup[s]) { minDiff = d; best = lookup[s]; } });
+      return best;
+    };
+    peaksEl.innerHTML = CURVE_PEAKS.map(p => {
+      const w = Math.round(peakW(p.secs) || 0);
+      if (!w) return '';
+      return `<div class="curve-peak">
+        <div class="curve-peak-val">${w}<span class="curve-peak-unit">w</span></div>
+        <div class="curve-peak-dur">${p.label}</div>
+      </div>`;
+    }).join('');
   }
 
   // Legend
@@ -8313,10 +9027,18 @@ async function renderDetailCurve(actId, streams) {
       .filter(Boolean);
   };
 
-  const rideData = normalizeCurve(raw, 'watts');
+  const rideData    = normalizeCurve(raw, 'watts');
   const rideMaxSecs = rideData.length ? rideData[rideData.length - 1].x : 0;
-  const yearData = normalizeCurve(rawYear, 'watts').filter(p => p.x <= rideMaxSecs);
+  const yearRawData = normalizeCurve(rawYear, 'watts');
+  // Only cap year curve to ride duration when we actually have ride data.
+  // When rideMaxSecs === 0 (no power for this activity) keep the full year curve.
+  const yearData = rideMaxSecs > 0
+    ? yearRawData.filter(p => p.x <= rideMaxSecs)
+    : yearRawData;
   const maxSecs  = rideMaxSecs || (yearData.length ? yearData[yearData.length - 1].x : 3600);
+
+  // Safety: if normalisation produced no plottable data, fall back to NA card
+  if (!rideData.length && !yearData.length) { showCardNA('detailCurveCard'); return; }
 
   const datasets = [];
   if (yearData.length)
@@ -10138,7 +10860,10 @@ function setMapTheme(key) {
    CARD GLOW — Apple TV–style spotlight + rim glow
 ==================================================== */
 (function initCardGlow() {
+  const isTouchDevice = window.matchMedia('(pointer: coarse)').matches;
+
   function attachGlow(el) {
+    if (isTouchDevice) return;   // no mouse on touch — skip entirely
     el.addEventListener('mousemove', e => {
       const r = el.getBoundingClientRect();
       const x = ((e.clientX - r.left) / r.width  * 100).toFixed(1) + '%';
@@ -10150,7 +10875,7 @@ function setMapTheme(key) {
   // expose so other parts of the app can attach glow to late-rendered elements
   window.attachCardGlow = attachGlow;
 
-  const GLOW_SEL = '.stat-card, .recent-act-card, .perf-metric, .act-pstat, .mm-cell, .wxp-day-card, .fit-kpi-card, .wx-day, .znp-kpi-card';
+  const GLOW_SEL = '.stat-card, .recent-act-card, .perf-metric, .act-pstat, .mm-cell, .wxp-day-card, .fit-kpi-card, .wx-day, .znp-kpi-card, .wxp-st, .wxp-best-card';
 
   function attachPress(el) {
     const press   = () => el.classList.add('is-pressed');
