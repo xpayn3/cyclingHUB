@@ -2542,6 +2542,20 @@ code {
     color: #fde68a;
 }
 
+/* Leaflet cursor fixes */
+.leaflet-container {
+    cursor: grab !important;
+}
+.leaflet-dragging .leaflet-container,
+.leaflet-dragging .leaflet-container * {
+    cursor: grabbing !important;
+}
+/* Prevent zoom cursor from getting stuck after scroll-wheel zoom */
+.leaflet-container.leaflet-zoom-anim,
+.leaflet-container:not(.leaflet-dragging) {
+    cursor: grab !important;
+}
+
 /* Leaflet zoom controls — dark theme override */
 .leaflet-bar {
     border: 1px solid rgba(255,255,255,0.13) !important;
@@ -2587,7 +2601,7 @@ code {
     border: 1px solid rgba(255,255,255,0.13);
     background: rgba(20,23,32,0.82);
     color: var(--text-primary);
-    cursor: pointer;
+    cursor: pointer !important;
     box-shadow: 0 1px 5px rgba(0,0,0,0.5);
     backdrop-filter: blur(4px);
     transition: background 0.15s, color 0.15s, border-color 0.15s;

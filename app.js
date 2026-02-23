@@ -943,7 +943,19 @@ async function renderRecentActivity() {
   if (!mapEl) return;
   mapEl.innerHTML = '';
 
-  // Fetch GPS
+  // ── Check for a cached snapshot for this activity ──────────────────────
+  const snapKey   = 'icu_map_snap_id';
+  const snapImgKey = 'icu_map_snap_img';
+  const cachedId  = localStorage.getItem(snapKey);
+  const cachedImg = localStorage.getItem(snapImgKey);
+
+  if (cachedId === String(actId) && cachedImg) {
+    // Show cached image instantly — no Leaflet needed
+    mapEl.innerHTML = `<img src="${cachedImg}" style="width:100%;height:100%;object-fit:cover;display:block;">`;
+    return;
+  }
+
+  // ── Fetch GPS ───────────────────────────────────────────────────────────
   let latlng = null;
   try { latlng = await fetchMapGPS(actId); } catch (_) {}
 
@@ -976,9 +988,12 @@ async function renderRecentActivity() {
         attributionControl: false,
         boxZoom:            false,
       });
+
+      // crossOrigin: 'anonymous' is required to read tile pixels for the canvas snapshot
       L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
         maxZoom: 19,
         attribution: '',
+        crossOrigin: 'anonymous',
       }).addTo(map);
 
       L.polyline(points, { color: '#00e5a0', weight: 3, opacity: 1 }).addTo(map);
@@ -991,12 +1006,80 @@ async function renderRecentActivity() {
       L.marker(points[0],                 { icon: dotIcon('#00e5a0') }).addTo(map);
       L.marker(points[points.length - 1], { icon: dotIcon('#888')    }).addTo(map);
 
-      const tempPoly = L.polyline(points);
-      map.fitBounds(tempPoly.getBounds(), { padding: [12, 12] });
+      const bounds = L.polyline(points).getBounds();
+      map.fitBounds(bounds, { padding: [12, 12] });
       map.invalidateSize();
       state.recentActivityMap = map;
+
+      // Re-invalidate after a short delay
+      setTimeout(() => {
+        try { map.invalidateSize(); map.fitBounds(bounds, { padding: [12, 12] }); } catch (_) {}
+      }, 300);
+
+      // ── Snapshot after all tiles are loaded ────────────────────────────
+      map.once('load', () => {
+        setTimeout(() => snapshotRecentMap(map, mapEl, actId), 400);
+      });
     } catch (_) {}
   });
+}
+
+function snapshotRecentMap(map, container, actId) {
+  try {
+    const W = container.offsetWidth;
+    const H = container.offsetHeight;
+    if (W < 10 || H < 10) return;
+
+    // Render at half resolution for a compact JPEG
+    const scale  = 0.5;
+    const canvas = document.createElement('canvas');
+    canvas.width  = Math.round(W * scale);
+    canvas.height = Math.round(H * scale);
+    const ctx = canvas.getContext('2d');
+    ctx.scale(scale, scale);
+
+    const containerRect = container.getBoundingClientRect();
+
+    // 1. Draw satellite tile images
+    const tilePane = map.getPanes().tilePane;
+    tilePane.querySelectorAll('img').forEach(img => {
+      if (!img.complete || !img.naturalWidth) return;
+      const r = img.getBoundingClientRect();
+      try { ctx.drawImage(img, r.left - containerRect.left, r.top - containerRect.top, r.width, r.height); } catch (_) {}
+    });
+
+    // 2. Draw route SVG on top
+    const svgEl = container.querySelector('.leaflet-overlay-pane svg');
+    if (svgEl) {
+      const svgClone = svgEl.cloneNode(true);
+      svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      const svgRect = svgEl.getBoundingClientRect();
+      const ox = svgRect.left - containerRect.left;
+      const oy = svgRect.top  - containerRect.top;
+      const blob = new Blob([new XMLSerializer().serializeToString(svgClone)], { type: 'image/svg+xml' });
+      const url  = URL.createObjectURL(blob);
+      const img  = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, ox, oy, svgRect.width, svgRect.height);
+        URL.revokeObjectURL(url);
+        saveSnapshot(canvas, actId);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); saveSnapshot(canvas, actId); };
+      img.src = url;
+    } else {
+      saveSnapshot(canvas, actId);
+    }
+  } catch (_) {}
+}
+
+function saveSnapshot(canvas, actId) {
+  try {
+    const jpeg = canvas.toDataURL('image/jpeg', 0.7);
+    localStorage.setItem('icu_map_snap_id',  String(actId));
+    localStorage.setItem('icu_map_snap_img', jpeg);
+  } catch (_) {
+    // localStorage quota exceeded — silently skip
+  }
 }
 
 /* ====================================================
@@ -4343,6 +4426,12 @@ function renderActivityMap(latlng, streams) {
       streetTile.addTo(map);
       let isSatellite = false;
 
+      // Fix: reset cursor after zoom so it never gets stuck on zoom-in/zoom-out icon
+      map.on('zoomend zoomcancel', () => {
+        const container = map.getContainer();
+        container.style.cursor = '';
+      });
+
       // ── Pre-compute per-mode maxima ──────────────────────────────────────
       const spdArr  = streams.velocity_smooth;
       const maxSpdKmh = (Array.isArray(spdArr) && spdArr.length)
@@ -4406,6 +4495,8 @@ function renderActivityMap(latlng, streams) {
       const mapEl = map.getContainer();
       let hintTimer;
 
+      const ALT_HINT_KEY = 'icu_alt_zoom_hint_seen';
+
       mapEl.addEventListener('wheel', (e) => {
         if (e.altKey) {
           e.preventDefault();
@@ -4414,8 +4505,8 @@ function renderActivityMap(latlng, streams) {
           const pt     = map.mouseEventToContainerPoint(e);
           const latlng = map.containerPointToLatLng(pt);
           map.setZoomAround(latlng, map.getZoom() + delta);
-        } else {
-          // Show "hold Alt to zoom" nudge
+        } else if (!localStorage.getItem(ALT_HINT_KEY)) {
+          // Show "hold Alt to zoom" nudge — only on first ever interaction
           let hint = mapEl.querySelector('.map-scroll-hint');
           if (!hint) {
             hint = document.createElement('div');
@@ -4425,19 +4516,30 @@ function renderActivityMap(latlng, streams) {
           }
           hint.classList.add('visible');
           clearTimeout(hintTimer);
-          hintTimer = setTimeout(() => hint.classList.remove('visible'), 1600);
+          hintTimer = setTimeout(() => {
+            hint.classList.remove('visible');
+            localStorage.setItem(ALT_HINT_KEY, '1');
+          }, 1600);
         }
       }, { passive: false });
 
       // Cursor feedback when Alt is held over the map
       const onKeyDown = (e) => { if (e.key === 'Alt') mapEl.classList.add('alt-zoom');    };
       const onKeyUp   = (e) => { if (e.key === 'Alt') mapEl.classList.remove('alt-zoom'); };
+      const resetAltZoom = () => mapEl.classList.remove('alt-zoom');
+
       window.addEventListener('keydown', onKeyDown);
       window.addEventListener('keyup',   onKeyUp);
+      // Reset when window loses focus (Alt+Tab, cmd+Tab, etc.)
+      window.addEventListener('blur',               resetAltZoom);
+      document.addEventListener('visibilitychange', resetAltZoom);
+
       // Clean up global listeners if the map is ever removed
       map.on('remove', () => {
-        window.removeEventListener('keydown', onKeyDown);
-        window.removeEventListener('keyup',   onKeyUp);
+        window.removeEventListener('keydown',            onKeyDown);
+        window.removeEventListener('keyup',              onKeyUp);
+        window.removeEventListener('blur',               resetAltZoom);
+        document.removeEventListener('visibilitychange', resetAltZoom);
       });
 
       // ── Toggle buttons ────────────────────────────────────────────────────
