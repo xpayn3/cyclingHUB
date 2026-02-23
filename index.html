@@ -326,6 +326,13 @@
                     Zones
                 </div>
                 <span class="nav-section-label">Tools</span>
+                <div class="nav-item" data-page="weather" onclick="navigate('weather');closeSidebar();">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9z"/>
+                        <path d="M22 10a3 3 0 0 0-3-3h-1a5 5 0 1 0-9.33 2.5" opacity=".4"/>
+                    </svg>
+                    Weather
+                </div>
                 <div class="nav-item" data-page="workout" onclick="navigate('workout');closeSidebar();">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
@@ -459,6 +466,9 @@
                     <div class="recent-act-scroll-rail" id="recentActScrollRail"></div>
 
                     <div class="dash-section-divider"></div>
+
+                    <!-- Riding weather forecast (filled by renderWeatherForecast) -->
+                    <div class="card" id="forecastCard" style="display:none"></div>
 
                     <div class="stat-grid-label">This week <span id="statGridWeekRange"></span></div>
                     <div class="stat-grid">
@@ -1046,6 +1056,14 @@
                         </div>
                     </div>
 
+                    <!-- Weather conditions during this ride -->
+                    <div class="card" id="detailWeatherCard" style="display:none">
+                        <div class="card-header">
+                            <div class="card-title">Ride Conditions</div>
+                        </div>
+                        <div class="wx-tiles" id="wxTiles"></div>
+                    </div>
+
                 </div>
 
                 <!-- ==================== CALENDAR PAGE ==================== -->
@@ -1379,24 +1397,74 @@
                 </div><!-- /page-fitness -->
 
                 <div class="page" id="page-power">
+
+                    <!-- ── Hero stat row ── -->
+                    <div class="pwr-hero-row" id="pwrHeroRow"></div>
+
+                    <!-- ── Power Curve Chart ── -->
                     <div class="card">
                         <div class="card-header">
-                            <div class="card-title">Power Curve</div>
+                            <div>
+                                <div class="card-title">Power Curve</div>
+                                <div class="card-subtitle" id="pwrCurveSubtitle">Best efforts over selected period</div>
+                            </div>
+                            <div class="card-header-controls">
+                                <div class="fit-range-pills" id="pwrRangePills">
+                                    <button data-days="30"  onclick="setPwrRange(30)">30d</button>
+                                    <button data-days="90"  onclick="setPwrRange(90)" class="active">90d</button>
+                                    <button data-days="180" onclick="setPwrRange(180)">6mo</button>
+                                    <button data-days="365" onclick="setPwrRange(365)">1yr</button>
+                                </div>
+                            </div>
                         </div>
-                        <div class="empty-state empty-state--xl">
-                            <svg
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="1.5"
-                            >
-                                <polygon
-                                    points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"
-                                />
-                            </svg>
-                            <p>Power curve analysis — next step</p>
+                        <div class="curve-peaks" id="pwrCurvePeaks"></div>
+                        <div class="chart-wrap--lg" style="position:relative;margin-top:12px">
+                            <canvas id="pwrCurveCanvas"></canvas>
                         </div>
                     </div>
+
+                    <!-- ── Power Zones ── -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">Power Zones</div>
+                                <div class="card-subtitle" id="pwrZoneSubtitle">Coggan 6-zone model · based on FTP</div>
+                            </div>
+                            <div class="pwr-ftp-badge" id="pwrFtpBadge"></div>
+                        </div>
+                        <div id="pwrZoneRows"></div>
+                    </div>
+
+                    <!-- ── Zone Distribution + Recent Power Trend ── -->
+                    <div class="card-row">
+                        <div class="card">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">Zone Distribution</div>
+                                    <div class="card-subtitle" id="pwrZoneDistSub">Time in power zone</div>
+                                </div>
+                                <div class="zone-total-badge" id="pwrZoneTotalBadge"></div>
+                            </div>
+                            <div class="zone-list" id="pwrZoneList"></div>
+                            <div class="zone-balance-section" id="pwrZoneBalance" style="display:none"></div>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">Power Trend</div>
+                                    <div class="card-subtitle">Normalized power per ride</div>
+                                </div>
+                            </div>
+                            <div class="chart-wrap--md" style="position:relative">
+                                <canvas id="pwrTrendCanvas"></canvas>
+                            </div>
+                            <div id="pwrTrendSummary"></div>
+                        </div>
+                    </div>
+
+                    <!-- ── Insights / Encouragement ── -->
+                    <div class="pwr-insights-row" id="pwrInsightsRow"></div>
+
                 </div>
 
                 <div class="page" id="page-zones">
@@ -1620,6 +1688,17 @@
                     </div>
                 </div>
 
+                <!-- ==================== WEATHER PAGE ==================== -->
+                <div class="page" id="page-weather">
+                    <div id="weatherPageContent">
+                        <!-- Filled by renderWeatherPage() -->
+                        <div class="wx-page-loading">
+                            <div class="spinner"></div>
+                            <p>Loading weather…</p>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- ==================== SETTINGS PAGE ==================== -->
                 <div class="page" id="page-settings">
                     <div class="settings-grid">
@@ -1825,6 +1904,35 @@
                                             </button>
                                         </div>
                                     </div>
+                                </div>
+                            </div>
+
+                            <!-- Weather Location -->
+                            <div class="card">
+                                <div class="card-header">
+                                    <div>
+                                        <div class="card-title">Weather Location</div>
+                                        <div class="card-subtitle">Used for the riding forecast on dashboard</div>
+                                    </div>
+                                </div>
+                                <div class="settings-section">
+                                    <div class="settings-row settings-row--block">
+                                        <div class="settings-row-info">
+                                            <div class="settings-row-label">City</div>
+                                            <div class="settings-row-sub">Type a city name and press Set</div>
+                                        </div>
+                                        <div class="wx-location-input-row">
+                                            <input type="text" id="wxCityInput" class="wx-city-input" placeholder="e.g. Ljubljana" autocomplete="off">
+                                            <button class="btn btn-primary btn-sm" onclick="setWeatherCity()">Set</button>
+                                        </div>
+                                        <div class="settings-row-value" id="wxCurrentLocation" style="font-size:13px;color:var(--text-secondary)">Not set</div>
+                                    </div>
+                                </div>
+                                <div class="settings-actions">
+                                    <button class="btn btn-ghost" onclick="clearWeatherLocation()">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                                        Clear Location
+                                    </button>
                                 </div>
                             </div>
 

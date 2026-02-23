@@ -26,6 +26,11 @@ const state = {
   powerCurveChart: null,
   powerCurve: null,
   powerCurveRange: null,
+  powerPageRangeDays: 90,
+  powerPageChart: null,
+  powerTrendChart: null,
+  powerPageCurve: null,
+  powerPageCurveRange: null,
   weekProgressChart: null,
   weekProgressMetric: 'tss',
   weekStartDay: 1,          // 0=Sunday, 1=Monday
@@ -421,12 +426,15 @@ async function syncData() {
     // Invalidate power curve cache so it re-fetches with fresh range
     state.powerCurve = null;
     state.powerCurveRange = null;
+    state.powerPageCurve = null;
+    state.powerPageCurveRange = null;
 
     state.synced = true;
     updateConnectionUI(true);
     renderDashboard();
     if (state.currentPage === 'calendar') renderCalendar();
     if (state.currentPage === 'fitness')  renderFitnessPage();
+    if (state.currentPage === 'power')    renderPowerPage();
 
     const newCount = isIncremental
       ? state.activities.filter(a => {
@@ -675,6 +683,7 @@ function navigate(page) {
     fitness:    ['Fitness',        'CTL · ATL · TSB history'],
     power:      ['Power Curve',    'Best efforts across durations'],
     zones:      ['Training Zones', 'Time in zone breakdown'],
+    weather:    ['Weather',        'Weekly forecast & riding conditions'],
     settings:   ['Settings',       'Account & connection'],
     workout:    ['Create Workout', 'Build & export custom cycling workouts'],
     guide:      ['Training Guide', 'Understanding CTL · ATL · TSB & training load'],
@@ -708,7 +717,10 @@ function navigate(page) {
   if (page === 'dashboard' && state.synced) renderDashboard();
   if (page === 'calendar') renderCalendar();
   if (page === 'fitness')  renderFitnessPage();
+  if (page === 'power')    renderPowerPage();
   if (page === 'workout')  { wrkRefreshStats(); wrkRender(); }
+  if (page === 'settings') initWeatherLocationUI();
+  if (page === 'weather')  renderWeatherPage();
 
   window.scrollTo(0, 0);
 }
@@ -718,6 +730,62 @@ function navigate(page) {
 ==================================================== */
 function loadUnits() {
   state.units = localStorage.getItem('icu_units') || 'metric';
+}
+
+/* ── Weather location (manual city setting) ─────────────────────────────── */
+async function setWeatherCity() {
+  const input = document.getElementById('wxCityInput');
+  const city  = (input?.value || '').trim();
+  if (!city) return;
+
+  const statusEl = document.getElementById('wxCurrentLocation');
+  if (statusEl) statusEl.textContent = 'Looking up…';
+
+  try {
+    const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`;
+    const geoRes = await fetch(geoUrl);
+    if (!geoRes.ok) throw new Error('Geocoding request failed');
+    const geoData = await geoRes.json();
+    if (!geoData.results?.length) throw new Error('City not found');
+
+    const { latitude: lat, longitude: lng, name, country } = geoData.results[0];
+    const label = [name, country].filter(Boolean).join(', ');
+
+    // Save coords — clear old forecast cache so it refetches for new location
+    localStorage.setItem('icu_wx_coords', JSON.stringify({ lat, lng, city: name }));
+    localStorage.removeItem('icu_wx_forecast');
+    localStorage.removeItem('icu_wx_forecast_ts');
+
+    if (statusEl) statusEl.textContent = label;
+    if (input)    input.value = '';
+
+    // Refresh the dashboard forecast card
+    if (state.currentPage === 'dashboard') renderWeatherForecast();
+  } catch (e) {
+    if (statusEl) statusEl.textContent = 'City not found — try a different name';
+  }
+}
+
+function clearWeatherLocation() {
+  localStorage.removeItem('icu_wx_coords');
+  localStorage.removeItem('icu_wx_forecast');
+  localStorage.removeItem('icu_wx_forecast_ts');
+  const statusEl = document.getElementById('wxCurrentLocation');
+  if (statusEl) statusEl.textContent = 'Not set';
+  const card = document.getElementById('forecastCard');
+  if (card) card.style.display = 'none';
+}
+
+function initWeatherLocationUI() {
+  const statusEl = document.getElementById('wxCurrentLocation');
+  if (!statusEl) return;
+  try {
+    const cached = localStorage.getItem('icu_wx_coords');
+    if (cached) {
+      const c = JSON.parse(cached);
+      statusEl.textContent = c.city || `${c.lat?.toFixed(2)}, ${c.lng?.toFixed(2)}`;
+    }
+  } catch (_) {}
 }
 
 function setUnits(units) {
@@ -958,6 +1026,14 @@ function buildRecentActCardHTML(a, idx) {
       </div>`
     : '';
 
+  const wxChip = a.weather_temp != null
+    ? `<div class="ra-wx-chip">
+        <span class="ra-wx-icon">${weatherIconSvg(a.weather_icon)}</span>
+        <span class="ra-wx-temp">${fmtTempC(a.weather_temp)}</span>
+        ${a.weather_wind_speed != null ? `<span class="ra-wx-wind">${fmtWindMs(a.weather_wind_speed)}</span>` : ''}
+      </div>`
+    : '';
+
   const statsHTML = statItems.map(s =>
     `<div class="ra-stat">
       <div class="ra-stat-lbl">${s.lbl}</div>
@@ -976,6 +1052,7 @@ function buildRecentActCardHTML(a, idx) {
         </div>
         ${tssPill}
         <div class="recent-act-stats">${statsHTML}</div>
+        ${wxChip}
       </div>
       <div class="recent-act-map" id="recentActMap_${idx}"></div>
     </div>
@@ -1145,6 +1222,635 @@ function saveSnapshot(canvas, actId, map, container) {
 }
 
 /* ====================================================
+   WEATHER
+==================================================== */
+
+// Colored SVG weather icons
+const WEATHER_SVGS = {
+  sun: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="8" fill="#FBBF24"/><g stroke="#FBBF24" stroke-width="2.5" stroke-linecap="round"><line x1="20" y1="4" x2="20" y2="8"/><line x1="20" y1="32" x2="20" y2="36"/><line x1="4" y1="20" x2="8" y2="20"/><line x1="32" y1="20" x2="36" y2="20"/><line x1="8.69" y1="8.69" x2="11.52" y2="11.52"/><line x1="28.48" y1="28.48" x2="31.31" y2="31.31"/><line x1="31.31" y1="8.69" x2="28.48" y2="11.52"/><line x1="11.52" y1="28.48" x2="8.69" y2="31.31"/></g></svg>`,
+  cloud: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M30 27H13a7 7 0 1 1 1.4-13.86A8 8 0 1 1 30 27z" fill="#94A3B8"/></svg>`,
+  pcloud: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="15" cy="15" r="6" fill="#FBBF24"/><g stroke="#FBBF24" stroke-width="2" stroke-linecap="round"><line x1="15" y1="5" x2="15" y2="7.5"/><line x1="15" y1="22.5" x2="15" y2="25"/><line x1="5" y1="15" x2="7.5" y2="15"/><line x1="22.5" y1="15" x2="25" y2="15"/><line x1="7.93" y1="7.93" x2="9.7" y2="9.7"/><line x1="20.3" y1="20.3" x2="22.07" y2="22.07"/><line x1="22.07" y1="7.93" x2="20.3" y2="9.7"/><line x1="9.7" y1="20.3" x2="7.93" y2="22.07"/></g><path d="M34 32H20a6 6 0 1 1 1.2-11.88A7 7 0 1 1 34 32z" fill="#CBD5E1"/></svg>`,
+  rain: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M30 24H13a7 7 0 1 1 1.4-13.86A8 8 0 1 1 30 24z" fill="#64748B"/><g stroke="#60A5FA" stroke-width="2.5" stroke-linecap="round"><line x1="13" y1="29" x2="11" y2="36"/><line x1="20" y1="29" x2="18" y2="36"/><line x1="27" y1="29" x2="25" y2="36"/></g></svg>`,
+  drizzle: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M30 24H13a7 7 0 1 1 1.4-13.86A8 8 0 1 1 30 24z" fill="#94A3B8"/><g stroke="#93C5FD" stroke-width="2.5" stroke-linecap="round"><line x1="14" y1="29" x2="13" y2="34"/><line x1="20" y1="29" x2="19" y2="34"/><line x1="26" y1="29" x2="25" y2="34"/></g></svg>`,
+  snow: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M30 22H13a7 7 0 1 1 1.4-13.86A8 8 0 1 1 30 22z" fill="#94A3B8"/><g stroke="#BAE6FD" stroke-width="2" stroke-linecap="round"><line x1="14" y1="28" x2="14" y2="36"/><line x1="10" y1="32" x2="18" y2="32"/><line x1="11" y1="29" x2="17" y2="35"/><line x1="17" y1="29" x2="11" y2="35"/><line x1="26" y1="28" x2="26" y2="36"/><line x1="22" y1="32" x2="30" y2="32"/><line x1="23" y1="29" x2="29" y2="35"/><line x1="29" y1="29" x2="23" y2="35"/></g></svg>`,
+  hail: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M30 23H13a7 7 0 1 1 1.4-13.86A8 8 0 1 1 30 23z" fill="#64748B"/><circle cx="14" cy="31" r="2.5" fill="#BAE6FD"/><circle cx="22" cy="36" r="2.5" fill="#BAE6FD"/><circle cx="30" cy="31" r="2.5" fill="#BAE6FD"/></svg>`,
+  storm: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M30 23H13a7 7 0 1 1 1.4-13.86A8 8 0 1 1 30 23z" fill="#475569"/><polyline points="22,24 17,32 21,32 16,40" stroke="#FCD34D" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`,
+  fog: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M28 15H15a5 5 0 1 1 1-9.9A6 6 0 1 1 28 15z" fill="#CBD5E1"/><g stroke="#94A3B8" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="21" x2="34" y2="21"/><line x1="9" y1="27" x2="31" y2="27"/><line x1="13" y1="33" x2="27" y2="33"/></g></svg>`,
+  wind: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 15h18a4 4 0 1 0-4-4" stroke="#94A3B8" stroke-width="2.5" stroke-linecap="round" fill="none"/><path d="M6 22h24a4 4 0 1 1-4 4" stroke="#94A3B8" stroke-width="2.5" stroke-linecap="round" fill="none"/><path d="M6 29h14a3 3 0 1 0-3-3" stroke="#94A3B8" stroke-width="2.5" stroke-linecap="round" fill="none"/></svg>`,
+  moon: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M32 22.5A12 12 0 1 1 17.5 8a9 9 0 0 0 14.5 14.5z" fill="#FCD34D"/></svg>`,
+};
+
+// Map intervals.icu icon string → SVG
+function weatherIconSvg(iconStr) {
+  if (!iconStr) return WEATHER_SVGS.sun;
+  const s = iconStr.toLowerCase();
+  if (s.includes('thunder') || s.includes('storm'))                    return WEATHER_SVGS.storm;
+  if (s.includes('snow') || s.includes('sleet') || s.includes('blizzard')) return WEATHER_SVGS.snow;
+  if (s.includes('rain') || s.includes('drizzle') || s.includes('shower')) return WEATHER_SVGS.rain;
+  if (s.includes('fog')  || s.includes('mist') || s.includes('haze'))  return WEATHER_SVGS.fog;
+  if (s.includes('wind') || s.includes('breezy'))                      return WEATHER_SVGS.wind;
+  if (s.includes('overcast') || s === 'cloudy')                        return WEATHER_SVGS.cloud;
+  if (s.includes('partly') || s.includes('mostly') || s.includes('cloud')) return WEATHER_SVGS.pcloud;
+  if (s.includes('night'))                                             return WEATHER_SVGS.moon;
+  return WEATHER_SVGS.sun;
+}
+
+// Map Open-Meteo WMO code → SVG / label
+function wmoIcon(code) {
+  if ([95,96,99].includes(code))           return WEATHER_SVGS.storm;
+  if ([77,85,86].includes(code))           return WEATHER_SVGS.hail;
+  if ([71,73,75].includes(code))           return WEATHER_SVGS.snow;
+  if ([80,81,82].includes(code))           return WEATHER_SVGS.rain;
+  if ([56,57,61,63,65,66,67].includes(code)) return WEATHER_SVGS.rain;
+  if ([51,53,55].includes(code))           return WEATHER_SVGS.drizzle;
+  if ([45,48].includes(code))              return WEATHER_SVGS.fog;
+  if (code === 3)                          return WEATHER_SVGS.cloud;
+  if (code === 2)                          return WEATHER_SVGS.pcloud;
+  if (code === 1)                          return WEATHER_SVGS.pcloud;
+  return WEATHER_SVGS.sun;
+}
+function wmoLabel(code) {
+  if ([95,96,99].includes(code))       return 'Thunderstorm';
+  if ([85,86].includes(code))          return 'Snow showers';
+  if ([71,73,75,77].includes(code))    return 'Snow';
+  if ([80,81,82].includes(code))       return 'Showers';
+  if ([66,67].includes(code))          return 'Freezing rain';
+  if ([61,63,65].includes(code))       return 'Rain';
+  if ([56,57].includes(code))          return 'Freezing drizzle';
+  if ([51,53,55].includes(code))       return 'Drizzle';
+  if ([45,48].includes(code))          return 'Fog';
+  if (code === 3)                      return 'Overcast';
+  if (code === 2)                      return 'Mostly cloudy';
+  if (code === 1)                      return 'Partly cloudy';
+  return 'Clear';
+}
+
+// Degrees → compass cardinal
+function windDir(deg) {
+  if (deg == null) return '';
+  return ['N','NE','E','SE','S','SW','W','NW'][Math.round(deg / 45) % 8];
+}
+
+// Temperature: intervals.icu always stores °C
+function fmtTempC(c) {
+  if (c == null) return '—';
+  if (state.units === 'imperial') return Math.round(c * 9/5 + 32) + '°F';
+  return Math.round(c) + '°C';
+}
+
+// Wind: intervals.icu stores m/s
+function fmtWindMs(ms) {
+  if (ms == null) return '—';
+  if (state.units === 'imperial') return Math.round(ms * 2.23694) + ' mph';
+  return Math.round(ms * 3.6) + ' km/h';
+}
+
+// ── Activity weather card (data from intervals.icu activity fields) ──────────
+function renderActivityWeather(a) {
+  const card = document.getElementById('detailWeatherCard');
+  if (!card) return;
+
+  const temp     = a.weather_temp;          // °C
+  const feels    = a.weather_apparent_temp; // °C
+  const windMs   = a.weather_wind_speed;    // m/s
+  const windDeg  = a.weather_wind_bearing;
+  const humidity = a.weather_humidity;      // 0–1
+  const icon     = a.weather_icon;
+  const summary  = a.weather_summary;
+  const uv       = a.weather_uvindex;
+  const pressure = a.weather_pressure;      // hPa
+  const precip   = a.weather_precip_probability; // 0–1
+
+  if (temp == null) { card.style.display = 'none'; return; }
+  card.style.display = '';
+
+  // Riding-condition colour hint
+  const isRain  = icon && (icon.includes('rain') || icon.includes('drizzle') || icon.includes('storm') || icon.includes('sleet'));
+  const isSnow  = icon && (icon.includes('snow') || icon.includes('blizzard'));
+  const isCold  = state.units === 'imperial' ? (temp * 9/5 + 32) < 40 : temp < 5;
+  const quality = (isSnow || isCold) ? 'poor' : isRain ? 'fair' : 'good';
+  const qLabel  = quality === 'good' ? 'Good riding conditions' : quality === 'fair' ? 'Marginal conditions' : 'Tough conditions';
+
+  const tiles = [];
+
+  // Main tile: icon + condition + temp
+  tiles.push(`
+    <div class="wx-tile wx-tile--main">
+      <div class="wx-main-icon">${weatherIconSvg(icon)}</div>
+      <div class="wx-main-info">
+        <div class="wx-condition">${summary || (icon ? icon.replace(/-/g, ' ') : 'Conditions')}</div>
+        <div class="wx-temp">${fmtTempC(temp)}</div>
+        <div class="wx-riding-pill wx-riding-pill--${quality}">${qLabel}</div>
+      </div>
+    </div>`);
+
+  if (feels    != null) tiles.push(`<div class="wx-tile"><div class="wx-lbl">Feels like</div><div class="wx-val">${fmtTempC(feels)}</div></div>`);
+  if (windMs   != null) tiles.push(`<div class="wx-tile"><div class="wx-lbl">Wind</div><div class="wx-val">${fmtWindMs(windMs)}<span class="wx-sub"> ${windDir(windDeg)}</span></div></div>`);
+  if (humidity != null) tiles.push(`<div class="wx-tile"><div class="wx-lbl">Humidity</div><div class="wx-val">${Math.round(humidity * 100)}%</div></div>`);
+  if (uv       != null) tiles.push(`<div class="wx-tile"><div class="wx-lbl">UV Index</div><div class="wx-val">${uv}</div></div>`);
+  if (precip   != null) tiles.push(`<div class="wx-tile"><div class="wx-lbl">Precip</div><div class="wx-val">${Math.round(precip * 100)}%</div></div>`);
+  if (pressure != null) tiles.push(`<div class="wx-tile"><div class="wx-lbl">Pressure</div><div class="wx-val">${Math.round(pressure)}<span class="wx-sub"> hPa</span></div></div>`);
+
+  document.getElementById('wxTiles').innerHTML = tiles.join('');
+}
+
+// ── 7-day riding forecast (Open-Meteo, free, no API key) ────────────────────
+async function renderWeatherForecast() {
+  const card = document.getElementById('forecastCard');
+  if (!card) return;
+
+  // Get coordinates — try cached coords first, then geocode from city/country
+  let lat = null, lng = null;
+
+  try {
+    const cached = localStorage.getItem('icu_wx_coords');
+    if (cached) { const c = JSON.parse(cached); lat = c.lat; lng = c.lng; }
+  } catch (_) {}
+
+  if (lat == null) {
+    // No location set yet — show a prompt card instead
+    card.style.display = '';
+    card.innerHTML = `
+      <div class="card-header">
+        <div>
+          <div class="card-title">Riding Forecast</div>
+          <div class="card-subtitle">Set your location to see the weather</div>
+        </div>
+      </div>
+      <div class="wx-no-location">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32"><path d="M12 2a7 7 0 0 1 7 7c0 5.25-7 13-7 13S5 14.25 5 9a7 7 0 0 1 7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+        <p>No location set. Add your city in <strong>Settings → Weather Location</strong>.</p>
+        <button class="btn btn-primary btn-sm" onclick="navigate('settings')">Go to Settings</button>
+      </div>`;
+    return;
+  }
+
+  // 30-minute cache to avoid hammering the API
+  const CACHE_KEY = 'icu_wx_forecast';
+  const CACHE_TS  = 'icu_wx_forecast_ts';
+  const AGE_MS    = 30 * 60 * 1000;
+  let forecast = null;
+
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    const ts     = +localStorage.getItem(CACHE_TS);
+    if (cached && ts && Date.now() - ts < AGE_MS) forecast = JSON.parse(cached);
+  } catch (_) {}
+
+  if (!forecast) {
+    const tUnit = state.units === 'imperial' ? 'fahrenheit' : 'celsius';
+    const wUnit = state.units === 'imperial' ? 'mph' : 'kmh';
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lng.toFixed(4)}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode,windspeed_10m_max&timezone=auto&forecast_days=7&temperature_unit=${tUnit}&wind_speed_unit=${wUnit}`;
+    try {
+      const res = await fetch(url);
+      if (res.ok) {
+        forecast = await res.json();
+        localStorage.setItem(CACHE_KEY, JSON.stringify(forecast));
+        localStorage.setItem(CACHE_TS, Date.now().toString());
+      }
+    } catch (_) {}
+  }
+
+  if (!forecast?.daily) { card.style.display = 'none'; return; }
+
+  const { time, temperature_2m_max: highs, temperature_2m_min: lows,
+          precipitation_probability_max: precips, weathercode: codes,
+          windspeed_10m_max: winds } = forecast.daily;
+
+  const deg = state.units === 'imperial' ? '°F' : '°C';
+
+  // Score each day for cycling suitability
+  function ridingScore(i) {
+    const code   = codes[i];
+    const wind   = winds?.[i] ?? 0;
+    const precip = precips?.[i] ?? 0;
+    const high   = highs[i];
+    const isRain  = [51,53,55,56,57,61,63,65,67,80,81,82,95,96,99].includes(code);
+    const isSnow  = [71,73,75,77,85,86].includes(code);
+    const isCold  = state.units === 'imperial' ? high < 40 : high < 4;
+    const isWindy = state.units === 'imperial' ? wind > 25 : wind > 40;
+    if (isSnow || isCold)           return 'poor';
+    if (isRain && precip > 60)      return 'poor';
+    if (isRain || isWindy || precip > 30) return 'fair';
+    return 'good';
+  }
+
+  // Use city from athlete profile, or fall back to timezone from forecast response
+  const athleteCity = state.athlete?.city;
+  const athleteCountry = state.athlete?.country;
+  let location = athleteCity
+    ? [athleteCity, athleteCountry].filter(Boolean).join(', ')
+    : forecast.timezone?.split('/').pop()?.replace(/_/g, ' ') || 'Your area';
+
+  const days = time.map((dateStr, i) => {
+    const d       = new Date(dateStr + 'T12:00:00');
+    const dayName = i === 0 ? 'Today'
+                 : i === 1 ? 'Tomorrow'
+                 : d.toLocaleDateString('en-US', { weekday: 'short' });
+    const score   = ridingScore(i);
+    const precipPct = (precips?.[i] ?? 0);
+    return `
+      <div class="wx-day wx-day--${score}">
+        <div class="wx-day-name">${dayName}</div>
+        <div class="wx-day-icon">${wmoIcon(codes[i])}</div>
+        <div class="wx-day-label">${wmoLabel(codes[i])}</div>
+        <div class="wx-day-temps">
+          <span class="wx-day-hi">${Math.round(highs[i])}°</span>
+          <span class="wx-day-lo">${Math.round(lows[i])}°</span>
+        </div>
+        ${precipPct > 10 ? `<div class="wx-day-precip">${Math.round(precipPct)}%</div>` : `<div class="wx-day-precip"></div>`}
+        <div class="wx-riding-dot wx-riding-dot--${score}" title="${score === 'good' ? 'Great riding day' : score === 'fair' ? 'Manageable' : 'Tough conditions'}"></div>
+      </div>`;
+  }).join('');
+
+  card.style.display = '';
+  card.innerHTML = `
+    <div class="card-header">
+      <div>
+        <div class="card-title">Riding Forecast</div>
+        <div class="card-subtitle">${location}</div>
+      </div>
+      <div class="wx-legend">
+        <div class="wx-legend-item"><div class="wx-riding-dot wx-riding-dot--good"></div>Good</div>
+        <div class="wx-legend-item"><div class="wx-riding-dot wx-riding-dot--fair"></div>Fair</div>
+        <div class="wx-legend-item"><div class="wx-riding-dot wx-riding-dot--poor"></div>Poor</div>
+      </div>
+    </div>
+    <div class="wx-forecast-row">${days}</div>`;
+}
+
+/* ====================================================
+   WEATHER PAGE
+==================================================== */
+async function renderWeatherPage() {
+  const container = document.getElementById('weatherPageContent');
+  if (!container) return;
+
+  // Check for saved location
+  let lat = null, lng = null, locationLabel = 'Your area';
+  try {
+    const cached = localStorage.getItem('icu_wx_coords');
+    if (cached) {
+      const c = JSON.parse(cached);
+      lat = c.lat; lng = c.lng;
+      locationLabel = c.city || locationLabel;
+    }
+  } catch (_) {}
+
+  if (lat == null) {
+    container.innerHTML = `
+      <div class="wx-page-empty">
+        <div class="wx-page-empty-icon">${WEATHER_SVGS.fog}</div>
+        <h3>No location set</h3>
+        <p>Set your city in Settings to get your riding forecast.</p>
+        <button class="btn btn-primary" onclick="navigate('settings')">Go to Settings</button>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = `<div class="wx-page-loading"><div class="spinner"></div><p>Fetching forecast…</p></div>`;
+
+  // Fetch detailed forecast — daily + hourly for today & tomorrow
+  const tUnit = state.units === 'imperial' ? 'fahrenheit' : 'celsius';
+  const wUnit = state.units === 'imperial' ? 'mph' : 'kmh';
+  const deg   = state.units === 'imperial' ? '°F' : '°C';
+  const windLbl = state.units === 'imperial' ? 'mph' : 'km/h';
+
+  const CACHE_KEY = 'icu_wx_page';
+  const CACHE_TS  = 'icu_wx_page_ts';
+  const AGE_MS    = 30 * 60 * 1000;
+  let data = null;
+
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    const ts  = +localStorage.getItem(CACHE_TS);
+    if (raw && ts && Date.now() - ts < AGE_MS) data = JSON.parse(raw);
+  } catch (_) {}
+
+  if (!data) {
+    const url = `https://api.open-meteo.com/v1/forecast` +
+      `?latitude=${lat.toFixed(4)}&longitude=${lng.toFixed(4)}` +
+      `&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,windspeed_10m_max,winddirection_10m_dominant,uv_index_max,sunrise,sunset` +
+      `&hourly=temperature_2m,precipitation_probability,weathercode,windspeed_10m` +
+      `&timezone=auto&forecast_days=7` +
+      `&temperature_unit=${tUnit}&wind_speed_unit=${wUnit}`;
+    try {
+      const res = await fetch(url);
+      if (res.ok) {
+        data = await res.json();
+        localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+        localStorage.setItem(CACHE_TS, Date.now().toString());
+      }
+    } catch (_) {}
+  }
+
+  if (!data?.daily) {
+    container.innerHTML = `<div class="wx-page-empty"><p>Could not load forecast. Check your connection.</p></div>`;
+    return;
+  }
+
+  const { time, weathercode: codes, temperature_2m_max: highs, temperature_2m_min: lows,
+          precipitation_probability_max: precips, precipitation_sum: rainMm,
+          windspeed_10m_max: winds, winddirection_10m_dominant: windDirs,
+          uv_index_max: uvs, sunrise: sunrises, sunset: sunsets } = data.daily;
+
+  // ── Ride score (0–100) with reasons ─────────────────────────────────────
+  function rideScore(i) {
+    const code   = codes[i];
+    const wind   = winds?.[i] ?? 0;
+    const precip = precips?.[i] ?? 0;
+    const rain   = rainMm?.[i] ?? 0;
+    const high   = highs[i];
+    const low    = lows[i];
+    const uv     = uvs?.[i] ?? 0;
+    const isMetric = state.units !== 'imperial';
+
+    const isSnow  = [71,73,75,77,85,86].includes(code);
+    const isStorm = [95,96,99].includes(code);
+    const isRain  = [51,53,55,56,57,61,63,65,67,80,81,82].includes(code);
+    const isDriz  = [51,53,55].includes(code);
+    const isFog   = [45,48].includes(code);
+    const isClear = [0,1].includes(code);
+    const isCloudy= [2,3].includes(code);
+
+    const coldThresh  = isMetric ? 4  : 40;
+    const hotThresh   = isMetric ? 36 : 97;
+    const windThresh  = isMetric ? 40 : 25;
+    const windPoor    = isMetric ? 60 : 37;
+
+    const reasons = [];
+    let score = 100;
+
+    if (isStorm)              { score -= 70; reasons.push('⛈ Thunderstorms expected'); }
+    else if (isSnow)          { score -= 60; reasons.push('❄️ Snow or sleet forecast'); }
+    else if (isRain && !isDriz){ score -= 30 + Math.min(precip, 40) * 0.5; reasons.push(`🌧 Rain (${Math.round(precip)}% chance)`); }
+    else if (isDriz)          { score -= 15; reasons.push(`🌦 Light drizzle possible`); }
+    else if (isFog)           { score -= 20; reasons.push('🌫 Foggy — low visibility'); }
+
+    if (high < coldThresh)    { score -= 30; reasons.push(`🥶 Very cold (high ${Math.round(high)}${deg})`); }
+    else if (high < (isMetric ? 8 : 46)) { score -= 15; reasons.push(`🌡 Chilly (high ${Math.round(high)}${deg})`); }
+    else if (high > hotThresh){ score -= 20; reasons.push(`🥵 Extreme heat (${Math.round(high)}${deg})`); }
+
+    if (wind > windPoor)      { score -= 30; reasons.push(`💨 Very strong winds (${Math.round(wind)} ${windLbl})`); }
+    else if (wind > windThresh){ score -= 15; reasons.push(`💨 Windy (${Math.round(wind)} ${windLbl})`); }
+
+    if (score >= 75) {
+      if (isClear) reasons.unshift('☀️ Clear skies');
+      else if (isCloudy) reasons.unshift('⛅ Mostly cloudy but dry');
+      if (uv >= 6) reasons.push(`🕶 High UV (${uv}) — wear sunscreen`);
+    }
+
+    score = Math.max(0, Math.min(100, Math.round(score)));
+    const label = score >= 75 ? 'great' : score >= 50 ? 'good' : score >= 30 ? 'fair' : 'poor';
+    return { score, label, reasons };
+  }
+
+  // ── Best time window today (hourly) ──────────────────────────────────────
+  function bestRideWindow() {
+    if (!data.hourly) return null;
+    const { time: hTimes, temperature_2m: hTemps, precipitation_probability: hPrecip,
+            weathercode: hCodes, windspeed_10m: hWind } = data.hourly;
+
+    const todayStr = time[0]; // 'YYYY-MM-DD'
+    const todayHours = hTimes
+      .map((t, i) => ({ t, i }))
+      .filter(({ t }) => t.startsWith(todayStr))
+      .filter(({ i }) => {
+        const h = new Date(hTimes[i]).getHours();
+        return h >= 6 && h <= 20; // 6am–8pm
+      });
+
+    if (!todayHours.length) return null;
+
+    // Score each hour
+    const scored = todayHours.map(({ i }) => {
+      const h    = new Date(hTimes[i]).getHours();
+      const temp = hTemps[i] ?? 15;
+      const prec = hPrecip[i] ?? 0;
+      const wind = hWind[i] ?? 0;
+      const code = hCodes[i] ?? 0;
+      const isMetric = state.units !== 'imperial';
+      const coldT = isMetric ? 4 : 39;
+      let s = 100;
+      if ([95,96,99,71,73,75,77,85,86].includes(code)) s -= 60;
+      else if ([61,63,65,67,80,81,82].includes(code)) s -= 30;
+      else if ([51,53,55,56,57].includes(code)) s -= 15;
+      if (temp < coldT) s -= 25;
+      if (prec > 60) s -= 25;
+      else if (prec > 30) s -= 10;
+      if (wind > (isMetric ? 50 : 31)) s -= 20;
+      return { h, score: Math.max(0, s) };
+    });
+
+    // Find longest contiguous stretch of hours with score ≥ 60
+    let best = null, cur = [];
+    for (const pt of scored) {
+      if (pt.score >= 60) { cur.push(pt); }
+      else {
+        if (!best || cur.length > best.length) best = [...cur];
+        cur = [];
+      }
+    }
+    if (!best || cur.length > best.length) best = [...cur];
+    if (!best?.length) return null;
+
+    const fmt = h => { const ampm = h >= 12 ? 'pm' : 'am'; return `${h > 12 ? h-12 : h || 12}${ampm}`; };
+    return `${fmt(best[0].h)} – ${fmt(best[best.length-1].h + 1)}`;
+  }
+
+  const rideWindow = bestRideWindow();
+
+  // ── Build HTML ────────────────────────────────────────────────────────────
+  const DAYS_OF_WEEK = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  // Weekly overview cards
+  const weekCards = time.map((dateStr, i) => {
+    const d      = new Date(dateStr + 'T12:00:00');
+    const dayName = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : DAYS_OF_WEEK[d.getDay()];
+    const full   = i === 0 ? 'Today' : i === 1 ? 'Tomorrow'
+                 : d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+    const { score, label, reasons } = rideScore(i);
+    const precipPct = Math.round(precips?.[i] ?? 0);
+    const rainVal   = rainMm?.[i] ?? 0;
+    const windVal   = Math.round(winds?.[i] ?? 0);
+    const wdir      = windDir(windDirs?.[i] ?? 0);
+    const uvVal     = Math.round(uvs?.[i] ?? 0);
+
+    // Sunrise/sunset — format from ISO string
+    let srStr = '—', ssStr = '—';
+    try {
+      srStr = new Date(sunrises[i]).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      ssStr = new Date(sunsets[i]).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    } catch (_) {}
+
+    const topReasons = reasons.slice(0, 3);
+    const reasonHtml = topReasons.map(r => `<div class="wxp-reason">${r}</div>`).join('');
+
+    return `
+      <div class="wxp-day-card wxp-day-card--${label}">
+        <div class="wxp-day-header">
+          <div class="wxp-day-name-wrap">
+            <span class="wxp-day-name">${dayName}</span>
+            ${i > 1 ? `<span class="wxp-day-full">${full}</span>` : ''}
+          </div>
+          <div class="wxp-day-icon-row">
+            <div class="wxp-day-icon">${wmoIcon(codes[i])}</div>
+            <div class="wxp-score-badge wxp-score--${label}">${label === 'great' ? '🚴 Great' : label === 'good' ? '👍 Good' : label === 'fair' ? '⚠️ Fair' : '✗ Poor'}</div>
+          </div>
+        </div>
+        <div class="wxp-day-conditions">
+          <div class="wxp-cond-row">
+            <span class="wxp-cond-icon">${WEATHER_SVGS.sun}</span>
+            <span class="wxp-cond-val">${Math.round(highs[i])}° / ${Math.round(lows[i])}°</span>
+          </div>
+          <div class="wxp-cond-row">
+            <span class="wxp-cond-icon">${WEATHER_SVGS.rain}</span>
+            <span class="wxp-cond-val">${precipPct}%${rainVal > 0.5 ? ` · ${rainVal.toFixed(1)} mm` : ''}</span>
+          </div>
+          <div class="wxp-cond-row">
+            <span class="wxp-cond-icon">${WEATHER_SVGS.wind}</span>
+            <span class="wxp-cond-val">${windVal} ${windLbl} ${wdir}</span>
+          </div>
+          <div class="wxp-cond-row">
+            <span class="wxp-cond-label">UV</span>
+            <span class="wxp-cond-val">${uvVal} · 🌅 ${srStr}</span>
+          </div>
+        </div>
+        <div class="wxp-score-bar-wrap">
+          <div class="wxp-score-bar wxp-score-bar--${label}" style="width:${score}%"></div>
+        </div>
+        <div class="wxp-reasons">${reasonHtml}</div>
+      </div>`;
+  }).join('');
+
+  // Best days to ride (score ≥ 50, sorted)
+  const scored7 = time.map((_, i) => ({ i, ...rideScore(i) }))
+    .filter(d => d.score >= 50)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3);
+
+  const bestDaysHtml = scored7.length ? scored7.map(({ i, score, label, reasons }) => {
+    const d = new Date(time[i] + 'T12:00:00');
+    const name = i === 0 ? 'Today' : i === 1 ? 'Tomorrow'
+               : d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+    const tip = reasons.filter(r => r.startsWith('☀') || r.startsWith('⛅') || r.startsWith('🕶') || r.startsWith('👌')).join(' · ') || reasons[0] || 'Good conditions';
+    return `
+      <div class="wxp-rec-card wxp-rec--${label}">
+        <div class="wxp-rec-icon">${wmoIcon(codes[i])}</div>
+        <div class="wxp-rec-info">
+          <div class="wxp-rec-day">${name}</div>
+          <div class="wxp-rec-detail">${Math.round(highs[i])}${deg} · ${Math.round(winds[i])} ${windLbl} · ${Math.round(precips[i]??0)}% rain</div>
+          <div class="wxp-rec-tip">${tip}</div>
+        </div>
+        <div class="wxp-rec-score">${score}<span>/ 100</span></div>
+      </div>`;
+  }).join('') : `<div class="wxp-no-rec">No great riding days this week — looks like a tough stretch.</div>`;
+
+  // Days to avoid (score < 30)
+  const badDays = time.map((_, i) => ({ i, ...rideScore(i) }))
+    .filter(d => d.score < 30);
+
+  const badDaysHtml = badDays.length ? badDays.map(({ i, score, reasons }) => {
+    const d = new Date(time[i] + 'T12:00:00');
+    const name = i === 0 ? 'Today' : i === 1 ? 'Tomorrow'
+               : d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+    return `
+      <div class="wxp-avoid-card">
+        <div class="wxp-avoid-icon">${wmoIcon(codes[i])}</div>
+        <div class="wxp-avoid-info">
+          <div class="wxp-avoid-day">${name}</div>
+          <div class="wxp-avoid-reasons">${reasons.slice(0,2).join(' · ')}</div>
+        </div>
+        <div class="wxp-avoid-score">${score}<span>/100</span></div>
+      </div>`;
+  }).join('') : '';
+
+  // Weekly summary stats
+  const avgHigh   = Math.round(highs.reduce((s,v)=>s+v,0)/highs.length);
+  const maxWind   = Math.round(Math.max(...winds));
+  const rainDays  = codes.filter(c => [51,53,55,56,57,61,63,65,67,80,81,82,95,96,99].includes(c)).length;
+  const bestScore = Math.max(...time.map((_,i)=>rideScore(i).score));
+  const bestDayIdx= time.findIndex((_,i)=>rideScore(i).score===bestScore);
+  const bestDayName = bestDayIdx === 0 ? 'Today' : bestDayIdx === 1 ? 'Tomorrow'
+    : new Date(time[bestDayIdx]+'T12:00:00').toLocaleDateString('en-US',{weekday:'long'});
+
+  container.innerHTML = `
+    <!-- Location header -->
+    <div class="wxp-location-bar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 2a7 7 0 0 1 7 7c0 5.25-7 13-7 13S5 14.25 5 9a7 7 0 0 1 7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+      <span>${locationLabel}</span>
+      <button class="wxp-change-loc btn btn-ghost btn-sm" onclick="navigate('settings')">Change</button>
+    </div>
+
+    <!-- Today's ride window -->
+    ${rideWindow ? `
+    <div class="card wxp-window-card">
+      <div class="wxp-window-inner">
+        <div class="wxp-window-icon">${wmoIcon(codes[0])}</div>
+        <div class="wxp-window-text">
+          <div class="wxp-window-label">Best ride window today</div>
+          <div class="wxp-window-time">${rideWindow}</div>
+        </div>
+        <div class="wxp-window-temps">${Math.round(highs[0])}° / ${Math.round(lows[0])}°</div>
+      </div>
+    </div>` : ''}
+
+    <!-- Weekly summary stats -->
+    <div class="wxp-stats-row">
+      <div class="wxp-stat"><div class="wxp-stat-val">${avgHigh}${deg}</div><div class="wxp-stat-lbl">Avg high</div></div>
+      <div class="wxp-stat"><div class="wxp-stat-val">${maxWind} <span style="font-size:12px">${windLbl}</span></div><div class="wxp-stat-lbl">Max wind</div></div>
+      <div class="wxp-stat"><div class="wxp-stat-val">${rainDays}<span style="font-size:12px">d</span></div><div class="wxp-stat-lbl">Rain days</div></div>
+      <div class="wxp-stat"><div class="wxp-stat-val">${bestDayName.slice(0,3)}</div><div class="wxp-stat-lbl">Best day</div></div>
+    </div>
+
+    <!-- Best days to ride -->
+    <div class="wxp-section-title">Best days to ride</div>
+    <div class="wxp-rec-list">${bestDaysHtml}</div>
+
+    ${badDaysHtml ? `
+    <!-- Days to avoid -->
+    <div class="wxp-section-title wxp-section-title--bad">Days to skip</div>
+    <div class="wxp-avoid-list">${badDaysHtml}</div>` : ''}
+
+    <!-- Full weekly breakdown -->
+    <div class="wxp-section-title">This week</div>
+    <div class="wxp-week-scroll">${weekCards}</div>
+  `;
+
+  // Attach drag-to-scroll on the week rail (desktop mouse drag)
+  const rail = container.querySelector('.wxp-week-scroll');
+  if (rail) {
+    let isDown = false, startX = 0, scrollLeft = 0;
+    rail.addEventListener('mousedown', e => {
+      isDown = true;
+      rail.classList.add('is-dragging');
+      startX = e.pageX - rail.getBoundingClientRect().left;
+      scrollLeft = rail.scrollLeft;
+      e.preventDefault();
+      e.stopPropagation();
+    });
+    document.addEventListener('mouseup', () => {
+      isDown = false;
+      rail.classList.remove('is-dragging');
+    });
+    document.addEventListener('mousemove', e => {
+      if (!isDown) return;
+      const x = e.pageX - rail.getBoundingClientRect().left;
+      rail.scrollLeft = scrollLeft - (x - startX);
+    });
+    // Touch support
+    rail.addEventListener('touchstart', e => {
+      startX = e.touches[0].pageX - rail.getBoundingClientRect().left;
+      scrollLeft = rail.scrollLeft;
+    }, { passive: true });
+    rail.addEventListener('touchmove', e => {
+      const x = e.touches[0].pageX - rail.getBoundingClientRect().left;
+      rail.scrollLeft = scrollLeft - (x - startX);
+    }, { passive: true });
+  }
+}
+
+/* ====================================================
    RENDER DASHBOARD
 ==================================================== */
 function renderDashboard() {
@@ -1258,8 +1964,9 @@ function renderDashboard() {
   renderWeeklyChart(recent);
   renderAvgPowerChart(recent);
   renderZoneDist(recent);
-  renderPowerCurve();      // async — fetches if range changed
-  renderRecentActivity();  // async — fetches GPS for map preview
+  renderPowerCurve();        // async — fetches if range changed
+  renderRecentActivity();    // async — fetches GPS for map preview
+  renderWeatherForecast();   // async — fetches Open-Meteo 7-day forecast
 }
 
 function resetDashboard() {
@@ -2342,6 +3049,610 @@ async function renderPowerCurve() {
       }
     }
   });
+}
+
+/* ====================================================
+   POWER PAGE
+==================================================== */
+
+// Coggan 6-zone model (percentages of FTP)
+const COGGAN_ZONES = [
+  { id:'Z1', name:'Recovery',   minPct:0,    maxPct:0.55,     desc:'Very easy. Active recovery; flush fatigue without adding stress.' },
+  { id:'Z2', name:'Endurance',  minPct:0.55, maxPct:0.75,     desc:'All-day aerobic pace. Builds the fat-burning engine and capillary density.' },
+  { id:'Z3', name:'Tempo',      minPct:0.75, maxPct:0.90,     desc:'Comfortably hard. Improves aerobic power and muscular endurance.' },
+  { id:'Z4', name:'Threshold',  minPct:0.90, maxPct:1.05,     desc:'Around FTP. Raises lactate threshold and time-to-exhaustion at high power.' },
+  { id:'Z5', name:'VO₂max',     minPct:1.05, maxPct:1.20,     desc:'Maximal aerobic power. 3–8 min intervals. Expands VO₂max ceiling.' },
+  { id:'Z6', name:'Anaerobic',  minPct:1.20, maxPct:Infinity, desc:'Short, explosive all-out efforts. Builds neuromuscular power and sprint capacity.' },
+];
+
+// W/kg → competitive category
+function pwrKgCategory(wkg) {
+  if (wkg >= 5.0) return { label:'Professional',   color:'var(--purple)' };
+  if (wkg >= 4.5) return { label:'Cat 1 / Elite',  color:'var(--red)'    };
+  if (wkg >= 4.0) return { label:'Cat 2',           color:'var(--orange)' };
+  if (wkg >= 3.5) return { label:'Cat 3',           color:'var(--yellow)' };
+  if (wkg >= 3.0) return { label:'Cat 4',           color:'var(--accent)' };
+  if (wkg >= 2.0) return { label:'Cat 5',           color:'var(--blue)'   };
+  return           { label:'Recreational', color:'var(--text-secondary)' };
+}
+
+function pwrNextCategory(wkg) {
+  const steps = [
+    { threshold:2.0, label:'Cat 5'          },
+    { threshold:3.0, label:'Cat 4'          },
+    { threshold:3.5, label:'Cat 3'          },
+    { threshold:4.0, label:'Cat 2'          },
+    { threshold:4.5, label:'Cat 1 / Elite'  },
+    { threshold:5.0, label:'Professional'   },
+  ];
+  return steps.find(c => c.threshold > wkg) || null;
+}
+
+// Range-pill click handler for the power page
+function setPwrRange(days) {
+  state.powerPageRangeDays = days;
+  document.querySelectorAll('#pwrRangePills button').forEach(b =>
+    b.classList.toggle('active', +b.dataset.days === days)
+  );
+  // Bust page-curve cache so it re-fetches for the new window
+  state.powerPageCurve = null;
+  state.powerPageCurveRange = null;
+  renderPowerPage();
+}
+
+async function renderPowerPage() {
+  if (!state.synced) return;
+
+  const ftp    = state.athlete?.ftp    || 0;
+  const weight = state.athlete?.weight || 0;
+  const wkg    = (ftp && weight) ? +(ftp / weight).toFixed(2) : null;
+  const days   = state.powerPageRangeDays || 90;
+
+  renderPwrHero(ftp, weight, wkg, days);
+  renderPwrZones(ftp, weight);
+  await renderPwrCurveChart(days, ftp, weight);
+  renderPwrZoneDist(days);
+  renderPwrTrend(days);
+  renderPwrInsights(ftp, weight, wkg, days);
+}
+
+// ── Hero stat cards ─────────────────────────────────────────────────────────
+function renderPwrHero(ftp, weight, wkg, days) {
+  const el = document.getElementById('pwrHeroRow');
+  if (!el) return;
+
+  // Best peaks from cached curve (may be null before curve fetch)
+  const pc      = state.powerPageCurve;
+  const best20m = pc ? pwrPeakAt(pc, 1200) : null;
+  const best5m  = pc ? pwrPeakAt(pc, 300)  : null;
+  const cat     = wkg ? pwrKgCategory(wkg) : null;
+
+  const cards = [
+    {
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
+      label: 'FTP',
+      value: ftp ? `${ftp}` : '—',
+      unit:  ftp ? 'w' : '',
+      sub:   ftp && weight ? `${wkg} w/kg` : 'Set FTP in intervals.icu',
+      color: 'var(--accent)',
+    },
+    {
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>`,
+      label: '20min Peak',
+      value: best20m ? `${Math.round(best20m)}` : '—',
+      unit:  best20m ? 'w' : '',
+      sub:   best20m && weight ? `${(best20m / weight).toFixed(2)} w/kg` : `Last ${days}d`,
+      color: 'var(--yellow)',
+    },
+    {
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+      label: '5min Peak',
+      value: best5m ? `${Math.round(best5m)}` : '—',
+      unit:  best5m ? 'w' : '',
+      sub:   best5m && weight ? `${(best5m / weight).toFixed(2)} w/kg` : `Last ${days}d`,
+      color: 'var(--orange)',
+    },
+    {
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>`,
+      label: 'Category',
+      value: cat ? cat.label : '—',
+      unit:  '',
+      sub:   wkg ? `${wkg} w/kg at FTP` : 'Set FTP to calculate',
+      color: cat ? cat.color : 'var(--text-secondary)',
+      textVal: true,
+    },
+  ];
+
+  el.innerHTML = cards.map(c => `
+    <div class="stat-card">
+      <div class="stat-card-header">
+        <div class="stat-label">${c.label}</div>
+        <div class="stat-icon" style="background:${c.color}22;color:${c.color}">${c.icon}</div>
+      </div>
+      <div class="stat-value${c.textVal ? ' pwr-stat-text' : ''}" style="color:${c.color}">
+        ${c.value}${c.unit ? `<span class="unit">${c.unit}</span>` : ''}
+      </div>
+      <div class="pwr-hero-sub">${c.sub}</div>
+    </div>
+  `).join('');
+}
+
+// ── Power Zones table ────────────────────────────────────────────────────────
+function renderPwrZones(ftp, weight) {
+  const rowsEl  = document.getElementById('pwrZoneRows');
+  const subEl   = document.getElementById('pwrZoneSubtitle');
+  const badgeEl = document.getElementById('pwrFtpBadge');
+  if (!rowsEl) return;
+
+  if (badgeEl) {
+    badgeEl.innerHTML = ftp
+      ? `<div class="pwr-ftp-badge-inner"><span>FTP</span><strong>${ftp}w</strong></div>`
+      : '';
+  }
+
+  if (!ftp) {
+    rowsEl.innerHTML = '<div class="pwr-empty-note">Set your FTP in intervals.icu to see personalised power zones.</div>';
+    return;
+  }
+
+  if (subEl) subEl.textContent =
+    `Coggan 6-zone model · ${ftp}w FTP${weight ? ` · ${weight}kg` : ''}`;
+
+  // Max bar width relative to Z6 lower bound (1.4× FTP = full bar)
+  const SCALE = ftp * 1.40;
+
+  rowsEl.innerHTML = `
+    <div class="pwr-zone-header">
+      <div class="pwr-zh-zone">Zone</div>
+      <div class="pwr-zh-watts">Watts</div>
+      <div class="pwr-zh-wkg">W/kg</div>
+      <div class="pwr-zh-bar"></div>
+      <div class="pwr-zh-desc">Focus</div>
+    </div>
+    ${COGGAN_ZONES.map((z, i) => {
+      const color  = ZONE_COLORS[i] || 'var(--text-secondary)';
+      const minW   = i === 0 ? 0 : Math.round(ftp * z.minPct);
+      const maxW   = z.maxPct === Infinity ? null : Math.round(ftp * z.maxPct);
+      const rangeW = maxW ? `${minW}–${maxW}w` : `${minW}+w`;
+      const minKg  = i === 0 ? '0.0' : (ftp * z.minPct / (weight || 70)).toFixed(1);
+      const maxKg  = z.maxPct === Infinity ? null : (ftp * z.maxPct / (weight || 70)).toFixed(1);
+      const rangeKg = maxKg ? `${minKg}–${maxKg}` : `${minKg}+`;
+      const barW   = z.maxPct === Infinity ? 100 : Math.min(100, (ftp * z.maxPct) / SCALE * 100);
+      return `
+        <div class="pwr-zone-row">
+          <div class="pwr-zone-id" style="color:${color}">${z.id}</div>
+          <div class="pwr-zone-name">${z.name}</div>
+          <div class="pwr-zone-watts">${rangeW}</div>
+          <div class="pwr-zone-wkg">${rangeKg}</div>
+          <div class="pwr-zone-bar-wrap">
+            <div class="pwr-zone-bar" style="width:${barW}%;background:${color}"></div>
+          </div>
+          <div class="pwr-zone-desc">${z.desc}</div>
+        </div>`;
+    }).join('')}`;
+}
+
+// ── Power Curve chart ────────────────────────────────────────────────────────
+function pwrPeakAt(pc, targetSecs) {
+  const lookup = {};
+  pc.secs.forEach((s, i) => { if (pc.watts[i]) lookup[s] = pc.watts[i]; });
+  if (lookup[targetSecs]) return lookup[targetSecs];
+  let best = null, minD = Infinity;
+  pc.secs.forEach(s => {
+    const d = Math.abs(s - targetSecs);
+    if (d < minD && lookup[s]) { minD = d; best = lookup[s]; }
+  });
+  return best;
+}
+
+async function renderPwrCurveChart(days, ftp, weight) {
+  const subtitleEl = document.getElementById('pwrCurveSubtitle');
+  const peaksEl    = document.getElementById('pwrCurvePeaks');
+  const canvas     = document.getElementById('pwrCurveCanvas');
+  if (!canvas) return;
+
+  // Fetch if cache is stale
+  if (!state.powerPageCurve || state.powerPageCurveRange !== days) {
+    const newest = toDateStr(new Date());
+    const oldest = toDateStr(daysAgo(days));
+    state.powerPageCurve      = await fetchRangePowerCurve(oldest, newest).catch(() => null);
+    state.powerPageCurveRange = days;
+  }
+
+  const pc = state.powerPageCurve;
+  if (subtitleEl) subtitleEl.textContent = `Best efforts · Last ${days} days`;
+
+  // Peak pills
+  if (peaksEl) {
+    peaksEl.innerHTML = pc
+      ? CURVE_PEAKS.map(p => {
+          const w = Math.round(pwrPeakAt(pc, p.secs) || 0);
+          if (!w) return '';
+          const wkg = (weight && w) ? ` <span class="curve-peak-wkg">${(w/weight).toFixed(1)}w/kg</span>` : '';
+          return `<div class="curve-peak">
+            <div class="curve-peak-val">${w}<span class="curve-peak-unit">w</span></div>
+            <div class="curve-peak-dur">${p.label}${wkg}</div>
+          </div>`;
+        }).join('')
+      : '';
+  }
+
+  // Destroy old chart
+  state.powerPageChart = destroyChart(state.powerPageChart);
+  if (!pc) return;
+
+  const chartData = pc.secs
+    .map((s, i) => ({ x: s, y: pc.watts[i] }))
+    .filter(pt => pt.y > 0);
+  const maxSecs = chartData[chartData.length - 1]?.x || 3600;
+
+  const datasets = [{
+    label: `Last ${days}d`,
+    data: chartData,
+    borderColor: '#00e5a0',
+    backgroundColor: 'rgba(0,229,160,0.07)',
+    fill: true,
+    tension: 0.4,
+    pointRadius: 0,
+    pointHoverRadius: 6,
+    borderWidth: 2.5,
+  }];
+
+  // FTP reference line
+  if (ftp) {
+    datasets.push({
+      label: 'FTP',
+      data: [{ x: 1, y: ftp }, { x: maxSecs, y: ftp }],
+      borderColor: 'rgba(255,107,53,0.55)',
+      borderWidth: 1.5,
+      borderDash: [5, 4],
+      pointRadius: 0,
+      fill: false,
+      tension: 0,
+    });
+  }
+
+  state.powerPageChart = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: { datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          ...C_TOOLTIP,
+          callbacks: {
+            title: items => fmtSecsShort(items[0].parsed.x),
+            label: ctx   => ctx.dataset.label === 'FTP'
+              ? `FTP: ${ftp}w`
+              : (() => {
+                  const w = Math.round(ctx.parsed.y);
+                  return weight ? `${w}w  ·  ${(w/weight).toFixed(2)} w/kg` : `${w}w`;
+                })(),
+          },
+        },
+      },
+      scales: {
+        x: {
+          type: 'logarithmic',
+          min: 1,
+          max: maxSecs,
+          grid: C_GRID,
+          ticks: { ...C_TICK, autoSkip: false, maxRotation: 0, callback: val => CURVE_TICK_MAP[val] ?? null },
+        },
+        y: { grid: C_GRID, ticks: { ...C_TICK } },
+      },
+    },
+  });
+}
+
+// ── Zone distribution (for the power page) ──────────────────────────────────
+function renderPwrZoneDist(days) {
+  const listEl  = document.getElementById('pwrZoneList');
+  const balEl   = document.getElementById('pwrZoneBalance');
+  const subEl   = document.getElementById('pwrZoneDistSub');
+  const badgeEl = document.getElementById('pwrZoneTotalBadge');
+  if (!listEl) return;
+
+  const cutoff = toDateStr(daysAgo(days));
+  const acts   = state.activities.filter(a =>
+    (a.start_date_local || a.start_date || '').slice(0, 10) >= cutoff
+  );
+
+  const totals = [0, 0, 0, 0, 0, 0];
+  let hasData  = false;
+  acts.forEach(a => {
+    const zt = a.icu_zone_times;
+    if (!Array.isArray(zt) || zt.length < 1) return;
+    zt.forEach(z => {
+      if (!z || typeof z.id !== 'string') return;
+      const m = z.id.match(/^Z(\d)$/);
+      if (!m) return;
+      const idx = parseInt(m[1], 10) - 1;
+      if (idx >= 0 && idx < 6) { hasData = true; totals[idx] += z.secs || 0; }
+    });
+  });
+
+  const totalSecs = totals.reduce((s, t) => s + t, 0);
+
+  if (!hasData || totalSecs === 0) {
+    if (badgeEl) badgeEl.textContent = '';
+    if (subEl)   subEl.textContent   = 'Time in power zone';
+    listEl.innerHTML = '<div class="pwr-empty-note">No power zone data in this period</div>';
+    if (balEl) balEl.style.display = 'none';
+    return;
+  }
+
+  // Badge + subtitle — mirrors dashboard exactly
+  if (badgeEl) badgeEl.textContent = fmtDur(totalSecs) + ' total';
+  if (subEl)   subEl.textContent   = `Time in power zone · Last ${days} days`;
+
+  // Zone rows — identical markup to renderZoneDist
+  listEl.innerHTML = ZONE_TAGS.map((tag, i) => {
+    const secs  = totals[i];
+    const pct   = Math.round(secs / totalSecs * 100);
+    const color = ZONE_COLORS[i];
+    if (secs === 0) return '';
+    return `<div class="zone-row">
+      <span class="zone-tag" style="color:${color}">${tag}</span>
+      <span class="zone-row-name">${ZONE_NAMES[i]}</span>
+      <div class="zone-bar-track">
+        <div class="zone-bar-fill" style="width:${pct}%;background:${color}"></div>
+      </div>
+      <span class="zone-pct" style="color:${color}">${pct}%</span>
+      <span class="zone-time">${fmtDur(secs)}</span>
+    </div>`;
+  }).join('');
+
+  // Stacked balance bar + training style label — identical to dashboard
+  if (balEl) {
+    const segs = ZONE_TAGS.map((_, i) => {
+      const pct = totals[i] / totalSecs * 100;
+      return pct > 0.5
+        ? `<div class="zone-balance-seg" style="flex:${pct};background:${ZONE_COLORS[i]}"></div>`
+        : '';
+    }).join('');
+
+    const z12 = (totals[0] + totals[1]) / totalSecs;
+    const z34 = (totals[2] + totals[3]) / totalSecs;
+    const z56 = (totals[4] + totals[5]) / totalSecs;
+
+    let style, hint;
+    if      (z12 >= 0.65 && z56 >= 0.10) { style = 'Polarized';   hint = 'strong contrast between easy base and hard efforts'; }
+    else if (z34 >= 0.40)                 { style = 'Sweet-spot';  hint = 'focused on productive threshold work'; }
+    else if (z12 >= 0.60)                 { style = 'Pyramidal';   hint = 'broad aerobic base with moderate intensity work'; }
+    else                                  { style = 'Mixed';        hint = 'varied intensity across all zones'; }
+
+    balEl.style.display = '';
+    balEl.innerHTML = `
+      <div class="zone-balance-label">Zone Balance</div>
+      <div class="zone-balance-bar">${segs}</div>
+      <div class="zone-style-hint"><strong>${style}</strong> — ${hint}</div>`;
+  }
+}
+
+// ── Power trend bar chart ────────────────────────────────────────────────────
+function renderPwrTrend(days) {
+  const canvas = document.getElementById('pwrTrendCanvas');
+  const sumEl  = document.getElementById('pwrTrendSummary');
+  if (!canvas) return;
+
+  state.powerTrendChart = destroyChart(state.powerTrendChart);
+
+  const cutoff = toDateStr(daysAgo(days));
+  const acts = state.activities
+    .filter(a => {
+      const d = (a.start_date_local || a.start_date || '').slice(0, 10);
+      const w = actVal(a, 'icu_weighted_avg_watts', 'average_watts', 'icu_average_watts');
+      return d >= cutoff && w > 0;
+    })
+    .sort((a, b) =>
+      (a.start_date_local || a.start_date || '').localeCompare(b.start_date_local || b.start_date || '')
+    )
+    .slice(-28); // last 28 powered rides
+
+  if (acts.length < 3) {
+    if (sumEl) sumEl.innerHTML = '<div class="pwr-empty-note">Not enough power data in this period</div>';
+    return;
+  }
+
+  const labels = acts.map(a => (a.start_date_local || a.start_date || '').slice(5, 10).replace('-', '/'));
+  const watts  = acts.map(a => Math.round(actVal(a, 'icu_weighted_avg_watts', 'average_watts', 'icu_average_watts')));
+
+  // Simple linear regression for trend line
+  const n     = watts.length;
+  const yMean = watts.reduce((s, w) => s + w, 0) / n;
+  const xMean = (n - 1) / 2;
+  const num   = watts.reduce((s, w, i) => s + (i - xMean) * (w - yMean), 0);
+  const den   = watts.reduce((s, _, i) => s + (i - xMean) ** 2, 0);
+  const slope = den ? num / den : 0;
+  const trendData = watts.map((_, i) => Math.round(yMean + slope * (i - xMean)));
+
+  const avgW   = Math.round(yMean);
+  const pctChg = yMean ? Math.round(slope / yMean * 100 * (n - 1)) : 0;
+  const rising = slope > 1;
+  const flat   = Math.abs(pctChg) < 3;
+
+  const barColors = watts.map(w => w >= avgW ? 'rgba(0,229,160,0.75)' : 'rgba(0,229,160,0.25)');
+
+  state.powerTrendChart = new Chart(canvas.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'NP',
+          data: watts,
+          backgroundColor: barColors,
+          borderRadius: 3,
+          maxBarThickness: 14,
+          order: 2,
+        },
+        {
+          label: 'Trend',
+          data: trendData,
+          type: 'line',
+          borderColor: 'rgba(255,107,53,0.8)',
+          borderWidth: 2,
+          pointRadius: 0,
+          fill: false,
+          tension: 0.35,
+          order: 1,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          ...C_TOOLTIP,
+          callbacks: {
+            title:  items => items[0].label,
+            label:  ctx   => ctx.datasetIndex === 0 ? `${ctx.parsed.y}w NP` : `${ctx.parsed.y}w trend`,
+          },
+        },
+      },
+      scales: {
+        x: { grid: C_GRID, ticks: { ...C_TICK, maxRotation: 0, maxTicksLimit: 7 } },
+        y: { grid: C_GRID, ticks: { ...C_TICK } },
+      },
+    },
+  });
+
+  if (sumEl) {
+    const dir  = flat ? 'neutral' : (rising ? 'up' : 'down');
+    const icon = flat ? '→' : (rising ? '↑' : '↓');
+    const msg  = flat
+      ? `Holding steady around ${avgW}w average`
+      : rising
+        ? `Power rising +${Math.abs(pctChg)}% over this period`
+        : `Power down ${Math.abs(pctChg)}% over this period`;
+    sumEl.innerHTML = `<div class="stat-delta ${dir}" style="margin-top:8px;font-size:var(--text-sm)">${icon} ${msg}</div>`;
+  }
+}
+
+// ── Insight / encouragement cards ───────────────────────────────────────────
+function renderPwrInsights(ftp, weight, wkg, days) {
+  const el = document.getElementById('pwrInsightsRow');
+  if (!el) return;
+
+  const insights = [];
+
+  // 1. W/kg category + next step
+  if (wkg) {
+    const cat  = pwrKgCategory(wkg);
+    const next = pwrNextCategory(wkg);
+    insights.push({
+      color: cat.color,
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>`,
+      title: `You ride at ${cat.label} level`,
+      body: next
+        ? `At <strong>${wkg} w/kg</strong> you're in <strong>${cat.label}</strong> territory. Push your FTP to <strong>${Math.round((next.threshold * (weight || 70)))}w</strong> (${next.threshold} w/kg) to reach <strong>${next.label}</strong>.`
+        : `At <strong>${wkg} w/kg</strong> you're among the elite of the sport. World-class power-to-weight ratio — keep it up!`,
+    });
+  }
+
+  // 2. 20min peak vs FTP sanity check
+  if (ftp && state.powerPageCurve) {
+    const p20 = pwrPeakAt(state.powerPageCurve, 1200);
+    if (p20) {
+      const implied = Math.round(p20 * 0.95);
+      if (implied > ftp * 1.06) {
+        insights.push({
+          color: 'var(--yellow)',
+          icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+          title: 'FTP may be underestimated',
+          body: `Your best 20min power of ${Math.round(p20)}w implies an FTP around <strong>${implied}w</strong>. Consider doing an FTP test and updating your setting in intervals.icu to get accurate zone training targets.`,
+        });
+      } else if (implied < ftp * 0.88) {
+        insights.push({
+          color: 'var(--blue)',
+          icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>`,
+          title: 'Grow into your FTP',
+          body: `Your 20min peak is below your set FTP of ${ftp}w — a sign of room to grow. Focused threshold intervals (4×8min, 2×20min) can help you close that gap.`,
+        });
+      }
+    }
+  }
+
+  // 3. Zone distribution pattern
+  const cutoff = toDateStr(daysAgo(days));
+  const acts   = state.activities.filter(a => (a.start_date_local || a.start_date || '').slice(0, 10) >= cutoff);
+  const totals = [0, 0, 0, 0, 0, 0];
+  let zTotal   = 0;
+  acts.forEach(a => {
+    const zt = a.icu_zone_times;
+    if (!Array.isArray(zt)) return;
+    zt.forEach(z => {
+      const m = z?.id?.match(/^Z(\d)$/);
+      if (!m) return;
+      const idx = parseInt(m[1], 10) - 1;
+      if (idx >= 0 && idx < 6) { totals[idx] += z.secs || 0; zTotal += z.secs || 0; }
+    });
+  });
+
+  if (zTotal > 0) {
+    const z12 = (totals[0] + totals[1]) / zTotal;
+    const z34 = (totals[2] + totals[3]) / zTotal;
+    const z56 = (totals[4] + totals[5]) / zTotal;
+
+    if (z12 < 0.50) {
+      insights.push({
+        color: 'var(--blue)',
+        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
+        title: 'Build more aerobic base',
+        body: `Only <strong>${Math.round(z12 * 100)}%</strong> of your training is in Z1–Z2. Research shows 70–80% easy riding builds long-term capacity. Try adding longer, low-intensity rides to unlock faster adaptation.`,
+      });
+    } else if (z12 >= 0.65 && z56 >= 0.10) {
+      insights.push({
+        color: 'var(--accent)',
+        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>`,
+        title: 'Polarized training — great work',
+        body: `<strong>${Math.round(z12 * 100)}%</strong> easy + <strong>${Math.round(z56 * 100)}%</strong> hard. This polarized split matches what elite endurance athletes use and is linked to superior long-term performance gains.`,
+      });
+    } else if (z34 >= 0.40) {
+      insights.push({
+        color: 'var(--orange)',
+        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+        title: 'Watch your threshold load',
+        body: `<strong>${Math.round(z34 * 100)}%</strong> of training in Z3–Z4 is demanding. Prolonged sweet-spot blocks accumulate fatigue fast — make sure you're scheduling adequate recovery weeks.`,
+      });
+    }
+  }
+
+  // 4. Ride consistency
+  const poweredCount = acts.filter(a =>
+    actVal(a, 'icu_weighted_avg_watts', 'average_watts', 'icu_average_watts') > 0
+  ).length;
+  if (poweredCount >= 6) {
+    insights.push({
+      color: 'var(--accent)',
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
+      title: `${poweredCount} powered rides in ${days} days`,
+      body: `Ride frequency is one of the strongest predictors of improvement. ${poweredCount} power-tracked sessions in ${days} days — that's solid consistency. Keep showing up!`,
+    });
+  } else if (!ftp) {
+    insights.push({
+      color: 'var(--blue)',
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+      title: 'Set your FTP for full analysis',
+      body: `Head to intervals.icu → Settings → Sport Settings and set your FTP. This unlocks personalised power zones, W/kg calculations, and training recommendations tailored to your fitness.`,
+    });
+  }
+
+  el.innerHTML = insights.map(c => `
+    <div class="pwr-insight-card" style="--ic-color:${c.color}">
+      <div class="pwr-insight-icon" style="color:${c.color}">${c.icon}</div>
+      <div class="pwr-insight-body">
+        <div class="pwr-insight-title">${c.title}</div>
+        <div class="pwr-insight-text">${c.body}</div>
+      </div>
+    </div>
+  `).join('');
 }
 
 /* ====================================================
@@ -4067,6 +5378,9 @@ function renderActivityBasic(a) {
     if (!el.dataset.glow) { el.dataset.glow = '1'; window.attachCardGlow && window.attachCardGlow(el); }
   });
 
+  // ── Weather conditions during this ride ──────────────────────────────────
+  renderActivityWeather(a);
+
   // ── Render the "How You Compare" card ────────────────────────────────────
   renderDetailComparison(a);
 }
@@ -5757,7 +7071,7 @@ if (hasCredentials) {
     updateConnectionUI(false);
   }
   // Restore the page the user was on before refresh
-  const _validPages = ['dashboard','activities','calendar','fitness','power','zones','settings','workout','guide'];
+  const _validPages = ['dashboard','activities','calendar','fitness','power','zones','weather','settings','workout','guide'];
   if (_initRoute && _initRoute.type === 'activity' && _initRoute.actId) {
     // Find by ID directly — _actLookup may not be built yet so search state.activities
     const _restoredAct = state.activities.find(a => String(a.id) === String(_initRoute.actId));
@@ -6573,7 +7887,7 @@ function setMapTheme(key) {
 (function() {
   // Only skip elements that need their own mouse behaviour (text inputs, maps, sidebar)
   // Buttons, links, cards etc. are fine — moved-flag suppresses accidental clicks after a drag
-  const SKIP = 'input,select,textarea,.sidebar,.map-container,.activity-map,.recent-act-scroll-rail';
+  const SKIP = 'input,select,textarea,.sidebar,.map-container,.activity-map,.recent-act-scroll-rail,.wxp-week-scroll';
 
   let isDragging  = false;
   let startY      = 0;
@@ -6673,7 +7987,7 @@ function setMapTheme(key) {
   // expose so other parts of the app can attach glow to late-rendered elements
   window.attachCardGlow = attachGlow;
 
-  const GLOW_SEL = '.stat-card, .recent-act-card, .perf-metric, .act-pstat, .mm-cell';
+  const GLOW_SEL = '.stat-card, .recent-act-card, .perf-metric, .act-pstat, .mm-cell, .wxp-day-card';
 
   function attachPress(el) {
     const press   = () => el.classList.add('is-pressed');
