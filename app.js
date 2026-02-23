@@ -718,6 +718,7 @@ function navigate(page) {
   if (page === 'calendar') renderCalendar();
   if (page === 'fitness')  renderFitnessPage();
   if (page === 'power')    renderPowerPage();
+  if (page === 'zones')    renderZonesPage();
   if (page === 'workout')  { wrkRefreshStats(); wrkRender(); }
   if (page === 'settings') initWeatherLocationUI();
   if (page === 'weather')  renderWeatherPage();
@@ -786,6 +787,23 @@ function initWeatherLocationUI() {
       statusEl.textContent = c.city || `${c.lat?.toFixed(2)}, ${c.lng?.toFixed(2)}`;
     }
   } catch (_) {}
+  // Restore saved model selection
+  const sel = document.getElementById('wxModelSelect');
+  if (sel) sel.value = localStorage.getItem('icu_wx_model') || 'best_match';
+
+  // Restore hide-empty-cards toggle
+  const hideToggle = document.getElementById('hideEmptyCardsToggle');
+  if (hideToggle) hideToggle.checked = localStorage.getItem('icu_hide_empty_cards') === 'true';
+}
+
+function setWeatherModel(model) {
+  localStorage.setItem('icu_wx_model', model);
+  // Clear cached forecasts so next load uses the new model
+  localStorage.removeItem('icu_wx_forecast');
+  localStorage.removeItem('icu_wx_forecast_ts');
+  localStorage.removeItem('icu_wx_page');
+  localStorage.removeItem('icu_wx_page_ts');
+  showToast(`Weather model set to: ${model}`, 'success');
 }
 
 function setUnits(units) {
@@ -1321,7 +1339,8 @@ function renderActivityWeather(a) {
   const pressure = a.weather_pressure;      // hPa
   const precip   = a.weather_precip_probability; // 0–1
 
-  if (temp == null) { card.style.display = 'none'; return; }
+  if (temp == null) { showCardNA('detailWeatherCard'); return; }
+  clearCardNA(card);
   card.style.display = '';
 
   // Riding-condition colour hint
@@ -1400,7 +1419,8 @@ async function renderWeatherForecast() {
   if (!forecast) {
     const tUnit = state.units === 'imperial' ? 'fahrenheit' : 'celsius';
     const wUnit = state.units === 'imperial' ? 'mph' : 'kmh';
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lng.toFixed(4)}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode,windspeed_10m_max&timezone=auto&forecast_days=7&temperature_unit=${tUnit}&wind_speed_unit=${wUnit}`;
+    const wxModel = localStorage.getItem('icu_wx_model') || 'best_match';
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lng.toFixed(4)}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode,windspeed_10m_max&timezone=auto&forecast_days=7&temperature_unit=${tUnit}&wind_speed_unit=${wUnit}&models=${wxModel}`;
     try {
       const res = await fetch(url);
       if (res.ok) {
@@ -1442,15 +1462,20 @@ async function renderWeatherForecast() {
     ? [athleteCity, athleteCountry].filter(Boolean).join(', ')
     : forecast.timezone?.split('/').pop()?.replace(/_/g, ' ') || 'Your area';
 
+  const scoreLabel = { good: 'Great', fair: 'Fair', poor: 'Poor' };
   const days = time.map((dateStr, i) => {
     const d       = new Date(dateStr + 'T12:00:00');
-    const dayName = i === 0 ? 'Today'
-                 : i === 1 ? 'Tomorrow'
+    const isToday = i === 0;
+    const dayName = isToday ? 'Today'
+                 : i === 1  ? 'Tmrw'
                  : d.toLocaleDateString('en-US', { weekday: 'short' });
-    const score   = ridingScore(i);
-    const precipPct = (precips?.[i] ?? 0);
+    const score     = ridingScore(i);
+    const precipPct = precips?.[i] ?? 0;
+    const precipHTML = precipPct > 10
+      ? `<div class="wx-day-precip"><svg viewBox="0 0 24 24" fill="currentColor" width="10" height="10"><path d="M12 2C8 8 5 12.5 5 15.5a7 7 0 0 0 14 0C19 12.5 16 8 12 2z"/></svg>${Math.round(precipPct)}%</div>`
+      : `<div class="wx-day-precip"></div>`;
     return `
-      <div class="wx-day wx-day--${score}">
+      <div class="wx-day wx-day--${score}${isToday ? ' wx-day--today' : ''}">
         <div class="wx-day-name">${dayName}</div>
         <div class="wx-day-icon">${wmoIcon(codes[i])}</div>
         <div class="wx-day-label">${wmoLabel(codes[i])}</div>
@@ -1458,8 +1483,8 @@ async function renderWeatherForecast() {
           <span class="wx-day-hi">${Math.round(highs[i])}°</span>
           <span class="wx-day-lo">${Math.round(lows[i])}°</span>
         </div>
-        ${precipPct > 10 ? `<div class="wx-day-precip">${Math.round(precipPct)}%</div>` : `<div class="wx-day-precip"></div>`}
-        <div class="wx-riding-dot wx-riding-dot--${score}" title="${score === 'good' ? 'Great riding day' : score === 'fair' ? 'Manageable' : 'Tough conditions'}"></div>
+        ${precipHTML}
+        <div class="wx-score-badge wx-score-badge--${score}">${scoreLabel[score]}</div>
       </div>`;
   }).join('');
 
@@ -1528,12 +1553,13 @@ async function renderWeatherPage() {
   } catch (_) {}
 
   if (!data) {
+    const wxModel = localStorage.getItem('icu_wx_model') || 'best_match';
     const url = `https://api.open-meteo.com/v1/forecast` +
       `?latitude=${lat.toFixed(4)}&longitude=${lng.toFixed(4)}` +
       `&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,windspeed_10m_max,winddirection_10m_dominant,uv_index_max,sunrise,sunset` +
       `&hourly=temperature_2m,precipitation_probability,weathercode,windspeed_10m` +
       `&timezone=auto&forecast_days=7` +
-      `&temperature_unit=${tUnit}&wind_speed_unit=${wUnit}`;
+      `&temperature_unit=${tUnit}&wind_speed_unit=${wUnit}&models=${wxModel}`;
     try {
       const res = await fetch(url);
       if (res.ok) {
@@ -1695,7 +1721,7 @@ async function renderWeatherPage() {
           </div>
           <div class="wxp-day-icon-row">
             <div class="wxp-day-icon">${wmoIcon(codes[i])}</div>
-            <div class="wxp-score-badge wxp-score--${label}">${label === 'great' ? '🚴 Great' : label === 'good' ? '👍 Good' : label === 'fair' ? '⚠️ Fair' : '✗ Poor'}</div>
+            <div class="wxp-score-badge wxp-score--${label}" title="WMO code: ${codes[i]}">${label === 'great' ? '🚴 Great' : label === 'good' ? '👍 Good' : label === 'fair' ? '⚠️ Fair' : '✗ Poor'}</div>
           </div>
         </div>
         <div class="wxp-day-conditions">
@@ -1780,6 +1806,7 @@ async function renderWeatherPage() {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 2a7 7 0 0 1 7 7c0 5.25-7 13-7 13S5 14.25 5 9a7 7 0 0 1 7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
       <span>${locationLabel}</span>
       <button class="wxp-change-loc btn btn-ghost btn-sm" onclick="navigate('settings')">Change</button>
+      <button class="wxp-refresh-btn btn btn-ghost btn-sm" onclick="refreshWeatherPage()" title="Force refresh weather data">↺ Refresh</button>
     </div>
 
     <!-- Today's ride window -->
@@ -1815,6 +1842,34 @@ async function renderWeatherPage() {
     <!-- Full weekly breakdown -->
     <div class="wxp-section-title">This week</div>
     <div class="wxp-week-scroll">${weekCards}</div>
+
+    <!-- Data source footer -->
+    <div class="wxp-data-source">
+      <div class="wxp-ds-row">
+        <span class="wxp-ds-label">Data source</span>
+        <a class="wxp-ds-link" href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a>
+        <span class="wxp-ds-sep">·</span>
+        <span class="wxp-ds-label">Model</span>
+        <span class="wxp-ds-val">${localStorage.getItem('icu_wx_model') || 'best_match'}</span>
+      </div>
+      <div class="wxp-ds-row">
+        <span class="wxp-ds-label">Endpoint</span>
+        <code class="wxp-ds-endpoint">api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&amp;longitude=${lng.toFixed(4)}&amp;daily=weathercode,…&amp;hourly=weathercode,…&amp;forecast_days=7&amp;timezone=auto&amp;models=${localStorage.getItem('icu_wx_model') || 'best_match'}</code>
+      </div>
+      <div class="wxp-ds-row">
+        <span class="wxp-ds-label">Coordinates</span>
+        <span class="wxp-ds-val">${lat.toFixed(4)}° N, ${lng.toFixed(4)}° E</span>
+        <span class="wxp-ds-sep">·</span>
+        <span class="wxp-ds-label">Cache</span>
+        <span class="wxp-ds-val">30 min (cleared on refresh)</span>
+      </div>
+      <div class="wxp-ds-row">
+        <span class="wxp-ds-label">Weather codes</span>
+        <a class="wxp-ds-link" href="https://open-meteo.com/en/docs#weathervariables" target="_blank" rel="noopener">WMO 4677 standard</a>
+        <span class="wxp-ds-sep">·</span>
+        <span class="wxp-ds-label">Hover score badges to see raw code per day</span>
+      </div>
+    </div>
   `;
 
   // Attach drag-to-scroll on the week rail (desktop mouse drag)
@@ -1848,6 +1903,14 @@ async function renderWeatherPage() {
       rail.scrollLeft = scrollLeft - (x - startX);
     }, { passive: true });
   }
+}
+
+function refreshWeatherPage() {
+  localStorage.removeItem('icu_wx_page');
+  localStorage.removeItem('icu_wx_page_ts');
+  localStorage.removeItem('icu_wx_forecast');
+  localStorage.removeItem('icu_wx_forecast_ts');
+  renderWeatherPage();
 }
 
 /* ====================================================
@@ -4217,6 +4280,361 @@ function setLoading(show, text = 'Loading…') {
   document.getElementById('loadingOverlay').classList.toggle('active', show);
 }
 
+/* ====================================================
+   ZONES PAGE
+==================================================== */
+const HR_ZONE_HEX  = ['#60a5fa','#34d399','#86efac','#fbbf24','#f97316','#f87171','#e879f9'];
+
+function setZnpRange(days) {
+  state.znpRangeDays = days;
+  document.querySelectorAll('#znpRangeTabs .znp-tab').forEach(b =>
+    b.classList.toggle('active', +b.dataset.days === days)
+  );
+  renderZonesPage();
+}
+
+function renderZonesPage() {
+  if (!state.synced) return;
+  const days      = state.znpRangeDays || 90;
+  const now       = Date.now();
+  const cutoff    = now - days * 86400000;
+  const prevCutoff= now - days * 2 * 86400000;
+
+  const recent = state.activities.filter(a =>
+    new Date(a.start_date_local || a.start_date).getTime() >= cutoff
+  );
+  const prev = state.activities.filter(a => {
+    const t = new Date(a.start_date_local || a.start_date).getTime();
+    return t >= prevCutoff && t < cutoff;
+  });
+
+  renderZnpKPIs(recent, prev);
+  renderZnpHRZones(recent, prev, days);
+  renderZnpPwrZones(recent, prev, days);
+  renderZnpDecoupleChart();
+  renderZnpInsights(recent, prev);
+}
+
+// Sum icu_hr_zone_times (plain number array) across activities
+function znpSumHRZones(activities) {
+  const n = 7, totals = new Array(n).fill(0);
+  activities.forEach(a => {
+    const zt = a.icu_hr_zone_times;
+    if (!Array.isArray(zt)) return;
+    zt.forEach((z, i) => {
+      if (i < n) totals[i] += typeof z === 'number' ? z : (z?.secs || 0);
+    });
+  });
+  return totals;
+}
+
+// Sum icu_zone_times [{id:'Z1',secs:…}] across activities
+function znpSumPwrZones(activities) {
+  const totals = new Array(6).fill(0);
+  activities.forEach(a => {
+    const zt = a.icu_zone_times;
+    if (!Array.isArray(zt)) return;
+    zt.forEach(z => {
+      if (!z?.id) return;
+      const m = z.id.match(/^Z(\d)$/);
+      if (!m) return;
+      const idx = +m[1] - 1;
+      if (idx >= 0 && idx < 6) totals[idx] += (z.secs || 0);
+    });
+  });
+  return totals;
+}
+
+function renderZnpKPIs(recent, prev) {
+  const row = document.getElementById('znpKpiRow');
+  if (!row) return;
+
+  // Aerobic decoupling avg
+  const dcR = recent.filter(a => a.icu_aerobic_decoupling != null).map(a => a.icu_aerobic_decoupling);
+  const dcP = prev  .filter(a => a.icu_aerobic_decoupling != null).map(a => a.icu_aerobic_decoupling);
+  const dcAvg  = dcR.length ? +(dcR.reduce((s,v)=>s+v,0)/dcR.length).toFixed(1) : null;
+  const dcPAvg = dcP.length ? +(dcP.reduce((s,v)=>s+v,0)/dcP.length).toFixed(1) : null;
+  const dcColor = v => Math.abs(v) < 5 ? 'var(--accent)' : Math.abs(v) < 8 ? 'var(--yellow)' : 'var(--red)';
+  const dcTrend = (dcAvg != null && dcPAvg != null)
+    ? (dcAvg < dcPAvg - 0.5 ? `↓ ${(dcPAvg - dcAvg).toFixed(1)}% better` : dcAvg > dcPAvg + 0.5 ? `↑ ${(dcAvg - dcPAvg).toFixed(1)}% worse` : '→ stable')
+    : (dcR.length ? 'avg HR drift' : 'No data');
+  const dcTrendColor = (dcAvg != null && dcPAvg != null)
+    ? (dcAvg < dcPAvg - 0.5 ? 'var(--accent)' : dcAvg > dcPAvg + 0.5 ? 'var(--red)' : 'var(--text-muted)')
+    : 'var(--text-muted)';
+
+  // Z2 HR aerobic base %
+  const hrT    = znpSumHRZones(recent);
+  const hrPT   = znpSumHRZones(prev);
+  const hrTot  = hrT.reduce((s,v)=>s+v,0);
+  const hrPTot = hrPT.reduce((s,v)=>s+v,0);
+  const z2Pct  = hrTot  > 0 ? Math.round(hrT[1]  / hrTot  * 100) : null;
+  const z2PPct = hrPTot > 0 ? Math.round(hrPT[1] / hrPTot * 100) : null;
+  const z2Color = z2Pct == null ? 'var(--text-muted)' : z2Pct >= 45 ? 'var(--accent)' : z2Pct >= 28 ? 'var(--yellow)' : 'var(--red)';
+  const z2Delta = (z2Pct != null && z2PPct != null) ? z2Pct - z2PPct : null;
+  const z2Trend = z2Delta != null
+    ? (z2Delta > 2 ? `↑ +${z2Delta}% vs prev` : z2Delta < -2 ? `↓ ${z2Delta}% vs prev` : '→ stable vs prev')
+    : (z2Pct != null ? 'of HR time in Z2' : 'No HR data');
+  const z2TrendColor = z2Delta != null
+    ? (z2Delta > 2 ? 'var(--accent)' : z2Delta < -2 ? 'var(--red)' : 'var(--text-muted)')
+    : 'var(--text-muted)';
+
+  // Training style
+  const pwrT   = znpSumPwrZones(recent);
+  const pwrTot = pwrT.reduce((s,v)=>s+v,0);
+  let style = 'Unknown', styleColor = 'var(--text-muted)', styleDesc = 'Not enough power data';
+  if (pwrTot > 0) {
+    const z12 = (pwrT[0]+pwrT[1])/pwrTot;
+    const z34 = (pwrT[2]+pwrT[3])/pwrTot;
+    const z56 = (pwrT[4]+pwrT[5])/pwrTot;
+    if (z12 >= 0.65 && z56 >= 0.10)  { style='Polarized';  styleColor='var(--accent)'; styleDesc='Easy base + hard top-end efforts'; }
+    else if (z34 >= 0.40)             { style='Sweet-spot'; styleColor='var(--yellow)'; styleDesc='Threshold-focused training'; }
+    else if (z12 >= 0.60)             { style='Pyramidal';  styleColor='var(--blue)';   styleDesc='Broad aerobic base'; }
+    else                              { style='Mixed';       styleColor='var(--orange)'; styleDesc='Varied intensity'; }
+  }
+
+  row.innerHTML = [
+    { label:'Aerobic Decoupling', value: dcAvg!=null ? dcAvg+'%' : '—', color: dcAvg!=null ? dcColor(dcAvg) : 'var(--text-muted)', trend:dcTrend, trendColor:dcTrendColor },
+    { label:'Z2 Aerobic Base',    value: z2Pct!=null ? z2Pct+'%' : '—', color: z2Color,                                             trend:z2Trend, trendColor:z2TrendColor },
+    { label:'Training Style',     value: style,                           color: styleColor,                                         trend:styleDesc, trendColor:'var(--text-muted)' },
+  ].map(k => `
+    <div class="znp-kpi-card">
+      <div class="znp-kpi-label">${k.label}</div>
+      <div class="znp-kpi-value" style="color:${k.color}">${k.value}</div>
+      <div class="znp-kpi-sub" style="color:${k.trendColor}">${k.trend}</div>
+    </div>`).join('');
+
+  row.querySelectorAll('.znp-kpi-card').forEach(el => {
+    if (!el.dataset.glow) { el.dataset.glow = '1'; window.attachCardGlow?.(el); }
+  });
+}
+
+function znpZoneRows(totals, names, hexes, totalSecs, prevTotals) {
+  const prevTotal = prevTotals ? prevTotals.reduce((s,v)=>s+v,0) : 0;
+  const rows = totals.map((secs, i) => {
+    if (secs === 0) return '';
+    const pct     = Math.round(totalSecs > 0 ? secs / totalSecs * 100 : 0);
+    const prevPct = prevTotal > 0 ? prevTotals[i] / prevTotal * 100 : null;
+    const delta   = prevPct != null ? pct - prevPct : null;
+    const color   = hexes[i] || '#888';
+    const deltaHtml = (delta != null && Math.abs(delta) >= 1)
+      ? `<span class="znp-zone-delta" style="color:${delta > 0 ? color : 'var(--text-muted)'}">${delta > 0 ? '+' : ''}${delta.toFixed(0)}%</span>`
+      : '';
+    return `<div class="zone-row">
+      <span class="zone-tag" style="color:${color}">Z${i+1}</span>
+      <span class="zone-row-name">${names[i]}</span>
+      <div class="zone-bar-track">
+        <div class="zone-bar-fill" style="width:${pct}%;background:${color}"></div>
+      </div>
+      <span class="zone-pct" style="color:${color}">${pct}%</span>
+      <span class="zone-time">${fmtDur(secs)}</span>
+      ${deltaHtml}
+    </div>`;
+  }).join('');
+  return `<div class="zone-list">${rows}</div>`;
+}
+
+function znpBalanceBar(totals, hexes) {
+  const total = totals.reduce((s,v)=>s+v,0);
+  if (!total) return '';
+  const segs = totals.map((t,i) => {
+    const p = t / total * 100;
+    return p > 0.5 ? `<div class="zone-balance-seg" style="flex:${p};background:${hexes[i]}"></div>` : '';
+  }).join('');
+  return `<div class="zone-balance-section">
+    <div class="zone-balance-label">Zone Balance</div>
+    <div class="zone-balance-bar">${segs}</div>
+  </div>`;
+}
+
+function renderZnpHRZones(recent, prev, days) {
+  const totals     = znpSumHRZones(recent);
+  const prevTotals = znpSumHRZones(prev);
+  const totalSecs  = totals.reduce((s,v)=>s+v,0);
+  const bodyEl     = document.getElementById('znpHRZoneBody');
+  const badgeEl    = document.getElementById('znpHRZoneBadge');
+  const balEl      = document.getElementById('znpHRZoneBalance');
+  const subEl      = document.getElementById('znpHRZoneSub');
+  if (!bodyEl) return;
+
+  if (subEl) subEl.textContent = `Time in HR zone · last ${days} days`;
+
+  if (totalSecs === 0) {
+    bodyEl.innerHTML = '<div class="znp-empty">No HR zone data in this period</div>';
+    if (badgeEl) badgeEl.textContent = '';
+    if (balEl)   balEl.innerHTML = '';
+    return;
+  }
+  if (badgeEl) badgeEl.textContent = fmtDur(totalSecs) + ' total';
+  bodyEl.innerHTML  = znpZoneRows(totals, HR_ZONE_NAMES, HR_ZONE_HEX, totalSecs, prevTotals);
+  if (balEl) balEl.innerHTML = znpBalanceBar(totals, HR_ZONE_HEX);
+}
+
+function renderZnpPwrZones(recent, prev, days) {
+  const totals     = znpSumPwrZones(recent);
+  const prevTotals = znpSumPwrZones(prev);
+  const totalSecs  = totals.reduce((s,v)=>s+v,0);
+  const bodyEl     = document.getElementById('znpPwrZoneBody');
+  const badgeEl    = document.getElementById('znpPwrZoneBadge');
+  const balEl      = document.getElementById('znpPwrZoneBalance');
+  const subEl      = document.getElementById('znpPwrZoneSub');
+  if (!bodyEl) return;
+
+  if (subEl) subEl.textContent = `Time in power zone · last ${days} days`;
+
+  if (totalSecs === 0) {
+    bodyEl.innerHTML = '<div class="znp-empty">No power zone data in this period</div>';
+    if (badgeEl) badgeEl.textContent = '';
+    if (balEl)   balEl.innerHTML = '';
+    return;
+  }
+  if (badgeEl) badgeEl.textContent = fmtDur(totalSecs) + ' total';
+  bodyEl.innerHTML  = znpZoneRows(totals, ZONE_NAMES, ZONE_HEX, totalSecs, prevTotals);
+  if (balEl) balEl.innerHTML = znpBalanceBar(totals, ZONE_HEX);
+}
+
+function renderZnpDecoupleChart() {
+  const subEl    = document.getElementById('znpDecoupleSub');
+  const badgeEl  = document.getElementById('znpDecoupleAvgBadge');
+
+  const acts = state.activities
+    .filter(a => a.icu_aerobic_decoupling != null)
+    .sort((a,b) => new Date(a.start_date_local||a.start_date) - new Date(b.start_date_local||b.start_date))
+    .slice(-60);
+
+  if (acts.length < 3) {
+    if (subEl)   subEl.textContent   = 'Not enough data yet — sync more rides';
+    if (badgeEl) badgeEl.textContent = '';
+    return;
+  }
+
+  const labels   = acts.map(a => {
+    const d = new Date(a.start_date_local || a.start_date);
+    return d.toLocaleDateString('en-US', { month:'short', day:'numeric' });
+  });
+  const values   = acts.map(a => +a.icu_aerobic_decoupling.toFixed(1));
+  const ptColors = values.map(v => Math.abs(v)<5 ? '#00e5a0' : Math.abs(v)<8 ? '#fbbf24' : '#f87171');
+  const avg      = +(values.reduce((s,v)=>s+v,0)/values.length).toFixed(1);
+
+  if (subEl)   subEl.textContent   = `HR drift vs power · last ${acts.length} rides`;
+  if (badgeEl) badgeEl.textContent = `avg ${avg}%`;
+
+  if (state._znpDecoupleChart) { state._znpDecoupleChart.destroy(); state._znpDecoupleChart = null; }
+  const ctx = document.getElementById('znpDecoupleChart')?.getContext('2d');
+  if (!ctx) return;
+
+  state._znpDecoupleChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        borderColor: '#60a5fa',
+        borderWidth: 2,
+        pointBackgroundColor: ptColors,
+        pointBorderColor:     ptColors,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        tension: 0.35,
+        fill: false,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          ...C_TOOLTIP,
+          callbacks: {
+            title:       ctx  => ctx[0].label,
+            label:       ctx  => `Decoupling: ${ctx.raw}%`,
+            afterLabel:  ctx  => Math.abs(ctx.raw)<5 ? '✓ Aerobically fit' : Math.abs(ctx.raw)<8 ? '⚠ Acceptable' : '✗ Needs base work',
+          }
+        }
+      },
+      scales: {
+        x: { grid: C_GRID, ticks: { ...C_TICK, maxRotation:0, maxTicksLimit:8, autoSkip:true } },
+        y: {
+          grid: C_GRID,
+          ticks: { ...C_TICK, callback: v => v+'%' },
+          suggestedMin: -2,
+          suggestedMax: 15,
+        }
+      }
+    }
+  });
+}
+
+function renderZnpInsights(recent, prev) {
+  const row = document.getElementById('znpInsightsRow');
+  if (!row) return;
+
+  const pwrT   = znpSumPwrZones(recent);
+  const pwrTot = pwrT.reduce((s,v)=>s+v,0);
+  const hrT    = znpSumHRZones(recent);
+  const hrTot  = hrT.reduce((s,v)=>s+v,0);
+
+  const dcVals = recent.filter(a=>a.icu_aerobic_decoupling!=null).map(a=>a.icu_aerobic_decoupling);
+  const dcAvg  = dcVals.length ? dcVals.reduce((s,v)=>s+v,0)/dcVals.length : null;
+  const z2hrPct  = hrTot  > 0 ? hrT[1]  / hrTot  * 100 : null;
+  const z3pwrPct = pwrTot > 0 ? pwrT[2] / pwrTot * 100 : null;
+  const z12pct   = pwrTot > 0 ? (pwrT[0]+pwrT[1]) / pwrTot * 100 : null;
+  const z56pct   = pwrTot > 0 ? (pwrT[4]+pwrT[5]) / pwrTot * 100 : null;
+
+  const insights = [];
+
+  if (dcAvg != null && dcAvg > 8) {
+    insights.push({ type:'warning', icon:'🫀', title:'Aerobic base needs work',
+      body:`Your average aerobic decoupling is ${dcAvg.toFixed(1)}% — above the 8% warning threshold. Your heart rate is drifting significantly relative to your power output, a sign that your aerobic engine can't sustain effort without recruiting more cardiovascular stress.`,
+      tip:'Add 2–3 long Z2 rides per week at 60–70% max HR for 60–90 min each. This is the highest-ROI training change you can make.' });
+  } else if (dcAvg != null && dcAvg < 5) {
+    insights.push({ type:'good', icon:'✅', title:'Strong aerobic efficiency',
+      body:`Your decoupling averages ${dcAvg.toFixed(1)}% — well under the 5% target. Your heart rate tracks your power output closely throughout rides, which is a hallmark of strong aerobic conditioning and fat metabolism.`,
+      tip:'Maintain this with consistent volume. You can handle more intensity or duration without aerobic breakdown.' });
+  }
+
+  if (z3pwrPct != null && z3pwrPct > 30) {
+    insights.push({ type:'warning', icon:'⚠️', title:'Too much grey zone (Z3 Tempo)',
+      body:`${Math.round(z3pwrPct)}% of your power training is in Z3 — the "grey zone" that's too hard to fully recover from, yet too easy to drive strong VO₂max or threshold adaptations. It accumulates fatigue without maximising fitness gains.`,
+      tip:'Shift Z3 time either down to Z2 endurance or up to Z4–Z5 intervals. Polarize your training.' });
+  }
+
+  if (z2hrPct != null && z2hrPct < 25 && hrTot > 3600) {
+    insights.push({ type:'warning', icon:'📉', title:'Low aerobic base volume',
+      body:`Only ${Math.round(z2hrPct)}% of your heart rate time is in Z2 Aerobic Base. Most coaches recommend 60–80% of all training at easy aerobic effort. Base volume is the foundation that makes all other training work better.`,
+      tip:'Replace some moderate-effort rides with genuinely easy endurance rides — conversational pace, nasal breathing.' });
+  }
+
+  if (z12pct != null && z56pct != null && z12pct >= 65 && z56pct >= 10) {
+    insights.push({ type:'good', icon:'🎯', title:'Polarized training pattern',
+      body:`${Math.round(z12pct)}% easy + ${Math.round(z56pct)}% hard. This polarized distribution matches what research shows delivers optimal long-term adaptations — it's the approach used by most elite endurance athletes and coaches.`,
+      tip:'Keep it up. Critically, make sure easy days stay genuinely easy — resist the urge to push.' });
+  }
+
+  if (z56pct != null && z56pct < 5 && pwrTot > 7200) {
+    insights.push({ type:'neutral', icon:'💡', title:'Consider adding high-intensity work',
+      body:`Less than 5% of your training is in Z5–Z6. While aerobic base is essential, periodic hard efforts drive VO₂max improvements and neuromuscular adaptations that easy rides cannot provide.`,
+      tip:'Add one interval session per week — try 4×5 min at VO₂max power with equal rest, or hill sprints.' });
+  }
+
+  if (!insights.length) {
+    insights.push({ type:'neutral', icon:'📊', title:'Keep training consistently',
+      body:'Sync more activities to see personalised insights here. The more data synced, the more accurate the zone and progression analysis becomes.',
+      tip:'Make sure your power meter or HR monitor is recording on every ride.' });
+  }
+
+  const cls = { warning:'znp-insight--warning', good:'znp-insight--good', neutral:'' };
+  row.innerHTML = insights.map(ins => `
+    <div class="znp-insight ${cls[ins.type]||''}">
+      <div class="znp-insight-icon">${ins.icon}</div>
+      <div class="znp-insight-body">
+        <div class="znp-insight-title">${ins.title}</div>
+        <div class="znp-insight-text">${ins.body}</div>
+        <div class="znp-insight-tip">💡 ${ins.tip}</div>
+      </div>
+    </div>`).join('');
+}
+
 function showToast(msg, type = 'success') {
   const ICONS = {
     success: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`,
@@ -4520,7 +4938,7 @@ function renderCalendar() {
       .filter(v => v > 0);
     const avgHR = hrVals.length > 0 ? Math.round(hrVals.reduce((s, v) => s + v, 0) / hrVals.length) : 0;
     const hrHtml = avgHR > 0
-      ? `<div class="cal-day-hr"><svg viewBox="0 0 16 14" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M8 13.1L1.4 6.6C0.5 5.7 0 4.5 0 3.3 0 1.5 1.5 0 3.3 0c1 0 2 .5 2.7 1.2L8 3.5l2-2.3C10.7.5 11.7 0 12.7 0 14.5 0 16 1.5 16 3.3c0 1.2-.5 2.4-1.4 3.3L8 13.1z"/></svg>${avgHR}</div>`
+      ? `<div class="cal-day-hr${!thisMonth ? ' cal-day-hr--muted' : ''}"><svg viewBox="0 0 16 14" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M8 13.1L1.4 6.6C0.5 5.7 0 4.5 0 3.3 0 1.5 1.5 0 3.3 0c1 0 2 .5 2.7 1.2L8 3.5l2-2.3C10.7.5 11.7 0 12.7 0 14.5 0 16 1.5 16 3.3c0 1.2-.5 2.4-1.4 3.3L8 13.1z"/></svg>${avgHR}</div>`
       : '';
 
     return `<div class="${cls}" data-date="${dateStr}" onclick="selectCalDay('${dateStr}')">
@@ -4793,16 +5211,12 @@ async function navigateToActivity(actKey, fromStep = false) {
 
     // Supplementary cards — each shows/hides itself based on data availability
     renderDetailPerformance(richActivity, actId, normStreams);
+    renderDetailDecoupleChart(normStreams, richActivity);
     renderDetailZones(richActivity);
     renderDetailHRZones(richActivity);
-    // Adjust zones row: force single column when only one card is visible
-    const zonesRow = document.querySelector('.detail-zones-row');
-    if (zonesRow) {
-      const powerHidden = document.getElementById('detailZonesCard')?.style.display === 'none';
-      const hrHidden    = document.getElementById('detailHRZonesCard')?.style.display === 'none';
-      zonesRow.classList.toggle('detail-zones-row--single', powerHidden || hrHidden);
-    }
-    renderDetailHistogram(richActivity);
+    // Both zone cards always show now (with NA if no data), so the row is always two-column
+    renderDetailHistogram(richActivity, normStreams);
+    renderDetailTempChart(normStreams, richActivity);
     renderDetailCurve(actId, normStreams);   // async — shows/hides its own card
     renderDetailHRCurve(normStreams);        // async — shows/hides its own card
   } catch (err) {
@@ -4835,9 +5249,17 @@ function destroyActivityCharts() {
   state.activityCurveChart     = destroyChart(state.activityCurveChart);
   state.activityHRCurveChart   = destroyChart(state.activityHRCurveChart);
   state.activityHistogramChart = destroyChart(state.activityHistogramChart);
-  ['detailMapCard', 'detailStreamsCard', 'detailChartsRow', 'detailZonesCard', 'detailHRZonesCard', 'detailHistogramCard', 'detailCurveCard', 'detailHRCurveCard', 'detailPerfCard'].forEach(id => {
+  if (window._tempChart) { window._tempChart.destroy(); window._tempChart = null; }
+  if (state._detailDecoupleChart) { state._detailDecoupleChart.destroy(); state._detailDecoupleChart = null; }
+  ['detailMapCard', 'detailStreamsCard', 'detailChartsRow', 'detailZonesCard', 'detailHRZonesCard',
+   'detailHistogramCard', 'detailCurveCard', 'detailHRCurveCard', 'detailPerfCard',
+   'detailWeatherCard', 'detailTempCard', 'detailDecoupleCard'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.style.display = 'none';
+    if (!el) return;
+    el.style.display = 'none';
+    // Clear any injected NA overlays so they don't double-up next time
+    el.querySelectorAll('.detail-na-inject').forEach(e => e.remove());
+    el.querySelectorAll('[data-na-hidden]').forEach(e => { e.style.display = ''; delete e.dataset.naHidden; });
   });
 }
 
@@ -5126,11 +5548,11 @@ function parseFitBuffer(buffer) {
   return records.length > 0 ? records : null;
 }
 
-// Convert parsed FIT records → { time, watts, heartrate, cadence, velocity_smooth, altitude }
+// Convert parsed FIT records → { time, watts, heartrate, cadence, velocity_smooth, altitude, temp }
 function fitRecordsToStreams(records) {
   if (!records || !records.length) return null;
   const t0 = (records.find(r => r.timestamp) || {}).timestamp || 0;
-  const out = { time: [], watts: [], heartrate: [], cadence: [], velocity_smooth: [], altitude: [], latlng: [] };
+  const out = { time: [], watts: [], heartrate: [], cadence: [], velocity_smooth: [], altitude: [], temp: [], latlng: [] };
   records.forEach(r => {
     out.time.push((r.timestamp || 0) - t0);
     out.watts.push(r.power      ?? null);
@@ -5138,10 +5560,12 @@ function fitRecordsToStreams(records) {
     out.cadence.push(r.cadence  ?? null);
     out.velocity_smooth.push(r.speed ?? null);  // m/s — renderStreamCharts converts to km/h
     out.altitude.push(r.altitude ?? null);
+    out.temp.push(r.temperature ?? null);        // °C — Garmin ambient temp sensor
     out.latlng.push((r.lat != null && r.lng != null) ? [r.lat, r.lng] : null);
   });
-  // Drop latlng stream entirely if no GPS data was recorded (all nulls)
+  // Drop streams with no real data (all nulls)
   if (out.latlng.every(p => p === null)) delete out.latlng;
+  if (out.temp.every(v => v === null))   delete out.temp;
   return out;
 }
 
@@ -5825,11 +6249,12 @@ function renderActivityMap(latlng, streams) {
   const card = document.getElementById('detailMapCard');
   if (!card) return;
 
-  if (!latlng || latlng.length < 2) { card.style.display = 'none'; return; }
+  if (!latlng || latlng.length < 2) { showCardNA('detailMapCard'); return; }
 
   const pairs = latlng.filter(p => Array.isArray(p) && p[0] != null && p[1] != null);
   const valid = pairs.filter(p => Math.abs(p[0]) <= 90 && Math.abs(p[1]) <= 180);
-  if (valid.length < 2) { card.style.display = 'none'; return; }
+  if (valid.length < 2) { showCardNA('detailMapCard'); return; }
+  clearCardNA(card);
 
   // Downsample for rendering — keep full `valid` array for hover detection
   const step   = Math.max(1, Math.floor(valid.length / 600));
@@ -6191,7 +6616,7 @@ function renderStreamCharts(streams, activity) {
     });
   });
 
-  if (!datasets.length) return;
+  if (!datasets.length) { showCardNA('detailStreamsCard'); return; }
 
   const refLen = datasets[0].data.length;
   const labels = Array.from({ length: refLen }, (_, i) => {
@@ -6260,6 +6685,7 @@ function renderStreamCharts(streams, activity) {
         legend: { display: false },
         tooltip: {
           ...C_TOOLTIP,
+          filter: () => !state._streamsPanning,
           callbacks: {
             title: items => {
               const s = rawTime[items[0].dataIndex];
@@ -6277,13 +6703,36 @@ function renderStreamCharts(streams, activity) {
             },
           },
         },
+        zoom: {
+          zoom: {
+            wheel:   { enabled: true, speed: 0.1, modifierKey: 'alt' },
+            pinch:   { enabled: true },
+            mode:    'x',
+            onZoom:  () => streamsUpdateZoomState(),
+          },
+          pan: {
+            enabled: true,
+            mode:    'x',
+            onPanStart:    () => { state._streamsPanning = true;  },
+            onPanComplete: () => { state._streamsPanning = false; streamsUpdateZoomState(); },
+          },
+          limits: {
+            x: { minRange: 30 },
+          },
+        },
       },
       scales,
     },
   });
 
+  // Show hint initially, hide once user zooms
+  const hint = document.getElementById('streamsZoomHint');
+  if (hint) hint.style.opacity = '1';
+
   // Show the combined card, hide the old separate cards row
-  document.getElementById('detailStreamsCard').style.display = '';
+  const streamsCard = document.getElementById('detailStreamsCard');
+  clearCardNA(streamsCard);
+  streamsCard.style.display = '';
   document.getElementById('detailChartsRow').style.display  = 'none';
 }
 
@@ -6299,6 +6748,26 @@ function toggleStreamLayer(metric) {
   document.querySelectorAll(`.stream-toggle-btn[data-metric="${metric}"]`).forEach(btn => {
     btn.classList.toggle('active', !meta.hidden);
   });
+}
+
+function streamsZoomIn() {
+  state.activityStreamsChart?.zoom(1.5);
+  streamsUpdateZoomState();
+}
+function streamsZoomOut() {
+  state.activityStreamsChart?.zoom(0.67);
+  streamsUpdateZoomState();
+}
+function streamsResetZoom() {
+  state.activityStreamsChart?.resetZoom();
+  streamsUpdateZoomState(true);
+}
+function streamsUpdateZoomState(forceReset) {
+  const hint      = document.getElementById('streamsZoomHint');
+  const resetBtn  = document.querySelector('.streams-zoom-btn--reset');
+  const isZoomed  = !forceReset && state.activityStreamsChart?.isZoomedOrPanned?.();
+  if (hint)     hint.style.opacity     = isZoomed ? '0' : '1';
+  if (resetBtn) resetBtn.style.opacity = isZoomed ? '1' : '0.35';
 }
 
 // Ordered list of cycling activity types to try when querying power curves.
@@ -6402,6 +6871,45 @@ function renderActivityZoneCharts(activity) {
 ==================================================== */
 
 // Detailed zone table (power zones with bars + time + %)
+/* ── Detail-card "not available" helpers ─────────────────────────────────────
+   showCardNA(id)  — always shows the card, injects an NA message, hides blanks
+   clearCardNA(card) — removes the NA message and restores hidden areas
+   Call clearCardNA at the top of each successful render path.
+────────────────────────────────────────────────────────────────────────────── */
+const _NA_HTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="20" height="20" style="opacity:0.35"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16.5" r="1" fill="currentColor" stroke="none"/></svg><span>Data not available</span>`;
+
+function showCardNA(cardId) {
+  const card = document.getElementById(cardId);
+  if (!card) return;
+  // If the user prefers hidden empty cards, just hide and bail
+  if (localStorage.getItem('icu_hide_empty_cards') === 'true') {
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = '';
+  card.querySelectorAll('.detail-na-inject').forEach(e => e.remove());
+  // Hide chart/map areas so they don't leave blank whitespace below the message
+  card.querySelectorAll('.chart-wrap, .map-container, .activity-map').forEach(e => { e.dataset.naHidden = '1'; e.style.display = 'none'; });
+  const el = document.createElement('div');
+  el.className = 'detail-na-inject';
+  el.innerHTML = _NA_HTML;
+  const header = card.querySelector('.card-header');
+  if (header) header.insertAdjacentElement('afterend', el);
+  else card.appendChild(el);
+}
+
+function setHideEmptyCards(enabled) {
+  localStorage.setItem('icu_hide_empty_cards', String(enabled));
+  const toggle = document.getElementById('hideEmptyCardsToggle');
+  if (toggle) toggle.checked = enabled;
+}
+
+function clearCardNA(card) {
+  if (!card) return;
+  card.querySelectorAll('.detail-na-inject').forEach(e => e.remove());
+  card.querySelectorAll('[data-na-hidden]').forEach(e => { e.style.display = ''; delete e.dataset.naHidden; });
+}
+
 async function renderDetailPerformance(a, actId, streams) {
   const card        = document.getElementById('detailPerfCard');
   const gridEl      = document.getElementById('detailPerfGrid');
@@ -6440,13 +6948,179 @@ async function renderDetailPerformance(a, actId, streams) {
   if (trimp > 0)        metrics.push(tile(Math.round(trimp),           'TRIMP',              'Training load score','#fb923c'));
   if (maxSpd !== null)  metrics.push(tile(maxSpd.toFixed(1) + ' km/h','Max Speed',          'Peak speed this ride','#38bdf8'));
 
+  if (!metrics.length) { showCardNA('detailPerfCard'); return; }
+
+  clearCardNA(card);
   gridEl.innerHTML = metrics.join('');
   gridEl.querySelectorAll('.perf-metric').forEach(el => {
     if (!el.dataset.glow) { el.dataset.glow = '1'; window.attachCardGlow && window.attachCardGlow(el); }
   });
   document.getElementById('detailPerfSubtitle').textContent = 'Power & efficiency metrics · this ride';
+  card.style.display = '';
+}
 
-  card.style.display = metrics.length > 0 ? '' : 'none';
+function renderDetailDecoupleChart(streams, activity) {
+  const card = document.getElementById('detailDecoupleCard');
+  if (!card) return;
+
+  const watts = streams.watts || streams.power || [];
+  const hr    = streams.heartrate || streams.heart_rate || [];
+
+  // Need both streams with real data
+  const hasData = watts.length > 10 && hr.length > 10
+    && watts.some(v => v > 0) && hr.some(v => v > 0);
+
+  if (!hasData) { showCardNA('detailDecoupleCard'); return; }
+
+  // Build paired samples (skip zeros/nulls), then smooth into 60-second buckets
+  const paired = [];
+  const len = Math.min(watts.length, hr.length);
+  for (let i = 0; i < len; i++) {
+    const w = watts[i], h = hr[i];
+    if (w != null && w > 0 && h != null && h > 40) paired.push({ w, h });
+  }
+  if (paired.length < 60) { showCardNA('detailDecoupleCard'); return; }
+
+  // Rolling EF in 60-sample windows, stepped every 30 samples
+  const WINDOW = 60, STEP = 30;
+  const efSeries = [];
+  for (let i = 0; i + WINDOW <= paired.length; i += STEP) {
+    const slice = paired.slice(i, i + WINDOW);
+    const avgW = slice.reduce((s, p) => s + p.w, 0) / slice.length;
+    const avgH = slice.reduce((s, p) => s + p.h, 0) / slice.length;
+    efSeries.push(avgH > 0 ? +(avgW / avgH).toFixed(3) : null);
+  }
+
+  // Split into first half / second half for decoupling calculation
+  const mid   = Math.floor(efSeries.length / 2);
+  const half1 = efSeries.slice(0, mid).filter(v => v != null);
+  const half2 = efSeries.slice(mid).filter(v => v != null);
+  const ef1   = half1.length ? half1.reduce((s,v)=>s+v,0)/half1.length : null;
+  const ef2   = half2.length ? half2.reduce((s,v)=>s+v,0)/half2.length : null;
+  const dcPct = (ef1 && ef2) ? +((ef1 - ef2) / ef1 * 100).toFixed(1) : null;
+
+  // Colour the badge
+  const dcFromActivity = activity?.icu_aerobic_decoupling;
+  const dcDisplay = dcFromActivity != null ? dcFromActivity : dcPct;
+  const dcColor = dcDisplay == null ? 'var(--text-muted)'
+    : Math.abs(dcDisplay) < 5 ? 'var(--accent)'
+    : Math.abs(dcDisplay) < 8 ? 'var(--yellow)'
+    : 'var(--red)';
+  const dcLabel = dcDisplay == null ? '—'
+    : Math.abs(dcDisplay) < 5 ? `${dcDisplay}% · Aerobically fit`
+    : Math.abs(dcDisplay) < 8 ? `${dcDisplay}% · Acceptable`
+    : `${dcDisplay}% · Needs base work`;
+
+  const badgeEl  = document.getElementById('detailDecoupleBadge');
+  const halvesEl = document.getElementById('detailDecoupleHalves');
+  const subEl    = document.getElementById('detailDecoupleSub');
+
+  if (badgeEl)  { badgeEl.textContent = dcDisplay != null ? dcDisplay + '%' : '—'; badgeEl.style.color = dcColor; }
+  if (subEl)    subEl.textContent = 'Efficiency Factor (power ÷ HR) over time';
+  if (halvesEl && ef1 && ef2) {
+    halvesEl.innerHTML = `
+      <div class="detail-decouple-half">
+        <div class="detail-decouple-half-label">First half EF</div>
+        <div class="detail-decouple-half-val">${ef1.toFixed(2)}</div>
+      </div>
+      <div class="detail-decouple-half detail-decouple-half--arrow">
+        <div class="detail-decouple-arrow" style="color:${dcColor}">
+          ${dcDisplay != null && dcDisplay > 0 ? '↓' : '↑'}
+        </div>
+        <div class="detail-decouple-pct" style="color:${dcColor}">${dcLabel}</div>
+      </div>
+      <div class="detail-decouple-half">
+        <div class="detail-decouple-half-label">Second half EF</div>
+        <div class="detail-decouple-half-val">${ef2.toFixed(2)}</div>
+      </div>`;
+  }
+
+  // X-axis labels: minutes into ride
+  const labels = efSeries.map((_, i) => {
+    const sec = (i * STEP + WINDOW / 2);
+    const m = Math.round(sec / 60);
+    return m + 'm';
+  });
+
+  // Colour each point by position (first half green-ish, second half by EF drop)
+  const ptColors = efSeries.map((v, i) => {
+    if (v == null) return 'transparent';
+    return i < mid ? '#60a5fa' : (dcDisplay != null && Math.abs(dcDisplay) >= 8 ? '#f87171' : '#fbbf24');
+  });
+
+  if (state._detailDecoupleChart) { state._detailDecoupleChart.destroy(); state._detailDecoupleChart = null; }
+  const ctx = document.getElementById('detailDecoupleChart')?.getContext('2d');
+  if (!ctx) return;
+
+  // Midpoint vertical annotation via dataset trick
+  const midX = labels[mid] || null;
+
+  state._detailDecoupleChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'EF (W/bpm)',
+          data: efSeries,
+          borderColor: '#60a5fa',
+          borderWidth: 2,
+          pointBackgroundColor: ptColors,
+          pointBorderColor:     ptColors,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          tension: 0.4,
+          fill: {
+            target: 'origin',
+            above: 'rgba(96,165,250,0.06)',
+          },
+          segment: {
+            borderColor: ctx => ctx.p0DataIndex >= mid ? (dcDisplay != null && Math.abs(dcDisplay) >= 8 ? '#f87171' : '#fbbf24') : '#60a5fa',
+          },
+        },
+        // Midpoint divider — invisible zero-height line rendered as annotation
+        {
+          label: '',
+          data: labels.map((l, i) => i === mid ? efSeries[mid] : null),
+          borderColor: 'rgba(255,255,255,0.15)',
+          borderWidth: 1,
+          borderDash: [4, 4],
+          pointRadius: 0,
+          fill: false,
+          spanGaps: false,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          ...C_TOOLTIP,
+          callbacks: {
+            title:      c => `At ${c[0].label}`,
+            label:      c => c.datasetIndex === 0 ? `EF: ${c.raw} W/bpm` : null,
+            afterLabel: c => {
+              if (c.datasetIndex !== 0 || c.raw == null) return null;
+              return c.dataIndex < mid ? '← First half' : '← Second half';
+            },
+          }
+        }
+      },
+      scales: {
+        x: { grid: C_GRID, ticks: { ...C_TICK, maxRotation: 0, maxTicksLimit: 8, autoSkip: true } },
+        y: {
+          grid: C_GRID,
+          ticks: { ...C_TICK, callback: v => v.toFixed(1) },
+          title: { display: false },
+        }
+      }
+    }
+  });
+
+  clearCardNA(card);
+  card.style.display = '';
 }
 
 function renderDetailZones(activity) {
@@ -6454,7 +7128,7 @@ function renderDetailZones(activity) {
   if (!card) return;
 
   const zt = activity.icu_zone_times;
-  if (!Array.isArray(zt) || zt.length === 0) { card.style.display = 'none'; return; }
+  if (!Array.isArray(zt) || zt.length === 0) { showCardNA('detailZonesCard'); return; }
 
   // Build index → secs map for Z1–Z6
   const totals = new Array(6).fill(0);
@@ -6467,7 +7141,8 @@ function renderDetailZones(activity) {
     if (idx >= 0 && idx < 6) { totals[idx] += (z.secs || 0); totalSecs += (z.secs || 0); }
   });
 
-  if (totalSecs === 0) { card.style.display = 'none'; return; }
+  if (totalSecs === 0) { showCardNA('detailZonesCard'); return; }
+  clearCardNA(card);
 
   document.getElementById('detailZonesTotalBadge').textContent = fmtDur(totalSecs) + ' total';
   document.getElementById('detailZonesSubtitle').textContent   = 'Time in power zone · this ride';
@@ -6514,7 +7189,7 @@ function renderDetailHRZones(activity) {
   if (!card) return;
 
   const hzt = activity.icu_hr_zone_times;
-  if (!Array.isArray(hzt) || hzt.length === 0) { card.style.display = 'none'; return; }
+  if (!Array.isArray(hzt) || hzt.length === 0) { showCardNA('detailHRZonesCard'); return; }
 
   // Normalise to [{id,secs}] — API returns plain numbers [1783,1152,...] or objects [{id,secs}]
   const entries = hzt.map((z, i) =>
@@ -6532,7 +7207,8 @@ function renderDetailHRZones(activity) {
     if (idx >= 0 && idx < numZones) { totals[idx] += (z.secs || 0); totalSecs += (z.secs || 0); }
   });
 
-  if (totalSecs === 0) { card.style.display = 'none'; return; }
+  if (totalSecs === 0) { showCardNA('detailHRZonesCard'); return; }
+  clearCardNA(card);
 
   // Pull avg/max HR from the activity for the subtitle
   const avgHR = actVal(activity, 'average_heartrate', 'icu_average_heartrate');
@@ -6565,20 +7241,178 @@ function renderDetailHRZones(activity) {
   card.style.display = '';
 }
 
+// ── Outside temperature graph (Garmin ambient sensor) ────────────────────────
+function renderDetailTempChart(streams, activity) {
+  const card        = document.getElementById('detailTempCard');
+  const unavailable = document.getElementById('detailTempUnavailable');
+  const subtitle    = document.getElementById('detailTempSubtitle');
+  const canvas      = document.getElementById('activityTempChart');
+  if (!card || !canvas) return;
+
+  // Temperature comes as 'temp' from the intervals.icu streams API
+  // or from our FIT parser which also writes it as 'temp'
+  const rawTemp = streams.temp || streams.temperature || null;
+  const hasData = rawTemp && rawTemp.length > 0 && rawTemp.some(v => v != null);
+
+  const imperial = state.units === 'imperial';
+  const deg = imperial ? '°F' : '°C';
+
+  if (!hasData) {
+    // Show greyed-out demo card with placeholder sine-wave data
+    unavailable.style.display = 'flex';
+    canvas.style.opacity = '0.18';
+    if (subtitle) subtitle.textContent = 'Garmin sensor data';
+
+    // Generate a fake smooth wave so the card doesn't look empty
+    const demoLen  = 60;
+    const demoData = Array.from({ length: demoLen }, (_, i) =>
+      Math.round((15 + Math.sin(i / 8) * 3 + Math.sin(i / 3) * 0.8) * 10) / 10
+    );
+    const demoLabels = demoData.map((_, i) => `${i}:00`);
+
+    if (window._tempChart) { window._tempChart.destroy(); window._tempChart = null; }
+    window._tempChart = new Chart(canvas.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: demoLabels,
+        datasets: [{
+          data: demoData,
+          borderColor: '#6b7280',
+          backgroundColor: 'rgba(107,114,128,0.12)',
+          fill: true,
+          pointRadius: 0,
+          borderWidth: 1.5,
+          tension: 0.4,
+        }]
+      },
+      options: {
+        animation: false,
+        plugins: { legend: { display: false }, tooltip: { enabled: false } },
+        scales: {
+          x: { display: false },
+          y: { display: false },
+        },
+        responsive: true,
+        maintainAspectRatio: false,
+      }
+    });
+    return;
+  }
+
+  unavailable.style.display = 'none';
+  canvas.style.opacity = '1';
+
+  // Downsample to at most 400 points
+  const ds = downsampleStreams({ temp: rawTemp, time: streams.time || [] }, 400);
+  const temps = imperial
+    ? ds.temp.map(v => v != null ? Math.round((v * 9/5 + 32) * 10) / 10 : null)
+    : ds.temp;
+  const rawTime = ds.time || [];
+
+  const labels = temps.map((_, i) => {
+    const s = rawTime[i] != null ? rawTime[i] : i;
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    return h > 0 ? `${h}:${String(m).padStart(2,'0')}` : `${m}:${String(s % 60).padStart(2,'0')}`;
+  });
+
+  const valid = temps.filter(v => v != null);
+  const minT  = Math.min(...valid);
+  const maxT  = Math.max(...valid);
+  const avgT  = Math.round(valid.reduce((a, b) => a + b, 0) / valid.length * 10) / 10;
+
+  if (subtitle) subtitle.textContent = `Avg ${avgT}${deg} · Min ${minT}${deg} · Max ${maxT}${deg}`;
+
+  // Gradient fill — blue at cold end, orange-red at warm end
+  const ctx = canvas.getContext('2d');
+  const grad = ctx.createLinearGradient(0, 0, 0, 180);
+  grad.addColorStop(0,   'rgba(251,146,60,0.35)');  // warm top
+  grad.addColorStop(1,   'rgba(96,165,250,0.05)');  // cool bottom
+
+  if (window._tempChart) { window._tempChart.destroy(); window._tempChart = null; }
+  window._tempChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: `Temp (${deg})`,
+        data: temps,
+        borderColor: '#fb923c',
+        backgroundColor: grad,
+        fill: true,
+        pointRadius: 0,
+        pointHoverRadius: 5,
+        borderWidth: 2,
+        tension: 0.35,
+        spanGaps: true,
+      }]
+    },
+    options: {
+      animation: false,
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.parsed.y}${deg}`,
+          },
+          backgroundColor: 'rgba(15,20,30,0.85)',
+          titleColor: '#94a3b8',
+          bodyColor: '#f1f5f9',
+          borderColor: 'rgba(255,255,255,0.08)',
+          borderWidth: 1,
+        }
+      },
+      scales: {
+        x: {
+          grid:  C_GRID,
+          ticks: { ...C_TICK, maxTicksLimit: 7 },
+        },
+        y: {
+          position: 'left',
+          grid: C_GRID,
+          ticks: { ...C_TICK, maxTicksLimit: 5, callback: v => v + deg },
+          suggestedMin: minT - 2,
+          suggestedMax: maxT + 2,
+        }
+      }
+    }
+  });
+}
+
 // Power histogram — time (mins) at each watt bucket
-function renderDetailHistogram(activity) {
+function renderDetailHistogram(activity, streams) {
   const card = document.getElementById('detailHistogramCard');
   if (!card) return;
 
-  // power_histogram is typically [{watts: N, secs: N}, ...] in the full detail response
-  const hist = activity.power_histogram;
-  if (!Array.isArray(hist) || hist.length === 0) { card.style.display = 'none'; return; }
+  const BUCKET = 20;
+
+  // Primary source: pre-computed power_histogram from the intervals.icu detail response.
+  // Zwift and many indoor activities don't include this field even though power data
+  // exists — fall back to computing the distribution from the raw watts stream.
+  let hist = Array.isArray(activity.power_histogram) ? activity.power_histogram : null;
+
+  if (!hist || hist.length === 0) {
+    const wattsArr = streams && (streams.watts || streams.power);
+    if (Array.isArray(wattsArr) && wattsArr.some(v => v != null && v > 0)) {
+      const tempBuckets = {};
+      wattsArr.forEach(w => {
+        if (w == null || w <= 0) return;
+        const key = Math.floor(w / BUCKET) * BUCKET;
+        tempBuckets[key] = (tempBuckets[key] || 0) + 1; // 1 second per sample
+      });
+      hist = Object.entries(tempBuckets).map(([watts, secs]) => ({ watts: +watts, secs }));
+    }
+  }
+
+  if (!hist || hist.length === 0) { showCardNA('detailHistogramCard'); return; }
 
   const filtered = hist.filter(h => h && h.watts >= 0 && (h.secs || h.seconds) > 0);
-  if (filtered.length === 0) { card.style.display = 'none'; return; }
+  if (filtered.length === 0) { showCardNA('detailHistogramCard'); return; }
 
   // Group into 20 w buckets for a clean bar chart
-  const BUCKET = 20;
   const buckets = {};
   filtered.forEach(h => {
     const key = Math.floor((h.watts || 0) / BUCKET) * BUCKET;
@@ -6589,7 +7423,8 @@ function renderDetailHistogram(activity) {
     .map(([k, v]) => ({ watts: +k, mins: +(v / 60).toFixed(1) }))
     .sort((a, b) => a.watts - b.watts);
 
-  if (entries.length === 0) { card.style.display = 'none'; return; }
+  if (entries.length === 0) { showCardNA('detailHistogramCard'); return; }
+  clearCardNA(card);
   card.style.display = '';
 
   state.activityHistogramChart = destroyChart(state.activityHistogramChart);
@@ -6687,7 +7522,8 @@ async function renderDetailCurve(actId, streams) {
 
   const rawYear = await yearPromise;
 
-  if (!raw && !rawYear) { card.style.display = 'none'; return; }
+  if (!raw && !rawYear) { showCardNA('detailCurveCard'); return; }
+  clearCardNA(card);
   card.style.display = '';
 
   // Peak stat pills (from this activity only)
@@ -6856,7 +7692,8 @@ async function renderDetailHRCurve(streams) {
   const yearPromise = fetchRangeHRCurve(toDateStr(daysAgo(365)), toDateStr(new Date())).catch(() => null);
   const rawYear = await yearPromise;
 
-  if (!raw && !rawYear) { card.style.display = 'none'; return; }
+  if (!raw && !rawYear) { showCardNA('detailHRCurveCard'); return; }
+  clearCardNA(card);
   card.style.display = '';
 
   // Peak pills
@@ -7987,7 +8824,7 @@ function setMapTheme(key) {
   // expose so other parts of the app can attach glow to late-rendered elements
   window.attachCardGlow = attachGlow;
 
-  const GLOW_SEL = '.stat-card, .recent-act-card, .perf-metric, .act-pstat, .mm-cell, .wxp-day-card';
+  const GLOW_SEL = '.stat-card, .recent-act-card, .perf-metric, .act-pstat, .mm-cell, .wxp-day-card, .fit-kpi-card, .wx-day, .znp-kpi-card';
 
   function attachPress(el) {
     const press   = () => el.classList.add('is-pressed');
