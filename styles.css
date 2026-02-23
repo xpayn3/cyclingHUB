@@ -826,7 +826,6 @@ code {
     display: flex;
     gap: 14px;
     overflow-x: auto;
-    scroll-snap-type: x mandatory;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     padding-bottom: 4px; /* prevent box-shadow clipping */
@@ -838,7 +837,6 @@ code {
 /* Each card: fixed width, never shrinks */
 .recent-act-card {
     flex: 0 0 420px;
-    scroll-snap-align: start;
     overflow: hidden;
     padding: 0;                    /* no card padding — info side handles its own */
 }
@@ -2104,20 +2102,19 @@ code {
     border-color: var(--accent);
 }
 
-/* Month stats pill */
-.cal-header-stats {
+/* Month stats strip — above month grid */
+.cal-stats-strip {
     display: flex;
     align-items: stretch;
+    border-bottom: 1px solid var(--border);
     background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    overflow: hidden;
 }
 .cal-hstat {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    padding: 5px 16px;
+    flex: 1;
+    padding: 13px 16px;
     gap: 1px;
 }
 .cal-hstat-div {
@@ -2132,11 +2129,20 @@ code {
     line-height: 1.15;
 }
 .cal-hstat-label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
     font-size: var(--text-2xs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--text-muted);
+}
+.cal-hstat-label svg {
+    width: 11px;
+    height: 11px;
+    flex-shrink: 0;
+    opacity: 0.7;
 }
 
 /* ── Top section wrapper (60% of remaining space) ── */
@@ -2270,6 +2276,30 @@ code {
 .cal-dot.cal-event--swim    { background: var(--blue); }
 .cal-dot.cal-event--virtual { background: var(--purple); }
 .cal-dot.cal-event--other   { background: var(--text-muted); }
+
+/* Heart rate pill — bottom-centre of day cell, desktop only */
+.cal-day-hr {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    margin-top: auto;
+    font-size: var(--text-sm);
+    font-weight: 500;
+    font-family: var(--font-num);
+    color: var(--text-secondary);
+    line-height: 1;
+    padding-bottom: 5px;
+}
+.cal-day-hr svg {
+    width: 11px;
+    height: 11px;
+    color: #f87171;
+    flex-shrink: 0;
+}
+@media (max-width: 700px) {
+    .cal-day-hr { display: none; }
+}
 /* Mute dots on other-month days */
 .cal-day--other-month .cal-dot { opacity: 0.25; }
 
@@ -3644,8 +3674,8 @@ code {
     .stream-charts {
         grid-template-columns: 1fr;
     }
-    .cal-header-stats {
-        display: none;
+    .cal-stats-strip .cal-hstat {
+        padding: 6px 10px;
     }
     /* Tablet: keep cards but hide the name row to save space */
     .cal-day-card-name {

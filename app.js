@@ -3028,7 +3028,7 @@ function renderCalendar() {
   if (!state.calSelectedDate) state.calSelectedDate = todayStr;
 
   // ── Month stats ──
-  let totalActs = 0, totalDist = 0, totalTSS = 0, totalSecs = 0;
+  let totalActs = 0, totalDist = 0, totalTSS = 0, totalSecs = 0, totalCals = 0;
   Object.entries(actMap).forEach(([d, acts]) => {
     const [y, mo] = d.split('-').map(Number);
     if (y === year && mo === month + 1) {
@@ -3038,6 +3038,7 @@ function renderCalendar() {
         totalDist += actVal(a, 'distance', 'icu_distance');
         totalTSS  += actVal(a, 'icu_training_load', 'tss');
         totalSecs += actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time', 'icu_elapsed_time');
+        totalCals += actVal(a, 'calories', 'icu_calories') || 0;
       });
     }
   });
@@ -3047,6 +3048,7 @@ function renderCalendar() {
   setEl('calStatDist',       totalDist > 0 ? (totalDist / 1000).toFixed(0) + ' km' : '—');
   setEl('calStatTSS',        totalTSS > 0  ? Math.round(totalTSS) : '—');
   setEl('calStatTime',       totalSecs > 0 ? fmtDur(totalSecs) : '—');
+  setEl('calStatCals',       totalCals > 0 ? Math.round(totalCals).toLocaleString() + ' kcal' : '—');
 
   // ── DOW header labels (respects configured week start) ──
   const calDowNames    = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -3141,10 +3143,20 @@ function renderCalendar() {
     }, '');
     const mobileHtml = `<div class="cal-dots">${dots}</div>`;
 
+    // ── Heart rate pill (desktop only) ──
+    const hrVals = realActs
+      .map(({ a }) => actVal(a, 'average_heartrate', 'icu_average_heartrate'))
+      .filter(v => v > 0);
+    const avgHR = hrVals.length > 0 ? Math.round(hrVals.reduce((s, v) => s + v, 0) / hrVals.length) : 0;
+    const hrHtml = avgHR > 0
+      ? `<div class="cal-day-hr"><svg viewBox="0 0 16 14" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M8 13.1L1.4 6.6C0.5 5.7 0 4.5 0 3.3 0 1.5 1.5 0 3.3 0c1 0 2 .5 2.7 1.2L8 3.5l2-2.3C10.7.5 11.7 0 12.7 0 14.5 0 16 1.5 16 3.3c0 1.2-.5 2.4-1.4 3.3L8 13.1z"/></svg>${avgHR}</div>`
+      : '';
+
     return `<div class="${cls}" data-date="${dateStr}" onclick="selectCalDay('${dateStr}')">
       <div class="cal-day-num">${date.getDate()}</div>
       ${desktopHtml}
       ${mobileHtml}
+      ${hrHtml}
     </div>`;
   }).join('');
 
@@ -6288,4 +6300,198 @@ function buildFitWorkout(segments, name, ftp) {
     clearTimeout(_wrkRaf);
     _wrkRaf = setTimeout(wrkDrawChart, 80);
   });
+})();
+
+// ── Carousel mouse-drag scroll with momentum + rubber-band bounce ─────────────
+(function() {
+  function initCarouselDrag(rail) {
+    let isDragging  = false;
+    let startX      = 0;
+    let startScroll = 0;
+    let moved       = false;
+    let velX        = 0;
+    let rafId       = null;
+
+    // Rolling velocity buffer — keeps the last 100ms of pointer samples
+    // so releasing after a slow-but-still-moving drag carries proper momentum
+    const VEL_WINDOW = 160; // ms
+    let velBuf = []; // [{x, t}, ...]
+
+    const FRICTION   = 0.92;
+    const SPRING     = 0.18;
+    const OVERSCROLL = 80;
+
+    const maxScroll = () => rail.scrollWidth - rail.clientWidth;
+
+    function rubberClamp(raw) {
+      const max = maxScroll();
+      if (raw < 0)   return raw * (OVERSCROLL / (OVERSCROLL + Math.abs(raw)));
+      if (raw > max) return max + (raw - max) * (OVERSCROLL / (OVERSCROLL + (raw - max)));
+      return raw;
+    }
+
+    // Compute velocity from rolling buffer: displacement over the window period
+    function calcVel() {
+      const now = performance.now();
+      // Drop samples older than the window
+      velBuf = velBuf.filter(s => now - s.t <= VEL_WINDOW);
+      if (velBuf.length < 2) return 0;
+      const oldest = velBuf[0];
+      const newest = velBuf[velBuf.length - 1];
+      const dt = newest.t - oldest.t || 1;
+      return (oldest.x - newest.x) / dt * 16; // px per ~60fps frame
+    }
+
+    function cancelMomentum() { if (rafId) { cancelAnimationFrame(rafId); rafId = null; } }
+
+    function momentum() {
+      const max = maxScroll();
+      const cur = rail.scrollLeft;
+
+      if (cur < 0 || cur > max) {
+        const target = cur < 0 ? 0 : max;
+        const next   = cur + (target - cur) * SPRING;
+        rail.scrollLeft = Math.abs(next - target) < 0.5 ? target : next;
+        if (Math.abs(next - target) >= 0.5) rafId = requestAnimationFrame(momentum);
+        return;
+      }
+
+      velX *= FRICTION;
+      if (Math.abs(velX) < 0.3) return;
+      rail.scrollLeft += velX;
+      rafId = requestAnimationFrame(momentum);
+    }
+
+    rail.addEventListener('mousedown', e => {
+      if (e.button !== 0) return;
+      cancelMomentum();
+      isDragging  = true;
+      moved       = false;
+      startX      = e.clientX;
+      startScroll = rail.scrollLeft;
+      velBuf      = [{ x: e.clientX, t: performance.now() }];
+      velX        = 0;
+      rail.style.cursor     = 'grabbing';
+      rail.style.userSelect = 'none';
+      e.preventDefault();
+    });
+
+    window.addEventListener('mousemove', e => {
+      if (!isDragging) return;
+      const dx = e.clientX - startX;
+      if (Math.abs(dx) > 4) moved = true;
+      velBuf.push({ x: e.clientX, t: performance.now() });
+      rail.scrollLeft = rubberClamp(startScroll - dx);
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (!isDragging) return;
+      isDragging            = false;
+      rail.style.cursor     = '';
+      rail.style.userSelect = '';
+      velX  = calcVel();
+      rafId = requestAnimationFrame(momentum);
+    });
+
+    rail.addEventListener('click', e => {
+      if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; }
+    }, true);
+  }
+
+  const existing = document.getElementById('recentActScrollRail');
+  if (existing) { initCarouselDrag(existing); }
+  else {
+    const obs = new MutationObserver(() => {
+      const rail = document.getElementById('recentActScrollRail');
+      if (rail) { initCarouselDrag(rail); obs.disconnect(); }
+    });
+    obs.observe(document.body, { childList: true, subtree: true });
+  }
+})();
+
+// ── Page-level grab-to-scroll with momentum (Figma-style) ────────────────────
+(function() {
+  // Only skip elements that need their own mouse behaviour (text inputs, maps, sidebar)
+  // Buttons, links, cards etc. are fine — moved-flag suppresses accidental clicks after a drag
+  const SKIP = 'input,select,textarea,.sidebar,.map-container,.activity-map,.recent-act-scroll-rail';
+
+  let isDragging  = false;
+  let startY      = 0;
+  let startX      = 0;
+  let startScrollY = 0;
+  let startScrollX = 0;
+  let moved       = false;
+  let velY        = 0;
+  let velX        = 0;
+  let rafId       = null;
+
+  const VEL_WINDOW = 160; // ms — same as carousel
+  const FRICTION   = 0.96;
+  let velBuf = [];
+
+  function cancelMomentum() { if (rafId) { cancelAnimationFrame(rafId); rafId = null; } }
+
+  function calcVel() {
+    const now = performance.now();
+    velBuf = velBuf.filter(s => now - s.t <= VEL_WINDOW);
+    if (velBuf.length < 2) return { x: 0, y: 0 };
+    const oldest = velBuf[0];
+    const newest = velBuf[velBuf.length - 1];
+    const dt = newest.t - oldest.t || 1;
+    return {
+      x: (oldest.x - newest.x) / dt * 16,
+      y: (oldest.y - newest.y) / dt * 16,
+    };
+  }
+
+  function momentum() {
+    velY *= FRICTION;
+    velX *= FRICTION;
+    if (Math.abs(velY) < 0.3 && Math.abs(velX) < 0.3) return;
+    window.scrollBy(velX, velY);
+    rafId = requestAnimationFrame(momentum);
+  }
+
+  document.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    if (e.target.closest(SKIP)) return;
+    cancelMomentum();
+    isDragging   = true;
+    moved        = false;
+    startY       = e.clientY;
+    startX       = e.clientX;
+    startScrollY = window.scrollY;
+    startScrollX = window.scrollX;
+    velBuf       = [{ x: e.clientX, y: e.clientY, t: performance.now() }];
+    velY         = 0;
+    velX         = 0;
+    document.documentElement.style.cursor = 'grab';
+    e.preventDefault();
+  });
+
+  window.addEventListener('mousemove', e => {
+    if (!isDragging) return;
+    const dy = e.clientY - startY;
+    const dx = e.clientX - startX;
+    if (Math.abs(dy) > 4 || Math.abs(dx) > 4) {
+      moved = true;
+      document.documentElement.style.cursor = 'grabbing';
+    }
+    velBuf.push({ x: e.clientX, y: e.clientY, t: performance.now() });
+    window.scrollTo(startScrollX - dx, startScrollY - dy);
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (!isDragging) return;
+    isDragging = false;
+    document.documentElement.style.cursor = '';
+    const v = calcVel();
+    velX  = v.x;
+    velY  = v.y;
+    rafId = requestAnimationFrame(momentum);
+  });
+
+  window.addEventListener('click', e => {
+    if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; }
+  }, true);
 })();

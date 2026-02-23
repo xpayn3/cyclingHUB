@@ -1033,7 +1033,7 @@
                 <div class="page" id="page-calendar">
                     <div class="cal-shell">
 
-                        <!-- Header: navigation + month stats -->
+                        <!-- Header: navigation only -->
                         <div class="cal-header">
                             <div class="cal-header-nav">
                                 <button class="btn btn-ghost btn-icon" onclick="calPrevMonth()" title="Previous month">
@@ -1044,26 +1044,48 @@
                                 </button>
                                 <button class="cal-today-btn" onclick="calGoToday()">Today</button>
                             </div>
-                            <div class="cal-header-stats">
-                                <div class="cal-hstat">
-                                    <span class="cal-hstat-val" id="calStatActivities">—</span>
-                                    <span class="cal-hstat-label">Activities</span>
-                                </div>
-                                <div class="cal-hstat-div"></div>
-                                <div class="cal-hstat">
-                                    <span class="cal-hstat-val" id="calStatDist">—</span>
-                                    <span class="cal-hstat-label">Distance</span>
-                                </div>
-                                <div class="cal-hstat-div"></div>
-                                <div class="cal-hstat">
-                                    <span class="cal-hstat-val" id="calStatTSS">—</span>
-                                    <span class="cal-hstat-label">Load</span>
-                                </div>
-                                <div class="cal-hstat-div"></div>
-                                <div class="cal-hstat">
-                                    <span class="cal-hstat-val" id="calStatTime">—</span>
-                                    <span class="cal-hstat-label">Time</span>
-                                </div>
+                        </div>
+
+                        <!-- Month stats strip — above month grid -->
+                        <div class="cal-stats-strip">
+                            <div class="cal-hstat">
+                                <span class="cal-hstat-val" id="calStatActivities">—</span>
+                                <span class="cal-hstat-label">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                                    Activities
+                                </span>
+                            </div>
+                            <div class="cal-hstat-div"></div>
+                            <div class="cal-hstat">
+                                <span class="cal-hstat-val" id="calStatDist">—</span>
+                                <span class="cal-hstat-label">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><polyline points="8 7 3 12 8 17"/><polyline points="16 7 21 12 16 17"/></svg>
+                                    Distance
+                                </span>
+                            </div>
+                            <div class="cal-hstat-div"></div>
+                            <div class="cal-hstat">
+                                <span class="cal-hstat-val" id="calStatTime">—</span>
+                                <span class="cal-hstat-label">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                    Time
+                                </span>
+                            </div>
+                            <div class="cal-hstat-div"></div>
+                            <div class="cal-hstat">
+                                <span class="cal-hstat-val" id="calStatTSS">—</span>
+                                <span class="cal-hstat-label">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                                    Load
+                                </span>
+                            </div>
+                            <div class="cal-hstat-div"></div>
+                            <div class="cal-hstat">
+                                <span class="cal-hstat-val" id="calStatCals">—</span>
+                                <span class="cal-hstat-label">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c0 6-6 8-6 13a6 6 0 0 0 12 0c0-5-6-7-6-13z"/><path d="M12 12c0 3-2 4-2 6a2 2 0 0 0 4 0c0-2-2-3-2-6z"/></svg>
+                                    Calories
+                                </span>
                             </div>
                         </div>
 
