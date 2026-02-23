@@ -1887,7 +1887,16 @@ function renderTrainingStatus() {
       },
       layout: { padding: 0 },
       scales: {
-        x: { grid: C_NOGRID, ticks: { ...C_TICK } },
+        x: { grid: C_NOGRID, ticks: { ...C_TICK, autoSkip: false,
+          callback: function(value, index, ticks) {
+            const total = ticks.length;
+            const isLast  = index === total - 1;
+            const isFirst = index === 0;
+            const hasSpace = this.chart.width >= total * 28;
+            if (hasSpace || isFirst || isLast) return this.getLabelForValue(value);
+            return null;
+          }
+        } },
         y: { display: false },
       }
     }
@@ -6521,4 +6530,50 @@ function buildFitWorkout(segments, name, ftp) {
   window.addEventListener('click', e => {
     if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; }
   }, true);
+})();
+
+/* ====================================================
+   CARD GLOW — Apple TV–style spotlight + rim glow
+==================================================== */
+(function initCardGlow() {
+  function attachGlow(el) {
+    el.addEventListener('mousemove', e => {
+      const r = el.getBoundingClientRect();
+      const x = ((e.clientX - r.left) / r.width  * 100).toFixed(1) + '%';
+      const y = ((e.clientY - r.top)  / r.height * 100).toFixed(1) + '%';
+      el.style.setProperty('--mouse-x', x);
+      el.style.setProperty('--mouse-y', y);
+    });
+  }
+
+  const GLOW_SEL = '.stat-card, .recent-act-card, .perf-metric, .act-pstat, .mm-cell';
+
+  function attachPress(el) {
+    const press   = () => el.classList.add('is-pressed');
+    const release = () => el.classList.remove('is-pressed');
+    el.addEventListener('mousedown',   press);
+    el.addEventListener('touchstart',  press,  { passive: true });
+    el.addEventListener('mouseup',     release);
+    el.addEventListener('mouseleave',  release);
+    el.addEventListener('touchend',    release);
+    el.addEventListener('touchcancel', release);
+  }
+
+  function attachGlowAndPress(el) {
+    attachGlow(el);
+    if (el.classList.contains('recent-act-card')) attachPress(el);
+  }
+
+  // Attach to all current glow cards
+  document.querySelectorAll(GLOW_SEL).forEach(attachGlowAndPress);
+
+  // Also catch any cards rendered later (e.g. after data loads)
+  const observer = new MutationObserver(() => {
+    document.querySelectorAll(GLOW_SEL).forEach(el => {
+      if (el.dataset.glow) return;
+      el.dataset.glow = '1';
+      attachGlowAndPress(el);
+    });
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
 })();

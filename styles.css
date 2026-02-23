@@ -711,10 +711,52 @@ code {
     transition:
         border-color var(--transition),
         box-shadow var(--transition);
+    position: relative;
+    --mouse-x: 50%;
+    --mouse-y: 50%;
 }
+
+/* inner spotlight glow */
+.stat-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y),
+        rgba(255,255,255,0.055) 0%, transparent 65%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* rim glow — masked to border edge only */
+.stat-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y),
+        rgba(255,255,255,0.35) 0%, transparent 60%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 0;
+    -webkit-mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+}
+
 .stat-card:hover {
-    border-color: var(--border-active);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    border-color: transparent;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+}
+.stat-card:hover::before,
+.stat-card:hover::after {
+    opacity: 1;
 }
 .stat-card-header {
     display: flex;
@@ -847,6 +889,49 @@ code {
     flex: 0 0 420px;
     overflow: hidden;
     padding: 0;                    /* no card padding — info side handles its own */
+    position: relative;
+    transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.18s ease;
+    --mouse-x: 50%;
+    --mouse-y: 50%;
+}
+.recent-act-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y),
+        rgba(255,255,255,0.055) 0%, transparent 65%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 2;
+}
+.recent-act-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y),
+        rgba(255,255,255,0.35) 0%, transparent 60%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 2;
+    -webkit-mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+}
+.recent-act-card:hover::before,
+.recent-act-card:hover::after {
+    opacity: 1;
+}
+.recent-act-card.is-pressed {
+    transform: scale(0.95);
+    box-shadow: 0 1px 6px rgba(0,0,0,0.5), inset 0 3px 10px rgba(0,0,0,0.35);
+    transition: transform 0.08s ease, box-shadow 0.08s ease;
 }
 
 @media (max-width: 600px) {
@@ -2822,6 +2907,43 @@ code {
     flex-direction: column;
     gap: 1px;
     min-width: 0;
+    position: relative;
+    --mouse-x: 50%;
+    --mouse-y: 50%;
+}
+.mm-cell::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y),
+        rgba(255,255,255,0.07) 0%, transparent 65%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 0;
+}
+.mm-cell::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y),
+        rgba(255,255,255,0.4) 0%, transparent 60%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 0;
+    -webkit-mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+}
+.mm-cell:hover::before,
+.mm-cell:hover::after {
+    opacity: 1;
 }
 /* Time (and any other full-width cells) span both columns */
 .mm-full {
@@ -3069,9 +3191,44 @@ code {
     text-align: left;
     gap: 6px;
     transition: background var(--transition);
+    position: relative;
+    --mouse-x: 50%;
+    --mouse-y: 50%;
+}
+.act-pstat::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y),
+        rgba(255,255,255,0.055) 0%, transparent 65%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 0;
+}
+.act-pstat::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y),
+        rgba(255,255,255,0.35) 0%, transparent 60%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 0;
+    -webkit-mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
 }
 .act-pstat:hover {
     background: var(--bg-elevated);
+}
+.act-pstat:hover::before,
+.act-pstat:hover::after {
+    opacity: 1;
 }
 .act-pstat:last-child {
     border-right: none;
@@ -3338,6 +3495,43 @@ code {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    position: relative;
+    --mouse-x: 50%;
+    --mouse-y: 50%;
+}
+.perf-metric::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y),
+        rgba(255,255,255,0.055) 0%, transparent 65%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 0;
+}
+.perf-metric::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y),
+        rgba(255,255,255,0.35) 0%, transparent 60%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 0;
+    -webkit-mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+}
+.perf-metric:hover::before,
+.perf-metric:hover::after {
+    opacity: 1;
 }
 .perf-metric-val {
     font-size: 22px;
