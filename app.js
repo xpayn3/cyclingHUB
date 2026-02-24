@@ -6595,6 +6595,10 @@ async function navigateToActivity(actKey, fromStep = false) {
   if (!fromStep) state.previousPage = state.currentPage;
   state.currentPage = 'activity';
 
+  // Remove dashboard glow (not using navigate() here, so remove manually)
+  document.body.classList.remove('dashboard-glow');
+  stopGlowParticles();
+
   // Track position in the non-empty pool for prev/next navigation
   const pool = state.activities.filter(a => !isEmptyActivity(a));
   const poolIdx = pool.findIndex(a => (a.id && a.id === activity.id) || a === activity);
