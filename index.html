@@ -1993,34 +1993,29 @@
                         <!-- ── LEFT COLUMN ── -->
                         <div class="settings-col">
 
-                            <!-- Account -->
+                            <!-- CONNECTION -->
                             <div class="card">
-                                <div class="card-header">
+                                <div class="stt-section-header">
+                                    <svg class="stt-section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
                                     <div>
-                                        <div class="card-title">Account</div>
-                                        <div class="card-subtitle">Connection to intervals.icu</div>
+                                        <div class="stt-section-title">Connection</div>
+                                        <div class="stt-section-sub">intervals.icu account</div>
                                     </div>
                                     <div class="connection-status-badge disconnected" id="settingsConnectionBadge">
                                         <span id="settingsConnectionText">Not connected</span>
                                     </div>
                                 </div>
-                                <div class="settings-section">
-                                    <div class="settings-row">
-                                        <div class="settings-row-info">
-                                            <div class="settings-row-label">Athlete ID</div>
-                                            <div class="settings-row-sub">Your intervals.icu athlete ID</div>
-                                        </div>
-                                        <div class="settings-row-value" id="settingsAthleteId">—</div>
+                                <div class="stt-rows">
+                                    <div class="stt-row">
+                                        <span class="stt-row-label">Athlete ID</span>
+                                        <span class="stt-row-value" id="settingsAthleteId">—</span>
                                     </div>
-                                    <div class="settings-row">
-                                        <div class="settings-row-info">
-                                            <div class="settings-row-label">API Key</div>
-                                            <div class="settings-row-sub">Stored only in your browser — never transmitted</div>
-                                        </div>
-                                        <div class="settings-row-value" id="settingsApiKey">—</div>
+                                    <div class="stt-row">
+                                        <span class="stt-row-label">API Key</span>
+                                        <span class="stt-row-value" id="settingsApiKey">—</span>
                                     </div>
                                 </div>
-                                <div class="settings-actions">
+                                <div class="stt-actions">
                                     <button class="btn btn-primary" onclick="openModal()">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
                                         Change Credentials
@@ -2036,251 +2031,76 @@
                                 </div>
                             </div>
 
-                            <!-- Athlete Profile -->
+                            <!-- PROFILE -->
                             <div class="card">
-                                <div class="card-header">
+                                <div class="stt-section-header">
+                                    <svg class="stt-section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
                                     <div>
-                                        <div class="card-title">Athlete Profile</div>
-                                        <div class="card-subtitle">From intervals.icu</div>
+                                        <div class="stt-section-title">Athlete Profile</div>
+                                        <div class="stt-section-sub">Synced from intervals.icu</div>
                                     </div>
                                 </div>
-                                <div class="settings-section">
-                                    <!-- Profile picture row -->
-                                    <div class="settings-row settings-row--avatar">
-                                        <div class="avatar-preview-wrap">
-                                            <div class="avatar-preview" id="avatarPreview">?</div>
-                                            <button class="avatar-edit-btn" onclick="document.getElementById('avatarFileInput').click()" title="Change photo">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                                            </button>
-                                            <input type="file" id="avatarFileInput" accept="image/*" style="display:none" onchange="handleAvatarUpload(event)">
-                                        </div>
-                                        <div class="settings-row-info">
-                                            <div class="settings-row-label">Profile Photo</div>
-                                            <div class="settings-row-sub">Shown in the sidebar. Stored locally in your browser.</div>
-                                        </div>
-                                        <button class="btn btn-ghost btn-sm" id="avatarRemoveBtn" onclick="removeAvatar()" style="display:none">Remove</button>
+
+                                <!-- Avatar -->
+                                <div class="stt-avatar-row">
+                                    <div class="avatar-preview-wrap">
+                                        <div class="avatar-preview" id="avatarPreview">?</div>
+                                        <button class="avatar-edit-btn" onclick="document.getElementById('avatarFileInput').click()" title="Change photo">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                        </button>
+                                        <input type="file" id="avatarFileInput" accept="image/*" style="display:none" onchange="handleAvatarUpload(event)">
                                     </div>
-                                    <div class="settings-row">
-                                        <div class="settings-row-info">
-                                            <div class="settings-row-label">Name</div>
-                                        </div>
-                                        <div class="settings-row-value" id="settingsAthleteName">—</div>
+                                    <div class="stt-avatar-info">
+                                        <div class="stt-row-label" id="settingsAthleteName">—</div>
+                                        <div class="stt-row-sub">Profile photo stored locally in your browser</div>
                                     </div>
-                                    <div class="settings-row">
-                                        <div class="settings-row-info">
-                                            <div class="settings-row-label">FTP</div>
-                                            <div class="settings-row-sub">Functional Threshold Power</div>
-                                        </div>
-                                        <div class="settings-row-value" id="settingsFTP">—</div>
+                                    <button class="btn btn-ghost btn-sm" id="avatarRemoveBtn" onclick="removeAvatar()" style="display:none">Remove</button>
+                                </div>
+
+                                <div class="stt-rows">
+                                    <div class="stt-row">
+                                        <span class="stt-row-label">FTP</span>
+                                        <span class="stt-row-value" id="settingsFTP">—</span>
                                     </div>
-                                    <div class="settings-row">
-                                        <div class="settings-row-info">
-                                            <div class="settings-row-label">LTHR</div>
-                                            <div class="settings-row-sub">Lactate Threshold Heart Rate</div>
-                                        </div>
-                                        <div class="settings-row-value" id="settingsLTHR">—</div>
+                                    <div class="stt-row">
+                                        <span class="stt-row-label">LTHR</span>
+                                        <span class="stt-row-value" id="settingsLTHR">—</span>
                                     </div>
-                                    <div class="settings-row">
-                                        <div class="settings-row-info">
-                                            <div class="settings-row-label">Weight</div>
-                                        </div>
-                                        <div class="settings-row-value" id="settingsWeight">—</div>
+                                    <div class="stt-row">
+                                        <span class="stt-row-label">Weight</span>
+                                        <span class="stt-row-value" id="settingsWeight">—</span>
                                     </div>
-                                    <div class="settings-row">
-                                        <div class="settings-row-info">
-                                            <div class="settings-row-label">Location</div>
-                                        </div>
-                                        <div class="settings-row-value" id="settingsLocation">—</div>
+                                    <div class="stt-row">
+                                        <span class="stt-row-label">Location</span>
+                                        <span class="stt-row-value" id="settingsLocation">—</span>
                                     </div>
                                 </div>
                             </div>
 
-                        </div>
-
-                        <!-- ── RIGHT COLUMN ── -->
-                        <div class="settings-col">
-
-                            <!-- Units & Display -->
+                            <!-- DATA & SYNC -->
                             <div class="card">
-                                <div class="card-header">
+                                <div class="stt-section-header">
+                                    <svg class="stt-section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.08-8.58"/></svg>
                                     <div>
-                                        <div class="card-title">Units &amp; Display</div>
-                                        <div class="card-subtitle">How data is shown across the app</div>
+                                        <div class="stt-section-title">Data &amp; Sync</div>
+                                        <div class="stt-section-sub">Local cache status</div>
                                     </div>
                                 </div>
-                                <div class="settings-section">
-                                    <div class="settings-row">
-                                        <div class="settings-row-info">
-                                            <div class="settings-row-label">Physics Scroll</div>
-                                            <div class="settings-row-sub">Momentum-based drag scrolling throughout the app</div>
-                                        </div>
-                                        <label class="settings-ios-toggle">
-                                            <input type="checkbox" id="physicsScrollToggle" onchange="setPhysicsScroll(this.checked)">
-                                            <span class="settings-ios-slider"></span>
-                                        </label>
+                                <div class="stt-rows">
+                                    <div class="stt-row">
+                                        <span class="stt-row-label">Last synced</span>
+                                        <span class="stt-row-value" id="settingsLastSync">—</span>
                                     </div>
-                                    <div class="settings-row">
-                                        <div class="settings-row-info">
-                                            <div class="settings-row-label">Hide empty cards</div>
-                                            <div class="settings-row-sub">Activity detail cards with no data are hidden instead of showing a "not available" message</div>
-                                        </div>
-                                        <label class="settings-ios-toggle">
-                                            <input type="checkbox" id="hideEmptyCardsToggle" onchange="setHideEmptyCards(this.checked)">
-                                            <span class="settings-ios-slider"></span>
-                                        </label>
+                                    <div class="stt-row">
+                                        <span class="stt-row-label">Cached activities</span>
+                                        <span class="stt-row-value" id="settingsActivityCount">—</span>
+                                    </div>
+                                    <div class="stt-row">
+                                        <span class="stt-row-label">Cache size</span>
+                                        <span class="stt-row-value" id="settingsCacheSize">—</span>
                                     </div>
                                 </div>
-                                <div class="settings-section">
-                                    <div class="settings-row">
-                                        <div class="settings-row-info">
-                                            <div class="settings-row-label">Distance &amp; Speed</div>
-                                            <div class="settings-row-sub">Affects all distance and speed values</div>
-                                        </div>
-                                        <div class="date-range-pill">
-                                            <button data-units="metric" onclick="setUnits('metric')">km</button>
-                                            <button data-units="imperial" onclick="setUnits('imperial')">mi</button>
-                                        </div>
-                                    </div>
-                                    <div class="settings-row">
-                                        <div class="settings-row-info">
-                                            <div class="settings-row-label">Elevation</div>
-                                            <div class="settings-row-sub">Follows distance unit setting</div>
-                                        </div>
-                                        <div class="settings-row-value" id="settingsElevUnit">metres</div>
-                                    </div>
-                                    <div class="settings-row">
-                                        <div class="settings-row-info">
-                                            <div class="settings-row-label">Week starts on</div>
-                                            <div class="settings-row-sub">Affects weekly stats &amp; calendar</div>
-                                        </div>
-                                        <div class="date-range-pill">
-                                            <button data-weekstart="1" onclick="setWeekStartDay(1)" class="active">Mon</button>
-                                            <button data-weekstart="0" onclick="setWeekStartDay(0)">Sun</button>
-                                        </div>
-                                    </div>
-                                    <div class="settings-row">
-                                        <div class="settings-row-info">
-                                            <div class="settings-row-label">Default date range</div>
-                                            <div class="settings-row-sub">Dashboard &amp; activities default view</div>
-                                        </div>
-                                        <div class="date-range-pill">
-                                            <button data-defrange="7"  onclick="setRange(7)">7d</button>
-                                            <button data-defrange="14" onclick="setRange(14)">14d</button>
-                                            <button data-defrange="30" onclick="setRange(30)" class="active">30d</button>
-                                            <button data-defrange="60" onclick="setRange(60)">60d</button>
-                                            <button data-defrange="90" onclick="setRange(90)">90d</button>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="settings-section">
-                                    <div class="settings-row settings-row--block">
-                                        <div class="settings-row-info">
-                                            <div class="settings-row-label">Map Theme</div>
-                                            <div class="settings-row-sub">Style for the activity route map</div>
-                                        </div>
-                                        <div class="map-theme-picker" id="mapThemePicker">
-                                            <button class="map-theme-option" data-theme="voyager" onclick="setMapTheme('voyager')">
-                                                <span class="map-theme-swatch" style="background:linear-gradient(135deg,#f0ede4 0%,#d9d4c5 50%,#b8cca0 100%)"></span>
-                                                <span class="map-theme-label">Voyager</span>
-                                            </button>
-                                            <button class="map-theme-option" data-theme="light" onclick="setMapTheme('light')">
-                                                <span class="map-theme-swatch" style="background:linear-gradient(135deg,#f8f8f5 0%,#ebebea 50%,#d4d4cc 100%)"></span>
-                                                <span class="map-theme-label">Light</span>
-                                            </button>
-                                            <button class="map-theme-option" data-theme="dark" onclick="setMapTheme('dark')">
-                                                <span class="map-theme-swatch" style="background:linear-gradient(135deg,#2a2d35 0%,#1e2028 50%,#14151a 100%)"></span>
-                                                <span class="map-theme-label">Dark</span>
-                                            </button>
-                                            <button class="map-theme-option" data-theme="topo" onclick="setMapTheme('topo')">
-                                                <span class="map-theme-swatch" style="background:linear-gradient(135deg,#d4e8b8 0%,#c8d8a0 50%,#a8c870 100%)"></span>
-                                                <span class="map-theme-label">Topo</span>
-                                            </button>
-                                            <button class="map-theme-option" data-theme="outdoors" onclick="setMapTheme('outdoors')">
-                                                <span class="map-theme-swatch" style="background:linear-gradient(135deg,#e8f0e4 0%,#d8e8d4 50%,#b8d4b8 100%)"></span>
-                                                <span class="map-theme-label">Streets</span>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Weather Location -->
-                            <div class="card">
-                                <div class="card-header">
-                                    <div>
-                                        <div class="card-title">Weather Location</div>
-                                        <div class="card-subtitle">Used for the riding forecast on dashboard</div>
-                                    </div>
-                                </div>
-                                <div class="settings-section">
-                                    <div class="settings-row settings-row--block">
-                                        <div class="settings-row-info">
-                                            <div class="settings-row-label">City</div>
-                                            <div class="settings-row-sub">Type a city name and press Set</div>
-                                        </div>
-                                        <div class="wx-location-input-row">
-                                            <input type="text" id="wxCityInput" class="wx-city-input" placeholder="e.g. Ljubljana" autocomplete="off">
-                                            <button class="btn btn-primary btn-sm" onclick="setWeatherCity()">Set</button>
-                                        </div>
-                                        <div class="settings-row-value" id="wxCurrentLocation" style="font-size:13px;color:var(--text-secondary)">Not set</div>
-                                    </div>
-                                    <div class="settings-row settings-row--block">
-                                        <div class="settings-row-info">
-                                            <div class="settings-row-label">Forecast model</div>
-                                            <div class="settings-row-sub">Best match auto-selects the highest-res model for your location</div>
-                                        </div>
-                                        <select id="wxModelSelect" class="app-select app-select--sm" onchange="setWeatherModel(this.value)">
-                                            <option value="best_match">Best match (auto)</option>
-                                            <option value="icon_seamless">ICON — DWD (Europe)</option>
-                                            <option value="ecmwf_ifs04">ECMWF IFS (global)</option>
-                                            <option value="gfs_seamless">GFS — NOAA (global)</option>
-                                            <option value="meteofrance_seamless">Météo-France (Europe/global)</option>
-                                            <option value="gem_seamless">GEM — Canada (global)</option>
-                                            <option value="metno_seamless">MET Norway (Scandinavia)</option>
-                                            <option value="jma_seamless">JMA (Japan/Asia)</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="settings-actions">
-                                    <button class="btn btn-ghost" onclick="clearWeatherLocation()">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-                                        Clear Location
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- Data & Cache -->
-                            <div class="card">
-                                <div class="card-header">
-                                    <div>
-                                        <div class="card-title">Data &amp; Sync</div>
-                                        <div class="card-subtitle">Local cache &amp; sync status</div>
-                                    </div>
-                                </div>
-                                <div class="settings-section">
-                                    <div class="settings-row">
-                                        <div class="settings-row-info">
-                                            <div class="settings-row-label">Last synced</div>
-                                            <div class="settings-row-sub">Most recent data pull from intervals.icu</div>
-                                        </div>
-                                        <div class="settings-row-value" id="settingsLastSync">—</div>
-                                    </div>
-                                    <div class="settings-row">
-                                        <div class="settings-row-info">
-                                            <div class="settings-row-label">Cached activities</div>
-                                            <div class="settings-row-sub">Stored locally in your browser</div>
-                                        </div>
-                                        <div class="settings-row-value" id="settingsActivityCount">—</div>
-                                    </div>
-                                    <div class="settings-row">
-                                        <div class="settings-row-info">
-                                            <div class="settings-row-label">Cache size</div>
-                                            <div class="settings-row-sub">Approximate localStorage usage</div>
-                                        </div>
-                                        <div class="settings-row-value" id="settingsCacheSize">—</div>
-                                    </div>
-                                </div>
-                                <div class="settings-actions">
+                                <div class="stt-actions">
                                     <button class="btn btn-primary" onclick="syncData()">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.08-8.58"/></svg>
                                         Sync Now
@@ -2292,12 +2112,172 @@
                                 </div>
                             </div>
 
-                            <!-- About -->
+                        </div>
+
+                        <!-- ── RIGHT COLUMN ── -->
+                        <div class="settings-col">
+
+                            <!-- DISPLAY -->
                             <div class="card">
-                                <div class="card-header">
-                                    <div class="card-title">About CycleIQ</div>
+                                <div class="stt-section-header">
+                                    <svg class="stt-section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+                                    <div>
+                                        <div class="stt-section-title">Display</div>
+                                        <div class="stt-section-sub">How data is shown</div>
+                                    </div>
                                 </div>
-                                <p class="about-text">CycleIQ pulls data directly from intervals.icu using their REST API. Your API key is stored only in your browser's localStorage and is never sent anywhere except intervals.icu's own servers. No backend, no accounts — just your data.</p>
+                                <div class="stt-rows">
+                                    <div class="stt-row stt-row--toggle">
+                                        <div class="stt-row-info">
+                                            <div class="stt-row-label">Physics Scroll</div>
+                                            <div class="stt-row-sub">Momentum-based drag scrolling</div>
+                                        </div>
+                                        <label class="settings-ios-toggle">
+                                            <input type="checkbox" id="physicsScrollToggle" onchange="setPhysicsScroll(this.checked)">
+                                            <span class="settings-ios-slider"></span>
+                                        </label>
+                                    </div>
+                                    <div class="stt-row stt-row--toggle">
+                                        <div class="stt-row-info">
+                                            <div class="stt-row-label">Hide empty cards</div>
+                                            <div class="stt-row-sub">Collapse activity cards with no data</div>
+                                        </div>
+                                        <label class="settings-ios-toggle">
+                                            <input type="checkbox" id="hideEmptyCardsToggle" onchange="setHideEmptyCards(this.checked)">
+                                            <span class="settings-ios-slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- UNITS -->
+                            <div class="card">
+                                <div class="stt-section-header">
+                                    <svg class="stt-section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                                    <div>
+                                        <div class="stt-section-title">Units</div>
+                                        <div class="stt-section-sub">Measurement system &amp; calendar</div>
+                                    </div>
+                                </div>
+                                <div class="stt-rows">
+                                    <div class="stt-row stt-row--control">
+                                        <div class="stt-row-info">
+                                            <div class="stt-row-label">Distance &amp; Speed</div>
+                                            <div class="stt-row-sub">Elevation follows this setting · currently <span id="settingsElevUnit">metres</span></div>
+                                        </div>
+                                        <div class="date-range-pill">
+                                            <button data-units="metric" onclick="setUnits('metric')">km</button>
+                                            <button data-units="imperial" onclick="setUnits('imperial')">mi</button>
+                                        </div>
+                                    </div>
+                                    <div class="stt-row stt-row--control">
+                                        <div class="stt-row-info">
+                                            <div class="stt-row-label">Week starts on</div>
+                                            <div class="stt-row-sub">Affects weekly stats &amp; calendar view</div>
+                                        </div>
+                                        <div class="date-range-pill">
+                                            <button data-weekstart="1" onclick="setWeekStartDay(1)" class="active">Mon</button>
+                                            <button data-weekstart="0" onclick="setWeekStartDay(0)">Sun</button>
+                                        </div>
+                                    </div>
+                                    <div class="stt-row stt-row--control">
+                                        <div class="stt-row-info">
+                                            <div class="stt-row-label">Default date range</div>
+                                            <div class="stt-row-sub">Dashboard &amp; activities default view</div>
+                                        </div>
+                                        <div class="date-range-pill">
+                                            <button data-defrange="7"  onclick="setRange(7)">7d</button>
+                                            <button data-defrange="14" onclick="setRange(14)">14d</button>
+                                            <button data-defrange="30" onclick="setRange(30)" class="active">30d</button>
+                                            <button data-defrange="60" onclick="setRange(60)">60d</button>
+                                            <button data-defrange="90" onclick="setRange(90)">90d</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- MAP -->
+                            <div class="card">
+                                <div class="stt-section-header">
+                                    <svg class="stt-section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
+                                    <div>
+                                        <div class="stt-section-title">Map</div>
+                                        <div class="stt-section-sub">Activity route style</div>
+                                    </div>
+                                </div>
+                                <div class="map-theme-picker" id="mapThemePicker">
+                                    <button class="map-theme-option" data-theme="voyager" onclick="setMapTheme('voyager')">
+                                        <span class="map-theme-swatch" style="background:linear-gradient(135deg,#f0ede4 0%,#d9d4c5 50%,#b8cca0 100%)"></span>
+                                        <span class="map-theme-label">Voyager</span>
+                                    </button>
+                                    <button class="map-theme-option" data-theme="light" onclick="setMapTheme('light')">
+                                        <span class="map-theme-swatch" style="background:linear-gradient(135deg,#f8f8f5 0%,#ebebea 50%,#d4d4cc 100%)"></span>
+                                        <span class="map-theme-label">Light</span>
+                                    </button>
+                                    <button class="map-theme-option" data-theme="dark" onclick="setMapTheme('dark')">
+                                        <span class="map-theme-swatch" style="background:linear-gradient(135deg,#2a2d35 0%,#1e2028 50%,#14151a 100%)"></span>
+                                        <span class="map-theme-label">Dark</span>
+                                    </button>
+                                    <button class="map-theme-option" data-theme="topo" onclick="setMapTheme('topo')">
+                                        <span class="map-theme-swatch" style="background:linear-gradient(135deg,#d4e8b8 0%,#c8d8a0 50%,#a8c870 100%)"></span>
+                                        <span class="map-theme-label">Topo</span>
+                                    </button>
+                                    <button class="map-theme-option" data-theme="outdoors" onclick="setMapTheme('outdoors')">
+                                        <span class="map-theme-swatch" style="background:linear-gradient(135deg,#e8f0e4 0%,#d8e8d4 50%,#b8d4b8 100%)"></span>
+                                        <span class="map-theme-label">Streets</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- WEATHER -->
+                            <div class="card">
+                                <div class="stt-section-header">
+                                    <svg class="stt-section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9z"/></svg>
+                                    <div>
+                                        <div class="stt-section-title">Weather</div>
+                                        <div class="stt-section-sub">Riding forecast on dashboard</div>
+                                    </div>
+                                </div>
+                                <div class="stt-rows">
+                                    <div class="stt-row stt-row--control">
+                                        <div class="stt-row-info">
+                                            <div class="stt-row-label">City</div>
+                                            <div class="stt-row-sub" id="wxCurrentLocation">Not set</div>
+                                        </div>
+                                        <div class="wx-location-input-row">
+                                            <input type="text" id="wxCityInput" class="wx-city-input" placeholder="e.g. Ljubljana" autocomplete="off">
+                                            <button class="btn btn-primary btn-sm" onclick="setWeatherCity()">Set</button>
+                                        </div>
+                                    </div>
+                                    <div class="stt-row stt-row--control">
+                                        <div class="stt-row-info">
+                                            <div class="stt-row-label">Forecast model</div>
+                                            <div class="stt-row-sub">Best match auto-selects highest-res for your region</div>
+                                        </div>
+                                        <select id="wxModelSelect" class="app-select app-select--sm" onchange="setWeatherModel(this.value)">
+                                            <option value="best_match">Best match (auto)</option>
+                                            <option value="icon_seamless">ICON — DWD (Europe)</option>
+                                            <option value="ecmwf_ifs04">ECMWF IFS (global)</option>
+                                            <option value="gfs_seamless">GFS — NOAA (global)</option>
+                                            <option value="meteofrance_seamless">Météo-France (Europe)</option>
+                                            <option value="gem_seamless">GEM — Canada (global)</option>
+                                            <option value="metno_seamless">MET Norway (Scandinavia)</option>
+                                            <option value="jma_seamless">JMA (Japan/Asia)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="stt-actions">
+                                    <button class="btn btn-ghost" onclick="clearWeatherLocation()">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                                        Clear Location
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- ABOUT -->
+                            <div class="stt-about">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                                CycleIQ pulls data directly from intervals.icu. Your API key is stored only in your browser and never transmitted elsewhere. No backend, no accounts — just your data.
                             </div>
 
                         </div>
