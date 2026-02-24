@@ -458,10 +458,30 @@ function getAppStorageUsage() {
       breakdown.lifetime = (breakdown.lifetime || 0) + size;
     else if (key === 'icu_fitness_cache')
       breakdown.fitness = (breakdown.fitness || 0) + size;
+    else if (key.startsWith('icu_gps_pts_'))
+      breakdown.heatmap = (breakdown.heatmap || 0) + size;
     else
       breakdown.other = (breakdown.other || 0) + size;
   }
   return { total, breakdown };
+}
+
+/* Get heatmap IndexedDB cache size */
+async function getHeatmapIDBSize() {
+  try {
+    const db = await _hmOpenDB();
+    const tx = db.transaction(HM_STORE, 'readonly');
+    const store = tx.objectStore(HM_STORE);
+    const all = await new Promise((res, rej) => {
+      const req = store.getAll();
+      req.onsuccess = () => res(req.result);
+      req.onerror   = () => rej(req.error);
+    });
+    db.close();
+    if (!all || all.length === 0) return { bytes: 0, count: 0 };
+    const bytes = new Blob([JSON.stringify(all)]).size;
+    return { bytes, count: all.length };
+  } catch (_) { return { bytes: 0, count: 0 }; }
 }
 
 function fmtBytes(b) {
@@ -475,21 +495,32 @@ function canStoreBytes(newBytes) {
   return (total + newBytes) <= STORAGE_LIMIT;
 }
 
-function updateStorageBar() {
+async function updateStorageBar() {
   const bar    = document.getElementById('storageBarTrack');
   const label  = document.getElementById('storageBarLabel');
   const legend = document.getElementById('storageBarLegend');
   if (!bar) return;
 
-  const { total, breakdown } = getAppStorageUsage();
-  const pct = (v) => Math.max(0, Math.min(100, (v / STORAGE_LIMIT) * 100));
+  const { total: lsTotal, breakdown } = getAppStorageUsage();
+
+  // Get heatmap IndexedDB size (async)
+  let hmIDB = { bytes: 0, count: 0 };
+  try { hmIDB = await getHeatmapIDBSize(); } catch (_) {}
+
+  // Combine heatmap: localStorage GPS points + IndexedDB route cache
+  breakdown.heatmap = (breakdown.heatmap || 0) + hmIDB.bytes;
+  const total = lsTotal + hmIDB.bytes;
+  const limit = STORAGE_LIMIT + hmIDB.bytes; // IDB doesn't count against localStorage limit
+
+  const pct = (v) => Math.max(0, Math.min(100, (v / Math.max(total, STORAGE_LIMIT)) * 100));
 
   // build segments
   const segs = [
-    { key: 'activities', color: 'var(--accent)',  label: 'Activities' },
-    { key: 'lifetime',   color: '#6366f1',        label: 'Lifetime' },
-    { key: 'fitness',    color: '#10b981',         label: 'Fitness' },
-    { key: 'other',      color: 'var(--text-muted)', label: 'Other' },
+    { key: 'activities', color: 'var(--accent)',     label: 'Activities' },
+    { key: 'lifetime',   color: '#6366f1',           label: 'Lifetime' },
+    { key: 'fitness',    color: '#10b981',            label: 'Fitness' },
+    { key: 'heatmap',    color: '#f59e0b',            label: 'Heat Map' },
+    { key: 'other',      color: 'var(--text-muted)',  label: 'Other' },
   ];
 
   bar.innerHTML = segs.map(s => {
@@ -497,7 +528,7 @@ function updateStorageBar() {
     return w > 0 ? `<div class="stg-seg" style="width:${w}%;background:${s.color}" title="${s.label}: ${fmtBytes(breakdown[s.key])}"></div>` : '';
   }).join('');
 
-  if (label) label.textContent = `${fmtBytes(total)} / ${fmtBytes(STORAGE_LIMIT)}`;
+  if (label) label.textContent = `${fmtBytes(total)} used`;
 
   if (legend) {
     legend.innerHTML = segs
@@ -1016,6 +1047,14 @@ function clearAllCaches() {
   clearActivityCache();
   clearFitnessCache();
   clearLifetimeCache();
+  // Clear heatmap caches (GPS points in localStorage + routes in IndexedDB)
+  for (let i = localStorage.length - 1; i >= 0; i--) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith('icu_gps_pts_')) localStorage.removeItem(key);
+  }
+  _hmClearCache();
+  _hm.allRoutes = [];
+  _hm.loaded = false;
   state.lifetimeActivities = null;
   state._lifetimeSyncDone  = false;
   updateStorageBar();
@@ -1399,6 +1438,7 @@ function navigate(page) {
     power:      ['Power Curve',    'Best efforts across durations'],
     zones:      ['Training Zones', 'Time in zone breakdown'],
     compare:    ['Compare',        'Compare metrics across time periods'],
+    heatmap:    ['Heat Map',       'All your rides on one map'],
     goals:      ['Goals',          'Set & track training goals'],
     weather:    ['Weather',        'Weekly forecast & riding conditions'],
     settings:   ['Settings',       'Account & connection'],
@@ -1451,6 +1491,7 @@ function navigate(page) {
   if (page === 'power')    renderPowerPage();
   if (page === 'zones')    renderZonesPage();
   if (page === 'compare')  { ensureLifetimeLoaded(); renderComparePage(); }
+  if (page === 'heatmap')  { ensureLifetimeLoaded(); renderHeatmapPage(); }
   if (page === 'goals')    renderGoalsPage();
   if (page === 'workout')  { wrkRefreshStats(); wrkRender(); }
   if (page === 'settings') {
@@ -13231,7 +13272,7 @@ function toggleSmoothFlyover(on) {
 (function() {
   // Only skip elements that need their own mouse behaviour (text inputs, maps, sidebar)
   // Buttons, links, cards etc. are fine — moved-flag suppresses accidental clicks after a drag
-  const SKIP = 'input,select,textarea,.sidebar,.map-container,.activity-map,.recent-act-scroll-rail,.wxp-week-scroll';
+  const SKIP = 'input,select,textarea,.sidebar,.map-container,.activity-map,.recent-act-scroll-rail,.wxp-week-scroll,.hm-map,.leaflet-container';
 
   let isDragging  = false;
   let startY      = 0;
@@ -13404,3 +13445,728 @@ function toggleSmoothFlyover(on) {
   });
   obs.observe(document.body, { childList: true, subtree: true });
 })();
+
+/* ====================================================
+   HEAT MAP PAGE
+==================================================== */
+const _hm = {
+  map: null,
+  polylines: [],       // L.polyline references
+  heatLayer: null,     // L.heatLayer
+  allRoutes: [],       // [{id, points, date, type, distance, time, power, hr, name}]
+  loaded: false,
+  loading: false,
+  filter: 'all',       // 'all','year','6mo','90d','custom'
+  sportFilter: 'all',  // 'all','Ride','Run','Swim','Walk'
+  colorMode: 'heat',   // 'heat','speed','power','time','elevation'
+  animating: false,
+  animIdx: 0,
+  animTimer: null,
+  timeFilter: 'all',   // 'all','morning','afternoon','evening','night'
+};
+
+/* ── Render the page shell ── */
+function renderHeatmapPage() {
+  const container = document.getElementById('heatmapPageContent');
+  if (!container) return;
+
+  container.innerHTML = `
+    <div class="hm-wrapper">
+      <!-- Stats bar -->
+      <div class="hm-stats" id="hmStats">
+        <div class="hm-stat"><span class="hm-stat-val" id="hmStatRoutes">—</span><span class="hm-stat-label">Routes</span></div>
+        <div class="hm-stat"><span class="hm-stat-val" id="hmStatDist">—</span><span class="hm-stat-label">Total km</span></div>
+        <div class="hm-stat"><span class="hm-stat-val" id="hmStatTime">—</span><span class="hm-stat-label">Hours</span></div>
+        <div class="hm-stat"><span class="hm-stat-val" id="hmStatElev">—</span><span class="hm-stat-label">Elevation (m)</span></div>
+      </div>
+
+      <!-- Controls -->
+      <div class="hm-controls">
+        <div class="hm-control-group">
+          <label class="hm-label">Period</label>
+          <div class="hm-pills" id="hmPeriodPills">
+            <button class="hm-pill active" data-val="all">All Time</button>
+            <button class="hm-pill" data-val="year">This Year</button>
+            <button class="hm-pill" data-val="6mo">6 Months</button>
+            <button class="hm-pill" data-val="90d">90 Days</button>
+          </div>
+        </div>
+        <div class="hm-control-group">
+          <label class="hm-label">Style</label>
+          <div class="hm-pills" id="hmColorPills">
+            <button class="hm-pill active" data-val="heat">Heat</button>
+            <button class="hm-pill" data-val="lines">Lines</button>
+            <button class="hm-pill" data-val="speed">Speed</button>
+            <button class="hm-pill" data-val="time">By Year</button>
+          </div>
+        </div>
+        <div class="hm-control-group">
+          <label class="hm-label">Time of Day</label>
+          <div class="hm-pills" id="hmTimePills">
+            <button class="hm-pill active" data-val="all">All</button>
+            <button class="hm-pill" data-val="morning">Morning</button>
+            <button class="hm-pill" data-val="afternoon">Afternoon</button>
+            <button class="hm-pill" data-val="evening">Evening</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Animate button -->
+      <div class="hm-animate-bar">
+        <button class="hm-animate-btn" id="hmAnimateBtn" onclick="hmToggleAnimate()">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><polygon points="5,3 19,12 5,21"/></svg>
+          <span id="hmAnimateLabel">Replay Rides</span>
+        </button>
+        <div class="hm-animate-progress" id="hmAnimateProgress">
+          <div class="hm-animate-bar-fill" id="hmAnimateBarFill"></div>
+        </div>
+        <span class="hm-animate-count" id="hmAnimateCount"></span>
+      </div>
+
+      <!-- Map container -->
+      <div class="hm-map-container">
+        <div id="heatmapMap" class="hm-map"></div>
+        <div class="hm-loading" id="hmLoading">
+          <div class="hm-loading-spinner"></div>
+          <div class="hm-loading-text">Loading GPS routes…</div>
+          <div class="hm-loading-sub" id="hmLoadingSub">0 of 0</div>
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div class="hm-legend" id="hmLegend"></div>
+    </div>
+  `;
+
+  // Wire up pill buttons
+  _hmWirePills('hmPeriodPills', v => { _hm.filter = v; hmApplyFilters(); });
+  _hmWirePills('hmSportPills',  v => { _hm.sportFilter = v; hmApplyFilters(); });
+  _hmWirePills('hmColorPills',  v => { _hm.colorMode = v; hmRedraw(); });
+  _hmWirePills('hmTimePills',   v => { _hm.timeFilter = v; hmApplyFilters(); });
+
+  // Init map
+  _hmInitMap();
+
+  // Load routes
+  if (!_hm.loaded) {
+    hmLoadAllRoutes();
+  } else {
+    // Already loaded — hide the loading overlay and draw
+    const ld = document.getElementById('hmLoading');
+    if (ld) ld.style.display = 'none';
+    hmApplyFilters();
+  }
+}
+
+function _hmWirePills(containerId, onChange) {
+  const wrap = document.getElementById(containerId);
+  if (!wrap) return;
+  wrap.querySelectorAll('.hm-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      wrap.querySelectorAll('.hm-pill').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      onChange(btn.dataset.val);
+    });
+  });
+}
+
+/* ── Init Leaflet map ── */
+function _hmInitMap() {
+  // Destroy old map and clear all layer references
+  if (_hm.map) { try { _hm.map.remove(); } catch (_) {} _hm.map = null; }
+  _hm.polylines = [];
+  _hm._initialFitDone = false;
+  _hm.heatLayer = null;
+
+  const el = document.getElementById('heatmapMap');
+  if (!el) return;
+
+  const themeKey = loadMapTheme();
+  const theme = MAP_THEMES[themeKey] || MAP_THEMES.dark;
+  el.style.background = theme.bg;
+
+  _hm.map = L.map(el, {
+    zoomControl: true,
+    scrollWheelZoom: true,
+    attributionControl: true,
+    center: [48, 14],
+    zoom: 5,
+  });
+
+  L.tileLayer(theme.url, {
+    attribution: theme.attr,
+    subdomains: theme.sub || 'abc',
+    maxZoom: 19,
+  }).addTo(_hm.map);
+
+  // Prevent scroll-wheel from scrolling page while over map
+  el.addEventListener('wheel', function(e) { e.preventDefault(); }, { passive: false });
+
+  // Separate locate-me control, same style as zoom +/-
+  const LocateControl = L.Control.extend({
+    options: { position: 'topleft' },
+    onAdd: function() {
+      const container = L.DomUtil.create('div', 'leaflet-control-zoom leaflet-bar');
+      const a = L.DomUtil.create('a', '', container);
+      a.href = '#';
+      a.title = 'My location';
+      a.setAttribute('role', 'button');
+      a.setAttribute('aria-label', 'My location');
+      a.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>';
+      a.style.display = 'flex';
+      a.style.alignItems = 'center';
+      a.style.justifyContent = 'center';
+      L.DomEvent.disableClickPropagation(container);
+      a.addEventListener('click', function(e) { e.preventDefault(); _hmLocateMe(); });
+      return container;
+    }
+  });
+  _hm.map.addControl(new LocateControl());
+
+  setTimeout(() => { if (_hm.map) _hm.map.invalidateSize(); }, 200);
+  setTimeout(() => { if (_hm.map) _hm.map.invalidateSize(); }, 600);
+}
+
+/* ── Center map on user's current location ── */
+function _hmLocateMe() {
+  if (!_hm.map) return;
+  if (!navigator.geolocation) { showToast('Geolocation not supported', 'error'); return; }
+
+  showToast('Finding your location…', 'success');
+  navigator.geolocation.getCurrentPosition(
+    function(pos) {
+      const latlng = [pos.coords.latitude, pos.coords.longitude];
+      _hm.map.flyTo(latlng, 12, { duration: 1.2 });
+
+      // Drop a pulse marker
+      if (_hm._locMarker) _hm.map.removeLayer(_hm._locMarker);
+      _hm._locMarker = L.circleMarker(latlng, {
+        radius: 8, color: '#0074D9', fillColor: '#0074D9',
+        fillOpacity: 0.4, weight: 2, opacity: 0.8,
+      }).addTo(_hm.map).bindTooltip('You are here');
+    },
+    function(err) {
+      showToast('Could not get location: ' + err.message, 'error');
+    },
+    { enableHighAccuracy: true, timeout: 8000 }
+  );
+}
+
+/* ── Heatmap route cache (IndexedDB — no size limit) ── */
+const HM_DB_NAME = 'cycleiq_heatmap';
+const HM_DB_VER  = 1;
+const HM_STORE   = 'routes';
+
+function _hmOpenDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(HM_DB_NAME, HM_DB_VER);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(HM_STORE)) {
+        db.createObjectStore(HM_STORE, { keyPath: 'id' });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror   = () => reject(req.error);
+  });
+}
+
+async function _hmSaveCache(routes) {
+  try {
+    const db = await _hmOpenDB();
+    const tx = db.transaction(HM_STORE, 'readwrite');
+    const store = tx.objectStore(HM_STORE);
+    // Clear old data and write fresh
+    store.clear();
+    for (const r of routes) {
+      store.put({
+        id: r.id, pts: r.points, d: r.date.toISOString(),
+        tp: r.type, dst: r.distance, tm: r.time, pw: r.power,
+        hr: r.hr, nm: r.name, spd: r.speed, elv: r.elevation, h: r.hour,
+      });
+    }
+    await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
+    db.close();
+  } catch (e) { console.warn('[HM cache] save failed:', e); }
+}
+
+async function _hmLoadCache() {
+  try {
+    const db = await _hmOpenDB();
+    const tx = db.transaction(HM_STORE, 'readonly');
+    const store = tx.objectStore(HM_STORE);
+    const all = await new Promise((res, rej) => {
+      const req = store.getAll();
+      req.onsuccess = () => res(req.result);
+      req.onerror   = () => rej(req.error);
+    });
+    db.close();
+    if (!all || all.length === 0) return null;
+    return all.map(r => ({
+      id: r.id, points: r.pts, date: new Date(r.d),
+      type: r.tp, distance: r.dst, time: r.tm, power: r.pw,
+      hr: r.hr, name: r.nm, speed: r.spd, elevation: r.elv, hour: r.h,
+    }));
+  } catch (e) { console.warn('[HM cache] load failed:', e); return null; }
+}
+
+async function _hmClearCache() {
+  try {
+    const db = await _hmOpenDB();
+    const tx = db.transaction(HM_STORE, 'readwrite');
+    tx.objectStore(HM_STORE).clear();
+    await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
+    db.close();
+  } catch (_) {}
+}
+
+/* ── Load all GPS routes from lifetime activities ── */
+async function hmLoadAllRoutes() {
+  if (_hm.loading) return;
+  _hm.loading = true;
+
+  const loadingEl = document.getElementById('hmLoading');
+  const subEl     = document.getElementById('hmLoadingSub');
+  const textEl    = document.querySelector('.hm-loading-text');
+
+  // 1) Try IndexedDB cache first — instant load
+  const cached = await _hmLoadCache();
+  if (cached && cached.length > 0) {
+    _hm.allRoutes = cached;
+    _hm.loaded  = true;
+    _hm.loading = false;
+    if (loadingEl) loadingEl.style.display = 'none';
+    if (_hm.map) {
+      _hm.map.invalidateSize();
+      setTimeout(() => _hm.map && _hm.map.invalidateSize(), 300);
+    }
+    hmApplyFilters();
+
+    // Check in background if we have new activities to add
+    _hmBackgroundUpdate(cached);
+    return;
+  }
+
+  // 2) Full load — show loading overlay
+  if (loadingEl) loadingEl.style.display = 'flex';
+  if (textEl) textEl.textContent = 'Loading GPS routes…';
+
+  // Wait a tick for lifetimeActivities to populate from cache
+  await new Promise(r => setTimeout(r, 200));
+
+  const routes = await _hmFetchAllRoutes(subEl, textEl);
+
+  _hm.allRoutes = routes;
+  _hm.loaded  = true;
+  _hm.loading = false;
+
+  if (loadingEl) loadingEl.style.display = 'none';
+  if (_hm.map) {
+    _hm.map.invalidateSize();
+    setTimeout(() => _hm.map && _hm.map.invalidateSize(), 300);
+  }
+
+  if (routes.length === 0) {
+    if (loadingEl) {
+      loadingEl.style.display = 'flex';
+      if (textEl) textEl.textContent = 'No GPS routes found';
+      if (subEl) subEl.textContent = 'Sync your lifetime data in Settings first, then come back';
+    }
+    return;
+  }
+
+  // Save to cache for instant load next time
+  _hmSaveCache(routes);
+  hmApplyFilters();
+}
+
+/* ── Background update: check for new activities not yet in cache ── */
+async function _hmBackgroundUpdate(cachedRoutes) {
+  await new Promise(r => setTimeout(r, 500));
+  const acts = getAllActivities().filter(a => !isEmptyActivity(a));
+  const cachedIds = new Set(cachedRoutes.map(r => r.id));
+  const newActs = acts.filter(a => {
+    if (cachedIds.has(a.id)) return false;
+    if (a.start_latlng && Array.isArray(a.start_latlng) && a.start_latlng.length === 2) return true;
+    const dist = a.distance || a.icu_distance || 0;
+    return dist > 500;
+  });
+
+  if (newActs.length === 0) return;
+
+  // Fetch GPS for new activities in background
+  const newRoutes = [];
+  const BATCH = 5;
+  for (let i = 0; i < newActs.length; i += BATCH) {
+    const batch = newActs.slice(i, i + BATCH);
+    const results = await Promise.all(batch.map(a => _hmFetchOneRoute(a)));
+    results.forEach(r => { if (r) newRoutes.push(r); });
+    if (i + BATCH < newActs.length) await new Promise(r => setTimeout(r, 150));
+  }
+
+  if (newRoutes.length > 0) {
+    _hm.allRoutes = [..._hm.allRoutes, ...newRoutes].sort((a, b) => a.date - b.date);
+    _hmSaveCache(_hm.allRoutes);
+    hmApplyFilters(); // re-draw with new routes
+    showToast(`Heat map: added ${newRoutes.length} new route${newRoutes.length > 1 ? 's' : ''}`, 'success');
+  }
+}
+
+/* ── Fetch GPS for a single activity ── */
+async function _hmFetchOneRoute(a) {
+  try {
+    const cacheKey = `icu_gps_pts_${String(a.id).replace(/^i/, '')}`;
+    let points = null;
+    try {
+      const c = localStorage.getItem(cacheKey);
+      if (c) points = JSON.parse(c);
+    } catch (_) {}
+
+    if (!points || points.length < 2) {
+      const latlng = await fetchMapGPS(a.id);
+      if (!latlng || latlng.length < 2) return null;
+      const valid = latlng.filter(p => Array.isArray(p) && p[0] != null && p[1] != null && Math.abs(p[0]) <= 90 && Math.abs(p[1]) <= 180);
+      if (valid.length < 2) return null;
+      const step = Math.max(1, Math.floor(valid.length / 200));
+      points = valid.filter((_, j) => j % step === 0);
+      if (points.length > 0 && points[points.length - 1] !== valid[valid.length - 1]) points.push(valid[valid.length - 1]);
+      try { localStorage.setItem(cacheKey, JSON.stringify(points)); } catch (_) {}
+    }
+
+    if (!points || points.length < 2) return null;
+
+    const hour = new Date(a.start_date_local || a.start_date).getHours();
+    return {
+      id: a.id, points,
+      date: new Date(a.start_date_local || a.start_date),
+      type: (a.type || a.icu_type || 'Ride'),
+      distance: a.distance || a.icu_distance || 0,
+      time: a.moving_time || a.icu_moving_time || a.elapsed_time || 0,
+      power: a.average_watts || a.icu_weighted_avg_watts || 0,
+      hr: a.average_heartrate || 0,
+      name: a.name || a.icu_name || '',
+      speed: (a.distance && a.moving_time) ? (a.distance / a.moving_time) * 3.6 : 0,
+      elevation: a.total_elevation_gain || a.icu_total_elevation_gain || 0,
+      hour,
+    };
+  } catch (_) { return null; }
+}
+
+/* ── Full fetch of all routes (first-time load) ── */
+async function _hmFetchAllRoutes(subEl, textEl) {
+  const acts = getAllActivities().filter(a => !isEmptyActivity(a));
+
+  const candidates = acts.filter(a => {
+    if (a.start_latlng && Array.isArray(a.start_latlng) && a.start_latlng.length === 2) return true;
+    const dist = a.distance || a.icu_distance || 0;
+    if (dist > 500) return true;
+    try {
+      const cacheKey = `icu_gps_pts_${String(a.id).replace(/^i/, '')}`;
+      if (localStorage.getItem(cacheKey)) return true;
+    } catch (_) {}
+    return false;
+  });
+
+  if (subEl) subEl.textContent = `0 of ${candidates.length}`;
+
+  const routes = [];
+  let loaded = 0;
+  let foundGPS = 0;
+
+  const BATCH = 5;
+  for (let i = 0; i < candidates.length; i += BATCH) {
+    const batch = candidates.slice(i, i + BATCH);
+    const results = await Promise.all(batch.map(a => _hmFetchOneRoute(a)));
+    results.forEach(r => { if (r) { routes.push(r); foundGPS++; } });
+    loaded += batch.length;
+    if (subEl) subEl.textContent = `${loaded} of ${candidates.length} checked · ${foundGPS} routes found`;
+    if (i + BATCH < candidates.length) await new Promise(r => setTimeout(r, 150));
+  }
+
+  routes.sort((a, b) => a.date - b.date);
+  return routes;
+}
+
+/* ── Filter routes based on current settings ── */
+function hmApplyFilters() {
+  let routes = _hm.allRoutes;
+
+  // Period filter
+  const now = new Date();
+  if (_hm.filter === 'year') {
+    const jan1 = new Date(now.getFullYear(), 0, 1);
+    routes = routes.filter(r => r.date >= jan1);
+  } else if (_hm.filter === '6mo') {
+    const cutoff = new Date(now); cutoff.setMonth(cutoff.getMonth() - 6);
+    routes = routes.filter(r => r.date >= cutoff);
+  } else if (_hm.filter === '90d') {
+    const cutoff = new Date(now); cutoff.setDate(cutoff.getDate() - 90);
+    routes = routes.filter(r => r.date >= cutoff);
+  }
+
+  // Sport filter
+  if (_hm.sportFilter !== 'all') {
+    if (_hm.sportFilter === 'Other') {
+      routes = routes.filter(r => !['Ride', 'Run'].includes(r.type));
+    } else {
+      routes = routes.filter(r => r.type === _hm.sportFilter);
+    }
+  }
+
+  // Time of day filter
+  if (_hm.timeFilter !== 'all') {
+    routes = routes.filter(r => {
+      const h = r.hour;
+      if (_hm.timeFilter === 'morning')   return h >= 5 && h < 12;
+      if (_hm.timeFilter === 'afternoon') return h >= 12 && h < 17;
+      if (_hm.timeFilter === 'evening')   return h >= 17 && h < 21;
+      return false;
+    });
+  }
+
+  _hm._filtered = routes;
+  hmUpdateStats(routes);
+  hmRedraw();
+}
+
+/* ── Update stats bar ── */
+function hmUpdateStats(routes) {
+  const dist = routes.reduce((s, r) => s + r.distance, 0);
+  const time = routes.reduce((s, r) => s + r.time, 0);
+  const elev = routes.reduce((s, r) => s + r.elevation, 0);
+
+  const fmt = (n) => n >= 10000 ? (n/1000).toFixed(1) + 'k' : n.toLocaleString();
+  const el = id => document.getElementById(id);
+  if (el('hmStatRoutes')) el('hmStatRoutes').textContent = routes.length;
+  if (el('hmStatDist'))   el('hmStatDist').textContent   = fmt(Math.round(dist / 1000));
+  if (el('hmStatTime'))   el('hmStatTime').textContent   = Math.round(time / 3600).toLocaleString();
+  if (el('hmStatElev'))   el('hmStatElev').textContent   = fmt(Math.round(elev));
+}
+
+/* ── Draw routes on map ── */
+function hmRedraw() {
+  if (!_hm.map) return;
+  const routes = _hm._filtered || [];
+
+  // Clear existing layers (try-catch in case refs point to old destroyed map)
+  _hm.polylines.forEach(p => { try { _hm.map.removeLayer(p); } catch (_) {} });
+  _hm.polylines = [];
+  if (_hm.heatLayer) { try { _hm.map.removeLayer(_hm.heatLayer); } catch (_) {} _hm.heatLayer = null; }
+
+  if (routes.length === 0) {
+    _hmUpdateLegend('');
+    return;
+  }
+
+  const mode = _hm.colorMode;
+
+  if (mode === 'heat') {
+    _hmDrawHeat(routes);
+  } else if (mode === 'lines') {
+    _hmDrawLines(routes);
+  } else if (mode === 'speed') {
+    _hmDrawBySpeed(routes);
+  } else if (mode === 'time') {
+    _hmDrawByYear(routes);
+  }
+
+  // Only fit bounds on first draw — keep user's position on filter changes
+  if (!_hm._initialFitDone) {
+    const allPts = routes.flatMap(r => r.points);
+    if (allPts.length > 0) {
+      const bounds = L.latLngBounds(allPts);
+      _hm.map.fitBounds(bounds, { padding: [30, 30], maxZoom: 13 });
+      _hm._initialFitDone = true;
+    }
+  }
+}
+
+/* ── Heat mode (actual heatmap) ── */
+function _hmDrawHeat(routes) {
+  const heatPts = [];
+  routes.forEach(r => {
+    r.points.forEach(p => heatPts.push([p[0], p[1], 0.5]));
+  });
+
+  _hm.heatLayer = L.heatLayer(heatPts, {
+    radius: 12,
+    blur: 18,
+    maxZoom: 15,
+    max: 1.0,
+    gradient: { 0.2: '#1a1a5e', 0.4: '#0074D9', 0.5: '#00e5a0', 0.7: '#FFDC00', 0.9: '#FF4136', 1.0: '#ff0066' },
+  }).addTo(_hm.map);
+
+  _hmUpdateLegend(`
+    <span style="color:#1a1a5e">Low</span>
+    <div class="hm-legend-gradient"></div>
+    <span style="color:#ff0066">High</span>
+  `);
+}
+
+/* ── Lines mode (simple overlay with glow) ── */
+function _hmDrawLines(routes) {
+  const canvas = L.canvas({ padding: 0.5 });
+  routes.forEach(r => {
+    // Shadow
+    const shadow = L.polyline(r.points, {
+      color: '#00e5a0', weight: 3, opacity: 0.06,
+      renderer: canvas, smoothFactor: 1,
+    }).addTo(_hm.map);
+    _hm.polylines.push(shadow);
+
+    // Main line
+    const line = L.polyline(r.points, {
+      color: '#00e5a0', weight: 1.5, opacity: 0.35,
+      renderer: canvas, smoothFactor: 1,
+    }).addTo(_hm.map);
+    line.bindTooltip(`<b>${r.name || 'Activity'}</b><br>${r.date.toLocaleDateString()}<br>${(r.distance/1000).toFixed(1)} km`, { sticky: true });
+    _hm.polylines.push(line);
+  });
+
+  _hmUpdateLegend('<span style="color:#00e5a0">All Routes</span>');
+}
+
+/* ── Speed color mode ── */
+function _hmDrawBySpeed(routes) {
+  const canvas = L.canvas({ padding: 0.5 });
+  const speeds = routes.filter(r => r.speed > 0).map(r => r.speed);
+  if (speeds.length === 0) { _hmDrawLines(routes); return; }
+
+  const minSpd = Math.min(...speeds);
+  const maxSpd = Math.max(...speeds);
+  const range = maxSpd - minSpd || 1;
+
+  routes.forEach(r => {
+    const t = r.speed > 0 ? (r.speed - minSpd) / range : 0;
+    const color = _hmSpeedColor(t);
+    const line = L.polyline(r.points, {
+      color, weight: 2, opacity: 0.55,
+      renderer: canvas, smoothFactor: 1,
+    }).addTo(_hm.map);
+    line.bindTooltip(`<b>${r.name || 'Activity'}</b><br>${r.speed.toFixed(1)} km/h<br>${r.date.toLocaleDateString()}`, { sticky: true });
+    _hm.polylines.push(line);
+  });
+
+  _hmUpdateLegend(`
+    <span style="color:#0074D9">${minSpd.toFixed(0)} km/h</span>
+    <div class="hm-legend-gradient hm-legend-gradient--speed"></div>
+    <span style="color:#FF4136">${maxSpd.toFixed(0)} km/h</span>
+  `);
+}
+
+function _hmSpeedColor(t) {
+  // Blue → Cyan → Green → Yellow → Red
+  if (t < 0.25) return _hmLerp('#0074D9', '#00e5a0', t / 0.25);
+  if (t < 0.5)  return _hmLerp('#00e5a0', '#FFDC00', (t - 0.25) / 0.25);
+  if (t < 0.75) return _hmLerp('#FFDC00', '#FF851B', (t - 0.5) / 0.25);
+  return _hmLerp('#FF851B', '#FF4136', (t - 0.75) / 0.25);
+}
+
+/* ── By Year mode ── */
+function _hmDrawByYear(routes) {
+  const canvas = L.canvas({ padding: 0.5 });
+  const years = [...new Set(routes.map(r => r.date.getFullYear()))].sort();
+  const YEAR_COLORS = ['#636efa', '#EF553B', '#00cc96', '#ab63fa', '#FFA15A', '#19d3f3', '#FF6692', '#B6E880', '#FF97FF', '#FECB52'];
+
+  const yearColor = {};
+  years.forEach((y, i) => yearColor[y] = YEAR_COLORS[i % YEAR_COLORS.length]);
+
+  routes.forEach(r => {
+    const yr = r.date.getFullYear();
+    const line = L.polyline(r.points, {
+      color: yearColor[yr], weight: 2, opacity: 0.5,
+      renderer: canvas, smoothFactor: 1,
+    }).addTo(_hm.map);
+    line.bindTooltip(`<b>${r.name || 'Activity'}</b><br>${yr}<br>${(r.distance/1000).toFixed(1)} km`, { sticky: true });
+    _hm.polylines.push(line);
+  });
+
+  const legendItems = years.map(y => `<span class="hm-legend-dot" style="background:${yearColor[y]}"></span>${y}`).join(' ');
+  _hmUpdateLegend(legendItems);
+}
+
+/* ── Color interpolation helpers ── */
+function _hmLerp(c1, c2, t) {
+  const h = s => parseInt(s.slice(1), 16);
+  const v1 = h(c1), v2 = h(c2);
+  const r = Math.round(((v1 >> 16) & 255) * (1 - t) + ((v2 >> 16) & 255) * t);
+  const g = Math.round(((v1 >> 8) & 255) * (1 - t) + ((v2 >> 8) & 255) * t);
+  const b = Math.round((v1 & 255) * (1 - t) + (v2 & 255) * t);
+  return `rgb(${r},${g},${b})`;
+}
+
+function _hmUpdateLegend(html) {
+  const el = document.getElementById('hmLegend');
+  if (el) el.innerHTML = html;
+}
+
+/* ── Animate: replay rides one by one ── */
+function hmToggleAnimate() {
+  if (_hm.animating) {
+    hmStopAnimate();
+  } else {
+    hmStartAnimate();
+  }
+}
+
+function hmStartAnimate() {
+  const routes = _hm._filtered || [];
+  if (routes.length === 0) return;
+
+  _hm.animating = true;
+  _hm.animIdx = 0;
+
+  // Clear map
+  _hm.polylines.forEach(p => _hm.map.removeLayer(p));
+  _hm.polylines = [];
+  if (_hm.heatLayer) { _hm.map.removeLayer(_hm.heatLayer); _hm.heatLayer = null; }
+
+  const btn = document.getElementById('hmAnimateLabel');
+  if (btn) btn.textContent = 'Stop';
+  const barFill = document.getElementById('hmAnimateBarFill');
+  const countEl = document.getElementById('hmAnimateCount');
+
+  const canvas = L.canvas({ padding: 0.5 });
+
+  function drawNext() {
+    if (!_hm.animating || _hm.animIdx >= routes.length) {
+      hmStopAnimate();
+      return;
+    }
+
+    const r = routes[_hm.animIdx];
+    const pct = ((_hm.animIdx + 1) / routes.length) * 100;
+    if (barFill) barFill.style.width = pct + '%';
+    if (countEl) countEl.textContent = `${_hm.animIdx + 1} / ${routes.length} · ${r.date.toLocaleDateString()}`;
+
+    // Glow trail
+    const glow = L.polyline(r.points, {
+      color: '#00e5a0', weight: 4, opacity: 0.15,
+      renderer: canvas, smoothFactor: 1,
+    }).addTo(_hm.map);
+    _hm.polylines.push(glow);
+
+    const line = L.polyline(r.points, {
+      color: '#00e5a0', weight: 1.8, opacity: 0.6,
+      renderer: canvas, smoothFactor: 1,
+    }).addTo(_hm.map);
+    _hm.polylines.push(line);
+
+    _hm.animIdx++;
+
+    // Speed up as more routes are drawn
+    const delay = routes.length > 200 ? 30 : routes.length > 50 ? 80 : 150;
+    _hm.animTimer = setTimeout(drawNext, delay);
+  }
+
+  drawNext();
+}
+
+function hmStopAnimate() {
+  _hm.animating = false;
+  if (_hm.animTimer) { clearTimeout(_hm.animTimer); _hm.animTimer = null; }
+  const btn = document.getElementById('hmAnimateLabel');
+  if (btn) btn.textContent = 'Replay Rides';
+  const barFill = document.getElementById('hmAnimateBarFill');
+  if (barFill) barFill.style.width = '0%';
+}

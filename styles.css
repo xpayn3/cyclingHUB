@@ -103,17 +103,17 @@
     --font-num: 'Inter', system-ui, -apple-system, sans-serif;
 
     /* ── Font size scale ─────────────────────────────────────
-       Base html font-size: 15px — scale all sizes by changing
+       Base html font-size: 16px — scale all sizes by changing
        that one value in the RESET section below.
     ──────────────────────────────────────────────────────── */
-    --text-2xs:  0.62rem;   /*  ~9px  — micro badges, superscripts  */
-    --text-xs:   0.72rem;   /* ~11px  — uppercase labels, meta      */
-    --text-sm:   0.8rem;    /* ~12px  — secondary body, sub-labels  */
-    --text-base: 0.875rem;  /* ~13px  — primary body text           */
-    --text-md:   1rem;      /*  15px  — card sub-headings           */
-    --text-lg:   1.1rem;    /* ~17px  — section titles              */
-    --text-xl:   1.9rem;    /* ~28px  — primary stat values         */
-    --text-2xl:  2.2rem;    /* ~33px  — hero gauge numbers          */
+    --text-2xs:  0.62rem;   /* ~10px  — micro badges, superscripts  */
+    --text-xs:   0.72rem;   /* ~12px  — uppercase labels, meta      */
+    --text-sm:   0.8rem;    /* ~13px  — secondary body, sub-labels  */
+    --text-base: 0.875rem;  /* ~14px  — primary body text           */
+    --text-md:   1rem;      /*  16px  — card sub-headings           */
+    --text-lg:   1.1rem;    /* ~18px  — section titles              */
+    --text-xl:   1.9rem;    /* ~30px  — primary stat values         */
+    --text-2xl:  2.2rem;    /* ~35px  — hero gauge numbers          */
 }
 
 /* ============================================================
@@ -127,7 +127,7 @@
     padding: 0;
 }
 html {
-    font-size: 15px;
+    font-size: 16px;
     overflow-x: clip; /* clip without creating a scroll container — allows children to have their own h-scroll */
     max-width: 100%;
     background: var(--bg-base);
@@ -478,7 +478,7 @@ code {
     animation: topbar-glow-pulse 4s ease-in-out infinite;
 }
 .dashboard-glow .page-headline {
-    margin-top: 28px;
+    margin-top: 50px;
 }
 @keyframes topbar-glow-pulse {
     0%, 100% { opacity: 0.7; }
@@ -510,7 +510,7 @@ code {
 
 /* ── Page headline ── */
 .page-headline {
-    padding: 80px 0 8px;
+    padding: 32px 0 8px;
 }
 .page-headline--hidden {
     display: none;
@@ -1008,10 +1008,10 @@ code {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 8px;
+    margin-bottom: 16px;
 }
 .card-title {
-    font-size: var(--text-base);
+    font-size: var(--text-md);
     font-weight: 700;
 }
 .card-subtitle {
@@ -5628,7 +5628,7 @@ code {
     gap: 2px;
 }
 .trs-hero-title {
-    font-size: var(--text-base);
+    font-size: var(--text-md);
     font-weight: 700;
     color: var(--text-primary);
     letter-spacing: 0.01em;
@@ -8818,7 +8818,7 @@ code {
 .stk-hero-card--day  .stk-hero-num  { color: #4a9eff; }
 .stk-hero-card--month .stk-hero-num { color: #9b59ff; }
 .stk-hero-label {
-    font-size: var(--text-sm);
+    font-size: var(--text-md);
     font-weight: 700;
     color: var(--text-primary);
     margin-bottom: 4px;
@@ -10190,6 +10190,275 @@ code {
 
     .goals-dash-val {
         min-width: 70px;
+        font-size: 11px;
+    }
+}
+
+/* ============================================================
+   HEAT MAP PAGE
+============================================================ */
+.hm-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* ── Stats bar ── */
+.hm-stats {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.hm-stat {
+    flex: 1;
+    min-width: 100px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.hm-stat-val {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: -0.5px;
+}
+.hm-stat-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* ── Controls ── */
+.hm-controls {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 12px 16px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+.hm-control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.hm-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+.hm-pills {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+.hm-pill {
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-family: inherit;
+    white-space: nowrap;
+}
+.hm-pill:hover {
+    border-color: var(--accent);
+    color: var(--text-primary);
+}
+.hm-pill.active {
+    background: var(--accent);
+    color: var(--bg-base);
+    border-color: var(--accent);
+    font-weight: 600;
+}
+
+/* ── Animate bar ── */
+.hm-animate-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+.hm-animate-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 16px;
+    border-radius: 20px;
+    border: 1px solid var(--accent);
+    background: var(--accent-dim);
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-family: inherit;
+    white-space: nowrap;
+}
+.hm-animate-btn:hover {
+    background: var(--accent);
+    color: var(--bg-base);
+}
+.hm-animate-btn svg {
+    width: 14px;
+    height: 14px;
+}
+.hm-animate-progress {
+    flex: 1;
+    height: 4px;
+    background: var(--bg-card);
+    border-radius: 2px;
+    overflow: hidden;
+}
+.hm-animate-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.1s linear;
+}
+.hm-animate-count {
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    min-width: 120px;
+    text-align: right;
+}
+
+/* ── Map container ── */
+.hm-map-container {
+    position: relative;
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 1px solid var(--border);
+}
+.hm-map {
+    width: 100%;
+    height: 65vh;
+    min-height: 400px;
+    background: #1a1c22;
+}
+
+/* Locate-me button — no extra CSS needed, uses leaflet-control-zoom leaflet-bar classes */
+
+/* Lock page scroll when interacting with heatmap */
+body.hm-map-active,
+body.hm-map-dragging {
+    overflow: hidden !important;
+}
+body.hm-map-active html,
+body.hm-map-dragging html,
+.hm-map-active,
+.hm-map-dragging {
+    overflow: hidden !important;
+    overscroll-behavior: none !important;
+}
+.hm-map-dragging * {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+}
+
+/* ── Loading overlay ── */
+.hm-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: rgba(13, 15, 20, 0.85);
+    z-index: 500;
+    backdrop-filter: blur(4px);
+}
+.hm-loading-spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: hmSpin 0.8s linear infinite;
+}
+@keyframes hmSpin {
+    to { transform: rotate(360deg); }
+}
+.hm-loading-text {
+    font-size: 14px;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+.hm-loading-sub {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+/* ── Legend ── */
+.hm-legend {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    min-height: 20px;
+}
+.hm-legend-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 4px;
+    vertical-align: middle;
+}
+.hm-legend-gradient {
+    width: 120px;
+    height: 8px;
+    border-radius: 4px;
+    background: linear-gradient(to right, #1a1a5e, #0074D9, #00e5a0, #FFDC00, #FF4136, #ff0066);
+}
+.hm-legend-gradient--speed {
+    background: linear-gradient(to right, #0074D9, #00e5a0, #FFDC00, #FF851B, #FF4136);
+}
+
+/* ── Mobile responsive ── */
+@media (max-width: 700px) {
+    .hm-stats {
+        gap: 6px;
+    }
+    .hm-stat {
+        min-width: 70px;
+        padding: 10px 12px;
+    }
+    .hm-stat-val {
+        font-size: 18px;
+    }
+    .hm-controls {
+        gap: 10px;
+        padding: 10px 12px;
+    }
+    .hm-map {
+        height: 55vh;
+        min-height: 300px;
+    }
+    .hm-animate-count {
+        display: none;
+    }
+    .hm-pill {
+        padding: 4px 10px;
         font-size: 11px;
     }
 }

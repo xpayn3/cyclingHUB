@@ -20,6 +20,7 @@
         <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
         <script src="app.js" defer></script>
     </head>
     <body>
@@ -423,6 +424,13 @@
                         <path d="M3 3v18h18M3 18l6-6 4 4 6-6"/>
                     </svg>
                     Compare
+                </div>
+                <div class="nav-item" data-page="heatmap" onclick="navigate('heatmap');closeSidebar();">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2c-4 4-8 7.5-8 12a8 8 0 1 0 16 0c0-4.5-4-8-8-12z"/>
+                        <path d="M12 12a2.5 2.5 0 0 0-2.5 2.5c0 1.5 2.5 3.5 2.5 3.5s2.5-2 2.5-3.5A2.5 2.5 0 0 0 12 12z"/>
+                    </svg>
+                    Heat Map
                 </div>
                 <span class="nav-section-label">Tools</span>
                 <div class="nav-item" data-page="weather" onclick="navigate('weather');closeSidebar();">
@@ -2468,6 +2476,11 @@
                 <!-- ==================== GOALS PAGE ==================== -->
                 <div class="page" id="page-goals">
                     <div id="goalsPageContent"></div>
+                </div>
+
+                <!-- ==================== HEAT MAP PAGE ==================== -->
+                <div class="page" id="page-heatmap">
+                    <div id="heatmapPageContent"></div>
                 </div>
 
                 <!-- ==================== COMPARE PAGE ==================== -->
