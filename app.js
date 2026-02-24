@@ -984,14 +984,32 @@ function removeAvatar() {
 // Useful when activities appear missing, especially on the 1-year view.
 function forceFullSync() {
   if (!state.athleteId || !state.apiKey) { openModal(); return; }
-  clearActivityCache();          // wipe local cache so syncData() treats this as a fresh install
-  clearFitnessCache();           // also wipe fitness/wellness cache
-  clearLifetimeCache();          // also wipe lifetime history
-  state.activities = [];         // clear in-memory list too
+  clearActivityCache();
+  clearFitnessCache();
+  clearLifetimeCache();
+  state.activities = [];
   state.lifetimeActivities = null;
   state._lifetimeSyncDone  = false;
   showToast('Cache cleared — starting full re-sync…', 'info');
   syncData();
+}
+
+function confirmSyncData() {
+  if (!state.athleteId || !state.apiKey) { openModal(); return; }
+  showConfirmDialog(
+    'Sync Data',
+    'This will fetch the latest activities and fitness data from Intervals.icu.',
+    () => syncData()
+  );
+}
+
+function confirmFullResync() {
+  if (!state.athleteId || !state.apiKey) { openModal(); return; }
+  showConfirmDialog(
+    'Full Re-sync',
+    'This will clear all cached data and re-download everything from Intervals.icu. This may take a while.',
+    () => forceFullSync()
+  );
 }
 
 /* ====================================================
@@ -1110,31 +1128,42 @@ function updateLifetimeCacheUI() {
 }
 
 function clearAllCaches() {
-  clearActivityCache();
-  clearFitnessCache();
-  clearLifetimeCache();
-  // Clear heatmap caches (GPS points in localStorage + routes in IndexedDB)
-  for (let i = localStorage.length - 1; i >= 0; i--) {
-    const key = localStorage.key(i);
-    if (key && key.startsWith('icu_gps_pts_')) localStorage.removeItem(key);
-  }
-  _hmClearCache();
-  _hm.allRoutes = [];
-  _hm.loaded = false;
-  state.lifetimeActivities = null;
-  state._lifetimeSyncDone  = false;
-  updateStorageBar();
-  showToast('All caches cleared', 'success');
-  if (state.currentPage === 'settings') navigate('settings');
+  showConfirmDialog(
+    'Clear All Caches',
+    'This will remove all cached data including activities, fitness, and heat map routes. The app will need to re-download everything.',
+    () => {
+      clearActivityCache();
+      clearFitnessCache();
+      clearLifetimeCache();
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('icu_gps_pts_')) localStorage.removeItem(key);
+      }
+      _hmClearCache();
+      _hm.allRoutes = [];
+      _hm.loaded = false;
+      state.lifetimeActivities = null;
+      state._lifetimeSyncDone  = false;
+      updateStorageBar();
+      showToast('All caches cleared', 'success');
+      if (state.currentPage === 'settings') navigate('settings');
+    }
+  );
 }
 
 function resyncLifetimeData() {
-  clearLifetimeCache();
-  state.lifetimeActivities = null;
-  state.lifetimeLastSync   = null;
-  state._lifetimeSyncDone  = false;
-  showToast('Syncing lifetime data…', 'success');
-  runLifetimeSync();
+  showConfirmDialog(
+    'Re-sync Lifetime Data',
+    'This will clear your cached lifetime data and re-download all activities from Intervals.icu. This may take a moment.',
+    () => {
+      clearLifetimeCache();
+      state.lifetimeActivities = null;
+      state.lifetimeLastSync   = null;
+      state._lifetimeSyncDone  = false;
+      showToast('Syncing lifetime data…', 'success');
+      runLifetimeSync();
+    }
+  );
 }
 
 function runLifetimeSync() {
@@ -6585,6 +6614,42 @@ function showToast(msg, type = 'success') {
     t.style.transform = 'translateY(6px) scale(0.95)';
     setTimeout(() => t.remove(), 220);
   }, 3500);
+}
+
+function showConfirmDialog(title, message, onConfirm) {
+  // Remove any existing confirm dialog
+  document.getElementById('confirmDialog')?.remove();
+
+  const backdrop = document.createElement('div');
+  backdrop.id = 'confirmDialog';
+  backdrop.className = 'modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="modal" style="max-width:400px">
+      <div class="modal-header" style="padding:20px 24px 8px">
+        <div><div class="modal-title" style="font-size:var(--text-md)">${title}</div></div>
+        <button class="modal-close" id="confirmClose" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div style="padding:8px 24px 20px;color:var(--text-secondary);font-size:var(--text-sm);line-height:1.5">${message}</div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;padding:0 24px 20px">
+        <button class="btn btn-ghost" id="confirmCancel">Cancel</button>
+        <button class="btn btn-primary" id="confirmOk" style="background:var(--red);border-color:var(--red)">Confirm</button>
+      </div>
+    </div>`;
+  document.body.appendChild(backdrop);
+
+  // Trigger open class on next frame so the CSS transition plays
+  requestAnimationFrame(() => backdrop.classList.add('open'));
+
+  const close = () => {
+    backdrop.classList.remove('open');
+    setTimeout(() => backdrop.remove(), 200);
+  };
+  backdrop.querySelector('#confirmClose').onclick = close;
+  backdrop.querySelector('#confirmCancel').onclick = close;
+  backdrop.querySelector('#confirmOk').onclick = () => { close(); onConfirm(); };
+  backdrop.addEventListener('click', e => { if (e.target === backdrop) close(); });
 }
 
 function fmtDur(secs) {

@@ -2173,11 +2173,11 @@
                                     </div>
                                 </div>
                                 <div class="stt-actions">
-                                    <button class="btn btn-primary" onclick="syncData()">
+                                    <button class="btn btn-primary" onclick="confirmSyncData()">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.08-8.58"/></svg>
                                         Sync Now
                                     </button>
-                                    <button class="btn btn-ghost" onclick="forceFullSync()" title="Clears local cache and re-fetches all activities">
+                                    <button class="btn btn-ghost" onclick="confirmFullResync()" title="Clears local cache and re-fetches all activities">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.93"/></svg>
                                         Full Re-sync
                                     </button>
@@ -2232,7 +2232,7 @@
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.08-8.58"/></svg>
                                         Re-sync All
                                     </button>
-                                    <button class="btn btn-ghost" onclick="clearLifetimeCache();updateLifetimeCacheUI();updateStorageBar();showToast('Lifetime cache cleared','success')">
+                                    <button class="btn btn-ghost" onclick="showConfirmDialog('Clear Lifetime Cache','This will remove your cached lifetime activity data. It will be re-downloaded on next sync.',()=>{clearLifetimeCache();updateLifetimeCacheUI();updateStorageBar();showToast('Lifetime cache cleared','success')})">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                                         Clear Cache
                                     </button>
