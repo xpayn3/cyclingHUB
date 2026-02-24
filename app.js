@@ -1264,21 +1264,25 @@ document.addEventListener('touchend', (e) => {
 function _isOnMap(e) {
   return e.target && e.target.closest && e.target.closest('.leaflet-container');
 }
-document.addEventListener('touchmove', function(e) {
+
+// Block multi-touch zoom — capture phase so it fires first
+window.addEventListener('touchstart', function(e) {
   if (e.touches.length > 1 && !_isOnMap(e)) {
     e.preventDefault();
-    e.stopPropagation();
   }
-}, { passive: false });
+}, { passive: false, capture: true });
 
-// Safari uses proprietary gesture events for pinch — block on both document AND documentElement
+window.addEventListener('touchmove', function(e) {
+  if (e.touches.length > 1 && !_isOnMap(e)) {
+    e.preventDefault();
+  }
+}, { passive: false, capture: true });
+
+// Safari proprietary gesture events — capture phase on window
 ['gesturestart', 'gesturechange', 'gestureend'].forEach(function(evt) {
-  document.addEventListener(evt, function(e) {
+  window.addEventListener(evt, function(e) {
     if (!_isOnMap(e)) { e.preventDefault(); }
-  }, { passive: false });
-  document.documentElement.addEventListener(evt, function(e) {
-    if (!_isOnMap(e)) { e.preventDefault(); }
-  }, { passive: false });
+  }, { passive: false, capture: true });
 });
 
 function navigate(page) {

@@ -1,9 +1,10 @@
 /* ── Disable pinch-to-zoom globally, allow on maps ── */
-html, body {
-    touch-action: manipulation;
-    -ms-touch-action: manipulation;
+* {
+    touch-action: pan-x pan-y;
+    -ms-touch-action: pan-x pan-y;
 }
-.leaflet-container {
+.leaflet-container,
+.leaflet-container * {
     touch-action: auto !important;
     -ms-touch-action: auto !important;
 }
