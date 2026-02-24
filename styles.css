@@ -1,70 +1,106 @@
 /* ============================================================
-   DESIGN TOKENS
+   DESIGN TOKENS  ←  EDIT HERE TO CHANGE THE WHOLE APP
+   ============================================================
+   Everything visual lives in this one block.
+   Change a value once — it updates everywhere automatically.
 ============================================================ */
 :root {
-    --bg-base: #0a0c10;
-    --bg-surface: #10131a;
-    --bg-elevated: #161a24;
-    --bg-card: #1a1f2c;
-    --border: #212736;
-    --border-active: #36405a;
-    --accent: #00e5a0;
-    --accent-dim: rgba(0, 229, 160, 0.12);
-    --accent-glow: rgba(0, 229, 160, 0.25);
-    --orange: #ff6b35;
-    --orange-dim: rgba(255, 107, 53, 0.12);
-    --blue: #4a9eff;
-    --blue-dim: rgba(74, 158, 255, 0.12);
-    --purple: #9b59ff;
-    --purple-dim: rgba(155, 89, 255, 0.12);
-    --red: #ff4757;
-    --yellow: #f0c429;
-    --yellow-dim: rgba(240, 196, 41, 0.12);
-    --text-primary: #f0f2fa;
-    --text-secondary: #9ba5be;
-    --text-muted: #62708a;
-    --sidebar-w: 220px;
-    --radius: 10px;
-    --radius-lg: 16px;
-    --transition: 0.18s ease;
+
+    /* ── Accent colour ───────────────────────────────────────
+       The main brand green. Change just this hex and the
+       tints below update too (they reference it via opacity).
+    ──────────────────────────────────────────────────────── */
+    --accent:       #00e5a0;   /* primary green — buttons, highlights, charts */
+    --accent-dim:   rgba(0, 229, 160, 0.12);   /* subtle tint for hover backgrounds */
+    --accent-glow:  rgba(0, 229, 160, 0.25);   /* glow rings, active borders        */
+    --accent-faint: rgba(0, 229, 160, 0.07);   /* very light wash, card backgrounds */
+
+    /* ── Secondary palette ───────────────────────────────────
+       Used for chart lines, badges, metric highlights.
+    ──────────────────────────────────────────────────────── */
+    --blue:        #4a9eff;
+    --blue-dim:    rgba(74, 158, 255, 0.12);
+    --purple:      #9b59ff;
+    --purple-dim:  rgba(155, 89, 255, 0.12);
+    --orange:      #ff6b35;
+    --orange-dim:  rgba(255, 107, 53, 0.12);
+    --red:         #ff4757;
+    --red-dim:     rgba(255, 71, 87, 0.12);
+    --yellow:      #f0c429;
+    --yellow-dim:  rgba(240, 196, 41, 0.12);
+
+    /* ── Backgrounds ─────────────────────────────────────────
+       Layered dark surfaces from deepest to highest.
+       bg-base → bg-surface → bg-elevated → bg-card
+    ──────────────────────────────────────────────────────── */
+    --bg-base:     #0a0c10;   /* page/body background                */
+    --bg-surface:  #10131a;   /* sidebar, modals                     */
+    --bg-elevated: #161a24;   /* inner card sections, input fields   */
+    --bg-card:     #1a1f2c;   /* card surfaces                       */
+
+    /* ── Borders ─────────────────────────────────────────────*/
+    --border:        #212736;   /* default card border        */
+    --border-active: #36405a;   /* focused / active border    */
+
+    /* ── Text ────────────────────────────────────────────────*/
+    --text-primary:   #f0f2fa;   /* headings, values         */
+    --text-secondary: #9ba5be;   /* labels, subtitles        */
+    --text-muted:     #62708a;   /* hints, placeholders      */
 
     /* ── Spacing ─────────────────────────────────────────────
-     Change these to adjust all padding/gaps across the app.
-     --pad-page   : left/right gutters of the main content area
-     --gap-layout : space between cards and between sections
-     --pad-card   : inner padding inside every card
-  ──────────────────────────────────────────────────────── */
-    --pad-page: 14px;
+       These three control all padding and gaps across the app.
+       --pad-page   : left/right gutters of the main content
+       --gap-layout : gap between cards and sections
+       --pad-card   : inner padding inside every card
+    ──────────────────────────────────────────────────────── */
+    --pad-page:   14px;
     --gap-layout: 14px;
-    --pad-card: 12px 12px;
+    --pad-card:   12px 12px;
+
+    /* ── Spacing scale ───────────────────────────────────────
+       Used for component-level gaps (buttons, rows, chips).
+    ──────────────────────────────────────────────────────── */
+    --space-xs:  4px;
+    --space-sm:  8px;
+    --space-md:  12px;
+    --space-lg:  16px;
+    --space-xl:  24px;
+
+    /* ── Border radius ───────────────────────────────────────
+       --radius    : standard card / component radius
+       --radius-lg : larger panels, modals, hero cards
+       --radius-sm : small chips, badges, inputs
+    ──────────────────────────────────────────────────────── */
+    --radius:    10px;
+    --radius-lg: 16px;
+    --radius-sm:  6px;
+
+    /* ── Motion ──────────────────────────────────────────────*/
+    --transition: 0.18s ease;   /* hover colour/opacity transitions */
+
+    /* ── Layout ──────────────────────────────────────────────*/
+    --sidebar-w: 220px;         /* width of the left nav sidebar    */
 
     /* ── Typography ──────────────────────────────────────────
-     --font-ui  : all UI text — body, labels, buttons, nav
-     --font-num : numbers, stats, data values, timecodes
-     Change these two to swap fonts globally.
-  ──────────────────────────────────────────────────────── */
+       --font-ui  : all UI text — body, labels, buttons, nav
+       --font-num : numbers, stats, data values
+       Swap both to change fonts globally.
+    ──────────────────────────────────────────────────────── */
     --font-ui:  'Inter', system-ui, -apple-system, sans-serif;
     --font-num: 'Inter', system-ui, -apple-system, sans-serif;
 
     /* ── Font size scale ─────────────────────────────────────
-     Base html font-size: 15px
-     --text-2xs : micro labels, badges, superscripts  (~9px)
-     --text-xs  : label caps, secondary meta          (~11px)
-     --text-sm  : secondary body, sub-labels          (~12px)
-     --text-base: primary body                        (~13px)
-     --text-md  : card sub-values, row labels         (~15px)
-     --text-lg  : primary card values, chart axis     (~18px)
-     --text-xl  : hero stat values                    (~27px)
-     --text-2xl : largest display numbers             (~36px)
-  ──────────────────────────────────────────────────────── */
-    --text-2xs:  0.62rem;   /*  ~9px  — micro badges, superscripts    */
-    --text-xs:   0.72rem;   /* ~11px  — uppercase labels, meta info   */
-    --text-sm:   0.8rem;    /* ~12px  — secondary body, sub-labels    */
-    --text-base: 0.875rem;  /* ~13px  — primary body text             */
-    --text-md:   1rem;      /*  15px  — card sub-headings, row values */
-    --text-lg:   1.1rem;    /* ~17px  — section titles                */
-    --text-xl:   1.9rem;    /* ~28px  — primary stat values           */
-    --text-2xl:  2.2rem;    /* ~33px  — hero gauge numbers            */
+       Base html font-size: 15px — scale all sizes by changing
+       that one value in the RESET section below.
+    ──────────────────────────────────────────────────────── */
+    --text-2xs:  0.62rem;   /*  ~9px  — micro badges, superscripts  */
+    --text-xs:   0.72rem;   /* ~11px  — uppercase labels, meta      */
+    --text-sm:   0.8rem;    /* ~12px  — secondary body, sub-labels  */
+    --text-base: 0.875rem;  /* ~13px  — primary body text           */
+    --text-md:   1rem;      /*  15px  — card sub-headings           */
+    --text-lg:   1.1rem;    /* ~17px  — section titles              */
+    --text-xl:   1.9rem;    /* ~28px  — primary stat values         */
+    --text-2xl:  2.2rem;    /* ~33px  — hero gauge numbers          */
 }
 
 /* ============================================================
@@ -2458,6 +2494,64 @@ code {
     from { opacity: 0; transform: translateY(8px); }
     to   { opacity: 1; transform: translateY(0);   }
 }
+
+/* ── Shimmer skeleton ── */
+@keyframes shimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position:  200% 0; }
+}
+.skeleton {
+    border-radius: 6px;
+    background: linear-gradient(90deg,
+        var(--bg-elevated) 25%,
+        color-mix(in srgb, var(--bg-elevated) 60%, var(--text-muted)) 50%,
+        var(--bg-elevated) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s ease-in-out infinite;
+}
+
+
+/* ── Badge shine sweep ── */
+@keyframes badgeShine {
+    0%   { left: -120%; opacity: 0; }
+    15%  { opacity: 1; }
+    60%  { left: 120%; opacity: 0.6; }
+    100% { left: 120%; opacity: 0; }
+}
+.stk-badge--earned.badge-shine-play::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.45) 50%, transparent 70%);
+    width: 60%;
+    top: 0; bottom: 0;
+    animation: badgeShine 0.7s ease-out forwards;
+    pointer-events: none;
+    z-index: 10;
+    border-radius: inherit;
+    overflow: hidden;
+}
+
+/* ── Odometer roll ── */
+@keyframes odometerIn {
+    from { transform: translateY(60%); opacity: 0; }
+    to   { transform: translateY(0);   opacity: 1; }
+}
+.stk-stat-val.odometer-play {
+    display: inline-block;
+    animation: odometerIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+
+/* ── Route trace draw-on ── */
+.route-trace-line {
+    stroke-dasharray: var(--route-len, 10000);
+    stroke-dashoffset: var(--route-len, 10000);
+    animation: routeDraw 1.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+@keyframes routeDraw {
+    to { stroke-dashoffset: 0; }
+}
 .page.active > * {
     animation: pageFadeIn 0.22s ease-out both;
 }
@@ -4195,18 +4289,14 @@ code {
 
 .detail-charts-loading {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    padding: 28px;
-    color: var(--text-muted);
-    font-size: var(--text-base);
+    flex-direction: column;
+    gap: 16px;
+    padding: 8px 0 24px;
 }
-.detail-charts-loading .spinner {
-    width: 20px;
-    height: 20px;
-    border-width: 2px;
-    flex-shrink: 0;
+.skeleton-card {
+    background: var(--bg-elevated);
+    border-radius: var(--radius);
+    padding: 20px;
 }
 
 /* ============================================================
@@ -8121,7 +8211,11 @@ code {
     .wxp-st::before,            .wxp-st::after,
     .wxp-best-card::before,     .wxp-best-card::after,
     .wxp-day-card::before,      .wxp-day-card::after,
-    .znp-kpi-card::before,      .znp-kpi-card::after {
+    .znp-kpi-card::before,      .znp-kpi-card::after,
+    .stk-hero-card::after,
+    .stk-pb-card::before,       .stk-pb-card::after,
+    .stk-badge--earned::before, .stk-badge--earned::after,
+    .stk-stat-tile::before,     .stk-stat-tile::after {
         display: none !important;
     }
 }
@@ -8155,10 +8249,30 @@ code {
     flex-direction: column;
     align-items: center;
     text-align: center;
-    transition: border-color 0.3s, box-shadow 0.3s;
+    transition: border-color var(--transition), box-shadow var(--transition);
     position: relative;
     overflow: hidden;
+    --mouse-x: 50%;
+    --mouse-y: 50%;
 }
+/* hero cards: ::before is used for decorative top gradient, so use ::after for rim glow */
+.stk-hero-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(255,255,255,0.35) 0%, transparent 60%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 0;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+}
+.stk-hero-card:hover { box-shadow: 0 4px 24px rgba(0,0,0,0.35); }
+.stk-hero-card:hover::after { opacity: 1; }
 .stk-hero-card::before {
     content: '';
     position: absolute;
@@ -8266,6 +8380,13 @@ code {
     box-shadow: 0 0 0 2px var(--accent);
 }
 
+@media (max-width: 960px) {
+    .stk-cal-wrap { overflow-x: visible; }
+    .stk-cal-grid { display: block; }
+    .stk-cal-month-row { display: none; }
+    .stk-cal-cells { flex-wrap: wrap; }
+}
+
 /* ── Personal bests row ── */
 .stk-pb-row {
     display: grid;
@@ -8280,7 +8401,40 @@ code {
     text-align: center;
     padding: 18px 12px;
     gap: 4px;
+    position: relative;
+    overflow: hidden;
+    --mouse-x: 50%;
+    --mouse-y: 50%;
+    transition: border-color var(--transition), box-shadow var(--transition);
 }
+.stk-pb-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(255,255,255,0.055) 0%, transparent 65%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 0;
+}
+.stk-pb-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(255,255,255,0.35) 0%, transparent 60%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 0;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+}
+.stk-pb-card:hover { border-color: transparent; box-shadow: 0 4px 24px rgba(0,0,0,0.35); }
+.stk-pb-card:hover::before, .stk-pb-card:hover::after { opacity: 1; }
 .stk-pb-icon {
     font-size: 1.5rem;
     margin-bottom: 4px;
@@ -8315,11 +8469,9 @@ code {
     padding: 10px 6px 8px;
     text-align: center;
     background: var(--bg-elevated);
-    transition: transform 0.15s;
     position: relative;
     overflow: hidden;
 }
-.stk-month-tile:hover { transform: translateY(-2px); }
 .stk-month-heat-0 { background: var(--bg-elevated); }
 .stk-month-heat-1 { background: rgba(0,229,160,0.08); }
 .stk-month-heat-2 { background: rgba(0,229,160,0.16); }
@@ -8383,16 +8535,52 @@ code {
     text-align: center;
     opacity: 0.38;
     filter: grayscale(1);
-    transition: opacity 0.3s, filter 0.3s, transform 0.15s;
+    transition: opacity 0.3s, filter 0.3s, border-color var(--transition), box-shadow var(--transition);
     position: relative;
+    overflow: hidden;
+    --mouse-x: 50%;
+    --mouse-y: 50%;
 }
+.stk-badge--earned::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(0,229,160,0.18) 0%, transparent 65%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 0;
+}
+.stk-badge--earned::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(0,229,160,0.7) 0%, transparent 60%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 0;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+}
+.stk-badge--earned:hover { border-color: rgba(0,229,160,0.5); box-shadow: 0 4px 24px rgba(0,229,160,0.15); }
+.stk-badge--earned:hover::before, .stk-badge--earned:hover::after { opacity: 1; }
 .stk-badge--earned {
     opacity: 1;
     filter: none;
     border-color: rgba(0,229,160,0.3);
     background: rgba(0,229,160,0.05);
+    will-change: transform;
 }
-.stk-badge--earned:hover { transform: translateY(-2px); }
+/* Smooth spring-back when the mouse leaves the badge */
+.stk-badge--earned.badge-tilt-reset {
+    transition: transform 0.55s cubic-bezier(0.23, 1, 0.32, 1),
+                border-color var(--transition), box-shadow var(--transition);
+}
 .stk-badge-icon {
     font-size: 1.8rem;
     line-height: 1;
@@ -8440,14 +8628,48 @@ code {
 }
 .stk-stat-tile {
     background: var(--bg-elevated);
+    border: 1px solid var(--border);
     border-radius: 10px;
     padding: 16px 12px 14px;
     display: flex;
     flex-direction: column;
     gap: 3px;
-    transition: transform 0.15s;
+    position: relative;
+    overflow: hidden;
+    --mouse-x: 50%;
+    --mouse-y: 50%;
+    transition: border-color var(--transition), box-shadow var(--transition);
 }
-.stk-stat-tile:hover { transform: translateY(-2px); }
+.stk-stat-tile::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(255,255,255,0.055) 0%, transparent 65%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 0;
+}
+.stk-stat-tile::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(255,255,255,0.35) 0%, transparent 60%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 0;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+}
+.stk-stat-tile:hover { border-color: transparent; box-shadow: 0 4px 24px rgba(0,0,0,0.35); }
+.stk-stat-tile:hover::before, .stk-stat-tile:hover::after { opacity: 1; }
+.stk-stat-tile--link { cursor: pointer; }
+.stk-stat-tile--link .stk-stat-fun::after { content: ' →'; opacity: 0.5; font-size: 0.85em; }
 .stk-stat-icon {
     font-size: 1.4rem;
     line-height: 1;

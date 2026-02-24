@@ -516,17 +516,17 @@
                 <!-- Back button — shown on the LEFT only when viewing a single activity -->
                 <button class="btn btn-ghost detail-topbar-back" id="detailTopbarBack" onclick="navigateBack()" style="display:none">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg>
-                    Back to <span id="detailBackLabel">Activities</span>
+                    Back
                 </button>
                 <!-- Back button — shown when viewing weather day detail -->
                 <button class="btn btn-ghost detail-topbar-back" id="wxdTopbarBack" onclick="renderWeatherPage()" style="display:none">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg>
-                    Weather
+                    Back
                 </button>
                 <!-- Back button — shown on the settings page -->
                 <button class="btn btn-ghost detail-topbar-back" id="settingsTopbarBack" onclick="navigateBack()" style="display:none">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg>
-                    <span id="settingsBackLabel">Back</span>
+                    Back
                 </button>
                 <div class="topbar-actions">
                     <div class="date-range-pill" id="dateRangePill">
@@ -1109,9 +1109,16 @@
                         </div>
                     </div>
 
-                    <!-- Loading -->
+                    <!-- Loading skeletons -->
                     <div class="detail-charts-loading" id="detailChartsLoading" style="display:none">
-                        <div class="spinner"></div><span>Loading chart data…</span>
+                        <div class="skeleton-card">
+                            <div class="skeleton" style="width:35%;height:14px;margin-bottom:16px;border-radius:4px"></div>
+                            <div class="skeleton" style="width:100%;height:180px;border-radius:8px"></div>
+                        </div>
+                        <div class="skeleton-card">
+                            <div class="skeleton" style="width:28%;height:14px;margin-bottom:16px;border-radius:4px"></div>
+                            <div class="skeleton" style="width:100%;height:180px;border-radius:8px"></div>
+                        </div>
                     </div>
 
                     <!-- Power + HR stream charts (only if streams available) -->

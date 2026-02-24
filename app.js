@@ -739,17 +739,7 @@ function navigate(page) {
   if (page === 'workout')  { wrkRefreshStats(); wrkRender(); }
   if (page === 'settings') {
     initWeatherLocationUI();
-    // Show topbar back button with the name of the page we came from
-    const PAGE_NAMES = {
-      dashboard: 'Dashboard', activities: 'Activities', calendar: 'Calendar',
-      fitness: 'Fitness', power: 'Power Curve', zones: 'Training Zones',
-      weather: 'Weather', workout: 'Create Workout', guide: 'Training Guide',
-      streaks: 'Streaks', gear: 'Gear',
-    };
-    const prevName     = PAGE_NAMES[state.previousPage] || null;
-    const labelEl      = document.getElementById('settingsBackLabel');
     const settingsBack = document.getElementById('settingsTopbarBack');
-    if (labelEl) labelEl.textContent = prevName ? `Back to ${prevName}` : 'Back';
     if (settingsBack) settingsBack.style.display = (state.previousPage && state.previousPage !== 'settings') ? '' : 'none';
   }
   if (page === 'weather')  renderWeatherPage();
@@ -1185,7 +1175,7 @@ async function renderRecentActCardMap(a, idx) {
         doubleClickZoom: false, touchZoom: false, keyboard: false,
         attributionControl: false, boxZoom: false,
       });
-      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      L.tileLayer(MAP_THEMES.topo.url, {
         maxZoom: 19, attribution: '', crossOrigin: 'anonymous',
       }).addTo(map);
       L.polyline(points, { color: '#00e5a0', weight: 3, opacity: 1 }).addTo(map);
@@ -5360,6 +5350,7 @@ function renderZnpInsights(recent, prev) {
     </div>`).join('');
 }
 
+
 function showToast(msg, type = 'success') {
   const ICONS = {
     success: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`,
@@ -5794,12 +5785,10 @@ async function navigateToActivity(actKey, fromStep = false) {
   if (pageContent) pageContent.classList.remove('page-content--calendar');
   if (!fromStep) window.scrollTo(0, 0);
 
-  // Back button label
-  const fromLabel = state.previousPage === 'dashboard' ? 'Dashboard' : 'Activities';
-  document.getElementById('detailBackLabel').textContent = fromLabel;
 
   // Render basic info immediately from cached data
   renderActivityBasic(activity);
+
 
   // Reset charts — but when stepping prev/next, freeze the page height first so the
   // browser doesn't snap the scroll position when cards collapse to display:none.
@@ -7171,8 +7160,87 @@ function renderActivityMap(latlng, streams) {
           btn.classList.toggle('active', btn.dataset.mode === mode));
       };
 
-      // Initial render (default green)
-      applyColorMode('default');
+      // Initial render (default green) — but start invisible; trace animation reveals it
+      // We draw the route on a temporary overlay canvas, animating a "drawing" line
+      // from start to end over 1.8s, then remove the overlay and show the real route.
+      const doTraceAnim = () => {
+        const mapContainer = map.getContainer();
+        const rect = mapContainer.getBoundingClientRect();
+        const oc = document.createElement('canvas');
+        oc.width  = rect.width;
+        oc.height = rect.height;
+        oc.style.cssText = `position:absolute;inset:0;pointer-events:none;z-index:500;border-radius:inherit`;
+        mapContainer.style.position = 'relative';
+        mapContainer.appendChild(oc);
+        const octx = oc.getContext('2d');
+
+        // Convert lat/lng points to pixel positions on the map pane
+        const pxPoints = points.map(latlng => {
+          const p = map.latLngToContainerPoint(L.latLng(latlng[0], latlng[1]));
+          return [p.x, p.y];
+        });
+
+        // Pre-compute cumulative distances for even-speed drawing
+        const dists = [0];
+        for (let i = 1; i < pxPoints.length; i++) {
+          const dx = pxPoints[i][0] - pxPoints[i-1][0];
+          const dy = pxPoints[i][1] - pxPoints[i-1][1];
+          dists.push(dists[i-1] + Math.sqrt(dx*dx + dy*dy));
+        }
+        const totalLen = dists[dists.length - 1] || 1;
+
+        const DURATION = 1800;
+        const start = performance.now();
+        const tick = (now) => {
+          const t = Math.min((now - start) / DURATION, 1);
+          const ease = t < 0.5 ? 2*t*t : -1 + (4-2*t)*t; // easeInOut
+          const drawLen = totalLen * ease;
+
+          octx.clearRect(0, 0, oc.width, oc.height);
+          octx.beginPath();
+          octx.strokeStyle = '#00e5a0';
+          octx.lineWidth   = 4;
+          octx.lineCap     = 'round';
+          octx.lineJoin    = 'round';
+          octx.shadowColor = 'rgba(0,229,160,0.7)';
+          octx.shadowBlur  = 8;
+
+          let drawn = 0;
+          octx.moveTo(pxPoints[0][0], pxPoints[0][1]);
+          for (let i = 1; i < pxPoints.length; i++) {
+            const seg = dists[i] - dists[i-1];
+            if (drawn + seg <= drawLen) {
+              octx.lineTo(pxPoints[i][0], pxPoints[i][1]);
+              drawn += seg;
+            } else {
+              const frac = (drawLen - drawn) / seg;
+              octx.lineTo(
+                pxPoints[i-1][0] + (pxPoints[i][0] - pxPoints[i-1][0]) * frac,
+                pxPoints[i-1][1] + (pxPoints[i][1] - pxPoints[i-1][1]) * frac,
+              );
+              break;
+            }
+          }
+          octx.stroke();
+
+          if (t < 1) {
+            requestAnimationFrame(tick);
+          } else {
+            // Reveal real route, fade out overlay
+            applyColorMode('default');
+            oc.style.transition = 'opacity 0.3s ease';
+            oc.style.opacity = '0';
+            setTimeout(() => oc.remove(), 350);
+          }
+        };
+
+        // Hide real route during animation
+        colorLayer.clearLayers();
+        requestAnimationFrame(tick);
+      };
+
+      // applyColorMode will be called by the animation; just set up mode state
+      activeMode = 'default';
 
       // ── Fit bounds + start/end markers ───────────────────────────────────
       // Compute bounds from the points array for fitBounds
@@ -7181,6 +7249,9 @@ function renderActivityMap(latlng, streams) {
       map.fitBounds(routeBounds, { padding: [24, 24] });
       map.invalidateSize();
       state.activityMap = map;
+
+      // Run trace animation after tiles have a moment to load
+      setTimeout(doTraceAnim, 300);
 
       const dotIcon = (color, label) => L.divIcon({
         className: '',
@@ -9077,18 +9148,81 @@ function renderStreaksPage() {
       { icon:'⭐', label:'Fav Day',            value: favDay,                       fun: `You ride most on ${favDay}s` },
       { icon:'🌸', label:'Fav Month',          value: favMonth,                     fun: `${monthCounts[favMonthIdx]} rides on average in ${favMonth}` },
       { icon:'🌅', label:'Early Bird Rides',   value: fmtNum(earlyBird),            fun: `Rides started before 8 am` },
-      { icon:'🌡️', label:'Hottest Ride',       value: hottestAct ? fmtT(getTemp(hottestAct)) : '—', fun: hottestAct ? (hottestAct.name || 'Unknown ride') : 'No sensor data yet' },
-      { icon:'🥶', label:'Coldest Ride',       value: coldestAct ? fmtT(getTemp(coldestAct)) : '—', fun: coldestAct ? (coldestAct.name || 'Unknown ride') : 'No sensor data yet' },
-      { icon:'🏔️', label:'Biggest Climb',      value: biggestClimbM > 0 ? `${biggestClimbM.toLocaleString()} m` : '—', fun: biggestClimbM > 0 ? (biggestClimbAct.name || 'Unknown ride') : 'No elevation data yet' },
+      { icon:'🌡️', label:'Hottest Ride',       value: hottestAct ? fmtT(getTemp(hottestAct)) : '—', fun: hottestAct ? (hottestAct.name || 'Unknown ride') : 'No sensor data yet', act: hottestAct || null },
+      { icon:'🥶', label:'Coldest Ride',       value: coldestAct ? fmtT(getTemp(coldestAct)) : '—', fun: coldestAct ? (coldestAct.name || 'Unknown ride') : 'No sensor data yet', act: coldestAct || null },
+      { icon:'🏔️', label:'Biggest Climb',      value: biggestClimbM > 0 ? `${biggestClimbM.toLocaleString()} m` : '—', fun: biggestClimbM > 0 ? (biggestClimbAct.name || 'Unknown ride') : 'No elevation data yet', act: biggestClimbM > 0 ? biggestClimbAct : null },
     ];
 
-    lifetimeGrid.innerHTML = STATS.map(s => `
-      <div class="stk-stat-tile">
+    // Also wire longest ride click
+    const longestAct = acts.reduce((m, a) => (a.distance || 0) > (m.distance || 0) ? a : m, {});
+    STATS.forEach(s => {
+      if (s.label === 'Longest Ride') s.act = longestAct.id ? longestAct : null;
+    });
+
+    lifetimeGrid.innerHTML = STATS.map((s, i) => `
+      <div class="stk-stat-tile${s.act ? ' stk-stat-tile--link' : ''}" data-stat-idx="${i}">
         <div class="stk-stat-icon">${s.icon}</div>
         <div class="stk-stat-val">${s.value}</div>
         <div class="stk-stat-label">${s.label}</div>
         <div class="stk-stat-fun">${s.fun}</div>
       </div>`).join('');
+
+    lifetimeGrid.querySelectorAll('.stk-stat-tile--link').forEach(el => {
+      const s = STATS[+el.dataset.statIdx];
+      if (s?.act) el.addEventListener('click', () => navigateToActivity(s.act));
+    });
+
+    // ── Odometer count-up on stat values ────────────────────────────────────
+    const odoObs = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        odoObs.unobserve(entry.target);
+        const valEl = entry.target.querySelector('.stk-stat-val');
+        if (!valEl) return;
+        const finalText = valEl.textContent.trim();
+        // Extract leading number (handles "932 km", "1.2k hrs", "42°C" etc.)
+        const match = finalText.match(/^([\d,]+\.?\d*)/);
+        if (!match) return;
+        const finalNum = parseFloat(match[1].replace(/,/g, ''));
+        const suffix   = finalText.slice(match[0].length);
+        const prefix   = '';
+        const isInt    = Number.isInteger(finalNum) || match[1].includes(',');
+        const decimals = isInt ? 0 : (match[1].split('.')[1] || '').length;
+        const duration = 900;
+        const start    = performance.now();
+        valEl.classList.add('odometer-play');
+        const tick = (now) => {
+          const t = Math.min((now - start) / duration, 1);
+          const ease = 1 - Math.pow(1 - t, 3);
+          const cur = finalNum * ease;
+          const fmt = isInt
+            ? Math.round(cur).toLocaleString()
+            : cur.toFixed(decimals);
+          valEl.textContent = prefix + fmt + suffix;
+          if (t < 1) requestAnimationFrame(tick);
+          else { valEl.textContent = finalText; valEl.classList.remove('odometer-play'); }
+        };
+        requestAnimationFrame(tick);
+      });
+    }, { threshold: 0.3 });
+    lifetimeGrid.querySelectorAll('.stk-stat-tile').forEach(el => odoObs.observe(el));
+  }
+
+  // ── Badge shine sweep on render ──────────────────────────────────────────
+  const badgesGridShine = document.getElementById('stkBadgesGrid');
+  if (badgesGridShine) {
+    const seenKey = 'stk_badges_shine_seen';
+    const seenSet = new Set(JSON.parse(localStorage.getItem(seenKey) || '[]'));
+    badgesGridShine.querySelectorAll('.stk-badge--earned').forEach((el, i) => {
+      const name = el.querySelector('.stk-badge-name')?.textContent || i;
+      if (seenSet.has(name)) return;
+      seenSet.add(name);
+      setTimeout(() => {
+        el.classList.add('badge-shine-play');
+        el.addEventListener('animationend', () => el.classList.remove('badge-shine-play'), { once: true });
+      }, 200 + i * 120);
+    });
+    localStorage.setItem(seenKey, JSON.stringify([...seenSet]));
   }
 }
 
@@ -11042,7 +11176,7 @@ function setMapTheme(key) {
   // expose so other parts of the app can attach glow to late-rendered elements
   window.attachCardGlow = attachGlow;
 
-  const GLOW_SEL = '.stat-card, .recent-act-card, .perf-metric, .act-pstat, .mm-cell, .wxp-day-card, .fit-kpi-card, .wx-day, .znp-kpi-card, .wxp-st, .wxp-best-card';
+  const GLOW_SEL = '.stat-card, .recent-act-card, .perf-metric, .act-pstat, .mm-cell, .wxp-day-card, .fit-kpi-card, .wx-day, .znp-kpi-card, .wxp-st, .wxp-best-card, .stk-hero-card, .stk-pb-card, .stk-badge--earned, .stk-stat-tile';
 
   function attachPress(el) {
     const press   = () => el.classList.add('is-pressed');
@@ -11072,4 +11206,44 @@ function setMapTheme(key) {
     });
   });
   observer.observe(document.body, { childList: true, subtree: true });
+})();
+
+/* ====================================================
+   BADGE TILT — 3D medal tilt for earned achievement badges
+==================================================== */
+(function initBadgeTilt() {
+  if (window.matchMedia('(pointer: coarse)').matches) return; // touch — skip
+
+  const MAX_TILT = 8; // degrees
+
+  function attachTilt(el) {
+    if (el.dataset.tilt) return;
+    el.dataset.tilt = '1';
+
+    el.addEventListener('mousemove', e => {
+      const rect = el.getBoundingClientRect();
+      const dx = (e.clientX - rect.left  - rect.width  / 2) / (rect.width  / 2); // -1..1
+      const dy = (e.clientY - rect.top   - rect.height / 2) / (rect.height / 2); // -1..1
+      const rx = (-dy * MAX_TILT).toFixed(2);
+      const ry = ( dx * MAX_TILT).toFixed(2);
+      el.classList.remove('badge-tilt-reset');
+      el.style.transform = `perspective(480px) rotateX(${rx}deg) rotateY(${ry}deg) scale(1.03)`;
+    });
+
+    el.addEventListener('mouseleave', () => {
+      el.classList.add('badge-tilt-reset');
+      el.style.transform = '';
+    });
+  }
+
+  // Attach to any already-rendered earned badges
+  document.querySelectorAll('.stk-badge--earned').forEach(attachTilt);
+
+  // Catch badges rendered later (streaks page is dynamic)
+  const obs = new MutationObserver(() => {
+    document.querySelectorAll('.stk-badge--earned').forEach(el => {
+      if (!el.dataset.tilt) attachTilt(el);
+    });
+  });
+  obs.observe(document.body, { childList: true, subtree: true });
 })();
