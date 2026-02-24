@@ -1046,8 +1046,14 @@
 
                     <!-- Route map -->
                     <div class="card" id="detailMapCard" style="display:none">
+                        <button class="map-close-btn" id="mapCloseBtn" onclick="toggleMapFullscreen()" title="Close fullscreen">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
                         <div class="card-header">
                             <div class="card-title">Route</div>
+                            <button class="map-expand-btn btn btn-ghost btn-sm" onclick="toggleMapFullscreen()" id="mapExpandBtn" title="Expand map">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                            </button>
                         </div>
                         <div id="mapColorToggles" class="map-color-toggles"></div>
 
@@ -1076,6 +1082,17 @@
                             <div id="activityMap" class="activity-map"></div>
                             <div id="mapStatsPanel" class="map-stats-panel">
                                 <p class="map-stat-hint">Hover the<br>route to<br>see stats</p>
+                            </div>
+                        </div>
+                        <!-- Fullscreen bottom row: stats left, chart right -->
+                        <div class="fs-bottom-row" id="fsBottomRow">
+                            <div class="fs-bottom-left" id="fsBottomLeft"></div>
+                            <div class="fs-bottom-right" id="fsMiniChart">
+                                <div class="fs-mini-chart-header">
+                                    <div class="fs-mini-toggles" id="fsMiniToggles"></div>
+                                </div>
+                                <canvas id="fsMiniCanvas" width="360" height="100"></canvas>
+                                <div class="fs-mini-vals" id="fsMiniVals"></div>
                             </div>
                         </div>
                     </div>
@@ -2312,6 +2329,18 @@
                                         <span class="map-theme-label">Streets</span>
                                     </button>
                                 </div>
+                                <div class="stt-rows" style="margin-top:8px">
+                                    <div class="stt-row stt-row--toggle">
+                                        <div class="stt-row-info">
+                                            <div class="stt-row-label">Smooth flyover</div>
+                                            <div class="stt-row-sub">Fluid marker movement between GPS points</div>
+                                        </div>
+                                        <label class="settings-ios-toggle">
+                                            <input type="checkbox" id="smoothFlyoverToggle" onchange="toggleSmoothFlyover(this.checked)">
+                                            <span class="settings-ios-slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- WEATHER -->
@@ -2326,18 +2355,20 @@
                                 <div class="stt-rows">
                                     <div class="stt-row stt-row--control">
                                         <div class="stt-row-info">
-                                            <div class="stt-row-label">City</div>
-                                            <div class="stt-row-sub" id="wxCurrentLocation">Not set</div>
+                                            <div class="stt-row-label">Add location</div>
+                                            <div class="stt-row-sub" id="wxCurrentLocation">Up to 5 locations</div>
                                         </div>
                                         <div class="wx-location-input-row">
                                             <input type="text" id="wxCityInput" class="wx-city-input" placeholder="e.g. Ljubljana" autocomplete="off">
-                                            <button class="btn btn-primary btn-sm" onclick="setWeatherCity()">Set</button>
+                                            <button class="btn btn-primary btn-sm" onclick="setWeatherCity()">Add</button>
                                             <button class="btn btn-ghost btn-sm" onclick="useMyLocation()" title="Use browser location">
                                                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/><circle cx="12" cy="12" r="8"/></svg>
                                                 Locate me
                                             </button>
                                         </div>
                                     </div>
+                                    <!-- Saved locations list -->
+                                    <div id="wxLocationsList"></div>
                                     <div class="stt-row stt-row--control">
                                         <div class="stt-row-info">
                                             <div class="stt-row-label">Forecast model</div>

@@ -1025,16 +1025,9 @@ async function setWeatherCity() {
     const { latitude: lat, longitude: lng, name, country } = geoData.results[0];
     const label = [name, country].filter(Boolean).join(', ');
 
-    // Save coords — clear old forecast cache so it refetches for new location
-    localStorage.setItem('icu_wx_coords', JSON.stringify({ lat, lng, city: name }));
-    localStorage.removeItem('icu_wx_forecast');
-    localStorage.removeItem('icu_wx_forecast_ts');
-
-    if (statusEl) statusEl.textContent = label;
-    if (input)    input.value = '';
-
-    // Refresh the dashboard forecast card
-    if (state.currentPage === 'dashboard') renderWeatherForecast();
+    addWxLocation(lat, lng, label);
+    if (statusEl) statusEl.textContent = `${getWxLocations().length} / ${WX_MAX_LOCATIONS} locations`;
+    if (input) input.value = '';
   } catch (e) {
     if (statusEl) statusEl.textContent = 'City not found — try a different name';
   }
@@ -1059,22 +1052,35 @@ async function useMyLocation() {
     } catch (_) { /* fall through to IP fallback */ }
   }
 
-  // Fallback: IP-based geolocation
+  // Fallback: IP-based geolocation (try multiple services)
   if (lat == null) {
-    try {
-      const res = await fetch('https://ipapi.co/json/');
-      if (res.ok) {
-        const data = await res.json();
-        if (data.latitude && data.longitude) {
-          lat = data.latitude;
-          lng = data.longitude;
-          // ipapi already gives us city + country
-          const cityName = [data.city, data.country_name].filter(Boolean).join(', ') || `${lat.toFixed(2)}, ${lng.toFixed(2)}`;
-          _applyWeatherLocation(lat, lng, cityName, statusEl);
+    const ipServices = [
+      {
+        url: 'https://get.geojs.io/v1/ip/geo.json',
+        parse: d => ({ lat: parseFloat(d.latitude), lng: parseFloat(d.longitude), city: d.city, country: d.country })
+      },
+      {
+        url: 'https://ipapi.co/json/',
+        parse: d => ({ lat: d.latitude, lng: d.longitude, city: d.city, country: d.country_name })
+      },
+      {
+        url: 'https://ip-api.com/json/?fields=lat,lon,city,country',
+        parse: d => ({ lat: d.lat, lng: d.lon, city: d.city, country: d.country })
+      },
+    ];
+    for (const svc of ipServices) {
+      try {
+        const res = await fetch(svc.url);
+        if (!res.ok) continue;
+        const raw = await res.json();
+        const d = svc.parse(raw);
+        if (d.lat && d.lng && !isNaN(d.lat)) {
+          const cityName = [d.city, d.country].filter(Boolean).join(', ') || `${d.lat.toFixed(2)}, ${d.lng.toFixed(2)}`;
+          _applyWeatherLocation(d.lat, d.lng, cityName, statusEl);
           return;
         }
-      }
-    } catch (_) {}
+      } catch (_) { continue; }
+    }
   }
 
   if (lat == null) {
@@ -1099,37 +1105,166 @@ async function useMyLocation() {
   _applyWeatherLocation(lat, lng, cityName, statusEl);
 }
 
-function _applyWeatherLocation(lat, lng, cityName, statusEl) {
-  localStorage.setItem('icu_wx_coords', JSON.stringify({ lat, lng, city: cityName }));
+/* ── Multi-location weather (max 5) ──────────────────────────────── */
+const WX_MAX_LOCATIONS = 5;
+
+function getWxLocations() {
+  try {
+    const raw = localStorage.getItem('icu_wx_locations');
+    if (raw) { const arr = JSON.parse(raw); if (Array.isArray(arr)) return arr; }
+  } catch (_) {}
+  // Migrate legacy single location
+  try {
+    const legacy = localStorage.getItem('icu_wx_coords');
+    if (legacy) {
+      const c = JSON.parse(legacy);
+      const loc = { id: Date.now(), lat: c.lat, lng: c.lng, city: c.city || 'Unknown', active: true };
+      saveWxLocations([loc]);
+      return [loc];
+    }
+  } catch (_) {}
+  return [];
+}
+
+function saveWxLocations(locs) {
+  localStorage.setItem('icu_wx_locations', JSON.stringify(locs));
+  // Keep icu_wx_coords in sync with the active location (backward compat)
+  const active = locs.find(l => l.active);
+  if (active) {
+    localStorage.setItem('icu_wx_coords', JSON.stringify({ lat: active.lat, lng: active.lng, city: active.city }));
+  } else {
+    localStorage.removeItem('icu_wx_coords');
+  }
+}
+
+function getActiveWxLocation() {
+  const locs = getWxLocations();
+  return locs.find(l => l.active) || locs[0] || null;
+}
+
+function setActiveWxLocation(id) {
+  const locs = getWxLocations();
+  locs.forEach(l => l.active = (l.id === id));
+  saveWxLocations(locs);
+  // Clear forecast cache so it refetches for new location
   localStorage.removeItem('icu_wx_forecast');
   localStorage.removeItem('icu_wx_forecast_ts');
   localStorage.removeItem('icu_wx_page');
   localStorage.removeItem('icu_wx_page_ts');
-  if (statusEl) statusEl.textContent = cityName;
-  showToast(`Location set to ${cityName}`, 'success');
+  if (state.currentPage === 'weather') renderWeatherPage();
   if (state.currentPage === 'dashboard') renderWeatherForecast();
+  _refreshWxLocSettings();
+}
+
+function addWxLocation(lat, lng, city) {
+  const locs = getWxLocations();
+  // Prevent duplicates (same city name or very close coordinates)
+  const dup = locs.find(l => l.city === city || (Math.abs(l.lat - lat) < 0.05 && Math.abs(l.lng - lng) < 0.05));
+  if (dup) {
+    // Just activate the existing one
+    setActiveWxLocation(dup.id);
+    showToast(`Switched to ${city}`, 'success');
+    return;
+  }
+  if (locs.length >= WX_MAX_LOCATIONS) {
+    showToast(`Maximum ${WX_MAX_LOCATIONS} locations — remove one first`, 'error');
+    return;
+  }
+  locs.forEach(l => l.active = false);
+  locs.push({ id: Date.now(), lat, lng, city, active: true });
+  saveWxLocations(locs);
+  localStorage.removeItem('icu_wx_forecast');
+  localStorage.removeItem('icu_wx_forecast_ts');
+  localStorage.removeItem('icu_wx_page');
+  localStorage.removeItem('icu_wx_page_ts');
+  showToast(`Added ${city}`, 'success');
+  if (state.currentPage === 'weather') renderWeatherPage();
+  if (state.currentPage === 'dashboard') renderWeatherForecast();
+  _refreshWxLocSettings();
+}
+
+function removeWxLocation(id) {
+  let locs = getWxLocations();
+  const removing = locs.find(l => l.id === id);
+  locs = locs.filter(l => l.id !== id);
+  // If we removed the active one, activate the first remaining
+  if (removing?.active && locs.length) locs[0].active = true;
+  saveWxLocations(locs);
+  localStorage.removeItem('icu_wx_forecast');
+  localStorage.removeItem('icu_wx_forecast_ts');
+  localStorage.removeItem('icu_wx_page');
+  localStorage.removeItem('icu_wx_page_ts');
+  showToast(`Removed ${removing?.city || 'location'}`, 'info');
+  if (state.currentPage === 'weather') renderWeatherPage();
+  if (state.currentPage === 'dashboard') renderWeatherForecast();
+  _refreshWxLocSettings();
+}
+
+function _applyWeatherLocation(lat, lng, cityName, statusEl) {
+  addWxLocation(lat, lng, cityName);
+  if (statusEl) statusEl.textContent = cityName;
 }
 
 function clearWeatherLocation() {
   localStorage.removeItem('icu_wx_coords');
+  localStorage.removeItem('icu_wx_locations');
   localStorage.removeItem('icu_wx_forecast');
   localStorage.removeItem('icu_wx_forecast_ts');
+  localStorage.removeItem('icu_wx_page');
+  localStorage.removeItem('icu_wx_page_ts');
   const statusEl = document.getElementById('wxCurrentLocation');
   if (statusEl) statusEl.textContent = 'Not set';
   const card = document.getElementById('forecastCard');
   if (card) card.style.display = 'none';
+  _refreshWxLocSettings();
+}
+
+function _refreshWxLocSettings() {
+  const list = document.getElementById('wxLocationsList');
+  if (!list) return;
+  const locs = getWxLocations();
+  if (!locs.length) {
+    list.innerHTML = '<div class="stt-row"><span class="stt-row-label" style="color:var(--text-muted)">No locations added</span></div>';
+    return;
+  }
+  list.innerHTML = locs.map(l => `
+    <div class="stt-row wx-loc-row${l.active ? ' wx-loc-row--active' : ''}">
+      <button class="wx-loc-activate btn btn-ghost btn-sm" onclick="setActiveWxLocation(${l.id})" title="Set active">
+        <span class="wx-loc-dot${l.active ? ' wx-loc-dot--on' : ''}"></span>
+      </button>
+      <span class="stt-row-label">${l.city}</span>
+      <button class="wx-loc-remove btn btn-ghost btn-sm" onclick="removeWxLocation(${l.id})" title="Remove">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  `).join('');
+  // Update the status label
+  const statusEl = document.getElementById('wxCurrentLocation');
+  if (statusEl) statusEl.textContent = `${locs.length} / ${WX_MAX_LOCATIONS} locations`;
+}
+
+function renderWxLocationSwitcher() {
+  const locs = getWxLocations();
+  if (locs.length <= 1) return '';
+  return `
+    <div class="wx-loc-switcher">
+      ${locs.map(l => `
+        <button class="wx-loc-pill${l.active ? ' wx-loc-pill--active' : ''}" onclick="setActiveWxLocation(${l.id})">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M12 2a7 7 0 0 1 7 7c0 5.25-7 13-7 13S5 14.25 5 9a7 7 0 0 1 7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+          ${l.city}
+        </button>
+      `).join('')}
+    </div>`;
 }
 
 function initWeatherLocationUI() {
   const statusEl = document.getElementById('wxCurrentLocation');
   if (!statusEl) return;
-  try {
-    const cached = localStorage.getItem('icu_wx_coords');
-    if (cached) {
-      const c = JSON.parse(cached);
-      statusEl.textContent = c.city || `${c.lat?.toFixed(2)}, ${c.lng?.toFixed(2)}`;
-    }
-  } catch (_) {}
+  const active = getActiveWxLocation();
+  if (active) {
+    statusEl.textContent = active.city || `${active.lat?.toFixed(2)}, ${active.lng?.toFixed(2)}`;
+  }
+  _refreshWxLocSettings();
   // Restore saved model selection
   const sel = document.getElementById('wxModelSelect');
   if (sel) sel.value = localStorage.getItem('icu_wx_model') || 'best_match';
@@ -1521,8 +1656,11 @@ async function renderRecentActCardMap(a, idx) {
         doubleClickZoom: false, touchZoom: false, keyboard: false,
         attributionControl: false, boxZoom: false,
       });
-      L.tileLayer(MAP_THEMES.topo.url, {
+      const _rcTheme = MAP_THEMES[loadMapTheme()] || MAP_THEMES.topo;
+      mapEl.style.background = _rcTheme.bg;
+      L.tileLayer(_rcTheme.url, {
         maxZoom: 19, attribution: '', crossOrigin: 'anonymous',
+        ..._rcTheme.sub ? { subdomains: _rcTheme.sub } : {},
       }).addTo(map);
       L.polyline(points, { color: '#00e5a0', weight: 3, opacity: 1 }).addTo(map);
       const dotIcon = color => L.divIcon({
@@ -2262,6 +2400,8 @@ async function renderWeatherPage() {
   }).join('');
 
   container.innerHTML = `
+    <!-- Location switcher -->
+    ${renderWxLocationSwitcher()}
     <!-- Location header -->
     <div class="wxp-location-bar">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 2a7 7 0 0 1 7 7c0 5.25-7 13-7 13S5 14.25 5 9a7 7 0 0 1 7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
@@ -6303,9 +6443,67 @@ function stepActivity(delta) {
   navigateToActivity(pool[newIdx], true);
 }
 
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && document.getElementById('detailMapCard')?.classList.contains('map-fullscreen')) {
+    toggleMapFullscreen();
+  }
+});
+
+function toggleMapFullscreen() {
+  const card = document.getElementById('detailMapCard');
+  const btn  = document.getElementById('mapExpandBtn');
+  if (!card) return;
+  const isFs = card.classList.toggle('map-fullscreen');
+  // Swap icon: expand ↔ collapse
+  if (btn) btn.innerHTML = isFs
+    ? '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>'
+    : '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>';
+  // Lock body scroll when fullscreen
+  document.body.style.overflow = isFs ? 'hidden' : '';
+  // Enable/disable direct scroll-wheel zoom (no Alt key needed) in fullscreen
+  if (state.activityMap) {
+    if (isFs) state.activityMap.scrollWheelZoom.enable();
+    else      state.activityMap.scrollWheelZoom.disable();
+  }
+  // Move stats content into the fullscreen bottom-left panel (or back)
+  const statsPanel  = document.getElementById('mapStatsPanel');
+  const fsLeft      = document.getElementById('fsBottomLeft');
+  if (statsPanel && fsLeft) {
+    if (isFs) {
+      // Copy gauge + metrics into the bottom-left panel
+      fsLeft.innerHTML = statsPanel.innerHTML;
+      // Re-attach glow
+      fsLeft.querySelectorAll('.mm-cell').forEach(el => {
+        if (!el.dataset.glow) { el.dataset.glow = '1'; window.attachCardGlow && window.attachCardGlow(el); }
+      });
+    } else {
+      fsLeft.innerHTML = '';
+    }
+  }
+  // Invalidate mini chart cache so it redraws at new size
+  if (state.flythrough?._drawMiniChart) {
+    state.flythrough._invalidateMC?.();
+    // Small delay for layout to settle
+    setTimeout(() => state.flythrough?._drawMiniChart(state.flythrough?.idx || 0), 80);
+  }
+  // Let Leaflet recalculate the new container size
+  setTimeout(() => { if (state.activityMap) state.activityMap.invalidateSize(); }, 50);
+}
+
 function destroyActivityCharts() {
+  // Exit map fullscreen if active
+  const mapCard = document.getElementById('detailMapCard');
+  if (mapCard?.classList.contains('map-fullscreen')) {
+    mapCard.classList.remove('map-fullscreen');
+    document.body.style.overflow = '';
+  }
   if (state.flythrough?.rafId) { cancelAnimationFrame(state.flythrough.rafId); }
   state.flythrough = null;
+  // Reset mini chart + fullscreen bottom panels
+  const _miniC = document.getElementById('fsMiniChart');
+  if (_miniC) _miniC.classList.remove('mc-ready');
+  const _fsL = document.getElementById('fsBottomLeft');
+  if (_fsL) _fsL.innerHTML = '';
   if (state.activityMap) { state.activityMap.remove(); state.activityMap = null; }
   state._streetTileRef = null;
   state._colorLayerRef = null;
@@ -7291,6 +7489,12 @@ function buildMapStatsHTML(streams, maxSpdKmh, maxHR) {
 // Update panel DOM in-place — no full innerHTML rebuild on every mousemove.
 function refreshMapStats(panel, streams, idx, maxSpdKmh, maxHR) {
   if (!panel) return;
+  // Also update fullscreen bottom-left clone
+  const _fsLeft = document.getElementById('fsBottomLeft');
+  if (_fsLeft?.children.length) _refreshStatPanel(_fsLeft, streams, idx, maxSpdKmh, maxHR);
+  _refreshStatPanel(panel, streams, idx, maxSpdKmh, maxHR);
+}
+function _refreshStatPanel(panel, streams, idx, maxSpdKmh, maxHR) {
   const get = (key) => {
     const arr = streams[key];
     return (Array.isArray(arr) && idx < arr.length && arr[idx] != null) ? arr[idx] : null;
@@ -7381,6 +7585,11 @@ function refreshMapStats(panel, streams, idx, maxSpdKmh, maxHR) {
 // Reset all values back to dashes (called on mouseout).
 function resetMapStats(panel) {
   if (!panel) return;
+  const _fsLeft = document.getElementById('fsBottomLeft');
+  if (_fsLeft?.children.length) _resetStatPanel(_fsLeft);
+  _resetStatPanel(panel);
+}
+function _resetStatPanel(panel) {
   const gFill = panel.querySelector('.g-fill');
   const gNum  = panel.querySelector('.g-num');
   if (gFill) gFill.setAttribute('d', 'M 0 0');
@@ -7795,6 +8004,8 @@ function renderActivityMap(latlng, streams) {
           hoverDot.setLatLng(valid[bestIdx]);
           hoverDot.setStyle({ fillOpacity: 1, opacity: 1, fillColor: dotColor });
           refreshMapStats(statsEl, streams, si, maxSpdKmh, maxHR);
+          // Update mini chart cursor on hover too
+          if (state.flythrough?._drawMiniChart) state.flythrough._drawMiniChart(bestIdx);
         });
 
         map.on('mouseout', () => {
@@ -7827,9 +8038,15 @@ function initFlythrough(map, valid, streams, maxes, maxSpdKmh, maxHR, statsEl, t
   };
   state.flythrough = ft;
 
-  // Show the flythrough bar now that GPS data is confirmed
+  // Show the flythrough bar now that GPS data is confirmed, reset to start
   const bar = document.getElementById('flythroughBar');
   if (bar) bar.style.display = '';
+  const _fill = document.getElementById('ftScrubberFill');
+  const _thumb = document.getElementById('ftScrubberThumb');
+  if (_fill)  _fill.style.width = '0%';
+  if (_thumb) _thumb.style.left = '0%';
+  const _playBtn = document.getElementById('ftPlayBtn');
+  if (_playBtn) _playBtn.innerHTML = '<svg width="11" height="13" viewBox="0 0 11 13" fill="currentColor"><polygon points="0,0 11,6.5 0,13"/></svg>';
 
   // Flythrough dot — above hover pane (z 460)
   map.createPane('flythroughPane');
@@ -7851,43 +8068,259 @@ function initFlythrough(map, valid, streams, maxes, maxSpdKmh, maxHR, statsEl, t
     zIndexOffset: 500,
   });
 
+  // ── Fullscreen mini sparkline chart ──────────────────────────────────
+  const _mc = { canvas: null, ctx: null, layers: [], layerOn: {}, cached: null, w: 0, h: 0 };
+
+  const MC_METRICS = [
+    { key: 'heartrate',       alt: 'heart_rate',     label: 'HR',       color: '#ff6b35', unit: 'bpm' },
+    { key: 'watts',           alt: 'power',          label: 'Power',    color: '#00e5a0', unit: 'w'   },
+    { key: 'altitude',        alt: null,             label: 'Elev',     color: '#9b59ff', unit: 'm'   },
+    { key: 'cadence',         alt: null,             label: 'Cad',      color: '#4a9eff', unit: 'rpm' },
+    { key: 'velocity_smooth', alt: null,             label: 'Speed',    color: '#f0c429', unit: 'km/h', scale: 3.6 },
+  ];
+
+  function initMiniChart() {
+    _mc.canvas = document.getElementById('fsMiniCanvas');
+    if (!_mc.canvas) return;
+    _mc.ctx = _mc.canvas.getContext('2d');
+    _mc.layers = [];
+    _mc.layerOn = {};
+
+    // Gather available stream layers
+    MC_METRICS.forEach(m => {
+      const arr = streams[m.key] || (m.alt ? streams[m.alt] : null);
+      if (!arr || !arr.length) return;
+      const scale = m.scale || 1;
+      const vals = arr.map(v => v != null ? v * scale : null);
+      // Safe min/max for large arrays (avoid stack overflow with spread)
+      let min = Infinity, max = -Infinity;
+      for (let i = 0; i < vals.length; i++) {
+        if (vals[i] != null) {
+          if (vals[i] < min) min = vals[i];
+          if (vals[i] > max) max = vals[i];
+        }
+      }
+      if (min === Infinity) return; // no valid data
+      _mc.layers.push({ ...m, data: vals, min, max, rawArr: arr });
+      _mc.layerOn[m.key] = true;
+    });
+
+    // Build toggle buttons
+    const togEl = document.getElementById('fsMiniToggles');
+    if (togEl) {
+      togEl.innerHTML = _mc.layers.map(l =>
+        `<button class="fs-mini-tog active" data-mckey="${l.key}" style="--sc:${l.color}">${l.label}</button>`
+      ).join('');
+      togEl.querySelectorAll('.fs-mini-tog').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const k = btn.dataset.mckey;
+          _mc.layerOn[k] = !_mc.layerOn[k];
+          btn.classList.toggle('active', _mc.layerOn[k]);
+          _mc.cached = null;  // invalidate cache
+          drawMiniChart(ft.idx);
+        });
+      });
+    }
+
+    // Mark container as ready so CSS shows it in fullscreen
+    const container = document.getElementById('fsMiniChart');
+    if (container && _mc.layers.length) container.classList.add('mc-ready');
+
+    _mc.cached = null;
+    drawMiniChart(0);
+  }
+
+  function drawMiniChart(gpsIdx) {
+    if (!_mc.ctx || !_mc.layers.length) return;
+    const canvas = _mc.canvas;
+    const dpr = window.devicePixelRatio || 1;
+    const cw = canvas.clientWidth;
+    const ch = canvas.clientHeight;
+    if (cw === 0 || ch === 0) return; // hidden — skip
+
+    // Resize canvas buffer if needed
+    if (canvas.width !== cw * dpr || canvas.height !== ch * dpr) {
+      canvas.width = cw * dpr;
+      canvas.height = ch * dpr;
+      _mc.w = cw;
+      _mc.h = ch;
+      _mc.cached = null;
+    }
+
+    const ctx = _mc.ctx;
+    const w = cw * dpr;
+    const h = ch * dpr;
+
+    // Redraw cached background lines if needed
+    if (!_mc.cached) {
+      const offscreen = document.createElement('canvas');
+      offscreen.width = w;
+      offscreen.height = h;
+      const oCtx = offscreen.getContext('2d');
+      oCtx.clearRect(0, 0, w, h);
+
+      const pad = 4 * dpr;
+      const drawH = h - pad * 2;
+      const drawW = w - pad * 0.5;
+
+      _mc.layers.forEach(layer => {
+        if (!_mc.layerOn[layer.key]) return;
+        const { data, min, max, color } = layer;
+        const range = max - min || 1;
+        const step = Math.max(1, Math.floor(data.length / (drawW / dpr)));
+
+        oCtx.beginPath();
+        oCtx.strokeStyle = color;
+        oCtx.lineWidth = 1.5 * dpr;
+        oCtx.globalAlpha = 0.7;
+        let started = false;
+
+        for (let i = 0; i < data.length; i += step) {
+          const v = data[i];
+          if (v == null) continue;
+          const x = (i / (data.length - 1)) * drawW;
+          const y = pad + drawH - ((v - min) / range) * drawH;
+          if (!started) { oCtx.moveTo(x, y); started = true; }
+          else oCtx.lineTo(x, y);
+        }
+        oCtx.stroke();
+        oCtx.globalAlpha = 1;
+      });
+      _mc.cached = offscreen;
+    }
+
+    // Draw cached background + cursor line
+    ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(_mc.cached, 0, 0);
+
+    // Cursor vertical line at current position
+    const si = Math.round(gpsIdx * (timeLen - 1) / (valid.length - 1));
+    const totalLen = _mc.layers[0]?.data.length || timeLen;
+    const xPct = si / (totalLen - 1);
+    const xPx = xPct * (w - 2 * dpr);
+
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+    ctx.lineWidth = 1.5 * dpr;
+    ctx.setLineDash([4 * dpr, 3 * dpr]);
+    ctx.moveTo(xPx, 0);
+    ctx.lineTo(xPx, h);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Dots at intersection with each active layer
+    const dotPad = 4 * dpr;
+    const dotDrawH = h - dotPad * 2;
+    _mc.layers.forEach(layer => {
+      if (!_mc.layerOn[layer.key]) return;
+      const { data, min, max, color } = layer;
+      const range = max - min || 1;
+      const di = Math.min(si, data.length - 1);
+      const v = data[di];
+      if (v == null) return;
+      const y = dotPad + dotDrawH - ((v - min) / range) * dotDrawH;
+      ctx.beginPath();
+      ctx.arc(xPx, y, 4 * dpr, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1.5 * dpr;
+      ctx.stroke();
+    });
+
+    // Update value labels below the chart
+    updateMiniVals(si);
+  }
+
+  function updateMiniVals(si) {
+    const el = document.getElementById('fsMiniVals');
+    if (!el) return;
+    const parts = [];
+    _mc.layers.forEach(l => {
+      if (!_mc.layerOn[l.key]) return;
+      const arr = l.data;
+      const di = Math.min(si, arr.length - 1);
+      const v = arr[di];
+      const display = v != null ? (l.key === 'altitude' ? Math.round(v) : v.toFixed(l.key === 'velocity_smooth' ? 1 : 0)) : '—';
+      parts.push(`<span class="fs-mini-val" style="color:${l.color}"><span class="fs-mini-val-num">${display}</span><span class="fs-mini-val-unit">${l.unit}</span></span>`);
+    });
+    el.innerHTML = parts.join('');
+  }
+
+  // Build the mini chart after streams are ready
+  if (streams) initMiniChart();
+  // Expose mini chart updater so the hover handler (outside this scope) can call it
+  ft._drawMiniChart = drawMiniChart;
+  ft._invalidateMC = () => { _mc.cached = null; };
+  ft._mcLayers = _mc.layers;
+
   // ── Core seek function ──────────────────────────────────────────────────
+  // goTo(idx) snaps to an integer index — used for scrubbing and manual seeks.
+  // goToSmooth(frac) interpolates between GPS points for fluid marker movement.
   function goTo(idx) {
     ft.idx = Math.max(0, Math.min(valid.length - 1, Math.round(idx)));
-    const pos = valid[ft.idx];
+    _updatePosition(ft.idx, valid[ft.idx]);
+  }
 
+  function _updatePosition(idxForStats, pos) {
     // Update marker colour to match active route-colour mode
-    const si = Math.round(ft.idx * (timeLen - 1) / (valid.length - 1));
+    const si = Math.round(idxForStats * (timeLen - 1) / (valid.length - 1));
     const color = routePointColor(getMode(), streams, si, maxes);
     ftMarker.setIcon(makeFtIcon(color));
     ftMarker.setLatLng(pos);
     if (!map.hasLayer(ftMarker)) ftMarker.addTo(map);
 
-    if (ft.follow) map.panTo(pos, { animate: true, duration: 0.15, easeLinearity: 1 });
+    if (ft.follow) map.panTo(pos, { animate: false });
     if (statsEl)   refreshMapStats(statsEl, streams, si, maxSpdKmh, maxHR);
 
+    // Update mini chart cursor
+    drawMiniChart(idxForStats);
+
     // Update scrubber UI
-    const pct = ft.idx / (valid.length - 1);
+    const pct = idxForStats / (valid.length - 1);
     const fill  = document.getElementById('ftScrubberFill');
     const thumb = document.getElementById('ftScrubberThumb');
     if (fill)  fill.style.width = `${pct * 100}%`;
     if (thumb) thumb.style.left = `${pct * 100}%`;
   }
 
+  // Interpolate marker position between two GPS points for smooth movement
+  function goToSmooth(fIdx) {
+    const clamped = Math.max(0, Math.min(valid.length - 1, fIdx));
+    const i0 = Math.floor(clamped);
+    const i1 = Math.min(i0 + 1, valid.length - 1);
+    const t  = clamped - i0; // fractional part 0..1
+
+    const lat = valid[i0][0] + (valid[i1][0] - valid[i0][0]) * t;
+    const lng = valid[i0][1] + (valid[i1][1] - valid[i0][1]) * t;
+
+    ft.idx = Math.round(clamped); // keep integer idx in sync for stats
+    _updatePosition(ft.idx, [lat, lng]);
+  }
+
   // ── RAF animation loop ──────────────────────────────────────────────────
+  // ft._fIdx tracks the precise fractional position for smooth interpolation.
+  // At speed=1 (realtime), we advance 1 GPS point per second (~1Hz data).
   function step(ts) {
     if (!ft.playing) return;
-    if (ft.lastTs == null) ft.lastTs = ts;
+    if (ft.lastTs == null) { ft.lastTs = ts; ft._fIdx = ft.idx; }
     const elapsed = Math.min(ts - ft.lastTs, 100); // cap delta to avoid huge jumps after tab switch
     ft.lastTs = ts;
 
-    const advance = Math.max(1, elapsed * ft.speed / 1000);
-    if (ft.idx + advance >= valid.length - 1) {
+    ft._fIdx += elapsed * ft.speed / 1000;
+
+    if (ft._fIdx >= valid.length - 1) {
       goTo(valid.length - 1);
       ftPause();
       return;
     }
-    goTo(ft.idx + advance);
+    // Smooth or snapped movement based on user preference
+    if (loadSmoothFlyover()) {
+      goToSmooth(ft._fIdx);
+    } else {
+      const rounded = Math.round(ft._fIdx);
+      if (rounded !== ft.idx) goTo(rounded);
+    }
     ft.rafId = requestAnimationFrame(step);
   }
 
@@ -7895,13 +8328,25 @@ function initFlythrough(map, valid, streams, maxes, maxSpdKmh, maxHR, statsEl, t
   const ICON_PLAY  = `<svg width="11" height="13" viewBox="0 0 11 13" fill="currentColor"><polygon points="0,0 11,6.5 0,13"/></svg>`;
   const ICON_PAUSE = `<svg width="11" height="13" viewBox="0 0 11 13" fill="currentColor"><rect x="0" y="0" width="4" height="13" rx="1"/><rect x="7" y="0" width="4" height="13" rx="1"/></svg>`;
 
+  const FT_ZOOM = 16; // zoom level during flythrough
+
   function ftPlay() {
     if (ft.idx >= valid.length - 1) goTo(0); // restart from beginning
     ft.playing = true;
     ft.lastTs  = null;
+    ft._fIdx   = ft.idx;
+    // Save current view so we can restore on pause/stop
+    if (!ft._savedZoom) {
+      ft._savedZoom   = map.getZoom();
+      ft._savedCenter = map.getCenter();
+    }
+    // Zoom in to the current position
+    const pos = valid[ft.idx];
+    map.setView(pos, Math.max(map.getZoom(), FT_ZOOM), { animate: true, duration: 0.5 });
     const btn = document.getElementById('ftPlayBtn');
     if (btn) btn.innerHTML = ICON_PAUSE;
-    ft.rafId = requestAnimationFrame(step);
+    // Small delay so the zoom animation finishes before the RAF loop starts panning
+    setTimeout(() => { if (ft.playing) ft.rafId = requestAnimationFrame(step); }, 500);
   }
 
   function ftPause() {
@@ -7909,6 +8354,12 @@ function initFlythrough(map, valid, streams, maxes, maxSpdKmh, maxHR, statsEl, t
     if (ft.rafId) { cancelAnimationFrame(ft.rafId); ft.rafId = null; }
     const btn = document.getElementById('ftPlayBtn');
     if (btn) btn.innerHTML = ICON_PLAY;
+    // Zoom back out to show the full route
+    if (ft._savedZoom != null) {
+      map.setView(ft._savedCenter, ft._savedZoom, { animate: true, duration: 0.4 });
+      ft._savedZoom   = null;
+      ft._savedCenter = null;
+    }
   }
 
   // ── Window-level handlers (attached to buttons via onclick) ─────────────
@@ -11507,6 +11958,18 @@ function setMapTheme(key) {
 (function initMapThemePicker() {
   document.querySelectorAll('.map-theme-option').forEach(b =>
     b.classList.toggle('active', b.dataset.theme === loadMapTheme()));
+})();
+
+// ── Smooth flyover setting ───────────────────────────────────────────────────
+function loadSmoothFlyover() {
+  return localStorage.getItem('icu_smooth_flyover') !== 'false'; // default on
+}
+function toggleSmoothFlyover(on) {
+  localStorage.setItem('icu_smooth_flyover', on ? 'true' : 'false');
+}
+(function initSmoothFlyoverToggle() {
+  const el = document.getElementById('smoothFlyoverToggle');
+  if (el) el.checked = loadSmoothFlyover();
 })();
 
 // ── Page-level grab-to-scroll with momentum (Figma-style) ────────────────────

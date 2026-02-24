@@ -2156,6 +2156,47 @@ code {
 @media (max-width: 860px) {
     .settings-grid { grid-template-columns: 1fr; }
 }
+@media (max-width: 480px) {
+    .settings-grid,
+    .settings-col,
+    .settings-grid .card {
+        max-width: 100%;
+        overflow: hidden;
+    }
+    .stt-row {
+        gap: 8px;
+        padding: 8px 8px;
+    }
+    .stt-row--control {
+        flex-wrap: wrap;
+    }
+    .stt-row--control .stt-row-info {
+        min-width: 0;
+    }
+    .stt-section-header {
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .map-theme-picker {
+        padding: 8px 6px;
+        gap: 6px;
+    }
+    .map-theme-swatch {
+        width: 40px;
+        height: 28px;
+    }
+    .wx-location-input-row {
+        flex-wrap: wrap;
+    }
+    .connection-status-badge {
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .stt-actions {
+        flex-wrap: wrap;
+    }
+}
 
 /* ── Section header (icon + title + optional badge) ── */
 .stt-section-header {
@@ -3488,6 +3529,7 @@ code {
     gap: 16px;
     align-items: stretch;
     min-height: 320px; /* floor — panel content drives the actual height */
+    position: relative;
 }
 .activity-map {
     flex: 1 1 auto;
@@ -3499,6 +3541,184 @@ code {
     overflow: hidden;
     background: var(--bg-elevated); /* overridden inline by JS to match active map theme */
     cursor: crosshair;
+}
+
+/* Expand button in card header */
+.map-expand-btn {
+    margin-left: auto;
+    padding: 4px 6px;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+}
+.map-expand-btn:hover { opacity: 1; }
+
+/* Close button — only visible in fullscreen */
+.map-close-btn {
+    display: none;
+}
+.map-fullscreen .map-close-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 10;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    transition: background 0.15s, transform 0.15s;
+}
+.map-fullscreen .map-close-btn:hover {
+    background: var(--bg-elevated);
+    transform: scale(1.1);
+}
+.map-fullscreen .map-expand-btn { display: none; }
+
+/* Fullscreen map */
+.map-fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    margin: 0;
+    border-radius: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+}
+.map-fullscreen .card-header {
+    flex-shrink: 0;
+    border-radius: 0;
+}
+.map-fullscreen .map-color-toggles { flex-shrink: 0; }
+.map-fullscreen .flythrough-bar { flex-shrink: 0; }
+.map-fullscreen .map-with-stats {
+    flex: 1;
+    min-height: 0;
+    flex-direction: column;
+}
+.map-fullscreen .activity-map {
+    flex: 1;
+    min-height: 0;
+    border-radius: 12px;
+    margin: 6px 6px 0;
+}
+/* In fullscreen the stats panel hides — data moves to fs-bottom-left */
+.map-fullscreen .map-stats-panel {
+    display: none;
+}
+
+/* ── Fullscreen bottom row: stats left, chart right ── */
+.fs-bottom-row {
+    display: none;
+    flex-shrink: 0;
+}
+.map-fullscreen .fs-bottom-row {
+    display: flex;
+    gap: 6px;
+    padding: 6px 6px 6px;
+    border-top: 1px solid var(--border);
+}
+.fs-bottom-left,
+.fs-bottom-right {
+    flex: 1 1 50%;
+    min-width: 0;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    padding: 8px 10px 6px;
+}
+
+/* Left panel: gauge + metrics */
+.fs-bottom-left {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 8px;
+}
+.fs-bottom-left .speed-gauge {
+    width: 100px;
+    flex-shrink: 0;
+    align-self: center;
+}
+.fs-bottom-left .map-metrics {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2px;
+}
+.fs-bottom-left .mm-cell {
+    padding: 3px 6px 4px;
+}
+
+/* Right panel: mini sparkline chart — hidden until streams loaded */
+.fs-bottom-right {
+    display: none;
+}
+.map-fullscreen .fs-bottom-right.mc-ready {
+    display: block;
+}
+
+.fs-mini-chart-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 4px;
+}
+.fs-mini-toggles {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+.fs-mini-tog {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: transparent;
+    color: var(--text-secondary, #94a3b8);
+    cursor: pointer;
+    transition: all 0.15s;
+    line-height: 1.3;
+}
+.fs-mini-tog.active {
+    color: #fff;
+    border-color: var(--sc);
+    background: color-mix(in srgb, var(--sc) 22%, transparent);
+}
+.fs-mini-tog:hover { border-color: rgba(255,255,255,0.25); }
+
+#fsMiniCanvas {
+    display: block;
+    width: 100%;
+    height: 80px;
+    border-radius: 6px;
+}
+
+.fs-mini-vals {
+    display: flex;
+    gap: 10px;
+    margin-top: 4px;
+    flex-wrap: wrap;
+}
+.fs-mini-val {
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.fs-mini-val-num {
+    font-variant-numeric: tabular-nums;
+}
+.fs-mini-val-unit {
+    font-weight: 400;
+    opacity: 0.6;
+    margin-left: 1px;
+    font-size: 10px;
 }
 .map-stats-panel {
     width: 205px;
@@ -3704,6 +3924,14 @@ code {
         min-width: 0;
         /* Keep 2-col grid but let it fill available width */
         grid-template-columns: 1fr 1fr;
+    }
+    .map-fullscreen .fs-bottom-row {
+        flex-direction: column;
+    }
+    .fs-bottom-left,
+    .fs-bottom-right {
+        flex: none;
+        width: 100%;
     }
 }
 /* Alt + scroll zoom — cursor + hint overlay */
@@ -6660,6 +6888,58 @@ code {
 .wx-page-empty p  { margin: 0; font-size: 14px; }
 .wx-page-empty-icon { width: 56px; height: 56px; opacity: 0.5; }
 .wx-page-empty-icon svg { width: 100%; height: 100%; }
+
+/* Location switcher pills */
+.wx-loc-switcher {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+.wx-loc-pill {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 14px;
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: var(--text-secondary);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.wx-loc-pill:hover { border-color: var(--text-muted); }
+.wx-loc-pill--active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+}
+.wx-loc-pill--active svg { stroke: #fff; }
+
+/* Settings location list */
+.wx-loc-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--border);
+}
+.wx-loc-row:last-child { border-bottom: none; }
+.wx-loc-row .stt-row-label { flex: 1; font-size: var(--text-sm); }
+.wx-loc-row--active .stt-row-label { font-weight: 600; }
+.wx-loc-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--border);
+    display: inline-block;
+}
+.wx-loc-dot--on { background: var(--accent); box-shadow: 0 0 0 3px rgba(var(--accent-rgb, 59,130,246), 0.2); }
+.wx-loc-activate { padding: 4px; }
+.wx-loc-remove { padding: 4px; opacity: 0.5; }
+.wx-loc-remove:hover { opacity: 1; }
 
 /* Location bar */
 .wxp-location-bar {
