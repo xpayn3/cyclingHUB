@@ -103,23 +103,143 @@ function updateSidebarCTL() {
 }
 
 /** Update the topbar glow colour based on current TSB / training status */
+function _tsbParticleColor(tsb) {
+  if (tsb == null) return [148,163,190];
+  if (tsb < -30)   return [239,68,68];
+  if (tsb < -10)   return [251,146,60];
+  if (tsb < 5)     return [0,229,160];
+  if (tsb <= 25)   return [74,158,255];
+  return [148,163,190];
+}
+
 function updateTopbarGlow() {
   const tsb = state.fitness?.tsb;
-  let color;
-  if (tsb == null) {
-    color = 'rgba(148,163,190,0.2)'; // neutral grey if no data
-  } else if (tsb < -30) {
-    color = 'rgba(239,68,68,0.4)';   // red — heavily overreached
-  } else if (tsb < -10) {
-    color = 'rgba(251,146,60,0.35)';  // orange — fatigued, training block
-  } else if (tsb < 5) {
-    color = 'rgba(0,229,160,0.35)';   // green — sweet spot
-  } else if (tsb <= 25) {
-    color = 'rgba(74,158,255,0.35)';  // blue — fresh, peak form
-  } else {
-    color = 'rgba(148,163,190,0.25)'; // grey — detraining
+  const [r,g,b] = _tsbParticleColor(tsb);
+  let a;
+  if (tsb == null)       a = 0.2;
+  else if (tsb < -30)    a = 0.4;
+  else if (tsb < -10)    a = 0.35;
+  else if (tsb < 5)      a = 0.35;
+  else if (tsb <= 25)    a = 0.35;
+  else                   a = 0.25;
+  document.documentElement.style.setProperty('--topbar-glow', `rgba(${r},${g},${b},${a})`);
+  // Update particle colour
+  _aurora.rgb = [r,g,b];
+}
+
+/* ── Topbar aurora borealis effect ── */
+const _aurora = { raf: null, rgb: [0,229,160], running: false, t: 0 };
+
+function _initGlowObserver() {
+  if (_aurora.observer) return;
+  const el = document.querySelector('.topbar-glow-el');
+  if (!el) return;
+  _aurora.observer = new IntersectionObserver(([entry]) => {
+    const visible = entry.isIntersecting;
+    if (visible && _aurora.running && !_aurora.raf) {
+      _aurora.raf = requestAnimationFrame(_aurora._frame);
+    } else if (!visible && _aurora.raf) {
+      cancelAnimationFrame(_aurora.raf);
+      _aurora.raf = null;
+    }
+  }, { threshold: 0 });
+  _aurora.observer.observe(el);
+}
+
+function startGlowParticles() {
+  if (_aurora.running) return;
+  const canvas = document.getElementById('glowParticles');
+  if (!canvas) return;
+  _aurora.running = true;
+  _initGlowObserver();
+  _aurora.t = Math.random() * 1000; // random start offset for variety
+
+  const ctx = canvas.getContext('2d');
+
+  // Each curtain is a slow-drifting sine wave band
+  const BANDS = 5;
+  const bands = Array.from({ length: BANDS }, (_, i) => ({
+    phase:  Math.random() * Math.PI * 2,
+    speed:  0.0003 + Math.random() * 0.0004,  // very slow drift
+    freq:   1.5 + Math.random() * 1.5,         // wave frequency
+    amp:    0.08 + Math.random() * 0.15,        // vertical wave amplitude
+    yBase:  0.15 + (i / BANDS) * 0.5,           // spread bands vertically
+    width:  0.12 + Math.random() * 0.1,         // band thickness
+    alphaMax: 0.08 + Math.random() * 0.07,       // subtle opacity
+    hueShift: (Math.random() - 0.5) * 30,       // slight color variation per band
+  }));
+
+  function frame(ts) {
+    if (!_aurora.running) return;
+    _aurora.t = ts || _aurora.t;
+
+    const dpr = window.devicePixelRatio || 1;
+    const cw = canvas.clientWidth;
+    const ch = canvas.clientHeight;
+    if (cw === 0) { _aurora.raf = requestAnimationFrame(frame); return; }
+    if (canvas.width !== cw * dpr || canvas.height !== ch * dpr) {
+      canvas.width = cw * dpr;
+      canvas.height = ch * dpr;
+    }
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    const [baseR, baseG, baseB] = _aurora.rgb;
+    const time = _aurora.t * 0.001;
+
+    for (const band of bands) {
+      band.phase += band.speed;
+
+      // Shift hue slightly: mix base color with a rotated version
+      const shift = band.hueShift / 100;
+      const r = Math.min(255, Math.max(0, baseR + shift * 60));
+      const g = Math.min(255, Math.max(0, baseG + shift * 40));
+      const b = Math.min(255, Math.max(0, baseB - shift * 30));
+
+      // Draw the band as a series of vertical gradient slices
+      const slices = Math.ceil(w / (3 * dpr));
+      for (let i = 0; i <= slices; i++) {
+        const xPct = i / slices;
+        const x = xPct * w;
+
+        // Sine wave determines vertical position of this slice
+        const wave = Math.sin(xPct * band.freq * Math.PI * 2 + band.phase + time * 0.3)
+                   + Math.sin(xPct * band.freq * 0.7 * Math.PI * 2 + band.phase * 1.3 + time * 0.2) * 0.4;
+        const yCenter = (band.yBase + wave * band.amp) * h;
+
+        // Breathing alpha — slow oscillation
+        const breath = 0.5 + 0.5 * Math.sin(time * 0.5 + band.phase + xPct * 2);
+        const alpha = band.alphaMax * breath;
+
+        const bandH = band.width * h;
+        const grad = ctx.createLinearGradient(x, yCenter - bandH, x, yCenter + bandH);
+        grad.addColorStop(0,   `rgba(${r},${g},${b},0)`);
+        grad.addColorStop(0.3, `rgba(${r},${g},${b},${alpha})`);
+        grad.addColorStop(0.5, `rgba(${r},${g},${b},${alpha * 1.2})`);
+        grad.addColorStop(0.7, `rgba(${r},${g},${b},${alpha})`);
+        grad.addColorStop(1,   `rgba(${r},${g},${b},0)`);
+
+        ctx.fillStyle = grad;
+        const sliceW = (w / slices) + 1;
+        ctx.fillRect(x, yCenter - bandH, sliceW, bandH * 2);
+      }
+    }
+
+    _aurora.raf = requestAnimationFrame(frame);
   }
-  document.documentElement.style.setProperty('--topbar-glow', color);
+  _aurora._frame = frame;
+  _aurora.raf = requestAnimationFrame(frame);
+}
+
+function stopGlowParticles() {
+  _aurora.running = false;
+  if (_aurora.raf) { cancelAnimationFrame(_aurora.raf); _aurora.raf = null; }
+  const canvas = document.getElementById('glowParticles');
+  if (canvas) {
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
 }
 
 /* ====================================================
@@ -990,7 +1110,8 @@ function navigate(page) {
 
   // Training status glow — dashboard only
   document.body.classList.toggle('dashboard-glow', page === 'dashboard');
-  if (page === 'dashboard') updateTopbarGlow();
+  if (page === 'dashboard') { updateTopbarGlow(); startGlowParticles(); }
+  else stopGlowParticles();
 
   // Show month label in topbar only on calendar
   const calLabel = document.getElementById('calTopbarMonth');
