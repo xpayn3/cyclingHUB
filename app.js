@@ -1260,6 +1260,25 @@ document.addEventListener('touchend', (e) => {
   _swipeStartY = 0;
 }, false);
 
+/* ── Disable pinch-to-zoom everywhere EXCEPT Leaflet maps ── */
+document.addEventListener('touchmove', function(e) {
+  if (e.touches.length > 1) {
+    // Allow pinch on map containers
+    if (e.target.closest && e.target.closest('.leaflet-container')) return;
+    e.preventDefault();
+  }
+}, { passive: false });
+
+// Also block gesturestart/gesturechange (Safari)
+document.addEventListener('gesturestart', function(e) {
+  if (e.target.closest && e.target.closest('.leaflet-container')) return;
+  e.preventDefault();
+}, { passive: false });
+document.addEventListener('gesturechange', function(e) {
+  if (e.target.closest && e.target.closest('.leaflet-container')) return;
+  e.preventDefault();
+}, { passive: false });
+
 function navigate(page) {
   state.previousPage = state.currentPage;
   state.currentPage  = page;
