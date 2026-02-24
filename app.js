@@ -565,6 +565,9 @@ async function fetchActivities(daysBack = null, since = null) {
   let ceiling = toDateStr(new Date()); // start from today, walk backwards
 
   for (let guard = 0; guard < 30; guard++) {
+    // Throttle pagination to avoid API rate-limiting on remote hosts
+    if (guard > 0) await new Promise(r => setTimeout(r, 250));
+
     const data = await icuFetch(
       `/athlete/${state.athleteId}/activities?oldest=${hardOldest}&newest=${ceiling}&limit=${pageSize}`
     );
@@ -1023,9 +1026,88 @@ function clearAllCaches() {
 function resyncLifetimeData() {
   clearLifetimeCache();
   state.lifetimeActivities = null;
+  state.lifetimeLastSync   = null;
   state._lifetimeSyncDone  = false;
-  showToast('Lifetime data will re-sync', 'success');
-  navigate('streaks');
+  showToast('Syncing lifetime data…', 'success');
+  runLifetimeSync();
+}
+
+function runLifetimeSync() {
+  if (state._lifetimeSyncDone) return;
+  state._lifetimeSyncDone = true;
+  (async () => {
+    try {
+      const pageSize = 200;
+      const seen = new Set();
+      const all = [];
+      const existing = state.lifetimeActivities || [];
+      const lastSync = state.lifetimeLastSync;
+
+      const hardOldest = lastSync ? toDateStr(new Date(lastSync.getTime() - 7 * 86400000)) : '2010-01-01';
+      let ceiling = toDateStr(new Date());
+
+      for (let guard = 0; guard < 60; guard++) {
+        if (guard > 0) await new Promise(r => setTimeout(r, 300));
+
+        let data;
+        for (let retry = 0; retry < 3; retry++) {
+          try {
+            data = await icuFetch(
+              `/athlete/${state.athleteId}/activities?oldest=${hardOldest}&newest=${ceiling}&limit=${pageSize}`
+            );
+            break;
+          } catch (fetchErr) {
+            const status = parseInt(fetchErr.message);
+            if (status === 429 || status === 503) {
+              await new Promise(r => setTimeout(r, (retry + 1) * 2000));
+            } else {
+              throw fetchErr;
+            }
+          }
+        }
+        if (!data) throw new Error('API rate limit — try again in a minute');
+
+        const chunk = Array.isArray(data) ? data : (data.activities || []);
+        if (!chunk.length) break;
+        let added = 0;
+        for (const a of chunk) {
+          if (!seen.has(a.id)) { seen.add(a.id); all.push(a); added++; }
+        }
+        if (added === 0 || chunk.length < pageSize) break;
+        const dates = chunk.map(a => a.start_date_local || a.start_date).filter(Boolean).sort();
+        if (!dates.length) break;
+        const oldest = dates[0].slice(0, 10);
+        if (oldest <= hardOldest) break;
+        ceiling = oldest;
+      }
+
+      if (lastSync && existing.length) {
+        const freshIds = new Set(all.map(a => a.id));
+        const kept = existing.filter(a => !freshIds.has(a.id));
+        state.lifetimeActivities = [...kept, ...all].sort(
+          (a, b) => new Date(b.start_date_local || b.start_date) - new Date(a.start_date_local || a.start_date)
+        );
+      } else {
+        state.lifetimeActivities = all.sort(
+          (a, b) => new Date(b.start_date_local || b.start_date) - new Date(a.start_date_local || a.start_date)
+        );
+      }
+
+      state.lifetimeLastSync = new Date();
+      saveLifetimeCache(state.lifetimeActivities);
+      updateLifetimeCacheUI();
+      showToast(`Synced ${state.lifetimeActivities.length} lifetime activities`, 'success');
+
+      if (state.currentPage === 'streaks' || state.currentPage === 'wellness') renderStreaksPage();
+      if (state.currentPage === 'activities') renderAllActivitiesList();
+      if (state.currentPage === 'settings') navigate('settings');
+    } catch (e) {
+      console.error('Lifetime sync failed:', e);
+      showToast('Lifetime sync failed: ' + (e.message || 'unknown error'), 'error');
+      if (!state.lifetimeActivities) state.lifetimeActivities = state.activities || [];
+      if (state.currentPage === 'streaks' || state.currentPage === 'wellness') renderStreaksPage();
+    }
+  })();
 }
 
 function exportLifetimeJSON() {
@@ -1135,6 +1217,7 @@ function navigate(page) {
     power:      ['Power Curve',    'Best efforts across durations'],
     zones:      ['Training Zones', 'Time in zone breakdown'],
     compare:    ['Compare',        'Compare metrics across time periods'],
+    goals:      ['Goals',          'Set & track training goals'],
     weather:    ['Weather',        'Weekly forecast & riding conditions'],
     settings:   ['Settings',       'Account & connection'],
     workout:    ['Create Workout', 'Build & export custom cycling workouts'],
@@ -1186,6 +1269,7 @@ function navigate(page) {
   if (page === 'power')    renderPowerPage();
   if (page === 'zones')    renderZonesPage();
   if (page === 'compare')  { ensureLifetimeLoaded(); renderComparePage(); }
+  if (page === 'goals')    renderGoalsPage();
   if (page === 'workout')  { wrkRefreshStats(); wrkRender(); }
   if (page === 'settings') {
     initWeatherLocationUI();
@@ -3219,6 +3303,7 @@ function renderDashboard() {
   renderPowerCurve();        // async — fetches if range changed
   renderRecentActivity();    // async — fetches GPS for map preview
   renderWeatherForecast();   // async — fetches Open-Meteo 7-day forecast
+  renderGoalsDashWidget();   // goals & targets compact summary
 }
 
 function resetDashboard() {
@@ -10153,63 +10238,7 @@ function renderStreaksPage() {
 
     // Incremental sync: fetch only new activities since last lifetime sync
     if (!state._lifetimeSyncDone) {
-      state._lifetimeSyncDone = true;
-      (async () => {
-        try {
-          const pageSize = 200;
-          const seen = new Set();
-          const all = [];
-          const existing = state.lifetimeActivities || [];
-          const lastSync = state.lifetimeLastSync;
-
-          // If we have a cache, only fetch from the last sync date forward (incremental)
-          const hardOldest = lastSync ? toDateStr(new Date(lastSync.getTime() - 7 * 86400000)) : '2010-01-01';
-          let ceiling = toDateStr(new Date());
-
-          for (let guard = 0; guard < 60; guard++) {
-            const data = await icuFetch(
-              `/athlete/${state.athleteId}/activities?oldest=${hardOldest}&newest=${ceiling}&limit=${pageSize}`
-            );
-            const chunk = Array.isArray(data) ? data : (data.activities || []);
-            if (!chunk.length) break;
-            let added = 0;
-            for (const a of chunk) {
-              if (!seen.has(a.id)) { seen.add(a.id); all.push(a); added++; }
-            }
-            if (added === 0 || chunk.length < pageSize) break;
-            const dates = chunk.map(a => a.start_date_local || a.start_date).filter(Boolean).sort();
-            if (!dates.length) break;
-            const oldest = dates[0].slice(0, 10);
-            if (oldest <= hardOldest) break;
-            ceiling = oldest;
-          }
-
-          // Merge: replace updated activities, add new ones
-          if (lastSync && existing.length) {
-            const freshIds = new Set(all.map(a => a.id));
-            const kept = existing.filter(a => !freshIds.has(a.id));
-            state.lifetimeActivities = [...kept, ...all].sort(
-              (a, b) => new Date(b.start_date_local || b.start_date) - new Date(a.start_date_local || a.start_date)
-            );
-          } else {
-            state.lifetimeActivities = all.sort(
-              (a, b) => new Date(b.start_date_local || b.start_date) - new Date(a.start_date_local || a.start_date)
-            );
-          }
-
-          state.lifetimeLastSync = new Date();
-          saveLifetimeCache(state.lifetimeActivities);
-          updateLifetimeCacheUI();
-
-          // Re-render with updated data
-          if (state.currentPage === 'streaks' || state.currentPage === 'wellness') renderStreaksPage();
-          if (state.currentPage === 'activities') renderAllActivitiesList();
-        } catch (e) {
-          // Fallback to available activities on error
-          if (!state.lifetimeActivities) state.lifetimeActivities = state.activities || [];
-          if (state.currentPage === 'streaks' || state.currentPage === 'wellness') renderStreaksPage();
-        }
-      })();
+      runLifetimeSync();
     }
   }
 
@@ -11385,6 +11414,7 @@ const DASH_SECTIONS = [
   { key: 'powerZones',     label: 'Average Power & Zones',    defaultOn: true },
   { key: 'powerCurve',     label: 'Power Curve',              defaultOn: true },
   { key: 'weeklyTss',      label: 'Weekly Load Chart',        defaultOn: true },
+  { key: 'goalsTargets',   label: 'Goals & Targets',          defaultOn: true },
   { key: 'recentTable',    label: 'Recent Activities Table',  defaultOn: true },
 ];
 
@@ -11438,6 +11468,316 @@ function renderDashSectionToggles() {
     });
     container.appendChild(row);
   }
+}
+
+// ========================== GOALS & TARGETS ==========================
+
+const GOAL_METRICS = {
+  distance:  { label: 'Distance',      unit: 'km',  icon: 'blue',   fmt: v => v.toFixed(1) },
+  time:      { label: 'Ride Time',     unit: 'h',   icon: 'orange', fmt: v => v.toFixed(1) },
+  tss:       { label: 'Training Load', unit: 'TSS', icon: 'green',  fmt: v => Math.round(v) },
+  elevation: { label: 'Elevation',     unit: 'm',   icon: 'purple', fmt: v => Math.round(v).toLocaleString() },
+  power:     { label: 'Avg Power',     unit: 'w',   icon: 'orange', fmt: v => Math.round(v) },
+  count:     { label: 'Rides',         unit: '',    icon: 'green',  fmt: v => Math.round(v) },
+  heartrate: { label: 'Avg Heart Rate',unit: 'bpm', icon: 'red',    fmt: v => Math.round(v) },
+};
+
+function loadGoals() {
+  try { return JSON.parse(localStorage.getItem('icu_goals') || '[]'); }
+  catch(e) { return []; }
+}
+function saveGoals(goals) { localStorage.setItem('icu_goals', JSON.stringify(goals)); }
+
+function addGoal(metric, target, period) {
+  const goals = loadGoals();
+  goals.push({ id: Date.now(), metric, target: +target, period, active: true, created: new Date().toISOString().slice(0,10) });
+  saveGoals(goals);
+  renderGoalsPage();
+  renderGoalsDashWidget();
+}
+function updateGoal(id, updates) {
+  const goals = loadGoals();
+  const g = goals.find(g => g.id === id);
+  if (g) Object.assign(g, updates);
+  saveGoals(goals);
+  renderGoalsPage();
+  renderGoalsDashWidget();
+}
+function deleteGoal(id) {
+  saveGoals(loadGoals().filter(g => g.id !== id));
+  renderGoalsPage();
+  renderGoalsDashWidget();
+}
+
+function getGoalPeriodRange(period) {
+  const now = new Date();
+  let start, end, totalDays;
+  if (period === 'week') {
+    start = getWeekStart(now);
+    end = new Date(start);
+    end.setDate(end.getDate() + 7);
+    totalDays = 7;
+  } else if (period === 'month') {
+    start = new Date(now.getFullYear(), now.getMonth(), 1);
+    end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    totalDays = Math.round((end - start) / 86400000);
+  } else {
+    start = new Date(now.getFullYear(), 0, 1);
+    end = new Date(now.getFullYear() + 1, 0, 1);
+    totalDays = Math.round((end - start) / 86400000);
+  }
+  const elapsed = Math.max(1, Math.round((now - start) / 86400000));
+  const remaining = Math.max(0, totalDays - elapsed);
+  return { start, end, totalDays, elapsed, remaining };
+}
+
+function computeGoalProgress(goal) {
+  const { start, end, totalDays, elapsed, remaining } = getGoalPeriodRange(goal.period);
+  const startStr = toDateStr(start);
+  const endStr = toDateStr(end);
+  const acts = state.activities.filter(a => {
+    if (isEmptyActivity(a)) return false;
+    const d = (a.start_date_local || a.start_date || '').slice(0,10);
+    return d >= startStr && d < endStr;
+  });
+
+  let current = 0;
+  if (goal.metric === 'count') {
+    current = acts.length;
+  } else if (goal.metric === 'power' || goal.metric === 'heartrate') {
+    let sum = 0, n = 0;
+    acts.forEach(a => {
+      const v = goal.metric === 'power'
+        ? actVal(a, 'icu_weighted_avg_watts', 'average_watts', 'icu_average_watts')
+        : actVal(a, 'average_heartrate', 'icu_average_heartrate');
+      if (v > 0) { sum += v; n++; }
+    });
+    current = n > 0 ? sum / n : 0;
+  } else {
+    acts.forEach(a => {
+      if (goal.metric === 'distance') current += actVal(a, 'distance', 'icu_distance') / 1000;
+      else if (goal.metric === 'time') current += actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time', 'icu_elapsed_time') / 3600;
+      else if (goal.metric === 'tss') current += actVal(a, 'icu_training_load', 'tss');
+      else if (goal.metric === 'elevation') current += actVal(a, 'total_elevation_gain', 'icu_total_elevation_gain');
+    });
+  }
+
+  const pct = goal.target > 0 ? Math.min((current / goal.target) * 100, 100) : 0;
+  const expectedPct = (elapsed / totalDays) * 100;
+  const pace = expectedPct > 0 ? (pct / expectedPct) * 100 : 100;
+  let status = 'on-track';
+  if (pace >= 100) status = 'ahead';
+  else if (pace < 50) status = 'behind';
+  else if (pace < 80) status = 'caution';
+
+  return { current, target: goal.target, pct, pace, status, elapsed, remaining, totalDays };
+}
+
+function goalFormHTML() {
+  return `<div class="goal-form-overlay" id="goalFormOverlay" style="display:none">
+    <div class="goal-form-card">
+      <div class="goal-form-title" id="goalFormTitle">Add Goal</div>
+      <input type="hidden" id="goalFormId" value="">
+      <div class="goal-form-field">
+        <label>Metric</label>
+        <select id="goalFormMetric">
+          ${Object.entries(GOAL_METRICS).map(([k,v]) => `<option value="${k}">${v.label} (${v.unit || 'count'})</option>`).join('')}
+        </select>
+      </div>
+      <div class="goal-form-field">
+        <label>Target</label>
+        <div class="goal-number-wrap">
+          <input type="number" id="goalFormTarget" placeholder="e.g. 200" min="0" step="any">
+          <div class="goal-number-btns">
+            <button type="button" onclick="goalNumStep(1)" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15l-6-6-6 6"/></svg></button>
+            <button type="button" onclick="goalNumStep(-1)" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+          </div>
+        </div>
+      </div>
+      <div class="goal-form-field">
+        <label>Period</label>
+        <select id="goalFormPeriod">
+          <option value="week">Weekly</option>
+          <option value="month">Monthly</option>
+          <option value="year">Yearly</option>
+        </select>
+      </div>
+      <div class="goal-form-actions">
+        <button class="btn btn-ghost" onclick="hideGoalForm()">Cancel</button>
+        <button class="btn btn-primary" onclick="submitGoalForm()">Save Goal</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderGoalsPage() {
+  const container = document.getElementById('goalsPageContent');
+  if (!container) return;
+  const goals = loadGoals();
+
+  if (!goals.length) {
+    container.innerHTML = `
+      <div class="goals-empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48">
+          <circle cx="12" cy="12" r="10"/><path d="M12 8v4l2 2"/>
+        </svg>
+        <h3>No goals set yet</h3>
+        <p>Set training targets to track your progress over time.</p>
+        <button class="btn btn-primary" onclick="showGoalForm()">Create Your First Goal</button>
+      </div>` + goalFormHTML();
+    return;
+  }
+
+  const periodLabel = { week: 'This Week', month: 'This Month', year: 'This Year' };
+  let html = `<div class="goals-header">
+    <button class="btn btn-primary btn-sm" onclick="showGoalForm()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add Goal
+    </button>
+  </div>
+  <div class="goals-grid">`;
+
+  goals.forEach(goal => {
+    const m = GOAL_METRICS[goal.metric];
+    if (!m) return;
+    const p = computeGoalProgress(goal);
+    const statusLabel = { ahead: 'Ahead', 'on-track': 'On Track', caution: 'Caution', behind: 'Behind' };
+    const statusCls = { ahead: 'green', 'on-track': 'green', caution: 'yellow', behind: 'red' };
+
+    html += `
+    <div class="goal-card">
+      <div class="goal-card-header">
+        <div class="goal-card-metric">
+          <div class="goal-metric-icon ${m.icon}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+              <circle cx="12" cy="12" r="10"/><path d="M12 8v4l2 2"/>
+            </svg>
+          </div>
+          <div>
+            <div class="goal-card-title">${m.label}</div>
+            <div class="goal-card-period">${periodLabel[goal.period]} · ${p.remaining}d left</div>
+          </div>
+        </div>
+        <div class="goal-card-actions">
+          <button class="btn btn-ghost btn-xs" onclick="showGoalForm(${goal.id})" title="Edit">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button class="btn btn-ghost btn-xs" onclick="deleteGoal(${goal.id})" title="Delete">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="goal-progress-section">
+        <div class="goal-progress-bar-wrap">
+          <div class="goal-progress-bar goal-progress-bar--${statusCls[p.status]}" style="width:${p.pct.toFixed(1)}%"></div>
+          <div class="goal-progress-expected" style="left:${Math.min(p.elapsed / p.totalDays * 100, 100).toFixed(1)}%"></div>
+        </div>
+        <div class="goal-progress-info">
+          <span class="goal-progress-value">${m.fmt(p.current)} <span class="goal-progress-unit">/ ${m.fmt(p.target)} ${m.unit}</span></span>
+          <span class="goal-progress-badge goal-progress-badge--${statusCls[p.status]}">${statusLabel[p.status]}</span>
+        </div>
+        <div class="goal-progress-pct">${Math.round(p.pct)}% complete</div>
+      </div>
+    </div>`;
+  });
+
+  html += '</div>';
+  html += goalFormHTML();
+
+  container.innerHTML = html;
+}
+
+function goalNumStep(dir) {
+  const el = document.getElementById('goalFormTarget');
+  if (!el) return;
+  const cur = parseFloat(el.value) || 0;
+  const step = cur >= 100 ? 10 : cur >= 10 ? 5 : 1;
+  el.value = Math.max(0, cur + step * dir);
+  el.focus();
+}
+
+function showGoalForm(editId) {
+  const overlay = document.getElementById('goalFormOverlay');
+  if (!overlay) return;
+  overlay.style.display = 'flex';
+  const titleEl = document.getElementById('goalFormTitle');
+  const idEl = document.getElementById('goalFormId');
+  const metricEl = document.getElementById('goalFormMetric');
+  const targetEl = document.getElementById('goalFormTarget');
+  const periodEl = document.getElementById('goalFormPeriod');
+
+  if (editId) {
+    const g = loadGoals().find(g => g.id === editId);
+    if (g) {
+      titleEl.textContent = 'Edit Goal';
+      idEl.value = g.id;
+      metricEl.value = g.metric;
+      targetEl.value = g.target;
+      periodEl.value = g.period;
+      return;
+    }
+  }
+  titleEl.textContent = 'Add Goal';
+  idEl.value = '';
+  metricEl.value = 'distance';
+  targetEl.value = '';
+  periodEl.value = 'week';
+}
+
+function hideGoalForm() {
+  const overlay = document.getElementById('goalFormOverlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+function submitGoalForm() {
+  const id = document.getElementById('goalFormId').value;
+  const metric = document.getElementById('goalFormMetric').value;
+  const target = document.getElementById('goalFormTarget').value;
+  const period = document.getElementById('goalFormPeriod').value;
+  if (!target || +target <= 0) { showToast('Enter a target value', 'error'); return; }
+
+  if (id) {
+    updateGoal(+id, { metric, target: +target, period });
+  } else {
+    addGoal(metric, target, period);
+  }
+  hideGoalForm();
+}
+
+function renderGoalsDashWidget() {
+  const container = document.getElementById('goalsDashContent');
+  if (!container) return;
+  const goals = loadGoals();
+  if (!goals.length) { container.style.display = 'none'; return; }
+  container.style.display = '';
+
+  const periodLabel = { week: 'Wk', month: 'Mo', year: 'Yr' };
+  let html = `<div class="card"><div class="card-header"><div><div class="card-title">Goals</div><div class="card-subtitle">Training targets progress</div></div><a href="#" onclick="navigate('goals');return false" style="font-size:12px;color:var(--accent);text-decoration:none;font-weight:500">View all</a></div><div style="padding:0 16px 16px"><div class="goals-dash-list">`;
+
+  goals.slice(0, 4).forEach(goal => {
+    const m = GOAL_METRICS[goal.metric];
+    if (!m) return;
+    const p = computeGoalProgress(goal);
+    const statusCls = { ahead: 'green', 'on-track': 'green', caution: 'yellow', behind: 'red' };
+
+    html += `
+    <div class="goals-dash-item">
+      <div class="goals-dash-label">
+        <span class="goals-dash-dot goals-dash-dot--${m.icon}"></span>
+        ${m.label} <span class="goals-dash-period">${periodLabel[goal.period]}</span>
+      </div>
+      <div class="goals-dash-bar-wrap">
+        <div class="goals-dash-bar goals-dash-bar--${statusCls[p.status]}" style="width:${p.pct.toFixed(1)}%"></div>
+      </div>
+      <div class="goals-dash-val">${m.fmt(p.current)} / ${m.fmt(p.target)} ${m.unit}</div>
+    </div>`;
+  });
+
+  html += '</div>';
+  if (goals.length > 4) html += `<div class="goals-dash-more"><a href="#" onclick="navigate('goals');return false">View all ${goals.length} goals →</a></div>`;
+  html += '</div></div>';
+
+  container.innerHTML = html;
 }
 
 // ========================== COMPARE PAGE FUNCTIONS ==========================
