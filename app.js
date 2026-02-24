@@ -2975,8 +2975,9 @@ Chart.register({
       }
       if (locked && dx > dy) {
         e.preventDefault(); // horizontal — block page scroll
-      } else if (locked && dy > dx) {
-        _getTooltipEl().style.opacity = '0'; // vertical — hide tooltip
+      } else if (locked && dy > dx * 2 && dy > 20) {
+        // Only hide tooltip when clearly scrolling vertically (2× ratio + 20px minimum)
+        _getTooltipEl().style.opacity = '0';
       }
     }, { passive: false });
   }
@@ -9043,6 +9044,21 @@ function renderStreaksPage() {
     // Earth circumference comparison
     const earthLaps = (totalDistKm / 40075).toFixed(2);
 
+    // Hottest & coldest rides — prefer Garmin sensor (average_temp), fall back to weather_temp
+    const getTemp    = a => a.average_temp ?? a.weather_temp ?? null;
+    const tempActs   = acts.filter(a => getTemp(a) != null);
+    const imperial   = state.units === 'imperial';
+    const fmtT       = c => imperial ? `${Math.round(c * 9/5 + 32)}°F` : `${Math.round(c)}°C`;
+    const hottestAct = tempActs.length ? tempActs.reduce((m, a) => getTemp(a) > getTemp(m) ? a : m) : null;
+    const coldestAct = tempActs.length ? tempActs.reduce((m, a) => getTemp(a) < getTemp(m) ? a : m) : null;
+
+    // Biggest single ascent
+    const biggestClimbAct = acts.reduce((m, a) => {
+      const elev = a.total_elevation_gain || a.icu_elevation_gain || 0;
+      return elev > (m.total_elevation_gain || m.icu_elevation_gain || 0) ? a : m;
+    }, {});
+    const biggestClimbM = Math.round(biggestClimbAct.total_elevation_gain || biggestClimbAct.icu_elevation_gain || 0);
+
     // Format helpers
     const fmtKm   = v => v >= 1000 ? `${(v/1000).toFixed(1)}k km` : `${Math.round(v)} km`;
     const fmtHrs  = v => v >= 1000 ? `${(v/1000).toFixed(1)}k hrs` : `${Math.round(v)} hrs`;
@@ -9061,6 +9077,9 @@ function renderStreaksPage() {
       { icon:'⭐', label:'Fav Day',            value: favDay,                       fun: `You ride most on ${favDay}s` },
       { icon:'🌸', label:'Fav Month',          value: favMonth,                     fun: `${monthCounts[favMonthIdx]} rides on average in ${favMonth}` },
       { icon:'🌅', label:'Early Bird Rides',   value: fmtNum(earlyBird),            fun: `Rides started before 8 am` },
+      { icon:'🌡️', label:'Hottest Ride',       value: hottestAct ? fmtT(getTemp(hottestAct)) : '—', fun: hottestAct ? (hottestAct.name || 'Unknown ride') : 'No sensor data yet' },
+      { icon:'🥶', label:'Coldest Ride',       value: coldestAct ? fmtT(getTemp(coldestAct)) : '—', fun: coldestAct ? (coldestAct.name || 'Unknown ride') : 'No sensor data yet' },
+      { icon:'🏔️', label:'Biggest Climb',      value: biggestClimbM > 0 ? `${biggestClimbM.toLocaleString()} m` : '—', fun: biggestClimbM > 0 ? (biggestClimbAct.name || 'Unknown ride') : 'No elevation data yet' },
     ];
 
     lifetimeGrid.innerHTML = STATS.map(s => `
