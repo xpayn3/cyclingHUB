@@ -2167,11 +2167,15 @@ code {
     margin-bottom: 0;
 }
 .stt-section-icon {
-    width: 18px;
-    height: 18px;
+    width: 18px !important;
+    height: 18px !important;
+    min-width: 18px;
+    max-width: 18px;
     flex-shrink: 0;
     stroke: var(--accent);
     opacity: 0.85;
+    display: block;
+    overflow: visible;
 }
 .stt-section-title {
     font-size: var(--text-base);
@@ -2221,8 +2225,11 @@ code {
     border: 1px solid var(--border);
     white-space: nowrap;
     flex-shrink: 0;
+    max-width: 55%;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
-.stt-row-info { flex: 1; }
+.stt-row-info { flex: 1; min-width: 0; }
 
 /* Rows with a right-side control (pill, select, input) */
 .stt-row--control {
