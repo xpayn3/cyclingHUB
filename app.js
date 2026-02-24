@@ -710,12 +710,14 @@ function navigate(page) {
   if (pc) pc.classList.toggle('page-content--calendar', page === 'calendar');
 
   // Always restore the activity-detail topbar elements when leaving the activity page
-  const detailNav  = document.getElementById('detailTopbarNav');
-  const detailBack = document.getElementById('detailTopbarBack');
-  const wxdBack    = document.getElementById('wxdTopbarBack');
-  if (detailNav)  detailNav.style.display  = 'none';
-  if (detailBack) detailBack.style.display = 'none';
-  if (wxdBack)    wxdBack.style.display    = 'none';
+  const detailNav     = document.getElementById('detailTopbarNav');
+  const detailBack    = document.getElementById('detailTopbarBack');
+  const wxdBack       = document.getElementById('wxdTopbarBack');
+  const settingsBack  = document.getElementById('settingsTopbarBack');
+  if (detailNav)    detailNav.style.display    = 'none';
+  if (detailBack)   detailBack.style.display   = 'none';
+  if (wxdBack)      wxdBack.style.display      = 'none';
+  if (settingsBack) settingsBack.style.display = 'none';
 
   // Show topbar range pill only on dashboard
   const pill = document.getElementById('dateRangePill');
@@ -735,7 +737,21 @@ function navigate(page) {
   if (page === 'power')    renderPowerPage();
   if (page === 'zones')    renderZonesPage();
   if (page === 'workout')  { wrkRefreshStats(); wrkRender(); }
-  if (page === 'settings') initWeatherLocationUI();
+  if (page === 'settings') {
+    initWeatherLocationUI();
+    // Show topbar back button with the name of the page we came from
+    const PAGE_NAMES = {
+      dashboard: 'Dashboard', activities: 'Activities', calendar: 'Calendar',
+      fitness: 'Fitness', power: 'Power Curve', zones: 'Training Zones',
+      weather: 'Weather', workout: 'Create Workout', guide: 'Training Guide',
+      streaks: 'Streaks', gear: 'Gear',
+    };
+    const prevName     = PAGE_NAMES[state.previousPage] || null;
+    const labelEl      = document.getElementById('settingsBackLabel');
+    const settingsBack = document.getElementById('settingsTopbarBack');
+    if (labelEl) labelEl.textContent = prevName ? `Back to ${prevName}` : 'Back';
+    if (settingsBack) settingsBack.style.display = (state.previousPage && state.previousPage !== 'settings') ? '' : 'none';
+  }
   if (page === 'weather')  renderWeatherPage();
   if (page === 'gear')     renderGearPage();
   if (page === 'guide')    renderGuidePage();
@@ -2869,7 +2885,75 @@ Chart.register({
     });
   }
 });
-// Mobile scroll lock: prevent vertical page scroll when scrubbing charts horizontally
+// Eager-snap interaction mode: snaps tooltip to next/prev data point at 35% of
+// the gap instead of the default 50% midpoint. Makes sparse charts feel snappier.
+// Hysteresis: once snapped to a new point, requires cursor to travel back 50%
+// of the gap before reverting — prevents jitter at the snap boundary.
+(function () {
+  const SNAP_FWD  = 0.35; // snap forward at 35% of gap
+  const SNAP_BACK = 0.50; // snap back only once cursor retreats past 50% (hysteresis)
+
+  Chart.Interaction.modes.indexEager = function (chart, e, options, useFinalPosition) {
+    // Get what standard 'index' mode would give us (nearest midpoint)
+    const standard = Chart.Interaction.modes.index(
+      chart, e, { ...options, intersect: false }, useFinalPosition
+    );
+    if (!standard.length) return standard;
+
+    const position = Chart.helpers.getRelativePosition(e, chart);
+    const cursorX  = position.x;
+    const midpointIdx = standard[0].index; // what standard mode picked
+
+    // Use the first visible meta as reference for x positions
+    const metas = chart.getSortedVisibleDatasetMetas().filter(m => m.data.length > 0);
+    if (!metas.length) return standard;
+    const refMeta = metas[0];
+
+    // Retrieve last committed index (hysteresis anchor)
+    const lastIdx = chart._eagerLastIdx ?? midpointIdx;
+
+    // Determine which direction to evaluate relative to the last committed point
+    const anchorEl = refMeta.data[lastIdx];
+    if (!anchorEl) { chart._eagerLastIdx = midpointIdx; return standard; }
+    const anchorX = anchorEl.x;
+
+    let targetIdx = lastIdx;
+
+    if (cursorX >= anchorX) {
+      // Moving forward — snap to next when 35% into the gap
+      const nextEl = refMeta.data[lastIdx + 1];
+      if (nextEl) {
+        const pct = (cursorX - anchorX) / (nextEl.x - anchorX);
+        if (pct >= SNAP_FWD) targetIdx = lastIdx + 1;
+      }
+    } else {
+      // Moving backward — only retreat once cursor is 50% back into previous gap
+      const prevEl = refMeta.data[lastIdx - 1];
+      if (prevEl) {
+        const pct = (anchorX - cursorX) / (anchorX - prevEl.x);
+        if (pct >= SNAP_BACK) targetIdx = lastIdx - 1;
+      }
+    }
+
+    // If our hysteresis anchor is stale (cursor jumped far), realign to midpoint
+    if (Math.abs(targetIdx - midpointIdx) > 1) targetIdx = midpointIdx;
+
+    chart._eagerLastIdx = targetIdx;
+
+    if (targetIdx === midpointIdx) return standard;
+
+    // Build result at targetIdx across all visible datasets
+    const result = [];
+    metas.forEach(m => {
+      const el = m.data[targetIdx];
+      if (el) result.push({ element: el, datasetIndex: m.index, index: targetIdx });
+    });
+    return result.length ? result : standard;
+  };
+})();
+
+// Mobile scroll lock: prevent vertical page scroll when scrubbing charts horizontally.
+// Also hides the tooltip when the user scrolls vertically on or away from a chart.
 Chart.register({
   id: 'touchScrollLock',
   afterInit(chart) {
@@ -2890,11 +2974,18 @@ Chart.register({
         locked = true;
       }
       if (locked && dx > dy) {
-        e.preventDefault();
+        e.preventDefault(); // horizontal — block page scroll
+      } else if (locked && dy > dx) {
+        _getTooltipEl().style.opacity = '0'; // vertical — hide tooltip
       }
     }, { passive: false });
   }
 });
+
+// Also hide the tooltip whenever the page scrolls (covers scrolling outside chart area)
+window.addEventListener('scroll', () => {
+  _getTooltipEl().style.opacity = '0';
+}, { passive: true });
 
 // Vertical crosshair line drawn at the hovered x position
 Chart.register({
@@ -3100,6 +3191,7 @@ function renderWeekProgress(metric) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      interaction: { mode: 'indexEager', intersect: false },
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -3312,6 +3404,7 @@ function renderTrainingStatus() {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      interaction: { mode: 'indexEager', intersect: false },
       plugins: {
         legend: { display: false },
         tooltip: { ...C_TOOLTIP, callbacks: { label: c => `EF: ${c.raw} w/bpm` } }
@@ -3397,7 +3490,7 @@ function renderFitnessChart(activities, days) {
     ]},
     options: {
       responsive: true, maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
+      interaction: { mode: 'indexEager', intersect: false },
       plugins: {
         legend: { display: false },
         tooltip: { ...C_TOOLTIP, callbacks: { labelColor: C_LABEL_COLOR } }
@@ -3489,7 +3582,7 @@ function renderAvgPowerChart(activities) {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
+      interaction: { mode: 'indexEager', intersect: false },
       plugins: {
         legend: { display: false },
         tooltip: { ...C_TOOLTIP, callbacks: { labelColor: C_LABEL_COLOR, label: c => `${c.dataset.label}: ${c.raw}w` } }
@@ -3718,7 +3811,7 @@ async function renderPowerCurve() {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
+      interaction: { mode: 'indexEager', intersect: false },
       plugins: {
         legend: { display: false },
         tooltip: { ...C_TOOLTIP, callbacks: {
@@ -4010,7 +4103,7 @@ async function renderPwrCurveChart(days, ftp, weight) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
+      interaction: { mode: 'indexEager', intersect: false },
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -4812,7 +4905,7 @@ function renderFitnessHistoryChart(days) {
 
   const chartOpts = {
     responsive: true, maintainAspectRatio: false,
-    interaction: { mode: 'index', intersect: false },
+    interaction: { mode: 'indexEager', intersect: false },
     plugins: {
       legend: { display: false },
       tooltip: { ...C_TOOLTIP, callbacks: { labelColor: C_LABEL_COLOR } }
@@ -5171,6 +5264,7 @@ function renderZnpDecoupleChart() {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      interaction: { mode: 'indexEager', intersect: false },
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -7556,7 +7650,7 @@ function renderStreamCharts(streams, activity) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
+      interaction: { mode: 'indexEager', intersect: false },
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -7972,6 +8066,7 @@ function renderDetailDecoupleChart(streams, activity) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      interaction: { mode: 'indexEager', intersect: false },
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -8232,7 +8327,7 @@ function renderDetailTempChart(streams, activity) {
       animation: false,
       responsive: true,
       maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
+      interaction: { mode: 'indexEager', intersect: false },
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -8611,7 +8706,7 @@ function renderZnpZoneTimeChart() {
         },
         tooltip: {
           ...C_TOOLTIP,
-          mode: 'index',
+          mode: 'indexEager',
           callbacks: {
             label: item => `${item.dataset.label}: ${item.raw}h`,
           }
@@ -9116,7 +9211,7 @@ async function renderDetailCurve(actId, streams) {
       data: { datasets },
       options: {
         responsive: true, maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
+        interaction: { mode: 'indexEager', intersect: false },
         plugins: {
           legend: { display: false },
           tooltip: { ...C_TOOLTIP, callbacks: {
@@ -9283,7 +9378,7 @@ async function renderDetailHRCurve(streams) {
       data: { datasets },
       options: {
         responsive: true, maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
+        interaction: { mode: 'indexEager', intersect: false },
         plugins: {
           legend: { display: false },
           tooltip: { ...C_TOOLTIP, callbacks: {
@@ -9310,7 +9405,7 @@ function streamChartConfig(labels, data, color, fill, unit) {
     data: { labels, datasets: [{ data, borderColor: color, backgroundColor: fill, borderWidth: 2, pointRadius: 0, pointHoverRadius: 7, tension: 0.4, fill: true, spanGaps: true }] },
     options: {
       responsive: true, maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
+      interaction: { mode: 'indexEager', intersect: false },
       plugins: {
         legend: { display: false },
         tooltip: { ...C_TOOLTIP, callbacks: { label: c => `${c.raw} ${unit}` } }
