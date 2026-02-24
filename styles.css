@@ -5002,15 +5002,16 @@ code {
 .sidebar-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.55);
+    background: rgba(0, 0, 0, 1);
     z-index: 1150;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.28s ease;
+    transition: opacity 0.28s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.28s;
     visibility: hidden;
+    will-change: opacity;
 }
 .sidebar-backdrop.open {
-    opacity: 1;
+    opacity: 0.55;
     pointer-events: auto;
     visibility: visible;
 }
@@ -5070,6 +5071,7 @@ code {
         transform: translateX(-220px);
         z-index: 1200;
         pointer-events: none;
+        will-change: transform;
     }
     .sidebar.open {
         transform: translateX(0);

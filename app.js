@@ -1200,64 +1200,134 @@ function closeSidebar() {
 }
 
 /* ====================================================
-   SWIPE TO OPEN SIDEBAR (Mobile)
+   SWIPE TO OPEN / CLOSE SIDEBAR (Mobile)
 ==================================================== */
-let _swipeStartX = 0;
-let _swipeStartY = 0;
+const _swipe = {
+  startX: 0, startY: 0,
+  tracking: false,       // true once we've committed to a horizontal swipe
+  direction: '',         // 'open' or 'close'
+  sidebarW: 220,
+  edgeZone: 30,          // px from left edge to start an "open" swipe
+  directionLocked: false // once locked, ignore further direction changes
+};
+
+function _isMobile() { return window.innerWidth <= 700; }
+
 document.addEventListener('touchstart', (e) => {
-  // Only track single finger swipes (ignore multi-touch gestures like pinch)
-  if (e.touches.length === 1) {
-    _swipeStartX = e.touches[0].clientX;
-    _swipeStartY = e.touches[0].clientY;
-  } else {
-    _swipeStartX = 0;
-    _swipeStartY = 0;
+  if (!_isMobile() || e.touches.length !== 1) return;
+  const x = e.touches[0].clientX;
+  const sidebar = document.getElementById('sidebar');
+  _swipe.startX = x;
+  _swipe.startY = e.touches[0].clientY;
+  _swipe.tracking = false;
+  _swipe.directionLocked = false;
+  _swipe.direction = '';
+  _swipe.sidebarW = (sidebar ? sidebar.offsetWidth : 220) || 220;
+
+  const isOpen = sidebar && sidebar.classList.contains('open');
+  // Allow open-swipe from left edge, or close-swipe from anywhere when open
+  if (!isOpen && x <= _swipe.edgeZone) {
+    _swipe.direction = 'open';
+  } else if (isOpen) {
+    _swipe.direction = 'close';
   }
 }, false);
 
 document.addEventListener('touchmove', (e) => {
-  // Only track if single finger and we started tracking
-  if (_swipeStartX === 0 || e.touches.length !== 1) return;
+  if (!_swipe.direction || e.touches.length !== 1) return;
+  const x = e.touches[0].clientX;
+  const y = e.touches[0].clientY;
+  const dx = x - _swipe.startX;
+  const dy = Math.abs(y - _swipe.startY);
 
-  const touchX = e.touches[0].clientX;
-  const touchY = e.touches[0].clientY;
-  const deltaX = touchX - _swipeStartX;
-  const deltaY = Math.abs(touchY - _swipeStartY);
-
-  // Swipe from left edge (within 50px) to the right, with minimal vertical movement
-  if (_swipeStartX < 50 && deltaX > 50 && deltaY < 50) {
-    e.preventDefault();
+  // Lock direction after small movement — if vertical, abort
+  if (!_swipe.directionLocked) {
+    if (Math.abs(dx) < 8 && dy < 8) return; // deadzone
+    if (dy > Math.abs(dx)) { _swipe.direction = ''; return; } // vertical scroll
+    _swipe.directionLocked = true;
+    _swipe.tracking = true;
+    // Disable sidebar CSS transition while dragging
     const sidebar = document.getElementById('sidebar');
-    if (sidebar && !sidebar.classList.contains('open')) {
-      // Get sidebar width and cap the translation to it
-      const sidebarWidth = sidebar.offsetWidth || 280;
-      const maxTranslate = Math.min(deltaX, sidebarWidth);
-      sidebar.style.transform = `translateX(${maxTranslate}px)`;
-    }
+    if (sidebar) sidebar.style.transition = 'none';
+    const backdrop = document.getElementById('sidebarBackdrop');
+    if (backdrop) backdrop.style.transition = 'none';
+  }
+
+  if (!_swipe.tracking) return;
+  e.preventDefault();
+
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('sidebarBackdrop');
+  if (!sidebar) return;
+
+  const W = _swipe.sidebarW;
+  let offset; // 0 = fully closed (-220), 1 = fully open (0)
+
+  if (_swipe.direction === 'open') {
+    offset = Math.max(0, Math.min(1, dx / W));
+  } else {
+    // close: dx is negative when swiping left
+    offset = Math.max(0, Math.min(1, 1 + dx / W));
+  }
+
+  sidebar.style.transform = `translateX(${-W + offset * W}px)`;
+  sidebar.style.pointerEvents = 'auto';
+
+  if (backdrop) {
+    backdrop.style.opacity = offset * 0.55;
+    backdrop.style.visibility = offset > 0 ? 'visible' : 'hidden';
+    backdrop.style.pointerEvents = offset > 0.1 ? 'auto' : 'none';
   }
 }, { passive: false });
 
 document.addEventListener('touchend', (e) => {
-  if (_swipeStartX === 0) return;
+  if (!_swipe.tracking) { _swipe.direction = ''; return; }
 
-  const touchX = e.changedTouches[0].clientX;
-  const deltaX = touchX - _swipeStartX;
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('sidebarBackdrop');
+  if (!sidebar) { _swipe.direction = ''; return; }
 
-  // If swiped far enough from left edge, open sidebar
-  if (_swipeStartX < 50 && deltaX > 80) {
-    const sidebar = document.getElementById('sidebar');
-    if (sidebar) {
-      sidebar.style.transform = '';
-      toggleSidebar();
-    }
+  // Restore CSS transitions for the snap animation
+  sidebar.style.transition = '';
+  if (backdrop) backdrop.style.transition = '';
+
+  const x = e.changedTouches[0].clientX;
+  const dx = x - _swipe.startX;
+  const W = _swipe.sidebarW;
+
+  let offset;
+  if (_swipe.direction === 'open') {
+    offset = Math.max(0, Math.min(1, dx / W));
   } else {
-    // Reset animation if swipe wasn't far enough
-    const sidebar = document.getElementById('sidebar');
-    if (sidebar) sidebar.style.transform = '';
+    offset = Math.max(0, Math.min(1, 1 + dx / W));
   }
 
-  _swipeStartX = 0;
-  _swipeStartY = 0;
+  // Snap open if dragged > 35%, otherwise snap closed
+  const shouldOpen = offset > 0.35;
+
+  // Reset inline styles and let CSS classes handle final state
+  sidebar.style.transform = '';
+  sidebar.style.pointerEvents = '';
+  if (backdrop) {
+    backdrop.style.opacity = '';
+    backdrop.style.visibility = '';
+    backdrop.style.pointerEvents = '';
+  }
+
+  if (shouldOpen) {
+    sidebar.classList.add('open');
+    backdrop?.classList.add('open');
+    document.getElementById('burgerBtn')?.classList.add('is-open');
+    _lockBodyScroll(true);
+  } else {
+    sidebar.classList.remove('open');
+    backdrop?.classList.remove('open');
+    document.getElementById('burgerBtn')?.classList.remove('is-open');
+    _lockBodyScroll(false);
+  }
+
+  _swipe.tracking = false;
+  _swipe.direction = '';
 }, false);
 
 /* ── Disable pinch-to-zoom everywhere EXCEPT Leaflet maps ── */
