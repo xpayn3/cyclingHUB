@@ -1042,52 +1042,72 @@ async function setWeatherCity() {
 
 async function useMyLocation() {
   const statusEl = document.getElementById('wxCurrentLocation');
-  if (!navigator.geolocation) {
-    showToast('Geolocation not supported by your browser', 'error');
-    return;
-  }
   if (statusEl) statusEl.textContent = 'Locating…';
 
-  try {
-    const pos = await new Promise((resolve, reject) =>
-      navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy: false, timeout: 15000, maximumAge: 300000
-      })
-    );
-    const lat = pos.coords.latitude;
-    const lng = pos.coords.longitude;
+  let lat, lng;
 
-    // Reverse-geocode via Nominatim to get city name
-    let cityName = `${lat.toFixed(2)}, ${lng.toFixed(2)}`;
+  // Try browser geolocation first
+  if (navigator.geolocation) {
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=10`);
+      const pos = await new Promise((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: false, timeout: 10000, maximumAge: 300000
+        })
+      );
+      lat = pos.coords.latitude;
+      lng = pos.coords.longitude;
+    } catch (_) { /* fall through to IP fallback */ }
+  }
+
+  // Fallback: IP-based geolocation
+  if (lat == null) {
+    try {
+      const res = await fetch('https://ipapi.co/json/');
       if (res.ok) {
         const data = await res.json();
-        const addr = data.address || {};
-        const city = addr.city || addr.town || addr.village || addr.municipality || '';
-        const country = addr.country || '';
-        if (city) cityName = [city, country].filter(Boolean).join(', ');
+        if (data.latitude && data.longitude) {
+          lat = data.latitude;
+          lng = data.longitude;
+          // ipapi already gives us city + country
+          const cityName = [data.city, data.country_name].filter(Boolean).join(', ') || `${lat.toFixed(2)}, ${lng.toFixed(2)}`;
+          _applyWeatherLocation(lat, lng, cityName, statusEl);
+          return;
+        }
       }
-    } catch (_) { /* keep coordinate fallback */ }
-
-    localStorage.setItem('icu_wx_coords', JSON.stringify({ lat, lng, city: cityName }));
-    localStorage.removeItem('icu_wx_forecast');
-    localStorage.removeItem('icu_wx_forecast_ts');
-    localStorage.removeItem('icu_wx_page');
-    localStorage.removeItem('icu_wx_page_ts');
-    if (statusEl) statusEl.textContent = cityName;
-    showToast(`Location set to ${cityName}`, 'success');
-    if (state.currentPage === 'dashboard') renderWeatherForecast();
-  } catch (err) {
-    const msgs = {
-      1: 'Location permission denied — allow it in your browser settings',
-      2: 'Could not determine your location — try again',
-      3: 'Location request timed out — try again',
-    };
-    const msg = msgs[err?.code] || 'Could not get location';
-    if (statusEl) statusEl.textContent = 'Not set';
-    showToast(msg, 'error');
+    } catch (_) {}
   }
+
+  if (lat == null) {
+    if (statusEl) statusEl.textContent = 'Not set';
+    showToast('Could not determine location — try entering a city manually', 'error');
+    return;
+  }
+
+  // Reverse-geocode via Nominatim for browser geolocation result
+  let cityName = `${lat.toFixed(2)}, ${lng.toFixed(2)}`;
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=10`);
+    if (res.ok) {
+      const data = await res.json();
+      const addr = data.address || {};
+      const city = addr.city || addr.town || addr.village || addr.municipality || '';
+      const country = addr.country || '';
+      if (city) cityName = [city, country].filter(Boolean).join(', ');
+    }
+  } catch (_) {}
+
+  _applyWeatherLocation(lat, lng, cityName, statusEl);
+}
+
+function _applyWeatherLocation(lat, lng, cityName, statusEl) {
+  localStorage.setItem('icu_wx_coords', JSON.stringify({ lat, lng, city: cityName }));
+  localStorage.removeItem('icu_wx_forecast');
+  localStorage.removeItem('icu_wx_forecast_ts');
+  localStorage.removeItem('icu_wx_page');
+  localStorage.removeItem('icu_wx_page_ts');
+  if (statusEl) statusEl.textContent = cityName;
+  showToast(`Location set to ${cityName}`, 'success');
+  if (state.currentPage === 'dashboard') renderWeatherForecast();
 }
 
 function clearWeatherLocation() {
