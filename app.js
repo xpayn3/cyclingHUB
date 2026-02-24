@@ -447,7 +447,7 @@ async function syncData() {
     if (state.currentPage === 'calendar') renderCalendar();
     if (state.currentPage === 'fitness')  renderFitnessPage();
     if (state.currentPage === 'power')    renderPowerPage();
-    if (state.currentPage === 'wellness') renderWellnessPage();
+    if (state.currentPage === 'streaks')  renderStreaksPage();
 
     const newCount = isIncremental
       ? state.activities.filter(a => {
@@ -739,7 +739,8 @@ function navigate(page) {
   if (page === 'weather')  renderWeatherPage();
   if (page === 'gear')     renderGearPage();
   if (page === 'guide')    renderGuidePage();
-  if (page === 'wellness') renderWellnessPage();
+  if (page === 'wellness') renderStreaksPage();
+  if (page === 'streaks')  renderStreaksPage();
 
   window.scrollTo(0, 0);
 }
@@ -2868,6 +2869,33 @@ Chart.register({
     });
   }
 });
+// Mobile scroll lock: prevent vertical page scroll when scrubbing charts horizontally
+Chart.register({
+  id: 'touchScrollLock',
+  afterInit(chart) {
+    const canvas = chart.canvas;
+    let startX = 0, startY = 0, locked = false;
+    canvas.addEventListener('touchstart', e => {
+      if (e.touches.length === 1) {
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        locked = false;
+      }
+    }, { passive: true });
+    canvas.addEventListener('touchmove', e => {
+      if (e.touches.length !== 1) return;
+      const dx = Math.abs(e.touches[0].clientX - startX);
+      const dy = Math.abs(e.touches[0].clientY - startY);
+      if (!locked && (dx > 5 || dy > 5)) {
+        locked = true;
+      }
+      if (locked && dx > dy) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+  }
+});
+
 // Vertical crosshair line drawn at the hovered x position
 Chart.register({
   id: 'crosshairLine',
@@ -8608,409 +8636,346 @@ function renderZnpZoneTimeChart() {
   });
 }
 
-// ── Feature 4 + 5: Wellness / Recovery Dashboard ─────────────────────────────
-function renderWellnessPage() {
-  const container = document.getElementById('wellnessPageContent');
-  if (!container) return;
-  if (!state.synced) { container.innerHTML = '<div class="empty-state">Loading…</div>'; return; }
+// ── Streaks Page ──────────────────────────────────────────────────────────────
+function renderWellnessPage() { renderStreaksPage(); }  // alias so old nav calls still work
 
-  const entries = Object.values(state.wellnessHistory)
-    .filter(e => e.id)
-    .sort((a, b) => a.id.localeCompare(b.id));
+function renderStreaksPage() {
+  if (!state.synced) return;
+  const acts = state.activities || [];
 
-  const last90 = entries.filter(e => {
-    const d = new Date(e.id);
-    return Date.now() - d.getTime() <= 90 * 86400000;
+  // ── Build a Set of active ISO date strings (YYYY-MM-DD) ──────────────────
+  const activeDays = new Set();
+  acts.forEach(a => {
+    const d = (a.start_date_local || a.start_date || '').slice(0, 10);
+    if (d) activeDays.add(d);
   });
 
-  if (!last90.length) {
-    container.innerHTML = `<div class="empty-state">No wellness data found.<br>Log HRV, sleep or mood in intervals.icu to see this dashboard.</div>`;
-    return;
+  // ── Week key helper: ISO week start (Monday) as YYYY-MM-DD ───────────────
+  function weekKey(date) {
+    const d = new Date(date);
+    const day = d.getDay() || 7;           // Mon=1 … Sun=7
+    d.setDate(d.getDate() - (day - 1));
+    return d.toISOString().slice(0, 10);
   }
 
-  // Summary KPI pills
-  const hrvData  = last90.filter(e => e.hrv != null);
-  const sleepData = last90.filter(e => e.sleepSecs != null && e.sleepSecs > 0);
-  const hrData   = last90.filter(e => e.restingHR != null);
-  const readData = last90.filter(e => e.readiness != null);
+  const activeWeeks = new Set([...activeDays].map(weekKey));
 
-  const latestHrv  = hrvData.length  ? hrvData[hrvData.length-1].hrv : null;
-  const latestSleep= sleepData.length ? +(sleepData[sleepData.length-1].sleepSecs/3600).toFixed(1) : null;
-  const latestHR   = hrData.length   ? hrData[hrData.length-1].restingHR : null;
-  const latestRead = readData.length ? readData[readData.length-1].readiness : null;
+  // ── Month key helper ─────────────────────────────────────────────────────
+  function monthKey(date) { return date.slice(0, 7); }
+  const activeMonths = new Set([...activeDays].map(monthKey));
 
-  const kpis = [
-    { label:'HRV',          value: latestHrv  != null ? latestHrv  : '—', unit: latestHrv  ? 'ms' : '',  color:'var(--accent)' },
-    { label:'Resting HR',   value: latestHR   != null ? latestHR   : '—', unit: latestHR   ? 'bpm' : '', color:'var(--red)' },
-    { label:'Sleep',        value: latestSleep!= null ? latestSleep: '—', unit: latestSleep ? 'h' : '',  color:'var(--blue)' },
-    { label:'Readiness',    value: latestRead  != null ? latestRead : '—', unit: latestRead  ? '/100' : '',color:'var(--yellow)' },
+  // ── Generic streak counter (sorted array of keys, today's key) ───────────
+  function calcStreak(sortedKeys, todayKey, stepFn) {
+    // current streak: count backwards from todayKey
+    let current = 0, best = 0, run = 0;
+    let check = todayKey;
+    const keySet = new Set(sortedKeys);
+    // walk backwards while keys exist
+    while (keySet.has(check)) {
+      current++;
+      check = stepFn(check, -1);
+    }
+    // if today is NOT active, we might still be on a streak ending yesterday
+    if (current === 0) {
+      check = stepFn(todayKey, -1);
+      while (keySet.has(check)) {
+        current++;
+        check = stepFn(check, -1);
+      }
+    }
+    // best streak: scan all keys
+    sortedKeys.forEach((k, i) => {
+      if (i === 0) { run = 1; }
+      else {
+        const prev = stepFn(k, -1);
+        run = sortedKeys[i - 1] === prev ? run + 1 : 1;
+      }
+      if (run > best) best = run;
+    });
+    return { current, best };
+  }
+
+  // Week step function: add n weeks (n=-1 means previous week)
+  function weekStep(key, n) {
+    const d = new Date(key);
+    d.setDate(d.getDate() + n * 7);
+    return d.toISOString().slice(0, 10);
+  }
+
+  // Day step function
+  function dayStep(key, n) {
+    const d = new Date(key);
+    d.setDate(d.getDate() + n);
+    return d.toISOString().slice(0, 10);
+  }
+
+  // Month step function
+  function monthStep(key, n) {
+    const [y, m] = key.split('-').map(Number);
+    const d = new Date(y, m - 1 + n, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }
+
+  const todayStr     = new Date().toISOString().slice(0, 10);
+  const todayWeek    = weekKey(todayStr);
+  const todayMonth   = monthKey(todayStr);
+
+  const sortedWeeks  = [...activeWeeks].sort();
+  const sortedDays   = [...activeDays].sort();
+  const sortedMonths = [...activeMonths].sort();
+
+  const weekStreaks  = calcStreak(sortedWeeks,  todayWeek,  weekStep);
+  const dayStreaks   = calcStreak(sortedDays,   todayStr,   dayStep);
+  const monthStreaks = calcStreak(sortedMonths, todayMonth, monthStep);
+
+  const totalActiveWeeks = activeWeeks.size;
+
+  // ── Update hero cards ─────────────────────────────────────────────────────
+  function setHero(numId, subId, current, unit) {
+    const el = document.getElementById(numId);
+    const sub = document.getElementById(subId);
+    if (el)  el.textContent  = current;
+    if (sub) sub.textContent = `${unit} streak`;
+  }
+  setHero('stkWeekNum',  'stkWeekSub',  weekStreaks.current,  'week');
+  setHero('stkDayNum',   'stkDaySub',   dayStreaks.current,   'day');
+  setHero('stkMonthNum', 'stkMonthSub', monthStreaks.current, 'month');
+
+  // Animate hero flame based on streak size
+  const weekHero = document.getElementById('stkWeekHero');
+  if (weekHero) {
+    weekHero.className = 'stk-hero-card' +
+      (weekStreaks.current >= 12 ? ' stk-hero--legendary' :
+       weekStreaks.current >= 6  ? ' stk-hero--hot' :
+       weekStreaks.current >= 2  ? ' stk-hero--warm' : '');
+  }
+
+  // ── Personal bests ────────────────────────────────────────────────────────
+  const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  setText('stkBestWeekStreak',  weekStreaks.best  + (weekStreaks.best  === 1 ? ' week'  : ' weeks'));
+  setText('stkBestDayStreak',   dayStreaks.best   + (dayStreaks.best   === 1 ? ' day'   : ' days'));
+  setText('stkBestMonthStreak', monthStreaks.best + (monthStreaks.best === 1 ? ' month' : ' months'));
+  setText('stkTotalWeeks',      totalActiveWeeks + (totalActiveWeeks === 1 ? ' week' : ' weeks'));
+
+  // Subtitle: is the current streak the all-time best?
+  if (weekStreaks.current > 0 && weekStreaks.current === weekStreaks.best) {
+    setText('stkBestWeekSub', '🏆 that\'s your best ever!');
+  } else {
+    setText('stkBestWeekSub', 'all time');
+  }
+
+  // ── Weekly calendar heatmap (last 52 weeks) ───────────────────────────────
+  const calWrap = document.getElementById('stkCalWrap');
+  const calSub  = document.getElementById('stkCalSub');
+  if (calWrap) {
+    // Build 52 weeks ending this week
+    const WEEKS = 52;
+    // start from WEEKS-1 Mondays ago
+    const startDate = new Date(todayWeek);
+    startDate.setDate(startDate.getDate() - (WEEKS - 1) * 7);
+
+    // Count rides per week
+    const weekCounts = {};
+    acts.forEach(a => {
+      const d = (a.start_date_local || a.start_date || '').slice(0, 10);
+      if (!d) return;
+      const wk = weekKey(d);
+      weekCounts[wk] = (weekCounts[wk] || 0) + 1;
+    });
+
+    // Build week objects
+    const weeks = [];
+    for (let i = 0; i < WEEKS; i++) {
+      const d = new Date(startDate);
+      d.setDate(d.getDate() + i * 7);
+      const wk = d.toISOString().slice(0, 10);
+      const count = weekCounts[wk] || 0;
+      const isStreak = activeWeeks.has(wk);
+      // heat level 0-3
+      const heat = count === 0 ? 0 : count <= 2 ? 1 : count <= 4 ? 2 : 3;
+      weeks.push({ wk, count, heat, isStreak,
+        label: d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) });
+    }
+
+    // Month labels: place label at first week of each month
+    const monthLabels = {};
+    weeks.forEach((w, i) => {
+      const d = new Date(w.wk);
+      const mk = `${d.getFullYear()}-${d.getMonth()}`;
+      if (!monthLabels[mk]) monthLabels[mk] = i;
+    });
+
+    // Build HTML: weeks as columns, label row on top
+    let html = '<div class="stk-cal-grid">';
+    // Month label row
+    html += '<div class="stk-cal-month-row">';
+    weeks.forEach((w, i) => {
+      const d = new Date(w.wk);
+      const mk = `${d.getFullYear()}-${d.getMonth()}`;
+      if (monthLabels[mk] === i) {
+        html += `<div class="stk-cal-month-lbl">${d.toLocaleDateString('en-GB',{month:'short'})}</div>`;
+      } else {
+        html += '<div class="stk-cal-month-lbl"></div>';
+      }
+    });
+    html += '</div>';
+
+    // Cells row
+    html += '<div class="stk-cal-cells">';
+    weeks.forEach(w => {
+      const cls = `stk-cell stk-heat-${w.heat}${w.wk === todayWeek ? ' stk-cell--today' : ''}`;
+      html += `<div class="${cls}" title="${w.label}: ${w.count} ride${w.count !== 1 ? 's' : ''}"></div>`;
+    });
+    html += '</div></div>';
+
+    calWrap.innerHTML = html;
+    if (calSub) calSub.textContent =
+      `Last 52 weeks · ${totalActiveWeeks} active · ${WEEKS - totalActiveWeeks} rest`;
+  }
+
+  // ── This year monthly grid ────────────────────────────────────────────────
+  const year = new Date().getFullYear();
+  const monthsGrid = document.getElementById('stkMonthsGrid');
+  const yearTotal  = document.getElementById('stkYearTotal');
+  if (monthsGrid) {
+    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const now = new Date();
+    let totalRidesYear = 0;
+    const html = monthNames.map((name, mi) => {
+      const mk = `${year}-${String(mi + 1).padStart(2, '0')}`;
+      const count = acts.filter(a => {
+        const d = (a.start_date_local || a.start_date || '').slice(0, 7);
+        return d === mk;
+      }).length;
+      totalRidesYear += count;
+      const isPast    = mi < now.getMonth() || year < now.getFullYear();
+      const isCurrent = mi === now.getMonth() && year === now.getFullYear();
+      const isFuture  = mi > now.getMonth() && year >= now.getFullYear();
+      const heat = count === 0 ? 0 : count <= 4 ? 1 : count <= 8 ? 2 : count <= 12 ? 3 : 4;
+      return `<div class="stk-month-tile stk-month-heat-${heat}${isCurrent ? ' stk-month--current' : ''}${isFuture ? ' stk-month--future' : ''}">
+        <div class="stk-month-name">${name}</div>
+        <div class="stk-month-count">${isFuture ? '' : count || '—'}</div>
+        ${isFuture ? '' : `<div class="stk-month-bar"><div class="stk-month-bar-fill" style="width:${Math.min(100, count * 7)}%"></div></div>`}
+      </div>`;
+    }).join('');
+    monthsGrid.innerHTML = html;
+    if (yearTotal) yearTotal.textContent = `${totalRidesYear} rides this year`;
+    setText('stkYearTitle', `${year} Overview`);
+    setText('stkYearSub', `Rides per month · ${year}`);
+  }
+
+  // ── Achievements / badges ─────────────────────────────────────────────────
+  const BADGES = [
+    { id:'b1',  icon:'🔥', name:'On Fire',          desc:'3+ week streak',      earned: weekStreaks.current  >= 3  },
+    { id:'b2',  icon:'🚀', name:'Week Warrior',      desc:'5+ week streak',      earned: weekStreaks.current  >= 5  },
+    { id:'b3',  icon:'💎', name:'Diamond Streak',    desc:'10+ week streak',     earned: weekStreaks.current  >= 10 },
+    { id:'b4',  icon:'👑', name:'Streak King',       desc:'20+ week streak',     earned: weekStreaks.current  >= 20 },
+    { id:'b5',  icon:'⚡', name:'Daily Grinder',     desc:'7+ day streak',       earned: dayStreaks.current   >= 7  },
+    { id:'b6',  icon:'🌙', name:'Month Maker',       desc:'3+ month streak',     earned: monthStreaks.current >= 3  },
+    { id:'b7',  icon:'🏆', name:'Best Week Ever',    desc:'Matched all-time best week streak', earned: weekStreaks.current > 0 && weekStreaks.current === weekStreaks.best },
+    { id:'b8',  icon:'🚴', name:'Century Club',      desc:'100+ active weeks',   earned: totalActiveWeeks    >= 100 },
+    { id:'b9',  icon:'📅', name:'Half Year',         desc:'26+ active weeks',    earned: totalActiveWeeks    >= 26  },
+    { id:'b10', icon:'🌟', name:'Consistent',        desc:'50+ active weeks',    earned: totalActiveWeeks    >= 50  },
+    { id:'b11', icon:'❄️', name:'Winter Warrior',    desc:'Rode in Jan or Feb',  earned: acts.some(a => { const m = +(a.start_date_local||a.start_date||'').slice(5,7); return m===1||m===2; }) },
+    { id:'b12', icon:'☀️', name:'Summer Beast',      desc:'Rode in Jul or Aug',  earned: acts.some(a => { const m = +(a.start_date_local||a.start_date||'').slice(5,7); return m===7||m===8; }) },
   ];
 
-  container.innerHTML = `
-    <div class="wellness-kpi-row">
-      ${kpis.map(k => `
-        <div class="stat-card">
-          <div class="stat-label">${k.label}</div>
-          <div class="stat-value" style="color:${k.color}">${k.value}${k.unit ? `<span class="unit"> ${k.unit}</span>` : ''}</div>
-        </div>
-      `).join('')}
-    </div>
-
-    <!-- HRV + Resting HR over time -->
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <div class="card-title">HRV &amp; Resting HR</div>
-          <div class="card-subtitle">Daily values · last 90 days</div>
-        </div>
-      </div>
-      <div class="chart-wrap" style="height:220px"><canvas id="wellnessHrvChart"></canvas></div>
-    </div>
-
-    <!-- Sleep duration -->
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <div class="card-title">Sleep Duration</div>
-          <div class="card-subtitle">Hours per night</div>
-        </div>
-      </div>
-      <div class="chart-wrap" style="height:180px"><canvas id="wellnessSleepChart"></canvas></div>
-    </div>
-
-    <!-- Subjective scores: mood, fatigue, soreness, stress -->
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <div class="card-title">Subjective Scores</div>
-          <div class="card-subtitle">Mood · Fatigue · Soreness · Stress (1–5 scale)</div>
-        </div>
-      </div>
-      <div class="chart-wrap" style="height:200px"><canvas id="wellnessSubjChart"></canvas></div>
-    </div>
-
-    <!-- Training Load vs Recovery correlation -->
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <div class="card-title">Training Load vs Recovery</div>
-          <div class="card-subtitle">ATL (fatigue) overlaid with HRV — see how load impacts recovery</div>
-        </div>
-      </div>
-      <div class="chart-wrap" style="height:220px"><canvas id="wellnessCorrelChart"></canvas></div>
-    </div>
-  `;
-
-  // Render all 4 charts
-  _renderWellnessHrvChart(last90);
-  _renderWellnessSleepChart(last90);
-  _renderWellnessSubjChart(last90);
-  _renderWellnessCorrelChart(last90);
-}
-
-function _renderWellnessHrvChart(entries) {
-  const card   = document.getElementById('wellnessHrvChart')?.closest('.card');
-  const canvas = document.getElementById('wellnessHrvChart');
-  if (!canvas) return;
-
-  const hasHrv = entries.some(e => e.hrv != null);
-  const hasHr  = entries.some(e => e.restingHR != null);
-
-  // Remove any previous no-data note
-  card?.querySelectorAll('.wellness-no-data').forEach(el => el.remove());
-
-  if (!hasHrv && !hasHr) {
-    canvas.style.display = 'none';
-    if (card) {
-      const note = document.createElement('div');
-      note.className = 'wellness-no-data';
-      note.textContent = 'No HRV or resting HR data logged yet. Sync a wearable with intervals.icu to see this chart.';
-      card.appendChild(note);
-    }
-    return;
+  const badgesGrid = document.getElementById('stkBadgesGrid');
+  if (badgesGrid) {
+    badgesGrid.innerHTML = BADGES.map(b => `
+      <div class="stk-badge${b.earned ? ' stk-badge--earned' : ''}">
+        <div class="stk-badge-icon">${b.icon}</div>
+        <div class="stk-badge-name">${b.name}</div>
+        <div class="stk-badge-desc">${b.desc}</div>
+        ${b.earned ? '<div class="stk-badge-check">✓</div>' : ''}
+      </div>`).join('');
   }
-  canvas.style.display = '';
 
-  const datasets = [];
-  const scales   = {
-    x: {
-      ticks: { color: '#62708a', font: { size: 10 }, maxTicksLimit: 10,
-        callback(_, i) { return entries[i]?.id ? new Date(entries[i].id).toLocaleDateString('en-GB',{day:'numeric',month:'short'}) : ''; }
-      },
-      grid: { display: false }, border: { display: false }
-    }
-  };
+  // ── Lifetime fun stats ────────────────────────────────────────────────────
+  const lifetimeGrid = document.getElementById('stkLifetimeGrid');
+  if (lifetimeGrid && acts.length) {
+    const totalRides    = acts.length;
+    const totalDistM    = acts.reduce((s, a) => s + (a.distance || 0), 0);
+    const totalDistKm   = totalDistM / 1000;
+    const totalElevM    = acts.reduce((s, a) => s + (a.total_elevation_gain || a.icu_elevation_gain || 0), 0);
+    const totalTimeSecs = acts.reduce((s, a) => s + (a.moving_time || a.elapsed_time || 0), 0);
+    const totalTimeHrs  = totalTimeSecs / 3600;
+    const totalCals     = acts.reduce((s, a) => s + (a.calories || a.kilojoules || 0), 0);
+    const totalTSS      = acts.reduce((s, a) => s + (a.icu_training_load || a.training_load_score || 0), 0);
 
-  if (hasHrv) {
-    datasets.push({
-      label: 'HRV (ms)',
-      data: entries.map(e => e.hrv ?? null),
-      borderColor: '#00e5a0',
-      backgroundColor: 'rgba(0,229,160,0.08)',
-      borderWidth: 2, pointRadius: 0, tension: 0.35, fill: true,
-      yAxisID: 'yHrv', spanGaps: true,
+    // Longest single ride
+    const longestRide   = acts.reduce((best, a) => (a.distance || 0) > (best.distance || 0) ? a : best, {});
+    const longestKm     = ((longestRide.distance || 0) / 1000).toFixed(0);
+    const longestName   = longestRide.name || 'Unknown';
+
+    // Favourite day of week
+    const dayCounts = Array(7).fill(0);
+    acts.forEach(a => {
+      const d = new Date(a.start_date_local || a.start_date);
+      if (!isNaN(d)) dayCounts[d.getDay()]++;
     });
-    scales.yHrv = {
-      position: 'left',
-      ticks: { color: '#00e5a0', font: { size: 10 }, callback: v => v + ' ms' },
-      grid: { color: 'rgba(255,255,255,0.04)' }, border: { display: false }
-    };
-  }
-  if (hasHr) {
-    datasets.push({
-      label: 'Resting HR (bpm)',
-      data: entries.map(e => e.restingHR ?? null),
-      borderColor: '#ff4757',
-      backgroundColor: 'transparent',
-      borderWidth: 1.5, pointRadius: 0, tension: 0.35, fill: false,
-      yAxisID: 'yHr', spanGaps: true, borderDash: [4, 3],
+    const dayNames  = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const favDayIdx = dayCounts.indexOf(Math.max(...dayCounts));
+    const favDay    = dayNames[favDayIdx];
+
+    // Favourite month
+    const monthCounts = Array(12).fill(0);
+    acts.forEach(a => {
+      const d = new Date(a.start_date_local || a.start_date);
+      if (!isNaN(d)) monthCounts[d.getMonth()]++;
     });
-    scales.yHr = {
-      position: hasHrv ? 'right' : 'left',
-      ticks: { color: '#ff4757', font: { size: 10 }, callback: v => v + ' bpm' },
-      grid: hasHrv ? { display: false } : { color: 'rgba(255,255,255,0.04)' },
-      border: { display: false }
-    };
+    const monthNames2  = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const favMonthIdx  = monthCounts.indexOf(Math.max(...monthCounts));
+    const favMonth     = monthNames2[favMonthIdx];
+
+    // Biggest single week (most rides)
+    const weekRideCounts = {};
+    acts.forEach(a => {
+      const wk = weekKey((a.start_date_local || a.start_date || '').slice(0, 10));
+      if (wk) weekRideCounts[wk] = (weekRideCounts[wk] || 0) + 1;
+    });
+    const bestWeekCount = Math.max(...Object.values(weekRideCounts), 0);
+
+    // Early bird rides (before 08:00)
+    const earlyBird = acts.filter(a => {
+      const t = (a.start_date_local || a.start_date || '').slice(11, 13);
+      return t && +t < 8;
+    }).length;
+
+    // Average ride distance
+    const avgDistKm = totalDistKm / totalRides;
+
+    // Earth circumference comparison
+    const earthLaps = (totalDistKm / 40075).toFixed(2);
+
+    // Format helpers
+    const fmtKm   = v => v >= 1000 ? `${(v/1000).toFixed(1)}k km` : `${Math.round(v)} km`;
+    const fmtHrs  = v => v >= 1000 ? `${(v/1000).toFixed(1)}k hrs` : `${Math.round(v)} hrs`;
+    const fmtNum  = v => v >= 1000000 ? `${(v/1000000).toFixed(1)}M` : v >= 1000 ? `${(v/1000).toFixed(1)}k` : `${Math.round(v)}`;
+
+    const STATS = [
+      { icon:'🚴', label:'Total Rides',        value: fmtNum(totalRides),          fun: `That's ${Math.round(totalRides / Math.max(1, (new Date() - new Date(acts[acts.length-1]?.start_date_local||acts[acts.length-1]?.start_date||new Date())) / (86400000*365)))} rides/year on avg` },
+      { icon:'📍', label:'Total Distance',     value: fmtKm(totalDistKm),          fun: `${earthLaps}× around the Earth 🌍` },
+      { icon:'⛰️', label:'Total Elevation',    value: fmtKm(totalElevM / 1000),     fun: `${(totalElevM / 8848).toFixed(1)}× the height of Everest 🏔️` },
+      { icon:'⏱️', label:'Total Time',         value: fmtHrs(totalTimeHrs),        fun: `${(totalTimeHrs / 24).toFixed(1)} full days on the bike` },
+      { icon:'🔥', label:'Total Calories',     value: totalCals > 0 ? fmtNum(totalCals) + ' kcal' : '—', fun: totalCals > 0 ? `≈ ${Math.round(totalCals / 250)} pizzas burned 🍕` : 'Sync calorie data in intervals.icu' },
+      { icon:'📊', label:'Total TSS',          value: totalTSS > 0 ? fmtNum(Math.round(totalTSS)) : '—', fun: totalTSS > 0 ? 'Cumulative training stress score' : 'Log power data to track TSS' },
+      { icon:'📏', label:'Avg Ride Distance',  value: `${avgDistKm.toFixed(1)} km`, fun: `Per ride, across all ${totalRides} activities` },
+      { icon:'🏆', label:'Longest Ride',       value: `${longestKm} km`,           fun: longestName },
+      { icon:'📅', label:'Best Week',          value: `${bestWeekCount} rides`,     fun: 'Most rides packed into one week' },
+      { icon:'⭐', label:'Fav Day',            value: favDay,                       fun: `You ride most on ${favDay}s` },
+      { icon:'🌸', label:'Fav Month',          value: favMonth,                     fun: `${monthCounts[favMonthIdx]} rides on average in ${favMonth}` },
+      { icon:'🌅', label:'Early Bird Rides',   value: fmtNum(earlyBird),            fun: `Rides started before 8 am` },
+    ];
+
+    lifetimeGrid.innerHTML = STATS.map(s => `
+      <div class="stk-stat-tile">
+        <div class="stk-stat-icon">${s.icon}</div>
+        <div class="stk-stat-val">${s.value}</div>
+        <div class="stk-stat-label">${s.label}</div>
+        <div class="stk-stat-fun">${s.fun}</div>
+      </div>`).join('');
   }
-
-  // Add a no-HRV note below the chart if only HR is present
-  if (!hasHrv && card) {
-    const note = document.createElement('div');
-    note.className = 'wellness-no-data';
-    note.textContent = 'HRV data not found — sync a wearable with intervals.icu to enable the HRV line.';
-    card.appendChild(note);
-  }
-
-  state.wellnessHrvChart = destroyChart(state.wellnessHrvChart);
-  state.wellnessHrvChart = new Chart(canvas.getContext('2d'), {
-    type: 'line',
-    data: { labels: entries.map(e => e.id), datasets },
-    options: {
-      responsive: true, maintainAspectRatio: false, animation: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: { display: datasets.length > 1, position: 'bottom',
-          labels: { color: '#9ba5be', boxWidth: 12, font: { size: 10 }, padding: 14 } },
-        tooltip: { ...C_TOOLTIP,
-          callbacks: { title: items => items[0].label } }
-      },
-      scales
-    }
-  });
-}
-
-function _renderWellnessSleepChart(entries) {
-  const canvas = document.getElementById('wellnessSleepChart');
-  if (!canvas) return;
-  const withSleep = entries.filter(e => e.sleepSecs != null && e.sleepSecs > 0);
-  if (!withSleep.length) { canvas.closest('.card').style.display = 'none'; return; }
-
-  const labels = withSleep.map(e => e.id);
-  const hours  = withSleep.map(e => +(e.sleepSecs / 3600).toFixed(2));
-  const avg    = hours.reduce((s,v)=>s+v,0) / hours.length;
-
-  state.wellnessSleepChart = destroyChart(state.wellnessSleepChart);
-  state.wellnessSleepChart = new Chart(canvas.getContext('2d'), {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [
-        {
-          label: 'Sleep',
-          data: hours,
-          backgroundColor: hours.map(h => h >= 7 ? 'rgba(74,158,255,0.6)' : h >= 6 ? 'rgba(240,196,41,0.65)' : 'rgba(255,71,87,0.65)'),
-          hoverBackgroundColor: '#4a9eff',
-          borderRadius: 3,
-        },
-        {
-          label: '8h target',
-          data: labels.map(() => 8),
-          type: 'line',
-          borderColor: 'rgba(255,255,255,0.15)',
-          borderDash: [5,4],
-          borderWidth: 1,
-          pointRadius: 0,
-          fill: false,
-        }
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false, animation: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: { ...C_TOOLTIP,
-          callbacks: {
-            title: items => items[0].label,
-            label: item => item.datasetIndex === 0 ? `${item.raw}h sleep` : '8h target'
-          }
-        }
-      },
-      scales: {
-        x: {
-          ticks: { color: '#62708a', font: { size: 10 }, maxTicksLimit: 10,
-            callback(_, i) { return withSleep[i]?.id ? new Date(withSleep[i].id).toLocaleDateString('en-GB',{day:'numeric',month:'short'}) : ''; }
-          },
-          grid: { display: false }, border: { display: false }
-        },
-        y: {
-          min: 0, max: 10,
-          ticks: { color: '#62708a', font: { size: 10 }, callback: v => v + 'h', stepSize: 2 },
-          grid: { color: 'rgba(255,255,255,0.04)' }, border: { display: false }
-        }
-      }
-    }
-  });
-}
-
-function _renderWellnessSubjChart(entries) {
-  const canvas = document.getElementById('wellnessSubjChart');
-  if (!canvas) return;
-  const keys = ['mood','fatigue','soreness','stress'];
-  const hasAny = entries.some(e => keys.some(k => e[k] != null));
-  if (!hasAny) { canvas.closest('.card').style.display = 'none'; return; }
-
-  const labels  = entries.map(e => e.id);
-  const colors  = { mood:'#00e5a0', fatigue:'#ff6b35', soreness:'#ff4757', stress:'#9b59ff' };
-  const display = { mood:'Mood', fatigue:'Fatigue', soreness:'Soreness', stress:'Stress' };
-
-  state.wellnessSubjChart = destroyChart(state.wellnessSubjChart);
-  state.wellnessSubjChart = new Chart(canvas.getContext('2d'), {
-    type: 'line',
-    data: {
-      labels,
-      datasets: keys.map(k => ({
-        label: display[k],
-        data: entries.map(e => e[k] ?? null),
-        borderColor: colors[k],
-        backgroundColor: 'transparent',
-        borderWidth: 1.5,
-        pointRadius: 0,
-        tension: 0.35,
-        fill: false,
-        spanGaps: true,
-      }))
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false, animation: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: { display: true, position: 'bottom',
-          labels: { color: '#9ba5be', boxWidth: 12, font: { size: 10 }, padding: 14 } },
-        tooltip: { ...C_TOOLTIP,
-          callbacks: { title: items => items[0].label } }
-      },
-      scales: {
-        x: {
-          ticks: { color: '#62708a', font: { size: 10 }, maxTicksLimit: 10,
-            callback(_, i) { return entries[i]?.id ? new Date(entries[i].id).toLocaleDateString('en-GB',{day:'numeric',month:'short'}) : ''; }
-          },
-          grid: { display: false }, border: { display: false }
-        },
-        y: {
-          min: 0, max: 5,
-          ticks: { color: '#62708a', font: { size: 10 }, stepSize: 1,
-            callback: v => ['','Very Low','Low','Normal','High','Very High'][v] || v },
-          grid: { color: 'rgba(255,255,255,0.04)' }, border: { display: false }
-        }
-      }
-    }
-  });
-}
-
-function _renderWellnessCorrelChart(entries) {
-  const card   = document.getElementById('wellnessCorrelChart')?.closest('.card');
-  const canvas = document.getElementById('wellnessCorrelChart');
-  if (!canvas) return;
-  const withAtl = entries.filter(e => e.atl != null);
-  if (withAtl.length < 3) { card?.style && (card.style.display = 'none'); return; }
-
-  const labels = withAtl.map(e => e.id);
-  const atl    = withAtl.map(e => e.atl);
-  const hrv    = withAtl.map(e => e.hrv ?? null);
-  const hasHrv = hrv.some(v => v != null);
-
-  // Remove any old notes
-  card?.querySelectorAll('.wellness-no-data').forEach(el => el.remove());
-
-  // Update subtitle to reflect what's actually shown
-  const subEl = card?.querySelector('.card-subtitle');
-  if (subEl) {
-    subEl.textContent = hasHrv
-      ? 'ATL (fatigue) overlaid with HRV — see how load impacts recovery'
-      : 'ATL (fatigue) over time — sync a wearable to add HRV correlation';
-  }
-
-  // Show note if HRV is missing
-  if (!hasHrv && card) {
-    const note = document.createElement('div');
-    note.className = 'wellness-no-data';
-    note.textContent = 'HRV data not available — sync a heart rate monitor or HRV app with intervals.icu to see the correlation.';
-    card.appendChild(note);
-  }
-
-  state.wellnessCorrelChart = destroyChart(state.wellnessCorrelChart);
-  state.wellnessCorrelChart = new Chart(canvas.getContext('2d'), {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [
-        {
-          label: 'ATL (Fatigue)',
-          data: atl,
-          borderColor: '#ff6b35',
-          backgroundColor: 'rgba(255,107,53,0.10)',
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0.35,
-          fill: true,
-          yAxisID: 'yAtl',
-          spanGaps: true,
-        },
-        ...(hasHrv ? [{
-          label: 'HRV (ms)',
-          data: hrv,
-          borderColor: '#00e5a0',
-          backgroundColor: 'transparent',
-          borderWidth: 1.5,
-          pointRadius: 0,
-          tension: 0.35,
-          fill: false,
-          yAxisID: 'yHrv',
-          spanGaps: true,
-        }] : [])
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false, animation: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: { display: true, position: 'bottom',
-          labels: { color: '#9ba5be', boxWidth: 12, font: { size: 10 }, padding: 14 } },
-        tooltip: { ...C_TOOLTIP,
-          callbacks: { title: items => items[0].label } }
-      },
-      scales: {
-        x: {
-          ticks: { color: '#62708a', font: { size: 10 }, maxTicksLimit: 10,
-            callback(_, i) { return withAtl[i]?.id ? new Date(withAtl[i].id).toLocaleDateString('en-GB',{day:'numeric',month:'short'}) : ''; }
-          },
-          grid: { display: false }, border: { display: false }
-        },
-        yAtl: {
-          position: 'left',
-          ticks: { color: '#ff6b35', font: { size: 10 } },
-          grid: { color: 'rgba(255,255,255,0.04)' }, border: { display: false }
-        },
-        ...(hasHrv ? {
-          yHrv: {
-            position: 'right',
-            ticks: { color: '#00e5a0', font: { size: 10 }, callback: v => v + ' ms' },
-            grid: { display: false }, border: { display: false }
-          }
-        } : {})
-      }
-    }
-  });
 }
 
 // Build a power curve object from a raw watts stream using a sliding-window max.
