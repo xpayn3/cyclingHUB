@@ -1199,6 +1199,56 @@ function closeSidebar() {
   _lockBodyScroll(false);
 }
 
+/* ====================================================
+   SWIPE TO OPEN SIDEBAR (Mobile)
+==================================================== */
+let _swipeStartX = 0;
+let _swipeStartY = 0;
+document.addEventListener('touchstart', (e) => {
+  _swipeStartX = e.touches[0].clientX;
+  _swipeStartY = e.touches[0].clientY;
+}, false);
+
+document.addEventListener('touchmove', (e) => {
+  if (_swipeStartX === 0) return; // not tracking
+  const touchX = e.touches[0].clientX;
+  const touchY = e.touches[0].clientY;
+  const deltaX = touchX - _swipeStartX;
+  const deltaY = Math.abs(touchY - _swipeStartY);
+
+  // Swipe from left edge (within 50px) to the right, with minimal vertical movement
+  if (_swipeStartX < 50 && deltaX > 50 && deltaY < 50) {
+    e.preventDefault();
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar && !sidebar.classList.contains('open')) {
+      // Animate the swipe
+      const progress = Math.min(deltaX / window.innerWidth, 1);
+      sidebar.style.transform = `translateX(${Math.min(deltaX, window.innerWidth) * 0.8}px)`;
+    }
+  }
+}, { passive: false });
+
+document.addEventListener('touchend', (e) => {
+  const touchX = e.changedTouches[0].clientX;
+  const deltaX = touchX - _swipeStartX;
+
+  // If swiped far enough from left edge, open sidebar
+  if (_swipeStartX < 50 && deltaX > 80) {
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar) {
+      sidebar.style.transform = '';
+      toggleSidebar();
+    }
+  } else {
+    // Reset animation if swipe wasn't far enough
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar) sidebar.style.transform = '';
+  }
+
+  _swipeStartX = 0;
+  _swipeStartY = 0;
+}, false);
+
 function navigate(page) {
   state.previousPage = state.currentPage;
   state.currentPage  = page;
