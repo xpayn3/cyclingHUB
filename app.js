@@ -1205,12 +1205,20 @@ function closeSidebar() {
 let _swipeStartX = 0;
 let _swipeStartY = 0;
 document.addEventListener('touchstart', (e) => {
-  _swipeStartX = e.touches[0].clientX;
-  _swipeStartY = e.touches[0].clientY;
+  // Only track single finger swipes (ignore multi-touch gestures like pinch)
+  if (e.touches.length === 1) {
+    _swipeStartX = e.touches[0].clientX;
+    _swipeStartY = e.touches[0].clientY;
+  } else {
+    _swipeStartX = 0;
+    _swipeStartY = 0;
+  }
 }, false);
 
 document.addEventListener('touchmove', (e) => {
-  if (_swipeStartX === 0) return; // not tracking
+  // Only track if single finger and we started tracking
+  if (_swipeStartX === 0 || e.touches.length !== 1) return;
+
   const touchX = e.touches[0].clientX;
   const touchY = e.touches[0].clientY;
   const deltaX = touchX - _swipeStartX;
@@ -1221,14 +1229,17 @@ document.addEventListener('touchmove', (e) => {
     e.preventDefault();
     const sidebar = document.getElementById('sidebar');
     if (sidebar && !sidebar.classList.contains('open')) {
-      // Animate the swipe
-      const progress = Math.min(deltaX / window.innerWidth, 1);
-      sidebar.style.transform = `translateX(${Math.min(deltaX, window.innerWidth) * 0.8}px)`;
+      // Get sidebar width and cap the translation to it
+      const sidebarWidth = sidebar.offsetWidth || 280;
+      const maxTranslate = Math.min(deltaX, sidebarWidth);
+      sidebar.style.transform = `translateX(${maxTranslate}px)`;
     }
   }
 }, { passive: false });
 
 document.addEventListener('touchend', (e) => {
+  if (_swipeStartX === 0) return;
+
   const touchX = e.changedTouches[0].clientX;
   const deltaX = touchX - _swipeStartX;
 
