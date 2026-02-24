@@ -1261,23 +1261,25 @@ document.addEventListener('touchend', (e) => {
 }, false);
 
 /* ── Disable pinch-to-zoom everywhere EXCEPT Leaflet maps ── */
+function _isOnMap(e) {
+  return e.target && e.target.closest && e.target.closest('.leaflet-container');
+}
 document.addEventListener('touchmove', function(e) {
-  if (e.touches.length > 1) {
-    // Allow pinch on map containers
-    if (e.target.closest && e.target.closest('.leaflet-container')) return;
+  if (e.touches.length > 1 && !_isOnMap(e)) {
     e.preventDefault();
+    e.stopPropagation();
   }
 }, { passive: false });
 
-// Also block gesturestart/gesturechange (Safari)
-document.addEventListener('gesturestart', function(e) {
-  if (e.target.closest && e.target.closest('.leaflet-container')) return;
-  e.preventDefault();
-}, { passive: false });
-document.addEventListener('gesturechange', function(e) {
-  if (e.target.closest && e.target.closest('.leaflet-container')) return;
-  e.preventDefault();
-}, { passive: false });
+// Safari uses proprietary gesture events for pinch — block on both document AND documentElement
+['gesturestart', 'gesturechange', 'gestureend'].forEach(function(evt) {
+  document.addEventListener(evt, function(e) {
+    if (!_isOnMap(e)) { e.preventDefault(); }
+  }, { passive: false });
+  document.documentElement.addEventListener(evt, function(e) {
+    if (!_isOnMap(e)) { e.preventDefault(); }
+  }, { passive: false });
+});
 
 function navigate(page) {
   state.previousPage = state.currentPage;

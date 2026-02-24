@@ -1,3 +1,13 @@
+/* ── Disable pinch-to-zoom globally, allow on maps ── */
+html, body {
+    touch-action: manipulation;
+    -ms-touch-action: manipulation;
+}
+.leaflet-container {
+    touch-action: auto !important;
+    -ms-touch-action: auto !important;
+}
+
 /* ============================================================
    DESIGN TOKENS  ←  EDIT HERE TO CHANGE THE WHOLE APP
    ============================================================
