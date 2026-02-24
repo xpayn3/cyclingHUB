@@ -410,6 +410,12 @@
                     </svg>
                     Streaks
                 </div>
+                <div class="nav-item" data-page="compare" onclick="navigate('compare');closeSidebar();">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 3v18h18M3 18l6-6 4 4 6-6"/>
+                    </svg>
+                    Compare
+                </div>
                 <span class="nav-section-label">Tools</span>
                 <div class="nav-item" data-page="weather" onclick="navigate('weather');closeSidebar();">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -519,7 +525,7 @@
                     Back
                 </button>
                 <!-- Back button — shown when viewing weather day detail -->
-                <button class="btn btn-ghost detail-topbar-back" id="wxdTopbarBack" onclick="renderWeatherPage()" style="display:none">
+                <button class="btn btn-ghost detail-topbar-back" id="wxdTopbarBack" onclick="navigate('dashboard')" style="display:none">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg>
                     Back
                 </button>
@@ -565,14 +571,12 @@
                 <div class="page active" id="page-dashboard">
 
                     <!-- ── Recent Activities ── -->
-                    <div class="section-label" id="recentActSectionLabel" style="display:none">Recent activities</div>
-                    <div class="recent-act-scroll-rail" id="recentActScrollRail"></div>
+                    <div data-dash-section="recentCarousel">
+                        <div class="section-label" id="recentActSectionLabel" style="display:none">Recent activities</div>
+                        <div class="recent-act-scroll-rail" id="recentActScrollRail"></div>
+                    </div>
 
-                    <div class="dash-section-divider"></div>
-
-                    <!-- Riding weather forecast (filled by renderWeatherForecast) -->
-                    <div class="card" id="forecastCard" style="display:none"></div>
-
+                    <div data-dash-section="weeklyStats">
                     <div class="stat-grid-label">This week <span id="statGridWeekRange"></span></div>
                     <div class="stat-grid">
                         <div class="stat-card">
@@ -712,7 +716,14 @@
                         </div>
                     </div>
 
+                    <!-- Riding weather forecast (filled by renderWeatherForecast) -->
+                    <div data-dash-section="weather">
+                        <div class="card" id="forecastCard" style="display:none; margin-top: 16px;"></div>
+                    </div>
+                    </div>
+
                     <!-- ── Week Progress + Training Status (side by side) ── -->
+                    <div data-dash-section="weekProgress">
                     <div class="card-row">
 
                         <div class="card" id="weekProgressCard">
@@ -826,8 +837,10 @@
                         </div>
 
                     </div><!-- /card-row week+status -->
+                    </div>
 
                     <!-- Training Load chart -->
+                    <div data-dash-section="trainingLoad">
                     <div class="card">
                         <div class="card-header">
                             <div>
@@ -864,8 +877,10 @@
                             </div>
                         </div>
                     </div>
+                    </div>
 
                     <!-- Average Power + Zone Distribution side by side -->
+                    <div data-dash-section="powerZones">
                     <div class="card-row">
                         <div class="card" id="avgPowerCard">
                             <div class="card-header">
@@ -897,8 +912,10 @@
                             <div class="zone-balance-section" id="zoneBalanceSection" style="display:none"></div>
                         </div>
                     </div>
+                    </div>
 
                     <!-- Power Curve -->
+                    <div data-dash-section="powerCurve">
                     <div class="card" id="powerCurveCard" style="display:none">
                         <div class="card-header">
                             <div>
@@ -911,7 +928,24 @@
                             <canvas id="powerCurveChart"></canvas>
                         </div>
                     </div>
+                    </div>
 
+                    <!-- Weekly TSS bar chart -->
+                    <div data-dash-section="weeklyTss">
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">Weekly Load</div>
+                                <div class="card-subtitle">TSS per week</div>
+                            </div>
+                        </div>
+                        <div class="chart-wrap">
+                            <canvas id="weeklyTssChart"></canvas>
+                        </div>
+                    </div>
+                    </div>
+
+                    <div data-dash-section="recentTable">
                     <div class="card">
                         <div class="card-header">
                             <div>
@@ -954,6 +988,7 @@
                                 </button>
                             </div>
                         </div>
+                    </div>
                     </div>
                 </div>
 
@@ -2396,6 +2431,18 @@
                                 </div>
                             </div>
 
+                            <!-- DASHBOARD SECTIONS -->
+                            <div class="card">
+                                <div class="stt-section-header">
+                                    <svg class="stt-section-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                                    <div>
+                                        <div class="stt-section-title">Dashboard Sections</div>
+                                        <div class="stt-section-sub">Show or hide cards on the dashboard</div>
+                                    </div>
+                                </div>
+                                <div class="stt-rows" id="dashSectionToggles"></div>
+                            </div>
+
                             <!-- ABOUT -->
                             <div class="stt-about">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
@@ -2405,6 +2452,53 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- ==================== COMPARE PAGE ==================== -->
+                <div class="page" id="page-compare">
+                    <!-- Control Panel -->
+                    <div class="compare-control-panel">
+                        <!-- Period & Grouping Section -->
+                        <div class="compare-period-section">
+                            <!-- Period Selector -->
+                            <div class="compare-period-selector">
+                                <label>Time Period</label>
+                                <div class="compare-range-pills">
+                                    <button onclick="setComparePeriod(28)" class="active">4 Weeks</button>
+                                    <button onclick="setComparePeriod(84)">12 Weeks</button>
+                                    <button onclick="setComparePeriod(182)">6 Months</button>
+                                    <button onclick="setComparePeriod(365)">1 Year</button>
+                                </div>
+                            </div>
+
+                            <!-- Time Grouping Dropdown -->
+                            <div class="compare-grouping-selector">
+                                <label>Group By</label>
+                                <select id="compareGrouping" onchange="updateComparePage()">
+                                    <option value="week" selected>Weekly</option>
+                                    <option value="biweek">Bi-weekly</option>
+                                    <option value="month">Monthly</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Metrics Container -->
+                    <div class="compare-metrics-container" id="compareMetricsContainer"></div>
+
+                    <!-- Add Card Button -->
+                    <button class="btn btn-primary" style="margin: 20px var(--pad-page);" onclick="addCompareCard()">
+                        + Add Metric
+                    </button>
+
+                    <!-- Empty State -->
+                    <div class="empty-state" id="compareEmptyState">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M3 3v18h18M3 9h12M3 15h18M9 3v18M15 3v18"/>
+                        </svg>
+                        <p>Click "Add Metric" to start comparing your training data</p>
+                    </div>
+                </div>
+
             </div>
             <!-- end page-content -->
         </main>

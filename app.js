@@ -156,6 +156,22 @@ function startGlowParticles() {
 
   const ctx = canvas.getContext('2d');
 
+  // Thin traveling wavy lines
+  const LINES = 6;
+  const lines = Array.from({ length: LINES }, (_, i) => ({
+    phase:    Math.random() * Math.PI * 2,
+    speed:    0.4 + Math.random() * 0.6,        // travel speed (px/frame-ish)
+    freq1:    2.0 + Math.random() * 2.0,         // primary wave freq
+    freq2:    3.5 + Math.random() * 3.0,         // secondary twist freq
+    amp1:     0.06 + Math.random() * 0.10,       // primary amplitude
+    amp2:     0.02 + Math.random() * 0.04,       // twist amplitude
+    yBase:    0.18 + (i / LINES) * 0.55,         // vertical spread
+    alphaMax: 0.12 + Math.random() * 0.10,       // max opacity
+    lineW:    0.6 + Math.random() * 0.8,         // stroke width
+    hueShift: (Math.random() - 0.5) * 40,
+    tOff:     Math.random() * 100,               // time offset for variety
+  }));
+
   // Each curtain is a slow-drifting sine wave band
   const BANDS = 5;
   const bands = Array.from({ length: BANDS }, (_, i) => ({
@@ -224,6 +240,43 @@ function startGlowParticles() {
         const sliceW = (w / slices) + 1;
         ctx.fillRect(x, yCenter - bandH, sliceW, bandH * 2);
       }
+    }
+
+    // ── Thin twisting traveling wavy lines ──
+    ctx.lineCap = 'round';
+    for (const ln of lines) {
+      const shift = ln.hueShift / 100;
+      const lr = Math.min(255, Math.max(0, baseR + shift * 50));
+      const lg = Math.min(255, Math.max(0, baseG + shift * 35));
+      const lb = Math.min(255, Math.max(0, baseB - shift * 25));
+      const tl = time + ln.tOff;
+
+      // Breathing opacity
+      const breath = 0.4 + 0.6 * Math.sin(tl * 0.35 + ln.phase);
+      const alpha = ln.alphaMax * Math.max(0, breath);
+
+      ctx.beginPath();
+      ctx.strokeStyle = `rgba(${lr},${lg},${lb},${alpha})`;
+      ctx.lineWidth = ln.lineW * dpr;
+
+      const steps = Math.ceil(w / (2 * dpr));
+      for (let i = 0; i <= steps; i++) {
+        const xPct = i / steps;
+        const x = xPct * w;
+        // Slowly drifting frequencies & amplitudes so the wave shape evolves
+        const fDrift1 = ln.freq1 + Math.sin(tl * 0.08 + ln.phase) * 0.6;
+        const fDrift2 = ln.freq2 + Math.cos(tl * 0.06 + ln.tOff) * 0.8;
+        const aDrift1 = ln.amp1 * (0.7 + 0.3 * Math.sin(tl * 0.12 + ln.phase * 1.5));
+        const aDrift2 = ln.amp2 * (0.6 + 0.4 * Math.cos(tl * 0.10 + ln.tOff * 0.8));
+        // Primary wave + secondary twist + third harmonic for organic movement
+        const y1 = Math.sin(xPct * fDrift1 * Math.PI * 2 + ln.phase + tl * ln.speed * 0.15);
+        const y2 = Math.sin(xPct * fDrift2 * Math.PI * 2 - ln.phase * 0.7 + tl * ln.speed * 0.22);
+        const y3 = Math.sin(xPct * (fDrift1 + fDrift2) * 0.5 * Math.PI * 2 + tl * 0.18) * 0.3;
+        const yCenter = (ln.yBase + y1 * aDrift1 + y2 * aDrift2 + y3 * ln.amp2 * 0.5) * h;
+        if (i === 0) ctx.moveTo(x, yCenter);
+        else ctx.lineTo(x, yCenter);
+      }
+      ctx.stroke();
     }
 
     _aurora.raf = requestAnimationFrame(frame);
@@ -1081,6 +1134,7 @@ function navigate(page) {
     fitness:    ['Fitness',        'CTL · ATL · TSB history'],
     power:      ['Power Curve',    'Best efforts across durations'],
     zones:      ['Training Zones', 'Time in zone breakdown'],
+    compare:    ['Compare',        'Compare metrics across time periods'],
     weather:    ['Weather',        'Weekly forecast & riding conditions'],
     settings:   ['Settings',       'Account & connection'],
     workout:    ['Create Workout', 'Build & export custom cycling workouts'],
@@ -1110,8 +1164,9 @@ function navigate(page) {
 
   // Training status glow — dashboard only
   document.body.classList.toggle('dashboard-glow', page === 'dashboard');
-  if (page === 'dashboard') { updateTopbarGlow(); startGlowParticles(); }
+  if (page === 'dashboard') { updateTopbarGlow(); startGlowParticles(); applyDashSectionVisibility(); }
   else stopGlowParticles();
+  if (page === 'settings') renderDashSectionToggles();
 
   // Show month label in topbar only on calendar
   const calLabel = document.getElementById('calTopbarMonth');
@@ -1130,6 +1185,7 @@ function navigate(page) {
   if (page === 'fitness')  renderFitnessPage();
   if (page === 'power')    renderPowerPage();
   if (page === 'zones')    renderZonesPage();
+  if (page === 'compare')  { ensureLifetimeLoaded(); renderComparePage(); }
   if (page === 'workout')  { wrkRefreshStats(); wrkRender(); }
   if (page === 'settings') {
     initWeatherLocationUI();
@@ -2167,7 +2223,7 @@ async function renderWeatherForecast() {
       ? `<div class="wx-day-precip"><svg viewBox="0 0 24 24" fill="currentColor" width="10" height="10"><path d="M12 2C8 8 5 12.5 5 15.5a7 7 0 0 0 14 0C19 12.5 16 8 12 2z"/></svg>${Math.round(precipPct)}%</div>`
       : `<div class="wx-day-precip"></div>`;
     return `
-      <div class="wx-day wx-day--${score}${isToday ? ' wx-day--today' : ''}">
+      <div class="wx-day wx-day--${score}${isToday ? ' wx-day--today' : ''}" onclick="navigate('weather'); setTimeout(() => renderWeatherDayDetail(${i}), 50)">
         <div class="wx-day-name">${dayName}</div>
         <div class="wx-day-icon">${wmoIcon(codes[i])}</div>
         <div class="wx-day-label">${wmoLabel(codes[i])}</div>
@@ -3842,44 +3898,91 @@ function drawRampGaugeSVG(rampRate) {
   const el = document.getElementById('rampGaugeSVG');
   if (!el) return;
 
-  const CX = 100, CY = 105, R = 82, SW = 16;
+  const CX = 100, CY = 105, R = 82, SW = 18;
   const val = Math.max(0, Math.min(12, rampRate));
 
   // Map value to angle: 0 → π (left), 12 → 0 (right)
   const toA = v => Math.PI * (1 - Math.max(0, Math.min(12, v)) / 12);
 
-  // SVG coordinate at angle a (standard math → SVG y-flip)
+  // SVG coordinate at angle a
   const px = a => (CX + R * Math.cos(a)).toFixed(1);
   const py = a => (CY - R * Math.sin(a)).toFixed(1);
 
-  // Arc path from angle a1 to a2, sweep=1 (clockwise on screen = top arc)
-  const seg = (a1, a2, col, sw, op, cap, filt) => {
-    op  = op  ?? 1;
-    cap = cap ?? 'butt';
+  // Arc path helper
+  const arcPath = (a1, a2) => {
     const large = (a1 - a2) > Math.PI ? 1 : 0;
-    const fStr = filt ? ` filter="url(#${filt})"` : '';
-    return `<path d="M${px(a1)} ${py(a1)} A${R} ${R} 0 ${large} 1 ${px(a2)} ${py(a2)}" `
-         + `fill="none" stroke="${col}" stroke-width="${sw}" stroke-linecap="${cap}" opacity="${op}"${fStr}/>`;
+    return `M${px(a1)} ${py(a1)} A${R} ${R} 0 ${large} 1 ${px(a2)} ${py(a2)}`;
   };
 
-  // Ramp-rate color zones (0–12 CTL/wk)
-  const zones = [[0,3,'#00e5a0'],[3,8,'#00e5a0'],[8,10,'#f0c429'],[10,12,'#ff4757']];
   const color = val < 8 ? '#00e5a0' : val < 10 ? '#f0c429' : '#ff4757';
 
   // Tick marks at zone boundaries
   const tickVals = [0, 3, 8, 10, 12];
   let ticks = '';
   tickVals.forEach(v => {
-    const a  = toA(v);
-    const r1 = R + 5, r2 = R + 12;
+    const a = toA(v);
+    const r1 = R + SW / 2 + 3, r2 = r1 + 7;
     ticks += `<line x1="${(CX + r1 * Math.cos(a)).toFixed(1)}" y1="${(CY - r1 * Math.sin(a)).toFixed(1)}" `
            + `x2="${(CX + r2 * Math.cos(a)).toFixed(1)}" y2="${(CY - r2 * Math.sin(a)).toFixed(1)}" `
-           + `stroke="rgba(255,255,255,0.12)" stroke-width="1.5" stroke-linecap="round"/>`;
+           + `stroke="rgba(255,255,255,0.1)" stroke-width="1.5" stroke-linecap="round"/>`;
   });
 
+  // Build the outer and inner radius arc shapes for the tube
+  const Ro = R + SW / 2, Ri = R - SW / 2;
+  const pxR = (a, r) => (CX + r * Math.cos(a)).toFixed(1);
+  const pyR = (a, r) => (CY - r * Math.sin(a)).toFixed(1);
+
+  // Full tube shape path (closed annular arc)
+  const tubePath = (a1, a2, cap) => {
+    const large = (a1 - a2) > Math.PI ? 1 : 0;
+    if (cap === 'round') {
+      // Outer arc CW, end cap, inner arc CCW, start cap
+      return `M${pxR(a1, Ro)} ${pyR(a1, Ro)} A${Ro} ${Ro} 0 ${large} 1 ${pxR(a2, Ro)} ${pyR(a2, Ro)} `
+           + `A${SW/2} ${SW/2} 0 0 1 ${pxR(a2, Ri)} ${pyR(a2, Ri)} `
+           + `A${Ri} ${Ri} 0 ${large} 0 ${pxR(a1, Ri)} ${pyR(a1, Ri)} `
+           + `A${SW/2} ${SW/2} 0 0 1 ${pxR(a1, Ro)} ${pyR(a1, Ro)}Z`;
+    }
+    return `M${pxR(a1, Ro)} ${pyR(a1, Ro)} A${Ro} ${Ro} 0 ${large} 1 ${pxR(a2, Ro)} ${pyR(a2, Ro)} `
+         + `L${pxR(a2, Ri)} ${pyR(a2, Ri)} `
+         + `A${Ri} ${Ri} 0 ${large} 0 ${pxR(a1, Ri)} ${pyR(a1, Ri)}Z`;
+  };
+
   let s = `<defs>
+    <!-- Tube shading: dark edges, lighter center for 3D cylinder look -->
+    <linearGradient id="tubeTrack" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.07)"/>
+      <stop offset="35%" stop-color="rgba(255,255,255,0.03)"/>
+      <stop offset="65%" stop-color="rgba(0,0,0,0.08)"/>
+      <stop offset="100%" stop-color="rgba(0,0,0,0.2)"/>
+    </linearGradient>
+    <!-- Active fill tube gradient -->
+    <linearGradient id="tubeFillGreen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5fffca"/>
+      <stop offset="30%" stop-color="#00e5a0"/>
+      <stop offset="70%" stop-color="#00b87f"/>
+      <stop offset="100%" stop-color="#008a60"/>
+    </linearGradient>
+    <linearGradient id="tubeFillYellow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffe066"/>
+      <stop offset="30%" stop-color="#f0c429"/>
+      <stop offset="70%" stop-color="#d4a820"/>
+      <stop offset="100%" stop-color="#a88518"/>
+    </linearGradient>
+    <linearGradient id="tubeFillRed" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ff8a8a"/>
+      <stop offset="30%" stop-color="#ff4757"/>
+      <stop offset="70%" stop-color="#d63545"/>
+      <stop offset="100%" stop-color="#a52835"/>
+    </linearGradient>
+    <!-- Specular highlight on tube -->
+    <linearGradient id="tubeHighlight" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.25)"/>
+      <stop offset="25%" stop-color="rgba(255,255,255,0.06)"/>
+      <stop offset="50%" stop-color="rgba(255,255,255,0)"/>
+      <stop offset="100%" stop-color="rgba(0,0,0,0)"/>
+    </linearGradient>
     <filter id="trsGlow" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feGaussianBlur stdDeviation="6" result="blur"/>
       <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
     <filter id="trsDotGlow" x="-80%" y="-80%" width="260%" height="260%">
@@ -3889,20 +3992,39 @@ function drawRampGaugeSVG(rampRate) {
   </defs>`;
 
   s += ticks;
-  // 1. Background track
-  s += seg(Math.PI * 0.999, Math.PI * 0.001, 'rgba(255,255,255,0.06)', SW);
-  // 2. Dimmed zone bands
-  zones.forEach(([lo, hi, c]) => s += seg(toA(lo), toA(hi), c, SW - 7, 0.2));
-  // 3. Active progress fill — glow pass + solid pass
+
+  // 1. Tube track — base dark fill for the empty tube
+  s += `<path d="${tubePath(Math.PI * 0.999, Math.PI * 0.001, 'round')}" fill="rgba(10,12,20,0.6)"/>`;
+  // 2. Zone color hints — faint tints inside the empty tube
+  const zones = [[0, 3, '#00e5a0'], [3, 8, '#00e5a0'], [8, 10, '#f0c429'], [10, 12, '#ff4757']];
+  zones.forEach(([lo, hi, c]) => {
+    s += `<path d="${tubePath(toA(lo), toA(hi))}" fill="${c}" opacity="0.07"/>`;
+  });
+  // 3. Tube track — gradient overlay for 3D shading
+  s += `<path d="${tubePath(Math.PI * 0.999, Math.PI * 0.001, 'round')}" fill="url(#tubeTrack)"/>`;
+
+  // 4. Active fill — colored tube section
+  const fillGrad = color === '#00e5a0' ? 'url(#tubeFillGreen)' : color === '#f0c429' ? 'url(#tubeFillYellow)' : 'url(#tubeFillRed)';
   if (val > 0.15) {
-    s += seg(Math.PI * 0.999, toA(val), color, SW + 8, 0.22, 'round', 'trsGlow');
-    s += seg(Math.PI * 0.999, toA(val), color, SW, 0.92, 'round');
+    // Glow behind fill
+    s += `<path d="${arcPath(Math.PI * 0.999, toA(val))}" fill="none" stroke="${color}" stroke-width="${SW + 10}" stroke-linecap="round" opacity="0.2" filter="url(#trsGlow)"/>`;
+    // Solid fill with gradient
+    s += `<path d="${tubePath(Math.PI * 0.999, toA(val), 'round')}" fill="${fillGrad}"/>`;
+    // Specular highlight on fill
+    s += `<path d="${tubePath(Math.PI * 0.999, toA(val), 'round')}" fill="url(#tubeHighlight)"/>`;
   }
-  // 4. Indicator dot — glow pass + solid
+
+  // 4. Specular highlight on entire track (top edge shine)
+  const hiR = R + SW / 2 - 1, hiRi = R + SW / 2 - 4;
+  s += `<path d="M${pxR(Math.PI * 0.999, hiR)} ${pyR(Math.PI * 0.999, hiR)} A${hiR} ${hiR} 0 1 1 ${pxR(Math.PI * 0.001, hiR)} ${pyR(Math.PI * 0.001, hiR)}" `
+     + `fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1.5" stroke-linecap="round"/>`;
+
+  // 5. Indicator dot
   const dx = px(toA(val)), dy = py(toA(val));
-  s += `<circle cx="${dx}" cy="${dy}" r="8" fill="${color}" opacity="0.35" filter="url(#trsDotGlow)"/>`;
-  s += `<circle cx="${dx}" cy="${dy}" r="7" fill="${color}" stroke="rgba(0,0,0,0.55)" stroke-width="2.5"/>`;
-  s += `<circle cx="${dx}" cy="${dy}" r="3" fill="rgba(255,255,255,0.7)"/>`;
+  s += `<circle cx="${dx}" cy="${dy}" r="7" fill="${color}" opacity="0.3" filter="url(#trsDotGlow)"/>`;
+  s += `<circle cx="${dx}" cy="${dy}" r="${SW/2 + 1}" fill="${color}"/>`;
+  s += `<circle cx="${dx}" cy="${dy}" r="${SW/2 - 1}" fill="url(#tubeHighlight)"/>`;
+  s += `<circle cx="${dx}" cy="${dy}" r="3" fill="rgba(255,255,255,0.6)"/>`;
 
   el.innerHTML = s;
 }
@@ -3951,7 +4073,7 @@ function renderTrainingStatus() {
     let fLabel, fColor, fHint;
     if      (tsb > 25)  { fLabel = 'Peak Form';     fColor = '#00e5a0'; fHint = 'Perfect for A-priority races'; }
     else if (tsb > 15)  { fLabel = 'Race Ready';    fColor = '#00e5a0'; fHint = 'Target A-priority races now'; }
-    else if (tsb > 5)   { fLabel = 'Fresh';         fColor = '#88c860'; fHint = 'Good for B-priority races'; }
+    else if (tsb > 5)   { fLabel = 'Fresh';         fColor = '#00e5a0'; fHint = 'Good for B-priority races'; }
     else if (tsb > -5)  { fLabel = 'Neutral';       fColor = '#f0c429'; fHint = 'Transitioning'; }
     else if (tsb > -15) { fLabel = 'Training';      fColor = '#f0c429'; fHint = 'Building fitness load'; }
     else if (tsb > -25) { fLabel = 'Deep Training'; fColor = '#ff6b35'; fHint = 'High load — monitor fatigue'; }
@@ -11253,6 +11375,466 @@ function renderGuidePage() {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── Dashboard section visibility toggles ─────────────────────────────────────
+const DASH_SECTIONS = [
+  { key: 'recentCarousel', label: 'Recent Activity Carousel', defaultOn: true },
+  { key: 'weather',        label: 'Weather Forecast',         defaultOn: true },
+  { key: 'weeklyStats',    label: 'Weekly Stats',             defaultOn: true },
+  { key: 'weekProgress',   label: 'Week Progress & Training Status', defaultOn: true },
+  { key: 'trainingLoad',   label: 'Training Load Chart',      defaultOn: true },
+  { key: 'powerZones',     label: 'Average Power & Zones',    defaultOn: true },
+  { key: 'powerCurve',     label: 'Power Curve',              defaultOn: true },
+  { key: 'weeklyTss',      label: 'Weekly Load Chart',        defaultOn: true },
+  { key: 'recentTable',    label: 'Recent Activities Table',  defaultOn: true },
+];
+
+function loadDashSectionPrefs() {
+  try {
+    const raw = localStorage.getItem('icu_dash_sections');
+    return raw ? JSON.parse(raw) : {};
+  } catch(e) { return {}; }
+}
+
+function saveDashSectionPref(key, visible) {
+  const prefs = loadDashSectionPrefs();
+  prefs[key] = visible;
+  localStorage.setItem('icu_dash_sections', JSON.stringify(prefs));
+}
+
+function isDashSectionVisible(key) {
+  const prefs = loadDashSectionPrefs();
+  const sec = DASH_SECTIONS.find(s => s.key === key);
+  if (prefs[key] !== undefined) return prefs[key];
+  return sec ? sec.defaultOn : true;
+}
+
+function applyDashSectionVisibility() {
+  for (const sec of DASH_SECTIONS) {
+    const el = document.querySelector(`[data-dash-section="${sec.key}"]`);
+    if (el) el.classList.toggle('dash-hidden', !isDashSectionVisible(sec.key));
+  }
+}
+
+function renderDashSectionToggles() {
+  const container = document.getElementById('dashSectionToggles');
+  if (!container) return;
+  container.innerHTML = '';
+  for (const sec of DASH_SECTIONS) {
+    const on = isDashSectionVisible(sec.key);
+    const row = document.createElement('div');
+    row.className = 'stt-row stt-row--toggle';
+    row.innerHTML = `
+      <div class="stt-row-info">
+        <div class="stt-row-label">${sec.label}</div>
+      </div>
+      <label class="settings-ios-toggle">
+        <input type="checkbox" ${on ? 'checked' : ''} data-dash-toggle="${sec.key}">
+        <span class="settings-ios-slider"></span>
+      </label>`;
+    const cb = row.querySelector('input');
+    cb.addEventListener('change', () => {
+      saveDashSectionPref(sec.key, cb.checked);
+      applyDashSectionVisibility();
+    });
+    container.appendChild(row);
+  }
+}
+
+// ========================== COMPARE PAGE FUNCTIONS ==========================
+
+// Compare page state
+const _compare = {
+  periodDays: 28,
+  grouping: 'week',  // week, biweek, month
+  chartType: 'bar',  // bar or line
+  cards: [],  // Array of {id, metric, chart}
+  nextCardId: 0
+};
+
+function getMetricOptions() {
+  return {
+    'distance': 'Distance (km)',
+    'time': 'Ride Time (hours)',
+    'elevation': 'Elevation (meters)',
+    'power': 'Avg Power (watts)',
+    'heartrate': 'Avg Heart Rate (bpm)',
+    'tss': 'TSS',
+    'ctl': 'CTL (Fitness)',
+    'atl': 'ATL (Fatigue)',
+    'tsb': 'TSB (Form)',
+    'count': 'Ride Count'
+  };
+}
+
+function addCompareCard(metric = 'tss') {
+  const cardId = _compare.nextCardId++;
+  _compare.cards.push({ id: cardId, metric: metric, chart: null });
+  renderCompareMetrics();
+  updateComparePage();
+}
+
+function removeCompareCard(cardId) {
+  _compare.cards = _compare.cards.filter(c => c.id !== cardId);
+  if (_compare.cards.length === 0) {
+    document.getElementById('compareEmptyState').style.display = 'block';
+    document.getElementById('compareMetricsContainer').innerHTML = '';
+  } else {
+    renderCompareMetrics();
+    updateComparePage();
+  }
+}
+
+function setComparePeriod(days) {
+  _compare.periodDays = days;
+  document.querySelectorAll('.compare-range-pills button').forEach(b => b.classList.remove('active'));
+  event?.target?.classList.add('active');
+  updateComparePage();
+}
+
+function setCompareChartType(type) {
+  _compare.chartType = type;
+  document.querySelectorAll('.compare-chart-type-toggle button').forEach(b => b.classList.remove('active'));
+  if (type === 'bar') {
+    document.querySelectorAll('.compare-chart-type-toggle .compareBarBtn').forEach(b => b.classList.add('active'));
+  } else {
+    document.querySelectorAll('.compare-chart-type-toggle .compareLineBtn').forEach(b => b.classList.add('active'));
+  }
+  updateComparePage();
+}
+
+function aggregateDataForComparison(startDate, endDate, grouping) {
+  const periods = [];
+  let current = new Date(startDate);
+
+  // Generate periods
+  while (current < endDate) {
+    const periodStart = new Date(current);
+    let periodEnd;
+
+    if (grouping === 'week') {
+      periodEnd = new Date(current);
+      periodEnd.setDate(periodEnd.getDate() + 7);
+    } else if (grouping === 'biweek') {
+      periodEnd = new Date(current);
+      periodEnd.setDate(periodEnd.getDate() + 14);
+    } else { // month
+      periodEnd = new Date(current);
+      periodEnd.setMonth(periodEnd.getMonth() + 1);
+    }
+
+    periodEnd = new Date(Math.min(periodEnd.getTime(), endDate.getTime()));
+    periods.push({
+      label: `${toDateStr(periodStart).slice(5)}`,
+      startDate: periodStart,
+      endDate: periodEnd,
+      data: {}
+    });
+
+    current = new Date(periodEnd);
+  }
+
+  // Aggregate metrics for each period
+  // Use lifetime activities if available, otherwise use current activities
+  const activitiesToUse = state.lifetimeActivities || state.activities;
+
+  for (const period of periods) {
+    const startStr = toDateStr(period.startDate);
+    const endStr = toDateStr(period.endDate);
+
+    let tss = 0, dist = 0, time = 0, elev = 0, pow = 0, powN = 0, hr = 0, hrN = 0, count = 0;
+
+    for (const activity of activitiesToUse) {
+      const actDate = (activity.start_date_local || activity.start_date || '').slice(0, 10);
+      if (actDate < startStr || actDate >= endStr) continue;
+      if (isEmptyActivity(activity)) continue;
+
+      count++;
+      tss += actVal(activity, 'icu_training_load', 'tss');
+      dist += actVal(activity, 'distance', 'icu_distance') / 1000;
+      time += actVal(activity, 'moving_time', 'elapsed_time', 'icu_moving_time', 'icu_elapsed_time') / 3600;
+      elev += actVal(activity, 'total_elevation_gain', 'icu_total_elevation_gain');
+      const w = actVal(activity, 'icu_weighted_avg_watts', 'average_watts', 'icu_average_watts');
+      if (w > 0) { pow += w; powN++; }
+      const h = actVal(activity, 'icu_average_heartrate', 'average_heartrate');
+      if (h > 0) { hr += h; hrN++; }
+    }
+
+    period.data = {
+      tss: Math.round(tss),
+      distance: parseFloat(dist.toFixed(1)),
+      time: parseFloat(time.toFixed(1)),
+      elevation: Math.round(elev),
+      power: powN > 0 ? Math.round(pow / powN) : 0,
+      heartrate: hrN > 0 ? Math.round(hr / hrN) : 0,
+      count: count
+    };
+  }
+
+  return periods;
+}
+
+function generateCompareChart(currentPeriods, previousPeriods, metric, chartType) {
+  const canvas = document.getElementById('compareChart');
+  if (!canvas) return;
+
+  _compare.chart = destroyChart(_compare.chart);
+  const ctx = canvas.getContext('2d');
+
+  const currentValues = currentPeriods.map(p => p.data[metric] || 0);
+  const previousValues = previousPeriods.map(p => p.data[metric] || 0);
+
+  const currentColor = { r: 0, g: 229, b: 160 };   // accent green
+  const previousColor = { r: 120, g: 120, b: 140 }; // muted blue-gray
+
+  const isBar = chartType === 'bar';
+
+  const currentDataset = {
+    label: 'This Period',
+    data: currentValues,
+    borderColor: isBar ? 'transparent' : `rgb(${currentColor.r},${currentColor.g},${currentColor.b})`,
+    backgroundColor: isBar ? `rgba(${currentColor.r},${currentColor.g},${currentColor.b},0.5)` : `rgba(${currentColor.r},${currentColor.g},${currentColor.b},0.1)`,
+    hoverBackgroundColor: isBar ? `rgb(${currentColor.r},${currentColor.g},${currentColor.b})` : undefined,
+    tension: 0.3,
+    borderWidth: isBar ? 0 : 2,
+    borderRadius: 4,
+    fill: !isBar,
+    pointRadius: isBar ? 0 : 4,
+    pointBackgroundColor: `rgb(${currentColor.r},${currentColor.g},${currentColor.b})`
+  };
+
+  const previousDataset = {
+    label: 'Previous Period',
+    data: previousValues,
+    borderColor: isBar ? 'transparent' : `rgb(${previousColor.r},${previousColor.g},${previousColor.b})`,
+    backgroundColor: isBar ? `rgba(${previousColor.r},${previousColor.g},${previousColor.b},0.35)` : `rgba(${previousColor.r},${previousColor.g},${previousColor.b},0.08)`,
+    hoverBackgroundColor: isBar ? `rgb(${previousColor.r},${previousColor.g},${previousColor.b})` : undefined,
+    tension: 0.3,
+    borderWidth: isBar ? 0 : 2,
+    borderRadius: 4,
+    borderDash: isBar ? [] : [5, 5],
+    fill: !isBar,
+    pointRadius: isBar ? 0 : 3,
+    pointBackgroundColor: `rgb(${previousColor.r},${previousColor.g},${previousColor.b})`
+  };
+
+  const config = {
+    type: chartType === 'bar' ? 'bar' : 'line',
+    data: {
+      labels: currentPeriods.map(p => p.label),
+      datasets: [currentDataset, previousDataset]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: '#62708a', font: { size: 12 } } },
+        tooltip: { ...C_TOOLTIP }
+      },
+      scales: cScales({ xGrid: false, yExtra: { maxTicksLimit: 6 } })
+    }
+  };
+
+  _compare.chart = new Chart(ctx, config);
+}
+
+function generateCompareStats(currentPeriods, previousPeriods, metric) {
+  const currentValues = currentPeriods.map(p => p.data[metric] || 0);
+  const previousValues = previousPeriods.map(p => p.data[metric] || 0);
+
+  const currentSum = currentValues.reduce((a, b) => a + b, 0);
+  const previousSum = previousValues.reduce((a, b) => a + b, 0);
+  const currentAvg = (currentSum / currentValues.length).toFixed(1);
+  const previousAvg = (previousSum / previousValues.length).toFixed(1);
+
+  const change = previousSum > 0 ? (((currentSum - previousSum) / previousSum) * 100).toFixed(1) : 0;
+  const changeClass = change > 0 ? 'stat-positive' : (change < 0 ? 'stat-negative' : '');
+
+  let html = '<table><thead><tr><th>Metric</th><th>This Period</th><th>Previous Period</th><th>Change</th></tr></thead><tbody>';
+  html += `<tr><td><strong>Total</strong></td><td>${currentSum}</td><td>${previousSum}</td><td class="${changeClass}">${change > 0 ? '+' : ''}${change}%</td></tr>`;
+  html += `<tr><td><strong>Average</strong></td><td>${currentAvg}</td><td>${previousAvg}</td><td>-</td></tr>`;
+  html += `</tbody></table>`;
+
+  document.getElementById('compareStatsTable').innerHTML = html;
+}
+
+function generateCompareChartForCard(cardId, currentPeriods, previousPeriods, metric, chartType) {
+  const canvas = document.getElementById(`compareChart${cardId}`);
+  if (!canvas) return;
+
+  const card = _compare.cards.find(c => c.id === cardId);
+  if (!card) return;
+
+  // Destroy old chart if exists
+  if (card.chart) card.chart = destroyChart(card.chart);
+
+  const ctx = canvas.getContext('2d');
+  const currentValues = currentPeriods.map(p => p.data[metric] || 0);
+  const previousValues = previousPeriods.map(p => p.data[metric] || 0);
+
+  const currentColor = { r: 0, g: 229, b: 160 };
+  const previousColor = { r: 120, g: 120, b: 140 };
+
+  const isBar = chartType === 'bar';
+
+  const currentDataset = {
+    label: 'This Period',
+    data: currentValues,
+    borderColor: isBar ? 'transparent' : `rgb(${currentColor.r},${currentColor.g},${currentColor.b})`,
+    backgroundColor: isBar ? `rgba(${currentColor.r},${currentColor.g},${currentColor.b},0.5)` : `rgba(${currentColor.r},${currentColor.g},${currentColor.b},0.1)`,
+    hoverBackgroundColor: isBar ? `rgb(${currentColor.r},${currentColor.g},${currentColor.b})` : undefined,
+    tension: 0.3,
+    borderWidth: isBar ? 0 : 2,
+    borderRadius: 4,
+    fill: !isBar,
+    pointRadius: isBar ? 0 : 4,
+    pointBackgroundColor: `rgb(${currentColor.r},${currentColor.g},${currentColor.b})`
+  };
+
+  const previousDataset = {
+    label: 'Previous Period',
+    data: previousValues,
+    borderColor: isBar ? 'transparent' : `rgb(${previousColor.r},${previousColor.g},${previousColor.b})`,
+    backgroundColor: isBar ? `rgba(${previousColor.r},${previousColor.g},${previousColor.b},0.35)` : `rgba(${previousColor.r},${previousColor.g},${previousColor.b},0.08)`,
+    hoverBackgroundColor: isBar ? `rgb(${previousColor.r},${previousColor.g},${previousColor.b})` : undefined,
+    tension: 0.3,
+    borderWidth: isBar ? 0 : 2,
+    borderRadius: 4,
+    borderDash: isBar ? [] : [5, 5],
+    fill: !isBar,
+    pointRadius: isBar ? 0 : 3,
+    pointBackgroundColor: `rgb(${previousColor.r},${previousColor.g},${previousColor.b})`
+  };
+
+  const config = {
+    type: chartType === 'bar' ? 'bar' : 'line',
+    data: {
+      labels: currentPeriods.map(p => p.label),
+      datasets: [currentDataset, previousDataset]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: '#62708a', font: { size: 12 } } },
+        tooltip: { ...C_TOOLTIP }
+      },
+      scales: cScales({ xGrid: false, yExtra: { maxTicksLimit: 6 } })
+    }
+  };
+
+  card.chart = new Chart(ctx, config);
+}
+
+function generateCompareStatsForCard(cardId, currentPeriods, previousPeriods, metric) {
+  const currentValues = currentPeriods.map(p => p.data[metric] || 0);
+  const previousValues = previousPeriods.map(p => p.data[metric] || 0);
+
+  const currentSum = currentValues.reduce((a, b) => a + b, 0);
+  const previousSum = previousValues.reduce((a, b) => a + b, 0);
+  const currentAvg = (currentSum / currentValues.length).toFixed(1);
+  const previousAvg = (previousSum / previousValues.length).toFixed(1);
+
+  const change = previousSum > 0 ? (((currentSum - previousSum) / previousSum) * 100).toFixed(1) : 0;
+  const changeClass = change > 0 ? 'stat-positive' : (change < 0 ? 'stat-negative' : '');
+
+  let html = '<div class="compare-card-stats-summary">';
+  html += `<div class="stat-item"><span>Total</span><strong>${currentSum}</strong><span class="stat-prev">(${previousSum})</span></div>`;
+  html += `<div class="stat-item"><span>Average</span><strong>${currentAvg}</strong><span class="stat-prev">(${previousAvg})</span></div>`;
+  html += `<div class="stat-item"><span>Change</span><strong class="${changeClass}">${change > 0 ? '+' : ''}${change}%</strong></div>`;
+  html += '</div>';
+
+  document.getElementById(`compareStats${cardId}`).innerHTML = html;
+}
+
+function renderCompareMetrics() {
+  if (_compare.cards.length === 0) {
+    document.getElementById('compareMetricsContainer').innerHTML = '';
+    document.getElementById('compareEmptyState').style.display = 'block';
+    return;
+  }
+
+  document.getElementById('compareEmptyState').style.display = 'none';
+  const container = document.getElementById('compareMetricsContainer');
+  const metricOptions = getMetricOptions();
+
+  container.innerHTML = _compare.cards.map(card => `
+    <div class="compare-metric-card" data-card-id="${card.id}">
+      <div class="compare-metric-header">
+        <select class="compare-card-metric-select" onchange="updateCompareCardMetric(${card.id}, this.value)">
+          ${Object.entries(metricOptions).map(([value, label]) =>
+            `<option value="${value}" ${card.metric === value ? 'selected' : ''}>${label}</option>`
+          ).join('')}
+        </select>
+        <button class="compare-card-remove" onclick="removeCompareCard(${card.id})">✕</button>
+      </div>
+      <div class="compare-metric-content">
+        <div class="compare-chart-wrapper">
+          <div class="compare-chart-type-toggle">
+            <button class="compareBarBtn ${_compare.chartType === 'bar' ? 'active' : ''}" onclick="setCompareChartType('bar')">Bar</button>
+            <button class="compareLineBtn ${_compare.chartType === 'line' ? 'active' : ''}" onclick="setCompareChartType('line')">Line</button>
+          </div>
+          <div class="chart-wrap chart-wrap--lg">
+            <canvas id="compareChart${card.id}"></canvas>
+          </div>
+        </div>
+        <div class="compare-card-stats" id="compareStats${card.id}"></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function updateCompareCardMetric(cardId, metric) {
+  const card = _compare.cards.find(c => c.id === cardId);
+  if (card) {
+    card.metric = metric;
+    updateComparePage();
+  }
+}
+
+function renderComparePage() {
+  _compare.grouping = document.getElementById('compareGrouping')?.value || 'week';
+  if (_compare.cards.length === 0) {
+    renderCompareMetrics();
+  }
+  updateComparePage();
+}
+
+function updateComparePage() {
+  if (_compare.cards.length === 0) {
+    return;
+  }
+
+  // Current period (e.g., last 4 weeks)
+  const currentEndDate = new Date();
+  const currentStartDate = daysAgo(_compare.periodDays);
+
+  // Previous period (same duration)
+  const previousEndDate = new Date(currentStartDate);
+  const previousStartDate = new Date(previousEndDate);
+  previousStartDate.setDate(previousStartDate.getDate() - _compare.periodDays);
+
+  // Aggregate data for both periods
+  const currentPeriods = aggregateDataForComparison(currentStartDate, currentEndDate, _compare.grouping);
+  const previousPeriods = aggregateDataForComparison(previousStartDate, previousEndDate, _compare.grouping);
+
+  if (currentPeriods.length === 0) {
+    document.getElementById('compareEmptyState').style.display = 'block';
+    document.getElementById('compareMetricsContainer').innerHTML = '';
+    return;
+  }
+
+  // Show/hide metrics container
+  document.getElementById('compareEmptyState').style.display = 'none';
+
+  // Generate chart and stats for each card
+  for (const card of _compare.cards) {
+    generateCompareChartForCard(card.id, currentPeriods, previousPeriods, card.metric, _compare.chartType);
+    generateCompareStatsForCard(card.id, currentPeriods, previousPeriods, card.metric);
+  }
+}
+
 // Capture any saved route before navigate('dashboard') overwrites sessionStorage
 const _initRoute = (() => { try { return JSON.parse(sessionStorage.getItem('icu_route')); } catch { return null; } })();
 
@@ -12241,7 +12823,6 @@ function toggleSmoothFlyover(on) {
 
   function attachGlowAndPress(el) {
     attachGlow(el);
-    if (el.classList.contains('recent-act-card')) attachPress(el);
   }
 
   // Attach to all current glow cards
