@@ -1807,6 +1807,42 @@ code {
     }
 }
 
+/* ── Infinite scroll skeleton loader ── */
+.act-list-sentinel {
+    padding: 8px 0;
+}
+.act-skeleton-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px var(--pad-page);
+}
+.act-skeleton-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    background: var(--bg-elevated);
+    animation: skeletonPulse 1.2s ease-in-out infinite;
+}
+.act-skeleton-lines {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.act-skeleton-line {
+    height: 10px;
+    border-radius: 4px;
+    background: var(--bg-elevated);
+    animation: skeletonPulse 1.2s ease-in-out infinite;
+}
+.act-skeleton-line--w60 { width: 60%; }
+.act-skeleton-line--w40 { width: 40%; }
+@keyframes skeletonPulse {
+    0%, 100% { opacity: 0.4; }
+    50%      { opacity: 0.8; }
+}
+
 /* ============================================================
    FITNESS PAGE
 ============================================================ */
@@ -6904,7 +6940,7 @@ code {
     padding: 0 12px;
     border-radius: 8px;
     border: 1.5px solid var(--border);
-    background: var(--bg-primary);
+    background: var(--bg-base);
     color: var(--text-primary);
     font-size: 14px;
     outline: none;
@@ -6914,7 +6950,8 @@ code {
     border-color: var(--accent);
 }
 .wx-city-input::placeholder {
-    color: var(--text-tertiary);
+    color: var(--text-muted);
+    opacity: 0.45;
 }
 
 /* ── No-location placeholder in forecast card ── */
@@ -6979,27 +7016,40 @@ code {
     flex-wrap: wrap;
     margin-bottom: 12px;
 }
+@media (max-width: 600px) {
+    .wx-loc-switcher {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        padding-bottom: 4px;
+    }
+    .wx-loc-switcher::-webkit-scrollbar { display: none; }
+    .wx-loc-pill { flex-shrink: 0; white-space: nowrap; }
+}
 .wx-loc-pill {
     display: flex;
     align-items: center;
     gap: 5px;
-    padding: 6px 14px;
+    padding: 8px 14px;
     font-size: var(--text-sm);
     font-weight: 500;
     color: var(--text-secondary);
     background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: 999px;
+    border-radius: 8px;
     cursor: pointer;
     transition: all 0.15s ease;
 }
 .wx-loc-pill:hover { border-color: var(--text-muted); }
 .wx-loc-pill--active {
     background: var(--accent);
-    color: #fff;
+    color: #0a0a0a;
     border-color: var(--accent);
 }
-.wx-loc-pill--active svg { stroke: #fff; }
+.wx-loc-pill--active svg { stroke: #0a0a0a; }
+.wx-pill-icon { display: inline-flex; width: 16px; height: 16px; flex-shrink: 0; }
+.wx-pill-icon svg { width: 16px; height: 16px; }
 
 /* Settings location list */
 .wx-loc-row {

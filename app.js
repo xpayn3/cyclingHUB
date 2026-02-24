@@ -92,6 +92,72 @@ function destroyChart(chart) {
   return null;
 }
 
+/* ── Lazy chart rendering — defer off-screen charts until visible ── */
+const _lazyCharts = { observer: null, pending: new Map() };
+
+function lazyRenderChart(canvasId, renderFn) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+
+  // Find the closest .card ancestor (the visible container)
+  const card = canvas.closest('.card') || canvas.parentElement;
+  if (!card) { renderFn(); return; }
+
+  // If already in viewport, render immediately
+  const rect = card.getBoundingClientRect();
+  if (rect.top < window.innerHeight + 200 && rect.bottom > -200) {
+    renderFn();
+    return;
+  }
+
+  // Otherwise defer until scrolled into view
+  if (!_lazyCharts.observer) {
+    _lazyCharts.observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const fn = _lazyCharts.pending.get(entry.target);
+          if (fn) {
+            _lazyCharts.pending.delete(entry.target);
+            _lazyCharts.observer.unobserve(entry.target);
+            fn();
+          }
+        }
+      });
+    }, { rootMargin: '200px' });
+  }
+
+  // Cancel any previous pending render for this card
+  if (_lazyCharts.pending.has(card)) {
+    _lazyCharts.observer.unobserve(card);
+  }
+  _lazyCharts.pending.set(card, renderFn);
+  _lazyCharts.observer.observe(card);
+}
+
+/* ── Chart cleanup on page navigation ── */
+const _pageChartKeys = {
+  dashboard: ['weekProgressChart', 'fitnessChart', 'weeklyChart', 'avgPowerChart', 'efSparkChart', 'powerCurveChart'],
+  fitness:   ['fitnessPageChart', 'fitnessWeeklyPageChart', '_fitZonePieChart'],
+  power:     ['powerPageChart', 'powerTrendChart'],
+  zones:     ['znpZoneTimeChart', '_znpDecoupleChart'],
+  activity:  ['activityStreamsChart', 'activityPowerChart', 'activityHRChart',
+              'activityHistogramChart', 'activityGradientChart', 'activityCadenceChart',
+              'activityCurveChart', 'activityHRCurveChart', '_detailDecoupleChart'],
+};
+
+function cleanupPageCharts(leavingPage) {
+  const keys = _pageChartKeys[leavingPage];
+  if (!keys) return;
+  keys.forEach(k => {
+    if (state[k]) { state[k].destroy(); state[k] = null; }
+  });
+  // Also clean up any pending lazy renders
+  _lazyCharts.pending.forEach((fn, card) => {
+    _lazyCharts.observer.unobserve(card);
+  });
+  _lazyCharts.pending.clear();
+}
+
 /** Update the sidebar CTL badge from state.fitness — call any time fitness data is available */
 function updateSidebarCTL() {
   const el = document.getElementById('sidebarCTL');
@@ -1421,6 +1487,9 @@ if (window.visualViewport) {
 }
 
 function navigate(page) {
+  // Clean up charts from the page we're leaving to free memory
+  if (state.currentPage) cleanupPageCharts(state.currentPage);
+
   state.previousPage = state.currentPage;
   state.currentPage  = page;
   try { sessionStorage.setItem('icu_route', JSON.stringify({ type: 'page', page })); } catch {}
@@ -1756,14 +1825,20 @@ function _refreshWxLocSettings() {
 function renderWxLocationSwitcher() {
   const locs = getWxLocations();
   if (locs.length <= 1) return '';
+  let wxCodes = {};
+  try { wxCodes = JSON.parse(localStorage.getItem('icu_wx_today_codes') || '{}'); } catch (_) {}
   return `
     <div class="wx-loc-switcher">
-      ${locs.map(l => `
-        <button class="wx-loc-pill${l.active ? ' wx-loc-pill--active' : ''}" onclick="setActiveWxLocation(${l.id})">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M12 2a7 7 0 0 1 7 7c0 5.25-7 13-7 13S5 14.25 5 9a7 7 0 0 1 7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+      ${locs.map(l => {
+        const code = wxCodes[l.id];
+        const icon = code != null
+          ? `<span class="wx-pill-icon">${wmoIcon(code)}</span>`
+          : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M12 2a7 7 0 0 1 7 7c0 5.25-7 13-7 13S5 14.25 5 9a7 7 0 0 1 7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>`;
+        return `<button class="wx-loc-pill${l.active ? ' wx-loc-pill--active' : ''}" onclick="setActiveWxLocation(${l.id})">
+          ${icon}
           ${l.city}
-        </button>
-      `).join('')}
+        </button>`;
+      }).join('')}
     </div>`;
 }
 
@@ -2488,6 +2563,16 @@ async function renderWeatherForecast() {
 
   if (!forecast?.daily) { card.style.display = 'none'; return; }
 
+  // Cache today's weather code per location for pill icons
+  try {
+    const wxCodes = JSON.parse(localStorage.getItem('icu_wx_today_codes') || '{}');
+    const activeLoc = getActiveWxLocation();
+    if (activeLoc && forecast.daily.weathercode) {
+      wxCodes[activeLoc.id] = forecast.daily.weathercode[0];
+      localStorage.setItem('icu_wx_today_codes', JSON.stringify(wxCodes));
+    }
+  } catch (_) {}
+
   const { time, temperature_2m_max: highs, temperature_2m_min: lows,
           precipitation_probability_max: precips, weathercode: codes,
           windspeed_10m_max: winds } = forecast.daily;
@@ -2642,6 +2727,16 @@ async function renderWeatherPage() {
   // Save to state so day-detail sub-page can access it
   state.weatherPageData = data;
   state.weatherPageMeta = { deg, windLbl, locationLabel, lat, lng };
+
+  // Cache today's weather code per location for pill icons
+  try {
+    const wxCodes = JSON.parse(localStorage.getItem('icu_wx_today_codes') || '{}');
+    const activeLoc = getActiveWxLocation();
+    if (activeLoc && data.daily?.weathercode) {
+      wxCodes[activeLoc.id] = data.daily.weathercode[0];
+      localStorage.setItem('icu_wx_today_codes', JSON.stringify(wxCodes));
+    }
+  } catch (_) {}
 
   const { time, weathercode: codes, temperature_2m_max: highs, temperature_2m_min: lows,
           precipitation_probability_max: precips, precipitation_sum: rainMm,
@@ -3519,11 +3614,11 @@ function renderDashboard() {
   _updateSportButtons();
   renderWeekProgress();
   renderTrainingStatus();
-  renderFitnessChart(recent, days);
-  renderWeeklyChart(recent);
-  renderAvgPowerChart(recent);
+  lazyRenderChart('fitnessChart',   () => renderFitnessChart(recent, days));
+  lazyRenderChart('weeklyTssChart', () => renderWeeklyChart(recent));
+  lazyRenderChart('avgPowerChart',  () => renderAvgPowerChart(recent));
   renderZoneDist(recent);
-  renderPowerCurve();        // async — fetches if range changed
+  lazyRenderChart('powerCurveChart', () => renderPowerCurve()); // async — fetches if range changed
   renderRecentActivity();    // async — fetches GPS for map preview
   renderWeatherForecast();   // async — fetches Open-Meteo 7-day forecast
   renderGoalsDashWidget();   // goals & targets compact summary
@@ -3650,19 +3745,63 @@ function isEmptyActivity(a) {
 // Global lookup: actKey → activity object, rebuilt on every renderActivityList call
 if (!window._actLookup) window._actLookup = {};
 
-function renderActivityList(containerId, activities) {
-  const el       = document.getElementById(containerId);
-  const filtered = (activities || []).filter(a => !isEmptyActivity(a));
-  if (!filtered.length) {
-    el.innerHTML = `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><p>No activities in this period.</p></div>`;
-    return;
-  }
+// ── Infinite-scroll state per container ──
+if (!window._actListState) window._actListState = {};
+const ACT_LIST_BATCH = 30;
 
-  // Precompute power percentile thresholds from all loaded activities so colours
-  // always span the full spectrum relative to this athlete's own power range.
-  // Z1 blue → Z2 green → Z3 yellow → Z4 orange → Z5 red
+function _actRowHTML(a, containerId, fi, powerColor) {
+  const actKey  = containerId + '_' + fi;
+  window._actLookup[actKey] = a;
+
+  const dist    = actVal(a, 'distance', 'icu_distance');
+  const distKm  = dist / 1000;
+  const secs    = actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time', 'icu_elapsed_time', 'total_elapsed_time');
+  const elev    = Math.round(actVal(a, 'total_elevation_gain', 'icu_total_elevation_gain'));
+  const rawSpeed = actVal(a, 'average_speed', 'icu_average_speed');
+  const speedMs  = rawSpeed || (secs > 0 && dist ? dist / secs : 0);
+  const speedKmh = speedMs * 3.6;
+  const pwr     = actVal(a, 'icu_weighted_avg_watts', 'average_watts', 'icu_average_watts');
+  const hr      = Math.round(actVal(a, 'average_heartrate', 'icu_average_heartrate'));
+  const tss     = Math.round(actVal(a, 'icu_training_load', 'tss'));
+  const date    = fmtDate(a.start_date_local || a.start_date);
+  const tc      = activityTypeClass(a);
+
+  const sportRaw = (a.sport_type || a.type || a.icu_sport_type || '').toLowerCase();
+  const isVirtual = sportRaw.includes('virtual');
+  const rowClass  = isVirtual ? 'virtual' : tc;
+
+  const rawName = (a.name && a.name.trim()) ? a.name.trim() : activityFallbackName(a);
+  const { title: name, platformTag } = cleanActivityName(rawName);
+  const badge = a.sport_type || a.type || '';
+
+  const statPill = (val, lbl, color = null) =>
+    `<div class="act-stat"><div class="act-stat-val"${color ? ` style="color:${color}"` : ''}>${val}</div><div class="act-stat-lbl">${lbl}</div></div>`;
+
+  const stats = [];
+  if (distKm > 0.05) stats.push(statPill(distKm.toFixed(2), 'km'));
+  if (secs > 0)       stats.push(statPill(fmtDur(secs), 'time'));
+  if (elev > 0)       stats.push(statPill(elev.toLocaleString(), 'm elev'));
+  if (pwr > 0)        stats.push(statPill(Math.round(pwr) + 'w', 'power', powerColor(pwr)));
+  if (hr > 0)         stats.push(statPill(hr, 'bpm'));
+  if (speedKmh > 1 && !pwr) stats.push(statPill(speedKmh.toFixed(1), 'km/h'));
+
+  return `<div class="activity-row ${rowClass}" onclick="navigateToActivity('${actKey}')">
+    <div class="activity-type-icon ${tc}">${activityTypeIcon(a)}</div>
+    <div class="act-card-info">
+      <div class="act-card-name">${name}</div>
+      <div class="act-card-sub">
+        <span class="act-card-date">${date}</span>
+        ${platformTag ? `<span class="act-platform-tag">${platformTag}</span>` : ''}
+        ${badge ? `<span class="act-card-badge">${badge}</span>` : ''}
+      </div>
+    </div>
+    ${stats.length ? `<div class="act-card-stats">${stats.join('')}</div>` : ''}
+  </div>`;
+}
+
+function _actPowerColor(activities) {
   const PWR_COLORS = ['#4a9eff', '#00e5a0', '#ffcc00', '#ff6b35', '#ff5252'];
-  const allPwrs = state.activities
+  const allPwrs = (activities || state.activities)
     .map(a => a.icu_weighted_avg_watts || a.average_watts || 0)
     .filter(w => w > 0)
     .sort((a, b) => a - b);
@@ -3672,68 +3811,77 @@ function renderActivityList(containerId, activities) {
     allPwrs[Math.floor(allPwrs.length * 0.6)],
     allPwrs[Math.floor(allPwrs.length * 0.8)],
   ] : null;
-  function powerColor(w) {
+  return function(w) {
     if (!w || !pThresh) return null;
     if (w < pThresh[0]) return PWR_COLORS[0];
     if (w < pThresh[1]) return PWR_COLORS[1];
     if (w < pThresh[2]) return PWR_COLORS[2];
     if (w < pThresh[3]) return PWR_COLORS[3];
     return PWR_COLORS[4];
+  };
+}
+
+function _actListLoadMore(containerId) {
+  const ls = window._actListState[containerId];
+  if (!ls || ls.cursor >= ls.filtered.length) return;
+
+  const end = Math.min(ls.cursor + ACT_LIST_BATCH, ls.filtered.length);
+  let html = '';
+  for (let i = ls.cursor; i < end; i++) {
+    html += _actRowHTML(ls.filtered[i], containerId, i, ls.powerColor);
+  }
+  ls.cursor = end;
+
+  // Remove sentinel before appending
+  const oldSentinel = ls.el.querySelector('.act-list-sentinel');
+  if (oldSentinel) oldSentinel.remove();
+
+  // Append new rows
+  ls.el.insertAdjacentHTML('beforeend', html);
+
+  // Add sentinel + observer if more items remain
+  if (ls.cursor < ls.filtered.length) {
+    const sentinel = document.createElement('div');
+    sentinel.className = 'act-list-sentinel';
+    sentinel.innerHTML = `<div class="act-skeleton-row"><div class="act-skeleton-icon"></div><div class="act-skeleton-lines"><div class="act-skeleton-line act-skeleton-line--w60"></div><div class="act-skeleton-line act-skeleton-line--w40"></div></div></div>`
+      .repeat(3);
+    ls.el.appendChild(sentinel);
+
+    if (ls.observer) ls.observer.disconnect();
+    ls.observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        ls.observer.disconnect();
+        _actListLoadMore(containerId);
+      }
+    }, { rootMargin: '200px' });
+    ls.observer.observe(sentinel);
+  }
+}
+
+function renderActivityList(containerId, activities) {
+  const el       = document.getElementById(containerId);
+  const filtered = (activities || []).filter(a => !isEmptyActivity(a));
+
+  // Clean up previous observer
+  const prev = window._actListState[containerId];
+  if (prev && prev.observer) prev.observer.disconnect();
+
+  if (!filtered.length) {
+    el.innerHTML = `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><p>No activities in this period.</p></div>`;
+    window._actListState[containerId] = null;
+    return;
   }
 
-  el.innerHTML = filtered.map((a, fi) => {
-    const actKey  = containerId + '_' + fi;
-    window._actLookup[actKey] = a;
+  const powerColor = _actPowerColor();
 
-    // Use actVal() for every metric — intervals.icu may return fields with or without
-    // the icu_ prefix depending on sync source (Garmin/Strava vs manual entry).
-    const dist    = actVal(a, 'distance', 'icu_distance');
-    const distKm  = dist / 1000;
-    const secs    = actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time', 'icu_elapsed_time', 'total_elapsed_time');
-    const elev    = Math.round(actVal(a, 'total_elevation_gain', 'icu_total_elevation_gain'));
-    const rawSpeed = actVal(a, 'average_speed', 'icu_average_speed');
-    const speedMs  = rawSpeed || (secs > 0 && dist ? dist / secs : 0);
-    const speedKmh = speedMs * 3.6;
-    const pwr     = actVal(a, 'icu_weighted_avg_watts', 'average_watts', 'icu_average_watts');
-    const hr      = Math.round(actVal(a, 'average_heartrate', 'icu_average_heartrate'));
-    const tss     = Math.round(actVal(a, 'icu_training_load', 'tss'));
-    const date    = fmtDate(a.start_date_local || a.start_date);
-    const tc      = activityTypeClass(a);  // 'run' | 'swim' | ''
+  // Store state for this list
+  window._actListState[containerId] = {
+    el, filtered, powerColor, cursor: 0, observer: null
+  };
 
-    // Determine virtual ride class for stripe colour
-    const sportRaw = (a.sport_type || a.type || a.icu_sport_type || '').toLowerCase();
-    const isVirtual = sportRaw.includes('virtual');
-    const rowClass  = isVirtual ? 'virtual' : tc;
-
-    const rawName = (a.name && a.name.trim()) ? a.name.trim() : activityFallbackName(a);
-    const { title: name, platformTag } = cleanActivityName(rawName);
-    const badge = a.sport_type || a.type || '';
-
-    // Build stat pills — only include what has a value
-    const statPill = (val, lbl, color = null) =>
-      `<div class="act-stat"><div class="act-stat-val"${color ? ` style="color:${color}"` : ''}>${val}</div><div class="act-stat-lbl">${lbl}</div></div>`;
-
-    const stats = [];
-    if (distKm > 0.05) stats.push(statPill(distKm.toFixed(2), 'km'));
-    if (secs > 0)       stats.push(statPill(fmtDur(secs), 'time'));
-    if (elev > 0)       stats.push(statPill(elev.toLocaleString(), 'm elev'));
-    if (pwr > 0)        stats.push(statPill(Math.round(pwr) + 'w', 'power', powerColor(pwr)));
-    if (hr > 0)         stats.push(statPill(hr, 'bpm'));
-    if (speedKmh > 1 && !pwr) stats.push(statPill(speedKmh.toFixed(1), 'km/h'));
-
-    return `<div class="activity-row ${rowClass}" onclick="navigateToActivity('${actKey}')">
-      <div class="activity-type-icon ${tc}">${activityTypeIcon(a)}</div>
-      <div class="act-card-info">
-        <div class="act-card-name">${name}</div>
-        <div class="act-card-sub">
-          <span class="act-card-date">${date}</span>
-          ${platformTag ? `<span class="act-platform-tag">${platformTag}</span>` : ''}
-          ${badge ? `<span class="act-card-badge">${badge}</span>` : ''}
-        </div>
-      </div>
-      ${stats.length ? `<div class="act-card-stats">${stats.join('')}</div>` : ''}
-    </div>`;
-  }).join('');
+  // Clear and render first batch
+  el.innerHTML = '';
+  _actListLoadMore(containerId);
 }
 
 /* ====================================================
@@ -3973,8 +4121,13 @@ Chart.register({
 });
 
 // Also hide the tooltip whenever the page scrolls (covers scrolling outside chart area)
+let _scrollTooltipRAF = 0;
 window.addEventListener('scroll', () => {
-  _getTooltipEl().style.opacity = '0';
+  if (_scrollTooltipRAF) return;
+  _scrollTooltipRAF = requestAnimationFrame(() => {
+    _scrollTooltipRAF = 0;
+    _getTooltipEl().style.opacity = '0';
+  });
 }, { passive: true });
 
 // Vertical crosshair line drawn at the hovered x position
@@ -13364,12 +13517,17 @@ function toggleSmoothFlyover(on) {
 
   function attachGlow(el) {
     if (isTouchDevice) return;   // no mouse on touch — skip entirely
+    let glowRAF = 0;
     el.addEventListener('mousemove', e => {
-      const r = el.getBoundingClientRect();
-      const x = ((e.clientX - r.left) / r.width  * 100).toFixed(1) + '%';
-      const y = ((e.clientY - r.top)  / r.height * 100).toFixed(1) + '%';
-      el.style.setProperty('--mouse-x', x);
-      el.style.setProperty('--mouse-y', y);
+      if (glowRAF) return;
+      glowRAF = requestAnimationFrame(() => {
+        glowRAF = 0;
+        const r = el.getBoundingClientRect();
+        const x = ((e.clientX - r.left) / r.width  * 100).toFixed(1) + '%';
+        const y = ((e.clientY - r.top)  / r.height * 100).toFixed(1) + '%';
+        el.style.setProperty('--mouse-x', x);
+        el.style.setProperty('--mouse-y', y);
+      });
     });
   }
   // expose so other parts of the app can attach glow to late-rendered elements
@@ -13418,14 +13576,19 @@ function toggleSmoothFlyover(on) {
     if (el.dataset.tilt) return;
     el.dataset.tilt = '1';
 
+    let tiltRAF = 0;
     el.addEventListener('mousemove', e => {
-      const rect = el.getBoundingClientRect();
-      const dx = (e.clientX - rect.left  - rect.width  / 2) / (rect.width  / 2); // -1..1
-      const dy = (e.clientY - rect.top   - rect.height / 2) / (rect.height / 2); // -1..1
-      const rx = (-dy * MAX_TILT).toFixed(2);
-      const ry = ( dx * MAX_TILT).toFixed(2);
-      el.classList.remove('badge-tilt-reset');
-      el.style.transform = `perspective(480px) rotateX(${rx}deg) rotateY(${ry}deg) scale(1.03)`;
+      if (tiltRAF) return;
+      tiltRAF = requestAnimationFrame(() => {
+        tiltRAF = 0;
+        const rect = el.getBoundingClientRect();
+        const dx = (e.clientX - rect.left  - rect.width  / 2) / (rect.width  / 2); // -1..1
+        const dy = (e.clientY - rect.top   - rect.height / 2) / (rect.height / 2); // -1..1
+        const rx = (-dy * MAX_TILT).toFixed(2);
+        const ry = ( dx * MAX_TILT).toFixed(2);
+        el.classList.remove('badge-tilt-reset');
+        el.style.transform = `perspective(480px) rotateX(${rx}deg) rotateY(${ry}deg) scale(1.03)`;
+      });
     });
 
     el.addEventListener('mouseleave', () => {
