@@ -402,7 +402,7 @@
                         <circle cx="12" cy="12" r="10" />
                         <path d="M12 8v4l3 3" />
                     </svg>
-                    Zones
+                    Training Zones
                 </div>
                 <div class="nav-item" data-page="streaks" onclick="navigate('streaks');closeSidebar();">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1013,16 +1013,18 @@
 
                     <!-- Activity hero -->
                     <div class="act-hero">
-                        <h1 class="act-hero-title" id="detailName">—</h1>
-                        <div class="act-hero-eyebrow">
-                            <div class="activity-type-icon" id="detailIcon">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                        <div class="act-hero-identity">
+                            <div class="act-hero-meta">
+                                <div class="act-hero-date" id="detailDate"></div>
+                                <h1 class="act-hero-title" id="detailName">—</h1>
+                                <div class="act-hero-eyebrow">
+                                    <div class="activity-type-icon" id="detailIcon" style="display:none"></div>
+                                    <span class="act-type-badge" id="detailType"></span>
+                                    <span class="act-platform-tag" id="detailPlatformTag" style="display:none"></span>
+                                    <div class="act-tss-badge" id="detailTSSBadge" style="display:none"></div>
+                                </div>
                             </div>
-                            <span class="act-platform-tag" id="detailPlatformTag" style="display:none"></span>
-                            <span class="act-type-badge" id="detailType"></span>
-                            <div class="act-tss-badge" id="detailTSSBadge" style="display:none"></div>
                         </div>
-                        <div class="act-hero-date" id="detailDate"></div>
                         <!-- 4 primary stats -->
                         <div class="act-primary-stats" id="actPrimaryStats"></div>
                     </div>
@@ -2020,10 +2022,6 @@
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
                                         Change Credentials
                                     </button>
-                                    <button class="btn btn-ghost" onclick="copySetupLink()">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                                        Copy Setup Link
-                                    </button>
                                     <button class="btn btn-danger" onclick="disconnect()">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                                         Disconnect
@@ -2108,6 +2106,93 @@
                                     <button class="btn btn-ghost" onclick="forceFullSync()" title="Clears local cache and re-fetches all activities">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.93"/></svg>
                                         Full Re-sync
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- STORAGE -->
+                            <div class="card">
+                                <div class="stt-section-header">
+                                    <svg class="stt-section-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+                                    <div>
+                                        <div class="stt-section-title">Local Storage</div>
+                                        <div class="stt-section-sub">App data stored on this device</div>
+                                    </div>
+                                </div>
+                                <div class="stg-bar-wrap">
+                                    <div class="stg-bar-track" id="storageBarTrack"></div>
+                                    <div class="stg-bar-label" id="storageBarLabel">— / 5.0 MB</div>
+                                    <div class="stg-bar-legend" id="storageBarLegend"></div>
+                                </div>
+                            </div>
+
+                            <!-- LIFETIME DATA -->
+                            <div class="card">
+                                <div class="stt-section-header">
+                                    <svg class="stt-section-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                                    <div>
+                                        <div class="stt-section-title">Lifetime Data</div>
+                                        <div class="stt-section-sub">All-time activity history for lifetime stats</div>
+                                    </div>
+                                </div>
+                                <div class="stt-rows">
+                                    <div class="stt-row">
+                                        <span class="stt-row-label">Stored activities</span>
+                                        <span class="stt-row-value" id="settingsLifetimeCount">—</span>
+                                    </div>
+                                    <div class="stt-row">
+                                        <span class="stt-row-label">Cache size</span>
+                                        <span class="stt-row-value" id="settingsLifetimeSize">—</span>
+                                    </div>
+                                    <div class="stt-row">
+                                        <span class="stt-row-label">Last synced</span>
+                                        <span class="stt-row-value" id="settingsLifetimeSync">—</span>
+                                    </div>
+                                </div>
+                                <div class="stt-about">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                                    <span>Fetches your complete activity history from intervals.icu. Cached locally so it only needs to pull new activities on each visit.</span>
+                                </div>
+                                <div class="stt-actions">
+                                    <button class="btn btn-primary" onclick="resyncLifetimeData()">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.08-8.58"/></svg>
+                                        Re-sync All
+                                    </button>
+                                    <button class="btn btn-ghost" onclick="clearLifetimeCache();updateLifetimeCacheUI();updateStorageBar();showToast('Lifetime cache cleared','success')">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                        Clear Cache
+                                    </button>
+                                    <button class="btn btn-ghost" onclick="clearAllCaches()">
+                                        Clear All Caches
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- BACKUP & RESTORE -->
+                            <div class="card">
+                                <div class="stt-section-header">
+                                    <svg class="stt-section-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                                    <div>
+                                        <div class="stt-section-title">Backup &amp; Restore</div>
+                                        <div class="stt-section-sub">Export or import your activity data</div>
+                                    </div>
+                                </div>
+                                <div class="stt-about" style="padding: 10px 12px 4px;">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                                    <span>Export all cached activities as a JSON file for backup. Import a previously exported file to restore your data on a new device or browser. Use the setup link to quickly connect another device with your credentials.</span>
+                                </div>
+                                <div class="stt-actions">
+                                    <button class="btn btn-primary" onclick="exportLifetimeJSON()">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                        Export JSON
+                                    </button>
+                                    <button class="btn btn-ghost" onclick="importLifetimeJSON()">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                        Import JSON
+                                    </button>
+                                    <button class="btn btn-ghost" onclick="copySetupLink()">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                                        Copy Setup Link
                                     </button>
                                 </div>
                             </div>
@@ -2247,6 +2332,10 @@
                                         <div class="wx-location-input-row">
                                             <input type="text" id="wxCityInput" class="wx-city-input" placeholder="e.g. Ljubljana" autocomplete="off">
                                             <button class="btn btn-primary btn-sm" onclick="setWeatherCity()">Set</button>
+                                            <button class="btn btn-ghost btn-sm" onclick="useMyLocation()" title="Use browser location">
+                                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/><circle cx="12" cy="12" r="8"/></svg>
+                                                Locate me
+                                            </button>
                                         </div>
                                     </div>
                                     <div class="stt-row stt-row--control">

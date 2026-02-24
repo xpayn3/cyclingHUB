@@ -55,6 +55,9 @@ const state = {
   flythrough: null,
   weatherPageData: null,
   weatherPageMeta: null,
+  lifetimeActivities: null,
+  lifetimeLastSync: null,
+  _lifetimeSyncDone: false,
 };
 
 const ICU_BASE = 'https://intervals.icu/api/v1';
@@ -114,10 +117,18 @@ function saveCredentials(athleteId, apiKey) {
 ==================================================== */
 function saveActivityCache(activities) {
   try {
-    localStorage.setItem('icu_activities_cache', JSON.stringify(activities));
+    const payload = JSON.stringify(activities);
+    const oldSize = new Blob([localStorage.getItem('icu_activities_cache') || '']).size;
+    const newSize = new Blob([payload]).size;
+    const { total } = getAppStorageUsage();
+    if ((total - oldSize + newSize) > STORAGE_LIMIT) {
+      showToast('Storage limit reached — activity cache not saved', 'error');
+      return;
+    }
+    localStorage.setItem('icu_activities_cache', payload);
     localStorage.setItem('icu_last_sync', new Date().toISOString());
+    updateStorageBar();
   } catch (e) {
-    // Quota exceeded — not fatal, next sync will just be a full fetch
     localStorage.removeItem('icu_activities_cache');
   }
 }
@@ -148,13 +159,21 @@ function clearActivityCache() {
 ==================================================== */
 function saveFitnessCache() {
   try {
-    localStorage.setItem('icu_fitness_cache', JSON.stringify({
+    const payload = JSON.stringify({
       fitness:        state.fitness,
       wellnessHistory: state.wellnessHistory,
       athlete:        state.athlete,
-    }));
+    });
+    const oldSize = new Blob([localStorage.getItem('icu_fitness_cache') || '']).size;
+    const newSize = new Blob([payload]).size;
+    const { total } = getAppStorageUsage();
+    if ((total - oldSize + newSize) > STORAGE_LIMIT) {
+      showToast('Storage limit reached — fitness cache not saved', 'error');
+      return;
+    }
+    localStorage.setItem('icu_fitness_cache', payload);
+    updateStorageBar();
   } catch (e) {
-    // Quota exceeded — drop the cache gracefully
     localStorage.removeItem('icu_fitness_cache');
   }
 }
@@ -173,6 +192,126 @@ function loadFitnessCache() {
 
 function clearFitnessCache() {
   localStorage.removeItem('icu_fitness_cache');
+}
+
+/* ====================================================
+   LIFETIME ACTIVITY CACHE  (localStorage)
+   Stores the all-time activity list for lifetime stats.
+   Incremental sync: only fetches activities newer than
+   the last lifetime sync timestamp.
+==================================================== */
+function saveLifetimeCache(activities) {
+  try {
+    const payload = JSON.stringify(activities);
+    const oldSize = new Blob([localStorage.getItem('icu_lifetime_cache') || '']).size;
+    const newSize = new Blob([payload]).size;
+    const { total } = getAppStorageUsage();
+    if ((total - oldSize + newSize) > STORAGE_LIMIT) {
+      showToast('Storage limit reached — lifetime cache not saved', 'error');
+      return;
+    }
+    localStorage.setItem('icu_lifetime_cache', payload);
+    localStorage.setItem('icu_lifetime_sync', new Date().toISOString());
+    updateStorageBar();
+  } catch (e) {
+    localStorage.removeItem('icu_lifetime_cache');
+  }
+}
+
+function loadLifetimeCache() {
+  try {
+    const raw      = localStorage.getItem('icu_lifetime_cache');
+    const lastSync = localStorage.getItem('icu_lifetime_sync');
+    if (raw && lastSync) {
+      const activities = JSON.parse(raw);
+      if (Array.isArray(activities) && activities.length > 0) {
+        return { activities, lastSync: new Date(lastSync) };
+      }
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+function clearLifetimeCache() {
+  localStorage.removeItem('icu_lifetime_cache');
+  localStorage.removeItem('icu_lifetime_sync');
+  state.lifetimeActivities = null;
+}
+
+function getLifetimeCacheSize() {
+  try {
+    return new Blob([localStorage.getItem('icu_lifetime_cache') || '']).size;
+  } catch (_) { return 0; }
+}
+
+/* ====================================================
+   STORAGE LIMIT  (8 MB cap on all app localStorage)
+==================================================== */
+const STORAGE_LIMIT = 8 * 1024 * 1024; // 8 MB
+
+function getAppStorageUsage() {
+  const prefix = 'icu_';
+  let total = 0;
+  const breakdown = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key.startsWith(prefix)) continue;
+    const size = new Blob([localStorage.getItem(key)]).size;
+    total += size;
+    // bucket into categories
+    if (key === 'icu_activities_cache' || key === 'icu_last_sync')
+      breakdown.activities = (breakdown.activities || 0) + size;
+    else if (key === 'icu_lifetime_cache' || key === 'icu_lifetime_sync')
+      breakdown.lifetime = (breakdown.lifetime || 0) + size;
+    else if (key === 'icu_fitness_cache')
+      breakdown.fitness = (breakdown.fitness || 0) + size;
+    else
+      breakdown.other = (breakdown.other || 0) + size;
+  }
+  return { total, breakdown };
+}
+
+function fmtBytes(b) {
+  if (b > 1048576) return (b / 1048576).toFixed(1) + ' MB';
+  if (b > 1024)    return (b / 1024).toFixed(0) + ' KB';
+  return b + ' B';
+}
+
+function canStoreBytes(newBytes) {
+  const { total } = getAppStorageUsage();
+  return (total + newBytes) <= STORAGE_LIMIT;
+}
+
+function updateStorageBar() {
+  const bar    = document.getElementById('storageBarTrack');
+  const label  = document.getElementById('storageBarLabel');
+  const legend = document.getElementById('storageBarLegend');
+  if (!bar) return;
+
+  const { total, breakdown } = getAppStorageUsage();
+  const pct = (v) => Math.max(0, Math.min(100, (v / STORAGE_LIMIT) * 100));
+
+  // build segments
+  const segs = [
+    { key: 'activities', color: 'var(--accent)',  label: 'Activities' },
+    { key: 'lifetime',   color: '#6366f1',        label: 'Lifetime' },
+    { key: 'fitness',    color: '#10b981',         label: 'Fitness' },
+    { key: 'other',      color: 'var(--text-muted)', label: 'Other' },
+  ];
+
+  bar.innerHTML = segs.map(s => {
+    const w = pct(breakdown[s.key] || 0);
+    return w > 0 ? `<div class="stg-seg" style="width:${w}%;background:${s.color}" title="${s.label}: ${fmtBytes(breakdown[s.key])}"></div>` : '';
+  }).join('');
+
+  if (label) label.textContent = `${fmtBytes(total)} / ${fmtBytes(STORAGE_LIMIT)}`;
+
+  if (legend) {
+    legend.innerHTML = segs
+      .filter(s => (breakdown[s.key] || 0) > 0)
+      .map(s => `<span class="stg-legend-item"><span class="stg-legend-dot" style="background:${s.color}"></span>${s.label} ${fmtBytes(breakdown[s.key])}</span>`)
+      .join('');
+  }
 }
 
 function loadCredentials() {
@@ -552,7 +691,10 @@ function forceFullSync() {
   if (!state.athleteId || !state.apiKey) { openModal(); return; }
   clearActivityCache();          // wipe local cache so syncData() treats this as a fresh install
   clearFitnessCache();           // also wipe fitness/wellness cache
+  clearLifetimeCache();          // also wipe lifetime history
   state.activities = [];         // clear in-memory list too
+  state.lifetimeActivities = null;
+  state._lifetimeSyncDone  = false;
   showToast('Cache cleared — starting full re-sync…', 'info');
   syncData();
 }
@@ -638,6 +780,107 @@ function updateConnectionUI(connected) {
       if (el) el.textContent = '—';
     });
   }
+
+  // ── Lifetime cache UI ──
+  updateLifetimeCacheUI();
+
+  // ── Storage bar ──
+  updateStorageBar();
+}
+
+function updateLifetimeCacheUI() {
+  const countEl = document.getElementById('settingsLifetimeCount');
+  const sizeEl  = document.getElementById('settingsLifetimeSize');
+  const syncEl  = document.getElementById('settingsLifetimeSync');
+  const acts    = state.lifetimeActivities;
+
+  if (countEl) countEl.textContent = acts ? acts.length.toLocaleString() + ' activities' : '—';
+  if (sizeEl)  sizeEl.textContent  = (() => {
+    const bytes = getLifetimeCacheSize();
+    if (!bytes) return '—';
+    return bytes > 1048576 ? (bytes / 1048576).toFixed(1) + ' MB' : (bytes / 1024).toFixed(0) + ' KB';
+  })();
+  if (syncEl) {
+    const ls = localStorage.getItem('icu_lifetime_sync');
+    if (ls) {
+      const diff = Math.round((Date.now() - new Date(ls).getTime()) / 60000);
+      syncEl.textContent = diff < 1 ? 'Just now'
+        : diff < 60 ? `${diff} min ago`
+        : diff < 1440 ? `${Math.round(diff / 60)} hr ago`
+        : new Date(ls).toLocaleDateString();
+    } else {
+      syncEl.textContent = 'Never';
+    }
+  }
+}
+
+function clearAllCaches() {
+  clearActivityCache();
+  clearFitnessCache();
+  clearLifetimeCache();
+  state.lifetimeActivities = null;
+  state._lifetimeSyncDone  = false;
+  updateStorageBar();
+  showToast('All caches cleared', 'success');
+  if (state.currentPage === 'settings') navigate('settings');
+}
+
+function resyncLifetimeData() {
+  clearLifetimeCache();
+  state.lifetimeActivities = null;
+  state._lifetimeSyncDone  = false;
+  showToast('Lifetime data will re-sync', 'success');
+  navigate('streaks');
+}
+
+function exportLifetimeJSON() {
+  const acts = state.lifetimeActivities;
+  if (!acts || !acts.length) { showToast('No lifetime data to export', 'error'); return; }
+  const blob = new Blob([JSON.stringify(acts, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `cycleiq-activities-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast(`Exported ${acts.length} activities`, 'success');
+}
+
+function importLifetimeJSON() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const acts = JSON.parse(ev.target.result);
+        if (!Array.isArray(acts) || !acts.length) {
+          showToast('Invalid file — expected a JSON array of activities', 'error');
+          return;
+        }
+        // Merge with existing: imported data fills gaps, existing data takes priority
+        const map = new Map();
+        acts.forEach(a => { const id = a.id || a.icu_id; if (id) map.set(id, a); });
+        (state.lifetimeActivities || []).forEach(a => { const id = a.id || a.icu_id; if (id) map.set(id, a); });
+        state.lifetimeActivities = Array.from(map.values()).sort(
+          (a, b) => new Date(b.start_date_local || b.start_date) - new Date(a.start_date_local || a.start_date)
+        );
+        state.lifetimeLastSync = new Date();
+        saveLifetimeCache(state.lifetimeActivities);
+        updateLifetimeCacheUI();
+        updateStorageBar();
+        showToast(`Imported — ${state.lifetimeActivities.length} activities total`, 'success');
+        if (state.currentPage === 'activities') renderAllActivitiesList();
+      } catch (err) {
+        showToast('Failed to parse JSON file', 'error');
+      }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
 }
 
 /* ====================================================
@@ -731,7 +974,11 @@ function navigate(page) {
   document.querySelector('.topbar')?.classList.remove('topbar--hidden');
   document.querySelector('.page-headline')?.classList.remove('page-headline--hidden');
 
-  if (page === 'dashboard' && state.synced) renderDashboard();
+  if (page === 'dashboard' && state.synced) {
+    const rail = document.getElementById('recentActScrollRail');
+    if (rail) rail.scrollLeft = 0;
+    renderDashboard();
+  }
   if (page === 'calendar') renderCalendar();
   if (page === 'fitness')  renderFitnessPage();
   if (page === 'power')    renderPowerPage();
@@ -742,6 +989,7 @@ function navigate(page) {
     const settingsBack = document.getElementById('settingsTopbarBack');
     if (settingsBack) settingsBack.style.display = (state.previousPage && state.previousPage !== 'settings') ? '' : 'none';
   }
+  if (page === 'activities') ensureLifetimeLoaded();
   if (page === 'weather')  renderWeatherPage();
   if (page === 'gear')     renderGearPage();
   if (page === 'guide')    renderGuidePage();
@@ -789,6 +1037,56 @@ async function setWeatherCity() {
     if (state.currentPage === 'dashboard') renderWeatherForecast();
   } catch (e) {
     if (statusEl) statusEl.textContent = 'City not found — try a different name';
+  }
+}
+
+async function useMyLocation() {
+  const statusEl = document.getElementById('wxCurrentLocation');
+  if (!navigator.geolocation) {
+    showToast('Geolocation not supported by your browser', 'error');
+    return;
+  }
+  if (statusEl) statusEl.textContent = 'Locating…';
+
+  try {
+    const pos = await new Promise((resolve, reject) =>
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: false, timeout: 15000, maximumAge: 300000
+      })
+    );
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+
+    // Reverse-geocode via Nominatim to get city name
+    let cityName = `${lat.toFixed(2)}, ${lng.toFixed(2)}`;
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=10`);
+      if (res.ok) {
+        const data = await res.json();
+        const addr = data.address || {};
+        const city = addr.city || addr.town || addr.village || addr.municipality || '';
+        const country = addr.country || '';
+        if (city) cityName = [city, country].filter(Boolean).join(', ');
+      }
+    } catch (_) { /* keep coordinate fallback */ }
+
+    localStorage.setItem('icu_wx_coords', JSON.stringify({ lat, lng, city: cityName }));
+    localStorage.removeItem('icu_wx_forecast');
+    localStorage.removeItem('icu_wx_forecast_ts');
+    localStorage.removeItem('icu_wx_page');
+    localStorage.removeItem('icu_wx_page_ts');
+    if (statusEl) statusEl.textContent = cityName;
+    showToast(`Location set to ${cityName}`, 'success');
+    if (state.currentPage === 'dashboard') renderWeatherForecast();
+  } catch (err) {
+    const msgs = {
+      1: 'Location permission denied — allow it in your browser settings',
+      2: 'Could not determine your location — try again',
+      3: 'Location request timed out — try again',
+    };
+    const msg = msgs[err?.code] || 'Could not get location';
+    if (statusEl) statusEl.textContent = 'Not set';
+    showToast(msg, 'error');
   }
 }
 
@@ -909,6 +1207,34 @@ function setRange(days) {
 }
 
 /* ====================================================
+   MERGED ACTIVITY POOL  (recent + lifetime, deduped)
+   Used by the Activities page so it lists everything.
+==================================================== */
+function getAllActivities() {
+  const recent   = state.activities   || [];
+  const lifetime = state.lifetimeActivities || [];
+  if (!lifetime.length) return recent;
+  // Build map keyed by id, preferring recent (richer data)
+  const map = new Map();
+  lifetime.forEach(a => { const id = a.id || a.icu_id; if (id) map.set(id, a); });
+  recent.forEach(a =>   { const id = a.id || a.icu_id; if (id) map.set(id, a); }); // overwrites lifetime
+  return Array.from(map.values());
+}
+
+/** Load lifetime data from cache (if not already in memory) so the
+ *  Activities page can show the full history immediately. */
+function ensureLifetimeLoaded() {
+  if (state.lifetimeActivities) return; // already in memory
+  const cached = loadLifetimeCache();
+  if (cached) {
+    state.lifetimeActivities = cached.activities;
+    state.lifetimeLastSync   = cached.lastSync;
+    // Re-render now that we have more activities
+    renderAllActivitiesList();
+  }
+}
+
+/* ====================================================
    ACTIVITIES SORT
 ==================================================== */
 const SORT_FIELDS = {
@@ -921,7 +1247,7 @@ const SORT_FIELDS = {
 };
 
 function sortedAllActivities() {
-  let pool = state.activities.filter(a => !isEmptyActivity(a));
+  let pool = getAllActivities().filter(a => !isEmptyActivity(a));
   if (state.activitiesYear !== null) {
     pool = pool.filter(a => {
       const d = new Date(a.start_date_local || a.start_date);
@@ -993,7 +1319,7 @@ function renderAllActivitiesList() {
   if (subtitle) subtitle.textContent = `${sorted.length} ${sorted.length === 1 ? 'activity' : 'activities'}`;
   // Count placeholder activities (planned workouts never completed — all metrics zero).
   // These exist in the intervals.icu /activities endpoint but have no recorded data.
-  let allPool = state.activities.filter(a => !!(a.start_date_local || a.start_date));
+  let allPool = getAllActivities().filter(a => !!(a.start_date_local || a.start_date));
   if (state.activitiesYear !== null) {
     allPool = allPool.filter(a => {
       const d = new Date(a.start_date_local || a.start_date);
@@ -1022,7 +1348,7 @@ function _refreshYearDropdown() {
   // Collect distinct years from ALL (unfiltered) activities
   const currentYear = new Date().getFullYear();
   const years = new Set();
-  state.activities.forEach(a => {
+  getAllActivities().forEach(a => {
     if (!isEmptyActivity(a)) {
       const y = new Date(a.start_date_local || a.start_date).getFullYear();
       if (!isNaN(y)) years.add(y);
@@ -1857,7 +2183,10 @@ async function renderWeatherPage() {
           <div class="wxp-best-day">${name}</div>
           <div class="wxp-score-badge wxp-score--${label}">${badgeLabel}</div>
         </div>
-        <div class="wxp-best-icon">${wmoIcon(codes[i])}</div>
+        <div class="wxp-best-mid">
+          <div class="wxp-best-icon">${wmoIcon(codes[i])}</div>
+          <div class="wxp-best-score-num">${score}<span>/ 100</span></div>
+        </div>
         <div class="wxp-best-stats">
           <div class="wxp-best-temp">${Math.round(highs[i])}${deg} <span class="wxp-best-low">/ ${Math.round(lows[i])}${deg}</span></div>
           <div class="wxp-best-meta">💨 ${Math.round(winds[i])} ${windLbl} · 🌧 ${Math.round(precips[i] ?? 0)}%</div>
@@ -1866,7 +2195,6 @@ async function renderWeatherPage() {
           <div class="wxp-best-score-fill wxp-best-score--${label}" style="width:${score}%"></div>
         </div>
         <div class="wxp-best-tip">${tip}</div>
-        <div class="wxp-best-score-num">${score}<span>/ 100</span></div>
       </div>`;
   }).join('') : '';
 
@@ -2511,7 +2839,7 @@ function renderDashboard() {
   }
 
   document.getElementById('activitiesSubtitle').textContent    = `Last ${days} days · ${recent.length} activities`;
-  document.getElementById('allActivitiesSubtitle').textContent = `${state.activities.filter(a => !isEmptyActivity(a)).length} total`;
+  document.getElementById('allActivitiesSubtitle').textContent = `${getAllActivities().filter(a => !isEmptyActivity(a)).length} total`;
 
   // Fitness gauges removed — elements no longer in DOM
 
@@ -6478,7 +6806,14 @@ function renderActivityBasic(a) {
   const pctTss    = pctDiff(tss,     avgTssV);
 
   // ── Primary stats: up to 4 hero numbers ───────────────────────────────────
-  const pStat = (val, lbl, accent = false, cmpPct = null) => {
+  const P_ICONS = {
+    km:         `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0"/><path d="M12 8v4l3 3"/></svg>`,
+    duration:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+    power:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
+    bpm:        `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`,
+    speed:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+  };
+  const pStat = (val, lbl, accent = false, cmpPct = null, iconKey = '') => {
     let cmpHtml = '';
     if (cmpPct !== null && !isNaN(cmpPct)) {
       const up = cmpPct >= 1;
@@ -6489,20 +6824,21 @@ function renderActivityBasic(a) {
       const label = pctAbs < 1 ? 'on avg' : `${arrow} ${pctAbs}% vs avg`;
       cmpHtml = `<div class="act-pstat-cmp ${cls}">${label}</div>`;
     }
+    const iconHtml = P_ICONS[iconKey] ? `<div class="act-pstat-icon${accent ? ' accent' : ''}">${P_ICONS[iconKey]}</div>` : '';
     return `<div class="act-pstat${accent ? ' act-pstat--accent' : ''}">
+       <div class="act-pstat-top">${iconHtml}<div class="act-pstat-lbl">${lbl}</div></div>
        <div class="act-pstat-val">${val}</div>
-       <div class="act-pstat-lbl">${lbl}</div>
        ${cmpHtml}
      </div>`;
   };
 
   const primary = [];
-  if (distKm > 0.05) primary.push(pStat(distKm.toFixed(1), 'km', false, pctDist));
-  if (secs > 0)      primary.push(pStat(fmtDur(secs), 'duration', false, pctSecs));
-  if (np > 0)        primary.push(pStat(Math.round(np) + 'W', 'norm power', true, pctPow));
-  else if (avgW > 0) primary.push(pStat(Math.round(avgW) + 'W', 'avg power', true, pctPow));
-  if (avgHR > 0)     primary.push(pStat(Math.round(avgHR), 'avg bpm', false, pctHR));
-  else if (speedKmh > 0.5) primary.push(pStat(speedKmh.toFixed(1), 'km/h', false, pctSpd));
+  if (distKm > 0.05) primary.push(pStat(distKm.toFixed(1), 'Distance', false, pctDist, 'km'));
+  if (secs > 0)      primary.push(pStat(fmtDur(secs), 'Duration', false, pctSecs, 'duration'));
+  if (np > 0)        primary.push(pStat(Math.round(np) + 'W', 'Norm Power', true, pctPow, 'power'));
+  else if (avgW > 0) primary.push(pStat(Math.round(avgW) + 'W', 'Avg Power', true, pctPow, 'power'));
+  if (avgHR > 0)     primary.push(pStat(Math.round(avgHR), 'Avg BPM', false, pctHR, 'bpm'));
+  else if (speedKmh > 0.5) primary.push(pStat(speedKmh.toFixed(1), 'Avg Speed', false, pctSpd, 'speed'));
 
   const primaryEl = document.getElementById('actPrimaryStats');
   primaryEl.innerHTML = primary.slice(0, 4).join('');
@@ -9060,24 +9396,102 @@ function renderStreaksPage() {
 
   // ── Lifetime fun stats ────────────────────────────────────────────────────
   const lifetimeGrid = document.getElementById('stkLifetimeGrid');
-  if (lifetimeGrid && acts.length) {
-    const totalRides    = acts.length;
-    const totalDistM    = acts.reduce((s, a) => s + (a.distance || 0), 0);
+  if (lifetimeGrid) {
+    // Try loading from localStorage cache first
+    if (!state.lifetimeActivities) {
+      const cached = loadLifetimeCache();
+      if (cached) {
+        state.lifetimeActivities = cached.activities;
+        state.lifetimeLastSync   = cached.lastSync;
+      }
+    }
+
+    // If still no data, show loading. If cached, show immediately but sync in background.
+    if (!state.lifetimeActivities) {
+      lifetimeGrid.innerHTML = `<div class="stk-lifetime-loading">Loading lifetime data…</div>`;
+    }
+
+    // Incremental sync: fetch only new activities since last lifetime sync
+    if (!state._lifetimeSyncDone) {
+      state._lifetimeSyncDone = true;
+      (async () => {
+        try {
+          const pageSize = 200;
+          const seen = new Set();
+          const all = [];
+          const existing = state.lifetimeActivities || [];
+          const lastSync = state.lifetimeLastSync;
+
+          // If we have a cache, only fetch from the last sync date forward (incremental)
+          const hardOldest = lastSync ? toDateStr(new Date(lastSync.getTime() - 7 * 86400000)) : '2010-01-01';
+          let ceiling = toDateStr(new Date());
+
+          for (let guard = 0; guard < 60; guard++) {
+            const data = await icuFetch(
+              `/athlete/${state.athleteId}/activities?oldest=${hardOldest}&newest=${ceiling}&limit=${pageSize}`
+            );
+            const chunk = Array.isArray(data) ? data : (data.activities || []);
+            if (!chunk.length) break;
+            let added = 0;
+            for (const a of chunk) {
+              if (!seen.has(a.id)) { seen.add(a.id); all.push(a); added++; }
+            }
+            if (added === 0 || chunk.length < pageSize) break;
+            const dates = chunk.map(a => a.start_date_local || a.start_date).filter(Boolean).sort();
+            if (!dates.length) break;
+            const oldest = dates[0].slice(0, 10);
+            if (oldest <= hardOldest) break;
+            ceiling = oldest;
+          }
+
+          // Merge: replace updated activities, add new ones
+          if (lastSync && existing.length) {
+            const freshIds = new Set(all.map(a => a.id));
+            const kept = existing.filter(a => !freshIds.has(a.id));
+            state.lifetimeActivities = [...kept, ...all].sort(
+              (a, b) => new Date(b.start_date_local || b.start_date) - new Date(a.start_date_local || a.start_date)
+            );
+          } else {
+            state.lifetimeActivities = all.sort(
+              (a, b) => new Date(b.start_date_local || b.start_date) - new Date(a.start_date_local || a.start_date)
+            );
+          }
+
+          state.lifetimeLastSync = new Date();
+          saveLifetimeCache(state.lifetimeActivities);
+          updateLifetimeCacheUI();
+
+          // Re-render with updated data
+          if (state.currentPage === 'streaks' || state.currentPage === 'wellness') renderStreaksPage();
+          if (state.currentPage === 'activities') renderAllActivitiesList();
+        } catch (e) {
+          // Fallback to available activities on error
+          if (!state.lifetimeActivities) state.lifetimeActivities = state.activities || [];
+          if (state.currentPage === 'streaks' || state.currentPage === 'wellness') renderStreaksPage();
+        }
+      })();
+    }
+  }
+
+  if (lifetimeGrid && state.lifetimeActivities && state.lifetimeActivities.length) {
+    const ltActs = state.lifetimeActivities;
+    const totalRides    = ltActs.length;
+    const totalDistM    = ltActs.reduce((s, a) => s + actVal(a, 'distance', 'icu_distance'), 0);
     const totalDistKm   = totalDistM / 1000;
-    const totalElevM    = acts.reduce((s, a) => s + (a.total_elevation_gain || a.icu_elevation_gain || 0), 0);
-    const totalTimeSecs = acts.reduce((s, a) => s + (a.moving_time || a.elapsed_time || 0), 0);
+    const totalElevM    = ltActs.reduce((s, a) => s + actVal(a, 'total_elevation_gain', 'icu_total_elevation_gain', 'icu_elevation_gain'), 0);
+    const totalTimeSecs = ltActs.reduce((s, a) => s + actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time', 'icu_elapsed_time', 'moving_time_seconds', 'elapsed_time_seconds'), 0);
     const totalTimeHrs  = totalTimeSecs / 3600;
-    const totalCals     = acts.reduce((s, a) => s + (a.calories || a.kilojoules || 0), 0);
-    const totalTSS      = acts.reduce((s, a) => s + (a.icu_training_load || a.training_load_score || 0), 0);
+    const totalCals     = ltActs.reduce((s, a) => s + actVal(a, 'calories', 'icu_calories', 'kilojoules'), 0);
+    const totalTSS      = ltActs.reduce((s, a) => s + actVal(a, 'icu_training_load', 'training_load_score', 'tss'), 0);
 
     // Longest single ride
-    const longestRide   = acts.reduce((best, a) => (a.distance || 0) > (best.distance || 0) ? a : best, {});
-    const longestKm     = ((longestRide.distance || 0) / 1000).toFixed(0);
+    const longestRide   = ltActs.reduce((best, a) => actVal(a, 'distance', 'icu_distance') > actVal(best, 'distance', 'icu_distance') ? a : best, {});
+    const longestKm     = (actVal(longestRide, 'distance', 'icu_distance') / 1000).toFixed(0);
     const longestName   = longestRide.name || 'Unknown';
 
     // Favourite day of week
     const dayCounts = Array(7).fill(0);
-    acts.forEach(a => {
+    ltActs.forEach(a => {
       const d = new Date(a.start_date_local || a.start_date);
       if (!isNaN(d)) dayCounts[d.getDay()]++;
     });
@@ -9087,7 +9501,7 @@ function renderStreaksPage() {
 
     // Favourite month
     const monthCounts = Array(12).fill(0);
-    acts.forEach(a => {
+    ltActs.forEach(a => {
       const d = new Date(a.start_date_local || a.start_date);
       if (!isNaN(d)) monthCounts[d.getMonth()]++;
     });
@@ -9097,14 +9511,14 @@ function renderStreaksPage() {
 
     // Biggest single week (most rides)
     const weekRideCounts = {};
-    acts.forEach(a => {
+    ltActs.forEach(a => {
       const wk = weekKey((a.start_date_local || a.start_date || '').slice(0, 10));
       if (wk) weekRideCounts[wk] = (weekRideCounts[wk] || 0) + 1;
     });
     const bestWeekCount = Math.max(...Object.values(weekRideCounts), 0);
 
     // Early bird rides (before 08:00)
-    const earlyBird = acts.filter(a => {
+    const earlyBird = ltActs.filter(a => {
       const t = (a.start_date_local || a.start_date || '').slice(11, 13);
       return t && +t < 8;
     }).length;
@@ -9117,26 +9531,26 @@ function renderStreaksPage() {
 
     // Hottest & coldest rides — prefer Garmin sensor (average_temp), fall back to weather_temp
     const getTemp    = a => a.average_temp ?? a.weather_temp ?? null;
-    const tempActs   = acts.filter(a => getTemp(a) != null);
+    const tempActs   = ltActs.filter(a => getTemp(a) != null);
     const imperial   = state.units === 'imperial';
     const fmtT       = c => imperial ? `${Math.round(c * 9/5 + 32)}°F` : `${Math.round(c)}°C`;
     const hottestAct = tempActs.length ? tempActs.reduce((m, a) => getTemp(a) > getTemp(m) ? a : m) : null;
     const coldestAct = tempActs.length ? tempActs.reduce((m, a) => getTemp(a) < getTemp(m) ? a : m) : null;
 
     // Biggest single ascent
-    const biggestClimbAct = acts.reduce((m, a) => {
+    const biggestClimbAct = ltActs.reduce((m, a) => {
       const elev = a.total_elevation_gain || a.icu_elevation_gain || 0;
       return elev > (m.total_elevation_gain || m.icu_elevation_gain || 0) ? a : m;
     }, {});
     const biggestClimbM = Math.round(biggestClimbAct.total_elevation_gain || biggestClimbAct.icu_elevation_gain || 0);
 
     // Format helpers
-    const fmtKm   = v => v >= 1000 ? `${(v/1000).toFixed(1)}k km` : `${Math.round(v)} km`;
+    const fmtKm   = v => `${Math.round(v).toLocaleString()} km`;
     const fmtHrs  = v => v >= 1000 ? `${(v/1000).toFixed(1)}k hrs` : `${Math.round(v)} hrs`;
     const fmtNum  = v => v >= 1000000 ? `${(v/1000000).toFixed(1)}M` : v >= 1000 ? `${(v/1000).toFixed(1)}k` : `${Math.round(v)}`;
 
     const STATS = [
-      { icon:'🚴', label:'Total Rides',        value: fmtNum(totalRides),          fun: `That's ${Math.round(totalRides / Math.max(1, (new Date() - new Date(acts[acts.length-1]?.start_date_local||acts[acts.length-1]?.start_date||new Date())) / (86400000*365)))} rides/year on avg` },
+      { icon:'🚴', label:'Total Rides',        value: fmtNum(totalRides),          fun: `That's ${Math.round(totalRides / Math.max(1, (new Date() - new Date(ltActs[ltActs.length-1]?.start_date_local||ltActs[ltActs.length-1]?.start_date||new Date())) / (86400000*365)))} rides/year on avg` },
       { icon:'📍', label:'Total Distance',     value: fmtKm(totalDistKm),          fun: `${earthLaps}× around the Earth 🌍` },
       { icon:'⛰️', label:'Total Elevation',    value: fmtKm(totalElevM / 1000),     fun: `${(totalElevM / 8848).toFixed(1)}× the height of Everest 🏔️` },
       { icon:'⏱️', label:'Total Time',         value: fmtHrs(totalTimeHrs),        fun: `${(totalTimeHrs / 24).toFixed(1)} full days on the bike` },
@@ -10249,6 +10663,12 @@ if (hasCredentials) {
   if (cached) {
     state.activities = cached.activities;
     loadFitnessCache(); // restore CTL/ATL/TSB, wellness history & athlete profile
+    // Pre-load lifetime cache so the Activities page can show the full list
+    const ltCached = loadLifetimeCache();
+    if (ltCached) {
+      state.lifetimeActivities = ltCached.activities;
+      state.lifetimeLastSync   = ltCached.lastSync;
+    }
     updateSidebarCTL(); // show cached CTL in sidebar immediately
     state.synced = true;
     updateConnectionUI(true);
