@@ -4246,8 +4246,11 @@ code {
     font-size: var(--text-sm);
     font-weight: 500;
     color: var(--text-secondary);
-    width: 66px;
+    width: 96px;
     flex-shrink: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 @media (max-width: 480px) {
     .zone-row-name { display: none; }
@@ -5337,6 +5340,53 @@ code {
 .dsf-link:hover {
     color: var(--accent);
     text-decoration-color: var(--accent);
+}
+
+/* ── External floating chart tooltip ──────────────────────────────────── */
+#chartTooltipFloat {
+    position: fixed;
+    z-index: 9999;
+    pointer-events: none;
+    background: rgba(11, 14, 22, 0.88);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 10px;
+    padding: 10px 14px 11px;
+    font-size: 12px;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.12s ease;
+    transform: translateY(-100%);
+    box-shadow:
+        0 8px 24px rgba(0, 0, 0, 0.55),
+        0 1px 0 rgba(255, 255, 255, 0.04) inset;
+}
+.ctf-title {
+    color: #6b7899;
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    padding-bottom: 7px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    line-height: 1.3;
+}
+.ctf-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #dde2f0;
+    font-size: 12.5px;
+    line-height: 1.75;
+}
+.ctf-swatch {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 0 5px currentColor;
 }
 
 /* Note shown below the activities list for placeholder/no-data entries */
@@ -7421,6 +7471,14 @@ code {
     grid-template-columns: 1fr 1fr;
     gap: 12px;
     margin-bottom: 12px;
+    align-items: stretch;
+}
+.znp-zones-row > .card {
+    display: flex;
+    flex-direction: column;
+}
+.znp-zones-row > .card > [id$="Balance"] {
+    margin-top: auto;
 }
 
 /* Total badge in card header */

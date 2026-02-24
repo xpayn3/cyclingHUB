@@ -2733,26 +2733,107 @@ function renderActivityList(containerId, activities) {
 /* ====================================================
    CHART STYLE TOKENS  (single source of truth)
 ==================================================== */
-// Custom positioner: always to the right of the cursor, never jumps vertically
-Chart.Tooltip.positioners.offsetFromCursor = function(items, eventPosition) {
+
+// ---------------------------------------------------------------------------
+// External HTML tooltip — floats as a fixed DOM element above the canvas so
+// it is never clipped by canvas bounds and never overlaps the chart grid.
+// ---------------------------------------------------------------------------
+function _getTooltipEl() {
+  let el = document.getElementById('chartTooltipFloat');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'chartTooltipFloat';
+    document.body.appendChild(el);
+  }
+  return el;
+}
+
+function externalTooltipHandler(context) {
+  const { chart, tooltip } = context;
+  const el = _getTooltipEl();
+
+  // Hide when no active point
+  if (tooltip.opacity === 0 || !tooltip.dataPoints?.length) {
+    el.style.opacity = '0';
+    return;
+  }
+
+  // Build HTML content
+  const titleLines = tooltip.title  || [];
+  const bodyLines  = tooltip.body   || [];
+  const colors     = tooltip.labelColors || [];
+
+  let html = '';
+  if (titleLines.length) {
+    html += `<div class="ctf-title">${titleLines.join('<br>')}</div>`;
+  }
+  const dataPoints = tooltip.dataPoints || [];
+  bodyLines.forEach((body, i) => {
+    const text = (body.lines || []).join('');
+    if (!text) return;
+    // Best colour source: dataset.borderColor (always the vivid line/stroke colour).
+    // Fall back through labelColors then backgroundColor; skip anything that is
+    // black, transparent or missing so swatches are never invisible.
+    // For charts with per-bar backgroundColor arrays (e.g. cadence distribution),
+    // index into the array using dataIndex so each bar shows its own colour.
+    const ds       = dataPoints[i]?.dataset ?? {};
+    const dataIdx  = dataPoints[i]?.dataIndex ?? i;
+    const dsBg     = Array.isArray(ds.backgroundColor)
+                       ? ds.backgroundColor[dataIdx]
+                       : ds.backgroundColor;
+    const dsBorder = Array.isArray(ds.borderColor)
+                       ? ds.borderColor[dataIdx]
+                       : ds.borderColor;
+    const candidates = [
+      dsBorder,
+      ds.pointBackgroundColor,
+      dsBg,
+      colors[i]?.borderColor,
+      colors[i]?.backgroundColor,
+    ];
+    const isUsable = c => c && c !== 'transparent' && c !== '#000'
+                       && c !== '#000000' && c !== 'black'
+                       && !String(c).startsWith('rgba(0,0,0')
+                       && !String(c).startsWith('rgba(0, 0, 0');
+    const bg = candidates.find(isUsable) || 'transparent';
+    html += `<div class="ctf-row">` +
+      `<span class="ctf-swatch" style="background:${bg}"></span>` +
+      `<span>${text}</span>` +
+      `</div>`;
+  });
+  el.innerHTML = html;
+
+  // Position: centered on the crosshair x, bottom edge just above chartArea.top
+  const rect = chart.canvas.getBoundingClientRect();
+  const cx   = rect.left + (tooltip.caretX ?? 0);
+  const cy   = rect.top  + (chart.chartArea?.top ?? 0);
+
+  // Clamp horizontally so tooltip never leaves the viewport
+  const tooltipW = el.offsetWidth || 150;
+  const vw       = window.innerWidth;
+  let left = cx - tooltipW / 2;
+  if (left < 8)              left = 8;
+  if (left + tooltipW > vw - 8) left = vw - tooltipW - 8;
+
+  el.style.left    = left + 'px';
+  el.style.top     = (cy - 8) + 'px';          // 8px gap above chartArea.top
+  el.style.opacity = '1';
+}
+
+// Keep the aboveLine positioner — Chart.js still uses it to set tooltip.caretX
+// to the data-point x rather than the raw cursor x, which keeps the crosshair
+// and tooltip perfectly aligned while scrubbing.
+Chart.Tooltip.positioners.aboveLine = function(items) {
   if (!items.length) return false;
-  return { x: eventPosition.x + 14, y: eventPosition.y, xAlign: 'left', yAlign: 'center' };
+  const chart = this.chart;
+  return { x: items[0].element.x, y: chart.chartArea?.top ?? 0 };
 };
+Chart.Tooltip.positioners.offsetFromCursor = Chart.Tooltip.positioners.aboveLine;
 
 const C_TOOLTIP = {
-  backgroundColor: '#10131a',
-  borderColor:     '#1e2432',
-  borderWidth:     1,
-  titleColor:      '#8891a8',
-  bodyColor:       '#eef0f8',
-  padding:         10,
-  boxWidth:        8,
-  boxHeight:       8,
-  boxPadding:      3,
-  caretSize:       0,
-  xAlign:          'left',
-  yAlign:          'center',
-  position:        'offsetFromCursor',
+  enabled:  false,                    // disable canvas tooltip
+  external: externalTooltipHandler,   // use floating HTML tooltip instead
+  position: 'aboveLine',              // keeps caretX on data-point x
 };
 const C_TICK  = { color: '#62708a', font: { size: 10 } };
 const C_GRID  = { color: 'rgba(255,255,255,0.04)' };
@@ -2767,6 +2848,13 @@ const C_ANIM = {
   },
 };
 Chart.defaults.animations = C_ANIM;
+// Resize redraws must be instant. Per-property `animations` (C_ANIM) override the
+// base `animation.duration`, so we must override each property inside the resize
+// transition too — otherwise the y-grow still fires on every window resize.
+Chart.defaults.transitions.resize = {
+  animation: { duration: 0 },
+  animations: { x: { duration: 0 }, y: { duration: 0 } },
+};
 // Solid hover dots: auto-fill with the dataset's line colour, no border ring
 Chart.register({
   id: 'solidHoverDots',
@@ -2793,7 +2881,7 @@ Chart.register({
     ctx.moveTo(x, top);
     ctx.lineTo(x, bottom);
     ctx.lineWidth   = 1;
-    ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
     ctx.setLineDash([3, 3]);
     ctx.stroke();
     ctx.restore();
@@ -7473,7 +7561,7 @@ function renderStreamCharts(streams, activity) {
           pan: {
             enabled: true,
             mode:    'x',
-            onPanStart:    () => { state._streamsPanning = true;  },
+            onPanStart:    () => { state._streamsPanning = true;  _getTooltipEl().style.opacity = '0'; },
             onPanComplete: () => { state._streamsPanning = false; streamsUpdateZoomState(); },
           },
           limits: {
