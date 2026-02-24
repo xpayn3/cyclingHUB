@@ -1,10 +1,12 @@
 /* ── Disable pinch-to-zoom globally, allow on maps ── */
-* {
-    touch-action: pan-x pan-y;
-    -ms-touch-action: pan-x pan-y;
+*, *::before, *::after {
+    touch-action: pan-x pan-y !important;
+    -ms-touch-action: pan-x pan-y !important;
 }
 .leaflet-container,
-.leaflet-container * {
+.leaflet-container *,
+.leaflet-container *::before,
+.leaflet-container *::after {
     touch-action: auto !important;
     -ms-touch-action: auto !important;
 }

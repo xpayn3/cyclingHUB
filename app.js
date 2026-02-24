@@ -1265,25 +1265,51 @@ function _isOnMap(e) {
   return e.target && e.target.closest && e.target.closest('.leaflet-container');
 }
 
-// Block multi-touch zoom — capture phase so it fires first
+// 1) Block multi-touch — capture phase on window, fires before everything
 window.addEventListener('touchstart', function(e) {
-  if (e.touches.length > 1 && !_isOnMap(e)) {
-    e.preventDefault();
-  }
+  if (e.touches.length > 1 && !_isOnMap(e)) e.preventDefault();
 }, { passive: false, capture: true });
 
 window.addEventListener('touchmove', function(e) {
-  if (e.touches.length > 1 && !_isOnMap(e)) {
-    e.preventDefault();
-  }
+  if (e.touches.length > 1 && !_isOnMap(e)) e.preventDefault();
 }, { passive: false, capture: true });
 
-// Safari proprietary gesture events — capture phase on window
+// 2) Safari proprietary gesture events
 ['gesturestart', 'gesturechange', 'gestureend'].forEach(function(evt) {
   window.addEventListener(evt, function(e) {
-    if (!_isOnMap(e)) { e.preventDefault(); }
+    if (!_isOnMap(e)) e.preventDefault();
   }, { passive: false, capture: true });
 });
+
+// 3) Strip inline touch-action styles that Hammer.js / chart-zoom may inject
+//    (these override CSS !important because they're inline)
+(function() {
+  const mo = new MutationObserver(function(mutations) {
+    mutations.forEach(function(m) {
+      if (m.type === 'attributes' && m.attributeName === 'style') {
+        const el = m.target;
+        if (el.closest && el.closest('.leaflet-container')) return;
+        const ta = el.style.touchAction;
+        if (ta && ta !== 'pan-x pan-y') {
+          el.style.touchAction = 'pan-x pan-y';
+        }
+      }
+    });
+  });
+  mo.observe(document.documentElement, { attributes: true, attributeFilter: ['style'], subtree: true });
+})();
+
+// 4) Last resort: if iOS Safari still zooms, snap viewport scale back to 1
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', function() {
+    if (window.visualViewport.scale > 1.01) {
+      document.body.style.zoom = (1 / window.visualViewport.scale);
+      requestAnimationFrame(function() {
+        document.body.style.zoom = '';
+      });
+    }
+  });
+}
 
 function navigate(page) {
   state.previousPage = state.currentPage;
