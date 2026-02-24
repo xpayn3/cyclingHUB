@@ -411,6 +411,34 @@ code {
     z-index: 1100; /* above Leaflet's max of 1000 */
     flex-shrink: 0;
 }
+/* ── Training status glow under topbar (dashboard only) ── */
+.topbar::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    height: 0;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.6s ease;
+    background: radial-gradient(
+        ellipse 60% 100% at 50% 0%,
+        var(--topbar-glow, rgba(0,229,160,0.35)) 0%,
+        transparent 70%
+    );
+    z-index: 1099;
+}
+.dashboard-glow .topbar::after {
+    height: 60px;
+    opacity: 1;
+    animation: topbar-glow-pulse 4s ease-in-out infinite;
+}
+@keyframes topbar-glow-pulse {
+    0%, 100% { opacity: 0.7; }
+    50%      { opacity: 1; }
+}
+
 .topbar-actions {
     display: flex;
     align-items: center;

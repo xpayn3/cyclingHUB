@@ -102,6 +102,26 @@ function updateSidebarCTL() {
   }
 }
 
+/** Update the topbar glow colour based on current TSB / training status */
+function updateTopbarGlow() {
+  const tsb = state.fitness?.tsb;
+  let color;
+  if (tsb == null) {
+    color = 'rgba(148,163,190,0.2)'; // neutral grey if no data
+  } else if (tsb < -30) {
+    color = 'rgba(239,68,68,0.4)';   // red — heavily overreached
+  } else if (tsb < -10) {
+    color = 'rgba(251,146,60,0.35)';  // orange — fatigued, training block
+  } else if (tsb < 5) {
+    color = 'rgba(0,229,160,0.35)';   // green — sweet spot
+  } else if (tsb <= 25) {
+    color = 'rgba(74,158,255,0.35)';  // blue — fresh, peak form
+  } else {
+    color = 'rgba(148,163,190,0.25)'; // grey — detraining
+  }
+  document.documentElement.style.setProperty('--topbar-glow', color);
+}
+
 /* ====================================================
    CREDENTIALS (localStorage)
 ==================================================== */
@@ -449,6 +469,8 @@ async function fetchFitness() {
       rampRate: latest.rampRate
     };
   }
+  // Update topbar glow if on dashboard
+  if (state.currentPage === 'dashboard') updateTopbarGlow();
   return state.fitness;
 }
 
@@ -965,6 +987,10 @@ function navigate(page) {
   // Show topbar range pill only on dashboard
   const pill = document.getElementById('dateRangePill');
   if (pill) pill.style.display = (page === 'dashboard') ? 'flex' : 'none';
+
+  // Training status glow — dashboard only
+  document.body.classList.toggle('dashboard-glow', page === 'dashboard');
+  if (page === 'dashboard') updateTopbarGlow();
 
   // Show month label in topbar only on calendar
   const calLabel = document.getElementById('calTopbarMonth');
