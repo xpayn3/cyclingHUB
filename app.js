@@ -632,10 +632,10 @@ function authHeader() {
    API CALLS
 ==================================================== */
 async function icuFetch(path) {
-  rlTrackRequest();  // track API usage
   const res = await fetch(ICU_BASE + path, {
     headers: { ...authHeader(), 'Accept': 'application/json' }
   });
+  rlTrackRequest();  // count only after a real network request fires
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);
     throw new Error(`${res.status}: ${text}`);
@@ -882,7 +882,7 @@ async function syncData() {
     if (state.currentPage === 'calendar') renderCalendar();
     if (state.currentPage === 'fitness')  renderFitnessPage();
     if (state.currentPage === 'power')    renderPowerPage();
-    if (state.currentPage === 'streaks')  renderStreaksPage();
+    if (state.currentPage === 'goals')    { renderStreaksPage(); renderGoalsPage(); }
 
     const newCount = isIncremental
       ? state.activities.filter(a => {
@@ -1233,14 +1233,14 @@ function runLifetimeSync() {
       updateLifetimeCacheUI();
       showToast(`Synced ${state.lifetimeActivities.length} lifetime activities`, 'success');
 
-      if (state.currentPage === 'streaks' || state.currentPage === 'wellness') renderStreaksPage();
+      if (state.currentPage === 'goals') { renderStreaksPage(); renderGoalsPage(); }
       if (state.currentPage === 'activities') renderAllActivitiesList();
       if (state.currentPage === 'settings') navigate('settings');
     } catch (e) {
       console.error('Lifetime sync failed:', e);
       showToast('Lifetime sync failed: ' + (e.message || 'unknown error'), 'error');
       if (!state.lifetimeActivities) state.lifetimeActivities = state.activities || [];
-      if (state.currentPage === 'streaks' || state.currentPage === 'wellness') renderStreaksPage();
+      if (state.currentPage === 'goals') { renderStreaksPage(); renderGoalsPage(); }
     }
   })();
 }
@@ -1333,6 +1333,15 @@ function closeSidebar() {
   document.getElementById('burgerBtn')?.classList.remove('is-open');
   _lockBodyScroll(false);
 }
+
+// Prevent touchmove on the backdrop — stops iOS from starting a scroll
+// context on the empty area that then "steals" scroll from the sidebar.
+document.addEventListener('DOMContentLoaded', () => {
+  const bd = document.getElementById('sidebarBackdrop');
+  if (bd) {
+    bd.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+  }
+});
 
 /* ====================================================
    SWIPE TO OPEN / CLOSE SIDEBAR (Mobile)
@@ -1539,7 +1548,7 @@ function navigate(page) {
     compare:    ['Compare',        'Compare metrics across time periods'],
     heatmap:    ['Heat Map',       'All your rides on one map'],
     import:     ['Import',         'Upload .FIT files from Garmin, Wahoo & more'],
-    goals:      ['Goals',          'Set & track training goals'],
+    goals:      ['Goals & Streaks', 'Training targets, streaks & lifetime stats'],
     weather:    ['Weather',        'Weekly forecast & riding conditions'],
     settings:   ['Settings',       'Account & connection'],
     workout:    ['Create Workout', 'Build & export custom cycling workouts'],
@@ -1592,7 +1601,7 @@ function navigate(page) {
   if (page === 'zones')    renderZonesPage();
   if (page === 'compare')  { ensureLifetimeLoaded(); renderComparePage(); }
   if (page === 'heatmap')  { ensureLifetimeLoaded(); renderHeatmapPage(); }
-  if (page === 'goals')    renderGoalsPage();
+  if (page === 'goals')    { renderStreaksPage(); renderGoalsPage(); }
   if (page === 'workout')  { wrkRefreshStats(); wrkRender(); }
   if (page === 'settings') {
     initWeatherLocationUI();
@@ -1604,8 +1613,8 @@ function navigate(page) {
   if (page === 'gear')     renderGearPage();
   if (page === 'guide')    renderGuidePage();
   if (page === 'import')   initImportPage();
-  if (page === 'wellness') renderStreaksPage();
-  if (page === 'streaks')  renderStreaksPage();
+  // Legacy: redirect old streaks/wellness routes to merged goals page
+  if (page === 'wellness' || page === 'streaks') { navigate('goals'); return; }
 
   window.scrollTo(0, 0);
 }
@@ -7161,48 +7170,57 @@ async function navigateToActivity(actKey, fromStep = false) {
     }
 
     // Route map — resolve GPS to [[lat,lng],...] pairs.
-    // The streams API only returns latitude; the /map endpoint has full pairs.
-    let latlngForMap = null;
+    // Check cache first, then try streams, then fallback endpoints.
+    const gpsCached = await actCacheGet(actId, 'gps');
+    let latlngForMap = gpsCached;
+    let gpsAlreadyResolved = false;
+    // Sentinel means "we already tried and there's no GPS for this activity"
+    if (gpsCached && gpsCached.__noGPS) { latlngForMap = null; gpsAlreadyResolved = true; }
+    if (gpsCached) gpsAlreadyResolved = true;
 
-    const latArr = normStreams.lat || normStreams.latlng;
-    const lngArr = normStreams.lng;
+    if (!gpsAlreadyResolved) {
+      const latArr = normStreams.lat || normStreams.latlng;
+      const lngArr = normStreams.lng;
 
-    if (latArr && lngArr && latArr.length === lngArr.length && !Array.isArray(latArr[0])) {
-      latlngForMap = latArr.map((lat, i) =>
-        lat != null && lngArr[i] != null ? [lat, lngArr[i]] : null
-      );
-    } else if (latArr && Array.isArray(latArr[0])) {
-      latlngForMap = latArr;
-    }
+      if (latArr && lngArr && latArr.length === lngArr.length && !Array.isArray(latArr[0])) {
+        latlngForMap = latArr.map((lat, i) =>
+          lat != null && lngArr[i] != null ? [lat, lngArr[i]] : null
+        );
+      } else if (latArr && Array.isArray(latArr[0])) {
+        latlngForMap = latArr;
+      }
 
-    // GPS fallback 1: intervals.icu's internal /api/activity/{id}/map endpoint
-    // (the same one their website Route tab uses — returns full GPS + weather JSON)
-    if (!latlngForMap) {
-      latlngForMap = await fetchMapGPS(actId);
-    }
+      // GPS fallback 1: intervals.icu's internal /api/activity/{id}/map endpoint
+      if (!latlngForMap) {
+        latlngForMap = await fetchMapGPS(actId);
+      }
 
-    // GPS fallback 2: try fetching just the 'lng' stream in a targeted call
-    if (!latlngForMap && latArr && !Array.isArray(latArr[0])) {
-      latlngForMap = await fetchLngStream(actId, latArr);
-    }
+      // GPS fallback 2: try fetching just the 'lng' stream in a targeted call
+      if (!latlngForMap && latArr && !Array.isArray(latArr[0])) {
+        latlngForMap = await fetchLngStream(actId, latArr);
+      }
 
-    // GPS fallback 3: FIT binary file
-    if (!latlngForMap) {
-      try {
-        const gpsFitBuf = await fetchFitFile(actId);
-        if (gpsFitBuf) {
-          const gpsFitRecords = parseFitBuffer(gpsFitBuf);
-          if (gpsFitRecords) {
-            const gpsFitStreams = fitRecordsToStreams(gpsFitRecords);
-            if (gpsFitStreams?.latlng) latlngForMap = gpsFitStreams.latlng;
+      // GPS fallback 3: FIT binary file
+      if (!latlngForMap) {
+        try {
+          const gpsFitBuf = await fetchFitFile(actId);
+          if (gpsFitBuf) {
+            const gpsFitRecords = parseFitBuffer(gpsFitBuf);
+            if (gpsFitRecords) {
+              const gpsFitStreams = fitRecordsToStreams(gpsFitRecords);
+              if (gpsFitStreams?.latlng) latlngForMap = gpsFitStreams.latlng;
+            }
           }
-        }
-      } catch (_) { /* FIT unavailable */ }
-    }
+        } catch (_) { /* FIT unavailable */ }
+      }
 
-    // GPS fallback 4: GPX file
-    if (!latlngForMap) {
-      latlngForMap = await fetchGPSFromGPX(actId);
+      // GPS fallback 4: GPX file
+      if (!latlngForMap) {
+        latlngForMap = await fetchGPSFromGPX(actId);
+      }
+
+      // Cache the resolved GPS for next time (or sentinel if none found)
+      actCachePut(actId, 'gps', latlngForMap || { __noGPS: true });
     }
     renderActivityMap(latlngForMap, normStreams);
 
@@ -7334,8 +7352,9 @@ function destroyActivityCharts() {
 
 /* ====================================================
    ACTIVITY DETAIL CACHE  (IndexedDB)
-   Caches detail + streams for recently viewed activities.
-   Keeps the last 20 activities; auto-prunes older entries.
+   Caches detail, streams, GPS, and power curve for
+   recently viewed activities.  Keeps last 20 activities;
+   auto-prunes older entries (up to 4 entries per activity).
 ==================================================== */
 const ACT_CACHE_DB   = 'cycleiq_actcache';
 const ACT_CACHE_VER  = 1;
@@ -7402,7 +7421,7 @@ async function actCacheTouch(activityId, type) {
   } catch (_) {}
 }
 
-/** Keep only newest ACT_CACHE_MAX * 2 entries (detail + streams per activity) */
+/** Keep only newest ACT_CACHE_MAX * 4 entries (detail + streams + gps + pcurve) */
 async function actCachePrune() {
   try {
     const db    = await _actCacheDB();
@@ -7412,7 +7431,7 @@ async function actCachePrune() {
     const countReq = store.count();
     countReq.onsuccess = () => {
       const total = countReq.result;
-      const maxEntries = ACT_CACHE_MAX * 2;
+      const maxEntries = ACT_CACHE_MAX * 4;
       if (total <= maxEntries) return;
       const deleteCount = total - maxEntries;
       let deleted = 0;
@@ -7448,7 +7467,10 @@ async function fetchActivityDetail(activityId) {
 async function fetchActivityStreams(activityId) {
   // Check IDB cache first
   const cached = await actCacheGet(activityId, 'streams');
-  if (cached) return cached;
+  if (cached) {
+    if (cached.__noStreams) return null;  // sentinel: known to have no streams
+    return cached;
+  }
 
   const types   = 'time,watts,heartrate,cadence,velocity_smooth,altitude,distance,latlng,lat,lng,grade_smooth,temp,temperature';
   const headers = { ...authHeader(), 'Accept': 'application/json' };
@@ -7461,8 +7483,8 @@ async function fetchActivityStreams(activityId) {
 
   let streams = null;
   for (const url of typedUrls) {
-    rlTrackRequest();
     const res = await fetch(url, { headers });
+    rlTrackRequest();
     if (res.status === 404) continue;
     if (!res.ok) throw new Error(`${res.status}: ${await res.text().catch(() => res.statusText)}`);
     const data = await res.json();
@@ -7475,8 +7497,8 @@ async function fetchActivityStreams(activityId) {
     const norm = normalizeStreams(streams);
     if (!norm.temp && !norm.temperature) {
       try {
-        rlTrackRequest();
         const res = await fetch(ICU_BASE + `/activity/${activityId}/streams`, { headers });
+        rlTrackRequest();
         if (res.ok) {
           const allData = await res.json();
           const allNorm = normalizeStreams(allData);
@@ -7499,8 +7521,8 @@ async function fetchActivityStreams(activityId) {
 
   // Full fallback: unfiltered endpoint
   try {
-    rlTrackRequest();
     const res = await fetch(ICU_BASE + `/activity/${activityId}/streams`, { headers });
+    rlTrackRequest();
     if (res.ok) {
       const data = await res.json();
       if (data && (Array.isArray(data) ? data.length : Object.keys(data).length)) {
@@ -7510,6 +7532,8 @@ async function fetchActivityStreams(activityId) {
     }
   } catch (_) {}
 
+  // Cache sentinel so we don't retry on next visit
+  actCachePut(activityId, 'streams', { __noStreams: true });
   return null;
 }
 
@@ -7523,7 +7547,6 @@ async function fetchActivityStreams(activityId) {
 async function fetchFitFile(activityId) {
   // Try several URL patterns intervals.icu uses for FIT file export
   const headers = { ...authHeader(), 'Accept': 'application/octet-stream' };
-  rlTrackRequest();
   const urls = [
     ICU_BASE + `/activity/${activityId}.fit`,
     ICU_BASE + `/athlete/${state.athleteId}/activities/${activityId}.fit`,
@@ -7532,6 +7555,7 @@ async function fetchFitFile(activityId) {
   ];
   for (const url of urls) {
     const res = await fetch(url, { headers });
+    rlTrackRequest();
     if (res.ok) return res.arrayBuffer();
   }
   return null;
@@ -7543,7 +7567,6 @@ async function fetchFitFile(activityId) {
 // Returns [[lat,lng],...] pairs or null.
 async function fetchMapGPS(activityId) {
   const numericId = String(activityId).replace(/^i/, '');
-  rlTrackRequest();
   const urls = [
     // Public API variants — have CORS headers but may 404
     ICU_BASE + `/activity/${activityId}/map`,
@@ -7557,6 +7580,7 @@ async function fetchMapGPS(activityId) {
   for (const url of urls) {
     try {
       const res = await fetch(url, { headers: authHeader() });
+      rlTrackRequest();
       if (!res.ok) continue;
       data = await res.json();
       break;
@@ -7599,7 +7623,6 @@ async function fetchMapGPS(activityId) {
 // Returns [[lat,lng],...] pairs or null.
 async function fetchLngStream(activityId, latArr) {
   const headers = { ...authHeader(), 'Accept': 'application/json' };
-  rlTrackRequest();
   // Try each streams base URL with only the lng (and lon) stream types
   const baseUrls = [
     ICU_BASE + `/activity/${activityId}/streams`,
@@ -7609,6 +7632,7 @@ async function fetchLngStream(activityId, latArr) {
     for (const type of ['lng', 'lon']) {
       try {
         const res = await fetch(`${base}?streams=${type}`, { headers });
+        rlTrackRequest();
         if (!res.ok) continue;
         const data = await res.json();
         if (!data) continue;
@@ -7643,6 +7667,7 @@ async function fetchGPSFromGPX(activityId) {
     let res = null;
     for (const url of gpxUrls) {
       res = await fetch(url, { headers: authHeader() });
+      rlTrackRequest();
       if (res.ok) break;
       res = null;
     }
@@ -10230,17 +10255,56 @@ function renderDetailHistogram(activity, streams) {
 
 // Fetch and render per-ride power curve
 async function fetchActivityPowerCurve(activityId) {
+  // Check cache first — use sentinel object for "known 404 / no data"
+  const cached = await actCacheGet(activityId, 'pcurve');
+  if (cached) {
+    // Sentinel means "we already know there's no power curve for this activity"
+    if (cached.__noData) return null;
+    return cached;
+  }
+
   const res = await fetch(
     ICU_BASE + `/athlete/${state.athleteId}/activities/${activityId}/power-curve`,
     { headers: { ...authHeader(), 'Accept': 'application/json' } }
   );
-  if (res.status === 404) return null; // no power data for this activity — not an error
+  rlTrackRequest();
+  if (res.status === 404) {
+    // Cache the 404 so we never re-fetch this activity's missing power curve
+    actCachePut(activityId, 'pcurve', { __noData: true });
+    return null;
+  }
   if (!res.ok) throw new Error(`${res.status}: ${await res.text().catch(() => res.statusText)}`);
-  return res.json();
+  const data = await res.json();
+  if (data) actCachePut(activityId, 'pcurve', data);
+  else actCachePut(activityId, 'pcurve', { __noData: true });
+  return data;
+}
+
+// ── In-memory cache for athlete-level range curves (TTL = 10 min) ────────
+const _rangeCurveCache = {};
+const RANGE_CURVE_TTL = 10 * 60 * 1000; // 10 minutes
+
+function _rcKey(prefix, oldest, newest) { return `${prefix}|${oldest}|${newest}`; }
+
+const _RC_MISS = Symbol('miss');
+
+function _rcGet(key) {
+  const entry = _rangeCurveCache[key];
+  if (!entry) return _RC_MISS;
+  if (Date.now() - entry.ts > RANGE_CURVE_TTL) { delete _rangeCurveCache[key]; return _RC_MISS; }
+  return entry.data;
+}
+
+function _rcPut(key, data) {
+  _rangeCurveCache[key] = { data, ts: Date.now() };
 }
 
 // Fetch athlete-level power curve for a date range + activity type
 async function fetchRangePowerCurve(oldest, newest) {
+  const cacheKey = _rcKey('pc', oldest, newest);
+  const cached = _rcGet(cacheKey);
+  if (cached !== _RC_MISS) return cached;
+
   const types = CYCLING_POWER_TYPES();
   for (const type of types) {
     try {
@@ -10251,10 +10315,12 @@ async function fetchRangePowerCurve(oldest, newest) {
       // Require at least one non-null watt value — API returns all-null watts when there's no data for this type
       if (candidate && Array.isArray(candidate.secs) && candidate.secs.length > 0 &&
           Array.isArray(candidate.watts) && candidate.watts.some(w => w != null && w > 0)) {
+        _rcPut(cacheKey, candidate);
         return candidate;
       }
     } catch (_) { /* try next type */ }
   }
+  _rcPut(cacheKey, null);
   return null;
 }
 
@@ -11158,6 +11224,10 @@ function buildHRCurveFromStream(hrArr) {
 
 // Fetch athlete-level HR curve for a date range
 async function fetchRangeHRCurve(oldest, newest) {
+  const cacheKey = _rcKey('hr', oldest, newest);
+  const cached = _rcGet(cacheKey);
+  if (cached !== _RC_MISS) return cached;
+
   try {
     const data = await icuFetch(
       `/athlete/${state.athleteId}/hr-curves?oldest=${oldest}&newest=${newest}`
@@ -11165,9 +11235,11 @@ async function fetchRangeHRCurve(oldest, newest) {
     const candidate = Array.isArray(data) ? data[0] : (data?.list?.[0] ?? data);
     if (candidate && Array.isArray(candidate.secs) && candidate.secs.length > 0 &&
         Array.isArray(candidate.heartrate) && candidate.heartrate.some(h => h != null && h > 0)) {
+      _rcPut(cacheKey, candidate);
       return candidate;
     }
   } catch (_) {}
+  _rcPut(cacheKey, null);
   return null;
 }
 
@@ -12182,8 +12254,14 @@ function renderGoalsPage() {
   if (!container) return;
   const goals = loadGoals();
 
+  // Section divider between streaks and goals
+  const sectionDivider = `<div class="goals-section-divider">
+    <div class="card-title" style="margin-bottom:4px">Training Goals</div>
+    <div class="card-subtitle">Set targets and track your progress</div>
+  </div>`;
+
   if (!goals.length) {
-    container.innerHTML = `
+    container.innerHTML = sectionDivider + `
       <div class="goals-empty">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48">
           <circle cx="12" cy="12" r="10"/><path d="M12 8v4l2 2"/>
@@ -12196,7 +12274,7 @@ function renderGoalsPage() {
   }
 
   const periodLabel = { week: 'This Week', month: 'This Month', year: 'This Year' };
-  let html = `<div class="goals-header">
+  let html = sectionDivider + `<div class="goals-header">
     <button class="btn btn-primary btn-sm" onclick="showGoalForm()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       Add Goal
@@ -14963,6 +15041,19 @@ const _rl = {
   timestamps: [],  // array of Date.now() for each request
 };
 
+// Restore timestamps from localStorage so rate-limit count survives page refreshes
+try {
+  const saved = JSON.parse(localStorage.getItem('icu_rl_ts') || '[]');
+  if (Array.isArray(saved)) {
+    const cutoff = Date.now() - RL_WINDOW_MS;
+    _rl.timestamps = saved.filter(t => typeof t === 'number' && t >= cutoff);
+  }
+} catch (_) {}
+
+function _rlPersist() {
+  try { localStorage.setItem('icu_rl_ts', JSON.stringify(_rl.timestamps)); } catch (_) {}
+}
+
 /** Call on every icuFetch to record a request */
 function rlTrackRequest() {
   const now = Date.now();
@@ -14970,6 +15061,7 @@ function rlTrackRequest() {
   // Prune anything older than the window
   const cutoff = now - RL_WINDOW_MS;
   while (_rl.timestamps.length && _rl.timestamps[0] < cutoff) _rl.timestamps.shift();
+  _rlPersist();
   rlUpdateUI();
 }
 
@@ -14977,6 +15069,7 @@ function rlTrackRequest() {
 function rlGetCount() {
   const cutoff = Date.now() - RL_WINDOW_MS;
   while (_rl.timestamps.length && _rl.timestamps[0] < cutoff) _rl.timestamps.shift();
+  if (!_rl.timestamps.length) _rlPersist();  // clean up storage when window clears
   return _rl.timestamps.length;
 }
 

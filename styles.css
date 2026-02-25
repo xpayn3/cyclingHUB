@@ -239,6 +239,7 @@ code {
     z-index: 1100; /* above Leaflet's max of 1000 */
     padding-top: env(safe-area-inset-top);
     transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    overscroll-behavior: contain;  /* prevent scroll chaining to body */
 }
 .sidebar-logo {
     display: flex;
@@ -276,6 +277,8 @@ code {
     flex-direction: column;
     gap: 2px;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
 }
 .nav-section-label {
     font-size: var(--text-xs);
@@ -5064,6 +5067,8 @@ code {
     transition: opacity 0.28s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.28s;
     visibility: hidden;
     will-change: opacity;
+    touch-action: none;           /* prevent scroll context from starting on backdrop */
+    overscroll-behavior: none;
 }
 .sidebar-backdrop.open {
     opacity: 0.55;
@@ -9780,6 +9785,19 @@ code {
 /* ========================== GOALS & TARGETS ========================== */
 
 /* Goals Page Header */
+#goalsStreaksSection {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-layout);
+}
+
+.goals-section-divider {
+    margin-top: 12px;
+    margin-bottom: 4px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+}
+
 .goals-header {
     display: flex;
     align-items: center;
