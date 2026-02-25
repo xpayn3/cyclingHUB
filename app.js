@@ -2045,7 +2045,9 @@ function buildRecentActCardHTML(a, idx) {
     sFmt && { val: sFmt.val, unit: sFmt.unit, lbl: 'Avg Speed' },
   ].filter(Boolean);
 
-  const tssPill = '';
+  const tssBadge = tss > 0
+    ? `<span class="ra-tss-badge">${Math.round(tss)} TSS</span>`
+    : '';
 
   const wxChip = a.weather_temp != null
     ? `<div class="ra-wx-chip">
@@ -2069,9 +2071,9 @@ function buildRecentActCardHTML(a, idx) {
           <div class="recent-act-text">
             <div class="recent-act-date">${dateFmt}${timeFmt ? ' · ' + timeFmt : ''}</div>
             <div class="recent-act-name">${name}</div>
+            ${tssBadge}
           </div>
         </div>
-        ${tssPill}
         <div class="recent-act-stats">${statsHTML}</div>
         ${wxChip}
       </div>

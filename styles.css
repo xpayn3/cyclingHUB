@@ -1080,7 +1080,11 @@ code {
 }
 @media (max-width: 600px) {
     .recent-act-scroll-rail {
-        padding-right: 40px; /* leave room for next card to peek */
+        margin-left: calc(-1 * var(--pad-page));
+        margin-right: calc(-1 * var(--pad-page));
+        padding-left: var(--pad-page);
+        padding-right: var(--pad-page);
+        scroll-padding-inline: var(--pad-page);
     }
     .recent-act-card {
         flex: 0 0 calc(100vw - 68px); /* narrower so ~40px of next card peeks */
@@ -1232,6 +1236,18 @@ code {
     font-size: var(--text-xs);
     color: var(--text-muted);
 }
+.ra-tss-badge {
+    display: inline-block;
+    background: var(--accent);
+    color: var(--bg-base);
+    font-family: var(--font-num);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 4px;
+    line-height: 1.4;
+    margin-top: 6px;
+}
 @media (max-width: 600px) {
     .recent-act-body {
         flex-direction: column;
@@ -1244,7 +1260,7 @@ code {
         display: block;
         width: 100%;
         height: 160px;
-        border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
         order: -1;
     }
     .recent-act-stats {
@@ -10227,6 +10243,20 @@ code {
     scrollbar-width: none;
 }
 .goals-dash-scroll::-webkit-scrollbar { display: none; }
+
+@media (max-width: 600px) {
+    /* Apple Music-style edge-to-edge horizontal scroll on mobile.
+       Negative margins bleed to screen edge; padding keeps first/last
+       item inset at the normal content gutter. */
+    .goals-dash-scroll,
+    .wxp-week-scroll {
+        margin-left: calc(-1 * var(--pad-page));
+        margin-right: calc(-1 * var(--pad-page));
+        padding-left: var(--pad-page);
+        padding-right: var(--pad-page);
+        scroll-padding-inline: var(--pad-page);
+    }
+}
 
 .goal-dash-card {
     min-width: 260px;
