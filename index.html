@@ -21,6 +21,7 @@
         <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/fit-file-parser@1.9.1/dist/fit-parser.min.js"></script>
         <script src="app.js" defer></script>
     </head>
     <body>
@@ -451,6 +452,14 @@
                         <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M4.93 4.93a10 10 0 0 0 0 14.14"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41"/>
                     </svg>
                     Gear
+                </div>
+                <div class="nav-item" data-page="import" onclick="navigate('import');closeSidebar();">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17 8 12 3 7 8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                    Import
                 </div>
                 <span class="nav-section-label">Account</span>
                 <div
@@ -2149,8 +2158,9 @@
                                 </div>
                             </div>
 
-                            <!-- DATA & SYNC -->
+                            <!-- DATA & STORAGE -->
                             <div class="card">
+                                <!-- Sync -->
                                 <div class="stt-section-header">
                                     <svg class="stt-section-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.08-8.58"/></svg>
                                     <div>
@@ -2182,32 +2192,24 @@
                                         Full Re-sync
                                     </button>
                                 </div>
-                            </div>
 
-                            <!-- STORAGE -->
-                            <div class="card">
-                                <div class="stt-section-header">
-                                    <svg class="stt-section-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
-                                    <div>
-                                        <div class="stt-section-title">Local Storage</div>
-                                        <div class="stt-section-sub">App data stored on this device</div>
-                                    </div>
+                                <!-- Storage -->
+                                <div class="stt-subsection-divider"></div>
+                                <div class="stt-subsection-header">
+                                    <svg class="stt-section-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+                                    <span class="stt-subsection-title">Local Storage</span>
                                 </div>
                                 <div class="stg-bar-wrap">
                                     <div class="stg-bar-track" id="storageBarTrack"></div>
                                     <div class="stg-bar-label" id="storageBarLabel">— / 5.0 MB</div>
                                     <div class="stg-bar-legend" id="storageBarLegend"></div>
                                 </div>
-                            </div>
 
-                            <!-- LIFETIME DATA -->
-                            <div class="card">
-                                <div class="stt-section-header">
-                                    <svg class="stt-section-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-                                    <div>
-                                        <div class="stt-section-title">Lifetime Data</div>
-                                        <div class="stt-section-sub">All-time activity history for lifetime stats</div>
-                                    </div>
+                                <!-- Lifetime -->
+                                <div class="stt-subsection-divider"></div>
+                                <div class="stt-subsection-header">
+                                    <svg class="stt-section-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                                    <span class="stt-subsection-title">Lifetime Data</span>
                                 </div>
                                 <div class="stt-rows">
                                     <div class="stt-row">
@@ -2223,10 +2225,6 @@
                                         <span class="stt-row-value" id="settingsLifetimeSync">—</span>
                                     </div>
                                 </div>
-                                <div class="stt-about">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                                    <span>Fetches your complete activity history from intervals.icu. Cached locally so it only needs to pull new activities on each visit.</span>
-                                </div>
                                 <div class="stt-actions">
                                     <button class="btn btn-primary" onclick="resyncLifetimeData()">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.08-8.58"/></svg>
@@ -2240,20 +2238,12 @@
                                         Clear All Caches
                                     </button>
                                 </div>
-                            </div>
 
-                            <!-- BACKUP & RESTORE -->
-                            <div class="card">
-                                <div class="stt-section-header">
-                                    <svg class="stt-section-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                                    <div>
-                                        <div class="stt-section-title">Backup &amp; Restore</div>
-                                        <div class="stt-section-sub">Export or import your activity data</div>
-                                    </div>
-                                </div>
-                                <div class="stt-about" style="padding: 10px 12px 4px;">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                                    <span>Export all cached activities as a JSON file for backup. Import a previously exported file to restore your data on a new device or browser. Use the setup link to quickly connect another device with your credentials.</span>
+                                <!-- Backup & Restore -->
+                                <div class="stt-subsection-divider"></div>
+                                <div class="stt-subsection-header">
+                                    <svg class="stt-section-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                                    <span class="stt-subsection-title">Backup &amp; Restore</span>
                                 </div>
                                 <div class="stt-actions">
                                     <button class="btn btn-primary" onclick="exportLifetimeJSON()">
@@ -2451,6 +2441,71 @@
                                 </div>
                             </div>
 
+                            <!-- SMART SYNC -->
+                            <div class="card">
+                                <div class="stt-section-header">
+                                    <svg class="stt-section-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.08-8.58"/></svg>
+                                    <div>
+                                        <div class="stt-section-title">Smart Sync</div>
+                                        <div class="stt-section-sub">Auto-check for new activities</div>
+                                    </div>
+                                </div>
+
+                                <div class="stt-rows">
+                                    <div class="stt-row stt-row--toggle">
+                                        <div class="stt-row-info">
+                                            <div class="stt-row-label">Auto-sync</div>
+                                            <div class="stt-row-sub">Checks for new rides while you're browsing</div>
+                                        </div>
+                                        <label class="settings-ios-toggle">
+                                            <input type="checkbox" id="smartPollToggle" onchange="setSmartPoll(this.checked)">
+                                            <span class="settings-ios-slider"></span>
+                                        </label>
+                                    </div>
+                                    <div class="stt-row stt-row--control" id="smartPollIntervalRow" style="display:none">
+                                        <div class="stt-row-info">
+                                            <div class="stt-row-label">Check every</div>
+                                            <div class="stt-row-sub">Only polls when tab is active</div>
+                                        </div>
+                                        <div class="date-range-pill" id="smartPollIntervalPills">
+                                            <button data-poll="5"  onclick="setSmartPollInterval(5)">5m</button>
+                                            <button data-poll="10" onclick="setSmartPollInterval(10)">10m</button>
+                                            <button data-poll="15" onclick="setSmartPollInterval(15)" class="active">15m</button>
+                                            <button data-poll="30" onclick="setSmartPollInterval(30)">30m</button>
+                                        </div>
+                                    </div>
+                                    <div class="stt-row" id="smartPollStatusRow" style="display:none">
+                                        <span class="stt-row-label">Status</span>
+                                        <span class="stt-row-value" id="smartPollStatus">Idle</span>
+                                    </div>
+                                    <div class="stt-row" id="smartPollLastRow" style="display:none">
+                                        <span class="stt-row-label">Last checked</span>
+                                        <span class="stt-row-value" id="smartPollLastCheck">—</span>
+                                    </div>
+                                </div>
+
+                                <!-- API Rate Limit -->
+                                <div class="stt-subsection-divider"></div>
+                                <div class="stt-subsection-header">
+                                    <svg class="stt-section-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                                    <span class="stt-subsection-title">API Usage</span>
+                                </div>
+                                <div class="rl-bar-wrap">
+                                    <div class="rl-bar-header">
+                                        <span class="rl-bar-used" id="rlBarUsed">0</span>
+                                        <span class="rl-bar-label"> / 200 requests</span>
+                                        <span class="rl-bar-window" id="rlBarWindow">per 15 min</span>
+                                    </div>
+                                    <div class="rl-bar-track">
+                                        <div class="rl-bar-fill" id="rlBarFill" style="width:0%"></div>
+                                    </div>
+                                    <div class="rl-bar-footer">
+                                        <span class="rl-bar-hint" id="rlBarHint">No requests tracked yet</span>
+                                        <span class="rl-bar-reset" id="rlBarReset"></span>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- DASHBOARD SECTIONS -->
                             <div class="card">
                                 <div class="stt-section-header">
@@ -2527,6 +2582,148 @@
                         </svg>
                         <p>Click "Add Metric" to start comparing your training data</p>
                     </div>
+                </div>
+
+                <!-- ==================== IMPORT PAGE ==================== -->
+                <div class="page" id="page-import">
+
+                    <!-- Source tabs — only FIT for now, Strava placeholder -->
+                    <div class="imp-source-tabs">
+                        <button class="imp-tab imp-tab--active" data-src="fit" onclick="impSwitchTab('fit')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                            </svg>
+                            FIT File
+                        </button>
+                        <button class="imp-tab" data-src="strava" disabled>
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+                            Strava
+                            <span class="imp-tab-badge">Soon</span>
+                        </button>
+                    </div>
+
+                    <!-- FIT Upload Panel -->
+                    <div class="imp-panel" id="impPanelFit">
+
+                        <!-- Drop zone -->
+                        <div class="imp-dropzone" id="impDropzone">
+                            <div class="imp-dropzone-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                    <polyline points="17 8 12 3 7 8"/>
+                                    <line x1="12" y1="3" x2="12" y2="15"/>
+                                </svg>
+                            </div>
+                            <div class="imp-dropzone-title">Drop .FIT files here</div>
+                            <div class="imp-dropzone-sub">or click to browse — supports multi-file upload</div>
+                            <input type="file" id="impFileInput" accept=".fit,.FIT" multiple hidden />
+                            <div class="imp-dropzone-formats">
+                                <span>Garmin</span><span>Wahoo</span><span>Polar</span><span>Suunto</span><span>Zwift</span>
+                            </div>
+                        </div>
+
+                        <!-- Upload queue -->
+                        <div class="imp-queue-card card" id="impQueueCard" style="display:none">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">Upload Queue</div>
+                                    <div class="card-subtitle" id="impQueueSub">0 files selected</div>
+                                </div>
+                                <div style="display:flex;gap:8px;">
+                                    <button class="btn btn-ghost btn-sm" onclick="impClearQueue()">Clear</button>
+                                    <button class="btn btn-primary btn-sm" id="impProcessBtn" onclick="impProcessAll()">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg>
+                                        Import All
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="imp-queue-list" id="impQueueList"></div>
+                        </div>
+
+                        <!-- Import options card -->
+                        <div class="card" style="margin-top:var(--gap-layout)">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">Import Options</div>
+                                    <div class="card-subtitle">Customize how activities are processed</div>
+                                </div>
+                            </div>
+
+                            <div class="imp-options-grid">
+                                <label class="imp-toggle-row">
+                                    <span class="imp-toggle-label">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
+                                        Extract GPS routes
+                                    </span>
+                                    <span class="imp-toggle-hint">Save route data for Heat Map</span>
+                                    <input type="checkbox" id="impOptGPS" checked />
+                                    <span class="imp-toggle-switch"></span>
+                                </label>
+                                <label class="imp-toggle-row">
+                                    <span class="imp-toggle-label">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                                        Auto-detect sport type
+                                    </span>
+                                    <span class="imp-toggle-hint">Ride, Run, Swim based on file data</span>
+                                    <input type="checkbox" id="impOptSport" checked />
+                                    <span class="imp-toggle-switch"></span>
+                                </label>
+                                <label class="imp-toggle-row">
+                                    <span class="imp-toggle-label">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M4 4h16v16H4z"/><path d="M4 9h16M9 4v16"/></svg>
+                                        Skip duplicates
+                                    </span>
+                                    <span class="imp-toggle-hint">Skip files already imported (by date + duration)</span>
+                                    <input type="checkbox" id="impOptDupes" checked />
+                                    <span class="imp-toggle-switch"></span>
+                                </label>
+                                <label class="imp-toggle-row">
+                                    <span class="imp-toggle-label">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                                        Allow renaming
+                                    </span>
+                                    <span class="imp-toggle-hint">Edit activity name before importing</span>
+                                    <input type="checkbox" id="impOptRename" />
+                                    <span class="imp-toggle-switch"></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Import history card -->
+                        <div class="card" style="margin-top:var(--gap-layout)">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">Import History</div>
+                                    <div class="card-subtitle" id="impHistorySub">No imports yet</div>
+                                </div>
+                                <button class="btn btn-ghost btn-sm" id="impHistoryClearBtn" onclick="impClearHistory()" style="display:none">Clear History</button>
+                            </div>
+                            <div id="impHistoryList" class="imp-history-list">
+                                <div class="imp-history-empty">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                        <polyline points="14 2 14 8 20 8"/>
+                                        <line x1="16" y1="13" x2="8" y2="13"/>
+                                        <line x1="16" y1="17" x2="8" y2="17"/>
+                                    </svg>
+                                    <p>Imported activities will appear here</p>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                    <!-- end FIT panel -->
+
+                    <!-- Strava panel (placeholder) -->
+                    <div class="imp-panel" id="impPanelStrava" style="display:none">
+                        <div class="imp-strava-soon">
+                            <svg viewBox="0 0 24 24" width="48" height="48" fill="var(--orange)" opacity="0.6"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+                            <div class="imp-strava-soon-title">Strava Integration</div>
+                            <div class="imp-strava-soon-sub">Connect your Strava account to automatically sync activities. Coming in a future update.</div>
+                        </div>
+                    </div>
+
                 </div>
 
             </div>

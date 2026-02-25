@@ -2341,6 +2341,25 @@ code {
 .stt-section-header > *:last-child { margin-left: auto; }
 .stt-section-header > div { flex: 1; }
 
+/* ── Subsection divider & header (used inside merged cards) ── */
+.stt-subsection-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 14px 12px 0;
+}
+.stt-subsection-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 12px 4px;
+}
+.stt-subsection-title {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--text-secondary);
+    letter-spacing: 0.02em;
+}
+
 /* ── Flat row list ── */
 .stt-rows {
     display: flex;
@@ -10511,4 +10530,467 @@ body.hm-map-dragging html,
         padding: 4px 10px;
         font-size: 11px;
     }
+}
+
+/* ============================================================
+   IMPORT PAGE
+============================================================ */
+
+/* ── Source tabs ── */
+.imp-source-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: var(--gap-layout);
+}
+.imp-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all var(--transition);
+    position: relative;
+}
+.imp-tab:hover:not(:disabled) {
+    color: var(--text-primary);
+    border-color: var(--border-active);
+}
+.imp-tab--active {
+    background: var(--accent-dim);
+    color: var(--accent);
+    border-color: var(--accent);
+}
+.imp-tab:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.imp-tab-badge {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: var(--orange-dim);
+    color: var(--orange);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+/* ── Drop zone ── */
+.imp-dropzone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius-lg);
+    padding: 48px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    background: var(--bg-card);
+    position: relative;
+}
+.imp-dropzone:hover {
+    border-color: var(--accent);
+    background: var(--accent-faint);
+}
+.imp-dropzone.imp-dropzone--dragover {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+    transform: scale(1.01);
+}
+.imp-dropzone-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--accent-dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+}
+.imp-dropzone-icon svg {
+    width: 28px;
+    height: 28px;
+    color: var(--accent);
+}
+.imp-dropzone-title {
+    font-size: var(--text-md);
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+.imp-dropzone-sub {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+}
+.imp-dropzone-formats {
+    display: flex;
+    gap: 8px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+.imp-dropzone-formats span {
+    font-size: var(--text-2xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+}
+
+/* ── Queue ── */
+.imp-queue-card {
+    margin-top: var(--gap-layout);
+}
+.imp-queue-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 320px;
+    overflow-y: auto;
+}
+.imp-queue-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: var(--radius);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    transition: all var(--transition);
+}
+.imp-queue-item:hover {
+    border-color: var(--border-active);
+}
+.imp-qi-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.imp-qi-icon--ride { background: var(--accent-dim); color: var(--accent); }
+.imp-qi-icon--run  { background: var(--blue-dim); color: var(--blue); }
+.imp-qi-icon--swim { background: var(--purple-dim); color: var(--purple); }
+.imp-qi-icon--other { background: var(--orange-dim); color: var(--orange); }
+
+.imp-qi-info {
+    flex: 1;
+    min-width: 0;
+}
+.imp-qi-name {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.imp-qi-meta {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    display: flex;
+    gap: 12px;
+    margin-top: 2px;
+}
+.imp-qi-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--text-xs);
+    font-weight: 600;
+    flex-shrink: 0;
+}
+.imp-qi-status--pending { color: var(--text-muted); }
+.imp-qi-status--processing { color: var(--blue); }
+.imp-qi-status--done { color: var(--accent); }
+.imp-qi-status--error { color: var(--red); }
+.imp-qi-status--skipped { color: var(--yellow); }
+
+.imp-qi-progress {
+    width: 60px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--bg-base);
+    overflow: hidden;
+}
+.imp-qi-progress-bar {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--accent);
+    transition: width 0.3s ease;
+}
+.imp-qi-remove {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all var(--transition);
+    flex-shrink: 0;
+}
+.imp-qi-remove:hover {
+    color: var(--red);
+    background: var(--red-dim);
+}
+
+/* ── Import options ── */
+.imp-options-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.imp-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: background var(--transition);
+    flex-wrap: wrap;
+}
+.imp-toggle-row:hover {
+    background: var(--bg-elevated);
+}
+.imp-toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--text-primary);
+    flex: 1;
+    min-width: 160px;
+}
+.imp-toggle-label svg {
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+.imp-toggle-hint {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    flex: 1;
+    min-width: 140px;
+}
+/* hidden checkbox */
+.imp-toggle-row input[type="checkbox"] {
+    display: none;
+}
+/* toggle switch track */
+.imp-toggle-switch {
+    width: 40px;
+    height: 22px;
+    border-radius: 11px;
+    background: var(--bg-base);
+    border: 1px solid var(--border);
+    position: relative;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+.imp-toggle-switch::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    transition: all 0.2s ease;
+}
+.imp-toggle-row input[type="checkbox"]:checked + .imp-toggle-switch {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+.imp-toggle-row input[type="checkbox"]:checked + .imp-toggle-switch::after {
+    left: 20px;
+    background: #fff;
+}
+
+/* ── History ── */
+.imp-history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 280px;
+    overflow-y: auto;
+}
+.imp-history-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 32px 16px;
+    color: var(--text-muted);
+    text-align: center;
+}
+.imp-history-empty p {
+    font-size: var(--text-xs);
+}
+.imp-history-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    transition: background var(--transition);
+}
+.imp-history-item:hover {
+    background: var(--bg-elevated);
+}
+.imp-hi-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.imp-hi-dot--success { background: var(--accent); }
+.imp-hi-dot--error   { background: var(--red); }
+.imp-hi-dot--skipped { background: var(--yellow); }
+.imp-hi-info {
+    flex: 1;
+    min-width: 0;
+}
+.imp-hi-name {
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.imp-hi-meta {
+    font-size: var(--text-2xs);
+    color: var(--text-muted);
+}
+.imp-hi-date {
+    font-size: var(--text-2xs);
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+/* ── Strava coming soon ── */
+.imp-strava-soon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 64px 24px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+}
+.imp-strava-soon-title {
+    font-size: var(--text-lg);
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-top: 16px;
+}
+.imp-strava-soon-sub {
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+    margin-top: 6px;
+    max-width: 320px;
+}
+
+/* ── Mobile responsive ── */
+@media (max-width: 600px) {
+    .imp-dropzone {
+        padding: 32px 16px;
+    }
+    .imp-toggle-row {
+        padding: 10px 8px;
+    }
+    .imp-toggle-hint {
+        width: 100%;
+        flex-basis: 100%;
+        padding-left: 24px;
+        margin-top: 2px;
+    }
+    .imp-qi-meta {
+        gap: 8px;
+    }
+}
+
+/* ============================================================
+   RATE LIMIT BAR  (Settings → Smart Sync)
+============================================================ */
+.rl-bar-wrap {
+    padding: 4px 0 0;
+}
+.rl-bar-header {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    margin-bottom: 8px;
+}
+.rl-bar-used {
+    font-size: var(--text-lg);
+    font-weight: 800;
+    font-family: var(--font-num);
+    color: var(--text-primary);
+}
+.rl-bar-label {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    font-weight: 500;
+}
+.rl-bar-window {
+    font-size: var(--text-2xs);
+    color: var(--text-muted);
+    margin-left: auto;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    font-weight: 600;
+}
+.rl-bar-track {
+    width: 100%;
+    height: 10px;
+    border-radius: 5px;
+    background: var(--bg-base);
+    overflow: hidden;
+    position: relative;
+}
+.rl-bar-fill {
+    height: 100%;
+    border-radius: 5px;
+    background: var(--accent);
+    transition: width 0.4s ease, background 0.4s ease;
+    min-width: 0;
+}
+.rl-bar-fill--warn {
+    background: var(--yellow);
+}
+.rl-bar-fill--danger {
+    background: var(--red);
+}
+.rl-bar-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 6px;
+}
+.rl-bar-hint {
+    font-size: var(--text-2xs);
+    color: var(--text-muted);
+}
+.rl-bar-reset {
+    font-size: var(--text-2xs);
+    color: var(--text-muted);
 }

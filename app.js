@@ -632,6 +632,7 @@ function authHeader() {
    API CALLS
 ==================================================== */
 async function icuFetch(path) {
+  rlTrackRequest();  // track API usage
   const res = await fetch(ICU_BASE + path, {
     headers: { ...authHeader(), 'Accept': 'application/json' }
   });
@@ -1537,6 +1538,7 @@ function navigate(page) {
     zones:      ['Training Zones', 'Time in zone breakdown'],
     compare:    ['Compare',        'Compare metrics across time periods'],
     heatmap:    ['Heat Map',       'All your rides on one map'],
+    import:     ['Import',         'Upload .FIT files from Garmin, Wahoo & more'],
     goals:      ['Goals',          'Set & track training goals'],
     weather:    ['Weather',        'Weekly forecast & riding conditions'],
     settings:   ['Settings',       'Account & connection'],
@@ -1601,6 +1603,7 @@ function navigate(page) {
   if (page === 'weather')  renderWeatherPage();
   if (page === 'gear')     renderGearPage();
   if (page === 'guide')    renderGuidePage();
+  if (page === 'import')   initImportPage();
   if (page === 'wellness') renderStreaksPage();
   if (page === 'streaks')  renderStreaksPage();
 
@@ -7330,15 +7333,123 @@ function destroyActivityCharts() {
 }
 
 /* ====================================================
+   ACTIVITY DETAIL CACHE  (IndexedDB)
+   Caches detail + streams for recently viewed activities.
+   Keeps the last 20 activities; auto-prunes older entries.
+==================================================== */
+const ACT_CACHE_DB   = 'cycleiq_actcache';
+const ACT_CACHE_VER  = 1;
+const ACT_CACHE_MAX  = 20;
+
+function _actCacheDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(ACT_CACHE_DB, ACT_CACHE_VER);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('items')) {
+        const store = db.createObjectStore('items', { keyPath: 'key' });
+        store.createIndex('ts', 'ts', { unique: false });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror   = () => reject(req.error);
+  });
+}
+
+/** Get cached data — returns null on miss */
+async function actCacheGet(activityId, type) {
+  try {
+    const db  = await _actCacheDB();
+    const key = `${activityId}_${type}`;
+    return new Promise(resolve => {
+      const tx  = db.transaction('items', 'readonly');
+      const req = tx.objectStore('items').get(key);
+      req.onsuccess = () => {
+        const row = req.result;
+        if (!row) return resolve(null);
+        actCacheTouch(activityId, type);
+        resolve(row.data);
+      };
+      req.onerror = () => resolve(null);
+    });
+  } catch (_) { return null; }
+}
+
+/** Store data in cache + auto-prune */
+async function actCachePut(activityId, type, data) {
+  try {
+    const db  = await _actCacheDB();
+    const key = `${activityId}_${type}`;
+    const tx  = db.transaction('items', 'readwrite');
+    tx.objectStore('items').put({ key, data, ts: Date.now() });
+    await new Promise(r => { tx.oncomplete = r; tx.onerror = r; });
+    actCachePrune();
+  } catch (_) {}
+}
+
+/** Update timestamp (LRU touch) so recently viewed stays cached */
+async function actCacheTouch(activityId, type) {
+  try {
+    const db  = await _actCacheDB();
+    const key = `${activityId}_${type}`;
+    const tx  = db.transaction('items', 'readwrite');
+    const store = tx.objectStore('items');
+    const req = store.get(key);
+    req.onsuccess = () => {
+      const row = req.result;
+      if (row) { row.ts = Date.now(); store.put(row); }
+    };
+  } catch (_) {}
+}
+
+/** Keep only newest ACT_CACHE_MAX * 2 entries (detail + streams per activity) */
+async function actCachePrune() {
+  try {
+    const db    = await _actCacheDB();
+    const tx    = db.transaction('items', 'readwrite');
+    const store = tx.objectStore('items');
+    const idx   = store.index('ts');
+    const countReq = store.count();
+    countReq.onsuccess = () => {
+      const total = countReq.result;
+      const maxEntries = ACT_CACHE_MAX * 2;
+      if (total <= maxEntries) return;
+      const deleteCount = total - maxEntries;
+      let deleted = 0;
+      const cursor = idx.openCursor();
+      cursor.onsuccess = e => {
+        const c = e.target.result;
+        if (c && deleted < deleteCount) {
+          c.delete();
+          deleted++;
+          c.continue();
+        }
+      };
+    };
+  } catch (_) {}
+}
+
+/* ====================================================
    ACTIVITY DETAIL — DATA FETCHING
 ==================================================== */
 async function fetchActivityDetail(activityId) {
+  // Check IDB cache first
+  const cached = await actCacheGet(activityId, 'detail');
+  if (cached) return cached;
+
   const raw = await icuFetch(`/athlete/${state.athleteId}/activities/${activityId}`);
-  // intervals.icu returns an array with a single activity object
-  return Array.isArray(raw) ? raw[0] : raw;
+  const result = Array.isArray(raw) ? raw[0] : raw;
+
+  // Cache the result
+  if (result) actCachePut(activityId, 'detail', result);
+  return result;
 }
 
 async function fetchActivityStreams(activityId) {
+  // Check IDB cache first
+  const cached = await actCacheGet(activityId, 'streams');
+  if (cached) return cached;
+
   const types   = 'time,watts,heartrate,cadence,velocity_smooth,altitude,distance,latlng,lat,lng,grade_smooth,temp,temperature';
   const headers = { ...authHeader(), 'Accept': 'application/json' };
 
@@ -7350,6 +7461,7 @@ async function fetchActivityStreams(activityId) {
 
   let streams = null;
   for (const url of typedUrls) {
+    rlTrackRequest();
     const res = await fetch(url, { headers });
     if (res.status === 404) continue;
     if (!res.ok) throw new Error(`${res.status}: ${await res.text().catch(() => res.statusText)}`);
@@ -7363,6 +7475,7 @@ async function fetchActivityStreams(activityId) {
     const norm = normalizeStreams(streams);
     if (!norm.temp && !norm.temperature) {
       try {
+        rlTrackRequest();
         const res = await fetch(ICU_BASE + `/activity/${activityId}/streams`, { headers });
         if (res.ok) {
           const allData = await res.json();
@@ -7379,15 +7492,21 @@ async function fetchActivityStreams(activityId) {
         }
       } catch (_) {}
     }
+    // Cache the result
+    actCachePut(activityId, 'streams', streams);
     return streams;
   }
 
   // Full fallback: unfiltered endpoint
   try {
+    rlTrackRequest();
     const res = await fetch(ICU_BASE + `/activity/${activityId}/streams`, { headers });
     if (res.ok) {
       const data = await res.json();
-      if (data && (Array.isArray(data) ? data.length : Object.keys(data).length)) return data;
+      if (data && (Array.isArray(data) ? data.length : Object.keys(data).length)) {
+        actCachePut(activityId, 'streams', data);
+        return data;
+      }
     }
   } catch (_) {}
 
@@ -7404,6 +7523,7 @@ async function fetchActivityStreams(activityId) {
 async function fetchFitFile(activityId) {
   // Try several URL patterns intervals.icu uses for FIT file export
   const headers = { ...authHeader(), 'Accept': 'application/octet-stream' };
+  rlTrackRequest();
   const urls = [
     ICU_BASE + `/activity/${activityId}.fit`,
     ICU_BASE + `/athlete/${state.athleteId}/activities/${activityId}.fit`,
@@ -7423,6 +7543,7 @@ async function fetchFitFile(activityId) {
 // Returns [[lat,lng],...] pairs or null.
 async function fetchMapGPS(activityId) {
   const numericId = String(activityId).replace(/^i/, '');
+  rlTrackRequest();
   const urls = [
     // Public API variants — have CORS headers but may 404
     ICU_BASE + `/activity/${activityId}/map`,
@@ -7478,6 +7599,7 @@ async function fetchMapGPS(activityId) {
 // Returns [[lat,lng],...] pairs or null.
 async function fetchLngStream(activityId, latArr) {
   const headers = { ...authHeader(), 'Accept': 'application/json' };
+  rlTrackRequest();
   // Try each streams base URL with only the lng (and lon) stream types
   const baseUrls = [
     ICU_BASE + `/activity/${activityId}/streams`,
@@ -14397,4 +14519,738 @@ function hmStopAnimate() {
   if (btn) btn.textContent = 'Replay Rides';
   const barFill = document.getElementById('hmAnimateBarFill');
   if (barFill) barFill.style.width = '0%';
+}
+
+/* ====================================================
+   IMPORT PAGE — FIT File Upload & Parsing
+==================================================== */
+const _imp = {
+  queue: [],        // { id, file, parsed: null, status: 'pending'|'processing'|'done'|'error'|'skipped', error: null }
+  processing: false,
+  history: JSON.parse(localStorage.getItem('icu_import_history') || '[]'),
+  inited: false,
+};
+
+function initImportPage() {
+  if (_imp.inited) { impRenderHistory(); return; }
+  _imp.inited = true;
+
+  const dz = document.getElementById('impDropzone');
+  const fi = document.getElementById('impFileInput');
+  if (!dz || !fi) return;
+
+  // Click to browse
+  dz.addEventListener('click', () => fi.click());
+
+  // File input change
+  fi.addEventListener('change', () => {
+    if (fi.files.length) impAddFiles(fi.files);
+    fi.value = '';
+  });
+
+  // Drag & drop
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('imp-dropzone--dragover'); });
+  dz.addEventListener('dragleave', e => { e.preventDefault(); dz.classList.remove('imp-dropzone--dragover'); });
+  dz.addEventListener('drop', e => {
+    e.preventDefault();
+    dz.classList.remove('imp-dropzone--dragover');
+    const files = [...e.dataTransfer.files].filter(f => f.name.toLowerCase().endsWith('.fit'));
+    if (files.length) impAddFiles(files);
+    else showToast('Only .FIT files are supported', 'error');
+  });
+
+  impRenderHistory();
+}
+
+/* ── Tab switching ── */
+function impSwitchTab(src) {
+  document.querySelectorAll('.imp-tab').forEach(t => t.classList.toggle('imp-tab--active', t.dataset.src === src));
+  document.getElementById('impPanelFit').style.display = src === 'fit' ? '' : 'none';
+  document.getElementById('impPanelStrava').style.display = src === 'strava' ? '' : 'none';
+}
+
+/* ── Add files to queue ── */
+function impAddFiles(fileList) {
+  const files = Array.from(fileList).filter(f => f.name.toLowerCase().endsWith('.fit'));
+  if (!files.length) { showToast('No .FIT files found', 'error'); return; }
+
+  for (const f of files) {
+    // Avoid adding same filename twice
+    if (_imp.queue.find(q => q.file.name === f.name && q.file.size === f.size)) continue;
+    _imp.queue.push({
+      id: Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+      file: f,
+      parsed: null,
+      status: 'pending',
+      error: null,
+    });
+  }
+  impRenderQueue();
+}
+
+/* ── Render queue UI ── */
+function impRenderQueue() {
+  const card = document.getElementById('impQueueCard');
+  const list = document.getElementById('impQueueList');
+  const sub = document.getElementById('impQueueSub');
+  if (!card || !list) return;
+
+  if (!_imp.queue.length) {
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = '';
+  sub.textContent = `${_imp.queue.length} file${_imp.queue.length !== 1 ? 's' : ''} selected`;
+
+  list.innerHTML = _imp.queue.map(q => {
+    const sizeMB = (q.file.size / (1024 * 1024)).toFixed(1);
+    const sport = q.parsed ? impDetectSport(q.parsed) : 'other';
+    const sportIcon = { ride: '🚴', run: '🏃', swim: '🏊', other: '📄' }[sport];
+    const statusCls = `imp-qi-status--${q.status}`;
+    const statusLabels = { pending: 'Ready', processing: 'Parsing…', done: 'Imported', error: 'Error', skipped: 'Skipped' };
+    const statusLabel = q.error ? q.error : statusLabels[q.status] || q.status;
+
+    let metaHtml = `<span>${sizeMB} MB</span>`;
+    if (q.parsed) {
+      const d = impGetDuration(q.parsed);
+      const dist = impGetDistance(q.parsed);
+      if (d) metaHtml += `<span>${d}</span>`;
+      if (dist) metaHtml += `<span>${dist}</span>`;
+    }
+
+    return `<div class="imp-queue-item" data-id="${q.id}">
+      <div class="imp-qi-icon imp-qi-icon--${sport}">
+        <span style="font-size:18px">${sportIcon}</span>
+      </div>
+      <div class="imp-qi-info">
+        <div class="imp-qi-name">${q.file.name}</div>
+        <div class="imp-qi-meta">${metaHtml}</div>
+      </div>
+      <div class="imp-qi-status ${statusCls}">${statusLabel}</div>
+      ${q.status === 'pending' ? `<div class="imp-qi-remove" onclick="impRemoveFromQueue('${q.id}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+/* ── Remove from queue ── */
+function impRemoveFromQueue(id) {
+  _imp.queue = _imp.queue.filter(q => q.id !== id);
+  impRenderQueue();
+}
+
+/* ── Clear queue ── */
+function impClearQueue() {
+  _imp.queue = [];
+  impRenderQueue();
+}
+
+/* ── Process all files ── */
+async function impProcessAll() {
+  if (_imp.processing || !_imp.queue.length) return;
+  _imp.processing = true;
+  const btn = document.getElementById('impProcessBtn');
+  if (btn) btn.disabled = true;
+
+  const optGPS   = document.getElementById('impOptGPS')?.checked;
+  const optSport = document.getElementById('impOptSport')?.checked;
+  const optDupes = document.getElementById('impOptDupes')?.checked;
+
+  let imported = 0, skipped = 0, errors = 0;
+
+  for (const item of _imp.queue) {
+    if (item.status !== 'pending') continue;
+    item.status = 'processing';
+    impRenderQueue();
+
+    try {
+      const buffer = await item.file.arrayBuffer();
+      const parsed = impParseFIT(buffer);
+      item.parsed = parsed;
+
+      // Duplicate check
+      if (optDupes && impIsDuplicate(parsed)) {
+        item.status = 'skipped';
+        item.error = 'Duplicate';
+        skipped++;
+        impRenderQueue();
+        continue;
+      }
+
+      // Build activity object
+      const activity = impBuildActivity(parsed, item.file.name, optSport, optGPS);
+
+      // Save to imported activities in localStorage
+      impSaveActivity(activity);
+      imported++;
+
+      item.status = 'done';
+
+      // Add to history
+      _imp.history.unshift({
+        name: activity.name,
+        sport: activity.type || 'Ride',
+        date: activity.start_date,
+        importedAt: new Date().toISOString(),
+        status: 'success',
+        distance: activity.distance,
+        duration: activity.moving_time,
+      });
+
+    } catch (err) {
+      console.error('FIT parse error:', err);
+      item.status = 'error';
+      item.error = err.message || 'Parse failed';
+      errors++;
+
+      _imp.history.unshift({
+        name: item.file.name,
+        sport: 'unknown',
+        date: null,
+        importedAt: new Date().toISOString(),
+        status: 'error',
+        error: item.error,
+      });
+    }
+    impRenderQueue();
+  }
+
+  // Save history
+  localStorage.setItem('icu_import_history', JSON.stringify(_imp.history.slice(0, 100)));
+
+  _imp.processing = false;
+  if (btn) btn.disabled = false;
+  impRenderHistory();
+
+  // Show summary toast
+  const parts = [];
+  if (imported) parts.push(`${imported} imported`);
+  if (skipped) parts.push(`${skipped} skipped`);
+  if (errors) parts.push(`${errors} failed`);
+  showToast(parts.join(', ') || 'No files to process', imported > 0 ? 'success' : 'error');
+}
+
+/* ── FIT Parser wrapper ── */
+function impParseFIT(arrayBuffer) {
+  // Use the fit-file-parser library if available
+  if (typeof FitParser !== 'undefined') {
+    const parser = new FitParser({ force: true, speedUnit: 'km/h', lengthUnit: 'km', elapsedRecordField: true });
+    const data = { records: [], sessions: [], laps: [], events: [], device_infos: [], activity: null };
+    parser.parse(arrayBuffer, (err, result) => {
+      if (err) throw new Error(err);
+      Object.assign(data, result);
+    });
+    return data;
+  }
+
+  // Minimal fallback: read raw bytes to extract basic data
+  throw new Error('FIT parser library not loaded. Please check your internet connection.');
+}
+
+/* ── Sport detection ── */
+function impDetectSport(parsed) {
+  const session = parsed.sessions?.[0];
+  if (!session) return 'other';
+  const sport = (session.sport || '').toLowerCase();
+  if (sport === 'cycling' || sport === 'biking') return 'ride';
+  if (sport === 'running') return 'run';
+  if (sport === 'swimming') return 'swim';
+  // Fallback: check sub_sport
+  const sub = (session.sub_sport || '').toLowerCase();
+  if (sub.includes('cycl') || sub.includes('bik') || sub.includes('ride')) return 'ride';
+  if (sub.includes('run') || sub.includes('trail')) return 'run';
+  if (sub.includes('swim') || sub.includes('pool') || sub.includes('open_water')) return 'swim';
+  return 'ride'; // default to ride
+}
+
+/* ── Duration helper ── */
+function impGetDuration(parsed) {
+  const s = parsed.sessions?.[0];
+  if (!s) return null;
+  const secs = s.total_timer_time || s.total_elapsed_time || 0;
+  if (!secs) return null;
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  return h ? `${h}h ${m}m` : `${m}m`;
+}
+
+/* ── Distance helper ── */
+function impGetDistance(parsed) {
+  const s = parsed.sessions?.[0];
+  if (!s) return null;
+  let d = s.total_distance;
+  if (!d) return null;
+  // fit-parser with lengthUnit: 'km' gives km
+  if (d > 1000) d = d / 1000; // safety: if still in meters
+  return d >= 1 ? `${d.toFixed(1)} km` : `${(d * 1000).toFixed(0)} m`;
+}
+
+/* ── Duplicate check ── */
+function impIsDuplicate(parsed) {
+  const s = parsed.sessions?.[0];
+  if (!s) return false;
+  const ts = s.start_time ? new Date(s.start_time).getTime() : null;
+  const dur = Math.round(s.total_timer_time || 0);
+  if (!ts) return false;
+
+  // Check against imported activities
+  const imported = JSON.parse(localStorage.getItem('icu_fit_activities') || '[]');
+  return imported.some(a => {
+    const aTs = new Date(a.start_date).getTime();
+    return Math.abs(aTs - ts) < 60000 && Math.abs((a.moving_time || 0) - dur) < 30;
+  });
+}
+
+/* ── Build activity from parsed FIT ── */
+function impBuildActivity(parsed, fileName, autoSport, extractGPS) {
+  const s = parsed.sessions?.[0] || {};
+  const records = parsed.records || [];
+
+  const sport = autoSport ? impDetectSport(parsed) : 'ride';
+  const typeMap = { ride: 'Ride', run: 'Run', swim: 'Swim', other: 'Ride' };
+
+  const startDate = s.start_time ? new Date(s.start_time).toISOString() : new Date().toISOString();
+  const cleanName = fileName.replace(/\.fit$/i, '').replace(/[_-]/g, ' ');
+  const sportLabel = typeMap[sport] || 'Ride';
+  const dateStr = new Date(startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const name = `${sportLabel} — ${dateStr}`;
+
+  const activity = {
+    id: 'fit_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+    source: 'fit_import',
+    name,
+    type: typeMap[sport],
+    start_date: startDate,
+    moving_time: Math.round(s.total_timer_time || s.total_elapsed_time || 0),
+    elapsed_time: Math.round(s.total_elapsed_time || s.total_timer_time || 0),
+    distance: s.total_distance || 0,
+    total_ascent: s.total_ascent || 0,
+    average_speed: s.avg_speed || s.enhanced_avg_speed || 0,
+    max_speed: s.max_speed || s.enhanced_max_speed || 0,
+    average_heartrate: s.avg_heart_rate || 0,
+    max_heartrate: s.max_heart_rate || 0,
+    average_watts: s.avg_power || 0,
+    max_watts: s.max_power || 0,
+    average_cadence: s.avg_cadence || 0,
+    calories: s.total_calories || 0,
+    normalized_power: s.normalized_power || 0,
+    training_stress_score: s.training_stress_score || 0,
+    intensity_factor: s.intensity_factor || 0,
+    file_name: fileName,
+  };
+
+  // Extract GPS route
+  if (extractGPS && records.length) {
+    const route = [];
+    for (const r of records) {
+      if (r.position_lat != null && r.position_long != null) {
+        // FIT uses semicircles; fit-parser converts to degrees
+        const lat = typeof r.position_lat === 'number' ? r.position_lat : 0;
+        const lng = typeof r.position_long === 'number' ? r.position_long : 0;
+        if (lat !== 0 && lng !== 0 && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
+          route.push([lat, lng]);
+        }
+      }
+    }
+    if (route.length > 10) {
+      // Downsample for storage — keep every Nth point
+      const maxPts = 500;
+      const step = Math.max(1, Math.floor(route.length / maxPts));
+      activity.gps_route = route.filter((_, i) => i % step === 0);
+    }
+  }
+
+  return activity;
+}
+
+/* ── Save to localStorage ── */
+function impSaveActivity(activity) {
+  const key = 'icu_fit_activities';
+  const list = JSON.parse(localStorage.getItem(key) || '[]');
+  list.push(activity);
+  localStorage.setItem(key, JSON.stringify(list));
+
+  // Also save GPS route to IndexedDB for heatmap if available
+  if (activity.gps_route && activity.gps_route.length > 10) {
+    impSaveRouteToIDB(activity.id, activity.gps_route);
+  }
+}
+
+/* ── Save route to IndexedDB (same DB as heatmap) ── */
+function impSaveRouteToIDB(activityId, route) {
+  const req = indexedDB.open('cycleiq_heatmap', 1);
+  req.onupgradeneeded = e => {
+    const db = e.target.result;
+    if (!db.objectStoreNames.contains('routes')) db.createObjectStore('routes', { keyPath: 'id' });
+  };
+  req.onsuccess = e => {
+    const db = e.target.result;
+    if (!db.objectStoreNames.contains('routes')) return;
+    const tx = db.transaction('routes', 'readwrite');
+    tx.objectStore('routes').put({ id: activityId, route, source: 'fit_import' });
+  };
+}
+
+/* ── Render import history ── */
+function impRenderHistory() {
+  const list = document.getElementById('impHistoryList');
+  const sub = document.getElementById('impHistorySub');
+  const clearBtn = document.getElementById('impHistoryClearBtn');
+  if (!list) return;
+
+  if (!_imp.history.length) {
+    sub.textContent = 'No imports yet';
+    if (clearBtn) clearBtn.style.display = 'none';
+    list.innerHTML = `<div class="imp-history-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+      </svg>
+      <p>Imported activities will appear here</p>
+    </div>`;
+    return;
+  }
+
+  const successCount = _imp.history.filter(h => h.status === 'success').length;
+  sub.textContent = `${successCount} activit${successCount !== 1 ? 'ies' : 'y'} imported`;
+  if (clearBtn) clearBtn.style.display = '';
+
+  list.innerHTML = _imp.history.slice(0, 30).map(h => {
+    const dotCls = h.status === 'success' ? 'imp-hi-dot--success' : h.status === 'error' ? 'imp-hi-dot--error' : 'imp-hi-dot--skipped';
+    const dateStr = h.importedAt ? new Date(h.importedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+    let meta = h.sport || '';
+    if (h.distance) {
+      const km = h.distance >= 1000 ? (h.distance / 1000).toFixed(1) : h.distance.toFixed(1);
+      meta += ` · ${km} km`;
+    }
+    if (h.duration) {
+      const m = Math.round((h.duration || 0) / 60);
+      meta += ` · ${m} min`;
+    }
+    return `<div class="imp-history-item">
+      <div class="imp-hi-dot ${dotCls}"></div>
+      <div class="imp-hi-info">
+        <div class="imp-hi-name">${h.name || 'Unknown'}</div>
+        <div class="imp-hi-meta">${meta}</div>
+      </div>
+      <div class="imp-hi-date">${dateStr}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ── Clear history ── */
+function impClearHistory() {
+  showConfirmDialog('Clear Import History', 'This will remove all import history records. Imported activities will not be affected.', () => {
+    _imp.history = [];
+    localStorage.removeItem('icu_import_history');
+    impRenderHistory();
+    showToast('Import history cleared');
+  });
+}
+
+/* ====================================================
+   RATE LIMIT TRACKER
+   Tracks requests to intervals.icu API in a rolling
+   15-minute window.  Max 200 requests per window.
+==================================================== */
+const RL_WINDOW_MS = 15 * 60 * 1000;   // 15 minutes
+const RL_MAX       = 200;
+
+const _rl = {
+  timestamps: [],  // array of Date.now() for each request
+};
+
+/** Call on every icuFetch to record a request */
+function rlTrackRequest() {
+  const now = Date.now();
+  _rl.timestamps.push(now);
+  // Prune anything older than the window
+  const cutoff = now - RL_WINDOW_MS;
+  while (_rl.timestamps.length && _rl.timestamps[0] < cutoff) _rl.timestamps.shift();
+  rlUpdateUI();
+}
+
+/** Prune old timestamps and return count in current window */
+function rlGetCount() {
+  const cutoff = Date.now() - RL_WINDOW_MS;
+  while (_rl.timestamps.length && _rl.timestamps[0] < cutoff) _rl.timestamps.shift();
+  return _rl.timestamps.length;
+}
+
+/** How many seconds until the oldest request in the window expires */
+function rlSecsUntilReset() {
+  if (!_rl.timestamps.length) return 0;
+  const oldest = _rl.timestamps[0];
+  const diff = (oldest + RL_WINDOW_MS) - Date.now();
+  return Math.max(0, Math.ceil(diff / 1000));
+}
+
+/** Update the settings UI bar */
+function rlUpdateUI() {
+  const used  = rlGetCount();
+  const pct   = Math.min(100, (used / RL_MAX) * 100);
+  const left  = RL_MAX - used;
+
+  const elUsed  = document.getElementById('rlBarUsed');
+  const elFill  = document.getElementById('rlBarFill');
+  const elHint  = document.getElementById('rlBarHint');
+  const elReset = document.getElementById('rlBarReset');
+
+  if (elUsed) elUsed.textContent = used;
+  if (elFill) {
+    elFill.style.width = pct + '%';
+    elFill.classList.remove('rl-bar-fill--warn', 'rl-bar-fill--danger');
+    if (pct >= 90)      elFill.classList.add('rl-bar-fill--danger');
+    else if (pct >= 60) elFill.classList.add('rl-bar-fill--warn');
+  }
+  if (elHint) {
+    if (used === 0) {
+      elHint.textContent = 'No requests tracked yet';
+    } else {
+      elHint.textContent = `${left} request${left !== 1 ? 's' : ''} remaining`;
+    }
+  }
+  if (elReset) {
+    const secs = rlSecsUntilReset();
+    if (secs > 0) {
+      const m = Math.floor(secs / 60);
+      const s = secs % 60;
+      elReset.textContent = `Resets in ${m}:${String(s).padStart(2, '0')}`;
+    } else {
+      elReset.textContent = '';
+    }
+  }
+}
+
+// Tick the reset countdown every second when on settings page
+setInterval(() => {
+  if (state.currentPage === 'settings' && _rl.timestamps.length) rlUpdateUI();
+}, 1000);
+
+
+/* ====================================================
+   SMART POLLING  —  auto-sync while user is active
+==================================================== */
+const _poll = {
+  enabled:   false,
+  intervalM: 15,       // minutes between checks
+  timer:     null,
+  idleTimer: null,
+  idle:      false,
+  lastCheck: null,
+  checking:  false,
+};
+
+/** Toggle smart polling on/off */
+function setSmartPoll(on) {
+  _poll.enabled = on;
+  localStorage.setItem('icu_smart_poll', on ? '1' : '0');
+
+  // Show/hide interval row & status rows
+  const intRow  = document.getElementById('smartPollIntervalRow');
+  const statRow = document.getElementById('smartPollStatusRow');
+  const lastRow = document.getElementById('smartPollLastRow');
+  if (intRow)  intRow.style.display  = on ? '' : 'none';
+  if (statRow) statRow.style.display = on ? '' : 'none';
+  if (lastRow) lastRow.style.display = on ? '' : 'none';
+
+  if (on) {
+    pollStart();
+  } else {
+    pollStop();
+  }
+  pollUpdateStatusUI();
+}
+
+/** Set polling interval */
+function setSmartPollInterval(minutes) {
+  _poll.intervalM = minutes;
+  localStorage.setItem('icu_smart_poll_interval', String(minutes));
+
+  // Update active pill
+  document.querySelectorAll('#smartPollIntervalPills button').forEach(b => {
+    b.classList.toggle('active', Number(b.dataset.poll) === minutes);
+  });
+
+  // Restart timer with new interval
+  if (_poll.enabled) { pollStop(); pollStart(); }
+}
+
+/** Start the polling timer */
+function pollStart() {
+  pollStop();
+  if (!_poll.enabled || !state.athleteId) return;
+
+  const ms = _poll.intervalM * 60 * 1000;
+  _poll.timer = setInterval(() => {
+    if (!_poll.idle && document.visibilityState === 'visible') {
+      pollCheck();
+    }
+  }, ms);
+
+  // Idle detection — pause polling after 5 min of no interaction
+  pollResetIdle();
+  pollUpdateStatusUI();
+}
+
+/** Stop polling */
+function pollStop() {
+  if (_poll.timer) { clearInterval(_poll.timer); _poll.timer = null; }
+  if (_poll.idleTimer) { clearTimeout(_poll.idleTimer); _poll.idleTimer = null; }
+  pollUpdateStatusUI();
+}
+
+/** Reset idle timer on user activity */
+function pollResetIdle() {
+  _poll.idle = false;
+  if (_poll.idleTimer) clearTimeout(_poll.idleTimer);
+  _poll.idleTimer = setTimeout(() => {
+    _poll.idle = true;
+    pollUpdateStatusUI();
+  }, 5 * 60 * 1000); // 5 minutes idle threshold
+}
+
+/** Perform an incremental sync check */
+async function pollCheck() {
+  if (_poll.checking || !state.athleteId || !state.apiKey) return;
+
+  // Rate limit safety — don't poll if we've used > 80% of our budget
+  if (rlGetCount() > RL_MAX * 0.8) {
+    pollSetStatus('Paused — rate limit');
+    return;
+  }
+
+  _poll.checking = true;
+  pollSetStatus('Checking…');
+
+  try {
+    const cache = loadActivityCache();
+    if (!cache || !cache.activities.length) {
+      pollSetStatus('No cache — use manual sync first');
+      _poll.checking = false;
+      return;
+    }
+
+    // Fetch only recent activities (last 2 days)
+    const since = new Date();
+    since.setDate(since.getDate() - 2);
+    const oldest = toDateStr(since);
+    const newest = toDateStr(new Date());
+
+    const data = await icuFetch(
+      `/athlete/${state.athleteId}/activities?oldest=${oldest}&newest=${newest}&limit=50`
+    );
+    const chunk = Array.isArray(data) ? data : (data.activities || []);
+
+    // Find genuinely new activities
+    const existingIds = new Set(state.activities.map(a => a.id));
+    const newOnes = chunk.filter(a => !existingIds.has(a.id));
+
+    _poll.lastCheck = new Date();
+
+    if (newOnes.length) {
+      // Merge and save
+      state.activities = [...newOnes, ...state.activities];
+      saveActivityCache(state.activities);
+
+      // Refresh dashboard if visible
+      if (state.currentPage === 'dashboard') renderDashboard();
+      if (state.currentPage === 'activities') ensureLifetimeLoaded();
+
+      showToast(`${newOnes.length} new activit${newOnes.length > 1 ? 'ies' : 'y'} synced`, 'success');
+      pollSetStatus(`Found ${newOnes.length} new`);
+    } else {
+      pollSetStatus('Up to date');
+    }
+  } catch (err) {
+    console.warn('Smart poll error:', err);
+    pollSetStatus('Error — will retry');
+  }
+
+  _poll.checking = false;
+  pollUpdateLastCheck();
+}
+
+/** Update status text */
+function pollSetStatus(text) {
+  const el = document.getElementById('smartPollStatus');
+  if (el) el.textContent = text;
+}
+
+/** Update last check time */
+function pollUpdateLastCheck() {
+  const el = document.getElementById('smartPollLastCheck');
+  if (!el) return;
+  if (!_poll.lastCheck) { el.textContent = '—'; return; }
+  el.textContent = _poll.lastCheck.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+}
+
+/** Update overall status UI */
+function pollUpdateStatusUI() {
+  const el = document.getElementById('smartPollStatus');
+  if (!el) return;
+  if (!_poll.enabled) {
+    el.textContent = 'Disabled';
+  } else if (_poll.idle) {
+    el.textContent = 'Paused — idle';
+  } else if (_poll.timer) {
+    el.textContent = _poll.lastCheck ? 'Active' : 'Waiting for first check…';
+  } else {
+    el.textContent = 'Starting…';
+  }
+}
+
+/** Restore smart poll settings on page load */
+function pollRestore() {
+  const on = localStorage.getItem('icu_smart_poll') === '1';
+  const intv = parseInt(localStorage.getItem('icu_smart_poll_interval') || '15', 10);
+  _poll.intervalM = [5, 10, 15, 30].includes(intv) ? intv : 15;
+
+  // Restore toggle UI
+  const toggle = document.getElementById('smartPollToggle');
+  if (toggle) toggle.checked = on;
+
+  // Restore interval pills
+  document.querySelectorAll('#smartPollIntervalPills button').forEach(b => {
+    b.classList.toggle('active', Number(b.dataset.poll) === _poll.intervalM);
+  });
+
+  // Show/hide dependent rows
+  const intRow  = document.getElementById('smartPollIntervalRow');
+  const statRow = document.getElementById('smartPollStatusRow');
+  const lastRow = document.getElementById('smartPollLastRow');
+  if (intRow)  intRow.style.display  = on ? '' : 'none';
+  if (statRow) statRow.style.display = on ? '' : 'none';
+  if (lastRow) lastRow.style.display = on ? '' : 'none';
+
+  if (on) {
+    _poll.enabled = true;
+    pollStart();
+  }
+}
+
+// Listen for user activity to reset idle timer
+['mousemove', 'keydown', 'scroll', 'click', 'touchstart'].forEach(evt => {
+  document.addEventListener(evt, () => {
+    if (_poll.enabled && _poll.idle) {
+      _poll.idle = false;
+      pollUpdateStatusUI();
+    }
+    if (_poll.enabled) pollResetIdle();
+  }, { passive: true });
+});
+
+// Pause when tab hidden, resume when visible
+document.addEventListener('visibilitychange', () => {
+  if (_poll.enabled) pollUpdateStatusUI();
+});
+
+// Restore on app boot (after DOM ready)
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', pollRestore);
+} else {
+  pollRestore();
 }
