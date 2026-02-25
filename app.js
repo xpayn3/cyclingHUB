@@ -189,177 +189,12 @@ function updateTopbarGlow() {
   else if (tsb <= 25)    a = 0.35;
   else                   a = 0.25;
   document.documentElement.style.setProperty('--topbar-glow', `rgba(${r},${g},${b},${a})`);
-  // Update particle colour
-  _aurora.rgb = [r,g,b];
 }
 
-/* ── Topbar aurora borealis effect ── */
-const _aurora = { raf: null, rgb: [0,229,160], running: false, t: 0 };
+/* ── (aurora removed — simple CSS glow now) ── */
 
-function _initGlowObserver() {
-  if (_aurora.observer) return;
-  const el = document.querySelector('.topbar-glow-el');
-  if (!el) return;
-  _aurora.observer = new IntersectionObserver(([entry]) => {
-    const visible = entry.isIntersecting;
-    if (visible && _aurora.running && !_aurora.raf) {
-      _aurora.raf = requestAnimationFrame(_aurora._frame);
-    } else if (!visible && _aurora.raf) {
-      cancelAnimationFrame(_aurora.raf);
-      _aurora.raf = null;
-    }
-  }, { threshold: 0 });
-  _aurora.observer.observe(el);
-}
-
-function startGlowParticles() {
-  if (_aurora.running) return;
-  const canvas = document.getElementById('glowParticles');
-  if (!canvas) return;
-  _aurora.running = true;
-  _initGlowObserver();
-  _aurora.t = Math.random() * 1000; // random start offset for variety
-
-  const ctx = canvas.getContext('2d');
-
-  // Thin traveling wavy lines
-  const LINES = 6;
-  const lines = Array.from({ length: LINES }, (_, i) => ({
-    phase:    Math.random() * Math.PI * 2,
-    speed:    0.4 + Math.random() * 0.6,        // travel speed (px/frame-ish)
-    freq1:    2.0 + Math.random() * 2.0,         // primary wave freq
-    freq2:    3.5 + Math.random() * 3.0,         // secondary twist freq
-    amp1:     0.06 + Math.random() * 0.10,       // primary amplitude
-    amp2:     0.02 + Math.random() * 0.04,       // twist amplitude
-    yBase:    0.18 + (i / LINES) * 0.55,         // vertical spread
-    alphaMax: 0.12 + Math.random() * 0.10,       // max opacity
-    lineW:    0.6 + Math.random() * 0.8,         // stroke width
-    hueShift: (Math.random() - 0.5) * 40,
-    tOff:     Math.random() * 100,               // time offset for variety
-  }));
-
-  // Each curtain is a slow-drifting sine wave band
-  const BANDS = 5;
-  const bands = Array.from({ length: BANDS }, (_, i) => ({
-    phase:  Math.random() * Math.PI * 2,
-    speed:  0.0003 + Math.random() * 0.0004,  // very slow drift
-    freq:   1.5 + Math.random() * 1.5,         // wave frequency
-    amp:    0.08 + Math.random() * 0.15,        // vertical wave amplitude
-    yBase:  0.15 + (i / BANDS) * 0.5,           // spread bands vertically
-    width:  0.12 + Math.random() * 0.1,         // band thickness
-    alphaMax: 0.08 + Math.random() * 0.07,       // subtle opacity
-    hueShift: (Math.random() - 0.5) * 30,       // slight color variation per band
-  }));
-
-  function frame(ts) {
-    if (!_aurora.running) return;
-    _aurora.t = ts || _aurora.t;
-
-    const dpr = window.devicePixelRatio || 1;
-    const cw = canvas.clientWidth;
-    const ch = canvas.clientHeight;
-    if (cw === 0) { _aurora.raf = requestAnimationFrame(frame); return; }
-    if (canvas.width !== cw * dpr || canvas.height !== ch * dpr) {
-      canvas.width = cw * dpr;
-      canvas.height = ch * dpr;
-    }
-    const w = canvas.width;
-    const h = canvas.height;
-    ctx.clearRect(0, 0, w, h);
-
-    const [baseR, baseG, baseB] = _aurora.rgb;
-    const time = _aurora.t * 0.001;
-
-    for (const band of bands) {
-      band.phase += band.speed;
-
-      // Shift hue slightly: mix base color with a rotated version
-      const shift = band.hueShift / 100;
-      const r = Math.min(255, Math.max(0, baseR + shift * 60));
-      const g = Math.min(255, Math.max(0, baseG + shift * 40));
-      const b = Math.min(255, Math.max(0, baseB - shift * 30));
-
-      // Draw the band as a series of vertical gradient slices
-      const slices = Math.ceil(w / (3 * dpr));
-      for (let i = 0; i <= slices; i++) {
-        const xPct = i / slices;
-        const x = xPct * w;
-
-        // Sine wave determines vertical position of this slice
-        const wave = Math.sin(xPct * band.freq * Math.PI * 2 + band.phase + time * 0.3)
-                   + Math.sin(xPct * band.freq * 0.7 * Math.PI * 2 + band.phase * 1.3 + time * 0.2) * 0.4;
-        const yCenter = (band.yBase + wave * band.amp) * h;
-
-        // Breathing alpha — slow oscillation
-        const breath = 0.5 + 0.5 * Math.sin(time * 0.5 + band.phase + xPct * 2);
-        const alpha = band.alphaMax * breath;
-
-        const bandH = band.width * h;
-        const grad = ctx.createLinearGradient(x, yCenter - bandH, x, yCenter + bandH);
-        grad.addColorStop(0,   `rgba(${r},${g},${b},0)`);
-        grad.addColorStop(0.3, `rgba(${r},${g},${b},${alpha})`);
-        grad.addColorStop(0.5, `rgba(${r},${g},${b},${alpha * 1.2})`);
-        grad.addColorStop(0.7, `rgba(${r},${g},${b},${alpha})`);
-        grad.addColorStop(1,   `rgba(${r},${g},${b},0)`);
-
-        ctx.fillStyle = grad;
-        const sliceW = (w / slices) + 1;
-        ctx.fillRect(x, yCenter - bandH, sliceW, bandH * 2);
-      }
-    }
-
-    // ── Thin twisting traveling wavy lines ──
-    ctx.lineCap = 'round';
-    for (const ln of lines) {
-      const shift = ln.hueShift / 100;
-      const lr = Math.min(255, Math.max(0, baseR + shift * 50));
-      const lg = Math.min(255, Math.max(0, baseG + shift * 35));
-      const lb = Math.min(255, Math.max(0, baseB - shift * 25));
-      const tl = time + ln.tOff;
-
-      // Breathing opacity
-      const breath = 0.4 + 0.6 * Math.sin(tl * 0.35 + ln.phase);
-      const alpha = ln.alphaMax * Math.max(0, breath);
-
-      ctx.beginPath();
-      ctx.strokeStyle = `rgba(${lr},${lg},${lb},${alpha})`;
-      ctx.lineWidth = ln.lineW * dpr;
-
-      const steps = Math.ceil(w / (2 * dpr));
-      for (let i = 0; i <= steps; i++) {
-        const xPct = i / steps;
-        const x = xPct * w;
-        // Slowly drifting frequencies & amplitudes so the wave shape evolves
-        const fDrift1 = ln.freq1 + Math.sin(tl * 0.08 + ln.phase) * 0.6;
-        const fDrift2 = ln.freq2 + Math.cos(tl * 0.06 + ln.tOff) * 0.8;
-        const aDrift1 = ln.amp1 * (0.7 + 0.3 * Math.sin(tl * 0.12 + ln.phase * 1.5));
-        const aDrift2 = ln.amp2 * (0.6 + 0.4 * Math.cos(tl * 0.10 + ln.tOff * 0.8));
-        // Primary wave + secondary twist + third harmonic for organic movement
-        const y1 = Math.sin(xPct * fDrift1 * Math.PI * 2 + ln.phase + tl * ln.speed * 0.15);
-        const y2 = Math.sin(xPct * fDrift2 * Math.PI * 2 - ln.phase * 0.7 + tl * ln.speed * 0.22);
-        const y3 = Math.sin(xPct * (fDrift1 + fDrift2) * 0.5 * Math.PI * 2 + tl * 0.18) * 0.3;
-        const yCenter = (ln.yBase + y1 * aDrift1 + y2 * aDrift2 + y3 * ln.amp2 * 0.5) * h;
-        if (i === 0) ctx.moveTo(x, yCenter);
-        else ctx.lineTo(x, yCenter);
-      }
-      ctx.stroke();
-    }
-
-    _aurora.raf = requestAnimationFrame(frame);
-  }
-  _aurora._frame = frame;
-  _aurora.raf = requestAnimationFrame(frame);
-}
-
-function stopGlowParticles() {
-  _aurora.running = false;
-  if (_aurora.raf) { cancelAnimationFrame(_aurora.raf); _aurora.raf = null; }
-  const canvas = document.getElementById('glowParticles');
-  if (canvas) {
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-  }
-}
+function startGlowParticles() { /* no-op — simple CSS glow now */ }
+function stopGlowParticles()  { /* no-op */ }
 
 /* ====================================================
    CREDENTIALS (localStorage)
@@ -811,13 +646,20 @@ async function handleConnect() {
     updateConnectionUI(true);
     await syncData();
   } catch (err) {
-    const msg = err.message.includes('401') ? 'Invalid credentials. Check your Athlete ID and API key.' :
-                err.message.includes('403') ? 'Access denied. Verify your API key.' :
-                err.message.includes('404') ? 'Athlete not found. Check your Athlete ID.' :
-                'Connection failed: ' + err.message;
+    const m = err.message || '';
+    const isServerDown = m.includes('502') || m.includes('503') || m.includes('504') ||
+                         m.includes('NetworkError') || m.includes('Failed to fetch') || m.includes('CORS') || m.includes('network');
+    const msg = m.includes('401') ? 'Invalid credentials. Check your Athlete ID and API key.' :
+                m.includes('403') ? 'Access denied. Verify your API key.' :
+                m.includes('404') ? 'Athlete not found. Check your Athlete ID.' :
+                m.includes('429') ? 'Rate limited by intervals.icu. Wait a few minutes.' :
+                isServerDown      ? 'Can\'t reach intervals.icu — their server may be down. Try again shortly.' :
+                'Connection failed: ' + m;
     showToast(msg, 'error');
-    document.getElementById('inputAthleteId').classList.add('error');
-    document.getElementById('inputApiKey').classList.add('error');
+    if (!isServerDown) {
+      document.getElementById('inputAthleteId').classList.add('error');
+      document.getElementById('inputApiKey').classList.add('error');
+    }
   } finally {
     btn.disabled = false;
     btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Connect &amp; Sync`;
@@ -898,9 +740,16 @@ async function syncData() {
       'success'
     );
   } catch (err) {
-    const msg = err.message.includes('401') || err.message.includes('403')
+    const m = err.message || '';
+    const msg = (m.includes('401') || m.includes('403'))
       ? 'Authentication failed. Please reconnect.'
-      : 'Sync failed: ' + err.message;
+      : (m.includes('502') || m.includes('503') || m.includes('504'))
+      ? 'intervals.icu is temporarily unavailable (server error). Try again in a few minutes.'
+      : (m.includes('NetworkError') || m.includes('Failed to fetch') || m.includes('CORS') || m.includes('network'))
+      ? 'Can\'t reach intervals.icu — their server may be down or your connection dropped. Try again shortly.'
+      : (m.includes('429'))
+      ? 'Rate limited by intervals.icu. Wait a few minutes before syncing again.'
+      : 'Sync failed: ' + m;
     showToast(msg, 'error');
   } finally {
     setLoading(false);
@@ -1558,7 +1407,7 @@ function navigate(page) {
   document.getElementById('pageTitle').textContent    = title;
   document.getElementById('pageSubtitle').textContent = sub;
 
-  // Calendar fills full viewport height — toggle padding-less mode on the scroll container
+  // Calendar fills full viewport height — toggle padding-less mode
   const pc = document.getElementById('pageContent');
   if (pc) pc.classList.toggle('page-content--calendar', page === 'calendar');
 
@@ -1586,8 +1435,9 @@ function navigate(page) {
   const calLabel = document.getElementById('calTopbarMonth');
   if (calLabel) calLabel.style.display = (page === 'calendar') ? '' : 'none';
 
-  // Ensure topbar is always visible (never hide on calendar)
+  // Ensure topbar is always visible
   document.querySelector('.topbar')?.classList.remove('topbar--hidden');
+  // Restore page headline (hidden when viewing single activity)
   document.querySelector('.page-headline')?.classList.remove('page-headline--hidden');
 
   if (page === 'dashboard' && state.synced) {
@@ -8067,6 +7917,9 @@ function renderActivityBasic(a) {
 
   // ── Data source / device footer ───────────────────────────────────────────
   renderDetailSourceFooter(a);
+
+  // ── Export options ─────────────────────────────────────────────────────────
+  renderDetailExport(a);
 }
 
 function renderDetailComparison(a) {
@@ -8223,6 +8076,136 @@ function renderDetailSourceFooter(a) {
   if (a.id) parts.push(`<a class="dsf-link" href="https://intervals.icu/activities/${a.id}" target="_blank" rel="noopener">View on intervals.icu</a>`);
 
   el.innerHTML = parts.join('<span class="dsf-sep">·</span>');
+}
+
+function renderDetailExport(a) {
+  const card = document.getElementById('detailExportCard');
+  const buttonsEl = document.getElementById('detailExportButtons');
+  if (!card || !buttonsEl) return;
+
+  const actId = a.id || a.icu_activity_id;
+  if (!actId) { card.style.display = 'none'; return; }
+
+  const buttons = [];
+
+  // Download original file (if available)
+  buttons.push(`
+    <button class="btn btn-ghost detail-export-btn" title="Download original activity file" onclick="downloadActivityFile('${actId}')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      <span>Original File</span>
+    </button>
+  `);
+
+  // Download as FIT
+  buttons.push(`
+    <button class="btn btn-ghost detail-export-btn" title="Download as Garmin FIT format" onclick="downloadFITFile('${actId}')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      <span>Garmin (.fit)</span>
+    </button>
+  `);
+
+  // Download as GPX
+  buttons.push(`
+    <button class="btn btn-ghost detail-export-btn" title="Download as GPX format (GPS data)" onclick="downloadGPXFile('${actId}')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      <span>GPX (GPS)</span>
+    </button>
+  `);
+
+  buttonsEl.innerHTML = buttons.join('');
+  card.style.display = '';
+}
+
+// ── Download functions ─────────────────────────────────────────────────────
+async function downloadActivityFile(actId) {
+  try {
+    const urls = [
+      ICU_BASE + `/activity/${actId}/file`,
+      ICU_BASE + `/activity/${actId}/original`,
+      ICU_BASE + `/athlete/${state.athleteId}/activities/${actId}/original`,
+    ];
+    let data = null;
+    for (const u of urls) {
+      data = await fetch(u, { headers: authHeader() });
+      rlTrackRequest();
+      if (data.ok) break;
+      data = null;
+    }
+    if (!data) throw new Error('Original file not available for this activity');
+    const blob = await data.blob();
+    const cd = data.headers.get('content-disposition') || '';
+    const fnMatch = cd.match(/filename="?([^";\n]+)"?/);
+    const filename = fnMatch ? fnMatch[1] : `activity-${actId}`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('Activity downloaded', 'success');
+  } catch (err) {
+    showToast('Download failed: ' + err.message, 'error');
+  }
+}
+
+async function downloadFITFile(actId) {
+  try {
+    const urls = [
+      ICU_BASE + `/activity/${actId}.fit`,
+      ICU_BASE + `/athlete/${state.athleteId}/activities/${actId}.fit`,
+    ];
+    let data = null;
+    for (const u of urls) {
+      data = await fetch(u, { headers: authHeader() });
+      rlTrackRequest();
+      if (data.ok) break;
+      data = null;
+    }
+    if (!data) throw new Error('FIT file not available for this activity');
+    const blob = await data.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `activity-${actId}.fit`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('FIT file downloaded', 'success');
+  } catch (err) {
+    showToast('Download failed: ' + err.message, 'error');
+  }
+}
+
+async function downloadGPXFile(actId) {
+  try {
+    const urls = [
+      ICU_BASE + `/activity/${actId}.gpx`,
+      ICU_BASE + `/athlete/${state.athleteId}/activities/${actId}.gpx`,
+    ];
+    let data = null;
+    for (const u of urls) {
+      data = await fetch(u, { headers: authHeader() });
+      rlTrackRequest();
+      if (data.ok) break;
+      data = null;
+    }
+    if (!data) throw new Error('GPX file not available for this activity');
+    const blob = await data.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `activity-${actId}.gpx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('GPX file downloaded', 'success');
+  } catch (err) {
+    showToast('Download failed: ' + err.message, 'error');
+  }
 }
 
 /* ====================================================
@@ -12391,36 +12374,48 @@ function submitGoalForm() {
 
 function renderGoalsDashWidget() {
   const container = document.getElementById('goalsDashContent');
+  const section   = document.getElementById('goalsDashSection');
   if (!container) return;
   const goals = loadGoals();
-  if (!goals.length) { container.style.display = 'none'; return; }
-  container.style.display = '';
+  if (!goals.length) { if (section) section.style.display = 'none'; return; }
+  if (section) section.style.display = '';
 
-  const periodLabel = { week: 'Wk', month: 'Mo', year: 'Yr' };
-  let html = `<div class="card"><div class="card-header"><div><div class="card-title">Goals</div><div class="card-subtitle">Training targets progress</div></div><a href="#" onclick="navigate('goals');return false" style="font-size:12px;color:var(--accent);text-decoration:none;font-weight:500">View all</a></div><div style="padding:0 16px 16px"><div class="goals-dash-list">`;
+  const periodLabel = { week: 'This Week', month: 'This Month', year: 'This Year' };
+  const statusLabel = { ahead: 'Ahead', 'on-track': 'On Track', caution: 'Caution', behind: 'Behind' };
+  const statusCls   = { ahead: 'green', 'on-track': 'green', caution: 'yellow', behind: 'red' };
+  let html = '';
 
-  goals.slice(0, 4).forEach(goal => {
+  goals.forEach(goal => {
     const m = GOAL_METRICS[goal.metric];
     if (!m) return;
     const p = computeGoalProgress(goal);
-    const statusCls = { ahead: 'green', 'on-track': 'green', caution: 'yellow', behind: 'red' };
 
     html += `
-    <div class="goals-dash-item">
-      <div class="goals-dash-label">
-        <span class="goals-dash-dot goals-dash-dot--${m.icon}"></span>
-        ${m.label} <span class="goals-dash-period">${periodLabel[goal.period]}</span>
+    <div class="goal-dash-card card" onclick="navigate('goals')">
+      <div class="goal-dash-top">
+        <div class="goal-metric-icon ${m.icon}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+            <circle cx="12" cy="12" r="10"/><path d="M12 8v4l2 2"/>
+          </svg>
+        </div>
+        <div class="goal-dash-info">
+          <div class="goal-dash-title">${m.label}</div>
+          <div class="goal-dash-period">${periodLabel[goal.period]} · ${p.remaining}d left</div>
+        </div>
       </div>
-      <div class="goals-dash-bar-wrap">
-        <div class="goals-dash-bar goals-dash-bar--${statusCls[p.status]}" style="width:${p.pct.toFixed(1)}%"></div>
+      <div class="goal-dash-progress">
+        <div class="goal-progress-bar-wrap">
+          <div class="goal-progress-bar goal-progress-bar--${statusCls[p.status]}" style="width:${p.pct.toFixed(1)}%"></div>
+          <div class="goal-progress-expected" style="left:${Math.min(p.elapsed / p.totalDays * 100, 100).toFixed(1)}%"></div>
+        </div>
+        <div class="goal-dash-stats">
+          <span class="goal-dash-value">${m.fmt(p.current)} / ${m.fmt(p.target)} ${m.unit}</span>
+          <span class="goal-progress-badge goal-progress-badge--${statusCls[p.status]}">${statusLabel[p.status]}</span>
+        </div>
+        <div class="goal-dash-pct">${Math.round(p.pct)}% complete</div>
       </div>
-      <div class="goals-dash-val">${m.fmt(p.current)} / ${m.fmt(p.target)} ${m.unit}</div>
     </div>`;
   });
-
-  html += '</div>';
-  if (goals.length > 4) html += `<div class="goals-dash-more"><a href="#" onclick="navigate('goals');return false">View all ${goals.length} goals →</a></div>`;
-  html += '</div></div>';
 
   container.innerHTML = html;
 }
@@ -13798,7 +13793,7 @@ function toggleSmoothFlyover(on) {
   // expose so other parts of the app can attach glow to late-rendered elements
   window.attachCardGlow = attachGlow;
 
-  const GLOW_SEL = '.stat-card, .recent-act-card, .perf-metric, .act-pstat, .mm-cell, .wxp-day-card, .fit-kpi-card, .wx-day, .znp-kpi-card, .wxp-st, .wxp-best-card, .stk-hero-card, .stk-pb-card, .stk-badge--earned, .stk-stat-tile';
+  const GLOW_SEL = '.stat-card, .recent-act-card, .perf-metric, .act-pstat, .mm-cell, .wxp-day-card, .fit-kpi-card, .wx-day, .znp-kpi-card, .wxp-st, .wxp-best-card, .stk-hero-card, .stk-pb-card, .stk-badge--earned, .stk-stat-tile, .goal-dash-card';
 
   function attachPress(el) {
     const press   = () => el.classList.add('is-pressed');
