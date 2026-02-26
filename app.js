@@ -14151,16 +14151,20 @@ async function _hmLocateMe() {
 
 /* ── Heatmap route cache (IndexedDB — no size limit) ── */
 const HM_DB_NAME = 'cycleiq_heatmap';
-const HM_DB_VER  = 1;
+const HM_DB_VER  = 2;
 const HM_STORE   = 'routes';
+const HM_META_STORE = 'meta';  // store negative-cache & last-sync timestamp
 
 function _hmOpenDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(HM_DB_NAME, HM_DB_VER);
-    req.onupgradeneeded = () => {
+    req.onupgradeneeded = (e) => {
       const db = req.result;
       if (!db.objectStoreNames.contains(HM_STORE)) {
         db.createObjectStore(HM_STORE, { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains(HM_META_STORE)) {
+        db.createObjectStore(HM_META_STORE, { keyPath: 'key' });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -14187,6 +14191,76 @@ async function _hmSaveCache(routes) {
   } catch (e) { console.warn('[HM cache] save failed:', e); }
 }
 
+/* Save only new routes (incremental — avoids rewriting the whole DB) */
+async function _hmSaveCacheIncremental(newRoutes) {
+  if (!newRoutes || newRoutes.length === 0) return;
+  try {
+    const db = await _hmOpenDB();
+    const tx = db.transaction(HM_STORE, 'readwrite');
+    const store = tx.objectStore(HM_STORE);
+    for (const r of newRoutes) {
+      store.put({
+        id: r.id, pts: r.points, d: r.date.toISOString(),
+        tp: r.type, dst: r.distance, tm: r.time, pw: r.power,
+        hr: r.hr, nm: r.name, spd: r.speed, elv: r.elevation, h: r.hour,
+      });
+    }
+    await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
+    db.close();
+  } catch (e) { console.warn('[HM cache] incremental save failed:', e); }
+}
+
+/* ── Negative cache: remember activity IDs that have no GPS ── */
+async function _hmGetNoGpsSet() {
+  try {
+    const db = await _hmOpenDB();
+    const tx = db.transaction(HM_META_STORE, 'readonly');
+    const store = tx.objectStore(HM_META_STORE);
+    const rec = await new Promise((res, rej) => {
+      const req = store.get('noGpsIds');
+      req.onsuccess = () => res(req.result);
+      req.onerror   = () => rej(req.error);
+    });
+    db.close();
+    return new Set(rec ? rec.ids : []);
+  } catch (_) { return new Set(); }
+}
+
+async function _hmSaveNoGpsSet(idSet) {
+  try {
+    const db = await _hmOpenDB();
+    const tx = db.transaction(HM_META_STORE, 'readwrite');
+    tx.objectStore(HM_META_STORE).put({ key: 'noGpsIds', ids: [...idSet] });
+    await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
+    db.close();
+  } catch (_) {}
+}
+
+/* ── Last background-update timestamp ── */
+async function _hmGetLastBgUpdate() {
+  try {
+    const db = await _hmOpenDB();
+    const tx = db.transaction(HM_META_STORE, 'readonly');
+    const rec = await new Promise((res, rej) => {
+      const req = tx.objectStore(HM_META_STORE).get('lastBgUpdate');
+      req.onsuccess = () => res(req.result);
+      req.onerror   = () => rej(req.error);
+    });
+    db.close();
+    return rec ? rec.ts : 0;
+  } catch (_) { return 0; }
+}
+
+async function _hmSetLastBgUpdate() {
+  try {
+    const db = await _hmOpenDB();
+    const tx = db.transaction(HM_META_STORE, 'readwrite');
+    tx.objectStore(HM_META_STORE).put({ key: 'lastBgUpdate', ts: Date.now() });
+    await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
+    db.close();
+  } catch (_) {}
+}
+
 async function _hmLoadCache() {
   try {
     const db = await _hmOpenDB();
@@ -14210,8 +14284,9 @@ async function _hmLoadCache() {
 async function _hmClearCache() {
   try {
     const db = await _hmOpenDB();
-    const tx = db.transaction(HM_STORE, 'readwrite');
-    tx.objectStore(HM_STORE).clear();
+    const stores = [HM_STORE, HM_META_STORE].filter(s => db.objectStoreNames.contains(s));
+    const tx = db.transaction(stores, 'readwrite');
+    stores.forEach(s => tx.objectStore(s).clear());
     await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
     db.close();
   } catch (_) {}
@@ -14278,32 +14353,54 @@ async function hmLoadAllRoutes() {
 }
 
 /* ── Background update: check for new activities not yet in cache ── */
+const HM_BG_COOLDOWN = 10 * 60 * 1000; // 10 minutes between background checks
+
 async function _hmBackgroundUpdate(cachedRoutes) {
+  // Cooldown: skip if we checked recently
+  const lastBg = await _hmGetLastBgUpdate();
+  if (Date.now() - lastBg < HM_BG_COOLDOWN) return;
+
   await new Promise(r => setTimeout(r, 500));
   const acts = getAllActivities().filter(a => !isEmptyActivity(a));
   const cachedIds = new Set(cachedRoutes.map(r => r.id));
+  const noGpsSet  = await _hmGetNoGpsSet();
+
   const newActs = acts.filter(a => {
-    if (cachedIds.has(a.id)) return false;
+    if (cachedIds.has(a.id)) return false;      // already have GPS for this
+    if (noGpsSet.has(a.id))  return false;       // already know it has no GPS
     if (a.start_latlng && Array.isArray(a.start_latlng) && a.start_latlng.length === 2) return true;
     const dist = a.distance || a.icu_distance || 0;
     return dist > 500;
   });
 
+  // Mark that we checked, even if nothing new
+  await _hmSetLastBgUpdate();
+
   if (newActs.length === 0) return;
 
   // Fetch GPS for new activities in background
   const newRoutes = [];
+  const failedIds = [];
   const BATCH = 5;
   for (let i = 0; i < newActs.length; i += BATCH) {
     const batch = newActs.slice(i, i + BATCH);
     const results = await Promise.all(batch.map(a => _hmFetchOneRoute(a)));
-    results.forEach(r => { if (r) newRoutes.push(r); });
+    results.forEach((r, idx) => {
+      if (r) newRoutes.push(r);
+      else   failedIds.push(batch[idx].id);   // no GPS — remember so we don't retry
+    });
     if (i + BATCH < newActs.length) await new Promise(r => setTimeout(r, 150));
+  }
+
+  // Save negative cache so we never re-fetch these
+  if (failedIds.length > 0) {
+    failedIds.forEach(id => noGpsSet.add(id));
+    _hmSaveNoGpsSet(noGpsSet);
   }
 
   if (newRoutes.length > 0) {
     _hm.allRoutes = [..._hm.allRoutes, ...newRoutes].sort((a, b) => a.date - b.date);
-    _hmSaveCache(_hm.allRoutes);
+    _hmSaveCacheIncremental(newRoutes);   // only write the new ones
     hmApplyFilters(); // re-draw with new routes
     showToast(`Heat map: added ${newRoutes.length} new route${newRoutes.length > 1 ? 's' : ''}`, 'success');
   }
@@ -14367,6 +14464,7 @@ async function _hmFetchAllRoutes(subEl, textEl) {
   if (subEl) subEl.textContent = `0 of ${candidates.length}`;
 
   const routes = [];
+  const noGpsIds = [];
   let loaded = 0;
   let foundGPS = 0;
 
@@ -14374,11 +14472,21 @@ async function _hmFetchAllRoutes(subEl, textEl) {
   for (let i = 0; i < candidates.length; i += BATCH) {
     const batch = candidates.slice(i, i + BATCH);
     const results = await Promise.all(batch.map(a => _hmFetchOneRoute(a)));
-    results.forEach(r => { if (r) { routes.push(r); foundGPS++; } });
+    results.forEach((r, idx) => {
+      if (r) { routes.push(r); foundGPS++; }
+      else   noGpsIds.push(batch[idx].id);
+    });
     loaded += batch.length;
     if (subEl) subEl.textContent = `${loaded} of ${candidates.length} checked · ${foundGPS} routes found`;
     if (i + BATCH < candidates.length) await new Promise(r => setTimeout(r, 150));
   }
+
+  // Save negative cache so first-time failures aren't retried
+  if (noGpsIds.length > 0) {
+    _hmSaveNoGpsSet(new Set(noGpsIds));
+  }
+  // Mark background-update timestamp so it doesn't re-run immediately
+  _hmSetLastBgUpdate();
 
   routes.sort((a, b) => a.date - b.date);
   return routes;
@@ -15053,18 +15161,14 @@ function impSaveActivity(activity) {
 }
 
 /* ── Save route to IndexedDB (same DB as heatmap) ── */
-function impSaveRouteToIDB(activityId, route) {
-  const req = indexedDB.open('cycleiq_heatmap', 1);
-  req.onupgradeneeded = e => {
-    const db = e.target.result;
-    if (!db.objectStoreNames.contains('routes')) db.createObjectStore('routes', { keyPath: 'id' });
-  };
-  req.onsuccess = e => {
-    const db = e.target.result;
-    if (!db.objectStoreNames.contains('routes')) return;
-    const tx = db.transaction('routes', 'readwrite');
-    tx.objectStore('routes').put({ id: activityId, route, source: 'fit_import' });
-  };
+async function impSaveRouteToIDB(activityId, route) {
+  try {
+    const db = await _hmOpenDB();
+    const tx = db.transaction(HM_STORE, 'readwrite');
+    tx.objectStore(HM_STORE).put({ id: activityId, route, source: 'fit_import' });
+    await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
+    db.close();
+  } catch (_) {}
 }
 
 /* ── Render import history ── */
