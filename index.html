@@ -29,9 +29,40 @@
         <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
         <script>
-            if (typeof exports === "undefined") var exports = {};
+            // ── CommonJS shim for fit-file-parser (Node → Browser) ──
+            // fit-file-parser's dist files use require()/exports — we emulate
+            // a minimal CommonJS environment so all four modules can load.
+            (function () {
+                var _modules = {};
+                var _current = null;
+                window.module  = { get exports() { return _modules[_current] || {}; }, set exports(v) { _modules[_current] = v; } };
+                window.exports = {};
+                window.require = function (name) {
+                    var key = name.replace(/^\.\//, '');
+                    if (_modules[key]) return _modules[key];
+                    throw new Error('Module not found: ' + name);
+                };
+                window.__cjs = function (name) {
+                    _current = name;
+                    window.exports = _modules[name] = _modules[name] || {};
+                    window.module = { get exports() { return _modules[name]; }, set exports(v) { _modules[name] = v; } };
+                };
+            })();
         </script>
-        <script src="https://cdn.jsdelivr.net/npm/fit-file-parser@1.9.1/dist/fit-parser.min.js"></script>
+        <script>__cjs('binary');</script>
+        <script src="https://cdn.jsdelivr.net/npm/fit-file-parser@1.9.1/dist/binary.js"></script>
+        <script>__cjs('messages');</script>
+        <script src="https://cdn.jsdelivr.net/npm/fit-file-parser@1.9.1/dist/messages.js"></script>
+        <script>__cjs('fit');</script>
+        <script src="https://cdn.jsdelivr.net/npm/fit-file-parser@1.9.1/dist/fit.js"></script>
+        <script>__cjs('fit-parser');</script>
+        <script src="https://cdn.jsdelivr.net/npm/fit-file-parser@1.9.1/dist/fit-parser.js"></script>
+        <script>
+            // Expose FitParser globally for app.js
+            window.FitParser = (window.require('fit-parser') || {}).default || window.exports.default;
+            // Clean up CJS shim from global scope
+            delete window.module; delete window.exports; delete window.require; delete window.__cjs;
+        </script>
         <script src="app.js" defer></script>
     </head>
     <body>
