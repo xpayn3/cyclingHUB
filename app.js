@@ -2180,7 +2180,24 @@ async function renderRecentActivity() {
   (state.recentActivityMaps || []).forEach(m => { try { m.remove(); } catch (_) {} });
   state.recentActivityMaps = [];
 
-  const pool = (state.activities || []).filter(a => !isEmptyActivity(a));
+  // Debug: log newest activity and whether it passes the filter
+  const _raw = state.activities || [];
+  if (_raw.length) {
+    const newest = _raw[0];
+    const _empty = isEmptyActivity(newest);
+    console.log('[recent] newest activity:', newest.name, '| type:', newest.type, '| empty?', _empty);
+    if (_empty) {
+      console.log('[recent] FILTERED OUT — fields:', JSON.stringify({
+        distance: newest.distance ?? newest.icu_distance,
+        moving_time: newest.moving_time ?? newest.elapsed_time ?? newest.icu_moving_time,
+        tss: newest.icu_training_load ?? newest.tss,
+        hr: newest.average_heartrate ?? newest.icu_average_heartrate,
+        watts: newest.icu_weighted_avg_watts ?? newest.average_watts,
+      }));
+    }
+  }
+
+  const pool = _raw.filter(a => !isEmptyActivity(a));
   if (!pool.length) {
     rail.innerHTML = '';
     if (sectionLabel) sectionLabel.style.display = 'none';
