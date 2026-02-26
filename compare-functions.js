@@ -76,12 +76,12 @@ function buildMetricDropdown(baseMetricKey) {
   }
 }
 
-function setComparePeriod(days) {
+function setComparePeriod(days, e) {
   _compare.periodDays = days;
   _compare.startDate = null;
   _compare.endDate = null;
   document.querySelectorAll('.compare-range-pills button').forEach(b => b.classList.remove('active'));
-  event?.target?.classList.add('active');
+  (e || window.event)?.target?.classList.add('active');
   updateComparePage();
 }
 
@@ -113,7 +113,7 @@ function applyCustomDateRange() {
   const endStr = document.getElementById('compareEndDate').value;
 
   if (!startStr || !endStr) {
-    alert('Please select both start and end dates');
+    if (typeof showToast === 'function') showToast('Please select both start and end dates', 'error');
     return;
   }
 
@@ -305,7 +305,7 @@ function updateComparePage() {
   const metrics = [_compare.metric1, _compare.metric2, _compare.metric3].filter(m => m);
 
   if (!validateMetricsGroup(...metrics)) {
-    alert('Can only compare metrics from the same group. Please select metrics with compatible units.');
+    if (typeof showToast === 'function') showToast('Can only compare metrics from the same group. Please select metrics with compatible units.', 'error');
     return;
   }
 

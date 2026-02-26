@@ -62,6 +62,16 @@ const state = {
 
 const ICU_BASE = 'https://intervals.icu/api/v1';
 
+/* ── Safe min/max for large arrays (avoids call-stack overflow with spread) ── */
+function safeMax(arr) { let m = -Infinity; for (let i = 0; i < arr.length; i++) if (arr[i] > m) m = arr[i]; return m; }
+function safeMin(arr) { let m = Infinity;  for (let i = 0; i < arr.length; i++) if (arr[i] < m) m = arr[i]; return m; }
+
+/* ── MutationObserver refs (for cleanup) ── */
+let _glowObserver = null, _tiltObserver = null, _carouselObserver = null;
+
+/* ── Navigation AbortController ── */
+let _navAbort = null;
+
 /* ====================================================
    GREETING
 ==================================================== */
@@ -200,8 +210,10 @@ function stopGlowParticles()  { /* no-op */ }
    CREDENTIALS (localStorage)
 ==================================================== */
 function saveCredentials(athleteId, apiKey) {
-  localStorage.setItem('icu_athlete_id', athleteId);
-  localStorage.setItem('icu_api_key', apiKey);
+  try {
+    localStorage.setItem('icu_athlete_id', athleteId);
+    localStorage.setItem('icu_api_key', apiKey);
+  } catch (e) { console.warn('localStorage.setItem failed (credentials):', e); }
   state.athleteId = athleteId;
   state.apiKey = apiKey;
 }
@@ -467,9 +479,26 @@ function authHeader() {
    API CALLS
 ==================================================== */
 async function icuFetch(path) {
-  const res = await fetch(ICU_BASE + path, {
-    headers: { ...authHeader(), 'Accept': 'application/json' }
-  });
+  // Combine navigation abort signal with a 30-second timeout
+  const signals = [];
+  if (_navAbort) signals.push(_navAbort.signal);
+  if (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) {
+    signals.push(AbortSignal.timeout(30000));
+  }
+  const signal = signals.length > 1 && typeof AbortSignal.any === 'function'
+    ? AbortSignal.any(signals)
+    : signals[0] || undefined;
+
+  let res;
+  try {
+    res = await fetch(ICU_BASE + path, {
+      headers: { ...authHeader(), 'Accept': 'application/json' },
+      signal,
+    });
+  } catch (err) {
+    if (err.name === 'AbortError') return null;
+    throw err;
+  }
   rlTrackRequest();  // count only after a real network request fires
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);
@@ -669,8 +698,14 @@ async function handleConnect() {
 /* ====================================================
    SYNC
 ==================================================== */
+let _syncInProgress = false;
+
 async function syncData() {
+  if (_syncInProgress) return;
+  _syncInProgress = true;
+
   if (!state.athleteId || !state.apiKey) {
+    _syncInProgress = false;
     openModal();
     return;
   }
@@ -752,6 +787,7 @@ async function syncData() {
       : 'Sync failed: ' + m;
     showToast(msg, 'error');
   } finally {
+    _syncInProgress = false;
     setLoading(false);
     btn.classList.remove('btn-spinning');
     btn.disabled = false;
@@ -760,6 +796,7 @@ async function syncData() {
 
 function disconnect() {
   if (!confirm('Disconnect and clear saved credentials?')) return;
+  pollStop();           // stop smart polling timer
   clearCredentials();   // also calls clearFitnessCache()
   clearActivityCache();
   updateConnectionUI(false);
@@ -813,7 +850,7 @@ function handleAvatarUpload(e) {
       const sx = (img.width - sw) / 2, sy = (img.height - sh) / 2;
       ctx.drawImage(img, sx, sy, sw, sh, 0, 0, size, size);
       const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
-      localStorage.setItem('icu_avatar', dataUrl);
+      try { localStorage.setItem('icu_avatar', dataUrl); } catch (e) { console.warn('localStorage.setItem failed (avatar):', e); }
       applyAvatar(dataUrl);
       showToast('Profile photo updated', 'success');
     };
@@ -1377,6 +1414,10 @@ if (window.visualViewport) {
 }
 
 function navigate(page) {
+  // Abort any in-flight API requests from the previous page
+  _navAbort?.abort();
+  _navAbort = new AbortController();
+
   // Clean up charts from the page we're leaving to free memory
   if (state.currentPage) cleanupPageCharts(state.currentPage);
 
@@ -1599,14 +1640,16 @@ function getWxLocations() {
 }
 
 function saveWxLocations(locs) {
-  localStorage.setItem('icu_wx_locations', JSON.stringify(locs));
-  // Keep icu_wx_coords in sync with the active location (backward compat)
-  const active = locs.find(l => l.active);
-  if (active) {
-    localStorage.setItem('icu_wx_coords', JSON.stringify({ lat: active.lat, lng: active.lng, city: active.city }));
-  } else {
-    localStorage.removeItem('icu_wx_coords');
-  }
+  try {
+    localStorage.setItem('icu_wx_locations', JSON.stringify(locs));
+    // Keep icu_wx_coords in sync with the active location (backward compat)
+    const active = locs.find(l => l.active);
+    if (active) {
+      localStorage.setItem('icu_wx_coords', JSON.stringify({ lat: active.lat, lng: active.lng, city: active.city }));
+    } else {
+      localStorage.removeItem('icu_wx_coords');
+    }
+  } catch (e) { console.warn('localStorage.setItem failed (wx locations):', e); }
 }
 
 function getActiveWxLocation() {
@@ -1753,7 +1796,7 @@ function initWeatherLocationUI() {
 }
 
 function setWeatherModel(model) {
-  localStorage.setItem('icu_wx_model', model);
+  try { localStorage.setItem('icu_wx_model', model); } catch (e) { console.warn('localStorage.setItem failed:', e); }
   // Clear cached forecasts so next load uses the new model
   localStorage.removeItem('icu_wx_forecast');
   localStorage.removeItem('icu_wx_forecast_ts');
@@ -1764,7 +1807,7 @@ function setWeatherModel(model) {
 
 function setUnits(units) {
   state.units = units;
-  localStorage.setItem('icu_units', units);
+  try { localStorage.setItem('icu_units', units); } catch (e) { console.warn('localStorage.setItem failed:', e); }
   document.querySelectorAll('[data-units]').forEach(btn =>
     btn.classList.toggle('active', btn.dataset.units === units)
   );
@@ -1806,7 +1849,7 @@ function fmtElev(metres) {
 function setWeekStartDay(day) {
   // day: 0=Sunday, 1=Monday
   state.weekStartDay = day;
-  localStorage.setItem('icu_week_start_day', day);
+  try { localStorage.setItem('icu_week_start_day', day); } catch (e) { console.warn('localStorage.setItem failed:', e); }
   // Sync toggle buttons in settings
   document.querySelectorAll('[data-weekstart]').forEach(btn => {
     btn.classList.toggle('active', parseInt(btn.dataset.weekstart) === day);
@@ -1825,7 +1868,7 @@ function rangeLabel(days) {
 
 function setRange(days) {
   state.rangeDays = days;
-  localStorage.setItem('icu_range_days', days);
+  try { localStorage.setItem('icu_range_days', days); } catch (e) { console.warn('localStorage.setItem failed:', e); }
   // Sync topbar pill
   document.querySelectorAll('#dateRangePill button').forEach(b => b.classList.remove('active'));
   document.getElementById('range' + days)?.classList.add('active');
@@ -8625,24 +8668,24 @@ function renderActivityMap(latlng, streams) {
       // ── Pre-compute per-mode maxima ──────────────────────────────────────
       const spdArr  = streams.velocity_smooth;
       const maxSpdKmh = (Array.isArray(spdArr) && spdArr.length)
-        ? Math.ceil(Math.max(...spdArr.filter(v => v != null)) * 3.6 / 5) * 5
+        ? Math.ceil(safeMax(spdArr.filter(v => v != null)) * 3.6 / 5) * 5
         : 50;
 
       const hrArr = streams.heartrate || streams.heart_rate;
       const maxHR = (Array.isArray(hrArr) && hrArr.length)
-        ? Math.round(Math.max(...hrArr.filter(v => v != null)))
+        ? Math.round(safeMax(hrArr.filter(v => v != null)))
         : 190;
 
       const wArr = streams.watts || streams.power;
       const maxWatts = (Array.isArray(wArr) && wArr.length)
-        ? Math.ceil(Math.max(...wArr.filter(v => v != null)) / 50) * 50
+        ? Math.ceil(safeMax(wArr.filter(v => v != null)) / 50) * 50
         : 400;
 
       const altArr = streams.altitude;
       const minAlt = (Array.isArray(altArr) && altArr.length)
-        ? Math.min(...altArr.filter(v => v != null)) : 0;
+        ? safeMin(altArr.filter(v => v != null)) : 0;
       const maxAlt = (Array.isArray(altArr) && altArr.length)
-        ? Math.max(...altArr.filter(v => v != null)) : 100;
+        ? safeMax(altArr.filter(v => v != null)) : 100;
 
       const maxes = { maxSpdKmh, maxHR, maxWatts, minAlt, maxAlt };
 
@@ -8815,7 +8858,7 @@ function renderActivityMap(latlng, streams) {
           clearTimeout(hintTimer);
           hintTimer = setTimeout(() => {
             hint.classList.remove('visible');
-            localStorage.setItem(ALT_HINT_KEY, '1');
+            try { localStorage.setItem(ALT_HINT_KEY, '1'); } catch (_e) {}
           }, 1600);
         }
       }, { passive: false });
@@ -9122,7 +9165,7 @@ function initFlythrough(map, valid, streams, maxes, maxSpdKmh, maxHR, statsEl, t
       _mc.layers.forEach(layer => {
         if (!_mc.layerOn[layer.key]) return;
         const { data, min, max, color } = layer;
-        const range = max - min || 1;
+        const range = max - min;
         const step = Math.max(1, Math.floor(data.length / (drawW / dpr)));
 
         oCtx.beginPath();
@@ -9135,7 +9178,7 @@ function initFlythrough(map, valid, streams, maxes, maxSpdKmh, maxHR, statsEl, t
           const v = data[i];
           if (v == null) continue;
           const x = (i / (data.length - 1)) * drawW;
-          const y = pad + drawH - ((v - min) / range) * drawH;
+          const y = pad + drawH - (range === 0 ? 0.5 : (v - min) / range) * drawH;
           if (!started) { oCtx.moveTo(x, y); started = true; }
           else oCtx.lineTo(x, y);
         }
@@ -9170,11 +9213,11 @@ function initFlythrough(map, valid, streams, maxes, maxSpdKmh, maxHR, statsEl, t
     _mc.layers.forEach(layer => {
       if (!_mc.layerOn[layer.key]) return;
       const { data, min, max, color } = layer;
-      const range = max - min || 1;
+      const range = max - min;
       const di = Math.min(si, data.length - 1);
       const v = data[di];
       if (v == null) return;
-      const y = dotPad + dotDrawH - ((v - min) / range) * dotDrawH;
+      const y = dotPad + dotDrawH - (range === 0 ? 0.5 : (v - min) / range) * dotDrawH;
       ctx.beginPath();
       ctx.arc(xPx, y, 4 * dpr, 0, Math.PI * 2);
       ctx.fillStyle = color;
@@ -9705,7 +9748,7 @@ function showCardNA(cardId) {
 }
 
 function setHideEmptyCards(enabled) {
-  localStorage.setItem('icu_hide_empty_cards', String(enabled));
+  try { localStorage.setItem('icu_hide_empty_cards', String(enabled)); } catch (e) { console.warn('localStorage.setItem failed:', e); }
   const toggle = document.getElementById('hideEmptyCardsToggle');
   if (toggle) toggle.checked = enabled;
 }
@@ -10128,8 +10171,8 @@ function renderDetailTempChart(streams, activity) {
   });
 
   const valid = temps.filter(v => v != null);
-  const minT  = Math.min(...valid);
-  const maxT  = Math.max(...valid);
+  const minT  = safeMin(valid);
+  const maxT  = safeMax(valid);
   const avgT  = Math.round(valid.reduce((a, b) => a + b, 0) / valid.length * 10) / 10;
 
   if (subtitle) subtitle.textContent = `Avg ${avgT}${deg} · Min ${minT}${deg} · Max ${maxT}${deg}`;
@@ -11048,7 +11091,7 @@ function renderStreaksPage() {
         el.addEventListener('animationend', () => el.classList.remove('badge-shine-play'), { once: true });
       }, 200 + i * 120);
     });
-    localStorage.setItem(seenKey, JSON.stringify([...seenSet]));
+    try { localStorage.setItem(seenKey, JSON.stringify([...seenSet])); } catch (_e) {}
   }
 }
 
@@ -11475,7 +11518,7 @@ function loadGearComponents() {
   catch { return []; }
 }
 function saveGearComponents(arr) {
-  localStorage.setItem(GEAR_STORE_KEY, JSON.stringify(arr));
+  try { localStorage.setItem(GEAR_STORE_KEY, JSON.stringify(arr)); } catch (e) { console.warn('localStorage.setItem failed:', e); }
 }
 
 // ── State for selected bike filter ──
@@ -12077,7 +12120,7 @@ function loadDashSectionPrefs() {
 function saveDashSectionPref(key, visible) {
   const prefs = loadDashSectionPrefs();
   prefs[key] = visible;
-  localStorage.setItem('icu_dash_sections', JSON.stringify(prefs));
+  try { localStorage.setItem('icu_dash_sections', JSON.stringify(prefs)); } catch (e) { console.warn('localStorage.setItem failed:', e); }
 }
 
 function isDashSectionVisible(key) {
@@ -12135,7 +12178,7 @@ function loadGoals() {
   try { return JSON.parse(localStorage.getItem('icu_goals') || '[]'); }
   catch(e) { return []; }
 }
-function saveGoals(goals) { localStorage.setItem('icu_goals', JSON.stringify(goals)); }
+function saveGoals(goals) { try { localStorage.setItem('icu_goals', JSON.stringify(goals)); } catch (e) { console.warn('localStorage.setItem failed:', e); } }
 
 function addGoal(metric, target, period) {
   const goals = loadGoals();
@@ -12867,10 +12910,18 @@ navigate('dashboard');
   const p = new URLSearchParams(hash);
   const hashId  = p.get('id');
   const hashKey = p.get('key');
+  // Always clear the hash from the URL first for safety
+  history.replaceState(null, '', window.location.pathname + window.location.search);
   if (hashId && hashKey) {
-    saveCredentials(hashId, hashKey);
-    // Remove credentials from URL bar without reloading
-    history.replaceState(null, '', window.location.pathname + window.location.search);
+    // Show confirmation before storing credentials from a URL
+    showConfirmDialog(
+      'Setup Link Detected',
+      `A setup link is trying to connect with Athlete ID: ${hashId}. Allow?`,
+      () => {
+        saveCredentials(hashId, hashKey);
+        syncData();
+      }
+    );
   }
 })();
 
@@ -13646,11 +13697,12 @@ function buildFitWorkout(segments, name, ftp) {
   const existing = document.getElementById('recentActScrollRail');
   if (existing) { initCarouselDrag(existing); }
   else {
-    const obs = new MutationObserver(() => {
+    if (_carouselObserver) _carouselObserver.disconnect();
+    _carouselObserver = new MutationObserver(() => {
       const rail = document.getElementById('recentActScrollRail');
-      if (rail) { initCarouselDrag(rail); obs.disconnect(); }
+      if (rail) { initCarouselDrag(rail); _carouselObserver.disconnect(); _carouselObserver = null; }
     });
-    obs.observe(document.body, { childList: true, subtree: true });
+    _carouselObserver.observe(document.body, { childList: true, subtree: true });
   }
 })();
 
@@ -13660,7 +13712,7 @@ function loadPhysicsScroll() {
   return saved === null ? true : saved === 'true'; // default ON
 }
 function setPhysicsScroll(enabled) {
-  localStorage.setItem('icu_physics_scroll', String(enabled));
+  try { localStorage.setItem('icu_physics_scroll', String(enabled)); } catch (e) { console.warn('localStorage.setItem failed:', e); }
   const toggle = document.getElementById('physicsScrollToggle');
   if (toggle) toggle.checked = enabled;
 }
@@ -13684,7 +13736,7 @@ function loadMapTheme() {
 }
 function setMapTheme(key) {
   if (!MAP_THEMES[key]) return;
-  localStorage.setItem('icu_map_theme', key);
+  try { localStorage.setItem('icu_map_theme', key); } catch (e) { console.warn('localStorage.setItem failed:', e); }
   // Update active state on picker buttons
   document.querySelectorAll('.map-theme-option').forEach(b =>
     b.classList.toggle('active', b.dataset.theme === key));
@@ -13722,7 +13774,7 @@ function loadAppFont() {
 
 function setAppFont(key) {
   if (!FONT_OPTIONS[key]) return;
-  localStorage.setItem('icu_app_font', key);
+  try { localStorage.setItem('icu_app_font', key); } catch (e) { console.warn('localStorage.setItem failed:', e); }
   const family = FONT_OPTIONS[key];
   document.documentElement.style.setProperty('--font-ui', family);
   document.documentElement.style.setProperty('--font-num', family);
@@ -13749,7 +13801,7 @@ function loadSmoothFlyover() {
   return localStorage.getItem('icu_smooth_flyover') !== 'false'; // default on
 }
 function toggleSmoothFlyover(on) {
-  localStorage.setItem('icu_smooth_flyover', on ? 'true' : 'false');
+  try { localStorage.setItem('icu_smooth_flyover', on ? 'true' : 'false'); } catch (e) { console.warn('localStorage.setItem failed:', e); }
 }
 (function initSmoothFlyoverToggle() {
   const el = document.getElementById('smoothFlyoverToggle');
@@ -13889,14 +13941,21 @@ function toggleSmoothFlyover(on) {
   document.querySelectorAll(GLOW_SEL).forEach(attachGlowAndPress);
 
   // Also catch any cards rendered later (e.g. after data loads)
-  const observer = new MutationObserver(() => {
-    document.querySelectorAll(GLOW_SEL).forEach(el => {
-      if (el.dataset.glow) return;
-      el.dataset.glow = '1';
-      attachGlowAndPress(el);
+  if (_glowObserver) _glowObserver.disconnect();
+  let _glowRAFPending = false;
+  _glowObserver = new MutationObserver(() => {
+    if (_glowRAFPending) return;
+    _glowRAFPending = true;
+    requestAnimationFrame(() => {
+      _glowRAFPending = false;
+      document.querySelectorAll(GLOW_SEL).forEach(el => {
+        if (el.dataset.glow) return;
+        el.dataset.glow = '1';
+        attachGlowAndPress(el);
+      });
     });
   });
-  observer.observe(document.body, { childList: true, subtree: true });
+  _glowObserver.observe(document.body, { childList: true, subtree: true });
 })();
 
 /* ====================================================
@@ -13936,12 +13995,19 @@ function toggleSmoothFlyover(on) {
   document.querySelectorAll('.stk-badge--earned').forEach(attachTilt);
 
   // Catch badges rendered later (streaks page is dynamic)
-  const obs = new MutationObserver(() => {
-    document.querySelectorAll('.stk-badge--earned').forEach(el => {
-      if (!el.dataset.tilt) attachTilt(el);
+  if (_tiltObserver) _tiltObserver.disconnect();
+  let _tiltRAFPending = false;
+  _tiltObserver = new MutationObserver(() => {
+    if (_tiltRAFPending) return;
+    _tiltRAFPending = true;
+    requestAnimationFrame(() => {
+      _tiltRAFPending = false;
+      document.querySelectorAll('.stk-badge--earned').forEach(el => {
+        if (!el.dataset.tilt) attachTilt(el);
+      });
     });
   });
-  obs.observe(document.body, { childList: true, subtree: true });
+  _tiltObserver.observe(document.body, { childList: true, subtree: true });
 })();
 
 /* ====================================================
@@ -14704,8 +14770,8 @@ function _hmDrawBySpeed(routes) {
   const speeds = routes.filter(r => r.speed > 0).map(r => r.speed);
   if (speeds.length === 0) { _hmDrawLines(routes); return; }
 
-  const minSpd = Math.min(...speeds);
-  const maxSpd = Math.max(...speeds);
+  const minSpd = safeMin(speeds);
+  const maxSpd = safeMax(speeds);
   const range = maxSpd - minSpd || 1;
 
   routes.forEach(r => {
@@ -15039,7 +15105,7 @@ async function impProcessAll() {
   }
 
   // Save history
-  localStorage.setItem('icu_import_history', JSON.stringify(_imp.history.slice(0, 100)));
+  try { localStorage.setItem('icu_import_history', JSON.stringify(_imp.history.slice(0, 100))); } catch (e) { console.warn('localStorage.setItem failed:', e); }
 
   _imp.processing = false;
   if (btn) btn.disabled = false;
@@ -15222,7 +15288,7 @@ function impSaveActivity(activity) {
   const key = 'icu_fit_activities';
   const list = JSON.parse(localStorage.getItem(key) || '[]');
   list.push(activity);
-  localStorage.setItem(key, JSON.stringify(list));
+  try { localStorage.setItem(key, JSON.stringify(list)); } catch (e) { console.warn('localStorage.setItem failed:', e); }
 
   // Also save GPS route to IndexedDB for heatmap if available
   if (activity.gps_route && activity.gps_route.length > 10) {
@@ -15411,7 +15477,7 @@ const _poll = {
 /** Toggle smart polling on/off */
 function setSmartPoll(on) {
   _poll.enabled = on;
-  localStorage.setItem('icu_smart_poll', on ? '1' : '0');
+  try { localStorage.setItem('icu_smart_poll', on ? '1' : '0'); } catch (e) { console.warn('localStorage.setItem failed:', e); }
 
   // Show/hide interval row & status rows
   const intRow  = document.getElementById('smartPollIntervalRow');
@@ -15432,7 +15498,7 @@ function setSmartPoll(on) {
 /** Set polling interval */
 function setSmartPollInterval(minutes) {
   _poll.intervalM = minutes;
-  localStorage.setItem('icu_smart_poll_interval', String(minutes));
+  try { localStorage.setItem('icu_smart_poll_interval', String(minutes)); } catch (e) { console.warn('localStorage.setItem failed:', e); }
 
   // Update active pill
   document.querySelectorAll('#smartPollIntervalPills button').forEach(b => {

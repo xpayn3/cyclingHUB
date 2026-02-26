@@ -4,7 +4,7 @@
         <meta charset="UTF-8" />
         <meta
             name="viewport"
-            content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+            content="width=device-width, initial-scale=1.0, viewport-fit=cover"
         />
         <title>CycleIQ — Training Dashboard</title>
         <link
@@ -23,17 +23,17 @@
             rel="stylesheet"
             href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"
         />
-        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+        <script defer src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+        <script defer src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
         <!-- FIT parser loaded on-demand in app.js (not needed at startup) -->
         <script src="app.js" defer></script>
     </head>
     <body>
         <!-- ============================================================  CONNECT MODAL  ============================================================ -->
-        <div class="modal-backdrop" id="connectModal">
+        <div class="modal-backdrop" id="connectModal" role="dialog" aria-modal="true" aria-labelledby="connectModalTitle">
             <div class="modal">
                 <div class="modal-header">
                     <div>
@@ -54,7 +54,7 @@
                                 />
                             </svg>
                         </div>
-                        <div class="modal-title">Connect to intervals.icu</div>
+                        <div class="modal-title" id="connectModalTitle">Connect to intervals.icu</div>
                         <div class="modal-desc">
                             Enter your Athlete ID and API key to sync your
                             training data.
@@ -64,6 +64,7 @@
                         class="modal-close"
                         id="modalCloseBtn"
                         onclick="closeModal()"
+                        aria-label="Close"
                     >
                         <svg
                             viewBox="0 0 24 24"
@@ -82,7 +83,7 @@
                         <ol>
                             <li>
                                 Go to
-                                <a href="https://intervals.icu" target="_blank"
+                                <a href="https://intervals.icu" target="_blank" rel="noopener noreferrer"
                                     >intervals.icu</a
                                 >
                                 → Settings → API
@@ -177,7 +178,7 @@
         </div>
 
         <!-- ============================================================  GEAR MODAL  ============================================================ -->
-        <div class="modal-backdrop" id="gearModal">
+        <div class="modal-backdrop" id="gearModal" role="dialog" aria-modal="true" aria-labelledby="gearModalTitle">
             <div class="modal" style="max-width: 520px">
                 <div class="modal-header">
                     <div>
@@ -203,7 +204,7 @@
                             replace it.
                         </div>
                     </div>
-                    <button class="modal-close" onclick="closeGearModal()">
+                    <button class="modal-close" onclick="closeGearModal()" aria-label="Close">
                         <svg
                             viewBox="0 0 24 24"
                             fill="none"
@@ -219,7 +220,7 @@
                     <input type="hidden" id="gearEditId" />
                     <div class="gear-form-grid">
                         <div class="field">
-                            <label>Bike</label>
+                            <label for="gearFormBike">Bike</label>
                             <select id="gearFormBike" class="app-select">
                                 <option value="">
                                     — All bikes / General —
@@ -227,7 +228,7 @@
                             </select>
                         </div>
                         <div class="field">
-                            <label>Category</label>
+                            <label for="gearFormCategory">Category</label>
                             <select id="gearFormCategory" class="app-select">
                                 <option>Drivetrain</option>
                                 <option>Wheels</option>
@@ -241,7 +242,7 @@
                             </select>
                         </div>
                         <div class="field">
-                            <label>Component Name</label>
+                            <label for="gearFormName">Component Name</label>
                             <input
                                 type="text"
                                 id="gearFormName"
@@ -249,7 +250,7 @@
                             />
                         </div>
                         <div class="field">
-                            <label>Brand</label>
+                            <label for="gearFormBrand">Brand</label>
                             <input
                                 type="text"
                                 id="gearFormBrand"
@@ -257,7 +258,7 @@
                             />
                         </div>
                         <div class="field">
-                            <label>Model</label>
+                            <label for="gearFormModel">Model</label>
                             <input
                                 type="text"
                                 id="gearFormModel"
@@ -265,11 +266,11 @@
                             />
                         </div>
                         <div class="field">
-                            <label>Purchase Date</label>
+                            <label for="gearFormDate">Purchase Date</label>
                             <input type="date" id="gearFormDate" />
                         </div>
                         <div class="field">
-                            <label>Price (€)</label>
+                            <label for="gearFormPrice">Price (€)</label>
                             <input
                                 type="number"
                                 id="gearFormPrice"
@@ -279,7 +280,7 @@
                             />
                         </div>
                         <div class="field">
-                            <label>Bike km at Install</label>
+                            <label for="gearFormKmAtInstall">Bike km at Install</label>
                             <input
                                 type="number"
                                 id="gearFormKmAtInstall"
@@ -293,7 +294,7 @@
                             </div>
                         </div>
                         <div class="field" style="grid-column: 1/-1">
-                            <label>Maintenance Reminder (km)</label>
+                            <label for="gearFormReminderKm">Maintenance Reminder (km)</label>
                             <input
                                 type="number"
                                 id="gearFormReminderKm"
@@ -332,7 +333,7 @@
             id="sidebarBackdrop"
             onclick="closeSidebar()"
         ></div>
-        <aside class="sidebar" id="sidebar">
+        <aside class="sidebar" id="sidebar" aria-label="Sidebar">
             <div
                 class="sidebar-logo"
                 onclick="navigate('dashboard')"
@@ -357,7 +358,7 @@
                 </div>
                 <div class="logo-text">Cycle<span>IQ</span></div>
             </div>
-            <nav class="sidebar-nav">
+            <nav class="sidebar-nav" aria-label="Main navigation">
                 <span class="nav-section-label">Training</span>
                 <div
                     class="nav-item active"
