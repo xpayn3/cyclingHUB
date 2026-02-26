@@ -685,6 +685,7 @@ async function syncData() {
     // Decide between incremental and full sync
     const cache = loadActivityCache();
     const isIncremental = !!(cache && cache.activities.length > 0);
+    console.log('[sync]', isIncremental ? 'incremental' : 'full', '| cached:', cache?.activities?.length || 0);
 
     if (isIncremental) {
       // Load cache into state immediately so the UI can render while we fetch
@@ -696,12 +697,19 @@ async function syncData() {
       // Fetch only activities since last sync minus 2-day buffer (extra buffer for timezone safety)
       const since = new Date(cache.lastSync);
       since.setDate(since.getDate() - 2);
+      console.log('[sync] fetching since:', since.toISOString());
       setLoading(true, 'Checking for new activities…');
+      const beforeCount = state.activities.length;
       await fetchActivities(null, since);
+      console.log('[sync] after fetch:', state.activities.length, 'activities (was', beforeCount + ')');
+      if (state.activities.length > beforeCount) {
+        console.log('[sync] newest activity:', state.activities[0]?.name, state.activities[0]?.start_date_local);
+      }
     } else {
       const days = defaultSyncDays();
       setLoading(true, `Loading activities — syncing ${days} days…`);
       await fetchActivities(days);
+      console.log('[sync] full fetch:', state.activities.length, 'activities');
     }
 
     // Save updated cache after a successful fetch
@@ -740,6 +748,7 @@ async function syncData() {
       'success'
     );
   } catch (err) {
+    console.error('[sync] FAILED:', err);
     const m = err.message || '';
     const msg = (m.includes('401') || m.includes('403'))
       ? 'Authentication failed. Please reconnect.'
@@ -14949,7 +14958,7 @@ async function impProcessAll() {
 
     try {
       const buffer = await item.file.arrayBuffer();
-      const parsed = impParseFIT(buffer);
+      const parsed = await impParseFIT(buffer);
       item.parsed = parsed;
 
       // Duplicate check
@@ -15014,21 +15023,52 @@ async function impProcessAll() {
   showToast(parts.join(', ') || 'No files to process', imported > 0 ? 'success' : 'error');
 }
 
-/* ── FIT Parser wrapper ── */
-function impParseFIT(arrayBuffer) {
-  // Use the fit-file-parser library if available
-  if (typeof FitParser !== 'undefined') {
-    const parser = new FitParser({ force: true, speedUnit: 'km/h', lengthUnit: 'km', elapsedRecordField: true });
-    const data = { records: [], sessions: [], laps: [], events: [], device_infos: [], activity: null };
-    parser.parse(arrayBuffer, (err, result) => {
-      if (err) throw new Error(err);
-      Object.assign(data, result);
-    });
-    return data;
-  }
+/* ── FIT Parser wrapper (lazy-loaded) ── */
+let _fitParserLoaded = (typeof FitParser !== 'undefined');
 
-  // Minimal fallback: read raw bytes to extract basic data
-  throw new Error('FIT parser library not loaded. Please check your internet connection.');
+async function _loadFitParser() {
+  if (_fitParserLoaded && typeof FitParser !== 'undefined') return;
+  // Load all four CJS modules in the right order via a blob-based bundle
+  const urls = [
+    'https://cdn.jsdelivr.net/npm/fit-file-parser@1.9.1/dist/fit.js',
+    'https://cdn.jsdelivr.net/npm/fit-file-parser@1.9.1/dist/binary.js',
+    'https://cdn.jsdelivr.net/npm/fit-file-parser@1.9.1/dist/messages.js',
+    'https://cdn.jsdelivr.net/npm/fit-file-parser@1.9.1/dist/fit-parser.js',
+  ];
+  const sources = await Promise.all(urls.map(u => fetch(u).then(r => r.text())));
+  // Wrap each module in a function that provides require/module/exports
+  const modules = {};
+  const names = ['fit', 'binary', 'messages', 'fit-parser'];
+  const bundle = names.map((name, i) => `
+    (function(){
+      var module = { exports: {} };
+      var exports = module.exports;
+      var require = function(n) { return __m[n.replace('./','')] || {}; };
+      ${sources[i]}
+      __m['${name}'] = module.exports;
+    })();
+  `).join('\n');
+  const script = document.createElement('script');
+  script.textContent = `(function(){ var __m = {};\n${bundle}\nwindow.FitParser = __m['fit-parser'].default || __m['fit-parser']; })();`;
+  document.head.appendChild(script);
+  _fitParserLoaded = true;
+}
+
+async function impParseFIT(arrayBuffer) {
+  // Lazy-load the FIT parser on first use
+  if (typeof FitParser === 'undefined') {
+    await _loadFitParser();
+  }
+  if (typeof FitParser === 'undefined') {
+    throw new Error('FIT parser library could not be loaded. Please check your internet connection.');
+  }
+  const parser = new FitParser({ force: true, speedUnit: 'km/h', lengthUnit: 'km', elapsedRecordField: true });
+  const data = { records: [], sessions: [], laps: [], events: [], device_infos: [], activity: null };
+  parser.parse(arrayBuffer, (err, result) => {
+    if (err) throw new Error(err);
+    Object.assign(data, result);
+  });
+  return data;
 }
 
 /* ── Sport detection ── */
