@@ -12731,21 +12731,33 @@ function generateCompareChartForCard(cardId, currentPeriods, previousPeriods, me
   card.chart = new Chart(ctx, config);
 }
 
+function _cmpFmtVal(v, metric) {
+  const units = {
+    distance: ' km', time: ' hrs', elevation: ' m', power: ' w',
+    heartrate: ' bpm', tss: '', ctl: '', atl: '', tsb: '', count: ''
+  };
+  const decimals = { distance: 1, time: 1, elevation: 0, power: 0, heartrate: 0,
+    tss: 0, ctl: 1, atl: 1, tsb: 1, count: 0 };
+  const d = decimals[metric] != null ? decimals[metric] : 2;
+  const unit = units[metric] || '';
+  return (typeof v === 'number' ? v.toFixed(d) : parseFloat(v).toFixed(d)) + unit;
+}
+
 function generateCompareStatsForCard(cardId, currentPeriods, previousPeriods, metric) {
   const currentValues = currentPeriods.map(p => p.data[metric] || 0);
   const previousValues = previousPeriods.map(p => p.data[metric] || 0);
 
   const currentSum = currentValues.reduce((a, b) => a + b, 0);
   const previousSum = previousValues.reduce((a, b) => a + b, 0);
-  const currentAvg = (currentSum / currentValues.length).toFixed(1);
-  const previousAvg = (previousSum / previousValues.length).toFixed(1);
+  const currentAvg = currentValues.length ? currentSum / currentValues.length : 0;
+  const previousAvg = previousValues.length ? previousSum / previousValues.length : 0;
 
   const change = previousSum > 0 ? (((currentSum - previousSum) / previousSum) * 100).toFixed(1) : 0;
   const changeClass = change > 0 ? 'stat-positive' : (change < 0 ? 'stat-negative' : '');
 
   let html = '<div class="compare-card-stats-summary">';
-  html += `<div class="stat-item"><span>Total</span><strong>${currentSum}</strong><span class="stat-prev">(${previousSum})</span></div>`;
-  html += `<div class="stat-item"><span>Average</span><strong>${currentAvg}</strong><span class="stat-prev">(${previousAvg})</span></div>`;
+  html += `<div class="stat-item"><span>Total</span><strong>${_cmpFmtVal(currentSum, metric)}</strong><span class="stat-prev">(${_cmpFmtVal(previousSum, metric)})</span></div>`;
+  html += `<div class="stat-item"><span>Average</span><strong>${_cmpFmtVal(currentAvg, metric)}</strong><span class="stat-prev">(${_cmpFmtVal(previousAvg, metric)})</span></div>`;
   html += `<div class="stat-item"><span>Change</span><strong class="${changeClass}">${change > 0 ? '+' : ''}${change}%</strong></div>`;
   html += '</div>';
 
@@ -14036,8 +14048,8 @@ function _hmInitMap() {
     zoomControl: true,
     scrollWheelZoom: true,
     attributionControl: true,
-    center: [48, 14],
-    zoom: 5,
+    center: [46, 14],
+    zoom: 4,
   });
 
   L.tileLayer(theme.url, {
@@ -14075,28 +14087,66 @@ function _hmInitMap() {
 }
 
 /* ── Center map on user's current location ── */
-function _hmLocateMe() {
+async function _hmLocateMe() {
   if (!_hm.map) return;
-  if (!navigator.geolocation) { showToast('Geolocation not supported', 'error'); return; }
-
   showToast('Finding your location…', 'success');
-  navigator.geolocation.getCurrentPosition(
-    function(pos) {
-      const latlng = [pos.coords.latitude, pos.coords.longitude];
-      _hm.map.flyTo(latlng, 12, { duration: 1.2 });
 
-      // Drop a pulse marker
-      if (_hm._locMarker) _hm.map.removeLayer(_hm._locMarker);
-      _hm._locMarker = L.circleMarker(latlng, {
-        radius: 8, color: '#0074D9', fillColor: '#0074D9',
-        fillOpacity: 0.4, weight: 2, opacity: 0.8,
-      }).addTo(_hm.map).bindTooltip('You are here');
-    },
-    function(err) {
-      showToast('Could not get location: ' + err.message, 'error');
-    },
-    { enableHighAccuracy: true, timeout: 8000 }
-  );
+  function _flyTo(lat, lng, label) {
+    const latlng = [lat, lng];
+    _hm.map.flyTo(latlng, 12, { duration: 1.2 });
+    if (_hm._locMarker) _hm.map.removeLayer(_hm._locMarker);
+    _hm._locMarker = L.circleMarker(latlng, {
+      radius: 8, color: '#0074D9', fillColor: '#0074D9',
+      fillOpacity: 0.4, weight: 2, opacity: 0.8,
+    }).addTo(_hm.map).bindTooltip(label || 'You are here');
+  }
+
+  // 1. Try browser geolocation
+  if (navigator.geolocation) {
+    try {
+      const pos = await new Promise((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject,
+          { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 })
+      );
+      _flyTo(pos.coords.latitude, pos.coords.longitude, 'You are here');
+      return;
+    } catch (_) { /* fall through */ }
+
+    // Retry without high accuracy
+    try {
+      const pos = await new Promise((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject,
+          { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 })
+      );
+      _flyTo(pos.coords.latitude, pos.coords.longitude, 'You are here');
+      return;
+    } catch (_) { /* fall through */ }
+  }
+
+  // 2. Fallback: IP-based geolocation
+  const ipServices = [
+    { url: 'https://get.geojs.io/v1/ip/geo.json',
+      parse: d => ({ lat: parseFloat(d.latitude), lng: parseFloat(d.longitude), city: d.city }) },
+    { url: 'https://ipapi.co/json/',
+      parse: d => ({ lat: d.latitude, lng: d.longitude, city: d.city }) },
+    { url: 'https://ip-api.com/json/?fields=lat,lon,city',
+      parse: d => ({ lat: d.lat, lng: d.lon, city: d.city }) },
+  ];
+  for (const svc of ipServices) {
+    try {
+      const res = await fetch(svc.url);
+      if (!res.ok) continue;
+      const raw = await res.json();
+      const d = svc.parse(raw);
+      if (d.lat && d.lng && !isNaN(d.lat)) {
+        _flyTo(d.lat, d.lng, d.city || 'Approximate location');
+        showToast('Showing approximate location (IP-based)', 'success');
+        return;
+      }
+    } catch (_) { continue; }
+  }
+
+  showToast('Could not determine location', 'error');
 }
 
 /* ── Heatmap route cache (IndexedDB — no size limit) ── */
@@ -14417,13 +14467,40 @@ function hmRedraw() {
     _hmDrawByYear(routes);
   }
 
-  // Only fit bounds on first draw — keep user's position on filter changes
+  // Only fit bounds on first draw — zoom to the densest activity area
   if (!_hm._initialFitDone) {
     const allPts = routes.flatMap(r => r.points);
     if (allPts.length > 0) {
-      const bounds = L.latLngBounds(allPts);
-      _hm.map.fitBounds(bounds, { padding: [30, 30], maxZoom: 13 });
       _hm._initialFitDone = true;
+
+      // Grid-based density: bucket points into ~0.05° cells (~5 km),
+      // find the cell with the most points, then fitBounds to all points
+      // within a radius around that hotspot.
+      const CELL = 0.05;
+      const grid = {};
+      let maxKey = null, maxCount = 0;
+      for (const p of allPts) {
+        const key = (Math.floor(p[0] / CELL) * CELL).toFixed(3) + ',' +
+                    (Math.floor(p[1] / CELL) * CELL).toFixed(3);
+        grid[key] = (grid[key] || 0) + 1;
+        if (grid[key] > maxCount) { maxCount = grid[key]; maxKey = key; }
+      }
+
+      if (maxKey) {
+        const [cLat, cLng] = maxKey.split(',').map(Number);
+        // Collect all points within ~25 km of the hotspot center
+        const R = 0.25;
+        const nearby = allPts.filter(p =>
+          Math.abs(p[0] - cLat) < R && Math.abs(p[1] - cLng) < R
+        );
+        if (nearby.length > 10) {
+          _hm.map.fitBounds(L.latLngBounds(nearby), { padding: [40, 40], maxZoom: 13 });
+        } else {
+          _hm.map.fitBounds(L.latLngBounds(allPts), { padding: [30, 30], maxZoom: 13 });
+        }
+      } else {
+        _hm.map.fitBounds(L.latLngBounds(allPts), { padding: [30, 30], maxZoom: 13 });
+      }
     }
   }
 }
@@ -14436,11 +14513,12 @@ function _hmDrawHeat(routes) {
   });
 
   _hm.heatLayer = L.heatLayer(heatPts, {
-    radius: 12,
-    blur: 18,
-    maxZoom: 15,
+    radius: 6,
+    blur: 8,
+    maxZoom: 17,
     max: 1.0,
-    gradient: { 0.2: '#1a1a5e', 0.4: '#0074D9', 0.5: '#00e5a0', 0.7: '#FFDC00', 0.9: '#FF4136', 1.0: '#ff0066' },
+    minOpacity: 0.15,
+    gradient: { 0.15: '#1a1a5e', 0.35: '#0074D9', 0.5: '#00e5a0', 0.7: '#FFDC00', 0.9: '#FF4136', 1.0: '#ff0066' },
   }).addTo(_hm.map);
 
   _hmUpdateLegend(`
