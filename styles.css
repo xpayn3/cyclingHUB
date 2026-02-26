@@ -1746,6 +1746,7 @@ code {
     font-size: var(--text-base);
     font-weight: 700;
     letter-spacing: -0.2px;
+    line-height: 1.2;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1808,6 +1809,7 @@ code {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
+    flex: 1 1 0;
     min-width: 50px;
     padding: 0 12px;
 }
@@ -3073,9 +3075,13 @@ code {
    CALENDAR PAGE
 ============================================================ */
 /* Full-height mode: strip page-content padding when calendar is active */
-.page-content--calendar {
+.page-content--calendar,
+.page-content--heatmap {
     padding: 0 !important;
     gap: 0 !important;
+}
+.page-content--heatmap .page-headline {
+    display: none;
 }
 
 /* Shell is fixed, sits below the topbar */
@@ -11538,57 +11544,116 @@ code {
 }
 
 /* ============================================================
-   HEAT MAP PAGE
+   HEAT MAP PAGE — Full-bleed immersive layout
 ============================================================ */
+
+/* ── Shell: fixed position filling viewport below topbar ── */
 .hm-wrapper {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 48px;
+    height: calc(100vh - 48px);
+    z-index: 100;
+    overflow: hidden;
 }
 
-/* ── Stats bar ── */
+/* ── Map container: fills entire shell ── */
+.hm-map-container {
+    position: absolute;
+    inset: 0;
+}
+.hm-map {
+    width: 100%;
+    height: 100%;
+    background: #1a1c22;
+}
+
+/* ── Shared floating overlay panel ── */
+.hm-overlay {
+    position: absolute;
+    z-index: 450;
+    pointer-events: auto;
+}
+
+/* ── Unified bottom panel ── */
+.hm-overlay--bottom {
+    bottom: 16px;
+    left: 16px;
+    right: 16px;
+}
+
+/* ── Grabber handle (hidden on desktop) ── */
+.hm-grabber {
+    display: none;
+}
+.hm-grabber-pill {
+    width: 36px;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.hm-bottom-panel {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 16px;
+    padding: 14px 16px;
+    background: rgba(11, 14, 22, 0.82);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: var(--radius);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+}
+
+/* Desktop: unwrap section divs so children flow in the wrapping row */
+.hm-panel-stats,
+.hm-panel-filters {
+    display: contents;
+}
+.hm-panel-animate {
+    width: 100%;
+}
 .hm-stats {
     display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
+    gap: 6px;
+    flex-shrink: 0;
 }
 .hm-stat {
-    flex: 1;
-    min-width: 100px;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 14px 16px;
+    padding: 6px 12px;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 1px;
+    border-radius: var(--radius);
+    background: rgba(255, 255, 255, 0.04);
 }
 .hm-stat-val {
-    font-size: 22px;
+    font-size: 17px;
     font-weight: 700;
     color: var(--accent);
     letter-spacing: -0.5px;
 }
 .hm-stat-label {
-    font-size: 11px;
+    font-size: 9px;
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
 
-/* ── Controls ── */
+/* Controls sit to the right of stats */
 .hm-controls {
     display: flex;
-    gap: 16px;
+    gap: 14px;
     flex-wrap: wrap;
-    padding: 12px 16px;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+    flex: 1;
+    justify-content: flex-end;
+    align-items: center;
 }
 .hm-control-group {
     display: flex;
-    flex-direction: column;
+    align-items: center;
     gap: 6px;
 }
 .hm-label {
@@ -11597,19 +11662,20 @@ code {
     letter-spacing: 0.8px;
     color: var(--text-muted);
     font-weight: 600;
+    white-space: nowrap;
 }
 .hm-pills {
     display: flex;
-    gap: 4px;
+    gap: 3px;
     flex-wrap: wrap;
 }
 .hm-pill {
-    padding: 5px 12px;
+    padding: 4px 10px;
     border-radius: 20px;
-    border: 1px solid var(--border);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     background: transparent;
     color: var(--text-secondary);
-    font-size: 12px;
+    font-size: 11px;
     cursor: pointer;
     transition: all 0.15s ease;
     font-family: inherit;
@@ -11626,26 +11692,83 @@ code {
     font-weight: 600;
 }
 
-/* ── Animate bar ── */
+/* ── Legend pill: top-center floating ── */
+.hm-overlay--legend {
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+/* Row 2: Animate bar */
+.hm-panel-animate {
+    display: flex;
+    align-items: center;
+}
+.hm-legend {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    padding: 6px 14px;
+    border-radius: 20px;
+    background: rgba(11, 14, 22, 0.82);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+    white-space: nowrap;
+}
+.hm-legend:empty {
+    display: none;
+}
+.hm-legend-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 4px;
+    vertical-align: middle;
+}
+.hm-legend-gradient {
+    width: 100px;
+    height: 8px;
+    border-radius: 4px;
+    background: linear-gradient(
+        to right,
+        #1a1a5e,
+        #0074d9,
+        #00e5a0,
+        #ffdc00,
+        #ff4136,
+        #ff0066
+    );
+}
+.hm-legend-gradient--speed {
+    background: linear-gradient(
+        to right,
+        #0074d9,
+        #00e5a0,
+        #ffdc00,
+        #ff851b,
+        #ff4136
+    );
+}
 .hm-animate-bar {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 8px 16px;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+    flex: 1;
 }
 .hm-animate-btn {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 6px 16px;
+    padding: 5px 14px;
     border-radius: 20px;
     border: 1px solid var(--accent);
     background: var(--accent-dim);
     color: var(--accent);
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.15s ease;
@@ -11656,6 +11779,31 @@ code {
     background: var(--accent);
     color: var(--bg-base);
 }
+.hm-speed-pills {
+    display: flex;
+    gap: 2px;
+}
+.hm-speed-pill {
+    padding: 3px 8px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-family: inherit;
+}
+.hm-speed-pill:hover {
+    border-color: var(--accent);
+    color: var(--text-primary);
+}
+.hm-speed-pill.active {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+    border-color: rgba(255, 255, 255, 0.2);
+}
 .hm-animate-btn svg {
     width: 14px;
     height: 14px;
@@ -11663,7 +11811,7 @@ code {
 .hm-animate-progress {
     flex: 1;
     height: 4px;
-    background: var(--bg-card);
+    background: rgba(255, 255, 255, 0.06);
     border-radius: 2px;
     overflow: hidden;
 }
@@ -11678,41 +11826,6 @@ code {
     font-size: 11px;
     color: var(--text-muted);
     white-space: nowrap;
-    min-width: 120px;
-    text-align: right;
-}
-
-/* ── Map container ── */
-.hm-map-container {
-    position: relative;
-    border-radius: var(--radius);
-    overflow: hidden;
-    border: 1px solid var(--border);
-}
-.hm-map {
-    width: 100%;
-    height: 65vh;
-    min-height: 400px;
-    background: #1a1c22;
-}
-
-/* Locate-me button — no extra CSS needed, uses leaflet-control-zoom leaflet-bar classes */
-
-/* Lock page scroll when interacting with heatmap */
-body.hm-map-active,
-body.hm-map-dragging {
-    overflow: hidden !important;
-}
-body.hm-map-active html,
-body.hm-map-dragging html,
-.hm-map-active,
-.hm-map-dragging {
-    overflow: hidden !important;
-    overscroll-behavior: none !important;
-}
-.hm-map-dragging * {
-    user-select: none !important;
-    -webkit-user-select: none !important;
 }
 
 /* ── Loading overlay ── */
@@ -11738,9 +11851,7 @@ body.hm-map-dragging html,
     animation: hmSpin 0.8s linear infinite;
 }
 @keyframes hmSpin {
-    to {
-        transform: rotate(360deg);
-    }
+    to { transform: rotate(360deg); }
 }
 .hm-loading-text {
     font-size: 14px;
@@ -11752,75 +11863,98 @@ body.hm-map-dragging html,
     color: var(--text-muted);
 }
 
-/* ── Legend ── */
-.hm-legend {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    font-size: 12px;
-    color: var(--text-secondary);
-    min-height: 20px;
+/* Lock page scroll when interacting with heatmap */
+body.hm-map-active,
+body.hm-map-dragging {
+    overflow: hidden !important;
 }
-.hm-legend-dot {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    margin-right: 4px;
-    vertical-align: middle;
+body.hm-map-active html,
+body.hm-map-dragging html,
+.hm-map-active,
+.hm-map-dragging {
+    overflow: hidden !important;
+    overscroll-behavior: none !important;
 }
-.hm-legend-gradient {
-    width: 120px;
-    height: 8px;
-    border-radius: 4px;
-    background: linear-gradient(
-        to right,
-        #1a1a5e,
-        #0074d9,
-        #00e5a0,
-        #ffdc00,
-        #ff4136,
-        #ff0066
-    );
-}
-.hm-legend-gradient--speed {
-    background: linear-gradient(
-        to right,
-        #0074d9,
-        #00e5a0,
-        #ffdc00,
-        #ff851b,
-        #ff4136
-    );
+.hm-map-dragging * {
+    user-select: none !important;
+    -webkit-user-select: none !important;
 }
 
-/* ── Mobile responsive ── */
+/* ── Mobile responsive — bottom sheet ── */
 @media (max-width: 700px) {
-    .hm-stats {
-        gap: 6px;
+    .hm-wrapper {
+        left: 0;
     }
-    .hm-stat {
-        min-width: 70px;
-        padding: 10px 12px;
+
+    /* Edge-to-edge bottom sheet */
+    .hm-overlay--bottom {
+        left: 0;
+        right: 0;
+        bottom: 0;
+        transition: transform 0.35s cubic-bezier(0.34, 1.4, 0.64, 1);
+        will-change: transform;
+    }
+    .hm-overlay--bottom.hm-sheet-collapsed {
+        transform: translateY(var(--hm-collapse-h, 0px));
+    }
+    .hm-overlay--bottom.hm-sheet-hidden {
+        transform: translateY(var(--hm-hide-h, 0px));
+    }
+    .hm-bottom-panel {
+        padding: 0 14px 14px;
+        gap: 16px;
+        border-radius: 16px 16px 0 0;
+    }
+
+    /* Grabber visible on mobile */
+    .hm-grabber {
+        display: flex;
+        justify-content: center;
+        padding: 10px 0 2px;
+        cursor: grab;
+        touch-action: none;
+    }
+
+    /* Restore section wrappers on mobile (overrides desktop display:contents) */
+    .hm-panel-stats,
+    .hm-panel-filters,
+    .hm-panel-animate {
+        display: block;
+    }
+    /* Divider lines between sections */
+    .hm-panel-filters,
+    .hm-panel-animate {
+        padding-top: 14px;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    /* Stack panel vertically on mobile */
+    .hm-bottom-panel {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .hm-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px;
+        width: 100%;
     }
     .hm-stat-val {
-        font-size: 18px;
+        font-size: 14px;
     }
     .hm-controls {
-        gap: 10px;
-        padding: 10px 12px;
-    }
-    .hm-map {
-        height: 55vh;
-        min-height: 300px;
+        justify-content: flex-start;
+        gap: 8px;
     }
     .hm-animate-count {
         display: none;
     }
-    .hm-pill {
-        padding: 4px 10px;
-        font-size: 11px;
+
+    /* Replay button: icon only on mobile */
+    .hm-animate-btn #hmAnimateLabel {
+        display: none;
+    }
+    .hm-animate-btn {
+        padding: 6px 10px;
     }
 }
 

@@ -1450,9 +1450,12 @@ function navigate(page) {
   document.getElementById('pageTitle').textContent    = title;
   document.getElementById('pageSubtitle').textContent = sub;
 
-  // Calendar fills full viewport height — toggle padding-less mode
+  // Full-bleed pages — toggle padding-less mode
   const pc = document.getElementById('pageContent');
-  if (pc) pc.classList.toggle('page-content--calendar', page === 'calendar');
+  if (pc) {
+    pc.classList.toggle('page-content--calendar', page === 'calendar');
+    pc.classList.toggle('page-content--heatmap', page === 'heatmap');
+  }
 
   // Always restore the activity-detail topbar elements when leaving the activity page
   const detailNav     = document.getElementById('detailTopbarNav');
@@ -3600,10 +3603,17 @@ function resetDashboard() {
    ACTIVITY LIST
 ==================================================== */
 const sportIcon = {
-  ride:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="17" r="2"/><circle cx="19" cy="17" r="2"/><path d="M5 17H3v-4l2-5h8l3 5h1a2 2 0 0 1 2 2v2h-2"/><path d="M9 17h6"/></svg>`,
-  run:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M13 4a1 1 0 1 0 2 0 1 1 0 0 0-2 0"/><path d="m6 20 5-8 2 3 2-2 3 4"/><path d="m6 12 2-5 4 1 2 3"/></svg>`,
-  swim:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12h20M2 17c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2"/><path d="M17 8a2 2 0 0 0-4 0l-1 4h6l-1-4z"/></svg>`,
-  default: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`
+  ride:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M5.5 17.5l3-7h4l2.5 3.5"/><path d="M15 14l3.5 3.5"/><path d="M8.5 10.5l3.5 0"/><circle cx="13" cy="6" r="1.5"/></svg>`,
+  virtual:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M5.5 17.5l3-7h4l2.5 3.5"/><path d="M15 14l3.5 3.5"/><path d="M8.5 10.5l3.5 0"/><circle cx="13" cy="6" r="1.5"/><path d="M2 4l3 2-3 2" opacity="0.5"/><path d="M20 2l2 2-2 2" opacity="0.5"/></svg>`,
+  run:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="14" cy="4" r="2"/><path d="M8 21l2-6"/><path d="M10 15l-2-4 4-2 3 3 3 1"/><path d="M6 12l2-4"/></svg>`,
+  swim:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="6" r="2"/><path d="M18 8v4l-4-1-3 3"/><path d="M2 18c1.5-1.5 3-2 4.5-2s3 .5 4.5 2 3 2 4.5 2 3-.5 4.5-2"/></svg>`,
+  walk:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4" r="2"/><path d="M14 10l-1 4-3 5"/><path d="M10 14l-2 7"/><path d="M10 10l2-2"/><path d="M14 10l2 1"/></svg>`,
+  hike:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4" r="2"/><path d="M14 10l-1 4-3 5"/><path d="M10 14l-2 7"/><path d="M10 10l2-2"/><path d="M14 10l2 1"/><path d="M19 5l-1 8-1-1" opacity="0.7"/></svg>`,
+  strength: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 5v14"/><path d="M18 5v14"/><path d="M6 12h12"/><rect x="3" y="7" width="2" height="10" rx="1"/><rect x="19" y="7" width="2" height="10" rx="1"/></svg>`,
+  yoga:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4" r="2"/><path d="M12 6v6"/><path d="M12 12l-5 5"/><path d="M12 12l5 5"/><path d="M8 8l-4 1"/><path d="M16 8l4 1"/></svg>`,
+  row:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l3-3 4 1 4-5 4 2 3-3"/><path d="M2 20c3-1 7-1 10 0s7 1 10 0"/></svg>`,
+  ski:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="14" cy="4" r="2"/><path d="M8 21l6-9"/><path d="M14 12l-4-4-3 6"/><path d="M5 20l14-3"/></svg>`,
+  default:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`
 };
 
 // Resolve the sport type string, checking all known field variants
@@ -3620,9 +3630,17 @@ function activityTypeClass(a) {
 
 function activityTypeIcon(a) {
   const t = actSportType(a);
-  if (t.includes('run'))  return sportIcon.run;
-  if (t.includes('swim')) return sportIcon.swim;
-  return sportIcon.ride;
+  if (t.includes('virtualride') || t.includes('virtual_ride')) return sportIcon.virtual;
+  if (t.includes('run'))       return sportIcon.run;
+  if (t.includes('swim'))      return sportIcon.swim;
+  if (t.includes('walk'))      return sportIcon.walk;
+  if (t.includes('hike'))      return sportIcon.hike;
+  if (t.includes('weight') || t.includes('strength')) return sportIcon.strength;
+  if (t.includes('yoga'))      return sportIcon.yoga;
+  if (t.includes('row'))       return sportIcon.row;
+  if (t.includes('ski'))       return sportIcon.ski;
+  if (t.includes('ride'))      return sportIcon.ride;
+  return sportIcon.default;
 }
 
 function activityFallbackName(a) {
@@ -3717,12 +3735,11 @@ function _actRowHTML(a, containerId, fi, powerColor) {
     `<div class="act-stat"><div class="act-stat-val"${color ? ` style="color:${color}"` : ''}>${val}</div><div class="act-stat-lbl">${lbl}</div></div>`;
 
   const stats = [];
-  if (distKm > 0.05) stats.push(statPill(distKm.toFixed(2), 'km'));
-  if (secs > 0)       stats.push(statPill(fmtDur(secs), 'time'));
-  if (elev > 0)       stats.push(statPill(elev.toLocaleString(), 'm elev'));
-  if (pwr > 0)        stats.push(statPill(Math.round(pwr) + 'w', 'power', powerColor(pwr)));
-  if (hr > 0)         stats.push(statPill(hr, 'bpm'));
-  if (speedKmh > 1 && !pwr) stats.push(statPill(speedKmh.toFixed(1), 'km/h'));
+  stats.push(statPill(distKm > 0.05 ? distKm.toFixed(2) : '—', 'km'));
+  stats.push(statPill(secs > 0 ? fmtDur(secs) : '—', 'time'));
+  stats.push(statPill(elev > 0 ? elev.toLocaleString() : '—', 'm elev'));
+  stats.push(statPill(pwr > 0 ? Math.round(pwr) + 'w' : '—', 'power', pwr > 0 ? powerColor(pwr) : null));
+  stats.push(statPill(hr > 0 ? hr : '—', 'bpm'));
 
   return `<div class="activity-row ${rowClass}" onclick="navigateToActivity('${actKey}')">
     <div class="activity-type-icon ${tc}">${activityTypeIcon(a)}</div>
@@ -14036,58 +14053,7 @@ function renderHeatmapPage() {
 
   container.innerHTML = `
     <div class="hm-wrapper">
-      <!-- Stats bar -->
-      <div class="hm-stats" id="hmStats">
-        <div class="hm-stat"><span class="hm-stat-val" id="hmStatRoutes">—</span><span class="hm-stat-label">Routes</span></div>
-        <div class="hm-stat"><span class="hm-stat-val" id="hmStatDist">—</span><span class="hm-stat-label">Total km</span></div>
-        <div class="hm-stat"><span class="hm-stat-val" id="hmStatTime">—</span><span class="hm-stat-label">Hours</span></div>
-        <div class="hm-stat"><span class="hm-stat-val" id="hmStatElev">—</span><span class="hm-stat-label">Elevation (m)</span></div>
-      </div>
-
-      <!-- Controls -->
-      <div class="hm-controls">
-        <div class="hm-control-group">
-          <label class="hm-label">Period</label>
-          <div class="hm-pills" id="hmPeriodPills">
-            <button class="hm-pill active" data-val="all">All Time</button>
-            <button class="hm-pill" data-val="year">This Year</button>
-            <button class="hm-pill" data-val="6mo">6 Months</button>
-            <button class="hm-pill" data-val="90d">90 Days</button>
-          </div>
-        </div>
-        <div class="hm-control-group">
-          <label class="hm-label">Style</label>
-          <div class="hm-pills" id="hmColorPills">
-            <button class="hm-pill active" data-val="heat">Heat</button>
-            <button class="hm-pill" data-val="lines">Lines</button>
-            <button class="hm-pill" data-val="speed">Speed</button>
-            <button class="hm-pill" data-val="time">By Year</button>
-          </div>
-        </div>
-        <div class="hm-control-group">
-          <label class="hm-label">Time of Day</label>
-          <div class="hm-pills" id="hmTimePills">
-            <button class="hm-pill active" data-val="all">All</button>
-            <button class="hm-pill" data-val="morning">Morning</button>
-            <button class="hm-pill" data-val="afternoon">Afternoon</button>
-            <button class="hm-pill" data-val="evening">Evening</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Animate button -->
-      <div class="hm-animate-bar">
-        <button class="hm-animate-btn" id="hmAnimateBtn" onclick="hmToggleAnimate()">
-          <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><polygon points="5,3 19,12 5,21"/></svg>
-          <span id="hmAnimateLabel">Replay Rides</span>
-        </button>
-        <div class="hm-animate-progress" id="hmAnimateProgress">
-          <div class="hm-animate-bar-fill" id="hmAnimateBarFill"></div>
-        </div>
-        <span class="hm-animate-count" id="hmAnimateCount"></span>
-      </div>
-
-      <!-- Map container -->
+      <!-- Map fills entire shell -->
       <div class="hm-map-container">
         <div id="heatmapMap" class="hm-map"></div>
         <div class="hm-loading" id="hmLoading">
@@ -14097,8 +14063,76 @@ function renderHeatmapPage() {
         </div>
       </div>
 
-      <!-- Legend -->
-      <div class="hm-legend" id="hmLegend"></div>
+      <!-- Floating legend pill: top-center -->
+      <div class="hm-overlay hm-overlay--legend">
+        <div class="hm-legend" id="hmLegend"></div>
+      </div>
+
+      <!-- Unified floating bottom panel -->
+      <div class="hm-overlay hm-overlay--bottom">
+        <div class="hm-bottom-panel">
+          <div class="hm-grabber"><span class="hm-grabber-pill"></span></div>
+          <!-- Section 1: Stats -->
+          <div class="hm-panel-stats">
+            <div class="hm-stats" id="hmStats">
+              <div class="hm-stat"><span class="hm-stat-val" id="hmStatRoutes">—</span><span class="hm-stat-label">Routes</span></div>
+              <div class="hm-stat"><span class="hm-stat-val" id="hmStatDist">—</span><span class="hm-stat-label">Total km</span></div>
+              <div class="hm-stat"><span class="hm-stat-val" id="hmStatTime">—</span><span class="hm-stat-label">Hours</span></div>
+              <div class="hm-stat"><span class="hm-stat-val" id="hmStatElev">—</span><span class="hm-stat-label">Elevation (m)</span></div>
+            </div>
+          </div>
+          <!-- Section 2: Filters (collapsible) -->
+          <div class="hm-panel-filters" id="hmPanelFilters">
+            <div class="hm-controls">
+              <div class="hm-control-group">
+                <label class="hm-label">Period</label>
+                <div class="hm-pills" id="hmPeriodPills">
+                  <button class="hm-pill active" data-val="all">All Time</button>
+                  <button class="hm-pill" data-val="year">This Year</button>
+                  <button class="hm-pill" data-val="6mo">6 Months</button>
+                  <button class="hm-pill" data-val="90d">90 Days</button>
+                </div>
+              </div>
+              <div class="hm-control-group">
+                <label class="hm-label">Style</label>
+                <div class="hm-pills" id="hmColorPills">
+                  <button class="hm-pill active" data-val="heat">Heat</button>
+                  <button class="hm-pill" data-val="lines">Lines</button>
+                  <button class="hm-pill" data-val="speed">Speed</button>
+                  <button class="hm-pill" data-val="time">By Year</button>
+                </div>
+              </div>
+              <div class="hm-control-group">
+                <label class="hm-label">Time of Day</label>
+                <div class="hm-pills" id="hmTimePills">
+                  <button class="hm-pill active" data-val="all">All</button>
+                  <button class="hm-pill" data-val="morning">Morning</button>
+                  <button class="hm-pill" data-val="afternoon">Afternoon</button>
+                  <button class="hm-pill" data-val="evening">Evening</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Section 3: Animate bar (collapsible) -->
+          <div class="hm-panel-animate">
+            <div class="hm-animate-bar">
+              <button class="hm-animate-btn" id="hmAnimateBtn" onclick="hmToggleAnimate()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><polygon points="5,3 19,12 5,21"/></svg>
+                <span id="hmAnimateLabel">Replay Rides</span>
+              </button>
+              <div class="hm-speed-pills" id="hmSpeedPills">
+                <button class="hm-speed-pill active" data-speed="1">1x</button>
+                <button class="hm-speed-pill" data-speed="2">2x</button>
+                <button class="hm-speed-pill" data-speed="3">3x</button>
+              </div>
+              <div class="hm-animate-progress" id="hmAnimateProgress">
+                <div class="hm-animate-bar-fill" id="hmAnimateBarFill"></div>
+              </div>
+              <span class="hm-animate-count" id="hmAnimateCount"></span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   `;
 
@@ -14107,6 +14141,18 @@ function renderHeatmapPage() {
   _hmWirePills('hmSportPills',  v => { _hm.sportFilter = v; hmApplyFilters(); });
   _hmWirePills('hmColorPills',  v => { _hm.colorMode = v; hmRedraw(); });
   _hmWirePills('hmTimePills',   v => { _hm.timeFilter = v; hmApplyFilters(); });
+
+  // Wire speed pills
+  const speedWrap = document.getElementById('hmSpeedPills');
+  if (speedWrap) {
+    speedWrap.querySelectorAll('.hm-speed-pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        speedWrap.querySelectorAll('.hm-speed-pill').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        _hm.animSpeed = parseInt(btn.dataset.speed, 10) || 1;
+      });
+    });
+  }
 
   // Init map
   _hmInitMap();
@@ -14120,6 +14166,119 @@ function renderHeatmapPage() {
     if (ld) ld.style.display = 'none';
     hmApplyFilters();
   }
+
+  _hmInitSheet();
+}
+
+/* ── Mobile bottom-sheet (swipe to collapse / expand) ── */
+/* state: 0=expanded, 1=stats-only, 2=hidden (grabber only) */
+const _hmSheet = { startY: 0, startX: 0, tracking: false, directionLocked: false, state: 0, collapseH: 0, hideH: 0 };
+
+function _hmSetSheetState(s, overlay) {
+  _hmSheet.state = s;
+  overlay.classList.toggle('hm-sheet-collapsed', s === 1);
+  overlay.classList.toggle('hm-sheet-hidden', s === 2);
+}
+
+function _hmInitSheet() {
+  const overlay = document.querySelector('.hm-overlay--bottom');
+  const grabber = document.querySelector('.hm-grabber');
+  if (!overlay || !grabber) return;
+
+  // Measure snap distances
+  function _hmMeasure() {
+    const filters = overlay.querySelector('.hm-panel-filters');
+    const animate = overlay.querySelector('.hm-panel-animate');
+    const stats = overlay.querySelector('.hm-panel-stats');
+    const panel = overlay.querySelector('.hm-bottom-panel');
+    const gap = panel ? parseFloat(getComputedStyle(panel).gap) || 0 : 0;
+    // collapseH: distance to hide filters + animate (show stats only)
+    let ch = 0;
+    if (filters) ch += filters.offsetHeight + gap;
+    if (animate) ch += animate.offsetHeight + gap;
+    _hmSheet.collapseH = ch;
+    overlay.style.setProperty('--hm-collapse-h', ch + 'px');
+    // hideH: distance to hide everything (show grabber only)
+    let hh = ch;
+    if (stats) hh += stats.offsetHeight + gap;
+    _hmSheet.hideH = hh;
+    overlay.style.setProperty('--hm-hide-h', hh + 'px');
+  }
+
+  // Snap offsets for each state
+  function _snapOffsets() {
+    return [0, _hmSheet.collapseH, _hmSheet.hideH];
+  }
+  function _stateOffset(s) { return _snapOffsets()[s] || 0; }
+
+  // Find nearest snap state for a given offset
+  function _nearestSnap(offset) {
+    const snaps = _snapOffsets();
+    let best = 0, bestDist = Math.abs(offset - snaps[0]);
+    for (let i = 1; i < snaps.length; i++) {
+      const d = Math.abs(offset - snaps[i]);
+      if (d < bestDist) { bestDist = d; best = i; }
+    }
+    return best;
+  }
+
+  // Grabber click cycles: expanded → stats → hidden → expanded
+  grabber.addEventListener('click', () => {
+    if (!_isMobile()) return;
+    _hmMeasure();
+    const next = (_hmSheet.state + 1) % 3;
+    _hmSetSheetState(next, overlay);
+  });
+
+  // Touch handling on the entire panel
+  const panel = overlay.querySelector('.hm-bottom-panel');
+  if (!panel) return;
+
+  panel.addEventListener('touchstart', (e) => {
+    if (!_isMobile() || e.touches.length !== 1) return;
+    _hmMeasure();
+    _hmSheet.startY = e.touches[0].clientY;
+    _hmSheet.startX = e.touches[0].clientX;
+    _hmSheet.tracking = false;
+    _hmSheet.directionLocked = false;
+    overlay.style.transition = 'none';
+  }, { passive: true });
+
+  panel.addEventListener('touchmove', (e) => {
+    if (!_isMobile() || e.touches.length !== 1) return;
+    const y = e.touches[0].clientY;
+    const dy = y - _hmSheet.startY;
+    const dx = Math.abs(e.touches[0].clientX - _hmSheet.startX);
+
+    if (!_hmSheet.directionLocked) {
+      if (Math.abs(dy) < 8 && dx < 8) return;
+      if (dx > Math.abs(dy)) { _hmSheet.directionLocked = true; _hmSheet.tracking = false; return; }
+      _hmSheet.directionLocked = true;
+      _hmSheet.tracking = true;
+    }
+    if (!_hmSheet.tracking) return;
+    e.preventDefault();
+
+    const maxDown = _hmSheet.hideH;
+    const baseOffset = _stateOffset(_hmSheet.state);
+    let offset = Math.max(0, Math.min(maxDown, baseOffset + dy));
+    overlay.style.transform = `translateY(${offset}px)`;
+  }, { passive: false });
+
+  panel.addEventListener('touchend', (e) => {
+    if (!_hmSheet.tracking) { overlay.style.transition = ''; return; }
+    overlay.style.transition = '';
+
+    const dy = e.changedTouches[0].clientY - _hmSheet.startY;
+    const maxDown = _hmSheet.hideH;
+    const baseOffset = _stateOffset(_hmSheet.state);
+    let offset = Math.max(0, Math.min(maxDown, baseOffset + dy));
+
+    const snap = _nearestSnap(offset);
+    overlay.style.transform = '';
+    _hmSetSheetState(snap, overlay);
+    _hmSheet.tracking = false;
+  }, { passive: true });
 }
 
 function _hmWirePills(containerId, onChange) {
@@ -14152,10 +14311,11 @@ function _hmInitMap() {
   _hm.map = L.map(el, {
     zoomControl: true,
     scrollWheelZoom: true,
-    attributionControl: true,
+    attributionControl: false,
     center: [46, 14],
     zoom: 4,
   });
+  L.control.attribution({ position: 'topright' }).addTo(_hm.map);
 
   L.tileLayer(theme.url, {
     attribution: theme.attr,
@@ -14189,6 +14349,7 @@ function _hmInitMap() {
 
   setTimeout(() => { if (_hm.map) _hm.map.invalidateSize(); }, 200);
   setTimeout(() => { if (_hm.map) _hm.map.invalidateSize(); }, 600);
+  setTimeout(() => { if (_hm.map) _hm.map.invalidateSize(); }, 1200);
 }
 
 /* ── Center map on user's current location ── */
@@ -14599,7 +14760,7 @@ async function _hmFetchAllRoutes(subEl, textEl) {
 
 /* ── Filter routes based on current settings ── */
 function hmApplyFilters() {
-  let routes = _hm.allRoutes;
+  let routes = _hm.allRoutes.filter(r => r.points && r.points.length >= 2);
 
   // Period filter
   const now = new Date();
@@ -14641,9 +14802,9 @@ function hmApplyFilters() {
 
 /* ── Update stats bar ── */
 function hmUpdateStats(routes) {
-  const dist = routes.reduce((s, r) => s + r.distance, 0);
-  const time = routes.reduce((s, r) => s + r.time, 0);
-  const elev = routes.reduce((s, r) => s + r.elevation, 0);
+  const dist = routes.reduce((s, r) => s + (r.distance || 0), 0);
+  const time = routes.reduce((s, r) => s + (r.time || 0), 0);
+  const elev = routes.reduce((s, r) => s + (r.elevation || 0), 0);
 
   const fmt = (n) => n >= 10000 ? (n/1000).toFixed(1) + 'k' : n.toLocaleString();
   const el = id => document.getElementById(id);
@@ -14839,9 +15000,27 @@ function _hmUpdateLegend(html) {
 }
 
 /* ── Animate: replay rides one by one ── */
+// States: 'stopped' | 'playing' | 'paused'
+_hm.animState = 'stopped';
+_hm.animSpeed = 1;
+
+function _hmSetAnimBtn(icon, label) {
+  const btnEl = document.getElementById('hmAnimateBtn');
+  const lbl = document.getElementById('hmAnimateLabel');
+  if (lbl) lbl.textContent = label;
+  if (btnEl) {
+    const svg = btnEl.querySelector('svg');
+    if (svg) svg.innerHTML = icon === 'pause'
+      ? '<rect x="5" y="3" width="4" height="18"/><rect x="15" y="3" width="4" height="18"/>'
+      : '<polygon points="5,3 19,12 5,21"/>';
+  }
+}
+
 function hmToggleAnimate() {
-  if (_hm.animating) {
-    hmStopAnimate();
+  if (_hm.animState === 'playing') {
+    hmPauseAnimate();
+  } else if (_hm.animState === 'paused') {
+    hmResumeAnimate();
   } else {
     hmStartAnimate();
   }
@@ -14852,6 +15031,7 @@ function hmStartAnimate() {
   if (routes.length === 0) return;
 
   _hm.animating = true;
+  _hm.animState = 'playing';
   _hm.animIdx = 0;
 
   // Clear map
@@ -14859,52 +15039,65 @@ function hmStartAnimate() {
   _hm.polylines = [];
   if (_hm.heatLayer) { _hm.map.removeLayer(_hm.heatLayer); _hm.heatLayer = null; }
 
-  const btn = document.getElementById('hmAnimateLabel');
-  if (btn) btn.textContent = 'Stop';
+  _hmSetAnimBtn('pause', 'Pause');
+  _hm._animCanvas = L.canvas({ padding: 0.5 });
+  _hmAnimLoop();
+}
+
+function _hmAnimLoop() {
+  const routes = _hm._filtered || [];
   const barFill = document.getElementById('hmAnimateBarFill');
   const countEl = document.getElementById('hmAnimateCount');
 
-  const canvas = L.canvas({ padding: 0.5 });
-
-  function drawNext() {
-    if (!_hm.animating || _hm.animIdx >= routes.length) {
-      hmStopAnimate();
-      return;
-    }
-
-    const r = routes[_hm.animIdx];
-    const pct = ((_hm.animIdx + 1) / routes.length) * 100;
-    if (barFill) barFill.style.width = pct + '%';
-    if (countEl) countEl.textContent = `${_hm.animIdx + 1} / ${routes.length} · ${r.date.toLocaleDateString()}`;
-
-    // Glow trail
-    const glow = L.polyline(r.points, {
-      color: '#00e5a0', weight: 4, opacity: 0.15,
-      renderer: canvas, smoothFactor: 1,
-    }).addTo(_hm.map);
-    _hm.polylines.push(glow);
-
-    const line = L.polyline(r.points, {
-      color: '#00e5a0', weight: 1.8, opacity: 0.6,
-      renderer: canvas, smoothFactor: 1,
-    }).addTo(_hm.map);
-    _hm.polylines.push(line);
-
-    _hm.animIdx++;
-
-    // Speed up as more routes are drawn
-    const delay = routes.length > 200 ? 30 : routes.length > 50 ? 80 : 150;
-    _hm.animTimer = setTimeout(drawNext, delay);
+  if (_hm.animState !== 'playing' || _hm.animIdx >= routes.length) {
+    if (_hm.animIdx >= routes.length) hmStopAnimate();
+    return;
   }
 
-  drawNext();
+  const r = routes[_hm.animIdx];
+  const pct = ((_hm.animIdx + 1) / routes.length) * 100;
+  if (barFill) barFill.style.width = pct + '%';
+  if (countEl) countEl.textContent = `${_hm.animIdx + 1} / ${routes.length} · ${r.date.toLocaleDateString()}`;
+
+  const canvas = _hm._animCanvas;
+  const glow = L.polyline(r.points, {
+    color: '#00e5a0', weight: 4, opacity: 0.15,
+    renderer: canvas, smoothFactor: 1,
+  }).addTo(_hm.map);
+  _hm.polylines.push(glow);
+
+  const line = L.polyline(r.points, {
+    color: '#00e5a0', weight: 1.8, opacity: 0.6,
+    renderer: canvas, smoothFactor: 1,
+  }).addTo(_hm.map);
+  _hm.polylines.push(line);
+
+  _hm.animIdx++;
+
+  // 1x = slow & cinematic, 2x = moderate, 3x = fast burst
+  const baseDelay = routes.length > 200 ? 60 : routes.length > 50 ? 200 : 350;
+  const speedMap = { 1: 1, 2: 4, 3: 15 };
+  const delay = Math.max(5, Math.round(baseDelay / (speedMap[_hm.animSpeed] || 1)));
+  _hm.animTimer = setTimeout(_hmAnimLoop, delay);
+}
+
+function hmPauseAnimate() {
+  _hm.animState = 'paused';
+  if (_hm.animTimer) { clearTimeout(_hm.animTimer); _hm.animTimer = null; }
+  _hmSetAnimBtn('play', 'Resume');
+}
+
+function hmResumeAnimate() {
+  _hm.animState = 'playing';
+  _hmSetAnimBtn('pause', 'Pause');
+  _hmAnimLoop();
 }
 
 function hmStopAnimate() {
   _hm.animating = false;
+  _hm.animState = 'stopped';
   if (_hm.animTimer) { clearTimeout(_hm.animTimer); _hm.animTimer = null; }
-  const btn = document.getElementById('hmAnimateLabel');
-  if (btn) btn.textContent = 'Replay Rides';
+  _hmSetAnimBtn('play', 'Replay Rides');
   const barFill = document.getElementById('hmAnimateBarFill');
   if (barFill) barFill.style.width = '0%';
 }
@@ -15057,10 +15250,11 @@ async function impProcessAll() {
       const parsed = await impParseFIT(buffer);
       item.parsed = parsed;
 
-      // Duplicate check
-      if (optDupes && impIsDuplicate(parsed)) {
+      // Duplicate check (returns false or a reason string)
+      const dupReason = optDupes && impIsDuplicate(parsed);
+      if (dupReason) {
         item.status = 'skipped';
-        item.error = 'Duplicate';
+        item.error = dupReason;
         skipped++;
         impRenderQueue();
         continue;
@@ -15125,16 +15319,17 @@ let _fitParserLoaded = (typeof FitParser !== 'undefined');
 async function _loadFitParser() {
   if (_fitParserLoaded && typeof FitParser !== 'undefined') return;
   // Load all four CJS modules in the right order via a blob-based bundle
+  // Order matters: binary.js requires fit + messages, so they must load first
   const urls = [
     'https://cdn.jsdelivr.net/npm/fit-file-parser@1.9.1/dist/fit.js',
-    'https://cdn.jsdelivr.net/npm/fit-file-parser@1.9.1/dist/binary.js',
     'https://cdn.jsdelivr.net/npm/fit-file-parser@1.9.1/dist/messages.js',
+    'https://cdn.jsdelivr.net/npm/fit-file-parser@1.9.1/dist/binary.js',
     'https://cdn.jsdelivr.net/npm/fit-file-parser@1.9.1/dist/fit-parser.js',
   ];
   const sources = await Promise.all(urls.map(u => fetch(u).then(r => r.text())));
   // Wrap each module in a function that provides require/module/exports
   const modules = {};
-  const names = ['fit', 'binary', 'messages', 'fit-parser'];
+  const names = ['fit', 'messages', 'binary', 'fit-parser'];
   const bundle = names.map((name, i) => `
     (function(){
       var module = { exports: {} };
@@ -15145,7 +15340,9 @@ async function _loadFitParser() {
     })();
   `).join('\n');
   const script = document.createElement('script');
-  script.textContent = `(function(){ var __m = {};\n${bundle}\nwindow.FitParser = __m['fit-parser'].default || __m['fit-parser']; })();`;
+  // Provide a minimal Buffer polyfill for binary.js (it uses Buffer.from for UTF-8 string decoding)
+  const bufferShim = `__m['buffer'] = { Buffer: { from: function(arr) { return { toString: function() { return Array.from(arr).map(function(c){ return String.fromCharCode(c); }).join(''); } }; } } };`;
+  script.textContent = `(function(){ var __m = {};\n${bufferShim}\n${bundle}\nwindow.FitParser = __m['fit-parser'].default || __m['fit-parser']; })();`;
   document.head.appendChild(script);
   _fitParserLoaded = true;
 }
@@ -15213,12 +15410,26 @@ function impIsDuplicate(parsed) {
   const dur = Math.round(s.total_timer_time || 0);
   if (!ts) return false;
 
-  // Check against imported activities
+  // Check against locally imported FIT activities
   const imported = JSON.parse(localStorage.getItem('icu_fit_activities') || '[]');
-  return imported.some(a => {
+  const localDup = imported.some(a => {
     const aTs = new Date(a.start_date).getTime();
     return Math.abs(aTs - ts) < 60000 && Math.abs((a.moving_time || 0) - dur) < 30;
   });
+  if (localDup) return 'Already imported locally';
+
+  // Check against synced intervals.icu activities
+  const synced = getAllActivities();
+  const syncedDup = synced.find(a => {
+    const aDate = a.start_date_local || a.start_date;
+    if (!aDate) return false;
+    const aTs = new Date(aDate).getTime();
+    const aDur = a.moving_time || a.icu_moving_time || a.elapsed_time || 0;
+    return Math.abs(aTs - ts) < 120000 && Math.abs(aDur - dur) < 60;
+  });
+  if (syncedDup) return `Already on intervals.icu: ${syncedDup.name || syncedDup.icu_name || 'activity'}`;
+
+  return false;
 }
 
 /* ── Build activity from parsed FIT ── */
