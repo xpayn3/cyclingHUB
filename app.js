@@ -6603,6 +6603,28 @@ function calGoToday() {
   renderCalendar();
 }
 
+function toggleCalPanel() {
+  const body = document.querySelector('.cal-body');
+  const btn  = document.getElementById('calPanelToggle');
+  if (!body) return;
+  body.classList.toggle('cal-body--panel-hidden');
+  const hidden = body.classList.contains('cal-body--panel-hidden');
+  if (btn) btn.classList.toggle('active', !hidden);
+  try { localStorage.setItem('icu_cal_panel_hidden', hidden ? '1' : ''); } catch (_) {}
+}
+
+// Restore panel state on load
+(function _restoreCalPanel() {
+  if (localStorage.getItem('icu_cal_panel_hidden') === '1') {
+    // Defer until calendar DOM exists
+    const _obs = new MutationObserver(() => {
+      const body = document.querySelector('.cal-body');
+      if (body) { body.classList.add('cal-body--panel-hidden'); _obs.disconnect(); }
+    });
+    _obs.observe(document.body, { childList: true, subtree: true });
+  }
+})();
+
 // Returns a tiny SVG intensity bar icon (4 ascending bars, bottom-aligned)
 function calIntensityBars(tss) {
   if (!tss || tss <= 0) return '';

@@ -1512,18 +1512,22 @@ code {
 .activity-list {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 0;
 }
 
 /* ── Activities page sort bar ─────────────────────────────────────── */
 /* ---- Activities toolbar ---- */
 .acts-toolbar {
-    padding: 12px 0 14px;
+    padding: 14px 0;
     border-bottom: 1px solid var(--border);
     margin-bottom: 4px;
     display: flex;
     flex-direction: column;
     gap: 10px;
+    position: sticky;
+    top: calc(48px + env(safe-area-inset-top));
+    z-index: 10;
+    background: var(--bg-base);
 }
 .acts-toolbar-top {
     display: flex;
@@ -2887,6 +2891,12 @@ code {
     align-items: center;
     gap: 4px;
 }
+.cal-panel-toggle {
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+}
+.cal-panel-toggle:hover { opacity: 1; }
+.cal-panel-toggle.active { opacity: 1; color: var(--accent); }
 .cal-month-title {
     font-size: var(--text-lg);
     font-weight: 800;
@@ -2975,7 +2985,18 @@ code {
 }
 .cal-day-panel {
     width: 320px;
-    flex: none;                    /* fixed narrow right column */
+    flex: none;
+    transition: width 0.25s ease, opacity 0.2s ease;
+    overflow: hidden;
+}
+.cal-body--panel-hidden .cal-day-panel {
+    width: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+.cal-body--panel-hidden .cal-left {
+    border-right: none;
+    flex: 1;
 }
 
 /* ── Day-of-week strip ── */
@@ -5049,6 +5070,20 @@ code {
     .cal-dot {
         width: 4px;
         height: 4px;
+    }
+    .cal-day-panel {
+        transition: flex 0.25s ease, opacity 0.2s ease;
+    }
+    .cal-body--panel-hidden .cal-day-panel {
+        width: 100%;
+        flex: 0 0 0px;
+        opacity: 0;
+        pointer-events: none;
+        overflow: hidden;
+    }
+    .cal-body--panel-hidden .cal-left {
+        flex: 1;
+        border-bottom: none;
     }
     .cal-day-panel-header {
         padding: 9px 14px 7px;
