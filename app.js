@@ -1173,6 +1173,7 @@ function toggleSidebar() {
   const open     = sidebar.classList.toggle('open');
   backdrop.classList.toggle('open', open);
   burger?.classList.toggle('is-open', open);
+  if (open) { const nav = sidebar.querySelector('.sidebar-nav'); if (nav) nav.scrollTop = 0; }
   _lockBodyScroll(open);
 }
 
@@ -1309,6 +1310,7 @@ document.addEventListener('touchend', (e) => {
 
   if (shouldOpen) {
     sidebar.classList.add('open');
+    const _nav = sidebar.querySelector('.sidebar-nav'); if (_nav) _nav.scrollTop = 0;
     backdrop?.classList.add('open');
     document.getElementById('burgerBtn')?.classList.add('is-open');
     _lockBodyScroll(true);
