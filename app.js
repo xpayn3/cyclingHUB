@@ -685,7 +685,6 @@ async function syncData() {
     // Decide between incremental and full sync
     const cache = loadActivityCache();
     const isIncremental = !!(cache && cache.activities.length > 0);
-    console.log('[sync]', isIncremental ? 'incremental' : 'full', '| cached:', cache?.activities?.length || 0);
 
     if (isIncremental) {
       // Load cache into state immediately so the UI can render while we fetch
@@ -697,19 +696,12 @@ async function syncData() {
       // Fetch only activities since last sync minus 2-day buffer (extra buffer for timezone safety)
       const since = new Date(cache.lastSync);
       since.setDate(since.getDate() - 2);
-      console.log('[sync] fetching since:', since.toISOString());
       setLoading(true, 'Checking for new activities…');
-      const beforeCount = state.activities.length;
       await fetchActivities(null, since);
-      console.log('[sync] after fetch:', state.activities.length, 'activities (was', beforeCount + ')');
-      if (state.activities.length > beforeCount) {
-        console.log('[sync] newest activity:', state.activities[0]?.name, state.activities[0]?.start_date_local);
-      }
     } else {
       const days = defaultSyncDays();
       setLoading(true, `Loading activities — syncing ${days} days…`);
       await fetchActivities(days);
-      console.log('[sync] full fetch:', state.activities.length, 'activities');
     }
 
     // Save updated cache after a successful fetch
@@ -748,7 +740,6 @@ async function syncData() {
       'success'
     );
   } catch (err) {
-    console.error('[sync] FAILED:', err);
     const m = err.message || '';
     const msg = (m.includes('401') || m.includes('403'))
       ? 'Authentication failed. Please reconnect.'
@@ -2028,7 +2019,8 @@ function _refreshYearDropdown() {
 ==================================================== */
 // Build HTML for a single recent-activity carousel card
 function buildRecentActCardHTML(a, idx) {
-  const name    = a.name || a.icu_name || 'Activity';
+  const rawName = (a.name && a.name.trim()) ? a.name.trim() : (a.icu_name || 'Activity');
+  const { title: name, platformTag } = cleanActivityName(rawName);
   const dateStr = a.start_date_local || a.start_date || '';
   const dateObj = dateStr ? new Date(dateStr) : null;
   const dateFmt = dateObj
@@ -2080,7 +2072,7 @@ function buildRecentActCardHTML(a, idx) {
           <div class="recent-act-text">
             <div class="recent-act-date">${dateFmt}${timeFmt ? ' · ' + timeFmt : ''}</div>
             <div class="recent-act-name">${name}</div>
-            ${tssBadge}
+            <div class="recent-act-badges">${tssBadge}${platformTag ? `<span class="act-platform-tag">${platformTag}</span>` : ''}</div>
           </div>
         </div>
         <div class="recent-act-stats">${statsHTML}</div>
@@ -2180,24 +2172,7 @@ async function renderRecentActivity() {
   (state.recentActivityMaps || []).forEach(m => { try { m.remove(); } catch (_) {} });
   state.recentActivityMaps = [];
 
-  // Debug: log newest activity and whether it passes the filter
-  const _raw = state.activities || [];
-  if (_raw.length) {
-    const newest = _raw[0];
-    const _empty = isEmptyActivity(newest);
-    console.log('[recent] newest activity:', newest.name, '| type:', newest.type, '| empty?', _empty);
-    if (_empty) {
-      console.log('[recent] FILTERED OUT — fields:', JSON.stringify({
-        distance: newest.distance ?? newest.icu_distance,
-        moving_time: newest.moving_time ?? newest.elapsed_time ?? newest.icu_moving_time,
-        tss: newest.icu_training_load ?? newest.tss,
-        hr: newest.average_heartrate ?? newest.icu_average_heartrate,
-        watts: newest.icu_weighted_avg_watts ?? newest.average_watts,
-      }));
-    }
-  }
-
-  const pool = _raw.filter(a => !isEmptyActivity(a));
+  const pool = (state.activities || []).filter(a => !isEmptyActivity(a));
   if (!pool.length) {
     rail.innerHTML = '';
     if (sectionLabel) sectionLabel.style.display = 'none';
@@ -13729,6 +13704,42 @@ function setMapTheme(key) {
 (function initMapThemePicker() {
   document.querySelectorAll('.map-theme-option').forEach(b =>
     b.classList.toggle('active', b.dataset.theme === loadMapTheme()));
+})();
+
+// ── Font picker ──────────────────────────────────────────────────────────────
+const FONT_OPTIONS = {
+  'inter':         "'Inter', system-ui, -apple-system, sans-serif",
+  'dm-sans':       "'DM Sans', system-ui, -apple-system, sans-serif",
+  'outfit':        "'Outfit', system-ui, -apple-system, sans-serif",
+  'space-grotesk': "'Space Grotesk', system-ui, -apple-system, sans-serif",
+};
+
+function loadAppFont() {
+  return localStorage.getItem('icu_app_font') || 'inter';
+}
+
+function setAppFont(key) {
+  if (!FONT_OPTIONS[key]) return;
+  localStorage.setItem('icu_app_font', key);
+  const family = FONT_OPTIONS[key];
+  document.documentElement.style.setProperty('--font-ui', family);
+  document.documentElement.style.setProperty('--font-num', family);
+  // Update active pill
+  document.querySelectorAll('.font-option').forEach(b =>
+    b.classList.toggle('active', b.dataset.font === key));
+}
+
+(function initFontPicker() {
+  const saved = loadAppFont();
+  // Apply saved font immediately
+  if (saved !== 'inter' && FONT_OPTIONS[saved]) {
+    const family = FONT_OPTIONS[saved];
+    document.documentElement.style.setProperty('--font-ui', family);
+    document.documentElement.style.setProperty('--font-num', family);
+  }
+  // Set active state on buttons
+  document.querySelectorAll('.font-option').forEach(b =>
+    b.classList.toggle('active', b.dataset.font === saved));
 })();
 
 // ── Smooth flyover setting ───────────────────────────────────────────────────
