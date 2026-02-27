@@ -2578,6 +2578,80 @@ code {
     text-overflow: ellipsis;
 }
 
+/* ── Recovery Estimation ── */
+.fit-rec-body { display: flex; align-items: flex-start; gap: 24px; }
+.fit-rec-gauge-wrap { text-align: center; flex-shrink: 0; width: 200px; position: relative; }
+.fit-rec-gauge { width: 200px; height: 130px; }
+.fit-rec-gauge-label {
+    position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+    font-size: 28px; font-weight: 800; font-family: var(--font-num); color: var(--text-primary);
+}
+.fit-rec-gauge-sub {
+    font-size: var(--text-2xs); color: var(--text-muted); font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.04em; margin-top: 2px;
+}
+.fit-rec-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; flex: 1; }
+.fit-rec-metric {
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 10px 12px;
+}
+.fit-rec-metric-label {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.04em; color: var(--text-muted);
+}
+.fit-rec-metric-val {
+    font-size: var(--text-lg); font-weight: 800; font-family: var(--font-num); margin-top: 2px;
+}
+.fit-rec-metric-hint { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
+.fit-rec-eta {
+    margin-top: 12px; padding: 8px 12px; border-radius: var(--radius);
+    background: var(--bg-elevated); font-size: var(--text-xs);
+    color: var(--text-secondary); text-align: center;
+}
+
+/* ── Race Predictor ── */
+.fit-rp-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.fit-rp-card {
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 12px; text-align: center;
+    position: relative;
+    --mouse-x: 50%; --mouse-y: 50%;
+    transition: border-color var(--transition), box-shadow var(--transition);
+}
+.fit-rp-card::before {
+    content: ""; position: absolute; inset: 0; border-radius: inherit;
+    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(255,255,255,0.055) 0%, transparent 65%);
+    opacity: 0; transition: opacity 0.35s ease; pointer-events: none; z-index: 0;
+}
+.fit-rp-card::after {
+    content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px;
+    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(255,255,255,0.35) 0%, transparent 60%);
+    opacity: 0; transition: opacity 0.35s ease; pointer-events: none; z-index: 0;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+}
+.fit-rp-card:hover {
+    border-color: transparent;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.35);
+}
+.fit-rp-card:hover::before,
+.fit-rp-card:hover::after { opacity: 1; }
+.fit-rp-dist {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.04em; color: var(--text-muted);
+}
+.fit-rp-type { font-size: 9px; color: var(--text-muted); margin-top: 1px; }
+.fit-rp-time {
+    font-size: var(--text-lg); font-weight: 800; font-family: var(--font-num);
+    color: var(--text-primary); margin-top: 8px;
+}
+.fit-rp-speed { font-size: var(--text-2xs); color: var(--accent); margin-top: 2px; }
+.fit-rp-power { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+.fit-rp-note {
+    margin-top: 10px; font-size: 10px; color: var(--text-muted);
+    text-align: center; font-style: italic;
+}
+
 /* ── Responsive ── */
 @media (max-width: 1100px) {
     .fit-kpi-row {
@@ -2614,6 +2688,16 @@ code {
     }
     .fit-hm-legend {
         display: none;
+    }
+    .fit-rec-body {
+        flex-direction: column;
+        align-items: center;
+    }
+    .fit-rec-metrics {
+        width: 100%;
+    }
+    .fit-rp-grid {
+        grid-template-columns: repeat(2, 1fr);
     }
 }
 
@@ -11039,7 +11123,9 @@ code {
     .stk-stat-tile::before,
     .stk-stat-tile::after,
     .goal-dash-card::before,
-    .goal-dash-card::after {
+    .goal-dash-card::after,
+    .fit-rp-card::before,
+    .fit-rp-card::after {
         display: none !important;
     }
 }
@@ -14295,7 +14381,9 @@ html[data-theme="light"] {
 [data-theme="light"] .wxp-best-card::before,
 [data-theme="light"] .wxp-best-card::after,
 [data-theme="light"] .wxp-day-card::before,
-[data-theme="light"] .wxp-day-card::after {
+[data-theme="light"] .wxp-day-card::after,
+[data-theme="light"] .fit-rp-card::before,
+[data-theme="light"] .fit-rp-card::after {
     display: none;
 }
 

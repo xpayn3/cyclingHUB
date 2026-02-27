@@ -2509,7 +2509,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="chart-wrap" style="height: 160px">
+                        <div class="chart-wrap" style="height: 220px">
                             <canvas id="detailGradientChart"></canvas>
                         </div>
                     </div>
@@ -2868,6 +2868,37 @@
                             <div class="fit-wcard-val" id="fitWeight">—</div>
                             <div class="fit-wcard-sub">kg · latest</div>
                         </div>
+                    </div>
+
+                    <!-- ── Recovery Estimation ── -->
+                    <div class="card" id="fitRecoveryCard" style="display: none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">Recovery Estimation</div>
+                                <div class="card-subtitle" id="fitRecoverySubtitle">Composite recovery score</div>
+                            </div>
+                        </div>
+                        <div class="fit-rec-body">
+                            <div class="fit-rec-gauge-wrap">
+                                <svg id="fitRecoveryGaugeSVG" viewBox="0 0 200 130" class="fit-rec-gauge"></svg>
+                                <div class="fit-rec-gauge-label" id="fitRecoveryPct">&mdash;</div>
+                                <div class="fit-rec-gauge-sub" id="fitRecoveryLabel">Loading&hellip;</div>
+                            </div>
+                            <div class="fit-rec-metrics" id="fitRecoveryMetrics"></div>
+                        </div>
+                        <div class="fit-rec-eta" id="fitRecoveryEta"></div>
+                    </div>
+
+                    <!-- ── Race Predictor ── -->
+                    <div class="card" id="fitRacePredCard" style="display: none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">Race Predictor</div>
+                                <div class="card-subtitle">Estimated times based on current FTP · flat road</div>
+                            </div>
+                        </div>
+                        <div class="fit-rp-grid" id="fitRacePredGrid"></div>
+                        <div class="fit-rp-note" id="fitRacePredNote"></div>
                     </div>
 
                     <!-- ── Training Load History chart ── -->

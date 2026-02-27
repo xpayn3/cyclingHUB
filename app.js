@@ -1279,14 +1279,14 @@ function runLifetimeSync() {
       updateLifetimeCacheUI();
       showToast(`Synced ${state.lifetimeActivities.length} lifetime activities`, 'success');
 
-      if (state.currentPage === 'goals') { renderStreaksPage(); renderGoalsPage(); }
+      if (state.currentPage === 'goals') { renderStreaksPage(); renderGoalsPage(); requestAnimationFrame(() => { if (window.refreshGlow) refreshGlow(); if (window.refreshBadgeTilt) refreshBadgeTilt(); }); }
       if (state.currentPage === 'activities') renderAllActivitiesList();
       if (state.currentPage === 'settings') navigate('settings');
     } catch (e) {
       console.error('Lifetime sync failed:', e);
       showToast('Lifetime sync failed: ' + (e.message || 'unknown error'), 'error');
       if (!state.lifetimeActivities) state.lifetimeActivities = state.activities || [];
-      if (state.currentPage === 'goals') { renderStreaksPage(); renderGoalsPage(); }
+      if (state.currentPage === 'goals') { renderStreaksPage(); renderGoalsPage(); requestAnimationFrame(() => { if (window.refreshGlow) refreshGlow(); if (window.refreshBadgeTilt) refreshBadgeTilt(); }); }
     }
   })();
 }
@@ -1682,8 +1682,11 @@ function navigate(page) {
   if (page === 'workout')  { wrkRefreshStats(); wrkRender(); }
   if (page === 'settings') {
     initWeatherLocationUI();
+    _rlStartTick();
     const settingsBack = document.getElementById('settingsTopbarBack');
     if (settingsBack) settingsBack.style.display = (state.previousPage && state.previousPage !== 'settings') ? '' : 'none';
+  } else {
+    _rlStopTick();
   }
   if (page === 'activities') { ensureLifetimeLoaded(); requestAnimationFrame(_updateActStickyTop); }
   if (page === 'weather')  renderWeatherPage();
@@ -1694,7 +1697,7 @@ function navigate(page) {
   if (page === 'wellness' || page === 'streaks') { navigate('goals'); return; }
 
   // Upgrade all native selects to custom dropdowns
-  requestAnimationFrame(() => initCustomDropdowns());
+  requestAnimationFrame(() => { initCustomDropdowns(); if (window.refreshGlow) refreshGlow(); if (window.refreshBadgeTilt) refreshBadgeTilt(); });
 
   // Restore scroll position when returning to activities from activity detail
   if (_restoreActScroll) {
@@ -2476,6 +2479,7 @@ async function renderRecentActivity() {
     if (card) card.onclick = () => navigateToActivity(a);
     renderRecentActCardMap(a, i);
   });
+  if (window.refreshGlow) refreshGlow(rail);
 }
 
 
@@ -3886,6 +3890,7 @@ async function renderWeatherPage(_restoreScrollY) {
       rail.scrollLeft = scrollLeft - (x - startX);
     }, { passive: true });
   }
+  if (window.refreshGlow) requestAnimationFrame(refreshGlow);
 }
 
 function refreshWeatherPage() {
@@ -4329,6 +4334,7 @@ function renderDashboard() {
   renderRecentActivity();    // async — fetches GPS for map preview
   renderWeatherForecast();   // async — fetches Open-Meteo 7-day forecast
   renderGoalsDashWidget();   // goals & targets compact summary
+  if (window.refreshGlow) requestAnimationFrame(refreshGlow);
 }
 
 function resetDashboard() {
@@ -6212,7 +6218,8 @@ function renderPwrTrend(days) {
   const rising = slope > 1;
   const flat   = Math.abs(pctChg) < 3;
 
-  const barColors = watts.map(w => w >= avgW ? 'rgba(0,229,160,0.75)' : 'rgba(0,229,160,0.25)');
+  const barColors      = watts.map(w => w >= avgW ? 'rgba(0,229,160,0.75)' : 'rgba(0,229,160,0.25)');
+  const barHoverColors = watts.map(w => w >= avgW ? '#00e5a0' : 'rgba(0,229,160,0.5)');
 
   state.powerTrendChart = new Chart(canvas.getContext('2d'), {
     type: 'bar',
@@ -6223,6 +6230,7 @@ function renderPwrTrend(days) {
           label: 'NP',
           data: watts,
           backgroundColor: barColors,
+          hoverBackgroundColor: barHoverColors,
           borderRadius: 3,
           maxBarThickness: 14,
           order: 2,
@@ -6638,8 +6646,11 @@ function renderFitnessPage() {
   renderFitnessWeeklyPageChart();
   renderFitnessMonthlyTable();
   renderBestEfforts();
+  renderRecoveryEstimation();
+  renderRacePredictor();
   state._fitZoneRange = state._fitZoneRange ?? 90;
   setFitZoneRange(state._fitZoneRange);
+  if (window.refreshGlow) requestAnimationFrame(refreshGlow);
 }
 
 function setFitZoneRange(days) {
@@ -6895,13 +6906,14 @@ function renderFitnessWeeklyPageChart() {
   // Color bars by intensity relative to avg
   const vals   = entries.map(([, v]) => Math.round(v));
   const avg    = vals.reduce((s, v) => s + v, 0) / vals.length;
-  const colors = vals.map(v => v >= avg * 1.2 ? '#ff6b35' : v >= avg * 0.8 ? '#00e5a0' : 'rgba(0,229,160,0.4)');
+  const colors      = vals.map(v => v >= avg * 1.2 ? '#ff6b35' : v >= avg * 0.8 ? '#00e5a0' : 'rgba(0,229,160,0.4)');
+  const hoverColors = vals.map(v => v >= avg * 1.2 ? '#ff8c5a' : v >= avg * 0.8 ? '#33ffbc' : '#00e5a0');
 
   state.fitnessWeeklyPageChart = new Chart(canvas.getContext('2d'), {
     type: 'bar',
     data: {
       labels: entries.map(([k]) => 'W' + k.slice(-2)),
-      datasets: [{ data: vals, backgroundColor: colors, borderRadius: 4, hoverBackgroundColor: '#00e5a0' }]
+      datasets: [{ data: vals, backgroundColor: colors, borderRadius: 4, hoverBackgroundColor: hoverColors }]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
@@ -7035,6 +7047,298 @@ function renderBestEfforts() {
     const activity = results[idx]?.best?.activity;
     if (activity) card.onclick = () => navigateToActivity(activity);
   });
+  if (window.refreshGlow) refreshGlow(grid);
+}
+
+/* ====================================================
+   RECOVERY ESTIMATION & RACE PREDICTOR
+==================================================== */
+
+function drawRecoveryGaugeSVG(score) {
+  const el = document.getElementById('fitRecoveryGaugeSVG');
+  if (!el) return;
+
+  const CX = 100, CY = 115, R = 82, SW = 18;
+  const val = Math.max(0, Math.min(100, score));
+
+  const toA = v => Math.PI * (1 - Math.max(0, Math.min(100, v)) / 100);
+  const px = a => (CX + R * Math.cos(a)).toFixed(1);
+  const py = a => (CY - R * Math.sin(a)).toFixed(1);
+  const arcPath = (a1, a2) => {
+    const large = (a1 - a2) > Math.PI ? 1 : 0;
+    return `M${px(a1)} ${py(a1)} A${R} ${R} 0 ${large} 1 ${px(a2)} ${py(a2)}`;
+  };
+
+  const Ro = R + SW / 2, Ri = R - SW / 2;
+  const pxR = (a, r) => (CX + r * Math.cos(a)).toFixed(1);
+  const pyR = (a, r) => (CY - r * Math.sin(a)).toFixed(1);
+  const tubePath = (a1, a2, cap) => {
+    const large = (a1 - a2) > Math.PI ? 1 : 0;
+    if (cap === 'round') {
+      return `M${pxR(a1, Ro)} ${pyR(a1, Ro)} A${Ro} ${Ro} 0 ${large} 1 ${pxR(a2, Ro)} ${pyR(a2, Ro)} `
+           + `A${SW/2} ${SW/2} 0 0 1 ${pxR(a2, Ri)} ${pyR(a2, Ri)} `
+           + `A${Ri} ${Ri} 0 ${large} 0 ${pxR(a1, Ri)} ${pyR(a1, Ri)} `
+           + `A${SW/2} ${SW/2} 0 0 1 ${pxR(a1, Ro)} ${pyR(a1, Ro)}Z`;
+    }
+    return `M${pxR(a1, Ro)} ${pyR(a1, Ro)} A${Ro} ${Ro} 0 ${large} 1 ${pxR(a2, Ro)} ${pyR(a2, Ro)} `
+         + `L${pxR(a2, Ri)} ${pyR(a2, Ri)} `
+         + `A${Ri} ${Ri} 0 ${large} 0 ${pxR(a1, Ri)} ${pyR(a1, Ri)}Z`;
+  };
+
+  const color = val < 30 ? '#ff4757' : val < 60 ? '#f0c429' : '#00e5a0';
+
+  // Tick marks at key boundaries
+  const tickVals = [0, 30, 60, 100];
+  let ticks = '';
+  const dk = _isDark();
+  tickVals.forEach(v => {
+    const a = toA(v);
+    const r1 = R + SW / 2 + 3, r2 = r1 + 7;
+    ticks += `<line x1="${(CX + r1 * Math.cos(a)).toFixed(1)}" y1="${(CY - r1 * Math.sin(a)).toFixed(1)}" `
+           + `x2="${(CX + r2 * Math.cos(a)).toFixed(1)}" y2="${(CY - r2 * Math.sin(a)).toFixed(1)}" `
+           + `stroke="${dk ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}" stroke-width="1.5" stroke-linecap="round"/>`;
+  });
+
+  let s = `<defs>
+    <linearGradient id="recTubeTrack" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${dk ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)'}"/>
+      <stop offset="35%" stop-color="${dk ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)'}"/>
+      <stop offset="65%" stop-color="rgba(0,0,0,0.08)"/>
+      <stop offset="100%" stop-color="rgba(0,0,0,0.2)"/>
+    </linearGradient>
+    <linearGradient id="recTubeFillGreen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5fffca"/>
+      <stop offset="30%" stop-color="#00e5a0"/>
+      <stop offset="70%" stop-color="#00b87f"/>
+      <stop offset="100%" stop-color="#008a60"/>
+    </linearGradient>
+    <linearGradient id="recTubeFillYellow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffe066"/>
+      <stop offset="30%" stop-color="#f0c429"/>
+      <stop offset="70%" stop-color="#d4a820"/>
+      <stop offset="100%" stop-color="#a88518"/>
+    </linearGradient>
+    <linearGradient id="recTubeFillRed" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ff8a8a"/>
+      <stop offset="30%" stop-color="#ff4757"/>
+      <stop offset="70%" stop-color="#d63545"/>
+      <stop offset="100%" stop-color="#a52835"/>
+    </linearGradient>
+    <linearGradient id="recTubeHighlight" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.25)"/>
+      <stop offset="25%" stop-color="rgba(255,255,255,0.06)"/>
+      <stop offset="50%" stop-color="rgba(255,255,255,0)"/>
+      <stop offset="100%" stop-color="rgba(0,0,0,0)"/>
+    </linearGradient>
+    <filter id="recGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="recDotGlow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="3.5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>`;
+
+  s += ticks;
+
+  // Tube track base
+  s += `<path d="${tubePath(Math.PI * 0.999, Math.PI * 0.001, 'round')}" fill="rgba(10,12,20,0.6)"/>`;
+  // Zone color hints
+  const zones = [[0, 30, '#ff4757'], [30, 60, '#f0c429'], [60, 100, '#00e5a0']];
+  zones.forEach(([lo, hi, c]) => {
+    s += `<path d="${tubePath(toA(lo), toA(hi))}" fill="${c}" opacity="0.07"/>`;
+  });
+  // Gradient overlay
+  s += `<path d="${tubePath(Math.PI * 0.999, Math.PI * 0.001, 'round')}" fill="url(#recTubeTrack)"/>`;
+
+  // Active fill
+  const fillGrad = color === '#00e5a0' ? 'url(#recTubeFillGreen)' : color === '#f0c429' ? 'url(#recTubeFillYellow)' : 'url(#recTubeFillRed)';
+  if (val > 1) {
+    s += `<path d="${arcPath(Math.PI * 0.999, toA(val))}" fill="none" stroke="${color}" stroke-width="${SW + 10}" stroke-linecap="round" opacity="0.2" filter="url(#recGlow)"/>`;
+    s += `<path d="${tubePath(Math.PI * 0.999, toA(val), 'round')}" fill="${fillGrad}"/>`;
+    s += `<path d="${tubePath(Math.PI * 0.999, toA(val), 'round')}" fill="url(#recTubeHighlight)"/>`;
+  }
+
+  // Specular highlight on track
+  const hiR = R + SW / 2 - 1;
+  s += `<path d="M${pxR(Math.PI * 0.999, hiR)} ${pyR(Math.PI * 0.999, hiR)} A${hiR} ${hiR} 0 1 1 ${pxR(Math.PI * 0.001, hiR)} ${pyR(Math.PI * 0.001, hiR)}" `
+     + `fill="none" stroke="${dk ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}" stroke-width="1.5" stroke-linecap="round"/>`;
+
+  // Indicator dot
+  const dx = px(toA(val)), dy = py(toA(val));
+  s += `<circle cx="${dx}" cy="${dy}" r="7" fill="${color}" opacity="0.3" filter="url(#recDotGlow)"/>`;
+  s += `<circle cx="${dx}" cy="${dy}" r="${SW/2 + 1}" fill="${color}"/>`;
+  s += `<circle cx="${dx}" cy="${dy}" r="${SW/2 - 1}" fill="url(#recTubeHighlight)"/>`;
+  s += `<circle cx="${dx}" cy="${dy}" r="3" fill="rgba(255,255,255,0.6)"/>`;
+
+  el.innerHTML = s;
+}
+
+function renderRecoveryEstimation() {
+  const card = document.getElementById('fitRecoveryCard');
+  if (!card) return;
+
+  const fit = state.fitness;
+  if (!fit || fit.ctl == null) { card.style.display = 'none'; return; }
+
+  const tsb = fit.tsb ?? 0;
+  const atl = fit.atl ?? 0;
+  const ctl = fit.ctl ?? 1;
+
+  // TSB score: map [-30, +25] → [0, 100]
+  const tsbScore = Math.max(0, Math.min(100, (tsb + 30) / 55 * 100));
+
+  // HRV score: latest vs 7-day average
+  const wellArr = Array.isArray(state.wellnessHistory)
+    ? state.wellnessHistory
+    : Object.values(state.wellnessHistory || {});
+  const well = wellArr.filter(w => w && w.hrv > 0);
+  let hrvScore = 50, hrvLatest = null, hrvAvg = null;
+  if (well.length >= 2) {
+    hrvLatest = well[well.length - 1].hrv;
+    const recent7 = well.slice(-7);
+    hrvAvg = recent7.reduce((s, w) => s + w.hrv, 0) / recent7.length;
+    if (hrvAvg > 0) hrvScore = Math.max(0, Math.min(100, (hrvLatest / hrvAvg) * 50));
+  }
+
+  // Resting HR score: latest vs average (lower = more recovered)
+  const wellHR = wellArr.filter(w => w && w.restingHR > 0);
+  let hrScore = 50, hrLatest = null, hrAvg = null;
+  if (wellHR.length >= 2) {
+    hrLatest = wellHR[wellHR.length - 1].restingHR;
+    const recent7 = wellHR.slice(-7);
+    hrAvg = recent7.reduce((s, w) => s + w.restingHR, 0) / recent7.length;
+    if (hrLatest > 0) hrScore = Math.max(0, Math.min(100, (hrAvg / hrLatest) * 50));
+  }
+
+  // Load score: ATL/CTL ratio — lower = more recovered
+  const ratio = ctl > 0 ? atl / ctl : 1;
+  const loadScore = Math.max(0, Math.min(100, (1.5 - ratio) / 1.0 * 100));
+
+  // Composite
+  const composite = Math.round(0.40 * tsbScore + 0.25 * hrvScore + 0.20 * hrScore + 0.15 * loadScore);
+
+  card.style.display = '';
+  drawRecoveryGaugeSVG(composite);
+
+  // Label
+  const pctEl = document.getElementById('fitRecoveryPct');
+  const labelEl = document.getElementById('fitRecoveryLabel');
+  if (pctEl) pctEl.textContent = composite + '%';
+  const statusText = composite >= 75 ? 'Well Recovered' : composite >= 50 ? 'Moderately Recovered' : composite >= 30 ? 'Fatigued' : 'Very Fatigued';
+  if (labelEl) labelEl.textContent = statusText;
+
+  // Sub-metric cards
+  const metricsEl = document.getElementById('fitRecoveryMetrics');
+  if (metricsEl) {
+    const tsbColor = tsb >= 5 ? 'var(--accent)' : tsb >= -10 ? 'var(--yellow)' : 'var(--red)';
+    const hrvTrend = hrvLatest && hrvAvg ? (hrvLatest >= hrvAvg ? '↑' : '↓') : '';
+    const hrvColor = hrvLatest && hrvAvg ? (hrvLatest >= hrvAvg ? 'var(--accent)' : 'var(--red)') : 'var(--text-secondary)';
+    const hrTrend = hrLatest && hrAvg ? (hrLatest <= hrAvg ? '↓' : '↑') : '';
+    const hrColor = hrLatest && hrAvg ? (hrLatest <= hrAvg ? 'var(--accent)' : 'var(--red)') : 'var(--text-secondary)';
+    const ratioColor = ratio <= 0.9 ? 'var(--accent)' : ratio <= 1.1 ? 'var(--yellow)' : 'var(--red)';
+
+    metricsEl.innerHTML = `
+      <div class="fit-rec-metric">
+        <div class="fit-rec-metric-label">TSB (Form)</div>
+        <div class="fit-rec-metric-val" style="color:${tsbColor}">${tsb >= 0 ? '+' : ''}${tsb.toFixed(1)}</div>
+        <div class="fit-rec-metric-hint">${tsb >= 5 ? 'Fresh' : tsb >= -10 ? 'Neutral' : 'Fatigued'}</div>
+      </div>
+      <div class="fit-rec-metric">
+        <div class="fit-rec-metric-label">HRV Trend</div>
+        <div class="fit-rec-metric-val" style="color:${hrvColor}">${hrvLatest ? hrvLatest.toFixed(0) + ' ' + hrvTrend : '—'}</div>
+        <div class="fit-rec-metric-hint">${hrvAvg ? 'Avg ' + hrvAvg.toFixed(0) + ' ms' : 'No data'}</div>
+      </div>
+      <div class="fit-rec-metric">
+        <div class="fit-rec-metric-label">Resting HR</div>
+        <div class="fit-rec-metric-val" style="color:${hrColor}">${hrLatest ? hrLatest + ' ' + hrTrend : '—'}</div>
+        <div class="fit-rec-metric-hint">${hrAvg ? 'Avg ' + hrAvg.toFixed(0) + ' bpm' : 'No data'}</div>
+      </div>
+      <div class="fit-rec-metric">
+        <div class="fit-rec-metric-label">Load Ratio</div>
+        <div class="fit-rec-metric-val" style="color:${ratioColor}">${ratio.toFixed(2)}</div>
+        <div class="fit-rec-metric-hint">ATL / CTL${ratio <= 0.9 ? ' · Recovering' : ratio <= 1.1 ? ' · Balanced' : ' · Overreaching'}</div>
+      </div>`;
+    if (window.refreshGlow) refreshGlow(metricsEl);
+  }
+
+  // ETA until fresh
+  const etaEl = document.getElementById('fitRecoveryEta');
+  if (etaEl) {
+    if (tsb >= 5) {
+      etaEl.textContent = "You're fresh! TSB is above +5 — ready to perform.";
+    } else {
+      // Estimate daily TSB gain: TSB rises when not training. Rough model: ~2-3 TSB/day at rest
+      const dailyGain = ctl > 0 ? Math.max(0.5, (ctl - atl) / 42) : 1.5;
+      const daysToFresh = dailyGain > 0 ? Math.ceil((5 - tsb) / dailyGain) : 99;
+      if (daysToFresh <= 1) {
+        etaEl.textContent = 'Estimated ~1 day of rest until fresh (TSB ≥ +5)';
+      } else if (daysToFresh <= 14) {
+        etaEl.textContent = `Estimated ~${daysToFresh} days of easy training until fresh (TSB ≥ +5)`;
+      } else {
+        etaEl.textContent = 'Recovery may take 2+ weeks with reduced training load';
+      }
+    }
+  }
+
+  const subtitle = document.getElementById('fitRecoverySubtitle');
+  if (subtitle) subtitle.textContent = `TSB ${tsb >= 0 ? '+' : ''}${tsb.toFixed(1)} · ATL/CTL ${ratio.toFixed(2)}`;
+}
+
+function solveSpeed(power, CdA, mass) {
+  const rho = 1.225, Crr = 0.004, g = 9.81;
+  let v = 10; // initial guess m/s
+  for (let i = 0; i < 20; i++) {
+    const f  = 0.5 * rho * CdA * v * v * v + Crr * mass * g * v - power;
+    const fp = 1.5 * rho * CdA * v * v     + Crr * mass * g;
+    if (Math.abs(fp) < 1e-10) break;
+    v = v - f / fp;
+    if (v < 0.5) v = 0.5;
+  }
+  return v;
+}
+
+function renderRacePredictor() {
+  const card = document.getElementById('fitRacePredCard');
+  if (!card) return;
+
+  const ftp = state.athlete?.ftp;
+  const weight = state.athlete?.weight;
+  if (!ftp || !weight) { card.style.display = 'none'; return; }
+
+  const mass = weight + 8; // rider + bike
+
+  const events = [
+    { label: '10 km',  type: 'TT',   dist: 10000,  intensity: 1.05, CdA: 0.25 },
+    { label: '20 km',  type: 'TT',   dist: 20000,  intensity: 1.00, CdA: 0.25 },
+    { label: '40 km',  type: 'TT',   dist: 40000,  intensity: 0.95, CdA: 0.25 },
+    { label: '100 km', type: 'Road', dist: 100000, intensity: 0.78, CdA: 0.32 },
+    { label: '160 km', type: 'Road', dist: 160000, intensity: 0.72, CdA: 0.32 },
+  ];
+
+  card.style.display = '';
+  const grid = document.getElementById('fitRacePredGrid');
+  if (!grid) return;
+
+  grid.innerHTML = events.map(ev => {
+    const power = Math.round(ftp * ev.intensity);
+    const v = solveSpeed(power, ev.CdA, mass);
+    const timeSecs = ev.dist / v;
+    const speedKmh = v * 3.6;
+
+    return `<div class="fit-rp-card">
+      <div class="fit-rp-dist">${ev.label}</div>
+      <div class="fit-rp-type">${ev.type}</div>
+      <div class="fit-rp-time">${fmtEffortTime(timeSecs)}</div>
+      <div class="fit-rp-speed">${speedKmh.toFixed(1)} km/h</div>
+      <div class="fit-rp-power">${power}W · ${(power / weight).toFixed(1)} W/kg</div>
+    </div>`;
+  }).join('');
+
+  const note = document.getElementById('fitRacePredNote');
+  if (note) note.textContent = 'Estimates assume flat terrain, sea level, no wind. TT uses aero position (CdA 0.25), Road uses drops (CdA 0.32).';
+  if (window.refreshGlow) refreshGlow(grid);
 }
 
 /* ====================================================
@@ -8865,6 +9169,7 @@ function renderActivityBasic(a) {
 
   const primaryEl = document.getElementById('actPrimaryStats');
   primaryEl.innerHTML = primary.slice(0, 4).join('');
+  if (window.refreshGlow) refreshGlow(primaryEl);
 
   // Store computed avgs for comparison card
   a._avgs = { avgDistM, avgSecsV, avgPowV, avgHrV, avgSpdMs, peerCount: peers.length };
@@ -10582,9 +10887,10 @@ function renderActivityZoneCharts(activity) {
   hrCard.style.display    = 'none';
 
   function zoneBarConfig(labels, data, colors) {
+    const hoverColors = colors.map(c => c.length === 9 ? c.slice(0, 7) : c);
     return {
       type: 'bar',
-      data: { labels, datasets: [{ data, backgroundColor: colors, borderRadius: 4 }] },
+      data: { labels, datasets: [{ data, backgroundColor: colors, hoverBackgroundColor: hoverColors, borderRadius: 4 }] },
       options: {
         responsive: true, maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
@@ -11448,6 +11754,9 @@ function renderDetailCadenceHist(streams, activity) {
   const colors = minutes.map((_, i) =>
     i === maxIdx ? '#00e5a0' : 'rgba(74,158,255,0.5)'
   );
+  const hoverColors = minutes.map((_, i) =>
+    i === maxIdx ? '#00e5a0' : '#4a9eff'
+  );
 
   const sub = document.getElementById('detailCadenceSubtitle');
   if (sub && totalSecs > 0) {
@@ -11466,7 +11775,7 @@ function renderDetailCadenceHist(streams, activity) {
         datasets: [{
           data: minutes,
           backgroundColor: colors,
-          hoverBackgroundColor: '#00e5a0',
+          hoverBackgroundColor: hoverColors,
           borderRadius: 4,
         }]
       },
@@ -11545,12 +11854,21 @@ function renderZnpZoneTimeChart() {
     'rgba(255,71,87,0.85)',    // Z5 red
     'rgba(180,80,220,0.85)',   // Z6 purple
   ];
+  const ZONE_HOVER_CHART = [
+    'rgb(100,180,255)',  // Z1 blue
+    'rgb(0,229,160)',    // Z2 green
+    'rgb(240,196,41)',   // Z3 yellow
+    'rgb(255,150,50)',   // Z4 orange
+    'rgb(255,71,87)',    // Z5 red
+    'rgb(180,80,220)',   // Z6 purple
+  ];
   const ZONE_LABELS = ['Z1 Recovery','Z2 Endurance','Z3 Tempo','Z4 Threshold','Z5 VO2max','Z6 Anaerobic'];
 
   const datasets = ZONE_LABELS.map((label, i) => ({
     label,
     data: weeks.map(w => +weekMap[w][i].toFixed(2)),
     backgroundColor: ZONE_COLORS_CHART[i],
+    hoverBackgroundColor: ZONE_HOVER_CHART[i],
     borderRadius: i === 5 ? 4 : 0,  // round top of last segment
   }));
 
@@ -12047,6 +12365,8 @@ function renderStreaksPage() {
     });
     try { localStorage.setItem(seenKey, JSON.stringify([...seenSet])); } catch (_e) {}
   }
+  if (window.refreshGlow) requestAnimationFrame(refreshGlow);
+  if (window.refreshBadgeTilt) requestAnimationFrame(refreshBadgeTilt);
 }
 
 // Build a power curve object from a raw watts stream using a sliding-window max.
@@ -15951,7 +16271,7 @@ function toggleSmoothFlyover(on) {
   // expose so other parts of the app can attach glow to late-rendered elements
   window.attachCardGlow = attachGlow;
 
-  const GLOW_SEL = '.stat-card, .recent-act-card, .perf-metric, .act-pstat, .mm-cell, .wxp-day-card, .fit-kpi-card, .wx-day, .znp-kpi-card, .wxp-st, .wxp-best-card, .stk-hero-card, .stk-pb-card, .stk-badge--earned, .stk-stat-tile, .goal-dash-card';
+  const GLOW_SEL = '.stat-card, .recent-act-card, .perf-metric, .act-pstat, .mm-cell, .wxp-day-card, .fit-kpi-card, .wx-day, .znp-kpi-card, .wxp-st, .wxp-best-card, .stk-hero-card, .stk-pb-card, .stk-badge--earned, .stk-stat-tile, .goal-dash-card, .fit-rec-metric, .fit-rp-card';
 
   function attachPress(el) {
     const press   = () => el.classList.add('is-pressed');
@@ -15971,22 +16291,14 @@ function toggleSmoothFlyover(on) {
   // Attach to all current glow cards
   document.querySelectorAll(GLOW_SEL).forEach(attachGlowAndPress);
 
-  // Also catch any cards rendered later (e.g. after data loads)
-  if (_glowObserver) _glowObserver.disconnect();
-  let _glowRAFPending = false;
-  _glowObserver = new MutationObserver(() => {
-    if (_glowRAFPending) return;
-    _glowRAFPending = true;
-    requestAnimationFrame(() => {
-      _glowRAFPending = false;
-      document.querySelectorAll(GLOW_SEL).forEach(el => {
-        if (el.dataset.glow) return;
-        el.dataset.glow = '1';
-        attachGlowAndPress(el);
-      });
+  // Expose a manual refresh for use after dynamic renders (replaces MutationObserver)
+  window.refreshGlow = function(root) {
+    (root || document).querySelectorAll(GLOW_SEL).forEach(el => {
+      if (el.dataset.glow) return;
+      el.dataset.glow = '1';
+      attachGlowAndPress(el);
     });
-  });
-  _glowObserver.observe(document.body, { childList: true, subtree: true });
+  };
 })();
 
 /* ====================================================
@@ -16025,20 +16337,12 @@ function toggleSmoothFlyover(on) {
   // Attach to any already-rendered earned badges
   document.querySelectorAll('.stk-badge--earned').forEach(attachTilt);
 
-  // Catch badges rendered later (streaks page is dynamic)
-  if (_tiltObserver) _tiltObserver.disconnect();
-  let _tiltRAFPending = false;
-  _tiltObserver = new MutationObserver(() => {
-    if (_tiltRAFPending) return;
-    _tiltRAFPending = true;
-    requestAnimationFrame(() => {
-      _tiltRAFPending = false;
-      document.querySelectorAll('.stk-badge--earned').forEach(el => {
-        if (!el.dataset.tilt) attachTilt(el);
-      });
+  // Expose a manual refresh for use after dynamic renders (replaces MutationObserver)
+  window.refreshBadgeTilt = function(root) {
+    (root || document).querySelectorAll('.stk-badge--earned').forEach(el => {
+      if (!el.dataset.tilt) attachTilt(el);
     });
-  });
-  _tiltObserver.observe(document.body, { childList: true, subtree: true });
+  };
 })();
 
 /* ====================================================
@@ -18305,10 +18609,18 @@ function rlUpdateUI() {
   }
 }
 
-// Tick the reset countdown every second when on settings page
-setInterval(() => {
-  if (state.currentPage === 'settings' && _rl.timestamps.length) rlUpdateUI();
-}, 1000);
+// Tick the reset countdown only while on settings page (start/stop on navigation)
+let _rlTimer = null;
+function _rlStartTick() {
+  if (_rlTimer) return;
+  _rlTimer = setInterval(() => {
+    if (state.currentPage !== 'settings' || !_rl.timestamps.length) { _rlStopTick(); return; }
+    rlUpdateUI();
+  }, 1000);
+}
+function _rlStopTick() {
+  if (_rlTimer) { clearInterval(_rlTimer); _rlTimer = null; }
+}
 
 
 /* ====================================================
@@ -18512,20 +18824,27 @@ function pollRestore() {
   }
 }
 
-// Listen for user activity to reset idle timer
+// Listen for user activity to reset idle timer (throttled to max once per 10s)
+let _pollIdleThrottled = 0;
 ['mousemove', 'keydown', 'scroll', 'click', 'touchstart'].forEach(evt => {
   document.addEventListener(evt, () => {
-    if (_poll.enabled && _poll.idle) {
-      _poll.idle = false;
-      pollUpdateStatusUI();
-    }
-    if (_poll.enabled) pollResetIdle();
+    if (!_poll.enabled) return;
+    if (_poll.idle) { _poll.idle = false; pollUpdateStatusUI(); }
+    const now = Date.now();
+    if (now - _pollIdleThrottled < 10000) return; // throttle: max once per 10s
+    _pollIdleThrottled = now;
+    pollResetIdle();
   }, { passive: true });
 });
 
-// Pause when tab hidden, resume when visible
+// Pause work when tab hidden, resume when visible
 document.addEventListener('visibilitychange', () => {
   if (_poll.enabled) pollUpdateStatusUI();
+  if (document.hidden) {
+    _rlStopTick(); // stop settings countdown
+  } else {
+    if (state.currentPage === 'settings') _rlStartTick();
+  }
 });
 
 // Restore on app boot (after DOM ready)
