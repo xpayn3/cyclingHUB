@@ -12341,28 +12341,101 @@ body.hm-map-dragging html,
     flex-shrink: 0;
 }
 
-/* ── Strava coming soon ── */
-.imp-strava-soon {
+/* ── Strava connect card ── */
+.strava-connect-header {
     display: flex;
     flex-direction: column;
     align-items: center;
     text-align: center;
-    padding: 64px 24px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
+    padding: 24px 0 16px;
 }
-.imp-strava-soon-title {
+.strava-connect-title {
     font-size: var(--text-lg);
     font-weight: 700;
     color: var(--text-primary);
-    margin-top: 16px;
+    margin-top: 12px;
 }
-.imp-strava-soon-sub {
+.strava-connect-sub {
     font-size: var(--text-sm);
     color: var(--text-muted);
-    margin-top: 6px;
-    max-width: 320px;
+    margin-top: 4px;
+}
+.strava-connect-help {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    margin: 12px 0;
+    text-align: center;
+}
+.strava-connect-help a {
+    color: var(--accent);
+}
+.strava-connect-help code {
+    background: var(--bg-elevated);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 11px;
+}
+
+/* ── intervals.icu connect card ── */
+.icu-connect-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 24px 0 16px;
+}
+.icu-connect-title {
+    font-size: var(--text-lg);
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-top: 12px;
+}
+.icu-connect-sub {
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+.icu-connect-help {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    margin: 12px 0;
+    text-align: center;
+}
+.icu-connect-help a {
+    color: var(--accent);
+}
+.icu-connect-help code {
+    background: var(--bg-elevated);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 11px;
+}
+
+/* ── Strava sync progress ── */
+.strava-progress {
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+}
+.strava-progress-bar {
+    width: 100%;
+    height: 6px;
+    background: var(--bg-elevated);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.strava-progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+    width: 0%;
+}
+.strava-progress-text {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
 }
 
 /* ── Mobile responsive ── */

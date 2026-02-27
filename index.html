@@ -738,27 +738,6 @@
                         </svg>
                         Sync
                     </button>
-                    <button
-                        class="btn btn-primary sidebar-action-btn"
-                        onclick="openModal()"
-                    >
-                        <svg
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2.5"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                        >
-                            <path
-                                d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
-                            />
-                            <path
-                                d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
-                            />
-                        </svg>
-                        <span id="connectBtnLabel">Connect</span>
-                    </button>
                 </div>
             </div>
         </aside>
@@ -3385,144 +3364,22 @@
                 <!-- ==================== SETTINGS PAGE ==================== -->
                 <div class="page" id="page-settings">
                     <div class="settings-grid">
-                        <!-- ── LEFT COLUMN ── -->
                         <div class="settings-col">
-                            <!-- CONNECTION -->
+                            <!-- moved to Import → intervals.icu tab:
+                                 Connection, Profile, Data & Sync, Storage,
+                                 Lifetime, Backup, Smart Sync, API Usage -->
+
+                            <!-- Avatar (kept for Settings photo management) -->
                             <div class="card">
                                 <div class="stt-section-header">
-                                    <svg
-                                        class="stt-section-icon"
-                                        width="18"
-                                        height="18"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="2"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                    >
-                                        <path
-                                            d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
-                                        />
-                                        <path
-                                            d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
-                                        />
+                                    <svg class="stt-section-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
                                     </svg>
                                     <div>
-                                        <div class="stt-section-title">
-                                            Connection
-                                        </div>
-                                        <div class="stt-section-sub">
-                                            intervals.icu account
-                                        </div>
-                                    </div>
-                                    <div
-                                        class="connection-status-badge disconnected"
-                                        id="settingsConnectionBadge"
-                                    >
-                                        <span id="settingsConnectionText"
-                                            >Not connected</span
-                                        >
+                                        <div class="stt-section-title">Profile Photo</div>
+                                        <div class="stt-section-sub">Stored locally in your browser</div>
                                     </div>
                                 </div>
-                                <div class="stt-rows">
-                                    <div class="stt-row">
-                                        <span class="stt-row-label"
-                                            >Athlete ID</span
-                                        >
-                                        <span
-                                            class="stt-row-value"
-                                            id="settingsAthleteId"
-                                            >—</span
-                                        >
-                                    </div>
-                                    <div class="stt-row">
-                                        <span class="stt-row-label"
-                                            >API Key</span
-                                        >
-                                        <span
-                                            class="stt-row-value"
-                                            id="settingsApiKey"
-                                            >—</span
-                                        >
-                                    </div>
-                                </div>
-                                <div class="stt-actions">
-                                    <button
-                                        class="btn btn-primary"
-                                        onclick="openModal()"
-                                    >
-                                        <svg
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            stroke-width="2.5"
-                                        >
-                                            <path
-                                                d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
-                                            />
-                                            <path
-                                                d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
-                                            />
-                                        </svg>
-                                        Change Credentials
-                                    </button>
-                                    <button
-                                        class="btn btn-danger"
-                                        onclick="disconnect()"
-                                    >
-                                        <svg
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            stroke-width="2"
-                                        >
-                                            <line
-                                                x1="18"
-                                                y1="6"
-                                                x2="6"
-                                                y2="18"
-                                            />
-                                            <line
-                                                x1="6"
-                                                y1="6"
-                                                x2="18"
-                                                y2="18"
-                                            />
-                                        </svg>
-                                        Disconnect
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- PROFILE -->
-                            <div class="card">
-                                <div class="stt-section-header">
-                                    <svg
-                                        class="stt-section-icon"
-                                        width="18"
-                                        height="18"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="2"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                    >
-                                        <circle cx="12" cy="8" r="4" />
-                                        <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-                                    </svg>
-                                    <div>
-                                        <div class="stt-section-title">
-                                            Athlete Profile
-                                        </div>
-                                        <div class="stt-section-sub">
-                                            Synced from intervals.icu
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Avatar -->
                                 <div class="stt-avatar-row">
                                     <div class="avatar-preview-wrap">
                                         <div
@@ -3588,423 +3445,9 @@
                                     </button>
                                 </div>
 
-                                <div class="stt-rows">
-                                    <div class="stt-row">
-                                        <span class="stt-row-label">FTP</span>
-                                        <span
-                                            class="stt-row-value"
-                                            id="settingsFTP"
-                                            >—</span
-                                        >
-                                    </div>
-                                    <div class="stt-row">
-                                        <span class="stt-row-label">LTHR</span>
-                                        <span
-                                            class="stt-row-value"
-                                            id="settingsLTHR"
-                                            >—</span
-                                        >
-                                    </div>
-                                    <div class="stt-row">
-                                        <span class="stt-row-label"
-                                            >Weight</span
-                                        >
-                                        <span
-                                            class="stt-row-value"
-                                            id="settingsWeight"
-                                            >—</span
-                                        >
-                                    </div>
-                                    <div class="stt-row">
-                                        <span class="stt-row-label"
-                                            >Location</span
-                                        >
-                                        <span
-                                            class="stt-row-value"
-                                            id="settingsLocation"
-                                            >—</span
-                                        >
-                                    </div>
-                                </div>
                             </div>
 
-                            <!-- DATA & STORAGE -->
-                            <div class="card">
-                                <!-- Sync -->
-                                <div class="stt-section-header">
-                                    <svg
-                                        class="stt-section-icon"
-                                        width="18"
-                                        height="18"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="2"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                    >
-                                        <polyline points="23 4 23 10 17 10" />
-                                        <path
-                                            d="M20.49 15a9 9 0 1 1-.08-8.58"
-                                        />
-                                    </svg>
-                                    <div>
-                                        <div class="stt-section-title">
-                                            Data &amp; Sync
-                                        </div>
-                                        <div class="stt-section-sub">
-                                            Local cache status
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="stt-rows">
-                                    <div class="stt-row">
-                                        <span class="stt-row-label"
-                                            >Last synced</span
-                                        >
-                                        <span
-                                            class="stt-row-value"
-                                            id="settingsLastSync"
-                                            >—</span
-                                        >
-                                    </div>
-                                    <div class="stt-row">
-                                        <span class="stt-row-label"
-                                            >Cached activities</span
-                                        >
-                                        <span
-                                            class="stt-row-value"
-                                            id="settingsActivityCount"
-                                            >—</span
-                                        >
-                                    </div>
-                                    <div class="stt-row">
-                                        <span class="stt-row-label"
-                                            >Cache size</span
-                                        >
-                                        <span
-                                            class="stt-row-value"
-                                            id="settingsCacheSize"
-                                            >—</span
-                                        >
-                                    </div>
-                                </div>
-                                <div class="stt-actions">
-                                    <button
-                                        class="btn btn-primary"
-                                        onclick="confirmSyncData()"
-                                    >
-                                        <svg
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            stroke-width="2"
-                                        >
-                                            <polyline
-                                                points="23 4 23 10 17 10"
-                                            />
-                                            <path
-                                                d="M20.49 15a9 9 0 1 1-.08-8.58"
-                                            />
-                                        </svg>
-                                        Sync Now
-                                    </button>
-                                    <button
-                                        class="btn btn-ghost"
-                                        onclick="confirmFullResync()"
-                                        title="Clears local cache and re-fetches all activities"
-                                    >
-                                        <svg
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            stroke-width="2"
-                                        >
-                                            <polyline points="1 4 1 10 7 10" />
-                                            <path
-                                                d="M3.51 15a9 9 0 1 0 .49-4.93"
-                                            />
-                                        </svg>
-                                        Full Re-sync
-                                    </button>
-                                </div>
-
-                                <!-- Storage -->
-                                <div class="stt-subsection-divider"></div>
-                                <div class="stt-subsection-header">
-                                    <svg
-                                        class="stt-section-icon"
-                                        width="16"
-                                        height="16"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="2"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                    >
-                                        <rect
-                                            x="2"
-                                            y="2"
-                                            width="20"
-                                            height="8"
-                                            rx="2"
-                                            ry="2"
-                                        />
-                                        <rect
-                                            x="2"
-                                            y="14"
-                                            width="20"
-                                            height="8"
-                                            rx="2"
-                                            ry="2"
-                                        />
-                                        <line x1="6" y1="6" x2="6.01" y2="6" />
-                                        <line
-                                            x1="6"
-                                            y1="18"
-                                            x2="6.01"
-                                            y2="18"
-                                        />
-                                    </svg>
-                                    <span class="stt-subsection-title"
-                                        >Local Storage</span
-                                    >
-                                </div>
-                                <div class="stg-bar-wrap">
-                                    <div
-                                        class="stg-bar-track"
-                                        id="storageBarTrack"
-                                    ></div>
-                                    <div
-                                        class="stg-bar-label"
-                                        id="storageBarLabel"
-                                    >
-                                        — / 5.0 MB
-                                    </div>
-                                    <div
-                                        class="stg-bar-legend"
-                                        id="storageBarLegend"
-                                    ></div>
-                                </div>
-
-                                <!-- Lifetime -->
-                                <div class="stt-subsection-divider"></div>
-                                <div class="stt-subsection-header">
-                                    <svg
-                                        class="stt-section-icon"
-                                        width="16"
-                                        height="16"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="2"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                    >
-                                        <path
-                                            d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"
-                                        />
-                                    </svg>
-                                    <span class="stt-subsection-title"
-                                        >Lifetime Data</span
-                                    >
-                                </div>
-                                <div class="stt-rows">
-                                    <div class="stt-row">
-                                        <span class="stt-row-label"
-                                            >Stored activities</span
-                                        >
-                                        <span
-                                            class="stt-row-value"
-                                            id="settingsLifetimeCount"
-                                            >—</span
-                                        >
-                                    </div>
-                                    <div class="stt-row">
-                                        <span class="stt-row-label"
-                                            >Cache size</span
-                                        >
-                                        <span
-                                            class="stt-row-value"
-                                            id="settingsLifetimeSize"
-                                            >—</span
-                                        >
-                                    </div>
-                                    <div class="stt-row">
-                                        <span class="stt-row-label"
-                                            >Last synced</span
-                                        >
-                                        <span
-                                            class="stt-row-value"
-                                            id="settingsLifetimeSync"
-                                            >—</span
-                                        >
-                                    </div>
-                                </div>
-                                <div class="stt-actions">
-                                    <button
-                                        class="btn btn-primary"
-                                        onclick="resyncLifetimeData()"
-                                    >
-                                        <svg
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            stroke-width="2"
-                                        >
-                                            <polyline
-                                                points="23 4 23 10 17 10"
-                                            />
-                                            <path
-                                                d="M20.49 15a9 9 0 1 1-.08-8.58"
-                                            />
-                                        </svg>
-                                        Re-sync All
-                                    </button>
-                                    <button
-                                        class="btn btn-ghost"
-                                        onclick="
-                                            showConfirmDialog(
-                                                'Clear Lifetime Cache',
-                                                'This will remove your cached lifetime activity data. It will be re-downloaded on next sync.',
-                                                () => {
-                                                    clearLifetimeCache();
-                                                    updateLifetimeCacheUI();
-                                                    updateStorageBar();
-                                                    showToast(
-                                                        'Lifetime cache cleared',
-                                                        'success',
-                                                    );
-                                                },
-                                            )
-                                        "
-                                    >
-                                        <svg
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            stroke-width="2"
-                                        >
-                                            <polyline points="3 6 5 6 21 6" />
-                                            <path
-                                                d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
-                                            />
-                                        </svg>
-                                        Clear Cache
-                                    </button>
-                                    <button
-                                        class="btn btn-ghost"
-                                        onclick="clearAllCaches()"
-                                    >
-                                        Clear All Caches
-                                    </button>
-                                </div>
-
-                                <!-- Backup & Restore -->
-                                <div class="stt-subsection-divider"></div>
-                                <div class="stt-subsection-header">
-                                    <svg
-                                        class="stt-section-icon"
-                                        width="16"
-                                        height="16"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="2"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                    >
-                                        <path
-                                            d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"
-                                        />
-                                        <polyline
-                                            points="17 21 17 13 7 13 7 21"
-                                        />
-                                        <polyline points="7 3 7 8 15 8" />
-                                    </svg>
-                                    <span class="stt-subsection-title"
-                                        >Backup &amp; Restore</span
-                                    >
-                                </div>
-                                <div class="stt-actions">
-                                    <button
-                                        class="btn btn-primary"
-                                        onclick="exportLifetimeJSON()"
-                                    >
-                                        <svg
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            stroke-width="2"
-                                        >
-                                            <path
-                                                d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
-                                            />
-                                            <polyline
-                                                points="7 10 12 15 17 10"
-                                            />
-                                            <line
-                                                x1="12"
-                                                y1="15"
-                                                x2="12"
-                                                y2="3"
-                                            />
-                                        </svg>
-                                        Export JSON
-                                    </button>
-                                    <button
-                                        class="btn btn-ghost"
-                                        onclick="importLifetimeJSON()"
-                                    >
-                                        <svg
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            stroke-width="2"
-                                        >
-                                            <path
-                                                d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
-                                            />
-                                            <polyline points="17 8 12 3 7 8" />
-                                            <line
-                                                x1="12"
-                                                y1="3"
-                                                x2="12"
-                                                y2="15"
-                                            />
-                                        </svg>
-                                        Import JSON
-                                    </button>
-                                    <button
-                                        class="btn btn-ghost"
-                                        onclick="copySetupLink()"
-                                    >
-                                        <svg
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            stroke-width="2"
-                                        >
-                                            <rect
-                                                x="9"
-                                                y="9"
-                                                width="13"
-                                                height="13"
-                                                rx="2"
-                                            />
-                                            <path
-                                                d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
-                                            />
-                                        </svg>
-                                        Copy Setup Link
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- ── RIGHT COLUMN ── -->
-                        <div class="settings-col">
+                            <!-- Data & Sync card removed — now in Import → intervals.icu tab -->
                             <!-- DISPLAY -->
                             <div class="card">
                                 <div class="stt-section-header">
@@ -4252,7 +3695,8 @@
                                     </button>
                                 </div>
                             </div>
-
+                        </div>
+                        <div class="settings-col">
                             <!-- MAP -->
                             <div class="card">
                                 <div class="stt-section-header">
@@ -4566,196 +4010,6 @@
                                         </svg>
                                         Clear Location
                                     </button>
-                                </div>
-                            </div>
-
-                            <!-- SMART SYNC -->
-                            <div class="card">
-                                <div class="stt-section-header">
-                                    <svg
-                                        class="stt-section-icon"
-                                        width="18"
-                                        height="18"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="2"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                    >
-                                        <polyline points="23 4 23 10 17 10" />
-                                        <path
-                                            d="M20.49 15a9 9 0 1 1-.08-8.58"
-                                        />
-                                    </svg>
-                                    <div>
-                                        <div class="stt-section-title">
-                                            Smart Sync
-                                        </div>
-                                        <div class="stt-section-sub">
-                                            Auto-check for new activities
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="stt-rows">
-                                    <div class="stt-row stt-row--toggle">
-                                        <div class="stt-row-info">
-                                            <div class="stt-row-label">
-                                                Auto-sync
-                                            </div>
-                                            <div class="stt-row-sub">
-                                                Checks for new rides while
-                                                you're browsing
-                                            </div>
-                                        </div>
-                                        <label class="settings-ios-toggle">
-                                            <input
-                                                type="checkbox"
-                                                id="smartPollToggle"
-                                                onchange="
-                                                    setSmartPoll(this.checked)
-                                                "
-                                            />
-                                            <span
-                                                class="settings-ios-slider"
-                                            ></span>
-                                        </label>
-                                    </div>
-                                    <div
-                                        class="stt-row stt-row--control"
-                                        id="smartPollIntervalRow"
-                                        style="display: none"
-                                    >
-                                        <div class="stt-row-info">
-                                            <div class="stt-row-label">
-                                                Check every
-                                            </div>
-                                            <div class="stt-row-sub">
-                                                Only polls when tab is active
-                                            </div>
-                                        </div>
-                                        <div
-                                            class="date-range-pill"
-                                            id="smartPollIntervalPills"
-                                        >
-                                            <button
-                                                data-poll="5"
-                                                onclick="
-                                                    setSmartPollInterval(5)
-                                                "
-                                            >
-                                                5m
-                                            </button>
-                                            <button
-                                                data-poll="10"
-                                                onclick="
-                                                    setSmartPollInterval(10)
-                                                "
-                                            >
-                                                10m
-                                            </button>
-                                            <button
-                                                data-poll="15"
-                                                onclick="
-                                                    setSmartPollInterval(15)
-                                                "
-                                                class="active"
-                                            >
-                                                15m
-                                            </button>
-                                            <button
-                                                data-poll="30"
-                                                onclick="
-                                                    setSmartPollInterval(30)
-                                                "
-                                            >
-                                                30m
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div
-                                        class="stt-row"
-                                        id="smartPollStatusRow"
-                                        style="display: none"
-                                    >
-                                        <span class="stt-row-label"
-                                            >Status</span
-                                        >
-                                        <span
-                                            class="stt-row-value"
-                                            id="smartPollStatus"
-                                            >Idle</span
-                                        >
-                                    </div>
-                                    <div
-                                        class="stt-row"
-                                        id="smartPollLastRow"
-                                        style="display: none"
-                                    >
-                                        <span class="stt-row-label"
-                                            >Last checked</span
-                                        >
-                                        <span
-                                            class="stt-row-value"
-                                            id="smartPollLastCheck"
-                                            >—</span
-                                        >
-                                    </div>
-                                </div>
-
-                                <!-- API Rate Limit -->
-                                <div class="stt-subsection-divider"></div>
-                                <div class="stt-subsection-header">
-                                    <svg
-                                        class="stt-section-icon"
-                                        width="16"
-                                        height="16"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="2"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                    >
-                                        <path
-                                            d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"
-                                        />
-                                    </svg>
-                                    <span class="stt-subsection-title"
-                                        >API Usage</span
-                                    >
-                                </div>
-                                <div class="rl-bar-wrap">
-                                    <div class="rl-bar-header">
-                                        <span class="rl-bar-used" id="rlBarUsed"
-                                            >0</span
-                                        >
-                                        <span class="rl-bar-label">
-                                            / 200 requests</span
-                                        >
-                                        <span
-                                            class="rl-bar-window"
-                                            id="rlBarWindow"
-                                            >per 15 min</span
-                                        >
-                                    </div>
-                                    <div class="rl-bar-track">
-                                        <div
-                                            class="rl-bar-fill"
-                                            id="rlBarFill"
-                                            style="width: 0%"
-                                        ></div>
-                                    </div>
-                                    <div class="rl-bar-footer">
-                                        <span class="rl-bar-hint" id="rlBarHint"
-                                            >No requests tracked yet</span
-                                        >
-                                        <span
-                                            class="rl-bar-reset"
-                                            id="rlBarReset"
-                                        ></span>
-                                    </div>
                                 </div>
                             </div>
 
@@ -5099,48 +4353,233 @@
 
                 <!-- ==================== IMPORT PAGE ==================== -->
                 <div class="page" id="page-import">
-                    <!-- Source tabs — only FIT for now, Strava placeholder -->
+                    <!-- Source tabs -->
                     <div class="imp-source-tabs">
-                        <button
-                            class="imp-tab imp-tab--active"
-                            data-src="fit"
-                            onclick="impSwitchTab('fit')"
-                        >
-                            <svg
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                width="16"
-                                height="16"
-                            >
-                                <path
-                                    d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
-                                />
-                                <polyline points="14 2 14 8 20 8" />
+                        <button class="imp-tab imp-tab--active" data-src="icu" onclick="impSwitchTab('icu')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                            </svg>
+                            intervals.icu
+                        </button>
+                        <button class="imp-tab" data-src="fit" onclick="impSwitchTab('fit')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
                             </svg>
                             FIT File
                         </button>
-                        <button class="imp-tab" data-src="strava" disabled>
-                            <svg
-                                viewBox="0 0 24 24"
-                                width="16"
-                                height="16"
-                                fill="currentColor"
-                            >
-                                <path
-                                    d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"
-                                />
+                        <button class="imp-tab" data-src="strava" onclick="impSwitchTab('strava')">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/>
                             </svg>
                             Strava
-                            <span class="imp-tab-badge">Soon</span>
                         </button>
                     </div>
 
+                    <!-- intervals.icu Panel -->
+                    <div class="imp-panel" id="impPanelIcu">
+                        <!-- Not Connected -->
+                        <div class="card" id="icuConnectCard">
+                            <div class="icu-connect-header">
+                                <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                                </svg>
+                                <div class="icu-connect-title">Connect to intervals.icu</div>
+                                <div class="icu-connect-sub">Sync your training data, power curves & fitness metrics</div>
+                            </div>
+                            <div class="stt-rows">
+                                <div class="stt-row">
+                                    <span class="stt-row-label">Athlete ID</span>
+                                    <input type="text" class="stt-input" id="icuAthleteIdInput" placeholder="e.g. i12345">
+                                </div>
+                                <div class="stt-row">
+                                    <span class="stt-row-label">API Key</span>
+                                    <div style="display:flex;align-items:center;gap:6px;flex:1;justify-content:flex-end">
+                                        <input type="password" class="stt-input" id="icuApiKeyInput" placeholder="Your intervals.icu API key">
+                                        <button class="btn btn-ghost btn-sm" onclick="let i=document.getElementById('icuApiKeyInput');i.type=i.type==='password'?'text':'password'" title="Show/hide" style="padding:4px 6px">
+                                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="icu-connect-help">
+                                Go to <a href="https://intervals.icu" target="_blank" rel="noopener">intervals.icu</a> → Settings → API to find your <strong>Athlete ID</strong> (starts with <code>i</code>) and <strong>API Key</strong>.
+                            </div>
+                            <div class="stt-actions">
+                                <button class="btn btn-primary" onclick="icuSaveAndConnect()">
+                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:6px">
+                                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                                    </svg>
+                                    Connect &amp; Sync
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Connected -->
+                        <div class="card" id="icuSyncCard" style="display:none">
+                            <!-- Header -->
+                            <div class="stt-section-header">
+                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                                </svg>
+                                <div>
+                                    <div class="stt-section-title" id="icuAthleteTitle">Connected to intervals.icu</div>
+                                    <div class="stt-section-sub" id="icuLastSync">Never synced</div>
+                                </div>
+                                <div class="connection-status-badge connected" id="icuConnectionBadge">
+                                    <span id="icuConnectionText">Connected</span>
+                                </div>
+                            </div>
+
+                            <!-- Profile -->
+                            <div class="stt-rows">
+                                <div class="stt-row"><span class="stt-row-label">Athlete ID</span><span class="stt-row-value" id="icuAthleteId">—</span></div>
+                                <div class="stt-row"><span class="stt-row-label">FTP</span><span class="stt-row-value" id="icuFTP">—</span></div>
+                                <div class="stt-row"><span class="stt-row-label">LTHR</span><span class="stt-row-value" id="icuLTHR">—</span></div>
+                                <div class="stt-row"><span class="stt-row-label">Weight</span><span class="stt-row-value" id="icuWeight">—</span></div>
+                            </div>
+
+                            <!-- Sync Actions -->
+                            <div class="stt-actions" style="gap:8px">
+                                <button class="btn btn-primary" onclick="confirmSyncData()">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.08-8.58"/></svg>
+                                    Sync Now
+                                </button>
+                                <button class="btn btn-ghost" onclick="confirmFullResync()">Full Re-sync</button>
+                                <button class="btn btn-ghost" onclick="openModal()">Change Credentials</button>
+                                <button class="btn btn-danger" onclick="disconnect()">Disconnect</button>
+                            </div>
+
+                            <!-- Data & Cache -->
+                            <div class="stt-subsection-divider"></div>
+                            <div class="stt-subsection-header">
+                                <svg class="stt-section-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
+                                    <line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>
+                                </svg>
+                                <span class="stt-subsection-title">Data &amp; Storage</span>
+                            </div>
+                            <div class="stt-rows">
+                                <div class="stt-row"><span class="stt-row-label">Last synced</span><span class="stt-row-value" id="icuSettingsLastSync">—</span></div>
+                                <div class="stt-row"><span class="stt-row-label">Cached activities</span><span class="stt-row-value" id="icuActivityCount">—</span></div>
+                                <div class="stt-row"><span class="stt-row-label">Cache size</span><span class="stt-row-value" id="icuCacheSize">—</span></div>
+                            </div>
+                            <div class="stg-bar-wrap">
+                                <div class="stg-bar-track" id="storageBarTrack"></div>
+                                <div class="stg-bar-label" id="storageBarLabel">— / 5.0 MB</div>
+                                <div class="stg-bar-legend" id="storageBarLegend"></div>
+                            </div>
+
+                            <!-- Lifetime -->
+                            <div class="stt-subsection-divider"></div>
+                            <div class="stt-subsection-header">
+                                <svg class="stt-section-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                                </svg>
+                                <span class="stt-subsection-title">Lifetime Data</span>
+                            </div>
+                            <div class="stt-rows">
+                                <div class="stt-row"><span class="stt-row-label">Stored activities</span><span class="stt-row-value" id="icuLifetimeCount">—</span></div>
+                                <div class="stt-row"><span class="stt-row-label">Cache size</span><span class="stt-row-value" id="icuLifetimeSize">—</span></div>
+                                <div class="stt-row"><span class="stt-row-label">Last synced</span><span class="stt-row-value" id="icuLifetimeSync">—</span></div>
+                            </div>
+                            <div class="stt-actions">
+                                <button class="btn btn-primary" onclick="resyncLifetimeData()">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.08-8.58"/></svg>
+                                    Re-sync All
+                                </button>
+                                <button class="btn btn-ghost" onclick="showConfirmDialog('Clear Lifetime Cache','This will remove your cached lifetime activity data. It will be re-downloaded on next sync.',()=>{clearLifetimeCache();icuRenderSyncUI();updateStorageBar();showToast('Lifetime cache cleared','success')})">Clear Cache</button>
+                                <button class="btn btn-ghost" onclick="clearAllCaches()">Clear All Caches</button>
+                            </div>
+
+                            <!-- Backup & Restore -->
+                            <div class="stt-subsection-divider"></div>
+                            <div class="stt-subsection-header">
+                                <svg class="stt-section-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                                    <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+                                </svg>
+                                <span class="stt-subsection-title">Backup &amp; Restore</span>
+                            </div>
+                            <div class="stt-actions">
+                                <button class="btn btn-primary" onclick="exportLifetimeJSON()">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                    Export JSON
+                                </button>
+                                <button class="btn btn-ghost" onclick="importLifetimeJSON()">Import JSON</button>
+                                <button class="btn btn-ghost" onclick="copySetupLink()">Copy Setup Link</button>
+                            </div>
+
+                            <!-- Smart Sync -->
+                            <div class="stt-subsection-divider"></div>
+                            <div class="stt-subsection-header">
+                                <svg class="stt-section-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.08-8.58"/>
+                                </svg>
+                                <span class="stt-subsection-title">Smart Sync</span>
+                            </div>
+                            <div class="stt-rows">
+                                <div class="stt-row stt-row--toggle">
+                                    <div class="stt-row-info">
+                                        <div class="stt-row-label">Auto-sync</div>
+                                        <div class="stt-row-sub">Checks for new rides while you're browsing</div>
+                                    </div>
+                                    <label class="settings-ios-toggle">
+                                        <input type="checkbox" id="icuSmartPollToggle" onchange="setSmartPoll(this.checked)"/>
+                                        <span class="settings-ios-slider"></span>
+                                    </label>
+                                </div>
+                                <div class="stt-row stt-row--control" id="icuSmartPollIntervalRow" style="display:none">
+                                    <div class="stt-row-info">
+                                        <div class="stt-row-label">Check every</div>
+                                        <div class="stt-row-sub">Only polls when tab is active</div>
+                                    </div>
+                                    <div class="date-range-pill" id="icuSmartPollIntervalPills">
+                                        <button data-poll="5" onclick="setSmartPollInterval(5)">5m</button>
+                                        <button data-poll="10" onclick="setSmartPollInterval(10)">10m</button>
+                                        <button data-poll="15" onclick="setSmartPollInterval(15)" class="active">15m</button>
+                                        <button data-poll="30" onclick="setSmartPollInterval(30)">30m</button>
+                                    </div>
+                                </div>
+                                <div class="stt-row" id="icuSmartPollStatusRow" style="display:none">
+                                    <span class="stt-row-label">Status</span>
+                                    <span class="stt-row-value" id="icuSmartPollStatus">Idle</span>
+                                </div>
+                                <div class="stt-row" id="icuSmartPollLastRow" style="display:none">
+                                    <span class="stt-row-label">Last checked</span>
+                                    <span class="stt-row-value" id="icuSmartPollLastCheck">—</span>
+                                </div>
+                            </div>
+
+                            <!-- API Usage -->
+                            <div class="stt-subsection-divider"></div>
+                            <div class="stt-subsection-header">
+                                <svg class="stt-section-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                                </svg>
+                                <span class="stt-subsection-title">API Usage</span>
+                            </div>
+                            <div class="rl-bar-wrap">
+                                <div class="rl-bar-header">
+                                    <span class="rl-bar-used" id="rlBarUsed">0</span>
+                                    <span class="rl-bar-label"> / 200 requests</span>
+                                    <span class="rl-bar-window" id="rlBarWindow">per 15 min</span>
+                                </div>
+                                <div class="rl-bar-track"><div class="rl-bar-fill" id="rlBarFill" style="width:0%"></div></div>
+                                <div class="rl-bar-footer">
+                                    <span class="rl-bar-hint" id="rlBarHint">No requests tracked yet</span>
+                                    <span class="rl-bar-reset" id="rlBarReset"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- FIT Upload Panel -->
-                    <div class="imp-panel" id="impPanelFit">
+                    <div class="imp-panel" id="impPanelFit" style="display:none">
                         <!-- Drop zone -->
                         <div class="imp-dropzone" id="impDropzone">
                             <div class="imp-dropzone-icon">
@@ -5384,31 +4823,88 @@
                     </div>
                     <!-- end FIT panel -->
 
-                    <!-- Strava panel (placeholder) -->
-                    <div
-                        class="imp-panel"
-                        id="impPanelStrava"
-                        style="display: none"
-                    >
-                        <div class="imp-strava-soon">
-                            <svg
-                                viewBox="0 0 24 24"
-                                width="48"
-                                height="48"
-                                fill="var(--orange)"
-                                opacity="0.6"
-                            >
-                                <path
-                                    d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"
-                                />
-                            </svg>
-                            <div class="imp-strava-soon-title">
-                                Strava Integration
+                    <!-- Strava panel -->
+                    <div class="imp-panel" id="impPanelStrava" style="display: none">
+                        <!-- Not Connected -->
+                        <div class="card" id="stravaConnectCard">
+                            <div class="strava-connect-header">
+                                <svg viewBox="0 0 24 24" width="40" height="40" fill="var(--orange)">
+                                    <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/>
+                                </svg>
+                                <div class="strava-connect-title">Connect to Strava</div>
+                                <div class="strava-connect-sub">Import activities, GPS routes, power & heart rate data</div>
                             </div>
-                            <div class="imp-strava-soon-sub">
-                                Connect your Strava account to automatically
-                                sync activities. Coming in a future update.
+                            <div class="stt-rows">
+                                <div class="stt-row">
+                                    <span class="stt-row-label">Client ID</span>
+                                    <input type="text" class="stt-input" id="stravaClientId" placeholder="Your Strava API Client ID">
+                                </div>
+                                <div class="stt-row">
+                                    <span class="stt-row-label">Client Secret</span>
+                                    <input type="password" class="stt-input" id="stravaClientSecret" placeholder="Your Strava API Client Secret">
+                                </div>
                             </div>
+                            <div class="strava-connect-help">
+                                Create an app at <a href="https://www.strava.com/settings/api" target="_blank" rel="noopener">strava.com/settings/api</a> to get your Client ID and Secret. Set the Authorization Callback Domain to <code>localhost</code>.
+                            </div>
+                            <div class="stt-actions">
+                                <button class="btn btn-primary" onclick="stravaSaveAndAuth()">
+                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="margin-right:6px"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+                                    Connect with Strava
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Connected -->
+                        <div class="card" id="stravaSyncCard" style="display:none">
+                            <div class="stt-section-header">
+                                <svg viewBox="0 0 24 24" width="18" height="18" fill="var(--orange)">
+                                    <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/>
+                                </svg>
+                                <div>
+                                    <div class="stt-section-title" id="stravaAthleteTitle">Connected to Strava</div>
+                                    <div class="stt-section-sub" id="stravaLastSync">Never synced</div>
+                                </div>
+                                <div class="connection-status-badge connected">
+                                    <span>Connected</span>
+                                </div>
+                            </div>
+
+                            <div class="imp-options">
+                                <label class="imp-toggle-row">
+                                    <span>Import GPS routes</span>
+                                    <input type="checkbox" id="stravaOptGPS" checked>
+                                </label>
+                                <label class="imp-toggle-row">
+                                    <span>Import streams (power, HR, cadence)</span>
+                                    <input type="checkbox" id="stravaOptStreams" checked>
+                                </label>
+                                <label class="imp-toggle-row">
+                                    <span>Skip duplicates</span>
+                                    <input type="checkbox" id="stravaOptDupes" checked>
+                                </label>
+                            </div>
+
+                            <div class="stt-actions" style="gap:8px">
+                                <button class="btn btn-primary" id="stravaSyncBtn" onclick="stravaSyncActivities()">Sync New Activities</button>
+                                <button class="btn btn-ghost" onclick="stravaSyncActivities({fullSync:true})">Full Sync</button>
+                                <button class="btn btn-ghost" onclick="stravaClearActivities()" style="margin-left:auto">Clear Data</button>
+                                <button class="btn btn-danger" onclick="stravaDisconnect()">Disconnect</button>
+                            </div>
+
+                            <div class="strava-progress" id="stravaProgress" style="display:none">
+                                <div class="strava-progress-bar">
+                                    <div class="strava-progress-fill" id="stravaProgressFill"></div>
+                                </div>
+                                <div class="strava-progress-text" id="stravaProgressText">Syncing...</div>
+                                <button class="btn btn-ghost btn-sm" onclick="stravaCancelSync()">Cancel</button>
+                            </div>
+
+                            <div class="imp-history-header">
+                                <div class="imp-history-title">Sync History</div>
+                                <div class="imp-history-sub" id="stravaSyncHistorySub">No syncs yet</div>
+                            </div>
+                            <div class="imp-history-list" id="stravaSyncHistoryList"></div>
                         </div>
                     </div>
                 </div>
