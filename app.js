@@ -340,10 +340,24 @@ const _pageChartKeys = {
 
 function cleanupPageCharts(leavingPage) {
   const keys = _pageChartKeys[leavingPage];
-  if (!keys) return;
-  keys.forEach(k => {
-    if (state[k]) { state[k].destroy(); state[k] = null; }
-  });
+  if (keys) {
+    keys.forEach(k => {
+      if (state[k]) { state[k].destroy(); state[k] = null; }
+    });
+  }
+  // Destroy compare card charts when leaving compare page
+  if (leavingPage === 'compare') {
+    _compare.cards.forEach(c => { if (c.chart) c.chart = destroyChart(c.chart); });
+    _compare._cachedPeriods = null;
+  }
+  // Destroy weather temp chart
+  if (leavingPage === 'weather' && window._tempChart) {
+    window._tempChart.destroy(); window._tempChart = null;
+  }
+  // Clear activity page step-height timer
+  if (leavingPage === 'activity' && _stepHeightTimer) {
+    clearTimeout(_stepHeightTimer); _stepHeightTimer = null;
+  }
   // Also clean up any pending lazy renders
   _lazyCharts.pending.forEach((fn, card) => {
     _lazyCharts.observer.unobserve(card);
@@ -951,7 +965,7 @@ async function syncData() {
 
     state.synced = true;
     updateConnectionUI(true);
-    renderDashboard();
+    if (state.currentPage === 'dashboard') renderDashboard();
     if (state.currentPage === 'calendar') renderCalendar();
     if (state.currentPage === 'fitness')  renderFitnessPage();
     if (state.currentPage === 'power')    renderPowerPage();
@@ -1004,19 +1018,24 @@ function disconnect() {
    PROFILE PICTURE
 ==================================================== */
 function loadAvatar() {
-  const stored = localStorage.getItem('icu_avatar');
-  applyAvatar(stored);
+  const custom = localStorage.getItem('icu_avatar');
+  applyAvatar(custom || _getIntervalsAvatarUrl());
 }
 
-function applyAvatar(dataUrl) {
+function _getIntervalsAvatarUrl() {
+  return state.athlete?.profile_medium || null;
+}
+
+function applyAvatar(src) {
   const sidebarAv  = document.getElementById('athleteAvatar');
   const previewAv  = document.getElementById('avatarPreview');
   const removeBtn  = document.getElementById('avatarRemoveBtn');
-  if (dataUrl) {
-    const img = `<img src="${dataUrl}" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+  const hasCustom  = !!localStorage.getItem('icu_avatar');
+  if (src) {
+    const img = `<img src="${src}" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
     if (sidebarAv) { sidebarAv.innerHTML = img; sidebarAv.style.background = 'none'; }
     if (previewAv) { previewAv.innerHTML = img; previewAv.style.background = 'none'; }
-    if (removeBtn) removeBtn.style.display = 'inline-flex';
+    if (removeBtn) removeBtn.style.display = hasCustom ? 'inline-flex' : 'none';
   } else {
     // Revert to initials
     const aName = state.athlete ? (state.athlete.name || state.athlete.firstname || '?') : '?';
@@ -1059,8 +1078,9 @@ function handleAvatarUpload(e) {
 
 function removeAvatar() {
   localStorage.removeItem('icu_avatar');
-  applyAvatar(null);
-  showToast('Profile photo removed', 'info');
+  const fallback = _getIntervalsAvatarUrl();
+  applyAvatar(fallback);
+  showToast(fallback ? 'Reverted to intervals.icu photo' : 'Profile photo removed', 'info');
 }
 
 // Force a full re-fetch from scratch, ignoring any cached activities.
@@ -1111,7 +1131,12 @@ function updateConnectionUI(connected) {
     name.textContent = aName;
     sub.textContent  = a.city || 'intervals.icu';
     av.textContent   = aName[0].toUpperCase();
-    applyAvatar(localStorage.getItem('icu_avatar'));
+    // Custom avatar takes priority, then intervals.icu profile pic
+    const customAvatar = localStorage.getItem('icu_avatar');
+    applyAvatar(customAvatar || _getIntervalsAvatarUrl());
+    // Update settings profile card name
+    const sttName = document.getElementById('settingsAthleteName');
+    if (sttName) sttName.textContent = aName;
   } else {
     dot.className   = 'connection-dot disconnected';
     name.textContent = 'Not connected';
@@ -1592,6 +1617,7 @@ function navigate(page) {
     settings:   ['Settings',       'Account & connection'],
     workout:    ['Create Workout', 'Build & export custom cycling workouts'],
     guide:      ['Training Guide', 'Understanding CTL · ATL · TSB & training load'],
+    gear:       ['Gear & Service', 'Bikes, components, batteries & service tracking'],
   };
   const [title, sub] = info[page] || ['CycleIQ', ''];
   document.getElementById('pageTitle').textContent    = title;
@@ -1849,7 +1875,9 @@ function setActiveWxLocation(id) {
   localStorage.removeItem('icu_wx_forecast_ts');
   localStorage.removeItem('icu_wx_page');
   localStorage.removeItem('icu_wx_page_ts');
-  if (state.currentPage === 'weather') renderWeatherPage();
+  if (state.currentPage === 'weather') {
+    renderWeatherPage(window.scrollY);
+  }
   if (state.currentPage === 'dashboard') renderWeatherForecast();
   _refreshWxLocSettings();
 }
@@ -2585,6 +2613,31 @@ function windDir(deg) {
   return ['N','NE','E','SE','S','SW','W','NW'][Math.round(deg / 45) % 8];
 }
 
+// Riding tip based on current weather conditions
+function _wxRidingTip(current, daily) {
+  const tips = [];
+  const temp = current?.temperature_2m;
+  const feelsLike = current?.apparent_temperature;
+  const wind = current?.windspeed_10m ?? 0;
+  const precip = current?.precipitation ?? 0;
+  const uv = current?.uv_index ?? 0;
+  const vis = current?.visibility ?? 99999;
+  const code = current?.weathercode ?? 0;
+  const rainProb = daily?.precipitation_probability_max?.[0] ?? 0;
+
+  if (temp != null && temp < 5) tips.push('Cold ride — full winter gear recommended');
+  else if (temp != null && temp < 12) tips.push('Cool — arm warmers + vest recommended');
+  else if (temp != null && temp > 32) tips.push('Very hot — stay hydrated, avoid midday');
+
+  if (rainProb > 60 || precip > 0.5) tips.push('Rain likely — pack a rain jacket');
+  if (wind > 30) tips.push('Very windy — be prepared for gusts');
+  if (uv >= 6) tips.push('High UV — apply sunscreen');
+  if (vis < 2000) tips.push('Low visibility — use lights');
+  if ([95,96,99].includes(code)) tips.push('Thunderstorms — consider staying indoors');
+
+  return tips.length ? tips.join(' · ') : 'Great conditions for a ride!';
+}
+
 // Temperature: intervals.icu always stores °C
 function fmtTempC(c) {
   if (c == null) return '—';
@@ -2696,7 +2749,7 @@ async function renderWeatherForecast() {
     const tUnit = state.units === 'imperial' ? 'fahrenheit' : 'celsius';
     const wUnit = state.units === 'imperial' ? 'mph' : 'kmh';
     const wxModel = localStorage.getItem('icu_wx_model') || 'best_match';
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lng.toFixed(4)}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode,windspeed_10m_max&timezone=auto&forecast_days=7&temperature_unit=${tUnit}&wind_speed_unit=${wUnit}&models=${wxModel}`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lng.toFixed(4)}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode,windspeed_10m_max&hourly=weathercode&timezone=auto&forecast_days=7&temperature_unit=${tUnit}&wind_speed_unit=${wUnit}&models=${wxModel}`;
     try {
       const res = await fetch(url);
       if (res.ok) {
@@ -2720,8 +2773,43 @@ async function renderWeatherForecast() {
   } catch (_) {}
 
   const { time, temperature_2m_max: highs, temperature_2m_min: lows,
-          precipitation_probability_max: precips, weathercode: codes,
+          precipitation_probability_max: precips, weathercode: _fDailyCodes,
           windspeed_10m_max: winds } = forecast.daily;
+
+  // Derive smarter representative weathercode per day from hourly data (6am–9pm)
+  const codes = (() => {
+    const hCodes = forecast.hourly?.weathercode;
+    if (!hCodes || !hCodes.length) return _fDailyCodes;
+    const severity = c => {
+      if ([95,96,99].includes(c)) return 90;
+      if ([71,73,75,77,85,86].includes(c)) return 80;
+      if ([66,67].includes(c)) return 75;
+      if ([61,63,65,80,81,82].includes(c)) return 70;
+      if ([56,57].includes(c)) return 65;
+      if ([51,53,55].includes(c)) return 50;
+      if ([45,48].includes(c)) return 30;
+      if (c === 3) return 15;
+      if (c === 2) return 10;
+      if (c === 1) return 5;
+      return 0;
+    };
+    return _fDailyCodes.map((fallback, i) => {
+      const dayStart = i * 24 + 6;
+      const dayEnd   = i * 24 + 21;
+      const slice = hCodes.slice(dayStart, dayEnd);
+      if (!slice.length) return fallback;
+      const freq = {};
+      slice.forEach(c => { freq[c] = (freq[c] || 0) + 1; });
+      let best = slice[0], bestCount = 0;
+      for (const [code, count] of Object.entries(freq)) {
+        const c = Number(code);
+        if (count > bestCount || (count === bestCount && severity(c) > severity(best))) {
+          best = c; bestCount = count;
+        }
+      }
+      return best;
+    });
+  })();
 
   const deg = state.units === 'imperial' ? '°F' : '°C';
 
@@ -2793,7 +2881,7 @@ async function renderWeatherForecast() {
 /* ====================================================
    WEATHER PAGE
 ==================================================== */
-async function renderWeatherPage() {
+async function renderWeatherPage(_restoreScrollY) {
   const container = document.getElementById('weatherPageContent');
   if (!container) return;
 
@@ -2805,6 +2893,20 @@ async function renderWeatherPage() {
   const subtitleEl = document.getElementById('pageSubtitle');
   if (titleEl)    titleEl.textContent    = 'Weather';
   if (subtitleEl) subtitleEl.textContent = '7-day cycling forecast';
+
+  // Ensure the sticky location switcher + body wrapper exist
+  if (!container.querySelector('#wxPageBody')) {
+    container.innerHTML = `${renderWxLocationSwitcher()}<div id="wxPageBody"></div>`;
+  } else {
+    // Update pill active states in-place
+    const locs = getWxLocations();
+    container.querySelectorAll('.wx-loc-pill').forEach(p => {
+      const m = p.getAttribute('onclick')?.match(/(\d+)/);
+      const pid = m ? parseInt(m[1], 10) : -1;
+      p.classList.toggle('wx-loc-pill--active', locs.some(l => l.id === pid && l.active));
+    });
+  }
+  const body = document.getElementById('wxPageBody');
 
   // Check for saved location
   let lat = null, lng = null, locationLabel = 'Your area';
@@ -2818,7 +2920,7 @@ async function renderWeatherPage() {
   } catch (_) {}
 
   if (lat == null) {
-    container.innerHTML = `
+    body.innerHTML = `
       <div class="wx-page-empty">
         <div class="wx-page-empty-icon">${WEATHER_SVGS.fog}</div>
         <h3>No location set</h3>
@@ -2828,7 +2930,10 @@ async function renderWeatherPage() {
     return;
   }
 
-  container.innerHTML = `<div class="wx-page-loading"><div class="spinner"></div><p>Fetching forecast…</p></div>`;
+  // Only show loading spinner on first render; skip during location switches to preserve scroll
+  if (!body.children.length || body.querySelector('.wx-page-loading')) {
+    body.innerHTML = `<div class="wx-page-loading"><div class="spinner"></div><p>Fetching forecast…</p></div>`;
+  }
 
   // Fetch detailed forecast — daily + hourly for today & tomorrow
   const tUnit = state.units === 'imperial' ? 'fahrenheit' : 'celsius';
@@ -2853,6 +2958,7 @@ async function renderWeatherPage() {
       `?latitude=${lat.toFixed(4)}&longitude=${lng.toFixed(4)}` +
       `&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,windspeed_10m_max,winddirection_10m_dominant,uv_index_max,sunrise,sunset` +
       `&hourly=temperature_2m,precipitation_probability,weathercode,windspeed_10m` +
+      `&current=temperature_2m,weathercode,windspeed_10m,winddirection_10m,relative_humidity_2m,apparent_temperature,precipitation,cloud_cover,surface_pressure,uv_index,visibility,is_day` +
       `&timezone=auto&forecast_days=7` +
       `&temperature_unit=${tUnit}&wind_speed_unit=${wUnit}&models=${wxModel}`;
     try {
@@ -2866,7 +2972,7 @@ async function renderWeatherPage() {
   }
 
   if (!data?.daily) {
-    container.innerHTML = `<div class="wx-page-empty"><p>Could not load forecast. Check your connection.</p></div>`;
+    body.innerHTML = `<div class="wx-page-empty"><p>Could not load forecast. Check your connection.</p></div>`;
     return;
   }
 
@@ -2884,10 +2990,49 @@ async function renderWeatherPage() {
     }
   } catch (_) {}
 
-  const { time, weathercode: codes, temperature_2m_max: highs, temperature_2m_min: lows,
+  const { time, weathercode: _dailyCodes, temperature_2m_max: highs, temperature_2m_min: lows,
           precipitation_probability_max: precips, precipitation_sum: rainMm,
           windspeed_10m_max: winds, winddirection_10m_dominant: windDirs,
           uv_index_max: uvs, sunrise: sunrises, sunset: sunsets } = data.daily;
+
+  // Derive smarter representative weathercode per day from hourly data (6am–9pm).
+  // Falls back to daily WMO code if hourly data unavailable.
+  const codes = (() => {
+    const hCodes = data.hourly?.weathercode;
+    if (!hCodes || !hCodes.length) return _dailyCodes;
+    // Severity rank — higher = more impactful for a cyclist
+    const severity = c => {
+      if ([95,96,99].includes(c)) return 90; // storm
+      if ([71,73,75,77,85,86].includes(c)) return 80; // snow
+      if ([66,67].includes(c)) return 75; // freezing rain
+      if ([61,63,65,80,81,82].includes(c)) return 70; // rain/showers
+      if ([56,57].includes(c)) return 65; // freezing drizzle
+      if ([51,53,55].includes(c)) return 50; // drizzle
+      if ([45,48].includes(c)) return 30; // fog
+      if (c === 3) return 15; // overcast
+      if (c === 2) return 10; // mostly cloudy
+      if (c === 1) return 5;  // partly cloudy
+      return 0; // clear
+    };
+    return _dailyCodes.map((fallback, i) => {
+      const dayStart = i * 24 + 6;  // 6am
+      const dayEnd   = i * 24 + 21; // 9pm
+      const slice = hCodes.slice(dayStart, dayEnd);
+      if (!slice.length) return fallback;
+      // Count frequency of each code
+      const freq = {};
+      slice.forEach(c => { freq[c] = (freq[c] || 0) + 1; });
+      // Pick most frequent; break ties by higher severity
+      let best = slice[0], bestCount = 0;
+      for (const [code, count] of Object.entries(freq)) {
+        const c = Number(code);
+        if (count > bestCount || (count === bestCount && severity(c) > severity(best))) {
+          best = c; bestCount = count;
+        }
+      }
+      return best;
+    });
+  })();
 
   // ── Ride score (0–100) with reasons ─────────────────────────────────────
   function rideScore(i) {
@@ -3150,15 +3295,103 @@ async function renderWeatherPage() {
       </div>`;
   }).join('');
 
-  container.innerHTML = `
-    <!-- Location switcher -->
-    ${renderWxLocationSwitcher()}
+  // ── Current conditions hero card data ─────────────────────────────────────
+  const cur = data.current || {};
+  const curTemp = cur.temperature_2m;
+  const curFeels = cur.apparent_temperature;
+  const curCode = cur.weathercode ?? codes[0];
+  const curWind = cur.windspeed_10m ?? 0;
+  const curWindDir = windDir(cur.winddirection_10m);
+  const curHumidity = cur.relative_humidity_2m;
+  const curCloud = cur.cloud_cover;
+  const curPressure = cur.surface_pressure;
+  const curUV = cur.uv_index ?? uvs?.[0] ?? 0;
+  const curVis = cur.visibility; // in metres
+  const curPrecipProb = precips?.[0] ?? 0;
+  const ridingTip = _wxRidingTip(cur, data.daily);
+
+  // Format visibility
+  let visStr = '—';
+  if (curVis != null) {
+    visStr = curVis >= 10000 ? '10+ km' : (curVis / 1000).toFixed(1) + ' km';
+  }
+
+  // Sunrise/sunset for today
+  let heroSr = '—', heroSs = '—';
+  try {
+    heroSr = new Date(sunrises[0]).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    heroSs = new Date(sunsets[0]).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  } catch (_) {}
+
+  // Lock page height before DOM swap to prevent scroll clamping during location switch
+  if (_restoreScrollY != null) container.style.minHeight = container.scrollHeight + 'px';
+
+  body.innerHTML = `
     <!-- Location header -->
     <div class="wxp-location-bar">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 2a7 7 0 0 1 7 7c0 5.25-7 13-7 13S5 14.25 5 9a7 7 0 0 1 7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
       <span>${locationLabel}</span>
       <button class="wxp-change-loc btn btn-ghost btn-sm" onclick="navigate('settings')">Change</button>
       <button class="wxp-refresh-btn btn btn-ghost btn-sm" onclick="refreshWeatherPage()" title="Force refresh weather data">↺ Refresh</button>
+    </div>
+
+    <!-- Current conditions hero card -->
+    <div class="card wxp-hero">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Right Now</div>
+          <div class="card-subtitle">${wmoLabel(curCode)}</div>
+        </div>
+        <div class="wxp-hero-temps">${Math.round(highs[0])}° / ${Math.round(lows[0])}°</div>
+      </div>
+      <div class="wxp-hero-main">
+        <div class="wxp-hero-icon">${wmoIcon(curCode)}</div>
+        <div class="wxp-hero-temp">${curTemp != null ? Math.round(curTemp) : '—'}<span>${deg}</span></div>
+        <div class="wxp-hero-feels">Feels ${curFeels != null ? Math.round(curFeels) + deg : '—'}</div>
+      </div>
+      <div class="wxp-hero-grid">
+        <div class="wxp-hero-stat">
+          <div class="wxp-st-icon">💨</div>
+          <div class="wxp-st-val">${Math.round(curWind)}<span> ${windLbl}</span></div>
+          <div class="wxp-st-lbl">Wind ${curWindDir}</div>
+        </div>
+        <div class="wxp-hero-stat">
+          <div class="wxp-st-icon">🌧</div>
+          <div class="wxp-st-val">${Math.round(curPrecipProb)}<span>%</span></div>
+          <div class="wxp-st-lbl">Rain Chance</div>
+        </div>
+        <div class="wxp-hero-stat">
+          <div class="wxp-st-icon">☀️</div>
+          <div class="wxp-st-val">${Math.round(curUV)}</div>
+          <div class="wxp-st-lbl">UV Index</div>
+        </div>
+        <div class="wxp-hero-stat">
+          <div class="wxp-st-icon">💧</div>
+          <div class="wxp-st-val">${curHumidity != null ? Math.round(curHumidity) : '—'}<span>%</span></div>
+          <div class="wxp-st-lbl">Humidity</div>
+        </div>
+        <div class="wxp-hero-stat">
+          <div class="wxp-st-icon">👁</div>
+          <div class="wxp-st-val">${visStr}</div>
+          <div class="wxp-st-lbl">Visibility</div>
+        </div>
+        <div class="wxp-hero-stat">
+          <div class="wxp-st-icon">☁️</div>
+          <div class="wxp-st-val">${curCloud != null ? Math.round(curCloud) : '—'}<span>%</span></div>
+          <div class="wxp-st-lbl">Cloud Cover</div>
+        </div>
+        <div class="wxp-hero-stat">
+          <div class="wxp-st-icon">🧭</div>
+          <div class="wxp-st-val">${curPressure != null ? Math.round(curPressure) : '—'}<span> hPa</span></div>
+          <div class="wxp-st-lbl">Pressure</div>
+        </div>
+        <div class="wxp-hero-stat">
+          <div class="wxp-st-icon">🌅</div>
+          <div class="wxp-st-val">${heroSr}</div>
+          <div class="wxp-st-lbl">Sunrise</div>
+        </div>
+      </div>
+      <div class="wxp-hero-tip">${ridingTip}</div>
     </div>
 
     <!-- Today's ride window -->
@@ -3264,8 +3497,18 @@ async function renderWeatherPage() {
     </div>
   `;
 
+  // Restore scroll position after location switch
+  if (_restoreScrollY != null) {
+    // Force the container to keep its height so scroll position isn't clamped
+    container.style.minHeight = container.scrollHeight + 'px';
+    requestAnimationFrame(() => {
+      window.scrollTo(0, _restoreScrollY);
+      requestAnimationFrame(() => { container.style.minHeight = ''; });
+    });
+  }
+
   // Attach click handlers on day cards (with drag-detection guard)
-  container.querySelectorAll('.wxp-day-card, .wxp-best-card').forEach(card => {
+  body.querySelectorAll('.wxp-day-card, .wxp-best-card').forEach(card => {
     let startX = 0, startY = 0, dragged = false;
     card.addEventListener('mousedown', e => {
       startX = e.clientX; startY = e.clientY; dragged = false;
@@ -3295,7 +3538,7 @@ async function renderWeatherPage() {
   });
 
   // Attach drag-to-scroll on the week rail (desktop mouse drag)
-  const rail = container.querySelector('.wxp-week-scroll');
+  const rail = body.querySelector('.wxp-week-scroll');
   if (rail) {
     let isDown = false, startX = 0, scrollLeft = 0;
     rail.addEventListener('mousedown', e => {
@@ -4161,8 +4404,8 @@ const C_TOOLTIP = {
   external: externalTooltipHandler,   // use floating HTML tooltip instead
   position: 'aboveLine',              // keeps caretX on data-point x
 };
-const C_TICK  = { color: '#62708a', font: { size: 10 } };
-const C_GRID  = { color: 'rgba(255,255,255,0.04)' };
+let C_TICK  = { color: '#62708a', font: { size: 10 } };
+let C_GRID  = { color: 'rgba(255,255,255,0.04)' };
 const C_NOGRID = { display: false };
 // Shared grow-from-bottom animation applied globally to all charts
 const C_ANIM = {
@@ -4315,7 +4558,7 @@ Chart.register({
     ctx.moveTo(x, top);
     ctx.lineTo(x, bottom);
     ctx.lineWidth   = 1;
-    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.strokeStyle = _isDark() ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.35)';
     ctx.setLineDash([3, 3]);
     ctx.stroke();
     ctx.restore();
@@ -4559,7 +4802,7 @@ function drawRampGaugeSVG(rampRate) {
     const r1 = R + SW / 2 + 3, r2 = r1 + 7;
     ticks += `<line x1="${(CX + r1 * Math.cos(a)).toFixed(1)}" y1="${(CY - r1 * Math.sin(a)).toFixed(1)}" `
            + `x2="${(CX + r2 * Math.cos(a)).toFixed(1)}" y2="${(CY - r2 * Math.sin(a)).toFixed(1)}" `
-           + `stroke="rgba(255,255,255,0.1)" stroke-width="1.5" stroke-linecap="round"/>`;
+           + `stroke="${_isDark() ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}" stroke-width="1.5" stroke-linecap="round"/>`;
   });
 
   // Build the outer and inner radius arc shapes for the tube
@@ -4582,11 +4825,12 @@ function drawRampGaugeSVG(rampRate) {
          + `A${Ri} ${Ri} 0 ${large} 0 ${pxR(a1, Ri)} ${pyR(a1, Ri)}Z`;
   };
 
+  const dk = _isDark();
   let s = `<defs>
     <!-- Tube shading: dark edges, lighter center for 3D cylinder look -->
     <linearGradient id="tubeTrack" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="rgba(255,255,255,0.07)"/>
-      <stop offset="35%" stop-color="rgba(255,255,255,0.03)"/>
+      <stop offset="0%" stop-color="${dk ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)'}"/>
+      <stop offset="35%" stop-color="${dk ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)'}"/>
       <stop offset="65%" stop-color="rgba(0,0,0,0.08)"/>
       <stop offset="100%" stop-color="rgba(0,0,0,0.2)"/>
     </linearGradient>
@@ -4652,7 +4896,7 @@ function drawRampGaugeSVG(rampRate) {
   // 4. Specular highlight on entire track (top edge shine)
   const hiR = R + SW / 2 - 1, hiRi = R + SW / 2 - 4;
   s += `<path d="M${pxR(Math.PI * 0.999, hiR)} ${pyR(Math.PI * 0.999, hiR)} A${hiR} ${hiR} 0 1 1 ${pxR(Math.PI * 0.001, hiR)} ${pyR(Math.PI * 0.001, hiR)}" `
-     + `fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1.5" stroke-linecap="round"/>`;
+     + `fill="none" stroke="${dk ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}" stroke-width="1.5" stroke-linecap="round"/>`;
 
   // 5. Indicator dot
   const dx = px(toA(val)), dy = py(toA(val));
@@ -5372,6 +5616,7 @@ function renderPwrZones(ftp, weight) {
   rowsEl.innerHTML = `
     <div class="pwr-zone-header">
       <div class="pwr-zh-zone">Zone</div>
+      <div class="pwr-zh-name"></div>
       <div class="pwr-zh-watts">Watts</div>
       <div class="pwr-zh-wkg">W/kg</div>
       <div class="pwr-zh-bar"></div>
@@ -6067,6 +6312,7 @@ function renderFitnessPage() {
   renderFitnessHeatmap();
   renderFitnessWeeklyPageChart();
   renderFitnessMonthlyTable();
+  renderBestEfforts();
   state._fitZoneRange = state._fitZoneRange ?? 90;
   setFitZoneRange(state._fitZoneRange);
 }
@@ -6375,6 +6621,94 @@ function renderFitnessMonthlyTable() {
       <td class="fit-tss-cell">${Math.round(m.tss)}</td>
     </tr>`;
   }).join('');
+}
+
+/* ====================================================
+   BEST DISTANCE EFFORTS — Fitness page
+==================================================== */
+const BEST_EFFORT_DISTANCES = [
+  { meters: 5000,   label: '5 km'  },
+  { meters: 10000,  label: '10 km' },
+  { meters: 20000,  label: '20 km' },
+  { meters: 30000,  label: '30 km' },
+  { meters: 40000,  label: '40 km' },
+  { meters: 50000,  label: '50 km' },
+  { meters: 80000,  label: '80 km' },
+  { meters: 90000,  label: '90 km' },
+  { meters: 100000, label: '100 km' },
+];
+
+function fmtEffortTime(secs) {
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = Math.round(secs % 60);
+  const ss = String(s).padStart(2, '0');
+  const mm = h > 0 ? String(m).padStart(2, '0') : String(m);
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
+function renderBestEfforts() {
+  const grid = document.getElementById('fitBestEffortsGrid');
+  if (!grid || !state.synced) return;
+
+  const CYCLING_RE = /ride|cycling|bike|velo/i;
+
+  const rides = (state.activities || []).filter(a => {
+    if (isEmptyActivity(a)) return false;
+    const sport = a.sport_type || a.type || '';
+    if (!CYCLING_RE.test(sport)) return false;
+    const dist = actVal(a, 'distance', 'icu_distance');
+    const time = actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time', 'icu_elapsed_time');
+    return dist > 0 && time > 0;
+  });
+
+  const results = BEST_EFFORT_DISTANCES.map(({ meters, label }) => {
+    let best = null;
+    for (const a of rides) {
+      const dist = actVal(a, 'distance', 'icu_distance');
+      if (dist < meters) continue;
+      const time = actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time', 'icu_elapsed_time');
+      const estTime = meters * time / dist;
+      if (!best || estTime < best.estTime) {
+        best = {
+          estTime,
+          avgSpeed: meters / estTime,
+          date: a.start_date_local || a.start_date || '',
+          name: a.name || '',
+          activity: a,
+        };
+      }
+    }
+    return { label, meters, best };
+  });
+
+  grid.innerHTML = results.map(({ label, best }, idx) => {
+    if (!best) {
+      return `<div class="fit-kpi-card">
+        <div class="fit-be-label">${label}</div>
+        <div class="fit-be-time fit-be-time--empty">\u2014</div>
+        <div class="fit-be-speed">No qualifying rides</div>
+      </div>`;
+    }
+    const timeStr  = fmtEffortTime(best.estTime);
+    const spd      = fmtSpeed(best.avgSpeed);
+    const dateStr  = fmtDate(best.date);
+    const actName  = best.name.length > 28 ? best.name.slice(0, 26) + '\u2026' : best.name;
+    const metaLine = actName ? `${dateStr} \u00b7 ${actName}` : dateStr;
+    return `<div class="fit-kpi-card fit-be-card--clickable" data-be-idx="${idx}">
+      <div class="fit-be-label">${label}</div>
+      <div class="fit-be-time">${timeStr}</div>
+      <div class="fit-be-speed">${spd.val} ${spd.unit}</div>
+      <div class="fit-be-meta" title="${best.name.replace(/"/g, '&quot;')} \u2014 ${dateStr}">${metaLine}</div>
+    </div>`;
+  }).join('');
+
+  // Attach click handlers to navigate to the source activity
+  grid.querySelectorAll('.fit-be-card--clickable').forEach(card => {
+    const idx = +card.dataset.beIdx;
+    const activity = results[idx]?.best?.activity;
+    if (activity) card.onclick = () => navigateToActivity(activity);
+  });
 }
 
 /* ====================================================
@@ -6911,7 +7245,7 @@ function calIntensityBars(tss) {
   if (!tss || tss <= 0) return '';
   const level  = tss < 30 ? 1 : tss < 60 ? 2 : tss < 100 ? 3 : 4;
   const color  = level === 1 ? '#4caf7d' : level === 2 ? '#e0c040' : level === 3 ? '#f0a500' : '#e84b3a';
-  const dim    = 'rgba(255,255,255,0.12)';
+  const dim    = _isDark() ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)';
   const W = 2, GAP = 1.5, H = 10;
   const heights = [3, 5, 7, 10];
   const totalW  = 4 * W + 3 * GAP; // 12.5
@@ -8676,7 +9010,9 @@ function buildMapStatsHTML(streams, maxSpdKmh, maxHR) {
       const r1 = isMajor ? R - 3 : R - 1.5;
       const r2 = isMajor ? R + 3 : R + 1.5;
       const sw  = isMajor ? 1    : 0.75;
-      const col = isMajor ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.11)';
+      const col = _isDark()
+        ? (isMajor ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.11)')
+        : (isMajor ? 'rgba(0,0,0,0.18)' : 'rgba(0,0,0,0.09)');
       lines.push(
         `<line x1="${(CX + r1*cos).toFixed(2)}" y1="${(CY + r1*sin).toFixed(2)}" ` +
              `x2="${(CX + r2*cos).toFixed(2)}" y2="${(CY + r2*sin).toFixed(2)}" ` +
@@ -8701,13 +9037,13 @@ function buildMapStatsHTML(streams, maxSpdKmh, maxHR) {
         <path class="g-fill"  d="M 0 0"/>
         ${tickMarks}
         <text class="g-num"  x="60" y="72"
-              fill="#e2e8f0" text-anchor="middle">—</text>
+              fill="${_isDark() ? '#e2e8f0' : '#1a1d24'}" text-anchor="middle">—</text>
         <text class="g-unit" x="60" y="85"
-              fill="#94a3b8" text-anchor="middle">km/h</text>
+              fill="${_isDark() ? '#94a3b8' : '#555e72'}" text-anchor="middle">km/h</text>
         <text class="g-zero" x="20.4" y="108"
-              fill="#64748b" text-anchor="middle">0</text>
+              fill="${_isDark() ? '#64748b' : '#848d9f'}" text-anchor="middle">0</text>
         <text class="g-max"  x="99.6" y="108"
-              fill="#64748b" text-anchor="middle">${maxLabel}</text>
+              fill="${_isDark() ? '#64748b' : '#848d9f'}" text-anchor="middle">${maxLabel}</text>
       </svg>
       <div class="g-label">SPEED</div>
     </div>`;
@@ -10184,7 +10520,7 @@ function renderDetailDecoupleChart(streams, activity) {
         {
           label: '',
           data: labels.map((l, i) => i === mid ? efSeries[mid] : null),
-          borderColor: 'rgba(255,255,255,0.15)',
+          borderColor: _isDark() ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)',
           borderWidth: 1,
           borderDash: [4, 4],
           pointRadius: 0,
@@ -10464,10 +10800,10 @@ function renderDetailTempChart(streams, activity) {
           callbacks: {
             label: ctx => `${ctx.parsed.y}${deg}`,
           },
-          backgroundColor: 'rgba(15,20,30,0.85)',
-          titleColor: '#94a3b8',
-          bodyColor: '#f1f5f9',
-          borderColor: 'rgba(255,255,255,0.08)',
+          backgroundColor: _isDark() ? 'rgba(15,20,30,0.85)' : 'rgba(255,255,255,0.92)',
+          titleColor: _isDark() ? '#94a3b8' : '#555e72',
+          bodyColor: _isDark() ? '#f1f5f9' : '#1a1d24',
+          borderColor: _isDark() ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
           borderWidth: 1,
         }
       },
@@ -10699,15 +11035,15 @@ function renderDetailGradientProfile(streams, activity) {
         },
         scales: {
           x: {
-            ticks: { color: '#62708a', font: { size: 10 }, maxTicksLimit: 8,
+            ticks: { ...C_TICK, maxTicksLimit: 8,
               callback: v => distDS[v] !== undefined ? distDS[v] + ' km' : '' },
             grid: { display: false },
             border: { display: false },
           },
           y: {
-            ticks: { color: '#62708a', font: { size: 10 },
+            ticks: { ...C_TICK,
               callback: v => v + 'm' },
-            grid: { color: 'rgba(255,255,255,0.04)' },
+            grid: C_GRID,
             border: { display: false },
           }
         }
@@ -10785,14 +11121,14 @@ function renderDetailCadenceHist(streams, activity) {
         },
         scales: {
           x: {
-            ticks: { color: '#62708a', font: { size: 10 } },
+            ticks: C_TICK,
             grid: { display: false },
             border: { display: false },
           },
           y: {
-            ticks: { color: '#62708a', font: { size: 10 },
+            ticks: { ...C_TICK,
               callback: v => v + ' min' },
-            grid: { color: 'rgba(255,255,255,0.04)' },
+            grid: C_GRID,
             border: { display: false },
           }
         }
@@ -10886,15 +11222,15 @@ function renderZnpZoneTimeChart() {
       scales: {
         x: {
           stacked: true,
-          ticks: { color: '#62708a', font: { size: 10 }, maxTicksLimit: 12 },
+          ticks: { ...C_TICK, maxTicksLimit: 12 },
           grid: { display: false },
           border: { display: false },
         },
         y: {
           stacked: true,
-          ticks: { color: '#62708a', font: { size: 10 },
+          ticks: { ...C_TICK,
             callback: v => v + 'h' },
-          grid: { color: 'rgba(255,255,255,0.04)' },
+          grid: C_GRID,
           border: { display: false },
         }
       }
@@ -11752,6 +12088,16 @@ if (elevEl) elevEl.textContent = state.units === 'imperial' ? 'feet' : 'metres';
 // GEAR PAGE
 // ─────────────────────────────────────────────────────────────────────────────
 
+let _gearActiveTab = 'components';
+function gearSwitchTab(tab) {
+  _gearActiveTab = tab;
+  document.querySelectorAll('#page-gear .imp-tab').forEach(t => t.classList.toggle('imp-tab--active', t.dataset.gear === tab));
+  ['components', 'batteries', 'service'].forEach(k => {
+    const p = document.getElementById('gearPanel' + k.charAt(0).toUpperCase() + k.slice(1));
+    if (p) p.style.display = k === tab ? '' : 'none';
+  });
+}
+
 const GEAR_STORE_KEY = 'icu_gear_components';
 const GEAR_CATEGORY_COLORS = {
   Drivetrain: '#60a5fa',
@@ -11846,6 +12192,7 @@ async function renderGearPage() {
 
   renderGearComponents();
   renderGearBatteries();
+  renderGearServices();
 }
 
 function gearSelectBike(id) {
@@ -11857,6 +12204,7 @@ function gearSelectBike(id) {
   });
   renderGearComponents();
   renderGearBatteries();
+  renderGearServices();
 }
 
 function renderGearComponents() {
@@ -12448,6 +12796,496 @@ function deleteBatteryPermanent(id) {
   saveGearBatteries(all);
   renderGearBatteries();
   showToast('Battery deleted', 'info');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GEAR — BIKE SERVICE TRACKING
+// ─────────────────────────────────────────────────────────────────────────────
+
+const SERVICE_STORE_KEY = 'icu_gear_services';
+const SERVICE_SHOP_STORE_KEY = 'icu_gear_service_shops';
+
+function loadGearServices()   { try { return JSON.parse(localStorage.getItem(SERVICE_STORE_KEY)) || []; } catch { return []; } }
+function saveGearServices(arr) { try { localStorage.setItem(SERVICE_STORE_KEY, JSON.stringify(arr)); } catch { showToast('Storage limit reached', 'error'); } }
+function loadServiceShops()   { try { return JSON.parse(localStorage.getItem(SERVICE_SHOP_STORE_KEY)) || []; } catch { return []; } }
+function saveServiceShops(arr) { try { localStorage.setItem(SERVICE_SHOP_STORE_KEY, JSON.stringify(arr)); } catch { showToast('Storage limit reached', 'error'); } }
+
+// ── Resolve shop name & phone for a service record ──────────────────────────
+function _resolveShop(svc) {
+  if (svc.shopId) {
+    const shop = loadServiceShops().find(s => s.id === svc.shopId);
+    if (shop) return { name: shop.name, phone: shop.phone, address: shop.address };
+  }
+  return { name: svc.shopNameOverride || '', phone: svc.phoneOverride || '', address: '' };
+}
+
+// ── Calculate next-service progress ─────────────────────────────────────────
+function calcServiceProgress(svc) {
+  if (!svc.nextServiceMode) return null;
+  let pct = 0, label = '', used = 0, target = 0, unit = '';
+  if (svc.nextServiceMode === 'km') {
+    const bike = _gearBikeCache.find(b => b.id === svc.bikeId);
+    const currentKm = bike ? bike.km : 0;
+    used = Math.max(0, currentKm - (svc.bikeKmAtService || 0));
+    target = svc.nextServiceKm || 0;
+    unit = 'km';
+  } else if (svc.nextServiceMode === 'months') {
+    const sDate = new Date(svc.serviceDate);
+    const now = new Date();
+    used = (now.getFullYear() - sDate.getFullYear()) * 12 + (now.getMonth() - sDate.getMonth());
+    target = svc.nextServiceMonths || 0;
+    unit = 'mo';
+  }
+  if (target <= 0) return null;
+  pct = Math.min(100, Math.round(used / target * 100));
+  const warn = pct >= 75;
+  const overdue = pct >= 100;
+  if (overdue) label = 'Service Due';
+  else if (warn) label = 'Soon';
+  else label = pct + '%';
+  return { pct, label, warn, overdue, used: Math.round(used), target, unit };
+}
+
+// ── Service card HTML ───────────────────────────────────────────────────────
+function serviceCard(bikeId, services) {
+  const bike = _gearBikeCache.find(b => b.id === bikeId);
+  const bikeName = bike ? bike.name : 'Unknown Bike';
+  // Sort newest first
+  const sorted = [...services].sort((a, b) => (b.serviceDate || '').localeCompare(a.serviceDate || ''));
+  const latest = sorted[0];
+  if (!latest) return '';
+
+  const shop = _resolveShop(latest);
+  const dateStr = latest.serviceDate ? new Date(latest.serviceDate + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+  const phoneHref = shop.phone ? shop.phone.replace(/[\s\-()]/g, '') : '';
+  const prog = calcServiceProgress(latest);
+
+  let cardClass = 'service-card';
+  if (prog?.overdue) cardClass += ' service-card--overdue';
+  else if (prog?.warn) cardClass += ' service-card--warn';
+
+  const editSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>`;
+  const histSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`;
+  const plusSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13" height="13"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
+
+  let barHtml = '';
+  if (prog) {
+    const color = prog.overdue ? 'var(--red)' : prog.warn ? '#f97316' : 'var(--accent)';
+    const lblClass = prog.overdue ? ' gear-comp-bar-label--red' : prog.warn ? ' gear-comp-bar-label--warn' : '';
+    barHtml = `
+      <div class="service-card-km">${prog.used.toLocaleString()} ${prog.unit} since last service / ${prog.target.toLocaleString()} ${prog.unit}</div>
+      <div class="gear-comp-bar-wrap">
+        <div class="gear-comp-bar-track">
+          <div class="gear-comp-bar-fill" style="width:${prog.pct}%;background:${color}"></div>
+        </div>
+        <span class="gear-comp-bar-label${lblClass}">${prog.overdue ? '&#9888; ' : prog.warn ? '&#9888; ' : ''}${prog.label}</span>
+      </div>`;
+  }
+
+  return `
+    <div class="${cardClass}">
+      <div class="service-card-top">
+        <div class="service-card-name">${bikeName}</div>
+        <div class="gear-comp-actions">
+          <button class="gear-icon-btn" title="Add service" onclick="openServiceModal(null,'${bikeId}')">${plusSvg}</button>
+          <button class="gear-icon-btn" title="Edit last service" onclick="openServiceModal('${latest.id}')">${editSvg}</button>
+          <button class="gear-icon-btn" title="Service history" onclick="openServiceHistory('${bikeId}')">${histSvg}</button>
+        </div>
+      </div>
+      <div class="service-card-meta">
+        <span>${dateStr}</span>
+        ${shop.name ? `<span class="gear-comp-dot">&middot;</span><span>${shop.name}</span>` : ''}
+        ${shop.phone ? `<span class="gear-comp-dot">&middot;</span><a href="tel:${phoneHref}" class="service-phone-link">${shop.phone}</a>` : ''}
+      </div>
+      <div class="service-card-work">${latest.workDone || ''}</div>
+      ${latest.cost ? `<div class="service-card-cost">&euro;${Number(latest.cost).toFixed(2)}</div>` : ''}
+      ${latest.notes ? `<div class="service-card-notes">${latest.notes}</div>` : ''}
+      ${barHtml}
+      ${sorted.length > 1 ? `<div style="font-size:var(--text-xs);color:var(--text-muted);margin-top:4px">${sorted.length - 1} previous service${sorted.length > 2 ? 's' : ''}</div>` : ''}
+    </div>`;
+}
+
+// ── Render service section ──────────────────────────────────────────────────
+function renderGearServices() {
+  const grid  = document.getElementById('gearServiceGrid');
+  const title = document.getElementById('gearServiceTitle');
+  const sub   = document.getElementById('gearServiceSub');
+  if (!grid) return;
+
+  const all = loadGearServices();
+  const filtered = _gearSelectedBike
+    ? all.filter(s => s.bikeId === _gearSelectedBike)
+    : all;
+
+  if (title) {
+    const bike = _gearBikeCache.find(b => b.id === _gearSelectedBike);
+    title.textContent = bike ? `${bike.name} — Service` : 'Bike Service';
+  }
+  if (sub) {
+    sub.textContent = filtered.length
+      ? `${filtered.length} service record${filtered.length > 1 ? 's' : ''}`
+      : 'Track servicing history and upcoming maintenance';
+  }
+
+  if (!filtered.length) {
+    grid.innerHTML = `
+      <div class="service-empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="40" height="40" style="opacity:.4">
+          <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+        </svg>
+        <div>No services tracked yet</div>
+        <button class="btn btn-primary btn-sm" onclick="openServiceModal()">Add First Service</button>
+      </div>`;
+    return;
+  }
+
+  // Group by bikeId
+  const grouped = {};
+  filtered.forEach(s => {
+    if (!grouped[s.bikeId]) grouped[s.bikeId] = [];
+    grouped[s.bikeId].push(s);
+  });
+
+  grid.innerHTML = Object.entries(grouped).map(([bid, svcs]) => serviceCard(bid, svcs)).join('');
+}
+
+// ── Service Modal ───────────────────────────────────────────────────────────
+function openServiceModal(editId, presetBikeId) {
+  const modal = document.getElementById('serviceModal');
+  if (!modal) return;
+
+  // Reset form
+  document.getElementById('serviceEditId').value = '';
+  document.getElementById('serviceFormBike').value = '';
+  document.getElementById('serviceFormShop').value = '';
+  document.getElementById('serviceFormShopName').value = '';
+  document.getElementById('serviceFormShopPhone').value = '';
+  document.getElementById('serviceFormDate').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('serviceFormCost').value = '';
+  document.getElementById('serviceFormWork').value = '';
+  document.getElementById('serviceFormNotes').value = '';
+  document.getElementById('serviceFormNextMode').value = '';
+  document.getElementById('serviceFormNextKm').value = '';
+  document.getElementById('serviceFormNextMonths').value = '';
+  document.getElementById('serviceNextKmField').style.display = 'none';
+  document.getElementById('serviceNextMonthsField').style.display = 'none';
+
+  // Populate bike select
+  const bikeSelect = document.getElementById('serviceFormBike');
+  bikeSelect.innerHTML = '<option value="">— Select bike —</option>' +
+    _gearBikeCache.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+
+  // Populate shop select
+  const shops = loadServiceShops();
+  const shopSelect = document.getElementById('serviceFormShop');
+  shopSelect.innerHTML = '<option value="">— Select or enter below —</option>' +
+    shops.map(s => `<option value="${s.id}">${s.name}</option>`).join('') +
+    '<option value="__new__">+ Add New Shop…</option>';
+
+  // Show inline shop fields by default
+  document.getElementById('serviceShopNameField').style.display = '';
+  document.getElementById('serviceShopPhoneField').style.display = '';
+
+  // Pre-select bike
+  if (presetBikeId) bikeSelect.value = presetBikeId;
+  else if (_gearSelectedBike) bikeSelect.value = _gearSelectedBike;
+
+  // Title
+  document.getElementById('serviceModalTitle').textContent = editId ? 'Edit Service' : 'Add Service';
+
+  // If editing, populate fields
+  if (editId) {
+    const svc = loadGearServices().find(s => s.id === editId);
+    if (svc) {
+      document.getElementById('serviceEditId').value = svc.id;
+      bikeSelect.value = svc.bikeId || '';
+      if (svc.shopId) {
+        shopSelect.value = svc.shopId;
+        document.getElementById('serviceShopNameField').style.display = 'none';
+        document.getElementById('serviceShopPhoneField').style.display = 'none';
+      } else {
+        shopSelect.value = svc.shopNameOverride ? '__new__' : '';
+        document.getElementById('serviceFormShopName').value = svc.shopNameOverride || '';
+        document.getElementById('serviceFormShopPhone').value = svc.phoneOverride || '';
+      }
+      document.getElementById('serviceFormDate').value = svc.serviceDate || '';
+      document.getElementById('serviceFormCost').value = svc.cost || '';
+      document.getElementById('serviceFormWork').value = svc.workDone || '';
+      document.getElementById('serviceFormNotes').value = svc.notes || '';
+      document.getElementById('serviceFormNextMode').value = svc.nextServiceMode || '';
+      if (svc.nextServiceMode === 'km') {
+        document.getElementById('serviceNextKmField').style.display = '';
+        document.getElementById('serviceFormNextKm').value = svc.nextServiceKm || '';
+      } else if (svc.nextServiceMode === 'months') {
+        document.getElementById('serviceNextMonthsField').style.display = '';
+        document.getElementById('serviceFormNextMonths').value = svc.nextServiceMonths || '';
+      }
+    }
+  }
+
+  modal.classList.add('open');
+  if (typeof initCustomDropdowns === 'function') initCustomDropdowns(modal);
+}
+
+function closeServiceModal() {
+  document.getElementById('serviceModal')?.classList.remove('open');
+}
+
+function onServiceShopChange() {
+  const val = document.getElementById('serviceFormShop').value;
+  const showInline = !val || val === '__new__';
+  document.getElementById('serviceShopNameField').style.display = showInline ? '' : 'none';
+  document.getElementById('serviceShopPhoneField').style.display = showInline ? '' : 'none';
+  if (!showInline) {
+    // Auto-fill inline fields from saved shop for reference
+    const shop = loadServiceShops().find(s => s.id === val);
+    if (shop) {
+      document.getElementById('serviceFormShopName').value = shop.name;
+      document.getElementById('serviceFormShopPhone').value = shop.phone || '';
+    }
+  }
+}
+
+function onServiceNextModeChange() {
+  const mode = document.getElementById('serviceFormNextMode').value;
+  document.getElementById('serviceNextKmField').style.display = mode === 'km' ? '' : 'none';
+  document.getElementById('serviceNextMonthsField').style.display = mode === 'months' ? '' : 'none';
+}
+
+function submitServiceForm() {
+  const bikeId = document.getElementById('serviceFormBike').value;
+  const workDone = document.getElementById('serviceFormWork').value.trim();
+  if (!bikeId) { showToast('Please select a bike', 'error'); return; }
+  if (!workDone) { showToast('Please describe the work performed', 'error'); return; }
+
+  const editId = document.getElementById('serviceEditId').value;
+  const shopVal = document.getElementById('serviceFormShop').value;
+  let shopId = '', shopNameOverride = '', phoneOverride = '';
+
+  if (shopVal && shopVal !== '__new__') {
+    shopId = shopVal;
+  } else {
+    shopNameOverride = document.getElementById('serviceFormShopName').value.trim();
+    phoneOverride = document.getElementById('serviceFormShopPhone').value.trim();
+    // If new shop name provided, save it for future reuse
+    if (shopNameOverride && shopVal === '__new__') {
+      const shops = loadServiceShops();
+      const newShop = {
+        id: 'shop_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+        name: shopNameOverride,
+        phone: phoneOverride,
+        address: ''
+      };
+      shops.push(newShop);
+      saveServiceShops(shops);
+      shopId = newShop.id;
+      shopNameOverride = '';
+      phoneOverride = '';
+    }
+  }
+
+  const nextMode = document.getElementById('serviceFormNextMode').value;
+  const bike = _gearBikeCache.find(b => b.id === bikeId);
+
+  const svc = {
+    id: editId || ('svc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7)),
+    bikeId,
+    shopId,
+    shopNameOverride,
+    phoneOverride,
+    serviceDate: document.getElementById('serviceFormDate').value,
+    workDone,
+    cost: parseFloat(document.getElementById('serviceFormCost').value) || null,
+    notes: document.getElementById('serviceFormNotes').value.trim(),
+    nextServiceMode: nextMode || '',
+    nextServiceKm: nextMode === 'km' ? (parseInt(document.getElementById('serviceFormNextKm').value) || null) : null,
+    nextServiceMonths: nextMode === 'months' ? (parseInt(document.getElementById('serviceFormNextMonths').value) || null) : null,
+    bikeKmAtService: bike ? bike.km : 0
+  };
+
+  const all = loadGearServices();
+  if (editId) {
+    const idx = all.findIndex(s => s.id === editId);
+    if (idx >= 0) {
+      // Preserve original bikeKmAtService when editing unless bike changed
+      if (all[idx].bikeId === svc.bikeId) svc.bikeKmAtService = all[idx].bikeKmAtService;
+      all[idx] = svc;
+    } else all.push(svc);
+  } else {
+    all.push(svc);
+  }
+
+  saveGearServices(all);
+  closeServiceModal();
+  renderGearServices();
+  showToast(editId ? 'Service updated' : 'Service recorded', 'success');
+}
+
+function deleteService(id) {
+  if (!confirm('Delete this service record?')) return;
+  const all = loadGearServices().filter(s => s.id !== id);
+  saveGearServices(all);
+  renderGearServices();
+  showToast('Service deleted', 'info');
+}
+
+// ── Service Shop Management ─────────────────────────────────────────────────
+function openServiceShopModal() {
+  const modal = document.getElementById('serviceShopModal');
+  if (!modal) return;
+  document.getElementById('shopEditId').value = '';
+  document.getElementById('shopFormName').value = '';
+  document.getElementById('shopFormPhone').value = '';
+  document.getElementById('shopFormAddress').value = '';
+  renderServiceShopList();
+  modal.classList.add('open');
+}
+
+function closeServiceShopModal() {
+  document.getElementById('serviceShopModal')?.classList.remove('open');
+}
+
+function renderServiceShopList() {
+  const container = document.getElementById('serviceShopList');
+  if (!container) return;
+  const shops = loadServiceShops();
+  if (!shops.length) {
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:var(--text-sm);padding:8px 0">No shops saved yet.</div>';
+    return;
+  }
+  const editSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>`;
+  const delSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+  container.innerHTML = shops.map(s => {
+    const phoneHref = s.phone ? s.phone.replace(/[\s\-()]/g, '') : '';
+    return `
+      <div class="service-shop-item">
+        <div class="service-shop-info">
+          <div class="service-shop-name">${s.name}</div>
+          <div class="service-shop-detail">
+            ${s.phone ? `<a href="tel:${phoneHref}" class="service-phone-link">${s.phone}</a>` : ''}
+            ${s.address ? `${s.phone ? ' &middot; ' : ''}${s.address}` : ''}
+            ${!s.phone && !s.address ? 'No details' : ''}
+          </div>
+        </div>
+        <div class="gear-comp-actions">
+          <button class="gear-icon-btn" title="Edit" onclick="editServiceShop('${s.id}')">${editSvg}</button>
+          <button class="gear-icon-btn gear-icon-btn--del" title="Delete" onclick="deleteServiceShop('${s.id}')">${delSvg}</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function editServiceShop(id) {
+  const shop = loadServiceShops().find(s => s.id === id);
+  if (!shop) return;
+  document.getElementById('shopEditId').value = shop.id;
+  document.getElementById('shopFormName').value = shop.name;
+  document.getElementById('shopFormPhone').value = shop.phone || '';
+  document.getElementById('shopFormAddress').value = shop.address || '';
+}
+
+function saveServiceShop() {
+  const name = document.getElementById('shopFormName').value.trim();
+  if (!name) { showToast('Shop name is required', 'error'); return; }
+  const editId = document.getElementById('shopEditId').value;
+  const shops = loadServiceShops();
+  const shop = {
+    id: editId || ('shop_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7)),
+    name,
+    phone: document.getElementById('shopFormPhone').value.trim(),
+    address: document.getElementById('shopFormAddress').value.trim()
+  };
+  if (editId) {
+    const idx = shops.findIndex(s => s.id === editId);
+    if (idx >= 0) shops[idx] = shop; else shops.push(shop);
+  } else {
+    shops.push(shop);
+  }
+  saveServiceShops(shops);
+  document.getElementById('shopEditId').value = '';
+  document.getElementById('shopFormName').value = '';
+  document.getElementById('shopFormPhone').value = '';
+  document.getElementById('shopFormAddress').value = '';
+  renderServiceShopList();
+  showToast(editId ? 'Shop updated' : 'Shop saved', 'success');
+}
+
+function deleteServiceShop(id) {
+  if (!confirm('Delete this shop?')) return;
+  const shops = loadServiceShops().filter(s => s.id !== id);
+  saveServiceShops(shops);
+  renderServiceShopList();
+  showToast('Shop deleted', 'info');
+}
+
+// ── Service History Modal ───────────────────────────────────────────────────
+function openServiceHistory(bikeId) {
+  const modal = document.getElementById('serviceHistoryModal');
+  if (!modal) return;
+  const bike = _gearBikeCache.find(b => b.id === bikeId);
+  document.getElementById('serviceHistoryDesc').textContent = bike ? `All services for ${bike.name}` : 'All services for this bike';
+  renderServiceHistoryList(bikeId);
+  modal.classList.add('open');
+}
+
+function closeServiceHistory() {
+  document.getElementById('serviceHistoryModal')?.classList.remove('open');
+}
+
+function renderServiceHistoryList(bikeId) {
+  const container = document.getElementById('serviceHistoryList');
+  if (!container) return;
+  const all = loadGearServices().filter(s => s.bikeId === bikeId)
+    .sort((a, b) => (b.serviceDate || '').localeCompare(a.serviceDate || ''));
+
+  if (!all.length) {
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:var(--text-sm);padding:16px 0;text-align:center">No service history.</div>';
+    return;
+  }
+
+  const totalCost = all.reduce((sum, s) => sum + (s.cost || 0), 0);
+  const editSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>`;
+  const delSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+
+  const summaryHtml = `
+    <div class="service-history-summary">
+      <span><strong>${all.length}</strong> service${all.length > 1 ? 's' : ''}</span>
+      ${totalCost > 0 ? `<span>Total: <strong>&euro;${totalCost.toFixed(2)}</strong></span>` : ''}
+    </div>`;
+
+  const itemsHtml = all.map(svc => {
+    const shop = _resolveShop(svc);
+    const dateStr = svc.serviceDate ? new Date(svc.serviceDate + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+    const phoneHref = shop.phone ? shop.phone.replace(/[\s\-()]/g, '') : '';
+    return `
+      <div class="service-history-item">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div class="service-history-date">${dateStr}</div>
+          <div class="service-history-actions">
+            <button class="gear-icon-btn" title="Edit" onclick="closeServiceHistory();openServiceModal('${svc.id}')">${editSvg}</button>
+            <button class="gear-icon-btn gear-icon-btn--del" title="Delete" onclick="deleteServiceFromHistory('${svc.id}','${bikeId}')">${delSvg}</button>
+          </div>
+        </div>
+        ${shop.name ? `<div class="service-history-shop">${shop.name}${shop.phone ? ` &middot; <a href="tel:${phoneHref}" class="service-phone-link">${shop.phone}</a>` : ''}</div>` : ''}
+        <div class="service-history-work">${svc.workDone || ''}</div>
+        <div class="service-history-meta">
+          ${svc.cost ? `<span>&euro;${Number(svc.cost).toFixed(2)}</span>` : ''}
+          ${svc.notes ? `<span>${svc.notes}</span>` : ''}
+          ${svc.bikeKmAtService ? `<span>@ ${Math.round(svc.bikeKmAtService).toLocaleString()} km</span>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+
+  container.innerHTML = summaryHtml + itemsHtml;
+}
+
+function deleteServiceFromHistory(id, bikeId) {
+  if (!confirm('Delete this service record?')) return;
+  const all = loadGearServices().filter(s => s.id !== id);
+  saveGearServices(all);
+  renderServiceHistoryList(bikeId);
+  renderGearServices();
+  showToast('Service deleted', 'info');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -13177,8 +14015,24 @@ const _compare = {
   grouping: 'week',  // week, biweek, month
   chartType: 'bar',  // bar or line
   cards: [],  // Array of {id, metric, chart}
-  nextCardId: 0
+  nextCardId: 0,
+  _cachedPeriods: null  // { key, current, previous }
 };
+
+/** Return cached { current, previous } period aggregations, recomputing only when inputs change. */
+function _cmpPeriods() {
+  const key = _compare.periodDays + '|' + _compare.grouping + '|' + (state.activities?.length || 0);
+  if (_compare._cachedPeriods && _compare._cachedPeriods.key === key) return _compare._cachedPeriods;
+  const currentEnd = new Date();
+  const currentStart = daysAgo(_compare.periodDays);
+  const prevEnd = new Date(currentStart);
+  const prevStart = new Date(prevEnd);
+  prevStart.setDate(prevStart.getDate() - _compare.periodDays);
+  const current = aggregateDataForComparison(currentStart, currentEnd, _compare.grouping);
+  const previous = aggregateDataForComparison(prevStart, prevEnd, _compare.grouping);
+  _compare._cachedPeriods = { key, current, previous };
+  return _compare._cachedPeriods;
+}
 
 function getMetricOptions() {
   return {
@@ -13197,19 +14051,36 @@ function getMetricOptions() {
 
 function addCompareCard(metric = 'tss') {
   const cardId = _compare.nextCardId++;
-  _compare.cards.push({ id: cardId, metric: metric, chartType: _compare.chartType, chart: null });
-  renderCompareMetrics();
-  updateComparePage();
+  const card = { id: cardId, metric: metric, chartType: _compare.chartType, chart: null };
+  _compare.cards.push(card);
+
+  document.getElementById('compareEmptyState').style.display = 'none';
+  const container = document.getElementById('compareMetricsContainer');
+  container.insertAdjacentHTML('beforeend', _compareCardHTML(card));
+
+  // Upgrade selects on the new card only
+  const newCardEl = container.querySelector(`.compare-metric-card[data-card-id="${cardId}"]`);
+  if (newCardEl) refreshCustomDropdowns(newCardEl);
+
+  // Generate chart + stats only for the new card using cached aggregation
+  const p = _cmpPeriods();
+  generateCompareChartForCard(cardId, p.current, p.previous, metric, card.chartType, true);
+  generateCompareStatsForCard(cardId, p.current, p.previous, metric);
+
+  if (newCardEl) setTimeout(() => newCardEl.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
 }
 
 function removeCompareCard(cardId) {
+  const card = _compare.cards.find(c => c.id === cardId);
+  if (card && card.chart) card.chart = destroyChart(card.chart);
   _compare.cards = _compare.cards.filter(c => c.id !== cardId);
+
+  // Remove only this card's DOM element
+  const cardEl = document.querySelector(`.compare-metric-card[data-card-id="${cardId}"]`);
+  if (cardEl) cardEl.remove();
+
   if (_compare.cards.length === 0) {
     document.getElementById('compareEmptyState').style.display = 'block';
-    document.getElementById('compareMetricsContainer').innerHTML = '';
-  } else {
-    renderCompareMetrics();
-    updateComparePage();
   }
 }
 
@@ -13217,7 +14088,7 @@ function setComparePeriod(days) {
   _compare.periodDays = days;
   document.querySelectorAll('.compare-range-pills button').forEach(b => b.classList.remove('active'));
   event?.target?.classList.add('active');
-  updateComparePage();
+  updateComparePage(new Set());
 }
 
 function setCompareChartType(type) {
@@ -13229,7 +14100,7 @@ function setCompareChartType(type) {
   } else {
     document.querySelectorAll('.compare-chart-type-toggle .compareLineBtn').forEach(b => b.classList.add('active'));
   }
-  updateComparePage();
+  updateComparePage(new Set());
 }
 
 function setCompareCardChartType(cardId, type) {
@@ -13245,15 +14116,9 @@ function setCompareCardChartType(cardId, type) {
       cardEl.querySelector('.compareLineBtn')?.classList.add('active');
     }
   }
-  // Re-render only this card's chart
-  const currentEndDate = new Date();
-  const currentStartDate = daysAgo(_compare.periodDays);
-  const previousEndDate = new Date(currentStartDate);
-  const previousStartDate = new Date(previousEndDate);
-  previousStartDate.setDate(previousStartDate.getDate() - _compare.periodDays);
-  const currentPeriods = aggregateDataForComparison(currentStartDate, currentEndDate, _compare.grouping);
-  const previousPeriods = aggregateDataForComparison(previousStartDate, previousEndDate, _compare.grouping);
-  generateCompareChartForCard(cardId, currentPeriods, previousPeriods, card.metric, type);
+  // Re-render only this card's chart using cached aggregation
+  const p = _cmpPeriods();
+  generateCompareChartForCard(cardId, p.current, p.previous, card.metric, type);
 }
 
 function aggregateDataForComparison(startDate, endDate, grouping) {
@@ -13412,7 +14277,7 @@ function generateCompareStats(currentPeriods, previousPeriods, metric) {
   document.getElementById('compareStatsTable').innerHTML = html;
 }
 
-function generateCompareChartForCard(cardId, currentPeriods, previousPeriods, metric, chartType) {
+function generateCompareChartForCard(cardId, currentPeriods, previousPeriods, metric, chartType, animate = true) {
   const canvas = document.getElementById(`compareChart${cardId}`);
   if (!canvas) return;
 
@@ -13469,6 +14334,7 @@ function generateCompareChartForCard(cardId, currentPeriods, previousPeriods, me
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      animation: animate ? undefined : false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { labels: { color: '#62708a', font: { size: 12 } } },
@@ -13514,18 +14380,9 @@ function generateCompareStatsForCard(cardId, currentPeriods, previousPeriods, me
   document.getElementById(`compareStats${cardId}`).innerHTML = html;
 }
 
-function renderCompareMetrics() {
-  if (_compare.cards.length === 0) {
-    document.getElementById('compareMetricsContainer').innerHTML = '';
-    document.getElementById('compareEmptyState').style.display = 'block';
-    return;
-  }
-
-  document.getElementById('compareEmptyState').style.display = 'none';
-  const container = document.getElementById('compareMetricsContainer');
+function _compareCardHTML(card) {
   const metricOptions = getMetricOptions();
-
-  container.innerHTML = _compare.cards.map(card => `
+  return `
     <div class="compare-metric-card" data-card-id="${card.id}">
       <div class="compare-metric-header">
         <select class="app-select compare-card-metric-select" onchange="updateCompareCardMetric(${card.id}, this.value)">
@@ -13547,8 +14404,19 @@ function renderCompareMetrics() {
         </div>
         <div class="compare-card-stats" id="compareStats${card.id}"></div>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+}
+
+function renderCompareMetrics() {
+  if (_compare.cards.length === 0) {
+    document.getElementById('compareMetricsContainer').innerHTML = '';
+    document.getElementById('compareEmptyState').style.display = 'block';
+    return;
+  }
+
+  document.getElementById('compareEmptyState').style.display = 'none';
+  const container = document.getElementById('compareMetricsContainer');
+  container.innerHTML = _compare.cards.map(card => _compareCardHTML(card)).join('');
 
   // Upgrade the dynamically-created selects to custom dropdowns
   refreshCustomDropdowns(container);
@@ -13556,10 +14424,12 @@ function renderCompareMetrics() {
 
 function updateCompareCardMetric(cardId, metric) {
   const card = _compare.cards.find(c => c.id === cardId);
-  if (card) {
-    card.metric = metric;
-    updateComparePage();
-  }
+  if (!card) return;
+  card.metric = metric;
+  // Only re-render this single card's chart + stats, not all cards
+  const p = _cmpPeriods();
+  generateCompareChartForCard(cardId, p.current, p.previous, metric, card.chartType || _compare.chartType, false);
+  generateCompareStatsForCard(cardId, p.current, p.previous, metric);
 }
 
 function renderComparePage() {
@@ -13570,25 +14440,16 @@ function renderComparePage() {
   updateComparePage();
 }
 
-function updateComparePage() {
+function updateComparePage(animateCardIds) {
   if (_compare.cards.length === 0) {
     return;
   }
 
-  // Current period (e.g., last 4 weeks)
-  const currentEndDate = new Date();
-  const currentStartDate = daysAgo(_compare.periodDays);
+  // Invalidate cache so _cmpPeriods() recomputes with current settings
+  _compare._cachedPeriods = null;
+  const p = _cmpPeriods();
 
-  // Previous period (same duration)
-  const previousEndDate = new Date(currentStartDate);
-  const previousStartDate = new Date(previousEndDate);
-  previousStartDate.setDate(previousStartDate.getDate() - _compare.periodDays);
-
-  // Aggregate data for both periods
-  const currentPeriods = aggregateDataForComparison(currentStartDate, currentEndDate, _compare.grouping);
-  const previousPeriods = aggregateDataForComparison(previousStartDate, previousEndDate, _compare.grouping);
-
-  if (currentPeriods.length === 0) {
+  if (p.current.length === 0) {
     document.getElementById('compareEmptyState').style.display = 'block';
     document.getElementById('compareMetricsContainer').innerHTML = '';
     return;
@@ -13598,16 +14459,20 @@ function updateComparePage() {
   document.getElementById('compareEmptyState').style.display = 'none';
 
   // Generate chart and stats for each card
+  const animateAll = !animateCardIds;
   for (const card of _compare.cards) {
-    generateCompareChartForCard(card.id, currentPeriods, previousPeriods, card.metric, card.chartType || _compare.chartType);
-    generateCompareStatsForCard(card.id, currentPeriods, previousPeriods, card.metric);
+    const shouldAnimate = animateAll || (animateCardIds && animateCardIds.has(card.id));
+    generateCompareChartForCard(card.id, p.current, p.previous, card.metric, card.chartType || _compare.chartType, shouldAnimate);
+    generateCompareStatsForCard(card.id, p.current, p.previous, card.metric);
   }
 }
 
-// Capture any saved route before navigate('dashboard') overwrites sessionStorage
+// Capture any saved route before navigate() overwrites sessionStorage
 const _initRoute = (() => { try { return JSON.parse(sessionStorage.getItem('icu_route')); } catch { return null; } })();
+const _validInitPages = ['dashboard','activities','calendar','fitness','power','zones','weather','settings','workout','guide','compare','heatmap','goals','import'];
+const _startPage = (_initRoute && _initRoute.type === 'page' && _validInitPages.includes(_initRoute.page)) ? _initRoute.page : 'dashboard';
 
-navigate('dashboard');
+// navigate(_startPage) is called after cache loading below
 
 // Check URL hash for setup link credentials (e.g. #id=i12345&key=abc...)
 // The hash is never sent to any server, so credentials stay private.
@@ -13643,7 +14508,7 @@ navigate('dashboard');
 
 const hasCredentials = loadCredentials();
 if (hasCredentials) {
-  // Pre-load cached activities so the dashboard renders instantly,
+  // Pre-load cached activities so pages render instantly,
   // then syncData() will fetch only what's new in the background.
   const cached = loadActivityCache();
   if (cached) {
@@ -13658,19 +14523,10 @@ if (hasCredentials) {
     updateSidebarCTL(); // show cached CTL in sidebar immediately
     state.synced = true;
     updateConnectionUI(true);
-    renderDashboard();
   } else {
     updateConnectionUI(false);
   }
-  // Restore the page the user was on before refresh
-  const _validPages = ['dashboard','activities','calendar','fitness','power','zones','weather','settings','workout','guide'];
-  if (_initRoute && _initRoute.type === 'activity' && _initRoute.actId) {
-    // Find by ID directly — _actLookup may not be built yet so search state.activities
-    const _restoredAct = state.activities.find(a => String(a.id) === String(_initRoute.actId));
-    if (_restoredAct) navigateToActivity(_restoredAct);
-  } else if (_initRoute && _initRoute.type === 'page' && _validPages.includes(_initRoute.page)) {
-    navigate(_initRoute.page);
-  }
+  // navigate(_startPage) is deferred to end of file so all declarations (e.g. _hm) are ready
   syncData();
 } else {
   openModal();
@@ -13814,11 +14670,16 @@ function wrkDrawChart() {
   ctx.textAlign = 'right';
   gridPcts.forEach(pct => {
     const y = PAD_T + cH * (1 - pct / MAX_PCT);
-    ctx.strokeStyle = pct === 100 ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.05)';
+    const dk = _isDark();
+    ctx.strokeStyle = pct === 100
+      ? (dk ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)')
+      : (dk ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)');
     ctx.lineWidth = pct === 100 ? 1 : 0.5;
     ctx.setLineDash([]);
     ctx.beginPath(); ctx.moveTo(PAD_L, y); ctx.lineTo(PAD_L + cW, y); ctx.stroke();
-    ctx.fillStyle = pct === 100 ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.2)';
+    ctx.fillStyle = pct === 100
+      ? (dk ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.35)')
+      : (dk ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.18)');
     ctx.fillText(pct + '%', PAD_L - 4, y + 3.5);
   });
 
@@ -13854,7 +14715,7 @@ function wrkDrawChart() {
                    : seg.type === 'warmup' || seg.type === 'cooldown' ? Math.max(seg.powerLow, seg.powerHigh)
                    : seg.type === 'steady' ? seg.power : 55;
       const selY = PAD_T + cH * (1 - topPct / MAX_PCT);
-      ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+      ctx.strokeStyle = _isDark() ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.5)';
       ctx.lineWidth = 2;
       ctx.setLineDash([3, 3]);
       ctx.strokeRect(x + 1, selY, segW - 2, cH + PAD_T - selY - 1);
@@ -13863,7 +14724,7 @@ function wrkDrawChart() {
 
     // Time label at segment start (skip first and very narrow ones)
     if (idx > 0 && segW > 30) {
-      ctx.fillStyle = 'rgba(255,255,255,0.25)';
+      ctx.fillStyle = _isDark() ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.25)';
       ctx.textAlign = 'center';
       ctx.font = '9px Inter, sans-serif';
       ctx.fillText(wrkFmtTime(Math.round(curSec)), x, PAD_T + cH + 16);
@@ -13873,7 +14734,7 @@ function wrkDrawChart() {
   });
 
   // Final time label
-  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.fillStyle = _isDark() ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.25)';
   ctx.textAlign = 'center';
   ctx.font = '9px Inter, sans-serif';
   ctx.fillText(wrkFmtTime(Math.round(totalSecs)), PAD_L + cW, PAD_T + cH + 16);
@@ -14512,6 +15373,92 @@ function setAppFont(key) {
   // Set active state on buttons
   document.querySelectorAll('.font-option').forEach(b =>
     b.classList.toggle('active', b.dataset.font === saved));
+})();
+
+// ── Share & Donate ────────────────────────────────────────────────────────────
+const SHARE_URL  = 'https://cycleiq.app';
+const SHARE_TEXT = 'CycleIQ — a free, open-source cycling dashboard that pulls your data from intervals.icu';
+
+function copyShareLink() {
+  const btn = document.getElementById('shareCopyBtn');
+  navigator.clipboard.writeText(SHARE_URL).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+  }).catch(() => {
+    document.getElementById('shareLink').select();
+    document.execCommand('copy');
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+  });
+}
+
+function shareToTwitter() {
+  window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(SHARE_TEXT)}&url=${encodeURIComponent(SHARE_URL)}`, '_blank');
+}
+function shareToWhatsApp() {
+  window.open(`https://wa.me/?text=${encodeURIComponent(SHARE_TEXT + ' ' + SHARE_URL)}`, '_blank');
+}
+function shareToReddit() {
+  window.open(`https://www.reddit.com/submit?url=${encodeURIComponent(SHARE_URL)}&title=${encodeURIComponent(SHARE_TEXT)}`, '_blank');
+}
+
+// ── Theme setting ─────────────────────────────────────────────────────────────
+function _isDark() {
+  return document.documentElement.getAttribute('data-theme') !== 'light';
+}
+
+function _updateChartColors() {
+  const dark = _isDark();
+  C_TICK = { color: dark ? '#62708a' : '#8892a6', font: { size: 10 } };
+  C_GRID = { color: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)' };
+}
+
+function setTheme(mode) {
+  document.documentElement.setAttribute('data-theme', mode);
+  try { localStorage.setItem('icu_theme', mode); } catch (e) { console.warn('localStorage.setItem failed:', e); }
+
+  // Update toggle button active states + slider position
+  const toggle = document.getElementById('themePills');
+  if (toggle) toggle.setAttribute('data-active', mode);
+  document.querySelectorAll('#themePills .theme-toggle-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.themeVal === mode)
+  );
+
+  // Update chart style tokens
+  _updateChartColors();
+
+  // Re-render charts on the current page
+  const pg = state.currentPage;
+  if (pg) {
+    cleanupPageCharts(pg);
+    if (pg === 'dashboard')   renderDashboard();
+    else if (pg === 'fitness')  renderFitnessPage();
+    else if (pg === 'power')    renderPowerPage();
+    else if (pg === 'compare')  { _compare._cachedPeriods = null; updateComparePage(); }
+    else if (pg === 'calendar') renderCalendar();
+    else if (pg === 'activity' && state.currentActivity) renderActivityBasic(state.currentActivity);
+    else if (pg === 'weather')  renderWeatherPage();
+    else if (pg === 'heatmap')  renderHeatmapPage();
+    else if (pg === 'zones')    renderZonesPage();
+  }
+}
+
+(function initTheme() {
+  const saved = localStorage.getItem('icu_theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', saved);
+  _updateChartColors();
+  // Set active state on buttons (after DOM ready)
+  const applyToggle = () => {
+    const toggle = document.getElementById('themePills');
+    if (toggle) toggle.setAttribute('data-active', saved);
+    document.querySelectorAll('#themePills .theme-toggle-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.themeVal === saved));
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyToggle);
+  } else {
+    applyToggle();
+  }
 })();
 
 // ── Smooth flyover setting ───────────────────────────────────────────────────
@@ -17220,4 +18167,13 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', pollRestore);
 } else {
   pollRestore();
+}
+
+// ── Deferred initial navigation ──
+// Placed at the very end so all const declarations (e.g. _hm, _poll) are initialized.
+navigate(_startPage);
+// Restore activity detail page if the user was viewing one before refresh
+if (_initRoute && _initRoute.type === 'activity' && _initRoute.actId) {
+  const _restoredAct = (state.activities || []).find(a => String(a.id) === String(_initRoute.actId));
+  if (_restoredAct) navigateToActivity(_restoredAct);
 }
