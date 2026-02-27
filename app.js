@@ -2204,6 +2204,19 @@ function renderAllActivitiesList() {
   }
 
   _refreshYearDropdown();
+  _updateActStickyTop();
+}
+
+function _updateActStickyTop() {
+  const toolbar = document.querySelector('#page-activities .acts-toolbar');
+  const list = document.getElementById('allActivityList');
+  if (!toolbar || !list) return;
+  const update = () => {
+    const h = toolbar.offsetHeight;
+    const top = 48 + h; // topbar (48px) + toolbar height
+    list.style.setProperty('--act-sticky-top', top + 'px');
+  };
+  requestAnimationFrame(update);
 }
 
 function _refreshYearDropdown() {

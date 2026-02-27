@@ -1882,7 +1882,11 @@ code {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 20px 0 8px;
+    padding: 12px 0 8px;
+    position: sticky;
+    top: var(--act-sticky-top, 152px);
+    z-index: 9;
+    background: var(--bg-base);
 }
 .act-month-divider:first-child {
     padding-top: 4px;
