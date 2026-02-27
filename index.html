@@ -1617,6 +1617,7 @@
                                         "
                                         autocomplete="off"
                                     />
+                                    <kbd class="acts-search-kbd" id="searchKbd">S</kbd>
                                 </div>
                                 <select
                                     class="app-select app-select--sm"
@@ -4864,7 +4865,7 @@
                                 </div>
                             </div>
                             <div class="strava-connect-help">
-                                Create an app at <a href="https://www.strava.com/settings/api" target="_blank" rel="noopener">strava.com/settings/api</a> to get your Client ID and Secret. Set the Authorization Callback Domain to <code>localhost</code>.
+                                Create an app at <a href="https://www.strava.com/settings/api" target="_blank" rel="noopener">strava.com/settings/api</a> to get your Client ID and Secret. Set the Authorization Callback Domain to <code id="stravaCallbackDomain">localhost</code>.
                             </div>
                             <div class="stt-actions">
                                 <button class="btn btn-primary" onclick="stravaSaveAndAuth()">

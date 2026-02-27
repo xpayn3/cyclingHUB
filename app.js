@@ -7167,6 +7167,13 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && document.getElementById('detailMapCard')?.classList.contains('map-fullscreen')) {
     toggleMapFullscreen();
   }
+  // Press "S" to focus search on activities page
+  if (e.key === 's' && state.currentPage === 'activities' &&
+      !e.ctrlKey && !e.metaKey && !e.altKey &&
+      !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) {
+    e.preventDefault();
+    document.getElementById('activitiesSearch')?.focus();
+  }
 });
 
 function toggleMapFullscreen() {
@@ -16524,6 +16531,10 @@ function stravaRenderSyncUI() {
   const connectCard = document.getElementById('stravaConnectCard');
   const syncCard = document.getElementById('stravaSyncCard');
   if (!connectCard || !syncCard) return;
+
+  // Show the correct callback domain based on current host
+  const domainEl = document.getElementById('stravaCallbackDomain');
+  if (domainEl) domainEl.textContent = window.location.hostname || 'localhost';
 
   const connected = isStravaConnected();
   connectCard.style.display = connected ? 'none' : '';
