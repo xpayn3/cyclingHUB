@@ -1553,8 +1553,11 @@ function navigate(page) {
   _navAbort?.abort();
   _navAbort = new AbortController();
 
-  // Reset scroll position
-  window.scrollTo(0, 0);
+  // Detect returning to activities list from activity detail (to restore scroll)
+  const _restoreActScroll = (page === 'activities' && state.currentPage === 'activity' && window._actListScrollRestore);
+
+  // Reset scroll position (skip when returning to activities — restored below)
+  if (!_restoreActScroll) window.scrollTo(0, 0);
 
   // Close any open modals when navigating away
   document.querySelectorAll('.modal-backdrop.open').forEach(m => m.classList.remove('open'));
@@ -1656,7 +1659,36 @@ function navigate(page) {
   // Upgrade all native selects to custom dropdowns
   requestAnimationFrame(() => initCustomDropdowns());
 
-  window.scrollTo(0, 0);
+  // Restore scroll position when returning to activities from activity detail
+  if (_restoreActScroll) {
+    const _r = window._actListScrollRestore;
+    window._actListScrollRestore = null;
+    // Ensure enough rows are loaded to cover the previous scroll depth
+    const _ls = window._actListState?.allActivityList;
+    if (_ls && _ls.cursor < _r.cursor) {
+      while (_ls.cursor < _r.cursor && _ls.cursor < _ls.filtered.length) {
+        _actListLoadMore('allActivityList');
+      }
+    }
+    requestAnimationFrame(() => {
+      // Restore scroll, then ensure the clicked row is visible
+      window.scrollTo(0, _r.scrollY);
+      if (_r.actId) {
+        const row = document.querySelector(`.activity-row[data-act-id="${_r.actId}"]`);
+        if (row) {
+          // If row drifted out of view, scroll it into center
+          const rect = row.getBoundingClientRect();
+          if (rect.top < 0 || rect.bottom > window.innerHeight) {
+            row.scrollIntoView({ block: 'center' });
+          }
+          row.classList.add('act-row--highlight');
+          setTimeout(() => row.classList.remove('act-row--highlight'), 2500);
+        }
+      }
+    });
+  } else {
+    window.scrollTo(0, 0);
+  }
 }
 
 /* ====================================================
@@ -3896,7 +3928,8 @@ function _actRowHTML(a, containerId, fi, powerColor) {
   stats.push(statPill(pwr > 0 ? Math.round(pwr) + 'w' : '—', 'power', pwr > 0 ? powerColor(pwr) : null));
   stats.push(statPill(hr > 0 ? hr : '—', 'bpm'));
 
-  return `<div class="activity-row ${rowClass}" onclick="navigateToActivity('${actKey}')">
+  const _actId = a.id || a.icu_activity_id || '';
+  return `<div class="activity-row ${rowClass}" data-act-id="${_actId}" onclick="navigateToActivity('${actKey}')">
     <div class="activity-type-icon ${tc}">${activityTypeIcon(a)}</div>
     <div class="act-card-info">
       <div class="act-card-name">${name}</div>
@@ -3936,10 +3969,21 @@ function _actListLoadMore(containerId) {
   const ls = window._actListState[containerId];
   if (!ls || ls.cursor >= ls.filtered.length) return;
 
+  const MONTH_NAMES = ['January','February','March','April','May','June',
+    'July','August','September','October','November','December'];
+
   const end = Math.min(ls.cursor + ACT_LIST_BATCH, ls.filtered.length);
   let html = '';
   for (let i = ls.cursor; i < end; i++) {
-    html += _actRowHTML(ls.filtered[i], containerId, i, ls.powerColor);
+    const a = ls.filtered[i];
+    const d = new Date(a.start_date_local || a.start_date);
+    const monthKey = d.getFullYear() + '-' + d.getMonth();
+    if (monthKey !== ls.lastMonth) {
+      ls.lastMonth = monthKey;
+      const label = MONTH_NAMES[d.getMonth()] + ' ' + d.getFullYear();
+      html += `<div class="act-month-divider"><span class="act-month-label">${label}</span></div>`;
+    }
+    html += _actRowHTML(a, containerId, i, ls.powerColor);
   }
   ls.cursor = end;
 
@@ -3987,7 +4031,7 @@ function renderActivityList(containerId, activities) {
 
   // Store state for this list
   window._actListState[containerId] = {
-    el, filtered, powerColor, cursor: 0, observer: null
+    el, filtered, powerColor, cursor: 0, observer: null, lastMonth: null
   };
 
   // Clear and render first batch
@@ -7138,6 +7182,16 @@ async function navigateToActivity(actKey, fromStep = false) {
 
   const _routeId = activity.id || activity.icu_activity_id;
   try { sessionStorage.setItem('icu_route', JSON.stringify({ type: 'activity', actId: String(_routeId) })); } catch {}
+
+  // Save scroll position for restoring when navigating back to activities list
+  if (!fromStep && state.currentPage === 'activities') {
+    const _ls = window._actListState?.allActivityList;
+    window._actListScrollRestore = {
+      scrollY: window.scrollY,
+      cursor: _ls ? _ls.cursor : 0,
+      actId: String(activity.id || activity.icu_activity_id || '')
+    };
+  }
 
   if (!fromStep) state.previousPage = state.currentPage;
   state.currentPage = 'activity';
