@@ -2408,6 +2408,27 @@
                         </div>
                     </div>
 
+                    <!-- Intervals -->
+                    <div
+                        class="card"
+                        id="detailIntervalsCard"
+                        style="display: none"
+                    >
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">Intervals</div>
+                                <div
+                                    class="card-subtitle"
+                                    id="detailIntervalsSubtitle"
+                                ></div>
+                            </div>
+                        </div>
+                        <div
+                            class="act-intervals-wrap"
+                            id="detailIntervalsBody"
+                        ></div>
+                    </div>
+
                     <!-- Ride power curve + HR curve — side by side on desktop -->
                     <div class="detail-curves-row" id="detailCurvesRow">
                         <div
@@ -2591,6 +2612,32 @@
                             <div class="card-title">Ride Conditions</div>
                         </div>
                         <div class="wx-tiles" id="wxTiles"></div>
+                    </div>
+
+                    <!-- Activity Notes -->
+                    <div
+                        class="card"
+                        id="detailNotesCard"
+                        style="display: none"
+                    >
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">Notes</div>
+                                <div class="card-subtitle">
+                                    Personal notes for this activity
+                                </div>
+                            </div>
+                            <span
+                                class="act-notes-status"
+                                id="actNotesStatus"
+                            ></span>
+                        </div>
+                        <textarea
+                            class="act-notes-input"
+                            id="actNotesInput"
+                            placeholder="Add notes about this ride…"
+                            rows="3"
+                        ></textarea>
                     </div>
 
                     <!-- Export options -->

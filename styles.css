@@ -1886,7 +1886,6 @@ code {
 .act-month-divider {
     display: flex;
     align-items: center;
-    gap: 12px;
     padding: 12px 0 8px;
     position: sticky;
     top: var(--act-sticky-top, 152px);
@@ -1906,12 +1905,10 @@ code {
     letter-spacing: 0.6px;
     color: var(--text-muted);
     white-space: nowrap;
-}
-.act-month-divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--border);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 6px 12px;
 }
 
 .activity-row {
@@ -5413,6 +5410,13 @@ code {
     .detail-charts-row {
         grid-template-columns: 1fr;
     }
+    .act-ivl-table {
+        font-size: 10px;
+    }
+    .act-ivl-table th,
+    .act-ivl-table td {
+        padding: 5px 6px;
+    }
 }
 
 /* Power curve + HR curve side by side */
@@ -7858,6 +7862,112 @@ code {
     content: "·";
     margin-right: 5px;
     color: var(--border-active);
+}
+
+/* ── Activity Notes ── */
+.act-notes-input {
+    width: 100%;
+    resize: vertical;
+    min-height: 72px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    color: var(--text-primary);
+    font-size: var(--text-sm);
+    font-family: inherit;
+    line-height: 1.5;
+    transition: border-color var(--transition);
+}
+.act-notes-input:focus {
+    border-color: var(--accent);
+    outline: none;
+}
+.act-notes-input::placeholder {
+    color: var(--text-muted);
+}
+.act-notes-status {
+    font-size: var(--text-2xs);
+    color: var(--text-muted);
+    font-weight: 500;
+    transition: opacity 0.3s;
+}
+.act-notes-status--saving {
+    color: var(--yellow);
+}
+.act-notes-status--saved {
+    color: var(--accent);
+}
+
+/* ── Intervals table ── */
+.act-intervals-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.act-ivl-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-xs);
+}
+.act-ivl-table th {
+    text-align: left;
+    padding: 6px 8px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+}
+.act-ivl-table td {
+    padding: 8px;
+    font-family: var(--font-num);
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.04));
+}
+.act-ivl-table tr:last-child td {
+    border-bottom: none;
+}
+.act-ivl-table tr:hover td {
+    background: var(--bg-elevated);
+}
+.act-ivl-zone {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+.act-ivl-type {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-block;
+}
+.act-ivl-type--work {
+    background: rgba(0, 229, 160, 0.12);
+    color: var(--accent);
+}
+.act-ivl-type--rest {
+    background: rgba(96, 165, 250, 0.12);
+    color: #60a5fa;
+}
+.act-ivl-type--warmup {
+    background: rgba(255, 204, 0, 0.12);
+    color: #ffcc00;
+}
+.act-ivl-type--cooldown {
+    background: rgba(180, 130, 255, 0.12);
+    color: #b482ff;
+}
+.act-ivl-name {
+    font-family: inherit;
+    font-weight: 500;
+    color: var(--text-primary);
 }
 
 /* ── 7-day forecast card (dashboard) ── */

@@ -2782,6 +2782,138 @@ async function _fetchHistoricalWeather(a) {
   }
 }
 
+// ── Activity Notes (read/write description via intervals.icu API) ────────────
+function renderActivityNotes(a) {
+  const card  = document.getElementById('detailNotesCard');
+  const input = document.getElementById('actNotesInput');
+  const stat  = document.getElementById('actNotesStatus');
+  if (!card || !input) return;
+
+  card.style.display = '';
+  const orig = a.description || '';
+  input.value = orig;
+  stat.textContent = '';
+  stat.className = 'act-notes-status';
+
+  // Remove old listeners by cloning
+  const fresh = input.cloneNode(true);
+  input.parentNode.replaceChild(fresh, input);
+  fresh.value = orig;
+
+  let saveTimer = null;
+  fresh.addEventListener('input', () => {
+    clearTimeout(saveTimer);
+    stat.textContent = '';
+    saveTimer = setTimeout(() => _saveActivityNotes(a, fresh, stat, orig), 1200);
+  });
+  fresh.addEventListener('blur', () => {
+    clearTimeout(saveTimer);
+    if (fresh.value !== orig) _saveActivityNotes(a, fresh, stat, orig);
+  });
+}
+
+async function _saveActivityNotes(a, textarea, statusEl, origText) {
+  const text = textarea.value;
+  if (text === origText) return;
+
+  statusEl.textContent = 'Saving…';
+  statusEl.className = 'act-notes-status act-notes-status--saving';
+
+  try {
+    const actId = a.id;
+    const res = await fetch(ICU_BASE + `/activity/${actId}`, {
+      method: 'PUT',
+      headers: { ...authHeader(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ description: text }),
+    });
+    if (!res.ok) throw new Error(res.status);
+    // Update local cache so re-renders don't lose the edit
+    a.description = text;
+    // Also update IDB cache so re-navigation shows the saved text
+    const cached = await actCacheGet(a.id, 'detail');
+    if (cached) { cached.description = text; actCachePut(a.id, 'detail', cached); }
+    statusEl.textContent = 'Saved';
+    statusEl.className = 'act-notes-status act-notes-status--saved';
+    setTimeout(() => { statusEl.textContent = ''; }, 2500);
+  } catch (e) {
+    console.error('[Notes] Save failed:', e);
+    statusEl.textContent = 'Save failed';
+    statusEl.className = 'act-notes-status';
+    showToast('Could not save notes — check connection', 'error');
+  }
+}
+
+// ── Activity Intervals (fetched from intervals.icu) ──────────────────────────
+async function renderActivityIntervals(activityId) {
+  const card = document.getElementById('detailIntervalsCard');
+  const body = document.getElementById('detailIntervalsBody');
+  const sub  = document.getElementById('detailIntervalsSubtitle');
+  if (!card || !body) return;
+
+  try {
+    const raw = await icuFetch(`/activity/${activityId}/intervals`);
+    const intervals = raw?.icu_intervals;
+    if (!Array.isArray(intervals) || intervals.length === 0) {
+      card.style.display = 'none';
+      return;
+    }
+
+    // Classify interval type from API type field
+    const classify = (ivl) => {
+      const t = (ivl.type || '').toUpperCase();
+      if (/WORK/.test(t)) return 'work';
+      if (/REST|RECOVER/.test(t)) return 'rest';
+      if (/WARM/.test(t)) return 'warmup';
+      if (/COOL/.test(t)) return 'cooldown';
+      return '';
+    };
+
+    const workCount = intervals.filter(iv => classify(iv) === 'work').length;
+    sub.textContent = workCount > 0
+      ? `${workCount} work interval${workCount !== 1 ? 's' : ''} · ${intervals.length} total`
+      : `${intervals.length} interval${intervals.length !== 1 ? 's' : ''}`;
+
+    // Zone column: API returns 1-indexed zone number; map to 0-indexed for ZONE_HEX/COGGAN_ZONES
+    const hasZones = intervals.some(iv => iv.zone > 0);
+
+    let html = `<table class="act-ivl-table">
+      <thead><tr>
+        <th>#</th><th>Type</th><th>Duration</th>
+        <th>Avg Power</th><th>Avg HR</th><th>Avg Cad</th>
+        ${hasZones ? '<th>Zone</th>' : ''}
+      </tr></thead><tbody>`;
+
+    intervals.forEach((ivl, i) => {
+      const type  = classify(ivl);
+      const secs  = ivl.moving_time || ivl.elapsed_time || 0;
+      const watts = Math.round(ivl.average_watts || 0);
+      const hr    = Math.round(ivl.average_heartrate || 0);
+      const cad   = Math.round(ivl.average_cadence || 0);
+      const zIdx  = ivl.zone > 0 ? ivl.zone - 1 : null;  // API is 1-indexed
+      const typeCls = type ? `act-ivl-type act-ivl-type--${type}` : 'act-ivl-type';
+      const typeLabel = type || (ivl.type || '—').toLowerCase();
+      const name  = ivl.label || '';
+
+      html += `<tr>
+        <td>${i + 1}</td>
+        <td><span class="${typeCls}">${typeLabel}</span>${name ? ` <span class="act-ivl-name">${name}</span>` : ''}</td>
+        <td>${secs > 0 ? fmtDur(secs) : '—'}</td>
+        <td>${watts > 0 ? watts + ' W' : '—'}</td>
+        <td>${hr > 0 ? hr + ' bpm' : '—'}</td>
+        <td>${cad > 0 ? cad + ' rpm' : '—'}</td>
+        ${hasZones ? `<td>${zIdx != null && COGGAN_ZONES[zIdx] ? `<span class="act-ivl-zone" style="background:${ZONE_HEX[zIdx]}"></span>${COGGAN_ZONES[zIdx].name}` : '—'}</td>` : ''}
+      </tr>`;
+    });
+
+    html += '</tbody></table>';
+    body.innerHTML = html;
+    card.style.display = '';
+  } catch (e) {
+    console.error('[Intervals] Fetch failed:', e);
+    card.style.display = 'none';
+  }
+}
+
 // ── 7-day riding forecast (Open-Meteo, free, no API key) ────────────────────
 async function renderWeatherForecast() {
   const card = document.getElementById('forecastCard');
@@ -7955,6 +8087,7 @@ async function navigateToActivity(actKey, fromStep = false) {
     renderDetailDecoupleChart(normStreams, richActivity);
     renderDetailZones(richActivity);
     renderDetailHRZones(richActivity);
+    renderActivityIntervals(actId);  // async — shows/hides its own card
     // Both zone cards always show now (with NA if no data), so the row is always two-column
     renderDetailHistogram(richActivity, normStreams);
     renderDetailTempChart(normStreams, richActivity);
@@ -8786,6 +8919,9 @@ function renderActivityBasic(a) {
 
   // ── Weather conditions during this ride ──────────────────────────────────
   renderActivityWeather(a);
+
+  // ── Activity notes ──────────────────────────────────────────────────────
+  renderActivityNotes(a);
 
   // ── Render the "How You Compare" card ────────────────────────────────────
   renderDetailComparison(a);
