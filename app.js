@@ -99,6 +99,184 @@ const GREETINGS = [
 ];
 
 /* ====================================================
+   CUSTOM DROPDOWN  — replaces native <select> with polished UI
+   Call  initCustomDropdowns(root?)  to upgrade all .app-select
+   elements (or those inside a given root element).
+==================================================== */
+// Single global click-outside handler for all custom dropdowns
+if (!window._cddGlobalListener) {
+  window._cddGlobalListener = true;
+  document.addEventListener('click', e => {
+    document.querySelectorAll('.cdd-wrap--open').forEach(w => {
+      if (!w.contains(e.target)) {
+        w.classList.remove('cdd-wrap--open', 'cdd-wrap--flip');
+        w.querySelector('.cdd-trigger')?.setAttribute('aria-expanded', 'false');
+      }
+    });
+  });
+}
+
+function initCustomDropdowns(root = document) {
+  root.querySelectorAll('select.app-select, select.compare-card-metric-select').forEach(sel => {
+    if (sel.dataset.cddReady) return;           // already wrapped
+    sel.dataset.cddReady = '1';
+
+    const isSm = sel.classList.contains('app-select--sm');
+
+    // ── Build wrapper ──
+    const wrap = document.createElement('div');
+    wrap.className = 'cdd-wrap' + (isSm ? ' cdd-wrap--sm' : '');
+
+    // ── Trigger button ──
+    const trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'cdd-trigger';
+    trigger.setAttribute('aria-haspopup', 'listbox');
+    trigger.setAttribute('aria-expanded', 'false');
+
+    const labelSpan = document.createElement('span');
+    labelSpan.className = 'cdd-label';
+    const chevron = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    chevron.setAttribute('class', 'cdd-chevron');
+    chevron.setAttribute('viewBox', '0 0 12 7');
+    chevron.innerHTML = '<path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>';
+    trigger.append(labelSpan, chevron);
+
+    // ── Dropdown panel ──
+    const dropdown = document.createElement('div');
+    dropdown.className = 'cdd-dropdown';
+    dropdown.setAttribute('role', 'listbox');
+
+    // ── Populate ──
+    function buildOptions() {
+      dropdown.innerHTML = '';
+      Array.from(sel.options).forEach((opt, i) => {
+        const item = document.createElement('div');
+        item.className = 'cdd-option' + (i === sel.selectedIndex ? ' cdd-option--selected' : '');
+        item.dataset.value = opt.value;
+        item.dataset.index = i;
+        item.setAttribute('role', 'option');
+        item.textContent = opt.textContent.trim() || opt.value;
+        dropdown.appendChild(item);
+      });
+      const cur = sel.options[sel.selectedIndex];
+      labelSpan.textContent = cur ? (cur.textContent.trim() || cur.value) : '';
+    }
+    buildOptions();
+
+    // ── Insert into DOM ──
+    sel.style.display = 'none';
+    sel.parentNode.insertBefore(wrap, sel);
+    wrap.append(trigger, dropdown, sel);    // move select inside wrap
+
+    // ── Open / close helpers ──
+    let focusIdx = -1;
+
+    function openDrop() {
+      // Close any other open dropdowns first
+      document.querySelectorAll('.cdd-wrap--open').forEach(w => {
+        if (w !== wrap) {
+          w.classList.remove('cdd-wrap--open', 'cdd-wrap--flip');
+          w.querySelector('.cdd-trigger')?.setAttribute('aria-expanded', 'false');
+        }
+      });
+      // Flip if near bottom of viewport
+      const rect = wrap.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      wrap.classList.toggle('cdd-wrap--flip', spaceBelow < 280);
+      wrap.classList.add('cdd-wrap--open');
+      trigger.setAttribute('aria-expanded', 'true');
+      focusIdx = sel.selectedIndex;
+      highlightFocused();
+    }
+
+    function closeDrop() {
+      wrap.classList.remove('cdd-wrap--open', 'cdd-wrap--flip');
+      trigger.setAttribute('aria-expanded', 'false');
+      focusIdx = -1;
+    }
+
+    function highlightFocused() {
+      dropdown.querySelectorAll('.cdd-option').forEach((o, i) => {
+        o.classList.toggle('cdd-option--focused', i === focusIdx);
+        if (i === focusIdx) o.scrollIntoView({ block: 'nearest' });
+      });
+    }
+
+    function selectByIndex(i) {
+      sel.selectedIndex = i;
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+      buildOptions();
+      closeDrop();
+    }
+
+    // ── Event: toggle open ──
+    trigger.addEventListener('click', e => {
+      e.stopPropagation();
+      if (wrap.classList.contains('cdd-wrap--open')) closeDrop();
+      else openDrop();
+    });
+
+    // ── Event: click an option ──
+    dropdown.addEventListener('click', e => {
+      e.stopPropagation();
+      const opt = e.target.closest('.cdd-option');
+      if (!opt) return;
+      selectByIndex(+opt.dataset.index);
+    });
+
+    // ── Event: keyboard nav ──
+    trigger.addEventListener('keydown', e => {
+      const isOpen = wrap.classList.contains('cdd-wrap--open');
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        if (isOpen && focusIdx >= 0) selectByIndex(focusIdx);
+        else openDrop();
+      } else if (e.key === 'Escape') {
+        closeDrop();
+        trigger.focus();
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (!isOpen) openDrop();
+        focusIdx = Math.min(focusIdx + 1, sel.options.length - 1);
+        highlightFocused();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (!isOpen) openDrop();
+        focusIdx = Math.max(focusIdx - 1, 0);
+        highlightFocused();
+      }
+    });
+
+    // ── Observe select for dynamic option changes ──
+    const obs = new MutationObserver(() => buildOptions());
+    obs.observe(sel, { childList: true, subtree: true, attributes: true, attributeFilter: ['selected'] });
+
+    // ── Public API on the select ──
+    sel._cddRefresh = buildOptions;
+    sel._cddWrap    = wrap;
+  });
+}
+
+/* Re-init after DOM changes (e.g. compare cards re-rendered) */
+function refreshCustomDropdowns(root) {
+  if (root) {
+    root.querySelectorAll('select').forEach(s => {
+      if (!s.dataset.cddReady) return;
+      delete s.dataset.cddReady;
+      // Remove old wrapper — move select back to its original parent
+      const wrap = s.closest('.cdd-wrap');
+      if (wrap && wrap.parentNode) {
+        wrap.parentNode.insertBefore(s, wrap);
+        wrap.remove();
+      }
+      s.style.display = '';
+    });
+  }
+  initCustomDropdowns(root || document);
+}
+
+/* ====================================================
    UTILITIES
 ==================================================== */
 /** Destroy a Chart.js instance and return null for easy assignment */
@@ -296,7 +474,14 @@ function loadFitnessCache() {
     const data = JSON.parse(raw);
     if (data.fitness)         state.fitness         = data.fitness;
     if (data.wellnessHistory) state.wellnessHistory = data.wellnessHistory;
-    if (data.athlete)         state.athlete         = data.athlete;
+    if (data.athlete) {
+      state.athlete = data.athlete;
+      const cycling = data.athlete?.sportSettings?.find(s => s.types?.includes('Ride'));
+      if (cycling?.ftp && !data.athlete.ftp)   data.athlete.ftp  = cycling.ftp;
+      if (cycling?.lthr && !data.athlete.lthr)  data.athlete.lthr = cycling.lthr;
+      if (!data.athlete.weight && cycling?.weight) data.athlete.weight = cycling.weight;
+      if (!data.athlete.weight && data.athlete.icu_weight) data.athlete.weight = data.athlete.icu_weight;
+    }
     return true;
   } catch (e) { return false; }
 }
@@ -515,6 +700,12 @@ async function icuFetch(path) {
 async function fetchAthleteProfile() {
   const data = await icuFetch(`/athlete/${state.athleteId}`);
   state.athlete = data;
+  // Extract FTP, weight, LTHR from cycling sport settings to top-level for easy access
+  const cycling = data?.sportSettings?.find(s => s.types?.includes('Ride'));
+  if (cycling?.ftp)  data.ftp  = cycling.ftp;
+  if (cycling?.lthr) data.lthr = cycling.lthr;
+  if (!data.weight && cycling?.weight) data.weight = cycling.weight;
+  if (!data.weight && data.icu_weight) data.weight = data.icu_weight;
   return data;
 }
 
@@ -1461,6 +1652,9 @@ function navigate(page) {
   if (page === 'import')   initImportPage();
   // Legacy: redirect old streaks/wellness routes to merged goals page
   if (page === 'wellness' || page === 'streaks') { navigate('goals'); return; }
+
+  // Upgrade all native selects to custom dropdowns
+  requestAnimationFrame(() => initCustomDropdowns());
 
   window.scrollTo(0, 0);
 }
@@ -11720,6 +11914,9 @@ function openGearModal(editId) {
   }
 
   modal.classList.add('open');
+  initCustomDropdowns(modal);
+  document.getElementById('gearFormBike')?._cddRefresh?.();
+  document.getElementById('gearFormCategory')?._cddRefresh?.();
 }
 
 function closeGearModal() {
@@ -12058,6 +12255,7 @@ function openBatteryModal(editId) {
   }
 
   modal.classList.add('open');
+  refreshCustomDropdowns(modal);
 }
 
 function closeBatteryModal() {
@@ -12677,7 +12875,7 @@ function goalFormHTML() {
       <input type="hidden" id="goalFormId" value="">
       <div class="goal-form-field">
         <label>Metric</label>
-        <select id="goalFormMetric">
+        <select id="goalFormMetric" class="app-select">
           ${Object.entries(GOAL_METRICS).map(([k,v]) => `<option value="${k}">${v.label} (${v.unit || 'count'})</option>`).join('')}
         </select>
       </div>
@@ -12693,7 +12891,7 @@ function goalFormHTML() {
       </div>
       <div class="goal-form-field">
         <label>Period</label>
-        <select id="goalFormPeriod">
+        <select id="goalFormPeriod" class="app-select">
           <option value="week">Weekly</option>
           <option value="month">Monthly</option>
           <option value="year">Yearly</option>
@@ -12803,6 +13001,7 @@ function showGoalForm(editId) {
   const overlay = document.getElementById('goalFormOverlay');
   if (!overlay) return;
   overlay.style.display = 'flex';
+  initCustomDropdowns(overlay);
   const titleEl = document.getElementById('goalFormTitle');
   const idEl = document.getElementById('goalFormId');
   const metricEl = document.getElementById('goalFormMetric');
@@ -12817,6 +13016,8 @@ function showGoalForm(editId) {
       metricEl.value = g.metric;
       targetEl.value = g.target;
       periodEl.value = g.period;
+      metricEl._cddRefresh?.();
+      periodEl._cddRefresh?.();
       return;
     }
   }
@@ -12825,6 +13026,8 @@ function showGoalForm(editId) {
   metricEl.value = 'distance';
   targetEl.value = '';
   periodEl.value = 'week';
+  metricEl._cddRefresh?.();
+  periodEl._cddRefresh?.();
 }
 
 function hideGoalForm() {
@@ -12923,7 +13126,7 @@ function getMetricOptions() {
 
 function addCompareCard(metric = 'tss') {
   const cardId = _compare.nextCardId++;
-  _compare.cards.push({ id: cardId, metric: metric, chart: null });
+  _compare.cards.push({ id: cardId, metric: metric, chartType: _compare.chartType, chart: null });
   renderCompareMetrics();
   updateComparePage();
 }
@@ -12948,6 +13151,7 @@ function setComparePeriod(days) {
 
 function setCompareChartType(type) {
   _compare.chartType = type;
+  _compare.cards.forEach(c => c.chartType = type);
   document.querySelectorAll('.compare-chart-type-toggle button').forEach(b => b.classList.remove('active'));
   if (type === 'bar') {
     document.querySelectorAll('.compare-chart-type-toggle .compareBarBtn').forEach(b => b.classList.add('active'));
@@ -12955,6 +13159,30 @@ function setCompareChartType(type) {
     document.querySelectorAll('.compare-chart-type-toggle .compareLineBtn').forEach(b => b.classList.add('active'));
   }
   updateComparePage();
+}
+
+function setCompareCardChartType(cardId, type) {
+  const card = _compare.cards.find(c => c.id === cardId);
+  if (!card) return;
+  card.chartType = type;
+  const cardEl = document.querySelector(`.compare-metric-card[data-card-id="${cardId}"]`);
+  if (cardEl) {
+    cardEl.querySelectorAll('.compare-chart-type-toggle button').forEach(b => b.classList.remove('active'));
+    if (type === 'bar') {
+      cardEl.querySelector('.compareBarBtn')?.classList.add('active');
+    } else {
+      cardEl.querySelector('.compareLineBtn')?.classList.add('active');
+    }
+  }
+  // Re-render only this card's chart
+  const currentEndDate = new Date();
+  const currentStartDate = daysAgo(_compare.periodDays);
+  const previousEndDate = new Date(currentStartDate);
+  const previousStartDate = new Date(previousEndDate);
+  previousStartDate.setDate(previousStartDate.getDate() - _compare.periodDays);
+  const currentPeriods = aggregateDataForComparison(currentStartDate, currentEndDate, _compare.grouping);
+  const previousPeriods = aggregateDataForComparison(previousStartDate, previousEndDate, _compare.grouping);
+  generateCompareChartForCard(cardId, currentPeriods, previousPeriods, card.metric, type);
 }
 
 function aggregateDataForComparison(startDate, endDate, grouping) {
@@ -13229,7 +13457,7 @@ function renderCompareMetrics() {
   container.innerHTML = _compare.cards.map(card => `
     <div class="compare-metric-card" data-card-id="${card.id}">
       <div class="compare-metric-header">
-        <select class="compare-card-metric-select" onchange="updateCompareCardMetric(${card.id}, this.value)">
+        <select class="app-select compare-card-metric-select" onchange="updateCompareCardMetric(${card.id}, this.value)">
           ${Object.entries(metricOptions).map(([value, label]) =>
             `<option value="${value}" ${card.metric === value ? 'selected' : ''}>${label}</option>`
           ).join('')}
@@ -13239,8 +13467,8 @@ function renderCompareMetrics() {
       <div class="compare-metric-content">
         <div class="compare-chart-wrapper">
           <div class="compare-chart-type-toggle">
-            <button class="compareBarBtn ${_compare.chartType === 'bar' ? 'active' : ''}" onclick="setCompareChartType('bar')">Bar</button>
-            <button class="compareLineBtn ${_compare.chartType === 'line' ? 'active' : ''}" onclick="setCompareChartType('line')">Line</button>
+            <button class="compareBarBtn ${(card.chartType || _compare.chartType) === 'bar' ? 'active' : ''}" onclick="setCompareCardChartType(${card.id}, 'bar')">Bar</button>
+            <button class="compareLineBtn ${(card.chartType || _compare.chartType) === 'line' ? 'active' : ''}" onclick="setCompareCardChartType(${card.id}, 'line')">Line</button>
           </div>
           <div class="chart-wrap chart-wrap--lg">
             <canvas id="compareChart${card.id}"></canvas>
@@ -13250,6 +13478,9 @@ function renderCompareMetrics() {
       </div>
     </div>
   `).join('');
+
+  // Upgrade the dynamically-created selects to custom dropdowns
+  refreshCustomDropdowns(container);
 }
 
 function updateCompareCardMetric(cardId, metric) {
@@ -13297,7 +13528,7 @@ function updateComparePage() {
 
   // Generate chart and stats for each card
   for (const card of _compare.cards) {
-    generateCompareChartForCard(card.id, currentPeriods, previousPeriods, card.metric, _compare.chartType);
+    generateCompareChartForCard(card.id, currentPeriods, previousPeriods, card.metric, card.chartType || _compare.chartType);
     generateCompareStatsForCard(card.id, currentPeriods, previousPeriods, card.metric);
   }
 }

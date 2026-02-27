@@ -226,6 +226,153 @@ select {
     align-items: center;
 }
 
+/* ============================================================
+   CUSTOM POLISHED DROPDOWN  (replaces native <select>)
+   Renders a .cdd-wrap around each hidden <select>.
+============================================================ */
+.cdd-wrap {
+    position: relative;
+    display: inline-flex;
+    width: 100%;
+}
+/* When the original select was --sm, keep the wrap inline-sized */
+.cdd-wrap--sm { width: auto; }
+
+/* ── Trigger button ────────────────────────────────────────── */
+.cdd-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-primary);
+    font-family: var(--font-ui);
+    font-size: var(--text-base);
+    font-weight: 500;
+    padding: 9px 13px;
+    cursor: pointer;
+    outline: none;
+    line-height: 1.4;
+    transition:
+        border-color var(--transition),
+        box-shadow var(--transition);
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.cdd-trigger:hover {
+    border-color: var(--border-active);
+}
+.cdd-trigger:focus,
+.cdd-wrap--open .cdd-trigger {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+}
+
+/* Chevron icon */
+.cdd-chevron {
+    flex-shrink: 0;
+    width: 12px;
+    height: 12px;
+    color: var(--text-muted);
+    transition: transform 0.2s ease;
+}
+.cdd-wrap--open .cdd-chevron {
+    transform: rotate(180deg);
+}
+
+/* ── Compact variant ──────────────────────────────────────── */
+.cdd-wrap--sm .cdd-trigger {
+    font-size: var(--text-sm);
+    padding: 10px 10px;
+    height: 40px;
+    border-radius: 8px;
+}
+
+/* ── Dropdown panel ───────────────────────────────────────── */
+.cdd-dropdown {
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 0;
+    min-width: 100%;
+    max-height: 260px;
+    overflow-y: auto;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-active);
+    border-radius: var(--radius);
+    padding: 4px;
+    z-index: 9999;
+    box-shadow:
+        0 8px 30px rgba(0, 0, 0, 0.45),
+        0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+    opacity: 0;
+    transform: translateY(-6px);
+    pointer-events: none;
+    transition:
+        opacity 0.15s ease,
+        transform 0.15s ease;
+}
+.cdd-wrap--open .cdd-dropdown {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+/* Scrollbar */
+.cdd-dropdown::-webkit-scrollbar { width: 5px; }
+.cdd-dropdown::-webkit-scrollbar-track { background: transparent; }
+.cdd-dropdown::-webkit-scrollbar-thumb {
+    background: var(--border-active);
+    border-radius: 3px;
+}
+
+/* ── Individual option ────────────────────────────────────── */
+.cdd-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    transition:
+        background var(--transition),
+        color var(--transition);
+}
+.cdd-option:hover,
+.cdd-option--focused {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-primary);
+}
+.cdd-option--selected {
+    color: var(--accent);
+}
+.cdd-option--selected::before {
+    content: '';
+    display: block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    flex-shrink: 0;
+}
+
+/* ── Flip dropdown upward if near bottom ─────────────────── */
+.cdd-wrap--flip .cdd-dropdown {
+    top: auto;
+    bottom: calc(100% + 5px);
+    transform: translateY(6px);
+}
+.cdd-wrap--flip.cdd-wrap--open .cdd-dropdown {
+    transform: translateY(0);
+}
+
 code {
     font-family: var(--font-num);
     font-size: 0.82em;
@@ -7233,7 +7380,6 @@ code {
     transition:
         border-color var(--transition),
         box-shadow var(--transition);
-    border-left: 3px solid var(--ic-color, var(--accent));
 }
 .pwr-insight-card:hover {
     border-color: var(--border-active);
