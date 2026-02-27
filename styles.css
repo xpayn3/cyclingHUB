@@ -9954,6 +9954,24 @@ code {
 .gear-form-grid .field {
     margin-bottom: 14px;
 }
+
+/* ── Modal & gear form – mobile ── */
+@media (max-width: 600px) {
+    .modal {
+        max-width: calc(100vw - 24px) !important;
+        border-radius: 14px;
+    }
+    .modal-header {
+        padding: 18px 18px 0;
+    }
+    .modal-body {
+        padding: 0 18px 18px;
+    }
+    .gear-form-grid {
+        grid-template-columns: 1fr;
+        gap: 0;
+    }
+}
 /* gear selects → now use .app-select  (see universal select block above) */
 
 /* ── Battery tracking ───────────────────────────────────────────────────── */
