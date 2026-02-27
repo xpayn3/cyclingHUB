@@ -1637,6 +1637,10 @@ function navigate(page) {
     pc.classList.toggle('page-content--routes', page === 'routes');
   }
 
+  // Hide topbar on Route Builder for full-screen map
+  const topbar = document.querySelector('.topbar');
+  if (topbar) topbar.style.display = (page === 'routes') ? 'none' : '';
+
   // Always restore the activity-detail topbar elements when leaving the activity page
   const detailNav     = document.getElementById('detailTopbarNav');
   const detailBack    = document.getElementById('detailTopbarBack');
@@ -18890,6 +18894,7 @@ const _rb = {
   _fetchAbort: null,
   _poiLayer: null,
   _poiEnabled: false,
+  _poiAbort: null,
   _poiCache: '',
   _poiDebounce: null,
   _poiCategories: { water: true, bike: true, cafe: true, toilets: true, fuel: true, shelter: true, viewpoint: true },
@@ -18922,59 +18927,53 @@ function renderRouteBuilderPage() {
 
   container.innerHTML = `
     <div class="rb-wrapper">
-      <div class="rb-toolbar">
-        <div class="rb-toolbar-left">
+      <div class="rb-map-container">
+        <div id="rbMap" class="rb-map"></div>
+        <div class="rb-search-float">
           <div class="rb-search-wrap">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <input class="rb-search-input" id="rbSearchInput" placeholder="Search places…" autocomplete="off" />
             <div class="rb-search-results" id="rbSearchResults"></div>
           </div>
         </div>
-        <div class="rb-toolbar-center">
-          <button class="btn btn-ghost btn-icon btn-sm rb-tool-btn" id="rbUndoBtn" onclick="rbUndo()" title="Undo (Ctrl+Z)" disabled>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-          </button>
-          <button class="btn btn-ghost btn-icon btn-sm rb-tool-btn" id="rbRedoBtn" onclick="rbRedo()" title="Redo (Ctrl+Y)" disabled>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"/></svg>
-          </button>
-          <span class="rb-toolbar-sep"></span>
-          <button class="btn btn-ghost btn-sm" onclick="rbReverse()" title="Reverse route">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
-            Reverse
-          </button>
-          <button class="btn btn-ghost btn-sm" onclick="rbOutAndBack()" title="Out-and-back">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M9 18l6-6-6-6"/></svg>
-            Out &amp; Back
-          </button>
-          <button class="btn btn-ghost btn-sm rb-tool-btn--danger" onclick="rbClear()" title="Clear route">Clear</button>
-        </div>
-        <div class="rb-toolbar-right">
-          <button class="btn btn-ghost btn-sm" onclick="rbImportGPX()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            Import
-          </button>
-          <button class="btn btn-ghost btn-sm" onclick="rbExportGPX()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            GPX
-          </button>
-          <button class="btn btn-primary btn-sm" onclick="rbExportFIT()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            FIT <span style="font-size:9px;opacity:0.7">Garmin</span>
-          </button>
-          <button class="btn btn-ghost btn-sm" onclick="rbSave()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-            Save
-          </button>
-        </div>
-      </div>
-      <div class="rb-map-container">
-        <div id="rbMap" class="rb-map"></div>
         <div class="rb-poi-filter" id="rbPoiFilter" style="display:none"></div>
         <button class="rb-panel-toggle" onclick="rbToggleSidePanel()" title="Toggle stats panel">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
         </button>
         <div class="rb-overlay rb-overlay--right" id="rbSidePanel">
           <div class="rb-side-panel">
+            <div class="rb-actions-card card">
+              <div class="rb-actions-row">
+                <button class="btn btn-ghost btn-icon btn-sm" id="rbUndoBtn" onclick="rbUndo()" title="Undo (Ctrl+Z)" disabled>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                </button>
+                <button class="btn btn-ghost btn-icon btn-sm" id="rbRedoBtn" onclick="rbRedo()" title="Redo (Ctrl+Y)" disabled>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"/></svg>
+                </button>
+                <span class="rb-actions-sep"></span>
+                <button class="btn btn-ghost btn-icon btn-sm" onclick="rbReverse()" title="Reverse route">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                </button>
+                <button class="btn btn-ghost btn-icon btn-sm" onclick="rbOutAndBack()" title="Out & Back">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+                </button>
+                <button class="btn btn-ghost btn-icon btn-sm rb-tool-btn--danger" onclick="rbClear()" title="Clear route">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+              <div class="rb-actions-row">
+                <button class="btn btn-ghost btn-sm" onclick="rbImportGPX()" title="Import GPX">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  Import
+                </button>
+                <button class="btn btn-ghost btn-sm" onclick="rbExportGPX()" title="Export GPX">GPX</button>
+                <button class="btn btn-primary btn-sm" onclick="rbExportFIT()" title="Export FIT">FIT</button>
+                <button class="btn btn-ghost btn-sm" onclick="rbSave()" title="Save route">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                  Save
+                </button>
+              </div>
+            </div>
             <div class="rb-stats-card card">
               <div class="card-header"><div class="card-title">Route Stats</div></div>
               <div class="rb-stats-grid" id="rbStatsGrid">
@@ -19070,14 +19069,14 @@ function _rbInitMap() {
         _rbGeolocate();
       });
 
-      const satBtn = L.DomUtil.create('a', 'rb-map-tool-btn', container);
-      satBtn.href = '#';
-      satBtn.title = 'Toggle satellite';
-      satBtn.id = 'rbSatBtn';
-      satBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>';
-      L.DomEvent.on(satBtn, 'click', function(e) {
+      const layerBtn = L.DomUtil.create('a', 'rb-map-tool-btn', container);
+      layerBtn.href = '#';
+      layerBtn.title = 'Switch map layer';
+      layerBtn.id = 'rbLayerBtn';
+      layerBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>';
+      L.DomEvent.on(layerBtn, 'click', function(e) {
         L.DomEvent.stop(e);
-        _rbToggleSatellite();
+        _rbCycleMapLayer();
       });
 
       const poiBtn = L.DomUtil.create('a', 'rb-map-tool-btn', container);
@@ -19104,52 +19103,55 @@ function _rbGeolocate() {
   if (!navigator.geolocation) { showToast('Geolocation not supported', 'error'); return; }
   const btn = document.querySelector('.rb-map-tools .rb-map-tool-btn');
   if (btn) btn.classList.add('rb-locating');
-  navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      if (btn) btn.classList.remove('rb-locating');
-      if (_rb.map) _rb.map.setView([pos.coords.latitude, pos.coords.longitude], 14);
-    },
-    (err) => {
-      if (btn) btn.classList.remove('rb-locating');
-      showToast('Could not get location', 'error');
-    },
-    { enableHighAccuracy: true, timeout: 8000 }
-  );
+  const onSuccess = (pos) => {
+    if (btn) btn.classList.remove('rb-locating');
+    if (_rb.map) _rb.map.setView([pos.coords.latitude, pos.coords.longitude], 14);
+  };
+  const onFail = (err) => {
+    if (btn) btn.classList.remove('rb-locating');
+    if (err.code === 1) showToast('Location blocked — allow it in browser site settings', 'error');
+    else if (err.code === 3) showToast('Location timed out — try again', 'error');
+    else showToast('Could not get location', 'error');
+  };
+  // Try high accuracy first, fall back to low accuracy
+  navigator.geolocation.getCurrentPosition(onSuccess, () => {
+    navigator.geolocation.getCurrentPosition(onSuccess, onFail,
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 });
+  }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
 }
 
 /* ── Satellite Toggle ── */
-const _rbSatTile = {
-  url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-  attr: '&copy; Esri',
-  bg: '#0a1628'
-};
-let _rbSatActive = false;
-let _rbPrevTheme = null;
+const _rbMapLayers = [
+  { key: 'default', label: 'Default' },
+  { key: 'cyclosm', label: 'CyclOSM', url: 'https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png', attr: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://github.com/cyclosm/cyclosm-cartocss-style/releases">CyclOSM</a>', bg: '#e8e0d8' },
+  { key: 'satellite', label: 'Satellite', url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attr: '&copy; Esri', bg: '#0a1628' },
+];
+let _rbLayerIdx = 0;
 
-function _rbToggleSatellite() {
+function _rbCycleMapLayer() {
   if (!_rb.map || !_rb.tileLayer) return;
-  const btn = document.getElementById('rbSatBtn');
+  _rbLayerIdx = (_rbLayerIdx + 1) % _rbMapLayers.length;
+  const layer = _rbMapLayers[_rbLayerIdx];
+  const btn = document.getElementById('rbLayerBtn');
 
-  if (_rbSatActive) {
-    // Restore previous theme
-    _rb.map.removeLayer(_rb.tileLayer);
-    const themeKey = _rbPrevTheme || loadMapTheme();
+  _rb.map.removeLayer(_rb.tileLayer);
+
+  if (layer.key === 'default') {
+    const themeKey = loadMapTheme();
     const theme = MAP_THEMES[themeKey] || MAP_THEMES.topo;
     _rb.tileLayer = L.tileLayer(theme.url, { attribution: theme.attr, subdomains: theme.sub || 'abc', maxZoom: 19 }).addTo(_rb.map);
     document.getElementById('rbMap').style.background = theme.bg;
-    _rbSatActive = false;
-    if (btn) btn.classList.remove('rb-sat-active');
   } else {
-    // Switch to satellite
-    _rbPrevTheme = loadMapTheme();
-    _rb.map.removeLayer(_rb.tileLayer);
-    _rb.tileLayer = L.tileLayer(_rbSatTile.url, { attribution: _rbSatTile.attr, maxZoom: 19 }).addTo(_rb.map);
-    document.getElementById('rbMap').style.background = _rbSatTile.bg;
-    _rbSatActive = true;
-    if (btn) btn.classList.add('rb-sat-active');
+    _rb.tileLayer = L.tileLayer(layer.url, { attribution: layer.attr, subdomains: 'abc', maxZoom: 19 }).addTo(_rb.map);
+    document.getElementById('rbMap').style.background = layer.bg;
   }
 
-  // Keep route polyline on top
+  if (btn) {
+    btn.classList.toggle('rb-layer-active', layer.key !== 'default');
+    btn.title = layer.key === 'default' ? 'Switch map layer' : layer.label;
+  }
+  showToast(layer.label + ' map', 'info');
+
   if (_rb.routePolyline) _rb.routePolyline.bringToFront();
 }
 
@@ -19164,19 +19166,24 @@ const _rbPoiTypes = {
   viewpoint: { label: 'Viewpoint', tag: 'node["tourism"="viewpoint"]',      color: '#ffd54f', icon: '👁' },
 };
 
+let _rbPoiFetching = false;
+let _rbPoiDirty = false;
+
 function _rbTogglePoi() {
   if (!_rb.map) return;
   const btn = document.getElementById('rbPoiBtn');
   const filter = document.getElementById('rbPoiFilter');
 
   if (_rb._poiEnabled) {
-    // Disable — bump generation so any in-flight fetch is discarded
-    _rbPoiGen++;
-    if (_rb._poiLayer) { _rb.map.removeLayer(_rb._poiLayer); _rb._poiLayer = null; }
-    clearTimeout(_rb._poiDebounce);
-    _rb._poiCache = '';
+    // Disable
     _rb._poiEnabled = false;
-    if (btn) btn.classList.remove('rb-poi-active');
+    if (_rb._poiAbort) { _rb._poiAbort.abort(); _rb._poiAbort = null; }
+    clearTimeout(_rb._poiDebounce);
+    _rbPoiFetching = false;
+    _rbPoiDirty = false;
+    if (_rb._poiLayer) { _rb.map.removeLayer(_rb._poiLayer); _rb._poiLayer = null; }
+    _rb._poiCache = '';
+    if (btn) { btn.classList.remove('rb-poi-active'); btn.classList.remove('rb-poi-loading'); }
     if (filter) filter.style.display = 'none';
     _rb.map.off('moveend', _rbOnPoiMoveEnd);
   } else {
@@ -19186,16 +19193,15 @@ function _rbTogglePoi() {
     if (btn) btn.classList.add('rb-poi-active');
     if (filter) filter.style.display = '';
     _rbRenderPoiFilter();
-    _rb.map.on('moveend', _rbOnPoiMoveEnd);
+    // Delay moveend listener so the initial fetch doesn't get disrupted
+    setTimeout(() => { if (_rb._poiEnabled) _rb.map.on('moveend', _rbOnPoiMoveEnd); }, 2000);
     _rbFetchPois();
   }
 }
 
-let _rbPoiGen = 0; // generation counter — only latest fetch applies
-
 function _rbOnPoiMoveEnd() {
   clearTimeout(_rb._poiDebounce);
-  _rb._poiDebounce = setTimeout(_rbFetchPois, 800);
+  _rb._poiDebounce = setTimeout(_rbFetchPois, 1000);
 }
 
 function _rbBuildPoiQuery(bounds) {
@@ -19220,6 +19226,12 @@ async function _rbFetchPois() {
     return;
   }
 
+  // If a fetch is already running, mark dirty so it retries when done
+  if (_rbPoiFetching) {
+    _rbPoiDirty = true;
+    return;
+  }
+
   const bounds = _rb.map.getBounds();
   const cacheKey = bounds.toBBoxString();
   if (cacheKey === _rb._poiCache) return;
@@ -19227,20 +19239,26 @@ async function _rbFetchPois() {
   const query = _rbBuildPoiQuery(bounds);
   if (!query) { if (_rb._poiLayer) _rb._poiLayer.clearLayers(); return; }
 
-  // Generation counter: only the latest fetch paints markers
-  const gen = ++_rbPoiGen;
+  _rbPoiFetching = true;
+  _rbPoiDirty = false;
+  const btn = document.getElementById('rbPoiBtn');
+  if (btn) btn.classList.add('rb-poi-loading');
+
+  // Abort any lingering previous request
+  if (_rb._poiAbort) _rb._poiAbort.abort();
+  _rb._poiAbort = new AbortController();
 
   try {
     const res = await fetch('https://overpass-api.de/api/interpreter', {
       method: 'POST',
       body: 'data=' + encodeURIComponent(query),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      signal: _rb._poiAbort.signal,
     });
     if (!res.ok) throw new Error('Overpass ' + res.status);
     const data = await res.json();
 
-    // Discard if a newer fetch was started, or POI was toggled off
-    if (gen !== _rbPoiGen || !_rb._poiEnabled || !_rb._poiLayer) return;
+    if (!_rb._poiEnabled || !_rb._poiLayer) return;
 
     _rb._poiLayer.clearLayers();
     _rb._poiCache = cacheKey;
@@ -19268,8 +19286,17 @@ async function _rbFetchPois() {
     }
   } catch (e) {
     if (e.name === 'AbortError') return;
-    // Retry once on network error after 2s
-    if (gen === _rbPoiGen) setTimeout(() => { if (gen === _rbPoiGen) _rbFetchPois(); }, 2000);
+    console.warn('POI fetch error:', e);
+    // Retry once after 2s on network error
+    _rbPoiDirty = true;
+  } finally {
+    _rbPoiFetching = false;
+    if (btn) btn.classList.remove('rb-poi-loading');
+    // If map moved while fetching, auto-retry
+    if (_rbPoiDirty && _rb._poiEnabled) {
+      _rbPoiDirty = false;
+      setTimeout(_rbFetchPois, 500);
+    }
   }
 }
 
@@ -19566,10 +19593,7 @@ function _rbSyncElevMarker(elements) {
 /* ── Elevation Panel Toggle ── */
 function rbToggleElevPanel() {
   const panel = document.getElementById('rbElevPanel');
-  if (panel) {
-    panel.classList.toggle('collapsed');
-    setTimeout(() => { if (_rb.map) _rb.map.invalidateSize(); }, 300);
-  }
+  if (panel) panel.classList.toggle('collapsed');
 }
 
 function rbToggleSidePanel() {

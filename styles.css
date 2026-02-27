@@ -14410,34 +14410,33 @@ html[data-theme="light"] {
     position: fixed;
     left: 0;
     right: 0;
-    top: 48px;
-    height: calc(100vh - 48px);
+    top: 0;
+    height: 100vh;
+    height: 100dvh;
     z-index: 100;
     overflow: hidden;
     display: flex;
     flex-direction: column;
 }
 
-/* ── Toolbar ── */
-.rb-toolbar {
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-    padding: 6px var(--space-md);
-    background: var(--bg-surface);
-    border-bottom: 1px solid var(--border);
-    z-index: 110;
-    flex-shrink: 0;
+/* ── Floating Search ── */
+.rb-search-float {
+    position: absolute;
+    top: 10px;
+    left: 50px;
+    z-index: 1000;
 }
-.rb-toolbar-left { flex: 0 0 auto; }
-.rb-toolbar-center { flex: 1; display: flex; align-items: center; justify-content: center; gap: var(--space-xs); flex-wrap: wrap; }
-.rb-toolbar-right { flex: 0 0 auto; display: flex; gap: var(--space-xs); }
-.rb-toolbar-sep { width: 1px; height: 20px; background: var(--border); margin: 0 var(--space-xs); }
+.rb-search-wrap { position: relative; }
+
+/* ── Actions Card (side panel) ── */
+.rb-actions-card { padding: 8px !important; }
+.rb-actions-row { display: flex; gap: 4px; align-items: center; }
+.rb-actions-row + .rb-actions-row { margin-top: 4px; }
+.rb-actions-row .btn-sm { padding: 5px 8px; font-size: var(--text-xs); }
+.rb-actions-row .btn-icon { padding: 5px; }
+.rb-actions-sep { width: 1px; height: 18px; background: var(--border); margin: 0 2px; flex-shrink: 0; }
 .rb-tool-btn--danger { color: var(--text-muted); }
 .rb-tool-btn--danger:hover { color: #ff4757; }
-
-/* ── Search ── */
-.rb-search-wrap { position: relative; }
 .rb-search-input {
     background: var(--bg-elevated);
     border: 1px solid var(--border);
@@ -14481,7 +14480,7 @@ html[data-theme="light"] {
 
 /* ── Map ── */
 .rb-map-container { flex: 1; position: relative; min-height: 0; }
-.rb-map { width: 100%; height: 100%; background: #1a1c22; }
+.rb-map { width: 100%; height: 100%; background: #1a1c22; position: relative; z-index: 0; }
 .rb-panel-toggle { display: none; }
 
 /* ── Map Tool Buttons (geolocate + satellite) ── */
@@ -14494,13 +14493,15 @@ html[data-theme="light"] {
 .rb-map-tool-btn svg { flex-shrink: 0; }
 .rb-locating svg { animation: rb-pulse 1s ease infinite; }
 @keyframes rb-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
-.rb-sat-active { background: rgba(0, 229, 160, 0.18) !important; color: var(--accent) !important; }
+.rb-layer-active { background: rgba(0, 229, 160, 0.18) !important; color: var(--accent) !important; }
 .rb-poi-active { background: rgba(0, 229, 160, 0.18) !important; color: var(--accent) !important; }
+.rb-poi-loading svg { animation: rb-poi-spin 1s linear infinite; }
+@keyframes rb-poi-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
 /* ── POI Filter Panel ── */
 .rb-poi-filter {
     position: absolute;
-    top: 8px;
+    top: 46px;
     left: 50px;
     z-index: 1000;
     display: flex;
@@ -14585,9 +14586,14 @@ html[data-theme="light"] {
 
 /* ── Elevation Panel ── */
 .rb-elev-panel {
-    flex-shrink: 0;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 800;
     background: var(--bg-card);
     border-top: 1px solid var(--border);
+    transition: transform 0.25s ease;
 }
 .rb-elev-toggle {
     display: flex; align-items: center; gap: var(--space-sm);
@@ -14601,8 +14607,8 @@ html[data-theme="light"] {
 .rb-elev-toggle:hover { color: var(--text-primary); }
 .rb-elev-toggle-icon { transition: transform 0.2s; font-size: 10px; }
 .rb-elev-panel.collapsed .rb-elev-toggle-icon { transform: rotate(180deg); }
+.rb-elev-panel.collapsed { transform: translateY(calc(100% - 28px)); }
 .rb-elev-chart-wrap { height: 160px; padding: 0 var(--space-md) var(--space-sm); }
-.rb-elev-panel.collapsed .rb-elev-chart-wrap { display: none; }
 
 /* ── Right Side Panel (overlay on map) ── */
 .rb-overlay--right {
@@ -14693,34 +14699,11 @@ html[data-theme="light"] {
 
 /* ── Mobile ── */
 @media (max-width: 820px) {
-    .rb-wrapper { top: 48px; height: calc(100vh - 48px); height: calc(100dvh - 48px); }
+    .rb-wrapper { left: 0; top: 0; height: 100vh; height: 100dvh; }
     .rb-poi-filter { left: 8px; top: auto; bottom: 8px; max-width: calc(100% - 16px); flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .rb-poi-filter::-webkit-scrollbar { display: none; }
-    .rb-toolbar {
-        flex-wrap: nowrap;
-        padding: 4px 6px;
-        gap: 2px;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-    .rb-toolbar::-webkit-scrollbar { display: none; }
-    .rb-toolbar-left { flex: 0 0 auto; }
-    .rb-search-input { width: 120px; padding: 5px 10px 5px 28px; font-size: 12px; }
-    .rb-toolbar-center { flex: 0 0 auto; gap: 2px; }
-    .rb-toolbar-center .btn-sm { padding: 4px 6px; font-size: 11px; }
-    .rb-toolbar-center .btn-sm svg { width: 12px !important; height: 12px !important; }
-    .rb-toolbar-sep { display: none; }
-    .rb-toolbar-right { flex: 0 0 auto; gap: 2px; }
-    .rb-toolbar-right .btn-sm { padding: 4px 6px; font-size: 11px; }
-    .rb-toolbar-right .btn-sm svg { width: 12px !important; height: 12px !important; }
-    /* Hide text labels on mobile toolbar buttons, keep icons */
-    .rb-toolbar-center .btn-sm,
-    .rb-toolbar-right .btn-sm { gap: 0; }
-    .rb-toolbar-center .btn-sm:not(.btn-icon) > svg ~ *,
-    .rb-toolbar-right .btn-sm:not(.btn-primary) > svg ~ * { display: none; }
-    .rb-toolbar-right .btn-primary > svg ~ * { font-size: 0; }
-    .rb-toolbar-right .btn-primary { padding: 4px 8px; font-size: 11px; }
-
+    .rb-search-float { left: 10px; top: 10px; }
+    .rb-search-input { width: 160px; padding: 5px 10px 5px 28px; font-size: 12px; }
     .rb-map-container { flex: 1; min-height: 0; }
 
     /* Side panel: hidden off-screen, toggled via .rb-panel-open */
@@ -14761,7 +14744,6 @@ html[data-theme="light"] {
     .rb-panel-toggle:hover { color: var(--text-primary); background: var(--bg-elevated); }
     .rb-panel-toggle svg { width: 16px; height: 16px; }
 
-    .rb-elev-panel { flex-shrink: 0; }
     .rb-elev-chart-wrap { height: 110px; }
 
     .rb-stats-grid { gap: 6px; }
@@ -14773,9 +14755,6 @@ html[data-theme="light"] {
 [data-theme="light"] .rb-side-panel .card {
     background: rgba(255, 255, 255, 0.92);
     border: 1px solid var(--border);
-}
-[data-theme="light"] .rb-toolbar {
-    background: var(--bg-surface);
 }
 [data-theme="light"] .rb-wp-item {
     border-bottom-color: var(--border);
