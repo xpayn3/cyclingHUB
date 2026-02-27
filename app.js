@@ -1565,6 +1565,9 @@ function navigate(page) {
   // Clean up charts from the page we're leaving to free memory
   if (state.currentPage) cleanupPageCharts(state.currentPage);
 
+  // Clear scroll restore if navigating anywhere other than activities→activity round-trip
+  if (!_restoreActScroll) window._actListScrollRestore = null;
+
   state.previousPage = state.currentPage;
   state.currentPage  = page;
   try { sessionStorage.setItem('icu_route', JSON.stringify({ type: 'page', page })); } catch {}
@@ -1648,7 +1651,7 @@ function navigate(page) {
     const settingsBack = document.getElementById('settingsTopbarBack');
     if (settingsBack) settingsBack.style.display = (state.previousPage && state.previousPage !== 'settings') ? '' : 'none';
   }
-  if (page === 'activities') ensureLifetimeLoaded();
+  if (page === 'activities') { ensureLifetimeLoaded(); requestAnimationFrame(_updateActStickyTop); }
   if (page === 'weather')  renderWeatherPage();
   if (page === 'gear')     renderGearPage();
   if (page === 'guide')    renderGuidePage();
@@ -1688,6 +1691,7 @@ function navigate(page) {
     });
   } else {
     window.scrollTo(0, 0);
+    requestAnimationFrame(() => window.scrollTo(0, 0));
   }
 }
 
