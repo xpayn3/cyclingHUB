@@ -1639,6 +1639,8 @@ function navigate(page) {
   if (detailBack)   detailBack.style.display   = 'none';
   if (wxdBack)      wxdBack.style.display      = 'none';
   if (settingsBack) settingsBack.style.display = 'none';
+  const wxRefreshBtn = document.getElementById('wxTopbarRefresh');
+  if (wxRefreshBtn) wxRefreshBtn.style.display = (page === 'weather') ? '' : 'none';
 
   // Show topbar range pills per page
   const pill = document.getElementById('dateRangePill');
@@ -2674,11 +2676,19 @@ function renderActivityWeather(a) {
   const pressure = a.weather_pressure;      // hPa
   const precip   = a.weather_precip_probability; // 0–1
 
-  if (temp == null) { showCardNA('detailWeatherCard'); return; }
+  if (temp == null) {
+    // No intervals.icu weather — try Open-Meteo historical for outdoor rides
+    _fetchHistoricalWeather(a);
+    return;
+  }
+  _paintWeatherCard(card, temp, feels, windMs, windDeg, humidity, icon, summary, uv, pressure, precip);
+}
+
+// Paint the weather card with given data
+function _paintWeatherCard(card, temp, feels, windMs, windDeg, humidity, icon, summary, uv, pressure, precip, source) {
   clearCardNA(card);
   card.style.display = '';
 
-  // Riding-condition colour hint
   const isRain  = icon && (icon.includes('rain') || icon.includes('drizzle') || icon.includes('storm') || icon.includes('sleet'));
   const isSnow  = icon && (icon.includes('snow') || icon.includes('blizzard'));
   const isCold  = state.units === 'imperial' ? (temp * 9/5 + 32) < 40 : temp < 5;
@@ -2686,8 +2696,6 @@ function renderActivityWeather(a) {
   const qLabel  = quality === 'good' ? 'Good riding conditions' : quality === 'fair' ? 'Marginal conditions' : 'Tough conditions';
 
   const tiles = [];
-
-  // Main tile: icon + condition + temp
   tiles.push(`
     <div class="wx-tile wx-tile--main">
       <div class="wx-main-icon">${weatherIconSvg(icon)}</div>
@@ -2704,8 +2712,74 @@ function renderActivityWeather(a) {
   if (uv       != null) tiles.push(`<div class="wx-tile"><div class="wx-lbl">UV Index</div><div class="wx-val">${uv}</div></div>`);
   if (precip   != null) tiles.push(`<div class="wx-tile"><div class="wx-lbl">Precip</div><div class="wx-val">${Math.round(precip * 100)}%</div></div>`);
   if (pressure != null) tiles.push(`<div class="wx-tile"><div class="wx-lbl">Pressure</div><div class="wx-val">${Math.round(pressure)}<span class="wx-sub"> hPa</span></div></div>`);
+  if (source) tiles.push(`<div class="wx-tile wx-tile--source"><div class="wx-lbl" style="font-size:9px;opacity:0.5">${source}</div></div>`);
 
   document.getElementById('wxTiles').innerHTML = tiles.join('');
+}
+
+// Fetch historical weather from Open-Meteo archive API for outdoor activities
+async function _fetchHistoricalWeather(a) {
+  const card = document.getElementById('detailWeatherCard');
+  if (!card) return;
+
+  // Only for outdoor activities with a date
+  const type = (a.type || a.sport_type || '').toLowerCase();
+  const isIndoor = /virtual|trainer|indoor|zwift|wahoo/i.test(type) || a.trainer;
+  const dateStr = (a.start_date_local || a.start_date || '').substring(0, 10);
+  if (!dateStr || isIndoor) { showCardNA('detailWeatherCard'); return; }
+
+  // Get coordinates: try activity start_latlng, then user's saved weather location
+  let lat = null, lng = null;
+  if (a.start_latlng && Array.isArray(a.start_latlng) && a.start_latlng.length === 2) {
+    lat = a.start_latlng[0]; lng = a.start_latlng[1];
+  }
+  if (lat == null) {
+    try {
+      const saved = JSON.parse(localStorage.getItem('icu_wx_coords') || 'null');
+      if (saved) { lat = saved.lat; lng = saved.lng; }
+    } catch (_) {}
+  }
+  if (lat == null || lng == null) { showCardNA('detailWeatherCard'); return; }
+
+  // Determine ride start hour
+  const startHour = new Date(a.start_date_local || a.start_date).getHours() || 12;
+
+  try {
+    const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lng}`
+      + `&start_date=${dateStr}&end_date=${dateStr}`
+      + `&hourly=temperature_2m,apparent_temperature,windspeed_10m,winddirection_10m,relativehumidity_2m,weathercode,surface_pressure`
+      + `&timezone=auto`;
+    const res = await fetch(url);
+    if (!res.ok) { showCardNA('detailWeatherCard'); return; }
+    const data = await res.json();
+    const h = data.hourly;
+    if (!h || !h.time || !h.time.length) { showCardNA('detailWeatherCard'); return; }
+
+    // Find the hour closest to ride start
+    const idx = Math.min(startHour, h.time.length - 1);
+
+    const temp     = h.temperature_2m?.[idx];
+    const feels    = h.apparent_temperature?.[idx];
+    const windKmh  = h.windspeed_10m?.[idx];
+    const windDeg  = h.winddirection_10m?.[idx];
+    const humidity = h.relativehumidity_2m?.[idx];
+    const code     = h.weathercode?.[idx];
+    const pressure = h.surface_pressure?.[idx];
+
+    if (temp == null) { showCardNA('detailWeatherCard'); return; }
+
+    // Convert WMO code to icon name and summary
+    const icon    = wmoLabel(code ?? 0).toLowerCase();
+    const summary = wmoLabel(code ?? 0);
+    // Wind: Open-Meteo returns km/h, convert to m/s for fmtWindMs
+    const windMs  = windKmh != null ? windKmh / 3.6 : null;
+    // Humidity: Open-Meteo returns 0-100, convert to 0-1
+    const humFrac = humidity != null ? humidity / 100 : null;
+
+    _paintWeatherCard(card, temp, feels, windMs, windDeg, humFrac, icon, summary, null, pressure, null, 'Historical · Open-Meteo');
+  } catch (_) {
+    showCardNA('detailWeatherCard');
+  }
 }
 
 // ── 7-day riding forecast (Open-Meteo, free, no API key) ────────────────────
@@ -2919,6 +2993,64 @@ async function renderWeatherForecast() {
       </div>
     </div>
     <div class="wx-forecast-row">${days}</div>`;
+}
+
+/* ── Sun arc helper (sunrise/sunset visual) ── */
+function _buildSunArc(sunProgress, heroSr, heroSs) {
+  const p = Math.max(0, Math.min(1, sunProgress));
+  const isDay = sunProgress >= 0 && sunProgress <= 1;
+  const W = 240, H = 72, PAD = 20;
+  const arcD = 'M' + PAD + ',' + H + ' Q' + (W/2) + ',' + (-H*0.7) + ' ' + (W-PAD) + ',' + H;
+  // Sun position on quadratic bezier
+  const t = p;
+  const x0 = PAD, y0 = H, x1 = W/2, y1 = -H*0.7, x2 = W-PAD, y2 = H;
+  const sx = (1-t)*(1-t)*x0 + 2*(1-t)*t*x1 + t*t*x2;
+  const sy = (1-t)*(1-t)*y0 + 2*(1-t)*t*y1 + t*t*y2;
+  const isNight = !isDay;
+  const primaryLabel = isNight ? 'SUNRISE' : 'SUNSET';
+  const primaryTime = isNight ? heroSr : heroSs;
+  const secondaryLabel = isNight ? 'Sunset: ' + heroSs : 'Sunrise: ' + heroSr;
+  // Sun dot: show on arc during day, or on horizon line at night
+  const dotX = isDay ? sx : (sunProgress <= 0 ? PAD : W - PAD);
+  const dotY = isDay ? sy : H;
+  const dotColor = isDay ? '#FFD93D' : 'rgba(255,217,61,0.4)';
+  const dotStroke = isDay ? '#FFB800' : 'rgba(255,184,0,0.4)';
+
+  let svg = '<svg class="wxp-sun-svg" viewBox="0 0 ' + W + ' ' + (H + 12) + '" preserveAspectRatio="xMidYMid meet">';
+  // Filled area under the traversed arc (subtle glow)
+  if (isDay && t > 0.02) {
+    // Build the fill: arc up to current point, then line back to start
+    var fillArc = 'M' + PAD + ',' + H;
+    var steps = Math.ceil(t * 30);
+    for (var s = 0; s <= steps; s++) {
+      var tt = (s / steps) * t;
+      var fx = (1-tt)*(1-tt)*x0 + 2*(1-tt)*tt*x1 + tt*tt*x2;
+      var fy = (1-tt)*(1-tt)*y0 + 2*(1-tt)*tt*y1 + tt*tt*y2;
+      fillArc += ' L' + fx.toFixed(1) + ',' + fy.toFixed(1);
+    }
+    fillArc += ' L' + sx.toFixed(1) + ',' + H + ' Z';
+    svg += '<path d="' + fillArc + '" fill="var(--accent)" opacity="0.08"/>';
+  }
+  // Dashed arc (full path)
+  svg += '<path d="' + arcD + '" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="2" stroke-dasharray="5 4"/>';
+  // Solid accent arc (traversed portion)
+  if (isDay && t > 0.01) svg += '<path d="' + arcD + '" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-dasharray="' + (t * 320) + ' 320" opacity="0.9"/>';
+  // Horizon line
+  svg += '<line x1="' + PAD + '" y1="' + H + '" x2="' + (W-PAD) + '" y2="' + H + '" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>';
+  // Sunrise/sunset markers
+  svg += '<circle cx="' + PAD + '" cy="' + H + '" r="2" fill="rgba(255,255,255,0.25)"/>';
+  svg += '<circle cx="' + (W-PAD) + '" cy="' + H + '" r="2" fill="rgba(255,255,255,0.25)"/>';
+  // Sun dot
+  svg += '<circle cx="' + dotX.toFixed(1) + '" cy="' + dotY.toFixed(1) + '" r="12" fill="' + dotColor + '" opacity="0.12"/>';
+  svg += '<circle cx="' + dotX.toFixed(1) + '" cy="' + dotY.toFixed(1) + '" r="6" fill="' + dotColor + '" stroke="' + dotStroke + '" stroke-width="1.5"/>';
+  svg += '</svg>';
+
+  return '<div class="wxp-sun-arc">'
+    + '<div class="wxp-sun-arc-label">' + primaryLabel + '</div>'
+    + '<div class="wxp-sun-arc-time">' + primaryTime + '</div>'
+    + svg
+    + '<div class="wxp-sun-arc-times"><span>☀️ ' + heroSr + '</span><span>🌙 ' + heroSs + '</span></div>'
+    + '</div>';
 }
 
 /* ====================================================
@@ -3372,24 +3504,22 @@ async function renderWeatherPage(_restoreScrollY) {
 
   // Sunrise/sunset for today
   let heroSr = '—', heroSs = '—';
+  let sunProgress = -1; // 0..1 during daylight, <0 before sunrise, >1 after sunset
   try {
     heroSr = new Date(sunrises[0]).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
     heroSs = new Date(sunsets[0]).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    const srMs = new Date(sunrises[0]).getTime();
+    const ssMs = new Date(sunsets[0]).getTime();
+    const nowMs = Date.now();
+    if (ssMs > srMs) sunProgress = (nowMs - srMs) / (ssMs - srMs);
   } catch (_) {}
 
   // Lock page height before DOM swap to prevent scroll clamping during location switch
   if (_restoreScrollY != null) container.style.minHeight = container.scrollHeight + 'px';
 
   body.innerHTML = `
-    <!-- Location header -->
-    <div class="wxp-location-bar">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 2a7 7 0 0 1 7 7c0 5.25-7 13-7 13S5 14.25 5 9a7 7 0 0 1 7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
-      <span>${locationLabel}</span>
-      <button class="wxp-change-loc btn btn-ghost btn-sm" onclick="navigate('settings')">Change</button>
-      <button class="wxp-refresh-btn btn btn-ghost btn-sm" onclick="refreshWeatherPage()" title="Force refresh weather data">↺ Refresh</button>
-    </div>
-
-    <!-- Current conditions hero card -->
+    <!-- Current conditions + ride window row -->
+    <div class="wxp-top-row">
     <div class="card wxp-hero">
       <div class="card-header">
         <div>
@@ -3466,7 +3596,9 @@ async function renderWeatherPage(_restoreScrollY) {
           ${rideWindowMissed ? '<div class="wxp-window-missed-note">You missed today\'s best window. Check tomorrow\'s forecast.</div>' : ''}
         </div>
       </div>
+      ${_buildSunArc(sunProgress, heroSr, heroSs)}
     </div>` : ''}
+    </div><!-- /wxp-top-row -->
 
     <!-- Weekly summary — no card wrapper -->
     <div class="wxp-section-label">7-Day Summary</div>
@@ -4407,9 +4539,12 @@ function externalTooltipHandler(context) {
     const dsBorder = Array.isArray(ds.borderColor)
                        ? ds.borderColor[dataIdx]
                        : ds.borderColor;
+    const dsPtBg = Array.isArray(ds.pointBackgroundColor)
+                     ? ds.pointBackgroundColor[dataIdx]
+                     : ds.pointBackgroundColor;
     const candidates = [
+      dsPtBg,
       dsBorder,
-      ds.pointBackgroundColor,
       dsBg,
       colors[i]?.borderColor,
       colors[i]?.backgroundColor,
@@ -4478,12 +4613,14 @@ Chart.defaults.transitions.resize = {
   animation: { duration: 0 },
   animations: { x: { duration: 0 }, y: { duration: 0 } },
 };
-// Solid hover dots: auto-fill with the dataset's line colour, no border ring
+// Solid hover dots: auto-fill with the dataset's line colour, no border ring.
+// Skips datasets that already have a per-point hover colour array.
 Chart.register({
   id: 'solidHoverDots',
   beforeUpdate(chart) {
     chart.data.datasets.forEach(ds => {
       ds.pointHoverBorderWidth = 0;
+      if (Array.isArray(ds.pointHoverBackgroundColor)) return; // per-point colours set explicitly
       if (ds.borderColor && !ds._hoverColorOverridden) {
         ds.pointHoverBackgroundColor = ds.borderColor;
         ds._hoverColorOverridden = true;
@@ -4496,8 +4633,8 @@ Chart.register({
 // Hysteresis: once snapped to a new point, requires cursor to travel back 50%
 // of the gap before reverting — prevents jitter at the snap boundary.
 (function () {
-  const SNAP_FWD  = 0.35; // snap forward at 35% of gap
-  const SNAP_BACK = 0.50; // snap back only once cursor retreats past 50% (hysteresis)
+  const SNAP_FWD  = 0.48; // snap forward at 48% of gap (close to midpoint, avoids premature jumps)
+  const SNAP_BACK = 0.52; // snap back once cursor retreats past 52% (mild hysteresis)
 
   Chart.Interaction.modes.indexEager = function (chart, e, options, useFinalPosition) {
     // Get what standard 'index' mode would give us (nearest midpoint)
@@ -5201,6 +5338,7 @@ function renderWeeklyChart(activities) {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
       plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP, callbacks: { label: c => `${c.raw} TSS` } } },
       scales: cScales({ xGrid: false, yExtra: { maxTicksLimit: 4 } })
     }
@@ -5973,6 +6111,7 @@ function renderPwrTrend(days) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -6634,6 +6773,7 @@ function renderFitnessWeeklyPageChart() {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: false },
         tooltip: { ...C_TOOLTIP, callbacks: { label: c => `${c.raw} TSS` } }
@@ -8592,7 +8732,6 @@ function renderActivityBasic(a) {
 
   const primaryEl = document.getElementById('actPrimaryStats');
   primaryEl.innerHTML = primary.slice(0, 4).join('');
-  primaryEl.style.gridTemplateColumns = `repeat(${Math.min(primary.length, 4)}, 1fr)`;
 
   // Store computed avgs for comparison card
   a._avgs = { avgDistM, avgSecsV, avgPowV, avgHrV, avgSpdMs, peerCount: peers.length };
@@ -10312,6 +10451,7 @@ function renderActivityZoneCharts(activity) {
       data: { labels, datasets: [{ data, backgroundColor: colors, borderRadius: 4 }] },
       options: {
         responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { display: false },
           tooltip: { ...C_TOOLTIP, callbacks: { label: c => `${c.raw} min` } }
@@ -10585,6 +10725,8 @@ function renderDetailDecoupleChart(streams, activity) {
           borderWidth: 2,
           pointBackgroundColor: ptColors,
           pointBorderColor:     ptColors,
+          pointHoverBackgroundColor: ptColors,
+          pointHoverBorderColor:     ptColors,
           pointRadius: 3,
           pointHoverRadius: 5,
           tension: 0.4,
@@ -10623,6 +10765,10 @@ function renderDetailDecoupleChart(streams, activity) {
             afterLabel: c => {
               if (c.datasetIndex !== 0 || c.raw == null) return null;
               return c.dataIndex < mid ? '← First half' : '← Second half';
+            },
+            labelColor: c => {
+              const col = ptColors[c.dataIndex] || '#60a5fa';
+              return { backgroundColor: col, borderColor: col, borderWidth: 0, borderRadius: 3 };
             },
           }
         }
@@ -10964,6 +11110,7 @@ function renderDetailHistogram(activity, streams) {
       },
       options: {
         responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { display: false },
           tooltip: { ...C_TOOLTIP, callbacks: { label: c => `${c.raw} min` } }
@@ -11100,6 +11247,7 @@ function renderDetailGradientProfile(streams, activity) {
       options: {
         responsive: true, maintainAspectRatio: false,
         animation: false,
+        interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { display: false },
           tooltip: {
@@ -11189,6 +11337,7 @@ function renderDetailCadenceHist(streams, activity) {
       options: {
         responsive: true, maintainAspectRatio: false,
         animation: false,
+        interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { display: false },
           tooltip: {
@@ -11285,6 +11434,7 @@ function renderZnpZoneTimeChart() {
     options: {
       responsive: true, maintainAspectRatio: false,
       animation: false,
+      interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: {
           display: true,
