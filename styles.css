@@ -3561,12 +3561,14 @@ code {
 ============================================================ */
 /* Full-height mode: strip page-content padding when calendar is active */
 .page-content--calendar,
-.page-content--heatmap {
+.page-content--heatmap,
+.page-content--routes {
     padding: 0 !important;
     gap: 0 !important;
 }
 .page-content--heatmap .page-headline,
-.page-content--calendar .page-headline {
+.page-content--calendar .page-headline,
+.page-content--routes .page-headline {
     display: none;
 }
 
@@ -14398,4 +14400,442 @@ html[data-theme="light"] {
 [data-theme="light"] .trs-ef-wrap {
     background: var(--bg-elevated);
     border-top-color: var(--border);
+}
+
+/* ============================================================
+   ROUTE BUILDER PAGE
+============================================================ */
+
+.rb-wrapper {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 48px;
+    height: calc(100vh - 48px);
+    z-index: 100;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ── Toolbar ── */
+.rb-toolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: 6px var(--space-md);
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border);
+    z-index: 110;
+    flex-shrink: 0;
+}
+.rb-toolbar-left { flex: 0 0 auto; }
+.rb-toolbar-center { flex: 1; display: flex; align-items: center; justify-content: center; gap: var(--space-xs); flex-wrap: wrap; }
+.rb-toolbar-right { flex: 0 0 auto; display: flex; gap: var(--space-xs); }
+.rb-toolbar-sep { width: 1px; height: 20px; background: var(--border); margin: 0 var(--space-xs); }
+.rb-tool-btn--danger { color: var(--text-muted); }
+.rb-tool-btn--danger:hover { color: #ff4757; }
+
+/* ── Search ── */
+.rb-search-wrap { position: relative; }
+.rb-search-input {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 12px 6px 32px;
+    color: var(--text-primary);
+    font-size: var(--text-sm);
+    width: 220px;
+    outline: none;
+    transition: border-color var(--transition);
+}
+.rb-search-input:focus { border-color: var(--accent); }
+.rb-search-wrap > svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--text-muted); pointer-events: none; }
+.rb-search-results {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-top: 4px;
+    max-height: 240px;
+    overflow-y: auto;
+    z-index: 200;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+.rb-search-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.rb-search-item:last-child { border-bottom: none; }
+.rb-search-item:hover { background: var(--bg-elevated); }
+.rb-search-name { font-size: var(--text-sm); color: var(--text-primary); }
+.rb-search-sub { font-size: var(--text-xs); color: var(--text-muted); }
+
+/* ── Map ── */
+.rb-map-container { flex: 1; position: relative; min-height: 0; }
+.rb-map { width: 100%; height: 100%; background: #1a1c22; }
+.rb-panel-toggle { display: none; }
+
+/* ── Map Tool Buttons (geolocate + satellite) ── */
+.rb-map-tools { margin-top: 6px !important; }
+.rb-map-tool-btn {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+}
+.rb-map-tool-btn svg { flex-shrink: 0; }
+.rb-locating svg { animation: rb-pulse 1s ease infinite; }
+@keyframes rb-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+.rb-sat-active { background: rgba(0, 229, 160, 0.18) !important; color: var(--accent) !important; }
+.rb-poi-active { background: rgba(0, 229, 160, 0.18) !important; color: var(--accent) !important; }
+
+/* ── POI Filter Panel ── */
+.rb-poi-filter {
+    position: absolute;
+    top: 8px;
+    left: 50px;
+    z-index: 1000;
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    max-width: calc(100% - 340px);
+    pointer-events: auto;
+}
+.rb-poi-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px;
+    border-radius: 20px;
+    background: rgba(20, 23, 32, 0.82);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+.rb-poi-chip:hover { color: var(--text-primary); border-color: rgba(255,255,255,0.2); }
+.rb-poi-chip.active { color: var(--text-primary); border-color: rgba(255,255,255,0.25); }
+.rb-poi-chip:not(.active) .rb-poi-chip-dot { opacity: 0.35; }
+.rb-poi-chip-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    transition: opacity 0.15s;
+}
+
+/* ── POI Popup ── */
+.rb-poi-popup-wrap .leaflet-popup-content-wrapper {
+    background: rgba(20, 23, 32, 0.92);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    color: var(--text-primary);
+    font-size: var(--text-sm);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}
+.rb-poi-popup-wrap .leaflet-popup-tip { background: rgba(20, 23, 32, 0.92); }
+.rb-poi-popup-wrap .leaflet-popup-content { margin: 10px 14px; line-height: 1.4; }
+.rb-poi-popup-cat { font-size: 11px; }
+
+/* ── POI Light Theme ── */
+[data-theme="light"] .rb-poi-chip {
+    background: rgba(255,255,255,0.88);
+    border-color: var(--border);
+    color: var(--text-muted);
+}
+[data-theme="light"] .rb-poi-chip:hover,
+[data-theme="light"] .rb-poi-chip.active { color: var(--text-primary); border-color: var(--text-muted); }
+[data-theme="light"] .rb-poi-popup-wrap .leaflet-popup-content-wrapper {
+    background: rgba(255,255,255,0.95);
+    border-color: var(--border);
+    color: var(--text-primary);
+}
+[data-theme="light"] .rb-poi-popup-wrap .leaflet-popup-tip { background: rgba(255,255,255,0.95); }
+
+/* ── Waypoint markers ── */
+.rb-wp-icon { background: none !important; border: none !important; }
+.rb-wp-marker {
+    width: 28px; height: 28px;
+    background: var(--accent, #00e5a0);
+    color: #111;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 11px;
+    font-family: var(--font-num);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    border: 2px solid white;
+    line-height: 1;
+}
+.rb-wp-marker--start { background: #4a9eff; }
+
+/* ── Elevation Panel ── */
+.rb-elev-panel {
+    flex-shrink: 0;
+    background: var(--bg-card);
+    border-top: 1px solid var(--border);
+}
+.rb-elev-toggle {
+    display: flex; align-items: center; gap: var(--space-sm);
+    padding: 6px var(--space-md);
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    user-select: none;
+}
+.rb-elev-toggle:hover { color: var(--text-primary); }
+.rb-elev-toggle-icon { transition: transform 0.2s; font-size: 10px; }
+.rb-elev-panel.collapsed .rb-elev-toggle-icon { transform: rotate(180deg); }
+.rb-elev-chart-wrap { height: 160px; padding: 0 var(--space-md) var(--space-sm); }
+.rb-elev-panel.collapsed .rb-elev-chart-wrap { display: none; }
+
+/* ── Right Side Panel (overlay on map) ── */
+.rb-overlay--right {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 280px;
+    height: 100%;
+    z-index: 1000;
+    pointer-events: none;
+    overflow-y: auto;
+    padding: var(--space-sm);
+}
+.rb-overlay--right::-webkit-scrollbar { width: 4px; }
+.rb-overlay--right::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
+.rb-side-panel {
+    pointer-events: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+.rb-side-panel .card {
+    background: rgba(23, 26, 33, 0.88);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.06);
+}
+
+/* ── Stats Grid ── */
+.rb-stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 0 var(--space-sm) var(--space-sm);
+}
+.rb-stat { display: flex; flex-direction: column; }
+.rb-stat-val {
+    font-family: var(--font-num);
+    font-size: var(--text-lg);
+    font-weight: 700;
+    color: var(--text-primary);
+}
+.rb-stat-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    font-weight: 600;
+}
+
+/* ── Waypoint List ── */
+.rb-waypoint-list { max-height: 180px; overflow-y: auto; padding: 0 var(--space-sm) var(--space-sm); }
+.rb-wp-item {
+    display: flex; align-items: center; gap: var(--space-sm);
+    padding: 4px 0;
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.rb-wp-item:last-child { border-bottom: none; }
+.rb-wp-badge {
+    width: 22px; height: 22px;
+    background: rgba(0,229,160,0.15);
+    color: var(--accent);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700;
+    font-family: var(--font-num);
+    flex-shrink: 0;
+}
+
+/* ── Saved Routes ── */
+.rb-saved-list { max-height: 260px; overflow-y: auto; padding: 0 var(--space-sm) var(--space-sm); }
+.rb-saved-empty { padding: var(--space-md); text-align: center; color: var(--text-muted); font-size: var(--text-sm); }
+.rb-saved-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.rb-saved-item:last-child { border-bottom: none; }
+.rb-saved-info { cursor: pointer; flex: 1; min-width: 0; }
+.rb-saved-info:hover .rb-saved-name { color: var(--accent); }
+.rb-saved-item--active { border-left: 2px solid var(--accent); padding-left: var(--space-sm); }
+.rb-saved-name { font-size: var(--text-sm); font-weight: 600; color: var(--text-primary); transition: color var(--transition); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rb-saved-meta { font-size: 10px; color: var(--text-muted); }
+.rb-saved-del { flex-shrink: 0; opacity: 0.5; }
+.rb-saved-del:hover { opacity: 1; color: #ff4757; }
+
+/* ── Mobile ── */
+@media (max-width: 820px) {
+    .rb-wrapper { top: 48px; height: calc(100vh - 48px); height: calc(100dvh - 48px); }
+    .rb-poi-filter { left: 8px; top: auto; bottom: 8px; max-width: calc(100% - 16px); flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .rb-poi-filter::-webkit-scrollbar { display: none; }
+    .rb-toolbar {
+        flex-wrap: nowrap;
+        padding: 4px 6px;
+        gap: 2px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .rb-toolbar::-webkit-scrollbar { display: none; }
+    .rb-toolbar-left { flex: 0 0 auto; }
+    .rb-search-input { width: 120px; padding: 5px 10px 5px 28px; font-size: 12px; }
+    .rb-toolbar-center { flex: 0 0 auto; gap: 2px; }
+    .rb-toolbar-center .btn-sm { padding: 4px 6px; font-size: 11px; }
+    .rb-toolbar-center .btn-sm svg { width: 12px !important; height: 12px !important; }
+    .rb-toolbar-sep { display: none; }
+    .rb-toolbar-right { flex: 0 0 auto; gap: 2px; }
+    .rb-toolbar-right .btn-sm { padding: 4px 6px; font-size: 11px; }
+    .rb-toolbar-right .btn-sm svg { width: 12px !important; height: 12px !important; }
+    /* Hide text labels on mobile toolbar buttons, keep icons */
+    .rb-toolbar-center .btn-sm,
+    .rb-toolbar-right .btn-sm { gap: 0; }
+    .rb-toolbar-center .btn-sm:not(.btn-icon) > svg ~ *,
+    .rb-toolbar-right .btn-sm:not(.btn-primary) > svg ~ * { display: none; }
+    .rb-toolbar-right .btn-primary > svg ~ * { font-size: 0; }
+    .rb-toolbar-right .btn-primary { padding: 4px 8px; font-size: 11px; }
+
+    .rb-map-container { flex: 1; min-height: 0; }
+
+    /* Side panel: hidden off-screen, toggled via .rb-panel-open */
+    .rb-overlay--right {
+        position: absolute;
+        top: 0;
+        right: -260px;
+        width: 250px;
+        height: 100%;
+        max-height: 100%;
+        transition: right 0.25s ease;
+        background: var(--bg-surface);
+        border-left: 1px solid var(--border);
+        pointer-events: auto;
+        z-index: 1000;
+    }
+    .rb-overlay--right.rb-panel-open { right: 0; }
+
+    /* Toggle button for side panel */
+    .rb-panel-toggle {
+        display: flex;
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        z-index: 1001;
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        align-items: center;
+        justify-content: center;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        color: var(--text-secondary);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        cursor: pointer;
+        transition: all var(--transition);
+    }
+    .rb-panel-toggle:hover { color: var(--text-primary); background: var(--bg-elevated); }
+    .rb-panel-toggle svg { width: 16px; height: 16px; }
+
+    .rb-elev-panel { flex-shrink: 0; }
+    .rb-elev-chart-wrap { height: 110px; }
+
+    .rb-stats-grid { gap: 6px; }
+    .rb-stats-grid .stat-value { font-size: var(--text-base); }
+    .rb-stats-grid .stat-label { font-size: 9px; }
+}
+
+/* ── Light Theme ── */
+[data-theme="light"] .rb-side-panel .card {
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid var(--border);
+}
+[data-theme="light"] .rb-toolbar {
+    background: var(--bg-surface);
+}
+[data-theme="light"] .rb-wp-item {
+    border-bottom-color: var(--border);
+}
+[data-theme="light"] .rb-saved-item {
+    border-bottom-color: var(--border);
+}
+[data-theme="light"] .rb-wp-badge {
+    background: rgba(0,180,120,0.12);
+}
+
+/* ── Export Helper Dialog ── */
+.rb-export-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+.rb-export-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: 8px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition);
+}
+.rb-export-tab:hover {
+    color: var(--text-primary);
+    border-color: var(--text-muted);
+}
+.rb-export-tab.active {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+.rb-export-tab svg { flex-shrink: 0; }
+.rb-export-step-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.rb-export-step {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    line-height: 1.6;
+    padding: 2px 0;
+}
+.rb-export-step b {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+[data-theme="light"] .rb-export-tab {
+    background: var(--bg-elevated);
+}
+[data-theme="light"] .rb-export-tab.active {
+    background: var(--accent-dim);
 }

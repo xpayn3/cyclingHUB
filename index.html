@@ -552,6 +552,35 @@
             </div>
         </div>
 
+        <!-- Export Helper Dialog -->
+        <div class="modal-backdrop" id="exportHelperModal" role="dialog" aria-modal="true" aria-labelledby="exportHelperTitle" onclick="if(event.target===this)closeExportHelper()">
+            <div class="modal" style="max-width:520px">
+                <div class="modal-header">
+                    <div>
+                        <div class="modal-header-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="7 10 12 15 17 10"/>
+                                <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                        </div>
+                        <div class="modal-title" id="exportHelperTitle">Route Exported</div>
+                        <div class="modal-desc" id="exportHelperDesc">Your file has been downloaded. Follow the steps below to load it on your device.</div>
+                    </div>
+                    <button class="modal-close" onclick="closeExportHelper()" aria-label="Close">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="rb-export-tabs" id="exportHelperTabs"></div>
+                    <div class="rb-export-steps" id="exportHelperSteps"></div>
+                    <div class="modal-footer">
+                        <button class="btn btn-primary btn-sm" onclick="closeExportHelper()">Done</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- ============================================================  SIDEBAR  ============================================================ -->
         <div
             class="sidebar-backdrop"
@@ -877,6 +906,27 @@
                         <line x1="12" y1="3" x2="12" y2="15" />
                     </svg>
                     Import
+                </div>
+                <div
+                    class="nav-item"
+                    data-page="routes"
+                    onclick="
+                        navigate('routes');
+                        closeSidebar();
+                    "
+                >
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    >
+                        <path d="M3 17l6-6 4 4 8-8" />
+                        <path d="M17 7h4v4" />
+                    </svg>
+                    Route Builder
                 </div>
                 <span class="nav-section-label">Account</span>
                 <div
@@ -5248,6 +5298,12 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- ==================== ROUTE BUILDER PAGE ==================== -->
+                <div class="page" id="page-routes">
+                    <div id="routeBuilderContent"></div>
+                </div>
+
             </div>
             <!-- end page-content -->
         </main>
