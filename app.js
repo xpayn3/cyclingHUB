@@ -1640,9 +1640,11 @@ function navigate(page) {
   if (wxdBack)      wxdBack.style.display      = 'none';
   if (settingsBack) settingsBack.style.display = 'none';
 
-  // Show topbar range pill only on dashboard
+  // Show topbar range pills per page
   const pill = document.getElementById('dateRangePill');
   if (pill) pill.style.display = (page === 'dashboard') ? 'flex' : 'none';
+  const zonePill = document.getElementById('zoneRangePill');
+  if (zonePill) zonePill.style.display = (page === 'zones') ? 'flex' : 'none';
 
   // Training status glow — dashboard only
   document.body.classList.toggle('dashboard-glow', page === 'dashboard');
@@ -1656,8 +1658,12 @@ function navigate(page) {
 
   // Ensure topbar is always visible
   document.querySelector('.topbar')?.classList.remove('topbar--hidden');
-  // Restore page headline (hidden when viewing single activity)
-  document.querySelector('.page-headline')?.classList.remove('page-headline--hidden');
+  // Restore page headline (hidden when viewing single activity or calendar)
+  const headline = document.querySelector('.page-headline');
+  if (headline) {
+    if (page === 'calendar') headline.classList.add('page-headline--hidden');
+    else headline.classList.remove('page-headline--hidden');
+  }
 
   if (page === 'dashboard' && state.synced) {
     const rail = document.getElementById('recentActScrollRail');
@@ -2813,20 +2819,57 @@ async function renderWeatherForecast() {
 
   const deg = state.units === 'imperial' ? '°F' : '°C';
 
-  // Score each day for cycling suitability
+  // Score each day for cycling suitability (harsher, mirrors weather page rideScore)
   function ridingScore(i) {
     const code   = codes[i];
     const wind   = winds?.[i] ?? 0;
     const precip = precips?.[i] ?? 0;
     const high   = highs[i];
-    const isRain  = [51,53,55,56,57,61,63,65,67,80,81,82,95,96,99].includes(code);
+    const isMetric = state.units !== 'imperial';
+
+    const isStorm = [95,96,99].includes(code);
     const isSnow  = [71,73,75,77,85,86].includes(code);
-    const isCold  = state.units === 'imperial' ? high < 40 : high < 4;
-    const isWindy = state.units === 'imperial' ? wind > 25 : wind > 40;
-    if (isSnow || isCold)           return 'poor';
-    if (isRain && precip > 60)      return 'poor';
-    if (isRain || isWindy || precip > 30) return 'fair';
-    return 'good';
+    const isRain  = [51,53,55,56,57,61,63,65,67,80,81,82].includes(code);
+    const isDriz  = [51,53,55].includes(code);
+    const isFog   = [45,48].includes(code);
+    const isCloudy= [2,3].includes(code);
+
+    const coldThresh = isMetric ? 4 : 40;
+    const windPoor   = isMetric ? 52 : 32;
+    const windHigh   = isMetric ? 32 : 20;
+
+    let score = 100;
+
+    // Weather condition
+    if (isStorm)               score -= 80;
+    else if (isSnow)           score -= 70;
+    else if (isRain && !isDriz) score -= 50 + Math.min(precip, 55) * 0.6;
+    else if (isDriz)           score -= 38;
+    else if (isFog)            score -= 35;
+    else if (isCloudy)         score -= 5;
+
+    // Precipitation probability
+    if (!isRain && !isDriz && !isSnow && !isStorm) {
+      if      (precip >= 60) score -= 35;
+      else if (precip >= 40) score -= 22;
+      else if (precip >= 25) score -= 14;
+      else if (precip >= 10) score -= 6;
+    }
+
+    // Temperature
+    if (high < coldThresh)                     score -= 40;
+    else if (high < (isMetric ? 8  : 46))      score -= 25;
+    else if (high < (isMetric ? 12 : 54))      score -= 10;
+    else if (high > (isMetric ? 35 : 95))      score -= 30;
+    else if (high > (isMetric ? 32 : 90))      score -= 12;
+
+    // Wind
+    if (wind > windPoor)      score -= 40;
+    else if (wind > windHigh) score -= 25;
+    else if (wind > (isMetric ? 20 : 12)) score -= 8;
+
+    score = Math.max(0, Math.min(100, Math.round(score)));
+    return score >= 85 ? 'good' : score >= 35 ? 'fair' : 'poor';
   }
 
   // Use city from athlete profile, or fall back to timezone from forecast response
@@ -3062,39 +3105,50 @@ async function renderWeatherPage(_restoreScrollY) {
     let score = 100;
 
     // ── Weather condition ─────────────────────────────────────────────────
-    if (isStorm)               { score -= 75; reasons.push('⛈ Thunderstorms expected'); }
-    else if (isSnow)           { score -= 65; reasons.push('❄️ Snow or sleet forecast'); }
-    else if (isRain && !isDriz){ score -= 45 + Math.min(precip, 55) * 0.5; reasons.push(`🌧 Rain (${Math.round(precip)}% chance)`); }
-    else if (isDriz)           { score -= 30; reasons.push(`🌦 Drizzle expected`); }
-    else if (isFog)            { score -= 25; reasons.push('🌫 Foggy — low visibility'); }
+    if (isStorm)               { score -= 80; reasons.push('⛈ Thunderstorms expected'); }
+    else if (isSnow)           { score -= 70; reasons.push('❄️ Snow or sleet forecast'); }
+    else if (isRain && !isDriz){ score -= 50 + Math.min(precip, 55) * 0.6; reasons.push(`🌧 Rain (${Math.round(precip)}% chance)`); }
+    else if (isDriz)           { score -= 38; reasons.push(`🌦 Drizzle expected — wet roads`); }
+    else if (isFog)            { score -= 35; reasons.push('🌫 Foggy — poor visibility, dangerous'); }
+    else if (isCloudy)         { score -= 5;  reasons.push('⛅ Overcast skies'); }
 
     // ── Precipitation probability (catches mismatches where code looks clear
     //    but rain chance is still significant) ─────────────────────────────
     if (!isRain && !isDriz && !isSnow && !isStorm) {
-      if      (precip >= 60) { score -= 30; reasons.push(`🌧 ${Math.round(precip)}% rain chance`); }
-      else if (precip >= 40) { score -= 18; reasons.push(`🌦 ${Math.round(precip)}% rain chance`); }
-      else if (precip >= 25) { score -= 8;  reasons.push(`🌂 ${Math.round(precip)}% rain chance`); }
+      if      (precip >= 60) { score -= 35; reasons.push(`🌧 ${Math.round(precip)}% rain chance`); }
+      else if (precip >= 40) { score -= 22; reasons.push(`🌦 ${Math.round(precip)}% rain chance`); }
+      else if (precip >= 25) { score -= 14; reasons.push(`🌂 ${Math.round(precip)}% rain chance`); }
+      else if (precip >= 10) { score -= 6;  reasons.push(`🌂 ${Math.round(precip)}% rain chance`); }
+    }
+
+    // ── Actual rainfall mm (wet roads even if code doesn't say "rain") ───
+    if (!isRain && !isDriz && rain > 0) {
+      if      (rain >= 5) { score -= 20; reasons.push(`💧 ${rain.toFixed(1)} mm rain expected`); }
+      else if (rain >= 1) { score -= 12; reasons.push(`💧 ${rain.toFixed(1)} mm rain expected — wet roads`); }
+      else if (rain > 0.3){ score -= 5;  reasons.push(`💧 Light rain (${rain.toFixed(1)} mm)`); }
     }
 
     // ── Temperature ───────────────────────────────────────────────────────
-    if (high < coldThresh)               { score -= 35; reasons.push(`🥶 Very cold (high ${Math.round(high)}${deg})`); }
-    else if (high < (isMetric ? 8 : 46)) { score -= 20; reasons.push(`🌡 Chilly (high ${Math.round(high)}${deg})`); }
-    else if (high > hotThresh)           { score -= 25; reasons.push(`🥵 Extreme heat (${Math.round(high)}${deg})`); }
+    if (high < coldThresh)               { score -= 40; reasons.push(`🥶 Very cold (high ${Math.round(high)}${deg})`); }
+    else if (high < (isMetric ? 8 : 46)) { score -= 25; reasons.push(`🌡 Chilly (high ${Math.round(high)}${deg})`); }
+    else if (high < (isMetric ? 12 : 54)){ score -= 10; reasons.push(`🌡 Cool (high ${Math.round(high)}${deg})`); }
+    else if (high > hotThresh)           { score -= 30; reasons.push(`🥵 Extreme heat (${Math.round(high)}${deg})`); }
+    else if (high > (isMetric ? 32 : 90)){ score -= 12; reasons.push(`🥵 Hot (${Math.round(high)}${deg})`); }
 
     // ── Wind ──────────────────────────────────────────────────────────────
-    if (wind > windPoor)       { score -= 35; reasons.push(`💨 Very strong winds (${Math.round(wind)} ${windLbl})`); }
-    else if (wind > windThresh){ score -= 20; reasons.push(`💨 Windy (${Math.round(wind)} ${windLbl})`); }
+    if (wind > windPoor)       { score -= 40; reasons.push(`💨 Very strong winds (${Math.round(wind)} ${windLbl})`); }
+    else if (wind > windThresh){ score -= 25; reasons.push(`💨 Windy (${Math.round(wind)} ${windLbl})`); }
+    else if (wind > (isMetric ? 20 : 12)){ score -= 8;  reasons.push(`💨 Breezy (${Math.round(wind)} ${windLbl})`); }
 
     // ── Positive indicators (only on genuinely good days) ─────────────────
-    if (score >= 80) {
+    if (score >= 85) {
       if (isClear)   reasons.unshift('☀️ Clear skies');
-      else if (isCloudy) reasons.unshift('⛅ Mostly cloudy but dry');
       if (uv >= 6)   reasons.push(`🕶 High UV (${uv}) — wear sunscreen`);
     }
 
     score = Math.max(0, Math.min(100, Math.round(score)));
     // Stricter thresholds — a great day should genuinely be great
-    const label = score >= 80 ? 'great' : score >= 55 ? 'good' : score >= 30 ? 'fair' : 'poor';
+    const label = score >= 85 ? 'great' : score >= 60 ? 'good' : score >= 35 ? 'fair' : 'poor';
     return { score, label, reasons };
   }
 
@@ -6726,8 +6780,8 @@ const HR_ZONE_HEX  = ['#60a5fa','#34d399','#86efac','#fbbf24','#f97316','#f87171
 
 function setZnpRange(days) {
   state.znpRangeDays = days;
-  document.querySelectorAll('#znpRangeTabs .znp-tab').forEach(b =>
-    b.classList.toggle('active', +b.dataset.days === days)
+  document.querySelectorAll('#zoneRangePill button').forEach(b =>
+    b.classList.toggle('active', +b.dataset.zdays === days)
   );
   renderZonesPage();
 }
@@ -7217,6 +7271,32 @@ function calGoToday() {
   state.calSelectedDate = toDateStr(now);
   renderCalendar();
 }
+
+// ── Swipe left/right on mobile to change months ──────────────────────────
+(function _initCalSwipe() {
+  let startX = 0, startY = 0, tracking = false;
+  const MIN_DX = 50, MAX_DY_RATIO = 0.6; // swipe must be mostly horizontal
+
+  document.addEventListener('touchstart', e => {
+    if (state.currentPage !== 'calendar') return;
+    const body = document.querySelector('.cal-body');
+    if (!body || !body.contains(e.target)) return;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    tracking = true;
+  }, { passive: true });
+
+  document.addEventListener('touchend', e => {
+    if (!tracking) return;
+    tracking = false;
+    const dx = e.changedTouches[0].clientX - startX;
+    const dy = e.changedTouches[0].clientY - startY;
+    if (Math.abs(dx) < MIN_DX) return;          // too short
+    if (Math.abs(dy) > Math.abs(dx) * MAX_DY_RATIO) return; // too vertical
+    if (dx < 0) calNextMonth();  // swipe left  → next month
+    else        calPrevMonth();  // swipe right → prev month
+  }, { passive: true });
+})();
 
 function toggleCalPanel() {
   const body = document.querySelector('.cal-body');

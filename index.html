@@ -1062,6 +1062,12 @@
                             1y
                         </button>
                     </div>
+                    <div class="date-range-pill" id="zoneRangePill" style="display:none">
+                        <button data-zdays="7" onclick="setZnpRange(7)">7d</button>
+                        <button class="active" data-zdays="30" onclick="setZnpRange(30)">30d</button>
+                        <button data-zdays="90" onclick="setZnpRange(90)">90d</button>
+                        <button data-zdays="365" onclick="setZnpRange(365)">1y</button>
+                    </div>
                     <!-- Prev/next arrows — shown on the RIGHT only when viewing a single activity -->
                     <div
                         class="detail-nav-arrows"
@@ -3152,31 +3158,6 @@
                 </div>
 
                 <div class="page" id="page-zones">
-                    <!-- ── Range tabs ── -->
-                    <div class="znp-range-tabs" id="znpRangeTabs">
-                        <button
-                            class="znp-tab active"
-                            data-days="30"
-                            onclick="setZnpRange(30)"
-                        >
-                            30 days
-                        </button>
-                        <button
-                            class="znp-tab"
-                            data-days="90"
-                            onclick="setZnpRange(90)"
-                        >
-                            90 days
-                        </button>
-                        <button
-                            class="znp-tab"
-                            data-days="365"
-                            onclick="setZnpRange(365)"
-                        >
-                            This year
-                        </button>
-                    </div>
-
                     <!-- ── KPI hero strip ── -->
                     <div class="znp-kpi-row" id="znpKpiRow"></div>
 
