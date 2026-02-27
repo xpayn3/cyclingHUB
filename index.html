@@ -178,7 +178,7 @@
         </div>
 
         <!-- ============================================================  GEAR MODAL  ============================================================ -->
-        <div class="modal-backdrop" id="gearModal" role="dialog" aria-modal="true" aria-labelledby="gearModalTitle">
+        <div class="modal-backdrop" id="gearModal" role="dialog" aria-modal="true" aria-labelledby="gearModalTitle" onclick="if(event.target===this)closeGearModal()">
             <div class="modal" style="max-width: 520px">
                 <div class="modal-header">
                     <div>
@@ -322,6 +322,81 @@
                         >
                             Cancel
                         </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Battery Modal -->
+        <div class="modal-backdrop" id="batteryModal" role="dialog" aria-modal="true" aria-labelledby="batteryModalTitle" onclick="if(event.target===this)closeBatteryModal()">
+            <div class="modal" style="max-width:520px">
+                <div class="modal-header">
+                    <div>
+                        <div class="modal-header-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22">
+                                <rect x="6" y="4" width="12" height="18" rx="2"/>
+                                <line x1="10" y1="1" x2="14" y2="1" stroke-width="3" stroke-linecap="round"/>
+                                <rect x="8" y="12" width="8" height="8" rx="1" fill="currentColor" opacity="0.3"/>
+                            </svg>
+                        </div>
+                        <div class="modal-title" id="batteryModalTitle">Add Battery</div>
+                        <div class="modal-desc">Track an electronic shifting battery or power pack.</div>
+                    </div>
+                    <button class="modal-close" onclick="closeBatteryModal()" aria-label="Close">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="batteryEditId">
+                    <div class="gear-form-grid">
+                        <div class="field">
+                            <label for="batteryFormBike">BIKE</label>
+                            <select id="batteryFormBike" class="app-select">
+                                <option value="">— Select bike —</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="batteryFormSystem">SYSTEM</label>
+                            <select id="batteryFormSystem" class="app-select" onchange="onBatterySystemChange()">
+                                <option value="">— Select system —</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="batteryFormComponent">COMPONENT</label>
+                            <select id="batteryFormComponent" class="app-select" onchange="onBatteryComponentChange()">
+                                <option value="">— Select component —</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="batteryFormName">DISPLAY NAME</label>
+                            <input type="text" id="batteryFormName" placeholder="e.g. Rear Derailleur Battery">
+                        </div>
+                        <div class="field">
+                            <label for="batteryFormChargeDate">LAST CHARGED / REPLACED</label>
+                            <input type="date" id="batteryFormChargeDate">
+                        </div>
+                        <div class="field">
+                            <label for="batteryFormInstallDate">INSTALL DATE</label>
+                            <input type="date" id="batteryFormInstallDate">
+                        </div>
+                        <div class="field" id="batteryRatedHoursField">
+                            <label for="batteryFormRatedHours">RATED LIFE (HOURS)</label>
+                            <input type="number" id="batteryFormRatedHours" placeholder="60" min="1" step="1">
+                            <div class="field-hint">Manufacturer-rated riding hours per charge</div>
+                        </div>
+                        <div class="field" id="batteryRatedKmField" style="display:none">
+                            <label for="batteryFormRatedKm">RATED LIFE (KM)</label>
+                            <input type="number" id="batteryFormRatedKm" placeholder="1000" min="1" step="100">
+                            <div class="field-hint">Manufacturer-rated km per charge</div>
+                        </div>
+                        <div class="field" style="grid-column:1/-1">
+                            <label for="batteryFormNotes">NOTES</label>
+                            <input type="text" id="batteryFormNotes" placeholder="Optional notes...">
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:10px;margin-top:8px">
+                        <button class="btn btn-primary" style="flex:1" onclick="submitBatteryForm()">Save Battery</button>
+                        <button class="btn btn-ghost" onclick="closeBatteryModal()">Cancel</button>
                     </div>
                 </div>
             </div>
@@ -919,181 +994,128 @@
                         ></div>
                     </div>
 
-                    <div data-dash-section="weeklyStats">
-                        <div class="stat-grid-label">
-                            This week <span id="statGridWeekRange"></span>
-                        </div>
-                        <div class="stat-grid">
-                            <div class="stat-card">
-                                <div class="stat-card-header">
-                                    <div class="stat-label">Training Load</div>
-                                    <div class="stat-icon green">
-                                        <svg
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            stroke-width="2"
-                                        >
-                                            <polygon
-                                                points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"
-                                            />
-                                        </svg>
-                                    </div>
-                                </div>
-                                <div class="stat-value" id="statTSS">
-                                    —<span class="unit"> tss</span>
-                                </div>
-                                <div
-                                    class="stat-delta neutral"
-                                    id="statTSSDelta"
-                                >
-                                    Sync to load
-                                </div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-card-header">
-                                    <div class="stat-label">Distance</div>
-                                    <div class="stat-icon blue">
-                                        <svg
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            stroke-width="2"
-                                        >
-                                            <path
-                                                d="M3 12h18M3 6l9-3 9 3M3 18l9 3 9-3"
-                                            />
-                                        </svg>
-                                    </div>
-                                </div>
-                                <div class="stat-value" id="statDist">
-                                    —<span class="unit"> km</span>
-                                </div>
-                                <div
-                                    class="stat-delta neutral"
-                                    id="statDistDelta"
-                                >
-                                    Sync to load
-                                </div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-card-header">
-                                    <div class="stat-label">Ride Time</div>
-                                    <div class="stat-icon orange">
-                                        <svg
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            stroke-width="2"
-                                        >
-                                            <circle cx="12" cy="12" r="10" />
-                                            <polyline
-                                                points="12 6 12 12 16 14"
-                                            />
-                                        </svg>
-                                    </div>
-                                </div>
-                                <div class="stat-value" id="statTime">
-                                    —<span class="unit"> h</span>
-                                </div>
-                                <div
-                                    class="stat-delta neutral"
-                                    id="statTimeDelta"
-                                >
-                                    Sync to load
-                                </div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-card-header">
-                                    <div class="stat-label">Elevation</div>
-                                    <div class="stat-icon purple">
-                                        <svg
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            stroke-width="2"
-                                        >
-                                            <polyline
-                                                points="22 12 18 12 15 21 9 3 6 12 2 12"
-                                            />
-                                        </svg>
-                                    </div>
-                                </div>
-                                <div class="stat-value" id="statElev">
-                                    —<span class="unit"> m</span>
-                                </div>
-                                <div
-                                    class="stat-delta neutral"
-                                    id="statElevDelta"
-                                >
-                                    Sync to load
-                                </div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-card-header">
-                                    <div class="stat-label">Rides</div>
-                                    <div class="stat-icon green">
-                                        <svg
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            stroke-width="2"
-                                        >
-                                            <polyline
-                                                points="22 12 18 12 15 21 9 3 6 12 2 12"
-                                            />
-                                        </svg>
-                                    </div>
-                                </div>
-                                <div class="stat-value" id="statCount">—</div>
-                                <div
-                                    class="stat-delta neutral"
-                                    id="statCountDelta"
-                                >
-                                    Sync to load
-                                </div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-card-header">
-                                    <div class="stat-label">Avg Power</div>
-                                    <div class="stat-icon orange">
-                                        <svg
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            stroke-width="2"
-                                        >
-                                            <polygon
-                                                points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"
-                                            />
-                                        </svg>
-                                    </div>
-                                </div>
-                                <div class="stat-value" id="statPower">
-                                    —<span class="unit"> w</span>
-                                </div>
-                                <div
-                                    class="stat-delta neutral"
-                                    id="statPowerDelta"
-                                >
-                                    Sync to load
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Riding weather forecast (filled by renderWeatherForecast) -->
-                        <div data-dash-section="weather">
-                            <div
-                                class="card"
-                                id="forecastCard"
-                                style="display: none; margin-top: 16px"
-                            ></div>
-                        </div>
-                    </div>
-
                     <!-- ── Week Progress + Training Status (side by side) ── -->
                     <div data-dash-section="weekProgress">
                         <div class="card-row">
+                            <!-- Training Status card -->
+                            <div
+                                class="card trs-hero-card"
+                                id="trainingStatusCard"
+                            >
+                                <!-- Hero header -->
+                                <div class="trs-hero-header">
+                                    <div class="trs-hero-titles">
+                                        <div class="trs-hero-title">
+                                            Training Status
+                                        </div>
+                                        <div class="trs-hero-sub">
+                                            Your readiness at a glance
+                                        </div>
+                                    </div>
+                                    <div
+                                        id="trsFormStatus"
+                                        class="trs-form-status"
+                                    >
+                                        —
+                                    </div>
+                                </div>
+
+                                <!-- Gauge section -->
+                                <div class="trs-gauge-section">
+                                    <div class="trs-gauge-glow-wrap">
+                                        <div class="trs-gauge-container">
+                                            <svg
+                                                id="rampGaugeSVG"
+                                                viewBox="0 0 200 116"
+                                                class="trs-gauge-svg"
+                                            ></svg>
+                                            <div class="trs-gauge-overlay">
+                                                <div
+                                                    class="trs-gauge-num"
+                                                    id="rampNum"
+                                                >
+                                                    —
+                                                </div>
+                                                <div class="trs-gauge-unit">
+                                                    CTL / wk
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="trs-ramp-meta">
+                                        <div id="rampBadge" class="trs-badge">
+                                            —
+                                        </div>
+                                        <div
+                                            class="trs-form-hint"
+                                            id="trsFormHint"
+                                        >
+                                            —
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- CTL / ATL / TSB tiles -->
+                                <div class="trs-metrics-row">
+                                    <div class="trs-metric-tile">
+                                        <div
+                                            class="trs-metric-val"
+                                            id="trsCTLNum"
+                                        >
+                                            —
+                                        </div>
+                                        <div class="trs-metric-name">CTL</div>
+                                        <div class="trs-metric-desc">
+                                            Fitness
+                                        </div>
+                                    </div>
+                                    <div class="trs-metrics-sep"></div>
+                                    <div class="trs-metric-tile">
+                                        <div
+                                            class="trs-metric-val"
+                                            id="trsATLNum"
+                                        >
+                                            —
+                                        </div>
+                                        <div class="trs-metric-name">ATL</div>
+                                        <div class="trs-metric-desc">
+                                            Fatigue
+                                        </div>
+                                    </div>
+                                    <div class="trs-metrics-sep"></div>
+                                    <div class="trs-metric-tile">
+                                        <div
+                                            class="trs-metric-val trs-metric-val--form"
+                                            id="trsFormNum"
+                                        >
+                                            —
+                                        </div>
+                                        <div class="trs-metric-name">TSB</div>
+                                        <div class="trs-metric-desc">Form</div>
+                                    </div>
+                                </div>
+
+                                <!-- Aerobic Efficiency sparkline -->
+                                <div class="trs-ef-wrap">
+                                    <div class="trs-ef-header">
+                                        <div class="trs-metric-label">
+                                            Aerobic Efficiency · NP ÷ HR
+                                        </div>
+                                        <div class="trs-ef-nums">
+                                            <span id="trsEFCurrent">—</span>
+                                            <span id="trsEFDelta">—</span>
+                                        </div>
+                                    </div>
+                                    <div class="trs-ef-chart-area">
+                                        <canvas id="trsEFChart"></canvas>
+                                    </div>
+                                    <div class="trs-ef-footer">
+                                        Last 10 qualifying rides with power + HR
+                                        · higher = more efficient
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="card" id="weekProgressCard">
                                 <div class="card-header">
                                     <div>
@@ -1239,128 +1261,102 @@
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-
-                            <!-- Training Status card -->
-                            <div
-                                class="card trs-hero-card"
-                                id="trainingStatusCard"
-                            >
-                                <!-- Hero header -->
-                                <div class="trs-hero-header">
-                                    <div class="trs-hero-titles">
-                                        <div class="trs-hero-title">
-                                            Training Status
-                                        </div>
-                                        <div class="trs-hero-sub">
-                                            Your readiness at a glance
-                                        </div>
-                                    </div>
-                                    <div
-                                        id="trsFormStatus"
-                                        class="trs-form-status"
-                                    >
-                                        —
-                                    </div>
-                                </div>
-
-                                <!-- Gauge section -->
-                                <div class="trs-gauge-section">
-                                    <div class="trs-gauge-glow-wrap">
-                                        <div class="trs-gauge-container">
-                                            <svg
-                                                id="rampGaugeSVG"
-                                                viewBox="0 0 200 116"
-                                                class="trs-gauge-svg"
-                                            ></svg>
-                                            <div class="trs-gauge-overlay">
-                                                <div
-                                                    class="trs-gauge-num"
-                                                    id="rampNum"
-                                                >
-                                                    —
-                                                </div>
-                                                <div class="trs-gauge-unit">
-                                                    CTL / wk
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="trs-ramp-meta">
-                                        <div id="rampBadge" class="trs-badge">
-                                            —
-                                        </div>
-                                        <div
-                                            class="trs-form-hint"
-                                            id="trsFormHint"
-                                        >
-                                            —
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- CTL / ATL / TSB tiles -->
-                                <div class="trs-metrics-row">
-                                    <div class="trs-metric-tile">
-                                        <div
-                                            class="trs-metric-val"
-                                            id="trsCTLNum"
-                                        >
-                                            —
-                                        </div>
-                                        <div class="trs-metric-name">CTL</div>
-                                        <div class="trs-metric-desc">
-                                            Fitness
-                                        </div>
-                                    </div>
-                                    <div class="trs-metrics-sep"></div>
-                                    <div class="trs-metric-tile">
-                                        <div
-                                            class="trs-metric-val"
-                                            id="trsATLNum"
-                                        >
-                                            —
-                                        </div>
-                                        <div class="trs-metric-name">ATL</div>
-                                        <div class="trs-metric-desc">
-                                            Fatigue
-                                        </div>
-                                    </div>
-                                    <div class="trs-metrics-sep"></div>
-                                    <div class="trs-metric-tile">
-                                        <div
-                                            class="trs-metric-val trs-metric-val--form"
-                                            id="trsFormNum"
-                                        >
-                                            —
-                                        </div>
-                                        <div class="trs-metric-name">TSB</div>
-                                        <div class="trs-metric-desc">Form</div>
-                                    </div>
-                                </div>
-
-                                <!-- Aerobic Efficiency sparkline -->
-                                <div class="trs-ef-wrap">
-                                    <div class="trs-ef-header">
-                                        <div class="trs-metric-label">
-                                            Aerobic Efficiency · NP ÷ HR
-                                        </div>
-                                        <div class="trs-ef-nums">
-                                            <span id="trsEFCurrent">—</span>
-                                            <span id="trsEFDelta">—</span>
-                                        </div>
-                                    </div>
-                                    <div class="trs-ef-chart-area">
-                                        <canvas id="trsEFChart"></canvas>
-                                    </div>
-                                    <div class="trs-ef-footer">
-                                        Last 10 qualifying rides with power + HR
-                                        · higher = more efficient
-                                    </div>
+                                <div
+                                    class="wkp-badge wkp-mobile-badge"
+                                    id="wpTrendBadgeMobile"
+                                >
+                                    —
                                 </div>
                             </div>
+
                         </div>
                         <!-- /card-row week+status -->
+                    </div>
+
+                    <div data-dash-section="weeklyStats">
+                        <div class="stat-grid-label">
+                            This week <span id="statGridWeekRange"></span>
+                        </div>
+                        <div class="stat-grid">
+                            <div class="stat-card">
+                                <div class="stat-card-header">
+                                    <div class="stat-label">Training Load</div>
+                                    <div class="stat-icon green">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div class="stat-value" id="statTSS">—<span class="unit"> tss</span></div>
+                                <div class="stat-delta neutral" id="statTSSDelta">Sync to load</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-card-header">
+                                    <div class="stat-label">Distance</div>
+                                    <div class="stat-icon blue">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M3 12h18M3 6l9-3 9 3M3 18l9 3 9-3"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div class="stat-value" id="statDist">—<span class="unit"> km</span></div>
+                                <div class="stat-delta neutral" id="statDistDelta">Sync to load</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-card-header">
+                                    <div class="stat-label">Ride Time</div>
+                                    <div class="stat-icon orange">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <circle cx="12" cy="12" r="10"/>
+                                            <polyline points="12 6 12 12 16 14"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div class="stat-value" id="statTime">—<span class="unit"> h</span></div>
+                                <div class="stat-delta neutral" id="statTimeDelta">Sync to load</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-card-header">
+                                    <div class="stat-label">Elevation</div>
+                                    <div class="stat-icon purple">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div class="stat-value" id="statElev">—<span class="unit"> m</span></div>
+                                <div class="stat-delta neutral" id="statElevDelta">Sync to load</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-card-header">
+                                    <div class="stat-label">Rides</div>
+                                    <div class="stat-icon green">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div class="stat-value" id="statCount">—</div>
+                                <div class="stat-delta neutral" id="statCountDelta">Sync to load</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-card-header">
+                                    <div class="stat-label">Avg Power</div>
+                                    <div class="stat-icon orange">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div class="stat-value" id="statPower">—<span class="unit"> w</span></div>
+                                <div class="stat-delta neutral" id="statPowerDelta">Sync to load</div>
+                            </div>
+                        </div>
+
+                        <!-- Riding weather forecast (filled by renderWeatherForecast) -->
+                        <div data-dash-section="weather">
+                            <div class="card" id="forecastCard" style="display: none; margin-top: 16px"></div>
+                        </div>
                     </div>
 
                     <!-- Training Load chart -->
@@ -3358,6 +3354,29 @@
                     </div>
                     <div id="gearComponentsGrid" class="gear-components-grid">
                         <!-- populated by JS -->
+                    </div>
+
+                    <!-- Batteries -->
+                    <div class="gear-section-header" style="margin-top:28px">
+                        <div>
+                            <div class="gear-section-title" id="gearBatteriesTitle">Batteries</div>
+                            <div class="gear-section-sub" id="gearBatteriesSub">Track electronic shifting battery levels</div>
+                        </div>
+                        <div style="display:flex;gap:8px;align-items:center">
+                            <label class="battery-toggle-obsolete" id="batteryObsoleteToggle" style="display:none">
+                                <input type="checkbox" id="batteryShowObsolete" onchange="renderGearBatteries()">
+                                <span>Show retired</span>
+                            </label>
+                            <button class="btn btn-primary btn-sm" onclick="openBatteryModal()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14">
+                                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                                </svg>
+                                Add Battery
+                            </button>
+                        </div>
+                    </div>
+                    <div id="gearBatteriesGrid" class="battery-grid">
+                        <!-- populated by renderGearBatteries() -->
                     </div>
                 </div>
 

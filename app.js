@@ -1362,6 +1362,12 @@ function navigate(page) {
   _navAbort?.abort();
   _navAbort = new AbortController();
 
+  // Reset scroll position
+  window.scrollTo(0, 0);
+
+  // Close any open modals when navigating away
+  document.querySelectorAll('.modal-backdrop.open').forEach(m => m.classList.remove('open'));
+
   // Clean up charts from the page we're leaving to free memory
   if (state.currentPage) cleanupPageCharts(state.currentPage);
 
@@ -2048,8 +2054,9 @@ function buildRecentActCardHTML(a, idx) {
     sFmt && { val: sFmt.val, unit: sFmt.unit, lbl: 'Avg Speed' },
   ].filter(Boolean);
 
+  const tssClass = tss >= 250 ? 'ra-tss--extreme' : tss >= 150 ? 'ra-tss--hard' : tss >= 100 ? 'ra-tss--moderate' : tss >= 50 ? 'ra-tss--easy' : '';
   const tssBadge = tss > 0
-    ? `<span class="ra-tss-badge">${Math.round(tss)} TSS</span>`
+    ? `<span class="ra-tss-badge ${tssClass}">${Math.round(tss)} TSS</span>`
     : '';
 
   const wxChip = a.weather_temp != null
@@ -4195,9 +4202,11 @@ function renderWeekProgress(metric) {
   ctlEl.style.color = ctlDiff > 0.5 ? 'var(--accent)' : ctlDiff < -0.5 ? 'var(--red)' : 'var(--text-secondary)';
 
   const badgeEl = document.getElementById('wpTrendBadge');
+  const badgeMob = document.getElementById('wpTrendBadgeMobile');
   if      (ctlDiff > 1.5)  { badgeEl.textContent = '▲ Building';   badgeEl.className = 'wkp-badge wkp-badge--up'; }
   else if (ctlDiff < -1.5) { badgeEl.textContent = '▼ Declining';  badgeEl.className = 'wkp-badge wkp-badge--down'; }
   else                     { badgeEl.textContent = '→ Maintaining'; badgeEl.className = 'wkp-badge wkp-badge--flat'; }
+  if (badgeMob) { badgeMob.textContent = badgeEl.textContent; badgeMob.className = 'wkp-badge wkp-mobile-badge ' + badgeEl.className.split(' ').pop(); }
 
   // Chart
   const ctx = document.getElementById('weekProgressChart');
@@ -11564,6 +11573,7 @@ async function renderGearPage() {
   }
 
   renderGearComponents();
+  renderGearBatteries();
 }
 
 function gearSelectBike(id) {
@@ -11574,6 +11584,7 @@ function gearSelectBike(id) {
     el.classList.toggle('gear-bike-card--active', elId === _gearSelectedBike);
   });
   renderGearComponents();
+  renderGearBatteries();
 }
 
 function renderGearComponents() {
@@ -11745,6 +11756,422 @@ function deleteGearComponent(id) {
   const all = loadGearComponents().filter(c => c.id !== id);
   saveGearComponents(all);
   renderGearComponents();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GEAR — BATTERY TRACKING
+// ─────────────────────────────────────────────────────────────────────────────
+
+const BATTERY_STORE_KEY = 'icu_gear_batteries';
+const BATTERY_SYSTEMS = {
+  sram_axs: {
+    label: 'SRAM AXS',
+    components: {
+      rear_derailleur:       { label: 'Rear Derailleur',        ratedHours: 60,   ratedKm: null, type: 'rechargeable', chargeTime: 60  },
+      front_derailleur:      { label: 'Front Derailleur',       ratedHours: 60,   ratedKm: null, type: 'rechargeable', chargeTime: 60  },
+      rear_derailleur_eagle: { label: 'Rear Derailleur (Eagle)',ratedHours: 20,   ratedKm: null, type: 'rechargeable', chargeTime: 60  },
+      dropper_post:          { label: 'Reverb AXS Dropper',    ratedHours: 40,   ratedKm: null, type: 'rechargeable', chargeTime: 60  },
+      shifter_left:          { label: 'Left Shifter (CR2032)',  ratedHours: null, ratedKm: null, type: 'coin_cell',    lifeYears: 2   },
+      shifter_right:         { label: 'Right Shifter (CR2032)', ratedHours: null, ratedKm: null, type: 'coin_cell',    lifeYears: 2   },
+    }
+  },
+  shimano_di2: {
+    label: 'Shimano Di2',
+    components: {
+      internal_battery: { label: 'Internal Battery (DN110/DN300)', ratedHours: null, ratedKm: 1000, type: 'rechargeable', chargeTime: 90 },
+      shifter_left:     { label: 'Left Shifter (CR1632)',          ratedHours: null, ratedKm: null, type: 'coin_cell',    lifeYears: 2  },
+      shifter_right:    { label: 'Right Shifter (CR1632)',         ratedHours: null, ratedKm: null, type: 'coin_cell',    lifeYears: 2  },
+    }
+  },
+  campagnolo_eps: {
+    label: 'Campagnolo EPS',
+    components: {
+      power_pack: { label: 'EPS Power Pack', ratedHours: null, ratedKm: 2000, type: 'rechargeable', chargeTime: 120 },
+    }
+  },
+  other: {
+    label: 'Other / Custom',
+    components: {
+      custom: { label: 'Custom Battery', ratedHours: 40, ratedKm: null, type: 'rechargeable', chargeTime: 60 },
+    }
+  }
+};
+
+function loadGearBatteries() {
+  try { return JSON.parse(localStorage.getItem(BATTERY_STORE_KEY)) || []; }
+  catch { return []; }
+}
+function saveGearBatteries(arr) {
+  try { localStorage.setItem(BATTERY_STORE_KEY, JSON.stringify(arr)); } catch (e) { console.warn('localStorage.setItem failed:', e); }
+}
+
+/* ── Charge calculation ── */
+
+function calcBatteryPercent(bat) {
+  if (bat.batteryType === 'coin_cell') return calcCoinCellPercent(bat);
+
+  const sinceDate = new Date(bat.lastChargeDate);
+  if (isNaN(sinceDate.getTime())) return null;
+
+  // Gather all activities: cached + lifetime
+  const allActs = [...(state.activities || []), ...(state.lifetimeActivities || [])];
+  // Deduplicate by id
+  const seen = new Set();
+  const acts = allActs.filter(a => {
+    if (!a || !a.id || seen.has(a.id)) return false;
+    seen.add(a.id);
+    const aDate = new Date(a.start_date_local || a.start_date);
+    if (isNaN(aDate.getTime()) || aDate <= sinceDate) return false;
+    // Filter by bike if set
+    if (bat.bikeId && a.gear_id && a.gear_id !== bat.bikeId) return false;
+    // Only cycling activities
+    const t = (a.type || '').toLowerCase();
+    if (!t.includes('ride') && !t.includes('cycling') && !t.includes('ebikeride')) return false;
+    return true;
+  });
+
+  if (bat.ratedLifeHours) {
+    let totalH = 0;
+    acts.forEach(a => {
+      const s = a.moving_time || a.elapsed_time || a.icu_moving_time || 0;
+      totalH += s / 3600;
+    });
+    const usedPct = Math.min(100, Math.round((totalH / bat.ratedLifeHours) * 100));
+    return { percent: Math.max(0, 100 - usedPct), usedHours: totalH, ratedHours: bat.ratedLifeHours, count: acts.length };
+  }
+
+  if (bat.ratedLifeKm) {
+    let totalKm = 0;
+    acts.forEach(a => {
+      const d = a.distance || a.icu_distance || 0;
+      totalKm += d > 1000 ? d / 1000 : d; // handle both m and km
+    });
+    const usedPct = Math.min(100, Math.round((totalKm / bat.ratedLifeKm) * 100));
+    return { percent: Math.max(0, 100 - usedPct), usedKm: totalKm, ratedKm: bat.ratedLifeKm, count: acts.length };
+  }
+
+  return null;
+}
+
+function calcCoinCellPercent(bat) {
+  const spec = BATTERY_SYSTEMS[bat.system]?.components[bat.componentType];
+  const lifeYears = spec?.lifeYears || 2;
+  const lifeDays = lifeYears * 365;
+  const since = new Date(bat.lastChargeDate || bat.installDate);
+  if (isNaN(since.getTime())) return null;
+  const elapsed = (Date.now() - since.getTime()) / (1000 * 60 * 60 * 24);
+  const usedPct = Math.min(100, Math.round((elapsed / lifeDays) * 100));
+  return { percent: Math.max(0, 100 - usedPct), elapsedDays: Math.round(elapsed), lifeDays, isCoinCell: true };
+}
+
+function batteryColor(pct) {
+  if (pct > 50)  return 'var(--accent)';
+  if (pct > 25)  return '#f0c429';
+  if (pct > 10)  return '#ff6b35';
+  return 'var(--red)';
+}
+function batteryColorClass(pct) {
+  if (pct > 50)  return 'battery--green';
+  if (pct > 25)  return 'battery--yellow';
+  if (pct > 10)  return 'battery--orange';
+  return 'battery--red';
+}
+
+/* ── Rendering ── */
+
+function renderGearBatteries() {
+  const grid = document.getElementById('gearBatteriesGrid');
+  if (!grid) return;
+
+  const all = loadGearBatteries();
+  const showObsolete = document.getElementById('batteryShowObsolete')?.checked;
+  const toggleEl = document.getElementById('batteryObsoleteToggle');
+
+  // Show toggle only if there are obsolete batteries
+  if (toggleEl) toggleEl.style.display = all.some(b => b.obsolete) ? '' : 'none';
+
+  let filtered = showObsolete ? all : all.filter(b => !b.obsolete);
+
+  // Filter by selected bike
+  if (_gearSelectedBike) {
+    filtered = filtered.filter(b => b.bikeId === _gearSelectedBike);
+  }
+
+  if (!filtered.length) {
+    grid.innerHTML = `<div class="battery-empty-state">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="36" height="36" style="opacity:.4">
+        <rect x="6" y="4" width="12" height="18" rx="2"/><line x1="10" y1="1" x2="14" y2="1" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <span>No batteries tracked yet</span>
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = filtered.map(b => batteryCard(b)).join('');
+}
+
+function batteryCard(bat) {
+  const calc = calcBatteryPercent(bat);
+  const pct = calc ? calc.percent : 100;
+  const color = batteryColor(pct);
+  const colorCls = batteryColorClass(pct);
+  const isObsolete = bat.obsolete;
+
+  // Usage stats text
+  let statsText = '';
+  if (calc) {
+    if (calc.isCoinCell) {
+      const monthsLeft = Math.max(0, Math.round((calc.lifeDays - calc.elapsedDays) / 30));
+      statsText = `${calc.elapsedDays} days old · ~${monthsLeft} months remaining`;
+    } else if (calc.usedHours !== undefined) {
+      statsText = `${calc.usedHours.toFixed(1)}h used / ${calc.ratedHours}h rated`;
+    } else if (calc.usedKm !== undefined) {
+      statsText = `${Math.round(calc.usedKm)} km used / ${calc.ratedKm} km rated`;
+    }
+  }
+
+  // Last charged text
+  let chargeText = '';
+  if (bat.lastChargeDate) {
+    const d = new Date(bat.lastChargeDate);
+    const days = Math.round((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
+    const dateStr = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    chargeText = bat.batteryType === 'coin_cell'
+      ? `Replaced: ${dateStr} (${days}d ago)`
+      : `Last charged: ${dateStr} (${days}d ago)`;
+  }
+
+  // System label
+  const sysLabel = BATTERY_SYSTEMS[bat.system]?.label || bat.system || '';
+
+  // Bike name
+  const bike = _gearBikeCache.find(b => b.id === bat.bikeId);
+  const bikeName = bike ? bike.name : '';
+
+  // Fill height — min 8% so the shape is always visible
+  const fillH = Math.max(8, pct);
+  const pctInFill = pct >= 15;
+
+  return `<div class="battery-card ${colorCls}${isObsolete ? ' battery-card--obsolete' : ''}" data-id="${bat.id}">
+    <div class="battery-shape">
+      <div class="battery-terminal"></div>
+      <div class="battery-body">
+        <div class="battery-fill${pctInFill ? '' : ' battery-fill--low'}" style="height:${fillH}%;background:${color}">
+          ${pctInFill ? `<span class="battery-pct">${pct}%</span>` : ''}
+        </div>
+      </div>
+      ${!pctInFill ? `<span class="battery-pct-outside">${pct}%</span>` : ''}
+    </div>
+    <div class="battery-info">
+      <div class="battery-comp-top">
+        <div class="battery-name">${bat.name || 'Battery'}</div>
+        <div class="gear-comp-actions">
+          ${!isObsolete ? `<button class="gear-icon-btn gear-icon-btn--charge" title="${bat.batteryType === 'coin_cell' ? 'Mark replaced' : 'Mark charged'}" onclick="chargeBattery('${bat.id}')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13" height="13"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          </button>` : ''}
+          <button class="gear-icon-btn" title="Edit" onclick="openBatteryModal('${bat.id}')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+          </button>
+          ${isObsolete
+            ? `<button class="gear-icon-btn" title="Reactivate" onclick="reactivateBattery('${bat.id}')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+              </button>
+              <button class="gear-icon-btn gear-icon-btn--del" title="Delete permanently" onclick="deleteBatteryPermanent('${bat.id}')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>`
+            : `<button class="gear-icon-btn gear-icon-btn--del" title="Retire" onclick="retireBattery('${bat.id}')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg>
+              </button>`
+          }
+        </div>
+      </div>
+      <div class="battery-meta">
+        ${sysLabel ? `<span class="battery-system-badge">${sysLabel}</span>` : ''}
+        ${bikeName ? `<span class="gear-comp-dot">&middot;</span><span>${bikeName}</span>` : ''}
+        ${isObsolete ? `<span class="gear-comp-dot">&middot;</span><span class="battery-retired-badge">Retired</span>` : ''}
+      </div>
+      ${statsText ? `<div class="battery-stats">${statsText}</div>` : ''}
+      ${chargeText ? `<div class="battery-charge-info">${chargeText}</div>` : ''}
+    </div>
+  </div>`;
+}
+
+/* ── Battery Modal ── */
+
+function openBatteryModal(editId) {
+  const modal = document.getElementById('batteryModal');
+  const titleEl = document.getElementById('batteryModalTitle');
+  document.getElementById('batteryEditId').value = editId || '';
+
+  // Populate system dropdown
+  const sysSel = document.getElementById('batteryFormSystem');
+  sysSel.innerHTML = '<option value="">— Select system —</option>' +
+    Object.entries(BATTERY_SYSTEMS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
+
+  // Populate bike dropdown from cache
+  const bikeSel = document.getElementById('batteryFormBike');
+  bikeSel.innerHTML = '<option value="">— Select bike —</option>' +
+    _gearBikeCache.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+
+  // Reset component dropdown
+  document.getElementById('batteryFormComponent').innerHTML = '<option value="">— Select component —</option>';
+
+  if (editId) {
+    titleEl.textContent = 'Edit Battery';
+    const bat = loadGearBatteries().find(b => b.id === editId);
+    if (bat) {
+      bikeSel.value = bat.bikeId || '';
+      sysSel.value = bat.system || '';
+      onBatterySystemChange(); // populate components
+      document.getElementById('batteryFormComponent').value = bat.componentType || '';
+      document.getElementById('batteryFormName').value = bat.name || '';
+      document.getElementById('batteryFormChargeDate').value = bat.lastChargeDate || '';
+      document.getElementById('batteryFormInstallDate').value = bat.installDate || '';
+      document.getElementById('batteryFormRatedHours').value = bat.ratedLifeHours || '';
+      document.getElementById('batteryFormRatedKm').value = bat.ratedLifeKm || '';
+      document.getElementById('batteryFormNotes').value = bat.notes || '';
+      // Show correct rated field
+      const spec = BATTERY_SYSTEMS[bat.system]?.components[bat.componentType];
+      const useKm = spec ? (spec.ratedKm && !spec.ratedHours) : !!bat.ratedLifeKm;
+      document.getElementById('batteryRatedHoursField').style.display = useKm ? 'none' : '';
+      document.getElementById('batteryRatedKmField').style.display = useKm ? '' : 'none';
+    }
+  } else {
+    titleEl.textContent = 'Add Battery';
+    document.getElementById('batteryFormName').value = '';
+    document.getElementById('batteryFormChargeDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('batteryFormInstallDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('batteryFormRatedHours').value = '';
+    document.getElementById('batteryFormRatedKm').value = '';
+    document.getElementById('batteryFormNotes').value = '';
+    document.getElementById('batteryRatedHoursField').style.display = '';
+    document.getElementById('batteryRatedKmField').style.display = 'none';
+    // Pre-select bike if filtered
+    if (_gearSelectedBike) bikeSel.value = _gearSelectedBike;
+  }
+
+  modal.classList.add('open');
+}
+
+function closeBatteryModal() {
+  document.getElementById('batteryModal').classList.remove('open');
+}
+
+function onBatterySystemChange() {
+  const sysKey = document.getElementById('batteryFormSystem').value;
+  const compSel = document.getElementById('batteryFormComponent');
+  const sys = BATTERY_SYSTEMS[sysKey];
+
+  if (!sys) {
+    compSel.innerHTML = '<option value="">— Select component —</option>';
+    return;
+  }
+
+  compSel.innerHTML = '<option value="">— Select component —</option>' +
+    Object.entries(sys.components).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
+}
+
+function onBatteryComponentChange() {
+  const sysKey = document.getElementById('batteryFormSystem').value;
+  const compKey = document.getElementById('batteryFormComponent').value;
+  const spec = BATTERY_SYSTEMS[sysKey]?.components[compKey];
+  if (!spec) return;
+
+  // Auto-fill name
+  const nameEl = document.getElementById('batteryFormName');
+  if (!nameEl.value) nameEl.value = spec.label;
+
+  // Show correct rated life field and auto-fill
+  const useKm = spec.ratedKm && !spec.ratedHours;
+  document.getElementById('batteryRatedHoursField').style.display = useKm ? 'none' : '';
+  document.getElementById('batteryRatedKmField').style.display = useKm ? '' : 'none';
+
+  if (spec.ratedHours) document.getElementById('batteryFormRatedHours').value = spec.ratedHours;
+  if (spec.ratedKm) document.getElementById('batteryFormRatedKm').value = spec.ratedKm;
+}
+
+function submitBatteryForm() {
+  const name = document.getElementById('batteryFormName').value.trim();
+  const system = document.getElementById('batteryFormSystem').value;
+  if (!name) { showToast('Please enter a display name', 'error'); return; }
+  if (!system) { showToast('Please select a system', 'error'); return; }
+
+  const editId = document.getElementById('batteryEditId').value;
+  const spec = BATTERY_SYSTEMS[system]?.components[document.getElementById('batteryFormComponent').value];
+
+  const bat = {
+    id:             editId || ('bat_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7)),
+    bikeId:         document.getElementById('batteryFormBike').value,
+    system:         system,
+    componentType:  document.getElementById('batteryFormComponent').value,
+    name:           name,
+    lastChargeDate: document.getElementById('batteryFormChargeDate').value,
+    installDate:    document.getElementById('batteryFormInstallDate').value,
+    ratedLifeHours: parseFloat(document.getElementById('batteryFormRatedHours').value) || null,
+    ratedLifeKm:    parseFloat(document.getElementById('batteryFormRatedKm').value) || null,
+    batteryType:    spec?.type || 'rechargeable',
+    notes:          document.getElementById('batteryFormNotes').value.trim(),
+    obsolete:       false,
+    obsoleteDate:   null,
+  };
+
+  const all = loadGearBatteries();
+  const idx = all.findIndex(b => b.id === editId);
+  if (idx >= 0) {
+    bat.obsolete = all[idx].obsolete;
+    bat.obsoleteDate = all[idx].obsoleteDate;
+    all[idx] = bat;
+  } else {
+    all.push(bat);
+  }
+
+  saveGearBatteries(all);
+  closeBatteryModal();
+  renderGearBatteries();
+  showToast(editId ? 'Battery updated' : 'Battery added', 'success');
+}
+
+/* ── Battery actions ── */
+
+function chargeBattery(id) {
+  const all = loadGearBatteries();
+  const bat = all.find(b => b.id === id);
+  if (!bat) return;
+  bat.lastChargeDate = new Date().toISOString().split('T')[0];
+  saveGearBatteries(all);
+  renderGearBatteries();
+  showToast(bat.batteryType === 'coin_cell' ? 'Battery marked as replaced' : 'Battery marked as charged', 'success');
+}
+
+function retireBattery(id) {
+  if (!confirm('Retire this battery? It will be hidden but kept in history.')) return;
+  const all = loadGearBatteries();
+  const bat = all.find(b => b.id === id);
+  if (!bat) return;
+  bat.obsolete = true;
+  bat.obsoleteDate = new Date().toISOString().split('T')[0];
+  saveGearBatteries(all);
+  renderGearBatteries();
+  showToast('Battery retired', 'info');
+}
+
+function reactivateBattery(id) {
+  const all = loadGearBatteries();
+  const bat = all.find(b => b.id === id);
+  if (!bat) return;
+  bat.obsolete = false;
+  bat.obsoleteDate = null;
+  saveGearBatteries(all);
+  renderGearBatteries();
+  showToast('Battery reactivated', 'success');
+}
+
+function deleteBatteryPermanent(id) {
+  if (!confirm('Permanently delete this battery? This cannot be undone.')) return;
+  const all = loadGearBatteries().filter(b => b.id !== id);
+  saveGearBatteries(all);
+  renderGearBatteries();
+  showToast('Battery deleted', 'info');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
