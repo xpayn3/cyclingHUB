@@ -16288,6 +16288,12 @@ function toggleSmoothFlyover(on) {
     attachGlow(el);
   }
 
+  // Skip everything on touch devices — no hover effects needed
+  if (isTouchDevice) {
+    window.refreshGlow = function() {};
+    return;
+  }
+
   // Attach to all current glow cards
   document.querySelectorAll(GLOW_SEL).forEach(attachGlowAndPress);
 
@@ -16305,7 +16311,10 @@ function toggleSmoothFlyover(on) {
    BADGE TILT — 3D medal tilt for earned achievement badges
 ==================================================== */
 (function initBadgeTilt() {
-  if (window.matchMedia('(pointer: coarse)').matches) return; // touch — skip
+  if (window.matchMedia('(pointer: coarse)').matches) {
+    window.refreshBadgeTilt = function() {};
+    return;
+  }
 
   const MAX_TILT = 8; // degrees
 
