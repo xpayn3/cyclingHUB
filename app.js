@@ -18898,6 +18898,10 @@ const _rb = {
   _poiCache: '',
   _poiDebounce: null,
   _poiCategories: { water: true, bike: true, cafe: true, toilets: true, fuel: true, shelter: true, viewpoint: true },
+  _poiAlongRoute: false,
+  _surfaceMode: false,
+  _surfaceLayer: null,
+  _timeLabel: null,
 };
 
 /* ── IndexedDB ── */
@@ -18956,6 +18960,12 @@ function renderRouteBuilderPage() {
                 </button>
                 <button class="btn btn-ghost btn-icon btn-sm" onclick="rbOutAndBack()" title="Out & Back">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+                </button>
+                <button class="btn btn-ghost btn-icon btn-sm" onclick="rbLoopBack()" title="Loop back to start">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><polyline points="22 2 22 12 12 12"/></svg>
+                </button>
+                <button class="btn btn-ghost btn-icon btn-sm" id="rbSurfaceToggleBtn" onclick="_rbToggleSurfaceMode()" title="Surface colors">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h20"/><path d="M5 20v-6l4-4 3 3 5-5 4 4v8"/></svg>
                 </button>
                 <button class="btn btn-ghost btn-icon btn-sm rb-tool-btn--danger" onclick="rbClear()" title="Clear route">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -19153,6 +19163,7 @@ function _rbCycleMapLayer() {
   showToast(layer.label + ' map', 'info');
 
   if (_rb.routePolyline) _rb.routePolyline.bringToFront();
+  if (_rb._surfaceLayer) _rb._surfaceLayer.eachLayer(l => l.bringToFront());
 }
 
 /* ── Points of Interest (Overpass API) ── */
@@ -19168,6 +19179,39 @@ const _rbPoiTypes = {
 
 let _rbPoiFetching = false;
 let _rbPoiDirty = false;
+let _rbPoiRetries = 0;
+const _rbPoiMaxRetries = 3;
+
+/* ── POI Tile Cache ── */
+const _rbPoiTileSize = 0.05; // ~5km grid cells
+const _rbPoiTileCache = new Map(); // key: "lat,lng" → { ts, nodes: [] }
+const _rbPoiTileTTL = 10 * 60 * 1000; // 10 minutes
+
+function _rbPoiTileKey(lat, lng) {
+  return `${(Math.floor(lat / _rbPoiTileSize) * _rbPoiTileSize).toFixed(3)},${(Math.floor(lng / _rbPoiTileSize) * _rbPoiTileSize).toFixed(3)}`;
+}
+
+function _rbPoiTilesForBounds(bounds) {
+  const s = Math.floor(bounds.getSouth() / _rbPoiTileSize) * _rbPoiTileSize;
+  const w = Math.floor(bounds.getWest() / _rbPoiTileSize) * _rbPoiTileSize;
+  const n = bounds.getNorth();
+  const e = bounds.getEast();
+  const tiles = [];
+  for (let lat = s; lat <= n; lat += _rbPoiTileSize) {
+    for (let lng = w; lng <= e; lng += _rbPoiTileSize) {
+      tiles.push({ lat: lat.toFixed(3), lng: lng.toFixed(3) });
+    }
+  }
+  return tiles;
+}
+
+function _rbPoiCatKey() {
+  return Object.entries(_rb._poiCategories).filter(([,v]) => v).map(([k]) => k).sort().join(',');
+}
+
+function _rbPoiClearTileCache() {
+  _rbPoiTileCache.clear();
+}
 
 function _rbTogglePoi() {
   if (!_rb.map) return;
@@ -19189,12 +19233,15 @@ function _rbTogglePoi() {
   } else {
     // Enable
     _rb._poiEnabled = true;
+    _rbPoiRetries = 0;
     _rb._poiLayer = L.layerGroup().addTo(_rb.map);
     if (btn) btn.classList.add('rb-poi-active');
     if (filter) filter.style.display = '';
+    if (_rb.routeSegments.length > 0) _rb._poiAlongRoute = true;
     _rbRenderPoiFilter();
-    // Delay moveend listener so the initial fetch doesn't get disrupted
-    setTimeout(() => { if (_rb._poiEnabled) _rb.map.on('moveend', _rbOnPoiMoveEnd); }, 2000);
+    if (!_rb._poiAlongRoute) {
+      setTimeout(() => { if (_rb._poiEnabled) _rb.map.on('moveend', _rbOnPoiMoveEnd); }, 2000);
+    }
     _rbFetchPois();
   }
 }
@@ -19205,6 +19252,8 @@ function _rbOnPoiMoveEnd() {
 }
 
 function _rbBuildPoiQuery(bounds) {
+  if (_rb._poiAlongRoute && _rb.routeSegments.length > 0) return _rbBuildPoiQueryAround();
+  if (!bounds) return null;
   const s = bounds.getSouth().toFixed(4), w = bounds.getWest().toFixed(4);
   const n = bounds.getNorth().toFixed(4), e = bounds.getEast().toFixed(4);
   const bbox = `${s},${w},${n},${e}`;
@@ -19216,9 +19265,61 @@ function _rbBuildPoiQuery(bounds) {
   return `[out:json][timeout:15];(${tags};);out body 300;`;
 }
 
+function _rbBuildPoiQueryAround() {
+  const sampled = _rbSampleRoutePoints(80);
+  if (sampled.length === 0) return null;
+  const coordStr = sampled.map(p => `${p[0].toFixed(4)},${p[1].toFixed(4)}`).join(',');
+  const tags = Object.entries(_rbPoiTypes)
+    .filter(([k]) => _rb._poiCategories[k])
+    .map(([, v]) => v.tag + `(around:500,${coordStr})`)
+    .join(';');
+  if (!tags) return null;
+  return `[out:json][timeout:25];(${tags};);out body 300;`;
+}
+
+function _rbSampleRoutePoints(maxPts) {
+  const all = [];
+  for (const seg of _rb.routeSegments) all.push(...seg.points);
+  if (all.length <= maxPts) return all;
+  let totalDist = 0;
+  for (let i = 1; i < all.length; i++) totalDist += _rbHaversine(all[i - 1], all[i]);
+  const interval = totalDist / (maxPts - 1);
+  const sampled = [all[0]];
+  let cum = 0, next = interval;
+  for (let i = 1; i < all.length; i++) {
+    cum += _rbHaversine(all[i - 1], all[i]);
+    if (cum >= next) { sampled.push(all[i]); next += interval; }
+  }
+  const last = all[all.length - 1];
+  if (sampled[sampled.length - 1] !== last) sampled.push(last);
+  return sampled;
+}
+
+function _rbRouteHash() {
+  if (_rb.routeSegments.length === 0) return '';
+  const f = _rb.routeSegments[0].points[0];
+  const ls = _rb.routeSegments[_rb.routeSegments.length - 1];
+  const l = ls.points[ls.points.length - 1];
+  return `${_rb.routeSegments.length}:${f[0].toFixed(3)},${f[1].toFixed(3)}:${l[0].toFixed(3)},${l[1].toFixed(3)}`;
+}
+
 async function _rbFetchPois() {
   if (!_rb.map || !_rb._poiEnabled) return;
 
+  // Along-route mode: single query, no tile caching
+  if (_rb._poiAlongRoute) {
+    if (_rb.routeSegments.length === 0) { if (_rb._poiLayer) _rb._poiLayer.clearLayers(); return; }
+    const catKey = _rbPoiCatKey();
+    const cacheKey = 'route:' + _rbRouteHash() + ':' + catKey;
+    if (cacheKey === _rb._poiCache) return;
+    if (_rbPoiFetching) { _rbPoiDirty = true; return; }
+    const query = _rbBuildPoiQueryAround();
+    if (!query) { if (_rb._poiLayer) _rb._poiLayer.clearLayers(); return; }
+    await _rbDoPoiFetch(query, cacheKey);
+    return;
+  }
+
+  // Map-area mode: tile-based caching
   if (_rb.map.getZoom() < 12) {
     if (_rb._poiLayer) _rb._poiLayer.clearLayers();
     _rb._poiCache = '';
@@ -19226,25 +19327,41 @@ async function _rbFetchPois() {
     return;
   }
 
-  // If a fetch is already running, mark dirty so it retries when done
-  if (_rbPoiFetching) {
-    _rbPoiDirty = true;
-    return;
-  }
-
   const bounds = _rb.map.getBounds();
-  const cacheKey = bounds.toBBoxString();
-  if (cacheKey === _rb._poiCache) return;
+  const tiles = _rbPoiTilesForBounds(bounds);
+  const catKey = _rbPoiCatKey();
+  const now = Date.now();
 
-  const query = _rbBuildPoiQuery(bounds);
-  if (!query) { if (_rb._poiLayer) _rb._poiLayer.clearLayers(); return; }
+  // Find tiles that need fetching (not cached or expired)
+  const missing = tiles.filter(t => {
+    const key = `${t.lat},${t.lng}:${catKey}`;
+    const cached = _rbPoiTileCache.get(key);
+    return !cached || (now - cached.ts > _rbPoiTileTTL);
+  });
+
+  // Render from cache first (instant)
+  _rbRenderPoiFromCache(bounds, catKey);
+
+  if (missing.length === 0) return;
+  if (_rbPoiFetching) { _rbPoiDirty = true; return; }
+
+  // Fetch missing tiles (batch into one query with combined bbox)
+  const mS = Math.min(...missing.map(t => t.lat));
+  const mW = Math.min(...missing.map(t => t.lng));
+  const mN = Math.max(...missing.map(t => t.lat)) + _rbPoiTileSize;
+  const mE = Math.max(...missing.map(t => t.lng)) + _rbPoiTileSize;
+  const bbox = `${mS.toFixed(4)},${mW.toFixed(4)},${mN.toFixed(4)},${mE.toFixed(4)}`;
+  const tags = Object.entries(_rbPoiTypes)
+    .filter(([k]) => _rb._poiCategories[k])
+    .map(([, v]) => v.tag + `(${bbox})`)
+    .join(';');
+  if (!tags) return;
+  const query = `[out:json][timeout:15];(${tags};);out body 500;`;
 
   _rbPoiFetching = true;
   _rbPoiDirty = false;
   const btn = document.getElementById('rbPoiBtn');
   if (btn) btn.classList.add('rb-poi-loading');
-
-  // Abort any lingering previous request
   if (_rb._poiAbort) _rb._poiAbort.abort();
   _rb._poiAbort = new AbortController();
 
@@ -19257,45 +19374,109 @@ async function _rbFetchPois() {
     });
     if (!res.ok) throw new Error('Overpass ' + res.status);
     const data = await res.json();
-
     if (!_rb._poiEnabled || !_rb._poiLayer) return;
 
+    // Distribute nodes into tile buckets
+    const tileBuckets = new Map();
+    for (const t of missing) tileBuckets.set(`${t.lat},${t.lng}:${catKey}`, []);
+    for (const el of (data.elements || [])) {
+      if (el.type !== 'node' || !el.lat || !el.lon) continue;
+      const cat = _rbClassifyPoi(el.tags);
+      if (!cat) continue;
+      const tk = _rbPoiTileKey(el.lat, el.lon) + ':' + catKey;
+      if (tileBuckets.has(tk)) tileBuckets.get(tk).push({ lat: el.lat, lon: el.lon, cat, name: el.tags.name || null });
+    }
+    // Store in cache
+    for (const [key, nodes] of tileBuckets) _rbPoiTileCache.set(key, { ts: now, nodes });
+
+    // Re-render with fresh cache
+    _rbRenderPoiFromCache(_rb.map.getBounds(), catKey);
+    _rbPoiRetries = 0;
+  } catch (e) {
+    if (e.name === 'AbortError') return;
+    console.warn('POI fetch error:', e);
+    if (_rbPoiRetries < _rbPoiMaxRetries) { _rbPoiRetries++; _rbPoiDirty = true; }
+  } finally {
+    _rbPoiFetching = false;
+    if (btn) btn.classList.remove('rb-poi-loading');
+    if (_rbPoiDirty && _rb._poiEnabled) {
+      _rbPoiDirty = false;
+      setTimeout(_rbFetchPois, 1000 * _rbPoiRetries);
+    }
+  }
+}
+
+function _rbRenderPoiFromCache(bounds, catKey) {
+  if (!_rb._poiLayer) return;
+  _rb._poiLayer.clearLayers();
+  const tiles = _rbPoiTilesForBounds(bounds);
+  const seen = new Set();
+  for (const t of tiles) {
+    const cached = _rbPoiTileCache.get(`${t.lat},${t.lng}:${catKey}`);
+    if (!cached) continue;
+    for (const n of cached.nodes) {
+      if (!_rb._poiCategories[n.cat]) continue;
+      const id = `${n.lat},${n.lon}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const cfg = _rbPoiTypes[n.cat];
+      const name = n.name || cfg.label;
+      const marker = L.circleMarker([n.lat, n.lon], {
+        radius: 7, fillColor: cfg.color, color: '#fff', weight: 1.5, fillOpacity: 0.9, className: 'rb-poi-dot',
+      }).addTo(_rb._poiLayer);
+      marker.bindPopup(
+        `<div class="rb-poi-popup"><strong>${_escHtml(name)}</strong><br><span class="rb-poi-popup-cat" style="color:${cfg.color}">${cfg.icon} ${cfg.label}</span></div>`,
+        { className: 'rb-poi-popup-wrap', closeButton: false, offset: [0, -4] }
+      );
+    }
+  }
+}
+
+async function _rbDoPoiFetch(query, cacheKey) {
+  if (_rbPoiFetching) { _rbPoiDirty = true; return; }
+  _rbPoiFetching = true;
+  _rbPoiDirty = false;
+  const btn = document.getElementById('rbPoiBtn');
+  if (btn) btn.classList.add('rb-poi-loading');
+  if (_rb._poiAbort) _rb._poiAbort.abort();
+  _rb._poiAbort = new AbortController();
+  try {
+    const res = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      body: 'data=' + encodeURIComponent(query),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      signal: _rb._poiAbort.signal,
+    });
+    if (!res.ok) throw new Error('Overpass ' + res.status);
+    const data = await res.json();
+    if (!_rb._poiEnabled || !_rb._poiLayer) return;
     _rb._poiLayer.clearLayers();
     _rb._poiCache = cacheKey;
-
     for (const el of (data.elements || [])) {
       if (el.type !== 'node' || !el.lat || !el.lon) continue;
       const cat = _rbClassifyPoi(el.tags);
       if (!cat || !_rb._poiCategories[cat]) continue;
       const cfg = _rbPoiTypes[cat];
       const name = el.tags.name || cfg.label;
-
       const marker = L.circleMarker([el.lat, el.lon], {
-        radius: 7,
-        fillColor: cfg.color,
-        color: '#fff',
-        weight: 1.5,
-        fillOpacity: 0.9,
-        className: 'rb-poi-dot',
+        radius: 7, fillColor: cfg.color, color: '#fff', weight: 1.5, fillOpacity: 0.9, className: 'rb-poi-dot',
       }).addTo(_rb._poiLayer);
-
       marker.bindPopup(
         `<div class="rb-poi-popup"><strong>${_escHtml(name)}</strong><br><span class="rb-poi-popup-cat" style="color:${cfg.color}">${cfg.icon} ${cfg.label}</span></div>`,
         { className: 'rb-poi-popup-wrap', closeButton: false, offset: [0, -4] }
       );
     }
+    _rbPoiRetries = 0;
   } catch (e) {
     if (e.name === 'AbortError') return;
     console.warn('POI fetch error:', e);
-    // Retry once after 2s on network error
-    _rbPoiDirty = true;
+    if (_rbPoiRetries < _rbPoiMaxRetries) { _rbPoiRetries++; _rbPoiDirty = true; }
   } finally {
     _rbPoiFetching = false;
     if (btn) btn.classList.remove('rb-poi-loading');
-    // If map moved while fetching, auto-retry
     if (_rbPoiDirty && _rb._poiEnabled) {
       _rbPoiDirty = false;
-      setTimeout(_rbFetchPois, 500);
+      setTimeout(_rbFetchPois, 1000 * _rbPoiRetries);
     }
   }
 }
@@ -19317,10 +19498,30 @@ function _escHtml(s) { const d = document.createElement('div'); d.textContent = 
 function _rbRenderPoiFilter() {
   const el = document.getElementById('rbPoiFilter');
   if (!el) return;
-  el.innerHTML = Object.entries(_rbPoiTypes).map(([key, cfg]) =>
+  const hasRoute = _rb.routeSegments.length > 0;
+  const modeHtml = hasRoute ? `<div class="rb-poi-mode-toggle">` +
+    `<button class="rb-poi-mode-btn${!_rb._poiAlongRoute ? ' active' : ''}" onclick="_rbSetPoiMode(false)">Map</button>` +
+    `<button class="rb-poi-mode-btn${_rb._poiAlongRoute ? ' active' : ''}" onclick="_rbSetPoiMode(true)">Route</button>` +
+    `</div>` : '';
+  const chips = Object.entries(_rbPoiTypes).map(([key, cfg]) =>
     `<button class="rb-poi-chip${_rb._poiCategories[key] ? ' active' : ''}" data-cat="${key}" onclick="_rbTogglePoiCat('${key}', this)">` +
     `<span class="rb-poi-chip-dot" style="background:${cfg.color}"></span>${cfg.label}</button>`
   ).join('');
+  el.innerHTML = modeHtml + chips;
+}
+
+function _rbSetPoiMode(alongRoute) {
+  if (_rb._poiAlongRoute === alongRoute) return;
+  _rb._poiAlongRoute = alongRoute;
+  _rb._poiCache = '';
+  if (_rb._poiLayer) _rb._poiLayer.clearLayers();
+  _rbRenderPoiFilter();
+  if (alongRoute) {
+    _rb.map.off('moveend', _rbOnPoiMoveEnd);
+  } else {
+    _rb.map.on('moveend', _rbOnPoiMoveEnd);
+  }
+  _rbFetchPois();
 }
 
 function _rbTogglePoiCat(key, btn) {
@@ -19331,7 +19532,10 @@ function _rbTogglePoiCat(key, btn) {
 
 function _rbRefreshPois() {
   _rb._poiCache = '';
-  if (_rb._poiLayer) _rb._poiLayer.clearLayers();
+  if (!_rb._poiAlongRoute && _rb.map) {
+    // Re-render from tile cache with updated category filters (instant, no fetch)
+    _rbRenderPoiFromCache(_rb.map.getBounds(), _rbPoiCatKey());
+  }
   _rbFetchPois();
 }
 
@@ -19445,15 +19649,24 @@ async function _rbOnWaypointDrag(idx) {
 /* ── Route Drawing ── */
 function _rbRedrawRoute() {
   if (_rb.routePolyline) { _rb.map.removeLayer(_rb.routePolyline); _rb.routePolyline = null; }
+  if (_rb._surfaceLayer) { _rb.map.removeLayer(_rb._surfaceLayer); _rb._surfaceLayer = null; }
   const allPoints = [];
   for (const seg of _rb.routeSegments) allPoints.push(...seg.points);
   if (allPoints.length === 0) return;
 
-  _rb.routePolyline = L.polyline(allPoints, {
-    color: '#00e5a0',
-    weight: 4,
-    opacity: 0.9,
-  }).addTo(_rb.map);
+  if (_rb._surfaceMode) {
+    const groups = _rbGroupBySurface();
+    _rb._surfaceLayer = L.layerGroup().addTo(_rb.map);
+    for (const g of groups) L.polyline(g.points, { color: g.color, weight: 4, opacity: 0.9 }).addTo(_rb._surfaceLayer);
+    _rb.routePolyline = L.polyline(allPoints, { opacity: 0, weight: 0 }).addTo(_rb.map);
+  } else {
+    _rb.routePolyline = L.polyline(allPoints, { color: '#00e5a0', weight: 4, opacity: 0.9 }).addTo(_rb.map);
+  }
+
+  if (_rb._poiEnabled && _rb._poiAlongRoute) {
+    clearTimeout(_rb._poiDebounce);
+    _rb._poiDebounce = setTimeout(_rbFetchPois, 800);
+  }
 }
 
 /* ── Haversine ── */
@@ -19463,6 +19676,28 @@ function _rbHaversine(p1, p2) {
   const dLon = (p2[1] - p1[1]) * Math.PI / 180;
   const a = Math.sin(dLat / 2) ** 2 + Math.cos(p1[0] * Math.PI / 180) * Math.cos(p2[0] * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/* ── Route Midpoint by Distance ── */
+function _rbRouteMidpoint() {
+  const allPoints = [];
+  for (const seg of _rb.routeSegments) allPoints.push(...seg.points);
+  if (allPoints.length < 2) return null;
+  let totalDist = 0;
+  for (let i = 1; i < allPoints.length; i++) totalDist += _rbHaversine(allPoints[i - 1], allPoints[i]);
+  if (totalDist === 0) return null;
+  const half = totalDist / 2;
+  let cum = 0;
+  for (let i = 1; i < allPoints.length; i++) {
+    const d = _rbHaversine(allPoints[i - 1], allPoints[i]);
+    if (cum + d >= half) {
+      const r = (half - cum) / d;
+      return [allPoints[i - 1][0] + (allPoints[i][0] - allPoints[i - 1][0]) * r,
+              allPoints[i - 1][1] + (allPoints[i][1] - allPoints[i - 1][1]) * r];
+    }
+    cum += d;
+  }
+  return allPoints[allPoints.length - 1];
 }
 
 /* ── Elevation ── */
@@ -20129,6 +20364,21 @@ function _rbUpdateStats() {
   if (el('rbStatGrade'))   el('rbStatGrade').textContent = gradeCount ? (totalGrade / gradeCount).toFixed(1) : '0.0';
   if (el('rbStatSurface')) el('rbStatSurface').textContent = _rbDetectSurfaces() || '\u2014';
   if (el('rbWpCount'))     el('rbWpCount').textContent = `${_rb.waypoints.length} points`;
+  _rbUpdateTimeLabel(estTimeSec);
+}
+
+function _rbUpdateTimeLabel(estTimeSec) {
+  if (_rb._timeLabel) { _rb.map.removeLayer(_rb._timeLabel); _rb._timeLabel = null; }
+  if (_rb.routeSegments.length === 0 || estTimeSec <= 0) return;
+  const mid = _rbRouteMidpoint();
+  if (!mid) return;
+  const icon = L.divIcon({
+    className: 'rb-time-label-icon',
+    html: `<div class="rb-time-label"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span>${_rbFormatTime(estTimeSec)}</span></div>`,
+    iconSize: [0, 0],
+    iconAnchor: [0, 16],
+  });
+  _rb._timeLabel = L.marker(mid, { icon, interactive: false, zIndexOffset: 1000 }).addTo(_rb.map);
 }
 
 function _rbFormatTime(secs) {
@@ -20138,17 +20388,80 @@ function _rbFormatTime(secs) {
 }
 
 function _rbDetectSurfaces() {
-  let paved = 0, unpaved = 0;
+  let paved = 0, mixed = 0, offroad = 0;
   for (const seg of _rb.routeSegments) {
     if (!seg.annotations?.speed) continue;
     for (const speed of seg.annotations.speed) {
-      if (speed < 5) unpaved++; else paved++;
+      if (speed >= 5) paved++;
+      else if (speed >= 2.5) mixed++;
+      else offroad++;
     }
   }
-  const total = paved + unpaved;
+  const total = paved + mixed + offroad;
   if (total === 0) return null;
-  if (unpaved / total > 0.3) return `~${Math.round((1 - unpaved / total) * 100)}% paved`;
-  return 'Paved';
+  if (mixed === 0 && offroad === 0) return 'Paved';
+  if (paved === 0 && mixed === 0) return 'Off-road';
+  return `${Math.round(paved / total * 100)}/${Math.round(mixed / total * 100)}/${Math.round(offroad / total * 100)}%`;
+}
+
+/* ── Surface Coloring ── */
+const _rbSurfaceColors = { paved: '#00e5a0', mixed: '#ffb74d', offroad: '#c4813d' };
+
+function _rbClassifySpeed(speed) {
+  if (speed >= 5) return 'paved';
+  if (speed >= 2.5) return 'mixed';
+  return 'offroad';
+}
+
+function _rbGroupBySurface() {
+  const groups = [];
+  for (const seg of _rb.routeSegments) {
+    if (!seg.annotations?.speed || seg.annotations.speed.length === 0) {
+      groups.push({ points: [...seg.points], type: 'paved', color: _rbSurfaceColors.paved });
+      continue;
+    }
+    const speeds = seg.annotations.speed;
+    let curType = _rbClassifySpeed(speeds[0]);
+    let curPts = [seg.points[0]];
+    for (let i = 0; i < speeds.length; i++) {
+      const t = _rbClassifySpeed(speeds[i]);
+      if (t !== curType) {
+        curPts.push(seg.points[i]);
+        groups.push({ points: curPts, type: curType, color: _rbSurfaceColors[curType] });
+        curType = t;
+        curPts = [seg.points[i]];
+      }
+      curPts.push(seg.points[i + 1]);
+    }
+    if (curPts.length >= 2) groups.push({ points: curPts, type: curType, color: _rbSurfaceColors[curType] });
+  }
+  return groups;
+}
+
+function _rbToggleSurfaceMode() {
+  _rb._surfaceMode = !_rb._surfaceMode;
+  _rbRedrawRoute();
+  _rbUpdateSurfaceLegend();
+  const btn = document.getElementById('rbSurfaceToggleBtn');
+  if (btn) btn.classList.toggle('active', _rb._surfaceMode);
+  showToast(_rb._surfaceMode ? 'Surface view on' : 'Surface view off', 'info');
+}
+
+function _rbUpdateSurfaceLegend() {
+  let legend = document.getElementById('rbSurfaceLegend');
+  if (!_rb._surfaceMode) { if (legend) legend.style.display = 'none'; return; }
+  if (!legend) {
+    legend = document.createElement('div');
+    legend.id = 'rbSurfaceLegend';
+    legend.className = 'rb-surface-legend';
+    const mc = document.querySelector('.rb-map-container');
+    if (mc) mc.appendChild(legend);
+  }
+  legend.style.display = '';
+  legend.innerHTML =
+    '<div class="rb-surface-legend-item"><span class="rb-surface-legend-dot" style="background:#00e5a0"></span>Paved</div>' +
+    '<div class="rb-surface-legend-item"><span class="rb-surface-legend-dot" style="background:#ffb74d"></span>Mixed</div>' +
+    '<div class="rb-surface-legend-item"><span class="rb-surface-legend-dot" style="background:#c4813d"></span>Off-road</div>';
 }
 
 /* ── Reverse ── */
@@ -20203,6 +20516,29 @@ async function rbOutAndBack() {
   _rbUpdateStats();
   _rbUpdateWaypointList();
   showToast('Out-and-back route created', 'success');
+}
+
+async function rbLoopBack() {
+  if (_rb.waypoints.length < 2) { showToast('Add at least 2 waypoints first', 'error'); return; }
+  const first = _rb.waypoints[0];
+  const last = _rb.waypoints[_rb.waypoints.length - 1];
+  if (Math.abs(first.lat - last.lat) < 0.0001 && Math.abs(first.lng - last.lng) < 0.0001) {
+    showToast('Route is already a loop', 'info');
+    return;
+  }
+  const route = await _rbFetchRoute(last, first);
+  if (!route) return;
+  const marker = L.marker([first.lat, first.lng], { draggable: true, icon: _rbWaypointIcon(_rb.waypoints.length) }).addTo(_rb.map);
+  const idx = _rb.waypoints.length;
+  marker.on('dragend', () => _rbOnWaypointDrag(idx));
+  _rb.waypoints.push({ lat: first.lat, lng: first.lng, marker });
+  _rb.routeSegments.push({ points: _rbDecodePolyline6(route.geometry), distance: route.distance, duration: route.duration, annotations: route.legs[0]?.annotation });
+  _rbRedrawRoute();
+  _rbFetchElevation();
+  _rbPushHistory();
+  _rbUpdateStats();
+  _rbUpdateWaypointList();
+  showToast('Loop back to start created', 'success');
 }
 
 /* ── Saved Routes ── */
@@ -20273,7 +20609,7 @@ async function rbSave() {
     elevationData: _rb.elevationData,
     distance: totalDist,
     elevGain, elevLoss,
-    segments: _rb.routeSegments.map(s => ({ points: s.points, distance: s.distance, duration: s.duration })),
+    segments: _rb.routeSegments.map(s => ({ points: s.points, distance: s.distance, duration: s.duration, annotations: s.annotations || null })),
   };
 
   try {
@@ -20302,7 +20638,7 @@ async function rbLoadRoute(id) {
   });
 
   _rb.routeSegments = (route.segments || []).map(s => ({
-    points: s.points, distance: s.distance, duration: s.duration || 0, annotations: null,
+    points: s.points, distance: s.distance, duration: s.duration || 0, annotations: s.annotations || null,
   }));
   _rb.elevationData = route.elevationData || [];
 
@@ -20339,7 +20675,16 @@ function rbClear() {
   _rb.elevationData = [];
   _rb.activeRouteId = null;
   if (_rb.routePolyline) { _rb.map.removeLayer(_rb.routePolyline); _rb.routePolyline = null; }
+  if (_rb._surfaceLayer) { _rb.map.removeLayer(_rb._surfaceLayer); _rb._surfaceLayer = null; }
   if (_rb.elevMarker) { _rb.map.removeLayer(_rb.elevMarker); _rb.elevMarker = null; }
+  if (_rb._timeLabel) { _rb.map.removeLayer(_rb._timeLabel); _rb._timeLabel = null; }
+  _rb._surfaceMode = false;
+  _rb._poiAlongRoute = false;
+  const sfBtn = document.getElementById('rbSurfaceToggleBtn');
+  if (sfBtn) sfBtn.classList.remove('active');
+  const sfLeg = document.getElementById('rbSurfaceLegend');
+  if (sfLeg) sfLeg.style.display = 'none';
+  if (_rb._poiEnabled) _rbRenderPoiFilter();
   _rb.history = [];
   _rb.historyIdx = -1;
   _rb.elevChart = destroyChart(_rb.elevChart);
