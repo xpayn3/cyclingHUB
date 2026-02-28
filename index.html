@@ -35,7 +35,6 @@
         <script defer src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
         <script defer src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
         <script defer src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-        <script defer src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
         <script defer src="https://unpkg.com/maplibre-gl@5.1.0/dist/maplibre-gl.js"></script>
         <!-- FIT parser loaded on-demand in app.js (not needed at startup) -->
         <script src="app.js" defer></script>
@@ -4056,7 +4055,7 @@
                                     <div>
                                         <div class="stt-section-title">Map</div>
                                         <div class="stt-section-sub">
-                                            Activity route style
+                                            Map style
                                         </div>
                                     </div>
                                 </div>
@@ -4066,8 +4065,8 @@
                                 >
                                     <button
                                         class="map-theme-option"
-                                        data-theme="voyager"
-                                        onclick="setMapTheme('voyager')"
+                                        data-theme="liberty"
+                                        onclick="setMapTheme('liberty')"
                                     >
                                         <span
                                             class="map-theme-swatch"
@@ -4081,13 +4080,13 @@
                                             "
                                         ></span>
                                         <span class="map-theme-label"
-                                            >Voyager</span
+                                            >Liberty</span
                                         >
                                     </button>
                                     <button
                                         class="map-theme-option"
-                                        data-theme="light"
-                                        onclick="setMapTheme('light')"
+                                        data-theme="positron"
+                                        onclick="setMapTheme('positron')"
                                     >
                                         <span
                                             class="map-theme-swatch"
@@ -4101,7 +4100,7 @@
                                             "
                                         ></span>
                                         <span class="map-theme-label"
-                                            >Light</span
+                                            >Positron</span
                                         >
                                     </button>
                                     <button
@@ -4124,46 +4123,6 @@
                                             >Dark</span
                                         >
                                     </button>
-                                    <button
-                                        class="map-theme-option"
-                                        data-theme="topo"
-                                        onclick="setMapTheme('topo')"
-                                    >
-                                        <span
-                                            class="map-theme-swatch"
-                                            style="
-                                                background: linear-gradient(
-                                                    135deg,
-                                                    #d4e8b8 0%,
-                                                    #c8d8a0 50%,
-                                                    #a8c870 100%
-                                                );
-                                            "
-                                        ></span>
-                                        <span class="map-theme-label"
-                                            >Topo</span
-                                        >
-                                    </button>
-                                    <button
-                                        class="map-theme-option"
-                                        data-theme="outdoors"
-                                        onclick="setMapTheme('outdoors')"
-                                    >
-                                        <span
-                                            class="map-theme-swatch"
-                                            style="
-                                                background: linear-gradient(
-                                                    135deg,
-                                                    #e8f0e4 0%,
-                                                    #d8e8d4 50%,
-                                                    #b8d4b8 100%
-                                                );
-                                            "
-                                        ></span>
-                                        <span class="map-theme-label"
-                                            >Streets</span
-                                        >
-                                    </button>
                                 </div>
                                 <div class="stt-rows" style="margin-top: 8px">
                                     <div class="stt-row stt-row--toggle">
@@ -4182,6 +4141,31 @@
                                                 id="smoothFlyoverToggle"
                                                 onchange="
                                                     toggleSmoothFlyover(
+                                                        this.checked,
+                                                    )
+                                                "
+                                            />
+                                            <span
+                                                class="settings-ios-slider"
+                                            ></span>
+                                        </label>
+                                    </div>
+                                    <div class="stt-row stt-row--toggle">
+                                        <div class="stt-row-info">
+                                            <div class="stt-row-label">
+                                                3D terrain
+                                            </div>
+                                            <div class="stt-row-sub">
+                                                Show elevation when tilting the
+                                                camera
+                                            </div>
+                                        </div>
+                                        <label class="settings-ios-toggle">
+                                            <input
+                                                type="checkbox"
+                                                id="terrain3dToggle"
+                                                onchange="
+                                                    toggleTerrain3d(
                                                         this.checked,
                                                     )
                                                 "
