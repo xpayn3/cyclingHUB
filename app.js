@@ -12848,19 +12848,68 @@ function streamChartConfig(labels, data, color, fill, unit) {
 /* ====================================================
    SETUP LINK (cross-device credential sharing)
 ==================================================== */
+function _collectTransferableSettings() {
+  const keys = [
+    'icu_units', 'icu_theme', 'icu_map_theme', 'icu_app_font',
+    'icu_range_days', 'icu_week_start_day', 'icu_terrain_3d',
+    'icu_hide_empty_cards', 'icu_smooth_flyover', 'icu_physics_scroll',
+    'icu_smart_poll', 'icu_smart_poll_interval',
+    'icu_wx_locations', 'icu_wx_model', 'icu_wx_coords',
+    'icu_goals', 'icu_dash_sections', 'icu_ors_api_key',
+    'icu_avatar', 'icu_cal_panel_hidden',
+  ];
+  const cfg = {};
+  for (const k of keys) {
+    const v = localStorage.getItem(k);
+    if (v != null && v !== '') cfg[k] = v;
+  }
+  return cfg;
+}
+
+function _applyTransferredSettings(cfg) {
+  if (!cfg || typeof cfg !== 'object') return;
+  for (const [k, v] of Object.entries(cfg)) {
+    if (typeof k === 'string' && k.startsWith('icu_') && v != null) {
+      try { localStorage.setItem(k, v); } catch (_) {}
+    }
+  }
+}
+
 function copySetupLink() {
   if (!state.athleteId || !state.apiKey) {
     showToast('Connect first to generate a setup link', 'error');
     return;
   }
+  const cfg = _collectTransferableSettings();
+  const cfgStr = btoa(unescape(encodeURIComponent(JSON.stringify(cfg))));
   const url = window.location.origin + window.location.pathname +
     '#id=' + encodeURIComponent(state.athleteId) +
-    '&key=' + encodeURIComponent(state.apiKey);
-  navigator.clipboard.writeText(url).then(() => {
-    showToast('Setup link copied — open it on any device to connect instantly', 'success');
-  }).catch(() => {
-    prompt('Copy this link and open it on your phone:', url);
-  });
+    '&key=' + encodeURIComponent(state.apiKey) +
+    '&cfg=' + cfgStr;
+  // Try clipboard API first, then fallback to execCommand, then prompt
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(() => {
+      showToast('Setup link copied — includes credentials + all settings', 'success');
+    }).catch(() => _copyFallback(url));
+  } else {
+    _copyFallback(url);
+  }
+}
+
+function _copyFallback(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0';
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    const ok = document.execCommand('copy');
+    if (ok) { showToast('Setup link copied — includes credentials + all settings', 'success'); }
+    else { prompt('Copy this link manually:', text); }
+  } catch (_) {
+    prompt('Copy this link manually:', text);
+  }
+  document.body.removeChild(ta);
 }
 
 /* ====================================================
@@ -15301,13 +15350,22 @@ const _startPage = (_initRoute && _initRoute.type === 'page' && _validInitPages.
   // Always clear the hash from the URL first for safety
   history.replaceState(null, '', window.location.pathname + window.location.search);
   if (hashId && hashKey) {
+    // Decode transferred settings if present
+    const cfgB64 = p.get('cfg');
+    let cfgObj = null;
+    if (cfgB64) {
+      try { cfgObj = JSON.parse(decodeURIComponent(escape(atob(cfgB64)))); } catch (_) {}
+    }
+    const hasSettings = cfgObj && Object.keys(cfgObj).length > 0;
     // Show confirmation before storing credentials from a URL
     showConfirmDialog(
       'Setup Link Detected',
-      `A setup link is trying to connect with Athlete ID: ${hashId}. Allow?`,
+      `A setup link is trying to connect with Athlete ID: ${hashId}.${hasSettings ? ' It also includes your settings (theme, units, goals, weather, etc.).' : ''} Allow?`,
       () => {
         saveCredentials(hashId, hashKey);
+        if (hasSettings) _applyTransferredSettings(cfgObj);
         syncData();
+        if (hasSettings) setTimeout(() => window.location.reload(), 500);
       }
     );
   }
@@ -19470,7 +19528,7 @@ function _rbInitMap() {
     maxPitch: 85,
     doubleClickZoom: false,
     attributionControl: false,
-    dragRotate: false,
+    dragRotate: true,
     pitchWithRotate: false,
     dragPan: {
       linearity: 0.5,
@@ -19523,14 +19581,10 @@ function _rbInitMap() {
 
   _rb.map.on('click', _rbOnMapClick);
 
-  // Navigation control (zoom + compass + pitch)
-  _rb.map.addControl(new maplibregl.NavigationControl({
-    showCompass: true, showZoom: true, visualizePitch: true,
-  }), 'top-left');
-
-  // Custom map tools control
+  // Unified map tools control (zoom, compass + custom tools)
   class RbMapTools {
     onAdd(map) {
+      this._map = map;
       this._container = document.createElement('div');
       this._container.className = 'maplibregl-ctrl maplibregl-ctrl-group rb-map-tools';
 
@@ -19544,6 +19598,28 @@ function _rbInitMap() {
         this._container.appendChild(a);
         return a;
       };
+
+      mkBtn('', 'Zoom in',
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+        () => map.zoomIn());
+
+      mkBtn('', 'Zoom out',
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+        () => map.zoomOut());
+
+      const compassBtn = mkBtn('', 'Reset bearing to north',
+        '<svg viewBox="0 0 24 24" width="16" height="16" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/><polygon points="12 3 14.5 11 12 9.5 9.5 11" fill="#e05050" stroke="none"/><polygon points="12 21 9.5 13 12 14.5 14.5 13" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>',
+        () => map.resetNorthPitch());
+      compassBtn.id = 'rbCompassBtn';
+      const compassSvg = compassBtn.querySelector('svg');
+      map.on('rotate', () => {
+        compassSvg.style.transform = `rotate(${-map.getBearing()}deg)`;
+      });
+
+      // Separator
+      const sep = document.createElement('div');
+      sep.className = 'rb-map-tool-sep';
+      this._container.appendChild(sep);
 
       mkBtn('', 'My location',
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2"/><circle cx="12" cy="12" r="9" opacity="0.3"/></svg>',
@@ -19567,6 +19643,16 @@ function _rbInitMap() {
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M2 20h20"/><path d="M5 20v-6l4-4 3 3 5-5 4 4v8"/></svg>',
         _rbToggleSurfaceMode);
       surfaceBtn.id = 'rbSurfaceToggleBtn';
+
+      // Separator before fullscreen
+      const sep2 = document.createElement('div');
+      sep2.className = 'rb-map-tool-sep';
+      this._container.appendChild(sep2);
+
+      const fsBtn = mkBtn('', 'Toggle fullscreen',
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" id="rbFsSvg"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>',
+        _rbToggleFullscreen);
+      fsBtn.id = 'rbFullscreenBtn';
 
       return this._container;
     }
@@ -20229,6 +20315,130 @@ const RB_ROUTERS = [
   { engine: 'ors', profile: 'cycling-electric', label: 'E-Bike', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>' },
 ];
 
+/* ── Avoid-aware routing for loop-back ── */
+function _rbSampleAvoidPoints(intervalM) {
+  const pts = [];
+  const iv = intervalM || 400;
+  for (const seg of _rb.routeSegments) {
+    if (!seg.points || seg.points.length < 2) continue;
+    let accum = 0;
+    for (let i = 1; i < seg.points.length; i++) {
+      const [lat1, lng1] = seg.points[i - 1];
+      const [lat2, lng2] = seg.points[i];
+      const d = _rbHaversine(lat1, lng1, lat2, lng2);
+      accum += d;
+      if (accum >= iv) { pts.push([lat2, lng2]); accum = 0; }
+    }
+  }
+  return pts; // [[lat, lng], ...]
+}
+
+function _rbHaversine(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+async function _rbFetchRouteWithAvoid(from, to) {
+  const avoidPts = _rbSampleAvoidPoints(400);
+  if (!avoidPts.length) return _rbFetchRoute(from, to);
+
+  let signal;
+  if (_rb._fetchAbort) _rb._fetchAbort.abort();
+  _rb._fetchAbort = new AbortController();
+  signal = _rb._fetchAbort.signal;
+
+  if (_rb.router.engine === 'brouter') {
+    // BRouter supports nogos=lng,lat,radius|...
+    const nogos = avoidPts.map(p => `${p[1]},${p[0]},100`).join('|');
+    const lonlats = `${from.lng},${from.lat}|${to.lng},${to.lat}`;
+    const url = `${BROUTER_BASE}?lonlats=${lonlats}&profile=${_rb.router.profile}&alternativeidx=0&format=geojson&nogos=${encodeURIComponent(nogos)}`;
+    try {
+      const resp = await fetch(url, { signal });
+      if (resp.ok) {
+        const data = await resp.json();
+        const feat = data.features && data.features[0];
+        if (feat) {
+          const coords = feat.geometry.coordinates;
+          const points = coords.map(c => [c[1], c[0]]);
+          const dist = parseFloat(feat.properties['track-length']) || 0;
+          const dur = parseFloat(feat.properties['total-time']) || 0;
+          return { points, distance: dist, duration: dur, annotations: null };
+        }
+      }
+    } catch (e) { if (e.name === 'AbortError') return null; }
+    // Fallback: try without avoid
+    return _rbFetchRoute(from, to);
+  }
+
+  if (_rb.router.engine === 'ors') {
+    // ORS: use POST with avoid_polygons buffer around route
+    const apiKey = _rb.orsApiKey;
+    if (!apiKey) { showToast('Set your ORS API key in Settings', 'error'); return null; }
+    const body = {
+      coordinates: [[from.lng, from.lat], [to.lng, to.lat]],
+      options: {
+        avoid_polygons: _rbBuildAvoidMultiPoly(avoidPts, 0.001)
+      }
+    };
+    try {
+      const resp = await fetch(`${ORS_BASE}/${_rb.router.profile}/geojson`, {
+        method: 'POST', signal,
+        headers: { 'Content-Type': 'application/json', 'Authorization': apiKey },
+        body: JSON.stringify(body),
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        const feat = data.features && data.features[0];
+        if (feat) {
+          const coords = feat.geometry.coordinates;
+          const points = coords.map(c => [c[1], c[0]]);
+          const summary = feat.properties.summary || {};
+          return { points, distance: summary.distance || 0, duration: summary.duration || 0, annotations: null };
+        }
+      }
+    } catch (e) { if (e.name === 'AbortError') return null; }
+    return _rbFetchRoute(from, to);
+  }
+
+  // OSRM: request alternatives, pick least overlapping
+  const coords = `${from.lng},${from.lat};${to.lng},${to.lat}`;
+  const url = `${OSRM_BASE}/${coords}?overview=full&geometries=polyline6&steps=true&annotations=true&alternatives=true`;
+  try {
+    const resp = await fetch(url, { signal });
+    const data = await resp.json();
+    if (data.code !== 'Ok' || !data.routes?.length) return _rbFetchRoute(from, to);
+    if (data.routes.length === 1) return _normalizeOsrmRoute(data.routes[0]);
+    // Pick route with least overlap to existing route
+    const existing = new Set(avoidPts.map(p => `${p[0].toFixed(4)},${p[1].toFixed(4)}`));
+    let best = null, bestOverlap = Infinity;
+    for (const r of data.routes) {
+      const norm = _normalizeOsrmRoute(r);
+      let overlap = 0;
+      for (const pt of norm.points) {
+        if (existing.has(`${pt[0].toFixed(4)},${pt[1].toFixed(4)}`)) overlap++;
+      }
+      if (overlap < bestOverlap) { bestOverlap = overlap; best = norm; }
+    }
+    return best;
+  } catch (e) {
+    if (e.name === 'AbortError') return null;
+    return _rbFetchRoute(from, to);
+  }
+}
+
+function _rbBuildAvoidMultiPoly(pts, bufferDeg) {
+  // Build a MultiPolygon of small squares around each avoid point
+  const polys = pts.slice(0, 50).map(p => {  // ORS limits polygon complexity
+    const [lat, lng] = p;
+    const b = bufferDeg;
+    return [[[lng-b,lat-b],[lng+b,lat-b],[lng+b,lat+b],[lng-b,lat+b],[lng-b,lat-b]]];
+  });
+  return { type: 'MultiPolygon', coordinates: polys };
+}
+
 /* ── BRouter fetch ── */
 async function _brouterFetchRoute(from, to, altIdx, signal) {
   const lonlats = `${from.lng},${from.lat}|${to.lng},${to.lat}`;
@@ -20457,6 +20667,9 @@ async function _rbOnMapClick(e) {
   _rb.waypoints.push({ lat, lng, marker });
   _rbRefreshAllWaypointIcons();
 
+  // Smoothly pan camera to the new waypoint
+  _rb.map.easeTo({ center: [lng, lat], duration: 400 });
+
   if (_rb.waypoints.length > 1) {
     _rbClearAltRoute();
     const prev = _rb.waypoints[_rb.waypoints.length - 2];
@@ -20616,6 +20829,7 @@ async function _rbAddPoiToRoute(lat, lon, name) {
 function _rbRedrawRoute() {
   if (!_rb.map) return;
   // Remove old route layers/sources
+  try { if (_rb.map.getLayer('rb-route-arrows')) _rb.map.removeLayer('rb-route-arrows'); } catch(_){}
   try { if (_rb.map.getLayer('rb-route-hit')) _rb.map.removeLayer('rb-route-hit'); } catch(_){}
   try { if (_rb.map.getLayer('rb-route')) _rb.map.removeLayer('rb-route'); } catch(_){}
   try { if (_rb.map.getLayer('rb-surface')) _rb.map.removeLayer('rb-surface'); } catch(_){}
@@ -20709,6 +20923,44 @@ function _rbRedrawRoute() {
     _rb.map.addLayer({
       id: 'rb-fallback', type: 'line', source: 'rb-fallback',
       paint: { 'line-color': '#888888', 'line-width': 3, 'line-opacity': 0.8 },
+    });
+  }
+
+  // Direction arrows along route
+  if (_rb.map.getSource('rb-route') && routedPoints.length > 1) {
+    if (!_rb.map.hasImage('rb-arrow')) {
+      const sz = 32, canvas = document.createElement('canvas');
+      canvas.width = sz; canvas.height = sz;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, sz, sz);
+      const cx = sz / 2, cy = sz / 2;
+      // Clean minimal chevron — Apple style open stroke, no fill
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      // Subtle shadow for depth
+      ctx.shadowColor = 'rgba(0,0,0,0.25)';
+      ctx.shadowBlur = 2;
+      ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(cx - 4, cy - 6);
+      ctx.lineTo(cx + 4, cy);
+      ctx.lineTo(cx - 4, cy + 6);
+      ctx.stroke();
+      _rb.map.addImage('rb-arrow', { width: sz, height: sz, data: ctx.getImageData(0, 0, sz, sz).data });
+    }
+    _rb.map.addLayer({
+      id: 'rb-route-arrows', type: 'symbol', source: 'rb-route',
+      layout: {
+        'symbol-placement': 'line',
+        'symbol-spacing': 45,
+        'icon-image': 'rb-arrow',
+        'icon-size': ['interpolate', ['linear'], ['zoom'], 8, 0.6, 11, 0.8, 14, 1.0, 18, 1.2],
+        'icon-allow-overlap': true,
+        'icon-ignore-placement': true,
+        'icon-rotation-alignment': 'map',
+      },
+      paint: { 'icon-opacity': 0.9 },
     });
   }
 
@@ -21680,6 +21932,18 @@ function _rbGroupBySurface() {
   return groups;
 }
 
+function _rbToggleFullscreen() {
+  const isFs = document.body.classList.toggle('rb-fullscreen');
+  const btn = document.getElementById('rbFullscreenBtn');
+  if (btn) {
+    btn.querySelector('svg').innerHTML = isFs
+      ? '<polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/>'
+      : '<polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>';
+  }
+  // Resize map after transition
+  setTimeout(() => { if (_rb.map) _rb.map.resize(); }, 350);
+}
+
 function _rbToggleSurfaceMode() {
   _rb._surfaceMode = !_rb._surfaceMode;
   _rbRedrawRoute();
@@ -21770,7 +22034,7 @@ async function rbLoopBack() {
     showToast('Route is already a loop', 'info');
     return;
   }
-  const route = await _rbFetchRoute(last, first);
+  const route = await _rbFetchRouteWithAvoid(last, first);
   if (!route) return;
   const marker = _rbCreateWaypointMarker(first.lat, first.lng, _rb.waypoints.length);
   const idx = _rb.waypoints.length;

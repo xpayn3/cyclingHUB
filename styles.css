@@ -14416,12 +14416,13 @@ html[data-theme="light"] {
 .rb-search-float {
     position: absolute;
     top: 10px;
-    left: 50px;
+    left: 10px;
     z-index: 1000;
     display: flex;
     gap: 6px;
     align-items: flex-start;
 }
+#rbMap .maplibregl-ctrl-top-left { top: 50px; left: 0; }
 .rb-search-wrap { position: relative; }
 
 /* ── Import / Export bar ── */
@@ -14672,7 +14673,8 @@ html[data-theme="light"] {
 [data-theme="light"] #heatmapMap .maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: none; }
 
 /* ── Map Tool Buttons (geolocate + layers + POI) ── */
-.rb-map-tools { margin-top: 6px !important; }
+.rb-map-tool-sep { height: 1px; background: rgba(255,255,255,0.13); margin: 2px 4px; }
+[data-theme="light"] .rb-map-tool-sep { background: rgba(0,0,0,0.1); }
 .rb-map-tool-btn {
     display: flex !important;
     align-items: center;
@@ -14691,7 +14693,14 @@ html[data-theme="light"] {
 [data-theme="light"] .rb-map-tool-btn { background: rgba(255,255,255,0.92); color: var(--text-secondary); border-bottom-color: rgba(0,0,0,0.08); }
 [data-theme="light"] .rb-map-tool-btn:hover { background: rgba(240,242,245,0.96); color: var(--text-primary); }
 .rb-map-tool-btn svg { flex-shrink: 0; }
+#rbCompassBtn svg { transition: transform 0.15s ease-out; }
 .rb-tool-disabled { opacity: 0.35; pointer-events: none; cursor: default; }
+
+/* ── Route Builder Fullscreen ── */
+.rb-fullscreen .sidebar { transform: translateX(-100%); }
+.rb-fullscreen .main { margin-left: 0; }
+.rb-fullscreen .topbar { left: 0; }
+.sidebar, .main, .topbar { transition: transform 0.3s ease, margin-left 0.3s ease, left 0.3s ease; }
 .rb-locating svg { animation: rb-pulse 1s ease infinite; }
 @keyframes rb-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
 /* ── Map scale control ── */
