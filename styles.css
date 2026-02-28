@@ -14425,8 +14425,98 @@ html[data-theme="light"] {
     top: 10px;
     left: 50px;
     z-index: 1000;
+    display: flex;
+    gap: 6px;
+    align-items: flex-start;
 }
 .rb-search-wrap { position: relative; }
+
+/* ── Import / Export bar ── */
+.rb-io-wrap {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    background: var(--card-bg);
+    border-radius: 8px;
+    padding: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+.rb-io-btn { font-size: 12px !important; padding: 5px 8px !important; }
+
+/* ── Router Dropdown ── */
+.rb-router-wrap { position: relative; }
+.rb-router-trigger {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 10px;
+    color: var(--text-primary);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    cursor: pointer;
+    outline: none;
+    white-space: nowrap;
+    transition: border-color var(--transition), box-shadow var(--transition);
+    height: 32px;
+}
+.rb-router-trigger:hover { border-color: var(--border-active); }
+.rb-router-wrap--open .rb-router-trigger {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+}
+.rb-router-trigger svg:first-child { color: var(--accent); flex-shrink: 0; }
+.rb-router-chevron {
+    color: var(--text-muted);
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+}
+.rb-router-wrap--open .rb-router-chevron { transform: rotate(180deg); }
+.rb-router-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    min-width: 100%;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-active);
+    border-radius: 8px;
+    padding: 4px;
+    z-index: 9999;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+    opacity: 0;
+    transform: translateY(-6px);
+    pointer-events: none;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.rb-router-wrap--open .rb-router-menu {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+.rb-router-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    transition: background var(--transition), color var(--transition);
+}
+.rb-router-option:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-primary);
+}
+.rb-router-option--selected { color: var(--accent); }
+.rb-router-option--selected svg { color: var(--accent); }
+.rb-router-option--disabled { opacity: 0.35; cursor: default; }
+.rb-router-option--disabled:hover { background: transparent; }
+.rb-router-engine { opacity: 0.5; font-size: 0.85em; }
 
 /* ── Actions Card (side panel) ── */
 .rb-actions-card { padding: 8px !important; }
@@ -14483,20 +14573,78 @@ html[data-theme="light"] {
 .rb-map { width: 100%; height: 100%; background: #1a1c22; position: relative; z-index: 0; }
 .rb-panel-toggle { display: none; }
 
-/* ── Map Tool Buttons (geolocate + satellite) ── */
+/* ── MapLibre Route Builder map ── */
+#rbMap .maplibregl-canvas { outline: none; }
+#rbMap .maplibregl-ctrl-group { background: rgba(20, 23, 32, 0.82); border: 1px solid rgba(255,255,255,0.13); border-radius: 8px; box-shadow: 0 1px 5px rgba(0,0,0,0.5); overflow: hidden; }
+#rbMap .maplibregl-ctrl-group button { background: rgba(20, 23, 32, 0.82); color: var(--text-secondary); border-bottom: 1px solid rgba(255,255,255,0.08); width: 30px; height: 30px; }
+#rbMap .maplibregl-ctrl-group button:hover { background: rgba(37, 43, 58, 0.95); color: var(--text-primary); }
+#rbMap .maplibregl-ctrl-group button + button { border-top: none; }
+#rbMap .maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: invert(0.8); }
+[data-theme="light"] #rbMap .maplibregl-ctrl-group { background: rgba(255,255,255,0.92); border-color: rgba(0,0,0,0.12); box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+[data-theme="light"] #rbMap .maplibregl-ctrl-group button { background: rgba(255,255,255,0.92); color: var(--text-secondary); border-bottom-color: rgba(0,0,0,0.08); }
+[data-theme="light"] #rbMap .maplibregl-ctrl-group button:hover { background: rgba(240,242,245,0.96); color: var(--text-primary); }
+[data-theme="light"] #rbMap .maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: none; }
+
+/* ── Map Tool Buttons (geolocate + layers + POI) ── */
 .rb-map-tools { margin-top: 6px !important; }
 .rb-map-tool-btn {
     display: flex !important;
     align-items: center;
     justify-content: center;
+    width: 30px;
+    height: 30px;
+    background: rgba(20, 23, 32, 0.82);
+    color: var(--text-secondary);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    text-decoration: none;
 }
+.rb-map-tool-btn:last-child { border-bottom: none; }
+.rb-map-tool-btn:hover { background: rgba(37, 43, 58, 0.95); color: var(--text-primary); }
+[data-theme="light"] .rb-map-tool-btn { background: rgba(255,255,255,0.92); color: var(--text-secondary); border-bottom-color: rgba(0,0,0,0.08); }
+[data-theme="light"] .rb-map-tool-btn:hover { background: rgba(240,242,245,0.96); color: var(--text-primary); }
 .rb-map-tool-btn svg { flex-shrink: 0; }
+.rb-tool-disabled { opacity: 0.35; pointer-events: none; cursor: default; }
 .rb-locating svg { animation: rb-pulse 1s ease infinite; }
 @keyframes rb-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+/* ── Map scale control ── */
+#rbMap .maplibregl-ctrl-scale {
+  background: rgba(20, 23, 32, 0.7);
+  color: var(--text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-top: none;
+  font-size: 10px;
+  line-height: 1;
+  padding: 2px 6px;
+  margin: 0 0 24px 4px;
+}
+[data-theme="light"] #rbMap .maplibregl-ctrl-scale {
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--text-secondary);
+  border-color: rgba(0, 0, 0, 0.2);
+}
+/* ── Geolocation blue dot ── */
+.rb-geoloc-dot {
+    width: 16px; height: 16px;
+    background: #4285f4;
+    border: 2.5px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 0 0 0 rgba(66, 133, 244, 0.4), 0 1px 4px rgba(0,0,0,0.3);
+    animation: rb-geo-pulse 2s ease-out infinite;
+    pointer-events: none;
+}
+@keyframes rb-geo-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(66, 133, 244, 0.4), 0 1px 4px rgba(0,0,0,0.3); }
+    70% { box-shadow: 0 0 0 12px rgba(66, 133, 244, 0), 0 1px 4px rgba(0,0,0,0.3); }
+    100% { box-shadow: 0 0 0 0 rgba(66, 133, 244, 0), 0 1px 4px rgba(0,0,0,0.3); }
+}
 .rb-layer-active { background: rgba(0, 229, 160, 0.18) !important; color: var(--accent) !important; }
 .rb-poi-active { background: rgba(0, 229, 160, 0.18) !important; color: var(--accent) !important; }
 .rb-poi-loading svg { animation: rb-poi-spin 1s linear infinite; }
 @keyframes rb-poi-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.rb-compass-needle { transition: transform 0.15s ease-out; transform-origin: center center; }
+.rb-compass-rotated { background: rgba(0, 229, 160, 0.18) !important; color: var(--accent) !important; }
 
 /* ── POI Filter Panel ── */
 .rb-poi-filter {
@@ -14538,8 +14686,52 @@ html[data-theme="light"] {
     transition: opacity 0.15s;
 }
 
-/* ── POI Popup ── */
-.rb-poi-popup-wrap .leaflet-popup-content-wrapper {
+/* ── POI Pin Markers (Apple Maps style) ── */
+.rb-poi-pin {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
+    transition: filter 0.15s;
+}
+.rb-poi-pin:hover { filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.45)); }
+.rb-poi-pin-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s ease;
+}
+.rb-poi-pin-icon svg {
+    width: 15px;
+    height: 15px;
+    color: #fff;
+    stroke: #fff;
+    fill: none;
+}
+.rb-poi-pin:hover .rb-poi-pin-icon { transform: scale(1.12); }
+.rb-poi-pin-tail {
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top-width: 6px;
+    border-top-style: solid;
+    margin-top: -0.5px;
+}
+/* POI popup inline SVG icon */
+.rb-poi-popup-cat svg {
+    width: 12px;
+    height: 12px;
+    vertical-align: -2px;
+    display: inline;
+}
+
+/* ── POI Popup (MapLibre) ── */
+.rb-poi-popup-wrap .maplibregl-popup-content {
     background: rgba(20, 23, 32, 0.92);
     -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
@@ -14548,9 +14740,10 @@ html[data-theme="light"] {
     color: var(--text-primary);
     font-size: var(--text-sm);
     box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    padding: 10px 14px;
+    line-height: 1.4;
 }
-.rb-poi-popup-wrap .leaflet-popup-tip { background: rgba(20, 23, 32, 0.92); }
-.rb-poi-popup-wrap .leaflet-popup-content { margin: 10px 14px; line-height: 1.4; }
+.rb-poi-popup-wrap .maplibregl-popup-tip { border-top-color: rgba(20, 23, 32, 0.92); }
 .rb-poi-popup-cat { font-size: 11px; }
 
 /* ── POI Light Theme ── */
@@ -14561,12 +14754,12 @@ html[data-theme="light"] {
 }
 [data-theme="light"] .rb-poi-chip:hover,
 [data-theme="light"] .rb-poi-chip.active { color: var(--text-primary); border-color: var(--text-muted); }
-[data-theme="light"] .rb-poi-popup-wrap .leaflet-popup-content-wrapper {
+[data-theme="light"] .rb-poi-popup-wrap .maplibregl-popup-content {
     background: rgba(255,255,255,0.95);
     border-color: var(--border);
     color: var(--text-primary);
 }
-[data-theme="light"] .rb-poi-popup-wrap .leaflet-popup-tip { background: rgba(255,255,255,0.95); }
+[data-theme="light"] .rb-poi-popup-wrap .maplibregl-popup-tip { border-top-color: rgba(255,255,255,0.95); }
 
 /* ── Surface Legend ── */
 .rb-surface-legend {
@@ -14666,6 +14859,40 @@ html[data-theme="light"] {
 }
 [data-theme="light"] .rb-time-label svg { color: #0d7a52; }
 
+/* ── Route scrub tooltip ── */
+.rb-scrub-tooltip { pointer-events: none; }
+.rb-scrub-dot {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    border: 3px solid var(--accent);
+    box-shadow: 0 0 8px rgba(0,229,160,0.6), 0 0 0 3px rgba(0,229,160,0.15);
+    pointer-events: none;
+}
+.rb-scrub-content {
+    display: flex; align-items: center; gap: 5px;
+    background: rgba(20, 23, 32, 0.92);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 8px;
+    padding: 5px 10px;
+    font-size: 11px;
+    font-family: var(--font-num);
+    color: var(--text-primary);
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+.rb-scrub-km { color: var(--accent); font-weight: 600; }
+.rb-scrub-time { color: var(--text-secondary); }
+.rb-scrub-elev { color: var(--text-muted); }
+.rb-scrub-sep { color: var(--text-muted); font-size: 9px; }
+[data-theme="light"] .rb-scrub-content {
+    background: rgba(255,255,255,0.95);
+    border-color: var(--border);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+[data-theme="light"] .rb-scrub-km { color: #0d7a52; }
+
 /* ── Elevation Panel ── */
 .rb-elev-panel {
     position: absolute;
@@ -14763,6 +14990,19 @@ html[data-theme="light"] {
     font-family: var(--font-num);
     flex-shrink: 0;
 }
+.rb-wp-info {
+    display: flex; flex-direction: column; gap: 1px;
+    min-width: 0; flex: 1;
+}
+.rb-wp-name {
+    font-size: var(--text-sm); color: var(--text-primary);
+    font-weight: 500;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.rb-wp-coords {
+    font-size: 10px; color: var(--text-muted);
+    font-family: var(--font-num);
+}
 
 /* ── Saved Routes ── */
 .rb-saved-list { max-height: 260px; overflow-y: auto; padding: 0 var(--space-sm) var(--space-sm); }
@@ -14787,7 +15027,12 @@ html[data-theme="light"] {
     .rb-poi-filter { left: 8px; top: auto; bottom: 8px; max-width: calc(100% - 16px); flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .rb-poi-filter::-webkit-scrollbar { display: none; }
     .rb-search-float { left: 10px; top: 10px; }
-    .rb-search-input { width: 160px; padding: 5px 10px 5px 28px; font-size: 12px; }
+    .rb-search-input { width: 130px; padding: 5px 10px 5px 28px; font-size: 12px; }
+    .rb-router-trigger span { display: none; }
+    .rb-router-trigger { padding: 6px 8px; gap: 4px; }
+    .rb-router-chevron { display: none; }
+    .rb-io-wrap { padding: 3px; }
+    .rb-io-btn { padding: 4px 6px !important; font-size: 11px !important; }
     .rb-surface-legend { bottom: 36px; left: 8px; }
     .rb-map-container { flex: 1; min-height: 0; }
 

@@ -18424,6 +18424,28 @@ function icuRenderSyncUI() {
       if (el) el.value = savedKey;
     }
   }
+
+  // Pre-fill ORS API key if saved
+  const savedOrsKey = localStorage.getItem('icu_ors_api_key');
+  if (savedOrsKey) {
+    const el = document.getElementById('orsApiKeyInput');
+    if (el) el.value = savedOrsKey;
+  }
+}
+
+function saveOrsApiKey() {
+  const input = document.getElementById('orsApiKeyInput');
+  if (!input) return;
+  const key = input.value.trim();
+  if (key) {
+    localStorage.setItem('icu_ors_api_key', key);
+    _rb.orsApiKey = key;
+    showToast('ORS API key saved — ORS profiles now available in Route Builder', 'success');
+  } else {
+    localStorage.removeItem('icu_ors_api_key');
+    _rb.orsApiKey = '';
+    showToast('ORS API key removed', 'info');
+  }
 }
 
 async function icuSaveAndConnect() {
@@ -18892,7 +18914,6 @@ const _rb = {
   savedRoutes: [],
   activeRouteId: null,
   _fetchAbort: null,
-  _poiLayer: null,
   _poiEnabled: false,
   _poiAbort: null,
   _poiCache: '',
@@ -18902,6 +18923,8 @@ const _rb = {
   _surfaceMode: false,
   _surfaceLayer: null,
   _timeLabel: null,
+  router: { engine: 'osrm', profile: 'cycling', label: 'Cycling' },
+  orsApiKey: localStorage.getItem('icu_ors_api_key') || '',
 };
 
 /* ── IndexedDB ── */
@@ -18939,6 +18962,31 @@ function renderRouteBuilderPage() {
             <input class="rb-search-input" id="rbSearchInput" placeholder="Search places…" autocomplete="off" />
             <div class="rb-search-results" id="rbSearchResults"></div>
           </div>
+          <div class="rb-router-wrap" id="rbRouterWrap">
+            <button class="rb-router-trigger" id="rbRouterTrigger" title="Routing profile">
+              ${RB_ROUTERS[0].icon}
+              <span id="rbRouterLabel">${RB_ROUTERS[0].label} <span class="rb-router-engine">(${RB_ROUTERS[0].engine.toUpperCase()})</span></span>
+              <svg class="rb-router-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="10" height="10"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="rb-router-menu" id="rbRouterMenu">
+              ${RB_ROUTERS.map((r, i) => {
+                if (r.engine === 'ors' && !_rb.orsApiKey) return `<div class="rb-router-option rb-router-option--disabled" data-engine="${r.engine}" data-profile="${r.profile}" data-label="${r.label}" data-idx="${i}" title="Set ORS API key in Settings">${r.icon}<span>${r.label} <span class="rb-router-engine">(${r.engine.toUpperCase()})</span></span></div>`;
+                return `<div class="rb-router-option${i === 0 ? ' rb-router-option--selected' : ''}" data-engine="${r.engine}" data-profile="${r.profile}" data-label="${r.label}" data-idx="${i}">${r.icon}<span>${r.label} <span class="rb-router-engine">(${r.engine.toUpperCase()})</span></span></div>`;
+              }).join('')}
+            </div>
+          </div>
+          <div class="rb-io-wrap">
+            <button class="btn btn-ghost btn-sm rb-io-btn" onclick="rbImportGPX()" title="Import GPX">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              Import
+            </button>
+            <button class="btn btn-ghost btn-sm rb-io-btn" onclick="rbExportGPX()" title="Export GPX">GPX</button>
+            <button class="btn btn-primary btn-sm rb-io-btn" onclick="rbExportFIT()" title="Export FIT">FIT</button>
+            <button class="btn btn-ghost btn-sm rb-io-btn" onclick="rbSave()" title="Save route">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              Save
+            </button>
+          </div>
         </div>
         <div class="rb-poi-filter" id="rbPoiFilter" style="display:none"></div>
         <button class="rb-panel-toggle" onclick="rbToggleSidePanel()" title="Toggle stats panel">
@@ -18946,6 +18994,17 @@ function renderRouteBuilderPage() {
         </button>
         <div class="rb-overlay rb-overlay--right" id="rbSidePanel">
           <div class="rb-side-panel">
+            <div class="rb-stats-card card">
+              <div class="card-header"><div class="card-title">Route Stats</div></div>
+              <div class="rb-stats-grid" id="rbStatsGrid">
+                <div class="rb-stat"><span class="rb-stat-val" id="rbStatDist">0.0</span><span class="rb-stat-label">km</span></div>
+                <div class="rb-stat"><span class="rb-stat-val" id="rbStatElev">0</span><span class="rb-stat-label">Elev Gain (m)</span></div>
+                <div class="rb-stat"><span class="rb-stat-val" id="rbStatLoss">0</span><span class="rb-stat-label">Elev Loss (m)</span></div>
+                <div class="rb-stat"><span class="rb-stat-val" id="rbStatTime">0:00</span><span class="rb-stat-label">Est. Time</span></div>
+                <div class="rb-stat"><span class="rb-stat-val" id="rbStatGrade">0.0</span><span class="rb-stat-label">Avg Grade %</span></div>
+                <div class="rb-stat"><span class="rb-stat-val" id="rbStatSurface">&mdash;</span><span class="rb-stat-label">Surface</span></div>
+              </div>
+            </div>
             <div class="rb-actions-card card">
               <div class="rb-actions-row">
                 <button class="btn btn-ghost btn-icon btn-sm" id="rbUndoBtn" onclick="rbUndo()" title="Undo (Ctrl+Z)" disabled>
@@ -18970,29 +19029,6 @@ function renderRouteBuilderPage() {
                 <button class="btn btn-ghost btn-icon btn-sm rb-tool-btn--danger" onclick="rbClear()" title="Clear route">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
-              </div>
-              <div class="rb-actions-row">
-                <button class="btn btn-ghost btn-sm" onclick="rbImportGPX()" title="Import GPX">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                  Import
-                </button>
-                <button class="btn btn-ghost btn-sm" onclick="rbExportGPX()" title="Export GPX">GPX</button>
-                <button class="btn btn-primary btn-sm" onclick="rbExportFIT()" title="Export FIT">FIT</button>
-                <button class="btn btn-ghost btn-sm" onclick="rbSave()" title="Save route">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                  Save
-                </button>
-              </div>
-            </div>
-            <div class="rb-stats-card card">
-              <div class="card-header"><div class="card-title">Route Stats</div></div>
-              <div class="rb-stats-grid" id="rbStatsGrid">
-                <div class="rb-stat"><span class="rb-stat-val" id="rbStatDist">0.0</span><span class="rb-stat-label">km</span></div>
-                <div class="rb-stat"><span class="rb-stat-val" id="rbStatElev">0</span><span class="rb-stat-label">Elev Gain (m)</span></div>
-                <div class="rb-stat"><span class="rb-stat-val" id="rbStatLoss">0</span><span class="rb-stat-label">Elev Loss (m)</span></div>
-                <div class="rb-stat"><span class="rb-stat-val" id="rbStatTime">0:00</span><span class="rb-stat-label">Est. Time</span></div>
-                <div class="rb-stat"><span class="rb-stat-val" id="rbStatGrade">0.0</span><span class="rb-stat-label">Avg Grade %</span></div>
-                <div class="rb-stat"><span class="rb-stat-val" id="rbStatSurface">&mdash;</span><span class="rb-stat-label">Surface</span></div>
               </div>
             </div>
             <div class="rb-waypoints-card card">
@@ -19030,82 +19066,215 @@ function renderRouteBuilderPage() {
   _rbInitSearch();
   _rbInitKeyboard();
 
-  // Collapse elevation panel on mobile by default
-  if (window.innerWidth <= 820) {
-    const ep = document.getElementById('rbElevPanel');
-    if (ep) ep.classList.add('collapsed');
-  }
+  // Collapse elevation panel by default
+  const ep = document.getElementById('rbElevPanel');
+  if (ep) ep.classList.add('collapsed');
 }
 
 /* ── Map Init ── */
+/* ── Coordinate helpers: internal is [lat,lng], MapLibre is [lng,lat] ── */
+function _rbToLngLat(ll) { return [ll[1], ll[0]]; }
+function _rbToLatLng(ll) { return [ll[1], ll[0]]; }
+
+/* ── Restore all dynamic layers after a style change ── */
+function _rbRestoreMapLayers() {
+  // GeoJSON sources/layers are cleared on setStyle — redraw the route
+  _rbRedrawRoute();
+  // Re-fetch POIs (markers are DOM-based and survive style changes, but we need fresh data)
+  if (_rb._poiEnabled) {
+    _rb._poiCache = '';
+    _rbFetchPois();
+  }
+}
+
 function _rbInitMap() {
   if (_rb.map) { try { _rb.map.remove(); } catch(_){} _rb.map = null; }
   const el = document.getElementById('rbMap');
   if (!el) return;
 
-  const themeKey = loadMapTheme();
-  const theme = MAP_THEMES[themeKey] || MAP_THEMES.topo;
-  el.style.background = theme.bg;
-
-  _rb.map = L.map(el, {
-    zoomControl: true,
-    scrollWheelZoom: true,
-    attributionControl: false,
-    center: [46, 14],
+  _rb.map = new maplibregl.Map({
+    container: el,
+    style: 'https://tiles.openfreemap.org/styles/liberty',
+    center: [14, 46],
     zoom: 6,
+    bearing: 0,
+    pitch: 0,
     doubleClickZoom: false,
+    attributionControl: false,
+    dragRotate: false,
+    pitchWithRotate: false,
+    dragPan: {
+      linearity: 0.15,
+      deceleration: 2.5,
+      maxSpeed: 1000,
+    },
   });
-  L.control.attribution({ position: 'topright' }).addTo(_rb.map);
+  _rb.map.addControl(new maplibregl.AttributionControl({ compact: true }), 'top-right');
+  _rb.map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: 'metric' }), 'bottom-left');
 
-  _rb.tileLayer = L.tileLayer(theme.url, {
-    attribution: theme.attr,
-    subdomains: theme.sub || 'abc',
-    maxZoom: 19,
-  }).addTo(_rb.map);
+  // Custom rotation + pitch handler (right-click drag or Alt+left-click drag)
+  (function() {
+    const mapEl = _rb.map.getContainer();
+    let rotating = false, startX = 0, startY = 0, startBearing = 0, startPitch = 0;
+    mapEl.addEventListener('mousedown', function(e) {
+      if (e.button === 2 || (e.button === 0 && e.altKey)) {
+        rotating = true;
+        startX = e.clientX; startY = e.clientY;
+        startBearing = _rb.map.getBearing();
+        startPitch = _rb.map.getPitch();
+        _rb.map.dragPan.disable();
+        mapEl.style.cursor = 'grabbing';
+        e.preventDefault();
+      }
+    });
+    mapEl.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+    window.addEventListener('mousemove', function(e) {
+      if (!rotating) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      _rb.map.setBearing(startBearing + dx * 0.2);
+      _rb.map.setPitch(Math.min(85, Math.max(0, startPitch - dy * 0.3)));
+    });
+    window.addEventListener('mouseup', function() {
+      if (!rotating) return;
+      rotating = false;
+      _rb.map.dragPan.enable();
+      mapEl.style.cursor = '';
+      _rb.map.off('click', _rbOnMapClick);
+      setTimeout(() => _rb.map.on('click', _rbOnMapClick), 50);
+    });
+  })();
 
   _rb.map.on('click', _rbOnMapClick);
 
-  // Geolocate + Satellite control
-  const RbMapTools = L.Control.extend({
-    options: { position: 'topleft' },
-    onAdd() {
-      const container = L.DomUtil.create('div', 'leaflet-bar rb-map-tools');
-      const locBtn = L.DomUtil.create('a', 'rb-map-tool-btn', container);
-      locBtn.href = '#';
-      locBtn.title = 'My location';
-      locBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2"/><circle cx="12" cy="12" r="9" opacity="0.3"/></svg>';
-      L.DomEvent.on(locBtn, 'click', function(e) {
-        L.DomEvent.stop(e);
-        _rbGeolocate();
-      });
+  // Navigation control (zoom + compass + pitch)
+  _rb.map.addControl(new maplibregl.NavigationControl({
+    showCompass: true, showZoom: true, visualizePitch: true,
+  }), 'top-left');
 
-      const layerBtn = L.DomUtil.create('a', 'rb-map-tool-btn', container);
-      layerBtn.href = '#';
-      layerBtn.title = 'Switch map layer';
-      layerBtn.id = 'rbLayerBtn';
-      layerBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>';
-      L.DomEvent.on(layerBtn, 'click', function(e) {
-        L.DomEvent.stop(e);
-        _rbCycleMapLayer();
-      });
+  // Custom map tools control
+  class RbMapTools {
+    onAdd(map) {
+      this._container = document.createElement('div');
+      this._container.className = 'maplibregl-ctrl maplibregl-ctrl-group rb-map-tools';
 
-      const poiBtn = L.DomUtil.create('a', 'rb-map-tool-btn', container);
-      poiBtn.href = '#';
-      poiBtn.title = 'Toggle points of interest';
-      poiBtn.id = 'rbPoiBtn';
-      poiBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>';
-      L.DomEvent.on(poiBtn, 'click', function(e) {
-        L.DomEvent.stop(e);
-        _rbTogglePoi();
-      });
+      const mkBtn = (cls, title, svg, handler) => {
+        const a = document.createElement('a');
+        a.className = 'rb-map-tool-btn' + (cls ? ' ' + cls : '');
+        a.href = '#';
+        a.title = title;
+        a.innerHTML = svg;
+        a.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); handler(); });
+        this._container.appendChild(a);
+        return a;
+      };
 
-      return container;
+      mkBtn('', 'My location',
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2"/><circle cx="12" cy="12" r="9" opacity="0.3"/></svg>',
+        _rbGeolocate);
+
+      mkBtn('', 'Switch map layer',
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>',
+        _rbCycleMapLayer).id = 'rbLayerBtn';
+
+      mkBtn('', 'Toggle points of interest',
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>',
+        _rbTogglePoi).id = 'rbPoiBtn';
+
+      const frameBtn = mkBtn('', 'Frame route',
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M3 8V5a2 2 0 0 1 2-2h3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M21 16v3a2 2 0 0 1-2 2h-3"/><path d="M8 21H5a2 2 0 0 1-2-2v-3"/></svg>',
+        _rbFrameRoute);
+      frameBtn.id = 'rbFrameBtn';
+      frameBtn.classList.add('rb-tool-disabled');
+
+      return this._container;
     }
-  });
-  new RbMapTools().addTo(_rb.map);
+    onRemove() { this._container.remove(); }
+  }
+  _rb.map.addControl(new RbMapTools(), 'top-left');
 
-  setTimeout(() => { if (_rb.map) _rb.map.invalidateSize(); }, 200);
-  setTimeout(() => { if (_rb.map) _rb.map.invalidateSize(); }, 600);
+  setTimeout(() => { if (_rb.map) _rb.map.resize(); }, 200);
+  setTimeout(() => { if (_rb.map) _rb.map.resize(); }, 600);
+
+  _rbInitRouteScrub();
+  _rbInitRouterDropdown();
+}
+
+/* ── Router Dropdown ── */
+function _rbInitRouterDropdown() {
+  const wrap = document.getElementById('rbRouterWrap');
+  const trigger = document.getElementById('rbRouterTrigger');
+  const menu = document.getElementById('rbRouterMenu');
+  if (!wrap || !trigger || !menu) return;
+
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    wrap.classList.toggle('rb-router-wrap--open');
+  });
+
+  document.addEventListener('click', () => {
+    wrap.classList.remove('rb-router-wrap--open');
+  });
+
+  menu.addEventListener('click', (e) => {
+    const opt = e.target.closest('.rb-router-option');
+    if (!opt) return;
+    e.stopPropagation();
+
+    // Block disabled ORS options
+    if (opt.classList.contains('rb-router-option--disabled')) {
+      showToast('Set your ORS API key in Settings first', 'info');
+      return;
+    }
+
+    const engine = opt.dataset.engine;
+    const profile = opt.dataset.profile;
+    const label = opt.dataset.label;
+    const idx = parseInt(opt.dataset.idx);
+
+    // Skip if already selected
+    if (_rb.router.engine === engine && _rb.router.profile === profile) {
+      wrap.classList.remove('rb-router-wrap--open');
+      return;
+    }
+
+    _rb.router = { engine, profile, label };
+
+    // Update trigger
+    const r = RB_ROUTERS[idx];
+    trigger.innerHTML = `${r.icon}<span id="rbRouterLabel">${r.label} <span class="rb-router-engine">(${r.engine.toUpperCase()})</span></span><svg class="rb-router-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="10" height="10"><polyline points="6 9 12 15 18 9"/></svg>`;
+
+    // Update selected state
+    menu.querySelectorAll('.rb-router-option').forEach(o => o.classList.remove('rb-router-option--selected'));
+    opt.classList.add('rb-router-option--selected');
+
+    wrap.classList.remove('rb-router-wrap--open');
+
+    // Re-fetch route with new router if we have waypoints
+    if (_rb.waypoints.length >= 2) {
+      _rbRefetchAllSegments();
+    }
+
+    showToast(`Routing: ${label}`, 'success');
+  });
+}
+
+async function _rbRefetchAllSegments() {
+  _rb.routeSegments = [];
+  for (let i = 0; i < _rb.waypoints.length - 1; i++) {
+    const a = _rb.waypoints[i];
+    const b = _rb.waypoints[i + 1];
+    const route = await _rbFetchRoute(a, b, false, true);
+    if (route) {
+      _rb.routeSegments.push({ points: route.points, distance: route.distance, duration: route.duration, annotations: route.annotations });
+    } else {
+      _rb.routeSegments.push({ points: [[a.lat, a.lng], [b.lat, b.lng]], distance: _rbHaversine([a.lat, a.lng], [b.lat, b.lng]), duration: 0, fallback: true });
+    }
+  }
+  _rbClearAltRoute();
+  _rbRedrawRoute();
+  _rbFetchElevation();
+  _rbUpdateStats();
 }
 
 /* ── Geolocate ── */
@@ -19115,7 +19284,16 @@ function _rbGeolocate() {
   if (btn) btn.classList.add('rb-locating');
   const onSuccess = (pos) => {
     if (btn) btn.classList.remove('rb-locating');
-    if (_rb.map) _rb.map.setView([pos.coords.latitude, pos.coords.longitude], 14);
+    const lng = pos.coords.longitude, lat = pos.coords.latitude;
+    if (_rb.map) _rb.map.jumpTo({ center: [lng, lat], zoom: 14 });
+    // Blue dot at user location
+    if (_rb._geoMarker) { _rb._geoMarker.setLngLat([lng, lat]); }
+    else {
+      const el = document.createElement('div');
+      el.className = 'rb-geoloc-dot';
+      _rb._geoMarker = new maplibregl.Marker({ element: el, anchor: 'center' })
+        .setLngLat([lng, lat]).addTo(_rb.map);
+    }
   };
   const onFail = (err) => {
     if (btn) btn.classList.remove('rb-locating');
@@ -19130,51 +19308,58 @@ function _rbGeolocate() {
   }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
 }
 
-/* ── Satellite Toggle ── */
+/* ── Layer Cycling ── */
 const _rbMapLayers = [
-  { key: 'default', label: 'Default' },
-  { key: 'cyclosm', label: 'CyclOSM', url: 'https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png', attr: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://github.com/cyclosm/cyclosm-cartocss-style/releases">CyclOSM</a>', bg: '#e8e0d8' },
-  { key: 'satellite', label: 'Satellite', url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attr: '&copy; Esri', bg: '#0a1628' },
+  { key: 'liberty', label: 'Liberty', style: 'https://tiles.openfreemap.org/styles/liberty' },
+  { key: 'cyclosm', label: 'CyclOSM', tiles: 'https://a.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png' },
+  { key: 'satellite', label: 'Satellite', tiles: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}' },
 ];
 let _rbLayerIdx = 0;
 
 function _rbCycleMapLayer() {
-  if (!_rb.map || !_rb.tileLayer) return;
+  if (!_rb.map) return;
   _rbLayerIdx = (_rbLayerIdx + 1) % _rbMapLayers.length;
   const layer = _rbMapLayers[_rbLayerIdx];
   const btn = document.getElementById('rbLayerBtn');
 
-  _rb.map.removeLayer(_rb.tileLayer);
-
-  if (layer.key === 'default') {
-    const themeKey = loadMapTheme();
-    const theme = MAP_THEMES[themeKey] || MAP_THEMES.topo;
-    _rb.tileLayer = L.tileLayer(theme.url, { attribution: theme.attr, subdomains: theme.sub || 'abc', maxZoom: 19 }).addTo(_rb.map);
-    document.getElementById('rbMap').style.background = theme.bg;
+  if (layer.style) {
+    // Vector style
+    _rb.map.setStyle(layer.style);
   } else {
-    _rb.tileLayer = L.tileLayer(layer.url, { attribution: layer.attr, subdomains: 'abc', maxZoom: 19 }).addTo(_rb.map);
-    document.getElementById('rbMap').style.background = layer.bg;
+    // Raster tile — use minimal style with raster source
+    _rb.map.setStyle({
+      version: 8,
+      sources: { 'raster-tiles': { type: 'raster', tiles: [layer.tiles], tileSize: 256 } },
+      layers: [{ id: 'raster-layer', type: 'raster', source: 'raster-tiles' }],
+    });
   }
+
+  // Re-add all route/POI/marker layers after style is fully ready
+  _rb.map.once('idle', _rbRestoreMapLayers);
 
   if (btn) {
-    btn.classList.toggle('rb-layer-active', layer.key !== 'default');
-    btn.title = layer.key === 'default' ? 'Switch map layer' : layer.label;
+    btn.classList.toggle('rb-layer-active', layer.key !== 'liberty');
+    btn.title = layer.key === 'liberty' ? 'Switch map layer' : layer.label;
   }
   showToast(layer.label + ' map', 'info');
-
-  if (_rb.routePolyline) _rb.routePolyline.bringToFront();
-  if (_rb._surfaceLayer) _rb._surfaceLayer.eachLayer(l => l.bringToFront());
 }
 
 /* ── Points of Interest (Overpass API) ── */
 const _rbPoiTypes = {
-  water:     { label: 'Water',     tag: 'node["amenity"="drinking_water"]', color: '#4fc3f7', icon: '💧' },
-  bike:      { label: 'Bike Shop', tag: 'node["shop"="bicycle"]',           color: '#00e5a0', icon: '🔧' },
-  cafe:      { label: 'Café',      tag: 'node["amenity"="cafe"]',           color: '#ffb74d', icon: '☕' },
-  toilets:   { label: 'Toilets',   tag: 'node["amenity"="toilets"]',        color: '#b39ddb', icon: 'WC' },
-  fuel:      { label: 'Fuel',      tag: 'node["amenity"="fuel"]',           color: '#ef5350', icon: '⛽' },
-  shelter:   { label: 'Shelter',   tag: 'node["amenity"="shelter"]',        color: '#8d6e63', icon: '⛺' },
-  viewpoint: { label: 'Viewpoint', tag: 'node["tourism"="viewpoint"]',      color: '#ffd54f', icon: '👁' },
+  water:     { label: 'Water',     tag: 'node["amenity"="drinking_water"]', color: '#4fc3f7', icon: '💧',
+    svg: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2C8 2 3.5 7.5 3.5 10a4.5 4.5 0 0 0 9 0C12.5 7.5 8 2 8 2z"/></svg>' },
+  bike:      { label: 'Bike Shop', tag: 'node["shop"="bicycle"]',           color: '#00e5a0', icon: '🔧',
+    svg: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 3l1.5 4m0 0L5 11m2-4h3l2 4M4.5 11a2 2 0 1 0 0 .01M11.5 11a2 2 0 1 0 0 .01"/><circle cx="9" cy="5" r="1"/></svg>' },
+  cafe:      { label: 'Café',      tag: 'node["amenity"="cafe"]',           color: '#ffb74d', icon: '☕',
+    svg: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5h9v5a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3V5z"/><path d="M11 6h1.5a1.5 1.5 0 0 1 0 3H11"/><path d="M4 3c0-1 .5-1.5 1-1.5S6 2 6 3M7 3c0-1 .5-1.5 1-1.5S9 2 9 3"/></svg>' },
+  toilets:   { label: 'Toilets',   tag: 'node["amenity"="toilets"]',        color: '#b39ddb', icon: 'WC',
+    svg: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="3" r="1.5"/><path d="M5 5v4m-2 0l2 3m0-3l2 3"/><circle cx="11" cy="3" r="1.5"/><path d="M9 5l1 4h2l1-4M10.5 9l-.5 3m1-3l.5 3"/></svg>' },
+  fuel:      { label: 'Fuel',      tag: 'node["amenity"="fuel"]',           color: '#ef5350', icon: '⛽',
+    svg: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="7" height="10" rx="1"/><path d="M9 7h1.5a1 1 0 0 1 1 1v3.5a1 1 0 0 0 2 0V6l-2-2"/><line x1="4" y1="6" x2="7" y2="6"/></svg>' },
+  shelter:   { label: 'Shelter',   tag: 'node["amenity"="shelter"]',        color: '#8d6e63', icon: '⛺',
+    svg: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12l6-9 6 9"/><path d="M6 12v-3l2-2 2 2v3"/></svg>' },
+  viewpoint: { label: 'Viewpoint', tag: 'node["tourism"="viewpoint"]',      color: '#ffd54f', icon: '👁',
+    svg: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z"/><circle cx="8" cy="8" r="2"/></svg>' },
 };
 
 let _rbPoiFetching = false;
@@ -19192,10 +19377,12 @@ function _rbPoiTileKey(lat, lng) {
 }
 
 function _rbPoiTilesForBounds(bounds) {
-  const s = Math.floor(bounds.getSouth() / _rbPoiTileSize) * _rbPoiTileSize;
-  const w = Math.floor(bounds.getWest() / _rbPoiTileSize) * _rbPoiTileSize;
-  const n = bounds.getNorth();
-  const e = bounds.getEast();
+  const sw = bounds.getSouthWest();
+  const ne = bounds.getNorthEast();
+  const s = Math.floor(sw.lat / _rbPoiTileSize) * _rbPoiTileSize;
+  const w = Math.floor(sw.lng / _rbPoiTileSize) * _rbPoiTileSize;
+  const n = ne.lat;
+  const e = ne.lng;
   const tiles = [];
   for (let lat = s; lat <= n; lat += _rbPoiTileSize) {
     for (let lng = w; lng <= e; lng += _rbPoiTileSize) {
@@ -19225,7 +19412,7 @@ function _rbTogglePoi() {
     clearTimeout(_rb._poiDebounce);
     _rbPoiFetching = false;
     _rbPoiDirty = false;
-    if (_rb._poiLayer) { _rb.map.removeLayer(_rb._poiLayer); _rb._poiLayer = null; }
+    _rbClearPoiLayers();
     _rb._poiCache = '';
     if (btn) { btn.classList.remove('rb-poi-active'); btn.classList.remove('rb-poi-loading'); }
     if (filter) filter.style.display = 'none';
@@ -19234,7 +19421,6 @@ function _rbTogglePoi() {
     // Enable
     _rb._poiEnabled = true;
     _rbPoiRetries = 0;
-    _rb._poiLayer = L.layerGroup().addTo(_rb.map);
     if (btn) btn.classList.add('rb-poi-active');
     if (filter) filter.style.display = '';
     if (_rb.routeSegments.length > 0) _rb._poiAlongRoute = true;
@@ -19246,6 +19432,35 @@ function _rbTogglePoi() {
   }
 }
 
+/* ── POI layer helpers (MapLibre) ── */
+const _rbPoiMarkers = [];
+let _rbPoiPopup = null;
+
+function _rbClearPoiLayers() {
+  for (const m of _rbPoiMarkers) m.remove();
+  _rbPoiMarkers.length = 0;
+  if (_rbPoiPopup) { _rbPoiPopup.remove(); _rbPoiPopup = null; }
+}
+
+function _rbAddPoiMarker(lat, lon, cat, name) {
+  const cfg = _rbPoiTypes[cat];
+  const el = document.createElement('div');
+  el.className = 'rb-poi-pin';
+  el.innerHTML = `<div class="rb-poi-pin-icon" style="background:${cfg.color}">${cfg.svg}</div><div class="rb-poi-pin-tail" style="border-top-color:${cfg.color}"></div>`;
+  const marker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
+    .setLngLat([lon, lat])
+    .addTo(_rb.map);
+  el.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (_rbPoiPopup) _rbPoiPopup.remove();
+    _rbPoiPopup = new maplibregl.Popup({ closeButton: false, offset: 14, className: 'rb-poi-popup-wrap' })
+      .setLngLat([lon, lat])
+      .setHTML(`<div class="rb-poi-popup"><strong>${_escHtml(name)}</strong><br><span class="rb-poi-popup-cat" style="color:${cfg.color}">${cfg.svg} ${cfg.label}</span></div>`)
+      .addTo(_rb.map);
+  });
+  _rbPoiMarkers.push(marker);
+}
+
 function _rbOnPoiMoveEnd() {
   clearTimeout(_rb._poiDebounce);
   _rb._poiDebounce = setTimeout(_rbFetchPois, 1000);
@@ -19254,9 +19469,9 @@ function _rbOnPoiMoveEnd() {
 function _rbBuildPoiQuery(bounds) {
   if (_rb._poiAlongRoute && _rb.routeSegments.length > 0) return _rbBuildPoiQueryAround();
   if (!bounds) return null;
-  const s = bounds.getSouth().toFixed(4), w = bounds.getWest().toFixed(4);
-  const n = bounds.getNorth().toFixed(4), e = bounds.getEast().toFixed(4);
-  const bbox = `${s},${w},${n},${e}`;
+  const sw = bounds.getSouthWest();
+  const ne = bounds.getNorthEast();
+  const bbox = `${sw.lat.toFixed(4)},${sw.lng.toFixed(4)},${ne.lat.toFixed(4)},${ne.lng.toFixed(4)}`;
   const tags = Object.entries(_rbPoiTypes)
     .filter(([k]) => _rb._poiCategories[k])
     .map(([, v]) => v.tag + `(${bbox})`)
@@ -19308,20 +19523,20 @@ async function _rbFetchPois() {
 
   // Along-route mode: single query, no tile caching
   if (_rb._poiAlongRoute) {
-    if (_rb.routeSegments.length === 0) { if (_rb._poiLayer) _rb._poiLayer.clearLayers(); return; }
+    if (_rb.routeSegments.length === 0) { _rbClearPoiLayers(); return; }
     const catKey = _rbPoiCatKey();
     const cacheKey = 'route:' + _rbRouteHash() + ':' + catKey;
     if (cacheKey === _rb._poiCache) return;
     if (_rbPoiFetching) { _rbPoiDirty = true; return; }
     const query = _rbBuildPoiQueryAround();
-    if (!query) { if (_rb._poiLayer) _rb._poiLayer.clearLayers(); return; }
+    if (!query) { _rbClearPoiLayers(); return; }
     await _rbDoPoiFetch(query, cacheKey);
     return;
   }
 
   // Map-area mode: tile-based caching
   if (_rb.map.getZoom() < 12) {
-    if (_rb._poiLayer) _rb._poiLayer.clearLayers();
+    _rbClearPoiLayers();
     _rb._poiCache = '';
     showToast('Zoom in to see points of interest', 'info');
     return;
@@ -19374,7 +19589,7 @@ async function _rbFetchPois() {
     });
     if (!res.ok) throw new Error('Overpass ' + res.status);
     const data = await res.json();
-    if (!_rb._poiEnabled || !_rb._poiLayer) return;
+    if (!_rb._poiEnabled) return;
 
     // Distribute nodes into tile buckets
     const tileBuckets = new Map();
@@ -19390,7 +19605,12 @@ async function _rbFetchPois() {
     for (const [key, nodes] of tileBuckets) _rbPoiTileCache.set(key, { ts: now, nodes });
 
     // Re-render with fresh cache
+    const prevCount = _rbPoiMarkers.length;
     _rbRenderPoiFromCache(_rb.map.getBounds(), catKey);
+    const newCount = _rbPoiMarkers.length;
+    const added = newCount - prevCount;
+    if (added > 0) showToast(`Loaded ${added} new point${added !== 1 ? 's' : ''} of interest`, 'info');
+    else if (newCount > 0) showToast(`${newCount} point${newCount !== 1 ? 's' : ''} of interest`, 'info');
     _rbPoiRetries = 0;
   } catch (e) {
     if (e.name === 'AbortError') return;
@@ -19407,8 +19627,7 @@ async function _rbFetchPois() {
 }
 
 function _rbRenderPoiFromCache(bounds, catKey) {
-  if (!_rb._poiLayer) return;
-  _rb._poiLayer.clearLayers();
+  _rbClearPoiLayers();
   const tiles = _rbPoiTilesForBounds(bounds);
   const seen = new Set();
   for (const t of tiles) {
@@ -19419,15 +19638,7 @@ function _rbRenderPoiFromCache(bounds, catKey) {
       const id = `${n.lat},${n.lon}`;
       if (seen.has(id)) continue;
       seen.add(id);
-      const cfg = _rbPoiTypes[n.cat];
-      const name = n.name || cfg.label;
-      const marker = L.circleMarker([n.lat, n.lon], {
-        radius: 7, fillColor: cfg.color, color: '#fff', weight: 1.5, fillOpacity: 0.9, className: 'rb-poi-dot',
-      }).addTo(_rb._poiLayer);
-      marker.bindPopup(
-        `<div class="rb-poi-popup"><strong>${_escHtml(name)}</strong><br><span class="rb-poi-popup-cat" style="color:${cfg.color}">${cfg.icon} ${cfg.label}</span></div>`,
-        { className: 'rb-poi-popup-wrap', closeButton: false, offset: [0, -4] }
-      );
+      _rbAddPoiMarker(n.lat, n.lon, n.cat, n.name || _rbPoiTypes[n.cat].label);
     }
   }
 }
@@ -19449,23 +19660,16 @@ async function _rbDoPoiFetch(query, cacheKey) {
     });
     if (!res.ok) throw new Error('Overpass ' + res.status);
     const data = await res.json();
-    if (!_rb._poiEnabled || !_rb._poiLayer) return;
-    _rb._poiLayer.clearLayers();
+    if (!_rb._poiEnabled) return;
+    _rbClearPoiLayers();
     _rb._poiCache = cacheKey;
     for (const el of (data.elements || [])) {
       if (el.type !== 'node' || !el.lat || !el.lon) continue;
       const cat = _rbClassifyPoi(el.tags);
       if (!cat || !_rb._poiCategories[cat]) continue;
-      const cfg = _rbPoiTypes[cat];
-      const name = el.tags.name || cfg.label;
-      const marker = L.circleMarker([el.lat, el.lon], {
-        radius: 7, fillColor: cfg.color, color: '#fff', weight: 1.5, fillOpacity: 0.9, className: 'rb-poi-dot',
-      }).addTo(_rb._poiLayer);
-      marker.bindPopup(
-        `<div class="rb-poi-popup"><strong>${_escHtml(name)}</strong><br><span class="rb-poi-popup-cat" style="color:${cfg.color}">${cfg.icon} ${cfg.label}</span></div>`,
-        { className: 'rb-poi-popup-wrap', closeButton: false, offset: [0, -4] }
-      );
+      _rbAddPoiMarker(el.lat, el.lon, cat, el.tags.name || _rbPoiTypes[cat].label);
     }
+    if (_rbPoiMarkers.length > 0) showToast(`Found ${_rbPoiMarkers.length} point${_rbPoiMarkers.length !== 1 ? 's' : ''} of interest along route`, 'info');
     _rbPoiRetries = 0;
   } catch (e) {
     if (e.name === 'AbortError') return;
@@ -19514,7 +19718,7 @@ function _rbSetPoiMode(alongRoute) {
   if (_rb._poiAlongRoute === alongRoute) return;
   _rb._poiAlongRoute = alongRoute;
   _rb._poiCache = '';
-  if (_rb._poiLayer) _rb._poiLayer.clearLayers();
+  _rbClearPoiLayers();
   _rbRenderPoiFilter();
   if (alongRoute) {
     _rb.map.off('moveend', _rbOnPoiMoveEnd);
@@ -19533,46 +19737,244 @@ function _rbTogglePoiCat(key, btn) {
 function _rbRefreshPois() {
   _rb._poiCache = '';
   if (!_rb._poiAlongRoute && _rb.map) {
-    // Re-render from tile cache with updated category filters (instant, no fetch)
     _rbRenderPoiFromCache(_rb.map.getBounds(), _rbPoiCatKey());
   }
   _rbFetchPois();
 }
 
-/* ── Waypoint Icon ── */
-function _rbWaypointIcon(index) {
+/* ── Waypoint Marker ── */
+function _rbCreateWaypointMarker(lat, lng, index) {
   const isStart = index === 0;
-  return L.divIcon({
-    className: 'rb-wp-icon',
-    html: `<div class="rb-wp-marker${isStart ? ' rb-wp-marker--start' : ''}">${isStart ? 'S' : (index + 1)}</div>`,
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
+  const el = document.createElement('div');
+  el.className = 'rb-wp-icon';
+  el.innerHTML = `<div class="rb-wp-marker${isStart ? ' rb-wp-marker--start' : ''}">${isStart ? 'S' : (index + 1)}</div>`;
+  el.addEventListener('mousedown', (e) => {
+    if (e.button === 1) {
+      e.preventDefault();
+      e.stopPropagation();
+      const idx = _rb.waypoints.findIndex(w => w.marker && w.marker.getElement() === el);
+      if (idx !== -1) _rbRemoveWaypoint(idx);
+    }
   });
+  el.addEventListener('auxclick', (e) => { if (e.button === 1) { e.preventDefault(); e.stopPropagation(); } });
+  const marker = new maplibregl.Marker({ element: el, draggable: true, anchor: 'center' })
+    .setLngLat([lng, lat])
+    .addTo(_rb.map);
+  el.removeAttribute('aria-label');
+  return marker;
 }
 
-/* ── OSRM ── */
+function _rbUpdateWaypointMarkerIcon(marker, index) {
+  const isStart = index === 0;
+  const el = marker.getElement();
+  el.className = 'rb-wp-icon';
+  el.innerHTML = `<div class="rb-wp-marker${isStart ? ' rb-wp-marker--start' : ''}">${isStart ? 'S' : (index + 1)}</div>`;
+}
+
+/* ── Routing engines ── */
 const OSRM_BASE = 'https://router.project-osrm.org/route/v1/cycling';
+const BROUTER_BASE = 'https://brouter.de/brouter';
+const ORS_BASE = 'https://api.openrouteservice.org/v2/directions';
 
-async function _rbFetchRoute(from, to) {
-  const coords = `${from.lng},${from.lat};${to.lng},${to.lat}`;
-  const url = `${OSRM_BASE}/${coords}?overview=full&geometries=polyline6&steps=true&annotations=true`;
+const RB_ROUTERS = [
+  { engine: 'osrm', profile: 'cycling', label: 'Cycling', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5V14l-3-3 4-3 2 3h2"/></svg>' },
+  { engine: 'brouter', profile: 'fastbike', label: 'Road', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M5 12h14M12 5l7 7-7 7"/></svg>' },
+  { engine: 'brouter', profile: 'trekking', label: 'Trekking', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M3 17l4-8 4 4 4-8 4 8"/></svg>' },
+  { engine: 'brouter', profile: 'mtb', label: 'MTB', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M4 20l4-12 4 6 4-10 4 14"/></svg>' },
+  { engine: 'brouter', profile: 'shortest', label: 'Shortest', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>' },
+  { engine: 'brouter', profile: 'safety', label: 'Safety', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>' },
+  { engine: 'brouter', profile: 'fastbike-lowtraffic', label: 'Low Traffic', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>' },
+  { engine: 'brouter', profile: 'fastbike-asia-pacific', label: 'Asia-Pacific', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>' },
+  { engine: 'ors', profile: 'cycling-regular', label: 'Regular', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>' },
+  { engine: 'ors', profile: 'cycling-road', label: 'Road', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M4 19L12 5l8 14"/><line x1="8" y1="14" x2="16" y2="14"/></svg>' },
+  { engine: 'ors', profile: 'cycling-mountain', label: 'Mountain', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M4 20l5-14 3 6 4-8 4 16"/></svg>' },
+  { engine: 'ors', profile: 'cycling-electric', label: 'E-Bike', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>' },
+];
 
-  if (_rb._fetchAbort) _rb._fetchAbort.abort();
-  _rb._fetchAbort = new AbortController();
-
+/* ── BRouter fetch ── */
+async function _brouterFetchRoute(from, to, altIdx, signal) {
+  const lonlats = `${from.lng},${from.lat}|${to.lng},${to.lat}`;
+  const url = `${BROUTER_BASE}?lonlats=${lonlats}&profile=${_rb.router.profile}&alternativeidx=${altIdx || 0}&format=geojson`;
   try {
-    const resp = await fetch(url, { signal: _rb._fetchAbort.signal });
+    const resp = await fetch(url, { signal });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    const feat = data.features && data.features[0];
+    if (!feat) return null;
+    const coords = feat.geometry.coordinates; // [lng, lat, ele]
+    const points = coords.map(c => [c[1], c[0]]); // flip to [lat, lng]
+    const dist = parseFloat(feat.properties['track-length']) || 0;
+    const dur = parseFloat(feat.properties['total-time']) || 0;
+    return { points, distance: dist, duration: dur, annotations: null };
+  } catch (e) {
+    if (e.name === 'AbortError') return null;
+    return null;
+  }
+}
+
+/* ── ORS fetch ── */
+async function _orsFetchRoute(from, to, altIdx, signal) {
+  const apiKey = _rb.orsApiKey;
+  if (!apiKey) { showToast('Set your ORS API key in Settings', 'error'); return null; }
+  let url = `${ORS_BASE}/${_rb.router.profile}?api_key=${apiKey}&start=${from.lng},${from.lat}&end=${to.lng},${to.lat}`;
+  if (altIdx > 0) url += `&alternative_routes=${encodeURIComponent(JSON.stringify({ target_count: 2 }))}`;
+  try {
+    const resp = await fetch(url, { signal });
+    if (resp.status === 429) { showToast('ORS rate limit reached — try again later', 'error'); return null; }
+    if (resp.status === 403) { showToast('Invalid ORS API key — check Settings', 'error'); return null; }
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    if (!data.features || !data.features.length) return null;
+    // If we requested alternatives, return array
+    if (altIdx > 0 && data.features.length > 1) {
+      return data.features.map(feat => {
+        const coords = feat.geometry.coordinates;
+        const points = coords.map(c => [c[1], c[0]]);
+        const summary = feat.properties.summary || {};
+        return { points, distance: summary.distance || 0, duration: summary.duration || 0, annotations: null };
+      });
+    }
+    const feat = data.features[0];
+    const coords = feat.geometry.coordinates; // [lng, lat]
+    const points = coords.map(c => [c[1], c[0]]); // flip to [lat, lng]
+    const summary = feat.properties.summary || {};
+    return { points, distance: summary.distance || 0, duration: summary.duration || 0, annotations: null };
+  } catch (e) {
+    if (e.name === 'AbortError') return null;
+    return null;
+  }
+}
+
+function _normalizeOsrmRoute(r) {
+  return { points: _rbDecodePolyline6(r.geometry), distance: r.distance, duration: r.duration, annotations: r.legs[0]?.annotation || null };
+}
+
+async function _rbFetchRoute(from, to, withAlternatives, skipAbort) {
+  let signal;
+  if (!skipAbort) {
+    if (_rb._fetchAbort) _rb._fetchAbort.abort();
+    _rb._fetchAbort = new AbortController();
+    signal = _rb._fetchAbort.signal;
+  }
+
+  if (_rb.router.engine === 'brouter') {
+    try {
+      const main = await _brouterFetchRoute(from, to, 0, signal);
+      if (!main) { showToast('Could not find route between points', 'error'); return null; }
+      if (!withAlternatives) return main;
+      const alt = await _brouterFetchRoute(from, to, 1, signal);
+      return alt ? [main, alt] : [main];
+    } catch (e) {
+      if (e.name === 'AbortError') return null;
+      showToast('Route fetch failed', 'error');
+      return null;
+    }
+  }
+
+  if (_rb.router.engine === 'ors') {
+    try {
+      if (withAlternatives) {
+        const result = await _orsFetchRoute(from, to, 1, signal);
+        if (!result) { showToast('Could not find route between points', 'error'); return null; }
+        return Array.isArray(result) ? result : [result];
+      }
+      const main = await _orsFetchRoute(from, to, 0, signal);
+      if (!main) { showToast('Could not find route between points', 'error'); return null; }
+      return main;
+    } catch (e) {
+      if (e.name === 'AbortError') return null;
+      showToast('Route fetch failed', 'error');
+      return null;
+    }
+  }
+
+  // OSRM
+  const coords = `${from.lng},${from.lat};${to.lng},${to.lat}`;
+  const alt = withAlternatives ? '&alternatives=true' : '';
+  const url = `${OSRM_BASE}/${coords}?overview=full&geometries=polyline6&steps=true&annotations=true${alt}`;
+  try {
+    const resp = await fetch(url, { signal });
     const data = await resp.json();
     if (data.code !== 'Ok' || !data.routes?.length) {
       showToast('Could not find cycling route between points', 'error');
       return null;
     }
-    return data.routes[0];
+    if (withAlternatives) return data.routes.map(_normalizeOsrmRoute);
+    return _normalizeOsrmRoute(data.routes[0]);
   } catch (e) {
     if (e.name === 'AbortError') return null;
     showToast('Route fetch failed', 'error');
     return null;
   }
+}
+
+/* ── Alternative route display ── */
+function _rbClearAltRoute() {
+  if (!_rb.map) return;
+  try { if (_rb.map.getLayer('rb-alt-route')) _rb.map.removeLayer('rb-alt-route'); } catch(_){}
+  try { if (_rb.map.getLayer('rb-alt-hit')) _rb.map.removeLayer('rb-alt-hit'); } catch(_){}
+  try { if (_rb.map.getSource('rb-alt-route')) _rb.map.removeSource('rb-alt-route'); } catch(_){}
+  if (_rb._altToast) { _rb._altToast = null; }
+}
+
+function _rbShowAltRoute(altRoute, segIdx) {
+  _rbClearAltRoute();
+  const altPoints = altRoute.points;
+  const coords = altPoints.map(p => [p[1], p[0]]);
+  const altDistKm = (altRoute.distance / 1000).toFixed(1);
+  const mainDistKm = (_rb.routeSegments[segIdx]?.distance / 1000 || 0).toFixed(1);
+  const diff = (altRoute.distance - (_rb.routeSegments[segIdx]?.distance || 0)) / 1000;
+  const diffStr = diff >= 0 ? `+${diff.toFixed(1)}` : diff.toFixed(1);
+
+  _rb.map.addSource('rb-alt-route', {
+    type: 'geojson',
+    data: { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } },
+  });
+  _rb.map.addLayer({
+    id: 'rb-alt-route', type: 'line', source: 'rb-alt-route',
+    paint: { 'line-color': '#888888', 'line-width': 4, 'line-opacity': 0.6 },
+  });
+  // Wide hit area for clicking
+  _rb.map.addLayer({
+    id: 'rb-alt-hit', type: 'line', source: 'rb-alt-route',
+    paint: { 'line-color': 'transparent', 'line-width': 30 },
+  });
+
+  _rb.map.getCanvas().style.cursor = '';
+
+  // Hover effect
+  _rb.map.on('mouseenter', 'rb-alt-hit', () => {
+    if (_rb.map.getLayer('rb-alt-route')) {
+      _rb.map.setPaintProperty('rb-alt-route', 'line-opacity', 0.9);
+    }
+    _rb.map.getCanvas().style.cursor = 'pointer';
+  });
+  _rb.map.on('mouseleave', 'rb-alt-hit', () => {
+    if (_rb.map.getLayer('rb-alt-route')) {
+      _rb.map.setPaintProperty('rb-alt-route', 'line-opacity', 0.6);
+    }
+    _rb.map.getCanvas().style.cursor = '';
+  });
+
+  // Click to select alternative — suppress map click so no waypoint is placed
+  _rb.map.once('click', 'rb-alt-hit', (e) => {
+    e.preventDefault();
+    _rb._altClicked = true;
+    _rb.routeSegments[segIdx] = {
+      points: altPoints,
+      distance: altRoute.distance,
+      duration: altRoute.duration,
+      annotations: altRoute.annotations,
+    };
+    _rbClearAltRoute();
+    _rbRedrawRoute();
+    _rbFetchElevation();
+    _rbPushHistory();
+    _rbUpdateStats();
+    showToast(`Switched to alternative (${altDistKm} km)`, 'success');
+  });
+
+  showToast(`Alternative available: ${altDistKm} km (${diffStr} km) — click blue route to switch`, 'info', 5000);
 }
 
 /* ── Polyline6 Decoder ── */
@@ -19593,22 +19995,37 @@ function _rbDecodePolyline6(encoded) {
 
 /* ── Map Click ── */
 async function _rbOnMapClick(e) {
-  const { lat, lng } = e.latlng;
+  if (_rb._altClicked) { _rb._altClicked = false; return; }
+  // If click hit the alt-route layer, skip — the layer handler will deal with it
+  if (_rb.map.getLayer('rb-alt-hit')) {
+    const features = _rb.map.queryRenderedFeatures(e.point, { layers: ['rb-alt-hit'] });
+    if (features.length > 0) return;
+  }
+  const lat = e.lngLat.lat;
+  const lng = e.lngLat.lng;
   const idx = _rb.waypoints.length;
-  const marker = L.marker([lat, lng], {
-    draggable: true,
-    icon: _rbWaypointIcon(idx),
-  }).addTo(_rb.map);
+  const marker = _rbCreateWaypointMarker(lat, lng, idx);
   marker.on('dragend', () => _rbOnWaypointDrag(idx));
   _rb.waypoints.push({ lat, lng, marker });
 
   if (_rb.waypoints.length > 1) {
+    _rbClearAltRoute();
     const prev = _rb.waypoints[_rb.waypoints.length - 2];
     const curr = _rb.waypoints[_rb.waypoints.length - 1];
-    const route = await _rbFetchRoute(prev, curr);
-    if (route) {
-      const points = _rbDecodePolyline6(route.geometry);
-      _rb.routeSegments.push({ points, distance: route.distance, duration: route.duration, annotations: route.legs[0]?.annotation });
+    const routes = await _rbFetchRoute(prev, curr, true);
+    if (routes && routes.length > 0) {
+      const route = routes[0];
+      const segIdx = _rb.routeSegments.length;
+      _rb.routeSegments.push({ points: route.points, distance: route.distance, duration: route.duration, annotations: route.annotations });
+      _rbRedrawRoute();
+      _rbFetchElevation();
+      // Show alternative if available
+      if (routes.length > 1) {
+        _rbShowAltRoute(routes[1], segIdx);
+      }
+    } else {
+      // Fallback: straight dashed line between waypoints
+      _rb.routeSegments.push({ points: [[prev.lat, prev.lng], [curr.lat, curr.lng]], distance: _rbHaversine([prev.lat, prev.lng], [curr.lat, curr.lng]), duration: 0, fallback: true });
       _rbRedrawRoute();
       _rbFetchElevation();
     }
@@ -19623,19 +20040,24 @@ async function _rbOnMapClick(e) {
 async function _rbOnWaypointDrag(idx) {
   const wp = _rb.waypoints[idx];
   if (!wp) return;
-  const pos = wp.marker.getLatLng();
+  const pos = wp.marker.getLngLat();
   wp.lat = pos.lat;
   wp.lng = pos.lng;
+  wp._placeName = null; // re-fetch place name after drag
 
   const promises = [];
   if (idx > 0) {
-    promises.push(_rbFetchRoute(_rb.waypoints[idx - 1], wp).then(r => {
-      if (r) _rb.routeSegments[idx - 1] = { points: _rbDecodePolyline6(r.geometry), distance: r.distance, duration: r.duration, annotations: r.legs[0]?.annotation };
+    const prevWp = _rb.waypoints[idx - 1];
+    promises.push(_rbFetchRoute(prevWp, wp, false, true).then(r => {
+      if (r) _rb.routeSegments[idx - 1] = { points: r.points, distance: r.distance, duration: r.duration, annotations: r.annotations };
+      else _rb.routeSegments[idx - 1] = { points: [[prevWp.lat, prevWp.lng], [wp.lat, wp.lng]], distance: _rbHaversine([prevWp.lat, prevWp.lng], [wp.lat, wp.lng]), duration: 0, fallback: true };
     }));
   }
   if (idx < _rb.waypoints.length - 1) {
-    promises.push(_rbFetchRoute(wp, _rb.waypoints[idx + 1]).then(r => {
-      if (r) _rb.routeSegments[idx] = { points: _rbDecodePolyline6(r.geometry), distance: r.distance, duration: r.duration, annotations: r.legs[0]?.annotation };
+    const nextWp = _rb.waypoints[idx + 1];
+    promises.push(_rbFetchRoute(wp, nextWp, false, true).then(r => {
+      if (r) _rb.routeSegments[idx] = { points: r.points, distance: r.distance, duration: r.duration, annotations: r.annotations };
+      else _rb.routeSegments[idx] = { points: [[wp.lat, wp.lng], [nextWp.lat, nextWp.lng]], distance: _rbHaversine([wp.lat, wp.lng], [nextWp.lat, nextWp.lng]), duration: 0, fallback: true };
     }));
   }
   await Promise.all(promises);
@@ -19648,25 +20070,226 @@ async function _rbOnWaypointDrag(idx) {
 
 /* ── Route Drawing ── */
 function _rbRedrawRoute() {
-  if (_rb.routePolyline) { _rb.map.removeLayer(_rb.routePolyline); _rb.routePolyline = null; }
-  if (_rb._surfaceLayer) { _rb.map.removeLayer(_rb._surfaceLayer); _rb._surfaceLayer = null; }
+  if (!_rb.map) return;
+  // Remove old route layers/sources
+  try { if (_rb.map.getLayer('rb-route-hit')) _rb.map.removeLayer('rb-route-hit'); } catch(_){}
+  try { if (_rb.map.getLayer('rb-route')) _rb.map.removeLayer('rb-route'); } catch(_){}
+  try { if (_rb.map.getLayer('rb-surface')) _rb.map.removeLayer('rb-surface'); } catch(_){}
+  try { if (_rb.map.getLayer('rb-fallback')) _rb.map.removeLayer('rb-fallback'); } catch(_){}
+  try { if (_rb.map.getSource('rb-route')) _rb.map.removeSource('rb-route'); } catch(_){}
+  try { if (_rb.map.getSource('rb-surface')) _rb.map.removeSource('rb-surface'); } catch(_){}
+  try { if (_rb.map.getSource('rb-fallback')) _rb.map.removeSource('rb-fallback'); } catch(_){}
+  _rb.routePolyline = null;
+  _rb._surfaceLayer = null;
+
   const allPoints = [];
   for (const seg of _rb.routeSegments) allPoints.push(...seg.points);
   if (allPoints.length === 0) return;
 
-  if (_rb._surfaceMode) {
+  // Separate routed vs fallback (unroutable) segments
+  const routedPoints = [];
+  const fallbackFeatures = [];
+  for (const seg of _rb.routeSegments) {
+    if (seg.fallback) {
+      fallbackFeatures.push({
+        type: 'Feature', properties: {},
+        geometry: { type: 'LineString', coordinates: seg.points.map(p => [p[1], p[0]]) },
+      });
+    } else {
+      routedPoints.push(...seg.points);
+    }
+  }
+
+  // Dashed connectors for OSRM snap gaps (route snaps to nearest road, waypoint is off-road)
+  const SNAP_THRESHOLD = 30; // meters — draw connector if gap > 30m
+  for (let i = 0; i < _rb.routeSegments.length; i++) {
+    const seg = _rb.routeSegments[i];
+    if (seg.fallback || seg.points.length === 0) continue;
+    const wpStart = _rb.waypoints[i];
+    const wpEnd = _rb.waypoints[i + 1];
+    if (wpStart) {
+      const segFirst = seg.points[0];
+      if (_rbHaversine([wpStart.lat, wpStart.lng], segFirst) > SNAP_THRESHOLD) {
+        fallbackFeatures.push({
+          type: 'Feature', properties: {},
+          geometry: { type: 'LineString', coordinates: [[wpStart.lng, wpStart.lat], [segFirst[1], segFirst[0]]] },
+        });
+      }
+    }
+    if (wpEnd) {
+      const segLast = seg.points[seg.points.length - 1];
+      if (_rbHaversine([wpEnd.lat, wpEnd.lng], segLast) > SNAP_THRESHOLD) {
+        fallbackFeatures.push({
+          type: 'Feature', properties: {},
+          geometry: { type: 'LineString', coordinates: [[segLast[1], segLast[0]], [wpEnd.lng, wpEnd.lat]] },
+        });
+      }
+    }
+  }
+
+  if (_rb._surfaceMode && routedPoints.length > 0) {
     const groups = _rbGroupBySurface();
-    _rb._surfaceLayer = L.layerGroup().addTo(_rb.map);
-    for (const g of groups) L.polyline(g.points, { color: g.color, weight: 4, opacity: 0.9 }).addTo(_rb._surfaceLayer);
-    _rb.routePolyline = L.polyline(allPoints, { opacity: 0, weight: 0 }).addTo(_rb.map);
+    const features = groups.map(g => ({
+      type: 'Feature',
+      properties: { surface: g.type, color: g.color },
+      geometry: { type: 'LineString', coordinates: g.points.filter(Boolean).map(p => [p[1], p[0]]) },
+    }));
+    _rb.map.addSource('rb-surface', { type: 'geojson', data: { type: 'FeatureCollection', features } });
+    _rb.map.addLayer({
+      id: 'rb-surface', type: 'line', source: 'rb-surface',
+      paint: { 'line-color': ['get', 'color'], 'line-width': 4, 'line-opacity': 0.9 },
+    });
+    _rb._surfaceLayer = true;
+  }
+
+  // Main route source (all points for bounds, routed for display)
+  if (routedPoints.length > 0) {
+    const geojson = { type: 'Feature', geometry: { type: 'LineString', coordinates: routedPoints.map(p => [p[1], p[0]]) } };
+    _rb.map.addSource('rb-route', { type: 'geojson', data: geojson });
+    if (!_rb._surfaceMode) {
+      _rb.map.addLayer({
+        id: 'rb-route', type: 'line', source: 'rb-route',
+        paint: { 'line-color': '#00e5a0', 'line-width': 4, 'line-opacity': 0.9 },
+      });
+    }
+    _rb.routePolyline = true;
   } else {
-    _rb.routePolyline = L.polyline(allPoints, { color: '#00e5a0', weight: 4, opacity: 0.9 }).addTo(_rb.map);
+    // Only fallback segments — still need a route source for bounds
+    _rb.map.addSource('rb-route', { type: 'geojson', data: { type: 'FeatureCollection', features: fallbackFeatures } });
+    _rb.routePolyline = true;
+  }
+
+  // Dashed fallback lines for unroutable segments
+  if (fallbackFeatures.length > 0) {
+    _rb.map.addSource('rb-fallback', { type: 'geojson', data: { type: 'FeatureCollection', features: fallbackFeatures } });
+    _rb.map.addLayer({
+      id: 'rb-fallback', type: 'line', source: 'rb-fallback',
+      paint: { 'line-color': '#888888', 'line-width': 3, 'line-opacity': 0.8 },
+    });
+  }
+
+  // Invisible wide hit-area layer for route scrubbing
+  if (_rb.map.getSource('rb-route')) {
+    _rb.map.addLayer({
+      id: 'rb-route-hit', type: 'line', source: 'rb-route',
+      paint: { 'line-color': 'transparent', 'line-width': 40 },
+    });
   }
 
   if (_rb._poiEnabled && _rb._poiAlongRoute) {
     clearTimeout(_rb._poiDebounce);
     _rb._poiDebounce = setTimeout(_rbFetchPois, 800);
   }
+
+  _rbUpdateFrameBtn();
+}
+
+/* ── Route scrub tooltip ── */
+function _rbInitRouteScrub() {
+  if (!_rb.map || _rb._scrubBound) return;
+  _rb._scrubBound = true;
+
+  _rb.map.on('mousemove', 'rb-route-hit', function(e) {
+    const allPoints = [];
+    for (const seg of _rb.routeSegments) {
+      if (!seg.fallback) allPoints.push(...seg.points);
+    }
+    if (allPoints.length < 2) return;
+
+    // Find closest point on route
+    const cursor = [e.lngLat.lat, e.lngLat.lng];
+    let minDist = Infinity, bestIdx = 0;
+    for (let i = 0; i < allPoints.length; i++) {
+      const d = (allPoints[i][0] - cursor[0]) ** 2 + (allPoints[i][1] - cursor[1]) ** 2;
+      if (d < minDist) { minDist = d; bestIdx = i; }
+    }
+
+    // Cumulative distance up to that point
+    let cumDist = 0;
+    for (let i = 1; i <= bestIdx; i++) {
+      cumDist += _rbHaversine(allPoints[i - 1], allPoints[i]);
+    }
+
+    // Total distance + estimated time
+    let totalDist = 0, totalElev = 0;
+    for (const seg of _rb.routeSegments) totalDist += seg.distance || 0;
+    for (let i = 1; i < _rb.elevationData.length; i++) {
+      const diff = _rb.elevationData[i].elev - _rb.elevationData[i - 1].elev;
+      if (diff > 0) totalElev += diff;
+    }
+    const avgSpeed = Math.max(15, 25 - (totalElev / Math.max(1, totalDist / 1000)) * 2);
+    const timeAtPoint = totalDist > 0 ? (cumDist / 1000) / avgSpeed * 3600 : 0;
+
+    // Elevation at point
+    let elev = null;
+    if (_rb.elevationData.length > 0) {
+      let closestElev = 0, minEd = Infinity;
+      for (let i = 0; i < _rb.elevationData.length; i++) {
+        const d = Math.abs(_rb.elevationData[i].dist - cumDist);
+        if (d < minEd) { minEd = d; closestElev = i; }
+      }
+      elev = Math.round(_rb.elevationData[closestElev].elev);
+    }
+
+    const km = (cumDist / 1000).toFixed(1);
+    const time = _rbFormatTime(timeAtPoint);
+    const elevStr = elev !== null ? `${elev}m` : '';
+    const pt = allPoints[bestIdx];
+
+    if (!_rb._scrubMarker) {
+      const el = document.createElement('div');
+      el.className = 'rb-scrub-tooltip';
+      _rb._scrubMarker = new maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, -8] })
+        .setLngLat([pt[1], pt[0]]).addTo(_rb.map);
+    }
+    if (!_rb._scrubDot) {
+      const dot = document.createElement('div');
+      dot.className = 'rb-scrub-dot';
+      _rb._scrubDot = new maplibregl.Marker({ element: dot, anchor: 'center' })
+        .setLngLat([pt[1], pt[0]]).addTo(_rb.map);
+    }
+    _rb._scrubMarker.setLngLat([pt[1], pt[0]]);
+    _rb._scrubDot.setLngLat([pt[1], pt[0]]);
+    const el = _rb._scrubMarker.getElement();
+    el.innerHTML = `<div class="rb-scrub-content"><span class="rb-scrub-km">${km} km</span><span class="rb-scrub-sep">&middot;</span><span class="rb-scrub-time">${time}</span>${elevStr ? `<span class="rb-scrub-sep">&middot;</span><span class="rb-scrub-elev">${elevStr}</span>` : ''}</div>`;
+
+    _rb.map.getCanvas().style.cursor = 'crosshair';
+  });
+
+  _rb.map.on('mouseleave', 'rb-route-hit', function() {
+    if (_rb._scrubMarker) { _rb._scrubMarker.remove(); _rb._scrubMarker = null; }
+    if (_rb._scrubDot) { _rb._scrubDot.remove(); _rb._scrubDot = null; }
+    _rb.map.getCanvas().style.cursor = '';
+  });
+}
+
+/* ── Route bounds helper ── */
+function _rbGetRouteBounds() {
+  const allPoints = [];
+  for (const seg of _rb.routeSegments) allPoints.push(...seg.points);
+  if (allPoints.length === 0) return null;
+  const lngs = allPoints.map(p => p[1]);
+  const lats = allPoints.map(p => p[0]);
+  return new maplibregl.LngLatBounds(
+    [Math.min(...lngs), Math.min(...lats)],
+    [Math.max(...lngs), Math.max(...lats)]
+  );
+}
+
+/* ── Frame route ── */
+function _rbFrameRoute() {
+  const bounds = _rbGetRouteBounds();
+  if (!bounds) return;
+  const panel = document.getElementById('rbSidePanel');
+  const panelW = panel && panel.offsetWidth ? panel.offsetWidth + 40 : 60;
+  _rb.map.fitBounds(bounds, { padding: { top: 60, bottom: 60, left: 60, right: panelW } });
+}
+
+function _rbUpdateFrameBtn() {
+  const btn = document.getElementById('rbFrameBtn');
+  if (!btn) return;
+  const hasRoute = _rb.routeSegments.length > 0 && _rb.routeSegments.some(s => s.points.length > 1);
+  btn.classList.toggle('rb-tool-disabled', !hasRoute);
 }
 
 /* ── Haversine ── */
@@ -19815,14 +20438,16 @@ function _rbRenderElevChart() {
 
 /* ── Elevation-Map Sync ── */
 function _rbSyncElevMarker(elements) {
-  if (_rb.elevMarker) { _rb.map.removeLayer(_rb.elevMarker); _rb.elevMarker = null; }
+  if (_rb.elevMarker) { _rb.elevMarker.remove(); _rb.elevMarker = null; }
   if (!elements?.length) return;
   const idx = elements[0].index;
   const pt = _rb.elevationData[idx];
   if (!pt) return;
-  _rb.elevMarker = L.circleMarker([pt.lat, pt.lng], {
-    radius: 6, color: '#00e5a0', fillColor: '#00e5a0', fillOpacity: 1, weight: 2,
-  }).addTo(_rb.map);
+  const el = document.createElement('div');
+  el.style.cssText = 'width:12px;height:12px;border-radius:50%;background:#00e5a0;border:2px solid #00e5a0;box-shadow:0 0 6px rgba(0,229,160,0.5);';
+  _rb.elevMarker = new maplibregl.Marker({ element: el, anchor: 'center' })
+    .setLngLat([pt.lng, pt.lat])
+    .addTo(_rb.map);
 }
 
 /* ── Elevation Panel Toggle ── */
@@ -19861,9 +20486,9 @@ function rbRedo() {
 }
 
 function _rbRestoreHistory(snapshot) {
-  _rb.waypoints.forEach(w => w.marker && _rb.map.removeLayer(w.marker));
+  _rb.waypoints.forEach(w => w.marker && w.marker.remove());
   _rb.waypoints = snapshot.waypoints.map((w, i) => {
-    const marker = L.marker([w.lat, w.lng], { draggable: true, icon: _rbWaypointIcon(i) }).addTo(_rb.map);
+    const marker = _rbCreateWaypointMarker(w.lat, w.lng, i);
     marker.on('dragend', () => _rbOnWaypointDrag(i));
     return { ...w, marker };
   });
@@ -19932,7 +20557,7 @@ async function _rbDoSearch(query) {
       el.addEventListener('click', () => {
         const lat = parseFloat(el.dataset.lat);
         const lon = parseFloat(el.dataset.lon);
-        _rb.map.setView([lat, lon], 14);
+        _rb.map.jumpTo({ center: [lon, lat], zoom: 14 });
         _rbClearSearch();
       });
     });
@@ -20296,10 +20921,7 @@ function _rbParseGPX(text) {
 
   for (const wi of wpIndices) {
     const pt = points[wi];
-    const marker = L.marker([pt.lat, pt.lng], {
-      draggable: true,
-      icon: _rbWaypointIcon(_rb.waypoints.length),
-    }).addTo(_rb.map);
+    const marker = _rbCreateWaypointMarker(pt.lat, pt.lng, _rb.waypoints.length);
     const wpIdx = _rb.waypoints.length;
     marker.on('dragend', () => _rbOnWaypointDrag(wpIdx));
     _rb.waypoints.push({ lat: pt.lat, lng: pt.lng, marker });
@@ -20328,7 +20950,8 @@ function _rbParseGPX(text) {
     _rbFetchElevation();
   }
 
-  if (_rb.routePolyline) _rb.map.fitBounds(_rb.routePolyline.getBounds(), { padding: [40, 40] });
+  const bounds = _rbGetRouteBounds();
+  if (bounds) _rb.map.fitBounds(bounds, { padding: 40 });
 
   _rbPushHistory();
   _rbUpdateStats();
@@ -20368,17 +20991,16 @@ function _rbUpdateStats() {
 }
 
 function _rbUpdateTimeLabel(estTimeSec) {
-  if (_rb._timeLabel) { _rb.map.removeLayer(_rb._timeLabel); _rb._timeLabel = null; }
+  if (_rb._timeLabel) { _rb._timeLabel.remove(); _rb._timeLabel = null; }
   if (_rb.routeSegments.length === 0 || estTimeSec <= 0) return;
   const mid = _rbRouteMidpoint();
   if (!mid) return;
-  const icon = L.divIcon({
-    className: 'rb-time-label-icon',
-    html: `<div class="rb-time-label"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span>${_rbFormatTime(estTimeSec)}</span></div>`,
-    iconSize: [0, 0],
-    iconAnchor: [0, 16],
-  });
-  _rb._timeLabel = L.marker(mid, { icon, interactive: false, zIndexOffset: 1000 }).addTo(_rb.map);
+  const el = document.createElement('div');
+  el.className = 'rb-time-label-icon';
+  el.innerHTML = `<div class="rb-time-label"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span>${_rbFormatTime(estTimeSec)}</span></div>`;
+  _rb._timeLabel = new maplibregl.Marker({ element: el, anchor: 'bottom' })
+    .setLngLat([mid[1], mid[0]])
+    .addTo(_rb.map);
 }
 
 function _rbFormatTime(secs) {
@@ -20467,13 +21089,13 @@ function _rbUpdateSurfaceLegend() {
 /* ── Reverse ── */
 function rbReverse() {
   if (_rb.waypoints.length < 2) return;
-  _rb.waypoints.forEach(w => _rb.map.removeLayer(w.marker));
+  _rb.waypoints.forEach(w => w.marker.remove());
   _rb.waypoints.reverse();
   _rb.routeSegments.reverse();
   _rb.routeSegments.forEach(seg => seg.points.reverse());
 
   _rb.waypoints.forEach((w, i) => {
-    w.marker = L.marker([w.lat, w.lng], { draggable: true, icon: _rbWaypointIcon(i) }).addTo(_rb.map);
+    w.marker = _rbCreateWaypointMarker(w.lat, w.lng, i);
     w.marker.on('dragend', () => _rbOnWaypointDrag(i));
   });
 
@@ -20497,7 +21119,7 @@ async function rbOutAndBack() {
   const returnWps = _rb.waypoints.slice(0, -1).reverse();
 
   for (const wp of returnWps) {
-    const marker = L.marker([wp.lat, wp.lng], { draggable: true, icon: _rbWaypointIcon(_rb.waypoints.length) }).addTo(_rb.map);
+    const marker = _rbCreateWaypointMarker(wp.lat, wp.lng, _rb.waypoints.length);
     const idx = _rb.waypoints.length;
     marker.on('dragend', () => _rbOnWaypointDrag(idx));
     _rb.waypoints.push({ lat: wp.lat, lng: wp.lng, marker });
@@ -20506,7 +21128,7 @@ async function rbOutAndBack() {
     const curr = _rb.waypoints[_rb.waypoints.length - 1];
     const route = await _rbFetchRoute(prev, curr);
     if (route) {
-      _rb.routeSegments.push({ points: _rbDecodePolyline6(route.geometry), distance: route.distance, duration: route.duration, annotations: route.legs[0]?.annotation });
+      _rb.routeSegments.push({ points: route.points, distance: route.distance, duration: route.duration, annotations: route.annotations });
     }
   }
 
@@ -20528,11 +21150,11 @@ async function rbLoopBack() {
   }
   const route = await _rbFetchRoute(last, first);
   if (!route) return;
-  const marker = L.marker([first.lat, first.lng], { draggable: true, icon: _rbWaypointIcon(_rb.waypoints.length) }).addTo(_rb.map);
+  const marker = _rbCreateWaypointMarker(first.lat, first.lng, _rb.waypoints.length);
   const idx = _rb.waypoints.length;
   marker.on('dragend', () => _rbOnWaypointDrag(idx));
   _rb.waypoints.push({ lat: first.lat, lng: first.lng, marker });
-  _rb.routeSegments.push({ points: _rbDecodePolyline6(route.geometry), distance: route.distance, duration: route.duration, annotations: route.legs[0]?.annotation });
+  _rb.routeSegments.push({ points: route.points, distance: route.distance, duration: route.duration, annotations: route.annotations });
   _rbRedrawRoute();
   _rbFetchElevation();
   _rbPushHistory();
@@ -20632,7 +21254,7 @@ async function rbLoadRoute(id) {
   _rb.activeRouteId = route.id;
 
   route.waypoints.forEach((w, i) => {
-    const marker = L.marker([w.lat, w.lng], { draggable: true, icon: _rbWaypointIcon(i) }).addTo(_rb.map);
+    const marker = _rbCreateWaypointMarker(w.lat, w.lng, i);
     marker.on('dragend', () => _rbOnWaypointDrag(i));
     _rb.waypoints.push({ lat: w.lat, lng: w.lng, marker });
   });
@@ -20647,7 +21269,8 @@ async function rbLoadRoute(id) {
   _rbUpdateStats();
   _rbUpdateWaypointList();
 
-  if (_rb.routePolyline) _rb.map.fitBounds(_rb.routePolyline.getBounds(), { padding: [40, 40] });
+  const bounds = _rbGetRouteBounds();
+  if (bounds) _rb.map.fitBounds(bounds, { padding: 40 });
 
   _rbPushHistory();
   _rbRenderSavedList();
@@ -20669,15 +21292,28 @@ async function rbDeleteSavedRoute(id) {
 
 /* ── Clear ── */
 function rbClear() {
-  _rb.waypoints.forEach(w => w.marker && _rb.map.removeLayer(w.marker));
+  _rb.waypoints.forEach(w => w.marker && w.marker.remove());
   _rb.waypoints = [];
   _rb.routeSegments = [];
   _rb.elevationData = [];
   _rb.activeRouteId = null;
-  if (_rb.routePolyline) { _rb.map.removeLayer(_rb.routePolyline); _rb.routePolyline = null; }
-  if (_rb._surfaceLayer) { _rb.map.removeLayer(_rb._surfaceLayer); _rb._surfaceLayer = null; }
-  if (_rb.elevMarker) { _rb.map.removeLayer(_rb.elevMarker); _rb.elevMarker = null; }
-  if (_rb._timeLabel) { _rb.map.removeLayer(_rb._timeLabel); _rb._timeLabel = null; }
+  // Remove route layers
+  if (_rb.map) {
+    if (_rb.map.getLayer('rb-route-hit')) _rb.map.removeLayer('rb-route-hit');
+    if (_rb.map.getLayer('rb-route')) _rb.map.removeLayer('rb-route');
+    if (_rb.map.getLayer('rb-surface')) _rb.map.removeLayer('rb-surface');
+    if (_rb.map.getLayer('rb-fallback')) _rb.map.removeLayer('rb-fallback');
+    if (_rb.map.getSource('rb-route')) _rb.map.removeSource('rb-route');
+    if (_rb.map.getSource('rb-surface')) _rb.map.removeSource('rb-surface');
+    if (_rb.map.getSource('rb-fallback')) _rb.map.removeSource('rb-fallback');
+  }
+  _rbClearAltRoute();
+  if (_rb._scrubMarker) { _rb._scrubMarker.remove(); _rb._scrubMarker = null; }
+  if (_rb._scrubDot) { _rb._scrubDot.remove(); _rb._scrubDot = null; }
+  _rb.routePolyline = null;
+  _rb._surfaceLayer = null;
+  if (_rb.elevMarker) { _rb.elevMarker.remove(); _rb.elevMarker = null; }
+  if (_rb._timeLabel) { _rb._timeLabel.remove(); _rb._timeLabel = null; }
   _rb._surfaceMode = false;
   _rb._poiAlongRoute = false;
   const sfBtn = document.getElementById('rbSurfaceToggleBtn');
@@ -20695,6 +21331,18 @@ function rbClear() {
 }
 
 /* ── Waypoint List ── */
+async function _rbReverseGeocode(lat, lng) {
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=14&addressdetails=1`, {
+      headers: { 'Accept-Language': 'en' },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const a = data.address || {};
+    return a.village || a.town || a.city || a.suburb || a.hamlet || a.municipality || a.county || data.display_name?.split(',')[0] || null;
+  } catch (_) { return null; }
+}
+
 function _rbUpdateWaypointList() {
   const list = document.getElementById('rbWaypointList');
   if (!list) return;
@@ -20705,7 +21353,10 @@ function _rbUpdateWaypointList() {
   list.innerHTML = _rb.waypoints.map((w, i) => `
     <div class="rb-wp-item">
       <span class="rb-wp-badge">${i === 0 ? 'S' : i + 1}</span>
-      <span>${w.lat.toFixed(4)}, ${w.lng.toFixed(4)}</span>
+      <div class="rb-wp-info">
+        <span class="rb-wp-name">${w._placeName || 'Loading...'}</span>
+        <span class="rb-wp-coords">${w.lat.toFixed(4)}, ${w.lng.toFixed(4)}</span>
+      </div>
       <button class="btn btn-icon btn-sm btn-ghost rb-wp-remove" data-idx="${i}" title="Remove" style="margin-left:auto;width:24px;height:24px">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
@@ -20715,28 +21366,58 @@ function _rbUpdateWaypointList() {
   list.querySelectorAll('.rb-wp-remove').forEach(btn => {
     btn.addEventListener('click', () => _rbRemoveWaypoint(parseInt(btn.dataset.idx)));
   });
+
+  // Fetch place names for waypoints that don't have one yet
+  _rb.waypoints.forEach((w, i) => {
+    if (w._placeName) return;
+    _rbReverseGeocode(w.lat, w.lng).then(name => {
+      w._placeName = name || `Point ${i + 1}`;
+      const el = list.querySelectorAll('.rb-wp-name')[i];
+      if (el) el.textContent = w._placeName;
+    });
+  });
 }
 
 async function _rbRemoveWaypoint(idx) {
   if (idx < 0 || idx >= _rb.waypoints.length) return;
-  _rb.map.removeLayer(_rb.waypoints[idx].marker);
+  _rb.waypoints[idx].marker.remove();
   _rb.waypoints.splice(idx, 1);
 
-  // Rebuild all segments
-  _rb.routeSegments = [];
-  for (let i = 0; i < _rb.waypoints.length - 1; i++) {
-    const route = await _rbFetchRoute(_rb.waypoints[i], _rb.waypoints[i + 1]);
+  // Stitch segments
+  const isFirst = idx === 0;
+  const isLast = idx >= _rb.routeSegments.length; // was last waypoint
+  if (_rb.waypoints.length < 2) {
+    // 0 or 1 waypoint left — no segments needed
+    _rb.routeSegments = [];
+  } else if (isFirst) {
+    // Deleted the first waypoint — just drop segment 0, the rest shift down
+    _rb.routeSegments.splice(0, 1);
+  } else if (isLast) {
+    // Deleted the last waypoint — just drop the last segment
+    _rb.routeSegments.splice(idx - 1, 1);
+  } else {
+    // Deleted a middle waypoint — replace two adjacent segments with one new route
+    const a = _rb.waypoints[idx - 1];
+    const b = _rb.waypoints[idx]; // shifted down after splice
+    const route = await _rbFetchRoute(a, b, false, true);
+    let newSeg;
     if (route) {
-      _rb.routeSegments.push({ points: _rbDecodePolyline6(route.geometry), distance: route.distance, duration: route.duration, annotations: route.legs[0]?.annotation });
+      newSeg = { points: route.points, distance: route.distance, duration: route.duration, annotations: route.annotations };
+    } else {
+      newSeg = { points: [[a.lat, a.lng], [b.lat, b.lng]], distance: _rbHaversine([a.lat, a.lng], [b.lat, b.lng]), duration: 0, fallback: true };
     }
+    _rb.routeSegments.splice(idx - 1, 2, newSeg);
   }
 
-  // Re-index markers
+  // Remove all old markers and recreate from stored coordinates
+  _rb.waypoints.forEach(w => { if (w.marker) w.marker.remove(); });
   _rb.waypoints.forEach((w, i) => {
-    w.marker.setIcon(_rbWaypointIcon(i));
+    w.marker = _rbCreateWaypointMarker(w.lat, w.lng, i);
+    w.marker.on('dragend', () => _rbOnWaypointDrag(i));
   });
 
   _rbRedrawRoute();
+  _rbClearAltRoute();
   if (_rb.waypoints.length > 1) _rbFetchElevation();
   else { _rb.elevationData = []; _rbRenderElevChart(); }
   _rbPushHistory();
