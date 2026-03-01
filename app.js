@@ -2510,8 +2510,53 @@ async function renderRecentActivity() {
     renderRecentActCardMap(a, i);
   });
   if (window.refreshGlow) refreshGlow(rail);
+
+  // ── Mobile pagination dots ──
+  _initRecentActDots(rail, recent.length);
 }
 
+function _initRecentActDots(rail, count) {
+  // Remove any existing dots
+  const prev = rail.parentElement.querySelector('.recent-act-dots');
+  if (prev) prev.remove();
+  if (count < 2) return;
+
+  const dotsWrap = document.createElement('div');
+  dotsWrap.className = 'recent-act-dots';
+  for (let i = 0; i < count; i++) {
+    const dot = document.createElement('button');
+    dot.className = 'recent-act-dot' + (i === 0 ? ' active' : '');
+    dot.setAttribute('aria-label', `Activity ${i + 1}`);
+    dot.addEventListener('click', () => {
+      const card = rail.children[i];
+      if (card) card.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' });
+    });
+    dotsWrap.appendChild(dot);
+  }
+  rail.parentElement.appendChild(dotsWrap);
+
+  // Update dots on scroll
+  let scrollTick = false;
+  rail.addEventListener('scroll', () => {
+    if (scrollTick) return;
+    scrollTick = true;
+    requestAnimationFrame(() => {
+      scrollTick = false;
+      const cards = rail.querySelectorAll('.recent-act-card');
+      if (!cards.length) return;
+      const railLeft = rail.scrollLeft + rail.offsetWidth * 0.5;
+      let closest = 0;
+      let minDist = Infinity;
+      cards.forEach((c, i) => {
+        const center = c.offsetLeft + c.offsetWidth * 0.5;
+        const dist = Math.abs(center - rail.scrollLeft - rail.offsetWidth * 0.5);
+        if (dist < minDist) { minDist = dist; closest = i; }
+      });
+      dotsWrap.querySelectorAll('.recent-act-dot').forEach((d, i) =>
+        d.classList.toggle('active', i === closest));
+    });
+  }, { passive: true });
+}
 
 function snapshotRecentMap(map, container, actId) {
   try {
@@ -10483,6 +10528,70 @@ function loadTerrainEnabled() {
 function setTerrainEnabled(on) {
   try { localStorage.setItem('icu_terrain_3d', on ? 'true' : 'false'); } catch (e) {}
 }
+function loadRoadSafetyEnabled() { return localStorage.getItem('icu_road_safety') === 'true'; }
+function setRoadSafetyEnabled(on) { try { localStorage.setItem('icu_road_safety', on ? 'true' : 'false'); } catch(e){} }
+function loadCyclOSMEnabled() { return localStorage.getItem('icu_cyclosm') === 'true'; }
+function setCyclOSMEnabled(on) { try { localStorage.setItem('icu_cyclosm', on ? 'true' : 'false'); } catch(e){} }
+
+// ── Road Safety overlay — color-code roads by cycling safety ─────────────
+function _addRoadSafetyLayer(map) {
+  if (!map.getSource('openmaptiles')) return false;
+  if (map.getLayer('road-safety-layer')) return true;
+  const beforeId = map.getLayer('route-shadow-layer') ? 'route-shadow-layer'
+    : map.getLayer('rb-route') ? 'rb-route' : undefined;
+  map.addLayer({
+    id: 'road-safety-layer',
+    type: 'line',
+    source: 'openmaptiles',
+    'source-layer': 'transportation',
+    filter: ['in', 'class', 'motorway','trunk','primary','secondary','tertiary','minor','service','path'],
+    paint: {
+      'line-color': [
+        'case',
+        ['in', ['get','class'], ['literal',['motorway','trunk']]], '#ff4757',
+        ['==', ['get','class'], 'primary'], '#ff6b35',
+        ['==', ['get','class'], 'secondary'], '#f0c429',
+        ['==', ['get','class'], 'tertiary'], '#b8e000',
+        ['in', ['get','class'], ['literal',['minor','service']]], '#00e55a',
+        ['all', ['==',['get','class'],'path'], ['any', ['==',['get','subclass'],'cycleway'], ['==',['get','bicycle'],'designated']]], '#00d4aa',
+        ['==', ['get','class'], 'path'], '#00e55a',
+        '#888888'
+      ],
+      'line-width': ['interpolate',['linear'],['zoom'], 8,1, 12,2, 14,3, 16,4],
+      'line-opacity': 0.7,
+    },
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+  }, beforeId);
+  return true;
+}
+function _removeRoadSafetyLayer(map) {
+  try { if (map.getLayer('road-safety-layer')) map.removeLayer('road-safety-layer'); } catch(_){}
+}
+
+// ── CyclOSM overlay — cycling-focused raster tiles ──────────────────────
+function _addCyclOSMLayer(map) {
+  if (map.getLayer('cyclosm-layer')) return;
+  if (!map.getSource('cyclosm-tiles')) {
+    map.addSource('cyclosm-tiles', {
+      type: 'raster',
+      tiles: [
+        'https://a.tile-cyclosm.openstreetmap.fr/cyclosm-lite/{z}/{x}/{y}.png',
+        'https://b.tile-cyclosm.openstreetmap.fr/cyclosm-lite/{z}/{x}/{y}.png',
+        'https://c.tile-cyclosm.openstreetmap.fr/cyclosm-lite/{z}/{x}/{y}.png',
+      ],
+      tileSize: 256,
+      attribution: '&copy; <a href="https://www.cyclosm.org">CyclOSM</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxzoom: 19,
+    });
+  }
+  const beforeId = map.getLayer('route-shadow-layer') ? 'route-shadow-layer'
+    : map.getLayer('rb-route') ? 'rb-route' : undefined;
+  map.addLayer({ id: 'cyclosm-layer', type: 'raster', source: 'cyclosm-tiles', paint: { 'raster-opacity': 0.5 } }, beforeId);
+}
+function _removeCyclOSMLayer(map) {
+  try { if (map.getLayer('cyclosm-layer')) map.removeLayer('cyclosm-layer'); } catch(_){}
+  try { if (map.getSource('cyclosm-tiles')) map.removeSource('cyclosm-tiles'); } catch(_){}
+}
 
 /** Apply or remove 3D terrain on a MapLibre map. Idempotent — safe after style.load. */
 function _mlApplyTerrain(map) {
@@ -10953,6 +11062,7 @@ function renderActivityMap(latlng, streams) {
                 _mlApplyTerrain(map);
               } catch (_) {}
             }
+            state._actReaddRouteLayers = _readdRouteLayers;
             satBtn.addEventListener('click', () => {
               isSatellite = !isSatellite;
               state._actIsSatellite = isSatellite;
@@ -16860,7 +16970,11 @@ function setMapTheme(key) {
     const satBtn = state.activityMap.getContainer().querySelector('.map-sat-control');
     if (satBtn) satBtn.classList.remove('active');
     state.activityMap.setStyle(style);
-    state.activityMap.once('style.load', () => _mlApplyTerrain(state.activityMap));
+    if (typeof state._actReaddRouteLayers === 'function') {
+      state.activityMap.once('idle', state._actReaddRouteLayers);
+    } else {
+      state.activityMap.once('style.load', () => _mlApplyTerrain(state.activityMap));
+    }
     if (bg) state.activityMap.getContainer().style.background = bg;
   }
 
@@ -20150,6 +20264,8 @@ const _rb = {
   _poiAlongRoute: false,
   _surfaceMode: false,
   _surfaceLayer: null,
+  _roadSafetyOn: loadRoadSafetyEnabled(),
+  _cyclOSMOn: loadCyclOSMEnabled(),
   _timeLabel: null,
   router: { engine: 'osrm', profile: 'cycling', label: 'Cycling' },
   orsApiKey: localStorage.getItem('icu_ors_api_key') || '',
@@ -20318,6 +20434,10 @@ function _rbToLatLng(ll) { return [ll[1], ll[0]]; }
 
 /* ── Restore all dynamic layers after a style change ── */
 function _rbRestoreMapLayers() {
+  // Overlays first (below route layers)
+  const isSat = _rbMapLayerKeys[_rbLayerIdx] === 'satellite';
+  if (_rb._cyclOSMOn) _addCyclOSMLayer(_rb.map);
+  if (_rb._roadSafetyOn && !isSat) _addRoadSafetyLayer(_rb.map);
   // GeoJSON sources/layers are cleared on setStyle — redraw the route
   _rbRedrawRoute();
   // Re-fetch POIs (markers are DOM-based and survive style changes, but we need fresh data)
@@ -20326,6 +20446,12 @@ function _rbRestoreMapLayers() {
     _rbFetchPois();
   }
   _mlApplyTerrain(_rb.map);
+  // Sync road safety button state (disabled in satellite)
+  const rsBtn = document.getElementById('rbRoadSafetyBtn');
+  if (rsBtn) {
+    if (isSat) { rsBtn.classList.add('rb-tool-disabled'); rsBtn.classList.remove('active'); }
+    else { rsBtn.classList.remove('rb-tool-disabled'); if (_rb._roadSafetyOn) rsBtn.classList.add('active'); }
+  }
 }
 
 function _rbInitMap() {
@@ -20357,7 +20483,11 @@ function _rbInitMap() {
     maxTileCacheSize: 150,
     pixelRatio: Math.min(devicePixelRatio, 2),
   });
-  _rb.map.on('load', () => _mlApplyTerrain(_rb.map));
+  _rb.map.on('load', () => {
+    _mlApplyTerrain(_rb.map);
+    if (_rb._cyclOSMOn) _addCyclOSMLayer(_rb.map);
+    if (_rb._roadSafetyOn) _addRoadSafetyLayer(_rb.map);
+  });
   _rb.map.addControl(new maplibregl.AttributionControl({ compact: true }), 'top-right');
   _rb.map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: 'metric' }), 'bottom-left');
 
@@ -20458,6 +20588,24 @@ function _rbInitMap() {
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M2 20h20"/><path d="M5 20v-6l4-4 3 3 5-5 4 4v8"/></svg>',
         _rbToggleSurfaceMode);
       surfaceBtn.id = 'rbSurfaceToggleBtn';
+
+      // ── Road Safety overlay button ──
+      const rsBtn = mkBtn(_rb._roadSafetyOn ? 'active' : '', 'Road safety overlay',
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3z"/><path d="M9 12l2 2 4-4"/></svg>',
+        _rbToggleRoadSafety);
+      rsBtn.id = 'rbRoadSafetyBtn';
+
+      // ── CyclOSM overlay button ──
+      const cosmBtn = mkBtn(_rb._cyclOSMOn ? 'active' : '', 'CyclOSM cycling overlay',
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="6" cy="17" r="3.5"/><circle cx="18" cy="17" r="3.5"/><path d="M6 17l3-7h6l3 7"/><circle cx="12" cy="7" r="1.5"/></svg>',
+        _rbToggleCyclOSM);
+      cosmBtn.id = 'rbCyclOSMBtn';
+
+      // ── 3D Terrain toggle button ──
+      const terrBtn = mkBtn(loadTerrainEnabled() ? 'active' : '', 'Toggle 3D terrain',
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M3 20l5-10 4 6 3-4 6 8"/><circle cx="17" cy="7" r="2"/></svg>',
+        _rbToggleTerrain);
+      terrBtn.id = 'rbTerrainBtn';
 
       // Separator before fullscreen
       const sep2 = document.createElement('div');
@@ -22903,6 +23051,49 @@ function _rbToggleSurfaceMode() {
   const btn = document.getElementById('rbSurfaceToggleBtn');
   if (btn) btn.classList.toggle('active', _rb._surfaceMode);
   showToast(_rb._surfaceMode ? 'Surface view on' : 'Surface view off', 'info');
+}
+
+/* ── Road Safety overlay toggle ── */
+function _rbToggleRoadSafety() {
+  if (!_rb.map) return;
+  const isSat = _rbMapLayerKeys[_rbLayerIdx] === 'satellite';
+  if (isSat) return; // no vector source in satellite mode
+  _rb._roadSafetyOn = !_rb._roadSafetyOn;
+  setRoadSafetyEnabled(_rb._roadSafetyOn);
+  if (_rb._roadSafetyOn) { _addRoadSafetyLayer(_rb.map); } else { _removeRoadSafetyLayer(_rb.map); }
+  const btn = document.getElementById('rbRoadSafetyBtn');
+  if (btn) btn.classList.toggle('active', _rb._roadSafetyOn);
+  showToast(_rb._roadSafetyOn ? 'Road safety on' : 'Road safety off', 'info');
+}
+
+/* ── CyclOSM overlay toggle ── */
+function _rbToggleCyclOSM() {
+  if (!_rb.map) return;
+  _rb._cyclOSMOn = !_rb._cyclOSMOn;
+  setCyclOSMEnabled(_rb._cyclOSMOn);
+  if (_rb._cyclOSMOn) { _addCyclOSMLayer(_rb.map); } else { _removeCyclOSMLayer(_rb.map); }
+  const btn = document.getElementById('rbCyclOSMBtn');
+  if (btn) btn.classList.toggle('active', _rb._cyclOSMOn);
+  showToast(_rb._cyclOSMOn ? 'CyclOSM overlay on' : 'CyclOSM overlay off', 'info');
+}
+
+/* ── 3D Terrain toggle ── */
+function _rbToggleTerrain() {
+  if (!_rb.map) return;
+  const on = !loadTerrainEnabled();
+  setTerrainEnabled(on);
+  _mlApplyTerrain(_rb.map);
+  const btn = document.getElementById('rbTerrainBtn');
+  if (btn) btn.classList.toggle('active', on);
+  // Sync settings page toggle if it exists
+  const settingsEl = document.getElementById('terrain3dToggle');
+  if (settingsEl) settingsEl.checked = on;
+  if (on) {
+    _rb.map.easeTo({ pitch: 55, duration: 600 });
+  } else {
+    _rb.map.easeTo({ pitch: 0, bearing: 0, duration: 600 });
+  }
+  showToast(on ? '3D terrain on' : '3D terrain off', 'info');
 }
 
 function _rbUpdateSurfaceLegend() {
