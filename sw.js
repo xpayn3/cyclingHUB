@@ -6,7 +6,7 @@
    3. Navigation Preload: fetch starts while SW boots
 ============================================================ */
 
-const APP_CACHE    = 'icu-app-shell-v1';
+const APP_CACHE    = 'icu-app-shell-v2';
 const TILE_CACHE   = 'icu-map-tiles-v1';
 const MAX_TILES    = 2000; // rough cap to avoid unbounded disk use
 const TILE_ORIGINS = ['server.arcgisonline.com'];
@@ -16,6 +16,14 @@ const APP_SHELL = [
   './index.html',
   './styles.css',
   './app.js',
+  './js/state.js',
+  './js/weather.js',
+  './js/share.js',
+  './js/routes.js',
+  './js/heatmap.js',
+  './js/workout.js',
+  './js/strava.js',
+  './js/import.js',
 ];
 
 // ── Install: pre-cache app shell, activate immediately ───────
