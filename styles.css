@@ -1,4 +1,11 @@
+/* ============================================================
+   CASCADE LAYERS — controls specificity ordering.
+   Later layers beat earlier ones; utilities always win.
+============================================================ */
+@layer base, tokens, layout, components, pages, utilities, themes;
+
 /* ── Hide scrollbars globally (keep scroll functional) ── */
+@layer base {
 * {
     scrollbar-width: none;           /* Firefox */
 }
@@ -20,6 +27,7 @@
     touch-action: auto !important;
     -ms-touch-action: auto !important;
 }
+} /* end @layer base */
 
 /* ============================================================
    DESIGN TOKENS  ←  EDIT HERE TO CHANGE THE WHOLE APP
@@ -27,6 +35,7 @@
    Everything visual lives in this one block.
    Change a value once — it updates everywhere automatically.
 ============================================================ */
+@layer tokens {
 :root {
     /* ── Accent colour ───────────────────────────────────────
        The main brand green. Change just this hex and the
@@ -139,10 +148,12 @@
     --text-xl: 1.9rem; /* ~30px  — primary stat values         */
     --text-2xl: 2.2rem; /* ~35px  — hero gauge numbers          */
 }
+} /* end @layer tokens */
 
 /* ============================================================
    RESET & BASE
 ============================================================ */
+@layer base {
 *,
 *::before,
 *::after {
@@ -183,7 +194,9 @@ select {
     font-family: inherit;
     color-scheme: dark;
 }
+} /* end @layer base */
 
+@layer components {
 /* ============================================================
    UNIVERSAL CUSTOM SELECT / DROPDOWN
    Apply .app-select to every <select> across the app.
@@ -395,7 +408,9 @@ code {
     padding: 1px 6px;
     color: var(--accent);
 }
+} /* end @layer components */
 
+@layer layout {
 /* ============================================================
    SIDEBAR
 ============================================================ */
@@ -417,6 +432,7 @@ code {
     transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
     will-change: transform;
     overscroll-behavior: contain; /* prevent scroll chaining to body */
+    view-transition-name: sidebar; /* exclude from page cross-fade */
 }
 .sidebar-logo {
     display: flex;
@@ -631,6 +647,7 @@ code {
     right: 0;
     z-index: 1100; /* above Leaflet's max of 1000 */
     flex-shrink: 0;
+    view-transition-name: topbar; /* exclude from page cross-fade */
 }
 /* ── Training status glow under topbar (dashboard only) ── */
 .topbar-glow-el {
@@ -701,7 +718,9 @@ code {
 .topbar--hidden ~ .page-content {
     padding-top: var(--pad-page);
 }
+} /* end @layer layout */
 
+@layer components {
 /* ============================================================
    BUTTONS
 ============================================================ */
@@ -792,23 +811,25 @@ code {
 /* ============================================================
    CONNECT MODAL
 ============================================================ */
-.modal-backdrop {
-    position: fixed;
-    inset: 0;
+/* ── Native <dialog> modal ── */
+.modal-dialog {
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    padding: 20px;
+    max-width: 100vw;
+    max-height: 100vh;
+    width: 100%;
+    margin: auto;
+    outline: none;
+}
+.modal-dialog::backdrop {
     background: rgba(0, 0, 0, 0.75);
-    z-index: 1200;
+}
+.modal-dialog[open] {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.2s ease;
-    will-change: opacity;
-}
-.modal-backdrop.open {
-    opacity: 1;
-    pointer-events: all;
 }
 .modal {
     background: var(--bg-card);
@@ -817,12 +838,11 @@ code {
     width: 100%;
     max-width: 480px;
     overflow: hidden;
-    transform: translateY(12px);
-    transition: transform 0.2s ease;
-    will-change: transform;
+    animation: modalSlideIn 0.2s ease-out;
 }
-.modal-backdrop.open .modal {
-    transform: translateY(0);
+@keyframes modalSlideIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 .modal-header {
     padding: 24px 28px 0;
@@ -1177,6 +1197,7 @@ code {
     padding: var(--pad-card);
     min-width: 0;
     contain: layout style;
+    container-type: inline-size;
 }
 .card-header {
     display: flex;
@@ -1527,13 +1548,15 @@ code {
 .card-row {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: auto 1fr;  /* header row + content row */
     gap: var(--gap-layout);
     align-items: stretch;
 }
 .card-row > .card {
     min-width: 0;
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-rows: subgrid;
+    grid-row: span 2;
 }
 .card-row > .card .chart-wrap {
     flex: 1;
@@ -1541,6 +1564,12 @@ code {
 @media (max-width: 900px) {
     .card-row {
         grid-template-columns: 1fr;
+        grid-template-rows: auto;
+    }
+    .card-row > .card {
+        grid-row: span 1;
+        display: flex;
+        flex-direction: column;
     }
 }
 /* Reusable right-side slot in card headers (legend + controls) */
@@ -1548,6 +1577,20 @@ code {
     display: flex;
     align-items: center;
     gap: 16px;
+}
+
+/* ── Container Queries — cards respond to their OWN width ── */
+@container (max-width: 500px) {
+    .act-primary-stats { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .fit-rp-grid { grid-template-columns: repeat(2, 1fr); }
+    .fit-rec-metrics { grid-template-columns: 1fr; }
+}
+@container (max-width: 400px) {
+    .card-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+}
+@container (max-width: 350px) {
+    .act-primary-stats { grid-template-columns: 1fr 1fr; gap: 6px; }
+    .act-pstat-val { font-size: 1.3rem; }
 }
 
 /* ============================================================
@@ -1748,7 +1791,9 @@ code {
         border-bottom: none;
     }
 }
+} /* end @layer components */
 
+@layer pages {
 /* ============================================================
    ACTIVITY LIST
 ============================================================ */
@@ -3352,7 +3397,9 @@ code {
     padding: 4px 10px;
     font-size: var(--text-sm);
 }
+} /* end @layer pages */
 
+@layer components {
 /* ============================================================
    LOADING & TOAST
 ============================================================ */
@@ -3625,18 +3672,17 @@ code {
     animation: pageFadeIn 0.22s ease-out both;
     will-change: transform, opacity;
 }
-/* Dashboard section wrappers */
-[data-dash-section].dash-hidden {
-    display: none !important;
-}
-/* Activity detail section toggles */
-.act-hidden {
-    display: none !important;
-}
 [data-dash-section="weeklyStats"] {
     margin-top: 24px;
 }
+} /* end @layer components */
 
+@layer utilities {
+[data-dash-section].dash-hidden { display: none !important; }
+.act-hidden { display: none !important; }
+} /* end @layer utilities */
+
+@layer pages {
 /* ============================================================
    CALENDAR PAGE
 ============================================================ */
@@ -14619,7 +14665,9 @@ textarea:focus-visible {
 .theme-toggle-btn svg {
     flex-shrink: 0;
 }
+} /* end @layer pages */
 
+@layer themes {
 /* ============================================================
    LIGHT THEME
    ============================================================
@@ -14726,7 +14774,7 @@ html[data-theme="light"] {
 }
 
 /* ── Modal ── */
-[data-theme="light"] .modal-backdrop {
+[data-theme="light"] .modal-dialog::backdrop {
     background: rgba(0, 0, 0, 0.3);
 }
 [data-theme="light"] .modal {
@@ -15076,7 +15124,9 @@ html[data-theme="light"] {
     background: var(--bg-elevated);
     border-top-color: var(--border);
 }
+} /* end @layer themes */
 
+@layer pages {
 /* ============================================================
    ROUTE BUILDER PAGE
 ============================================================ */
@@ -16194,4 +16244,19 @@ html[data-theme="light"] {
 @keyframes iosSlideUp {
     from { opacity: 0; transform: translateX(-50%) translateY(20px); }
     to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+} /* end @layer pages */
+
+/* ══════════════════════════════════════════════════════════
+   UNLAYERED OVERRIDES — must stay outside @layer to beat
+   unlayered third-party CSS (MapLibre, Leaflet, Chart.js).
+   ══════════════════════════════════════════════════════════ */
+
+/* Activity detail map: fill the card as an absolute background */
+#detailMapCard > .activity-map {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
 }

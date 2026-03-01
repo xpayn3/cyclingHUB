@@ -47,11 +47,11 @@
         <script defer src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
         <script defer src="https://unpkg.com/maplibre-gl@5.1.0/dist/maplibre-gl.js"></script>
         <!-- FIT parser loaded on-demand in app.js (not needed at startup) -->
-        <script src="app.js" defer></script>
+        <script type="module" src="app.js"></script>
     </head>
     <body>
         <!-- ============================================================  CONNECT MODAL  ============================================================ -->
-        <div class="modal-backdrop" id="connectModal" role="dialog" aria-modal="true" aria-labelledby="connectModalTitle">
+        <dialog class="modal-dialog" id="connectModal" aria-labelledby="connectModalTitle">
             <div class="modal">
                 <div class="modal-header">
                     <div>
@@ -193,10 +193,10 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </dialog>
 
         <!-- ============================================================  GEAR MODAL  ============================================================ -->
-        <div class="modal-backdrop" id="gearModal" role="dialog" aria-modal="true" aria-labelledby="gearModalTitle" onclick="if(event.target===this)closeGearModal()">
+        <dialog class="modal-dialog" id="gearModal" aria-labelledby="gearModalTitle">
             <div class="modal" style="max-width: 520px">
                 <div class="modal-header">
                     <div>
@@ -343,10 +343,10 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </dialog>
 
         <!-- Battery Modal -->
-        <div class="modal-backdrop" id="batteryModal" role="dialog" aria-modal="true" aria-labelledby="batteryModalTitle" onclick="if(event.target===this)closeBatteryModal()">
+        <dialog class="modal-dialog" id="batteryModal" aria-labelledby="batteryModalTitle">
             <div class="modal" style="max-width:520px">
                 <div class="modal-header">
                     <div>
@@ -418,10 +418,10 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </dialog>
 
         <!-- ==================== SERVICE MODAL ==================== -->
-        <div class="modal-backdrop" id="serviceModal" role="dialog" aria-modal="true" aria-labelledby="serviceModalTitle" onclick="if(event.target===this)closeServiceModal()">
+        <dialog class="modal-dialog" id="serviceModal" aria-labelledby="serviceModalTitle">
             <div class="modal" style="max-width:560px">
                 <div class="modal-header">
                     <div>
@@ -500,10 +500,10 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </dialog>
 
         <!-- ==================== SERVICE SHOP MODAL ==================== -->
-        <div class="modal-backdrop" id="serviceShopModal" role="dialog" aria-modal="true" aria-labelledby="serviceShopModalTitle" onclick="if(event.target===this)closeServiceShopModal()">
+        <dialog class="modal-dialog" id="serviceShopModal" aria-labelledby="serviceShopModalTitle">
             <div class="modal" style="max-width:480px">
                 <div class="modal-header">
                     <div>
@@ -541,10 +541,10 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </dialog>
 
         <!-- ==================== SERVICE HISTORY MODAL ==================== -->
-        <div class="modal-backdrop" id="serviceHistoryModal" role="dialog" aria-modal="true" aria-labelledby="serviceHistoryTitle" onclick="if(event.target===this)closeServiceHistory()">
+        <dialog class="modal-dialog" id="serviceHistoryModal" aria-labelledby="serviceHistoryTitle">
             <div class="modal" style="max-width:560px;max-height:80vh;display:flex;flex-direction:column">
                 <div class="modal-header">
                     <div>
@@ -564,10 +564,10 @@
                     <div id="serviceHistoryList"></div>
                 </div>
             </div>
-        </div>
+        </dialog>
 
         <!-- Export Helper Dialog -->
-        <div class="modal-backdrop" id="exportHelperModal" role="dialog" aria-modal="true" aria-labelledby="exportHelperTitle" onclick="if(event.target===this)closeExportHelper()">
+        <dialog class="modal-dialog" id="exportHelperModal" aria-labelledby="exportHelperTitle">
             <div class="modal" style="max-width:520px">
                 <div class="modal-header">
                     <div>
@@ -593,10 +593,10 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </dialog>
 
         <!-- Share Route Image Modal -->
-        <div class="modal-backdrop" id="shareModal" role="dialog" aria-modal="true" onclick="if(event.target===this)closeShareModal()">
+        <dialog class="modal-dialog" id="shareModal">
             <div class="modal" style="max-width:620px">
                 <div class="modal-header">
                     <div>
@@ -656,7 +656,7 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </dialog>
 
         <!-- ============================================================  SIDEBAR  ============================================================ -->
         <div
