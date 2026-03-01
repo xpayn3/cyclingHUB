@@ -3,6 +3,18 @@
 ==================================================== */
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js')
+    .then(reg => {
+      if (!reg) return;
+      reg.addEventListener('updatefound', () => {
+        const newSW = reg.installing;
+        if (!newSW) return;
+        newSW.addEventListener('statechange', () => {
+          if (newSW.state === 'activated' && navigator.serviceWorker.controller) {
+            showToast('App updated — refresh for the latest version', 'success');
+          }
+        });
+      });
+    })
     .catch(err => console.warn('SW registration failed:', err));
 }
 
