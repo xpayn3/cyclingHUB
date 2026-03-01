@@ -1,15 +1,30 @@
 /* ============================================================
-   Service Worker — Map Tile Cache
-   Caches satellite tiles from Esri so they load offline /
-   instantly on subsequent visits.
+   Service Worker — App Shell + Map Tile Cache
+   ============================================================
+   1. App shell (HTML, CSS, JS): network-first with cache fallback
+   2. Satellite tiles from Esri: cache-first for speed
 ============================================================ */
 
+const APP_CACHE    = 'icu-app-shell-v1';
 const TILE_CACHE   = 'icu-map-tiles-v1';
 const MAX_TILES    = 2000; // rough cap to avoid unbounded disk use
 const TILE_ORIGINS = ['server.arcgisonline.com'];
 
-// ── Install: activate immediately ───────────────────────────
-self.addEventListener('install', () => self.skipWaiting());
+const APP_SHELL = [
+  './',
+  './index.html',
+  './styles.css',
+  './app.js',
+];
+
+// ── Install: pre-cache app shell, activate immediately ───────
+self.addEventListener('install', e => {
+  e.waitUntil(
+    caches.open(APP_CACHE)
+      .then(cache => cache.addAll(APP_SHELL))
+      .then(() => self.skipWaiting())
+  );
+});
 
 // ── Activate: clean up old cache versions ───────────────────
 self.addEventListener('activate', e => {
@@ -17,49 +32,86 @@ self.addEventListener('activate', e => {
     caches.keys()
       .then(keys => Promise.all(
         keys
-          .filter(k => k.startsWith('icu-map-tiles-') && k !== TILE_CACHE)
+          .filter(k =>
+            (k.startsWith('icu-map-tiles-') && k !== TILE_CACHE) ||
+            (k.startsWith('icu-app-shell-') && k !== APP_CACHE)
+          )
           .map(k => caches.delete(k))
       ))
       .then(() => self.clients.claim())
   );
 });
 
-// ── Fetch: cache-first for tile requests ────────────────────
+// ── Fetch handler ────────────────────────────────────────────
 self.addEventListener('fetch', e => {
   const url = e.request.url;
 
-  // Only intercept tile requests
-  if (!TILE_ORIGINS.some(o => url.includes(o))) return;
+  // 1. Tile requests → cache-first
+  if (TILE_ORIGINS.some(o => url.includes(o))) {
+    e.respondWith(handleTile(e.request));
+    return;
+  }
 
-  e.respondWith(
-    caches.open(TILE_CACHE).then(async cache => {
-      // Cache hit → return immediately
-      const cached = await cache.match(e.request);
-      if (cached) return cached;
+  // 2. Same-origin navigation / app shell → network-first
+  if (e.request.mode === 'navigate' || isSameOriginAsset(url)) {
+    e.respondWith(handleAppShell(e.request));
+    return;
+  }
 
-      // Cache miss → fetch, store, return
-      try {
-        const response = await fetch(e.request);
-        if (response.ok) {
-          cache.put(e.request, response.clone());
-          // Prune oldest entries if over the cap (fire-and-forget)
-          pruneCache(cache);
-        }
-        return response;
-      } catch {
-        // Offline and not cached — return empty 408 so Leaflet
-        // renders a blank tile rather than throwing an error
-        return new Response('', { status: 408 });
-      }
-    })
-  );
+  // 3. Everything else → passthrough
 });
+
+// ── Network-first for app shell ──────────────────────────────
+async function handleAppShell(request) {
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      const cache = await caches.open(APP_CACHE);
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch {
+    const cached = await caches.match(request);
+    if (cached) return cached;
+    // Fallback for navigation requests: serve cached index.html
+    if (request.mode === 'navigate') {
+      const fallback = await caches.match('./index.html');
+      if (fallback) return fallback;
+    }
+    return new Response('Offline', { status: 503 });
+  }
+}
+
+function isSameOriginAsset(url) {
+  try {
+    const u = new URL(url);
+    return u.origin === self.location.origin &&
+      (u.pathname.endsWith('.html') || u.pathname.endsWith('.css') || u.pathname.endsWith('.js'));
+  } catch { return false; }
+}
+
+// ── Cache-first for tiles ────────────────────────────────────
+async function handleTile(request) {
+  const cache = await caches.open(TILE_CACHE);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      cache.put(request, response.clone());
+      pruneCache(cache);
+    }
+    return response;
+  } catch {
+    return new Response('', { status: 408 });
+  }
+}
 
 // ── Prune: keep cache under MAX_TILES ───────────────────────
 async function pruneCache(cache) {
   const keys = await cache.keys();
   if (keys.length <= MAX_TILES) return;
-  // Delete oldest entries (they're in insertion order)
   const toDelete = keys.slice(0, keys.length - MAX_TILES);
   await Promise.all(toDelete.map(k => cache.delete(k)));
 }

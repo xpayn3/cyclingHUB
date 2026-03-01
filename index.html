@@ -12,10 +12,18 @@
             type="image/svg+xml"
             href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%2300e5a0'/%3E%3Cg stroke='%230d0f14' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' fill='none'%3E%3Ccircle cx='12' cy='12' r='7'/%3E%3Ccircle cx='12' cy='12' r='2'/%3E%3Cline x1='12' y1='5' x2='12' y2='10'/%3E%3Cline x1='12' y1='14' x2='12' y2='19'/%3E%3Cline x1='5' y1='12' x2='10' y2='12'/%3E%3Cline x1='14' y1='12' x2='19' y2='12'/%3E%3C/g%3E%3C/svg%3E"
         />
+        <link rel="manifest" href="manifest.json" />
+        <meta name="theme-color" content="#090b0e" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <link rel="apple-touch-icon" href="icon-180.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
+        <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com" />
+        <link rel="dns-prefetch" href="https://unpkg.com" />
         <link
-            href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap"
             rel="stylesheet"
         />
         <link rel="stylesheet" href="styles.css" />
@@ -26,10 +34,12 @@
         <link
             rel="stylesheet"
             href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"
+            media="print" onload="this.media='all'"
         />
         <link
             rel="stylesheet"
             href="https://unpkg.com/maplibre-gl@5.1.0/dist/maplibre-gl.css"
+            media="print" onload="this.media='all'"
         />
         <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
         <script defer src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
@@ -1021,6 +1031,19 @@
                 </div>
             </nav>
             <div class="sidebar-footer">
+                <button
+                    id="pwaInstallBtn"
+                    class="sidebar-create-btn"
+                    style="display:none; background: var(--bg-elevated); border: 1px solid var(--border);"
+                    onclick="pwaInstall()"
+                >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Install App
+                </button>
                 <button
                     class="sidebar-create-btn"
                     onclick="

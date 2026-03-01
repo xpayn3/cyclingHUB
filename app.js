@@ -1,4 +1,30 @@
 /* ====================================================
+   PWA — Service Worker Registration + Install Prompt
+==================================================== */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js')
+    .catch(err => console.warn('SW registration failed:', err));
+}
+
+let _pwaInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  _pwaInstallPrompt = e;
+  const btn = document.getElementById('pwaInstallBtn');
+  if (btn) btn.style.display = '';
+});
+window.addEventListener('appinstalled', () => {
+  _pwaInstallPrompt = null;
+  const btn = document.getElementById('pwaInstallBtn');
+  if (btn) btn.style.display = 'none';
+  showToast('App installed!', 'success');
+});
+function pwaInstall() {
+  if (!_pwaInstallPrompt) return;
+  _pwaInstallPrompt.prompt();
+}
+
+/* ====================================================
    STATE
 ==================================================== */
 const state = {
@@ -1358,15 +1384,14 @@ let _sidebarScrollY = 0;
 function _lockBodyScroll(lock) {
   if (lock) {
     _sidebarScrollY = window.scrollY;
-    document.body.style.position  = 'fixed';
-    document.body.style.top       = `-${_sidebarScrollY}px`;
-    document.body.style.width     = '100%';
-    document.body.style.overflow  = 'hidden';
+    Object.assign(document.body.style, {
+      position: 'fixed', top: `-${_sidebarScrollY}px`,
+      width: '100%', overflow: 'hidden'
+    });
   } else {
-    document.body.style.position  = '';
-    document.body.style.top       = '';
-    document.body.style.width     = '';
-    document.body.style.overflow  = '';
+    Object.assign(document.body.style, {
+      position: '', top: '', width: '', overflow: ''
+    });
     window.scrollTo(0, _sidebarScrollY);
   }
 }
@@ -3726,7 +3751,10 @@ async function renderWeatherPage(_restoreScrollY) {
   } catch (_) {}
 
   // Lock page height before DOM swap to prevent scroll clamping during location switch
-  if (_restoreScrollY != null) container.style.minHeight = container.scrollHeight + 'px';
+  if (_restoreScrollY != null) {
+    const h = container.scrollHeight;
+    container.style.minHeight = h + 'px';
+  }
 
   body.innerHTML = `
     <!-- Current conditions + ride window row -->
@@ -3947,10 +3975,16 @@ async function renderWeatherPage(_restoreScrollY) {
       e.stopPropagation();
     });
     const wxWeekUp = () => { isDown = false; rail.classList.remove('is-dragging'); };
+    let _wxMoveRAF = 0;
     const wxWeekMove = e => {
       if (!isDown) return;
-      const x = e.pageX - rail.getBoundingClientRect().left;
-      rail.scrollLeft = scrollLeft - (x - startX);
+      const px = e.pageX;
+      if (_wxMoveRAF) return;
+      _wxMoveRAF = requestAnimationFrame(() => {
+        _wxMoveRAF = 0;
+        const x = px - rail.getBoundingClientRect().left;
+        rail.scrollLeft = scrollLeft - (x - startX);
+      });
     };
     document.addEventListener('mouseup', wxWeekUp);
     document.addEventListener('mousemove', wxWeekMove);
@@ -4277,10 +4311,16 @@ function renderWeatherDayDetail(dayIdx) {
       e.preventDefault();
     });
     const wxHourUp = () => { isDown = false; hRail.classList.remove('is-dragging'); };
+    let _wxHourRAF = 0;
     const wxHourMove = e => {
       if (!isDown) return;
-      const x = e.pageX - hRail.getBoundingClientRect().left;
-      hRail.scrollLeft = scrollLeft - (x - startX);
+      const px = e.pageX;
+      if (_wxHourRAF) return;
+      _wxHourRAF = requestAnimationFrame(() => {
+        _wxHourRAF = 0;
+        const x = px - hRail.getBoundingClientRect().left;
+        hRail.scrollLeft = scrollLeft - (x - startX);
+      });
     };
     document.addEventListener('mouseup', wxHourUp);
     document.addEventListener('mousemove', wxHourMove);
@@ -11532,7 +11572,8 @@ function initFlythrough(map, valid, streams, maxes, maxSpdKmh, maxHR, statsEl, t
       ftPause();
       goTo(idxFromEvent(e.clientX));
     });
-    const ftMoveDoc = (e) => { if (dragging) goTo(idxFromEvent(e.clientX)); };
+    let _ftMoveRAF = 0;
+    const ftMoveDoc = (e) => { if (!dragging) return; const cx = e.clientX; if (_ftMoveRAF) return; _ftMoveRAF = requestAnimationFrame(() => { _ftMoveRAF = 0; goTo(idxFromEvent(cx)); }); };
     const ftUpDoc = () => { if (!dragging) return; dragging = false; if (ft._resumeOnRelease) ftPlay(); };
     const ftTouchMoveDoc = (e) => { if (dragging) goTo(idxFromEvent(e.touches[0].clientX)); };
     const ftTouchEndDoc = () => { if (!dragging) return; dragging = false; if (ft._resumeOnRelease) ftPlay(); };
@@ -16895,12 +16936,18 @@ function buildFitWorkout(segments, name, ftp) {
       e.preventDefault();
     });
 
+    let _carouselMoveRAF = 0;
     window.addEventListener('mousemove', e => {
       if (!isDragging) return;
-      const dx = e.clientX - startX;
+      const cx = e.clientX;
+      const dx = cx - startX;
       if (Math.abs(dx) > 4) moved = true;
-      velBuf.push({ x: e.clientX, t: performance.now() });
-      rail.scrollLeft = rubberClamp(startScroll - dx);
+      velBuf.push({ x: cx, t: performance.now() });
+      if (_carouselMoveRAF) return;
+      _carouselMoveRAF = requestAnimationFrame(() => {
+        _carouselMoveRAF = 0;
+        rail.scrollLeft = rubberClamp(startScroll - (cx - startX));
+      });
     });
 
     window.addEventListener('mouseup', () => {
@@ -17088,6 +17135,10 @@ function setTheme(mode) {
   document.documentElement.setAttribute('data-theme', mode);
   try { localStorage.setItem('icu_theme', mode); } catch (e) { console.warn('localStorage.setItem failed:', e); }
 
+  // Sync PWA theme-color meta tag
+  const tc = document.querySelector('meta[name="theme-color"]');
+  if (tc) tc.setAttribute('content', mode === 'light' ? '#f2f3f5' : '#090b0e');
+
   // Update toggle button active states + slider position
   const toggle = document.getElementById('themePills');
   if (toggle) toggle.setAttribute('data-active', mode);
@@ -17117,6 +17168,8 @@ function setTheme(mode) {
 (function initTheme() {
   const saved = localStorage.getItem('icu_theme') || 'dark';
   document.documentElement.setAttribute('data-theme', saved);
+  const tc = document.querySelector('meta[name="theme-color"]');
+  if (tc) tc.setAttribute('content', saved === 'light' ? '#f2f3f5' : '#090b0e');
   _updateChartColors();
   // Set active state on buttons (after DOM ready)
   const applyToggle = () => {
@@ -17242,16 +17295,22 @@ function toggleTerrain3d(on) {
     e.preventDefault();
   });
 
+  let _pageDragRAF = 0;
   window.addEventListener('mousemove', e => {
     if (!isDragging) return;
-    const dy = e.clientY - startY;
-    const dx = e.clientX - startX;
+    const cx = e.clientX, cy = e.clientY;
+    const dy = cy - startY;
+    const dx = cx - startX;
     if (Math.abs(dy) > 4 || Math.abs(dx) > 4) {
       moved = true;
       document.documentElement.style.cursor = 'grabbing';
     }
-    velBuf.push({ x: e.clientX, y: e.clientY, t: performance.now() });
-    window.scrollTo(startScrollX - dx, startScrollY - dy);
+    velBuf.push({ x: cx, y: cy, t: performance.now() });
+    if (_pageDragRAF) return;
+    _pageDragRAF = requestAnimationFrame(() => {
+      _pageDragRAF = 0;
+      window.scrollTo(startScrollX - (cx - startX), startScrollY - (cy - startY));
+    });
   });
 
   window.addEventListener('mouseup', () => {
@@ -20507,12 +20566,16 @@ function _rbInitMap() {
       }
     });
     mapEl.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+    let _rbRotateRAF = 0;
     window.addEventListener('mousemove', function(e) {
       if (!rotating) return;
-      const dx = e.clientX - startX;
-      const dy = e.clientY - startY;
-      _rb.map.setBearing(startBearing + dx * 0.2);
-      _rb.map.setPitch(Math.min(85, Math.max(0, startPitch - dy * 0.3)));
+      const cx = e.clientX, cy = e.clientY;
+      if (_rbRotateRAF) return;
+      _rbRotateRAF = requestAnimationFrame(function() {
+        _rbRotateRAF = 0;
+        _rb.map.setBearing(startBearing + (cx - startX) * 0.2);
+        _rb.map.setPitch(Math.min(85, Math.max(0, startPitch - (cy - startY) * 0.3)));
+      });
     });
     window.addEventListener('mouseup', function() {
       if (!rotating) return;
