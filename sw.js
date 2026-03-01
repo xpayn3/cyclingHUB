@@ -3,6 +3,7 @@
    ============================================================
    1. App shell (HTML, CSS, JS): network-first with cache fallback
    2. Satellite tiles from Esri: cache-first for speed
+   3. Navigation Preload: fetch starts while SW boots
 ============================================================ */
 
 const APP_CACHE    = 'icu-app-shell-v1';
@@ -26,19 +27,24 @@ self.addEventListener('install', e => {
   );
 });
 
-// ── Activate: clean up old cache versions ───────────────────
+// ── Activate: clean up old caches + enable navigation preload ─
 self.addEventListener('activate', e => {
   e.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(
-        keys
-          .filter(k =>
-            (k.startsWith('icu-map-tiles-') && k !== TILE_CACHE) ||
-            (k.startsWith('icu-app-shell-') && k !== APP_CACHE)
-          )
-          .map(k => caches.delete(k))
-      ))
-      .then(() => self.clients.claim())
+    Promise.all([
+      // Clean old cache versions
+      caches.keys()
+        .then(keys => Promise.all(
+          keys
+            .filter(k =>
+              (k.startsWith('icu-map-tiles-') && k !== TILE_CACHE) ||
+              (k.startsWith('icu-app-shell-') && k !== APP_CACHE)
+            )
+            .map(k => caches.delete(k))
+        )),
+      // Enable navigation preload (fetch starts while SW boots)
+      self.registration.navigationPreload &&
+        self.registration.navigationPreload.enable()
+    ]).then(() => self.clients.claim())
   );
 });
 
@@ -54,17 +60,18 @@ self.addEventListener('fetch', e => {
 
   // 2. Same-origin navigation / app shell → network-first
   if (e.request.mode === 'navigate' || isSameOriginAsset(url)) {
-    e.respondWith(handleAppShell(e.request));
+    e.respondWith(handleAppShell(e.request, e.preloadResponse));
     return;
   }
 
   // 3. Everything else → passthrough
 });
 
-// ── Network-first for app shell ──────────────────────────────
-async function handleAppShell(request) {
+// ── Network-first for app shell (uses preload when available) ─
+async function handleAppShell(request, preloadResponse) {
   try {
-    const response = await fetch(request);
+    // Use the preloaded response if available (navigation preload)
+    const response = (await preloadResponse) || (await fetch(request));
     if (response.ok) {
       const cache = await caches.open(APP_CACHE);
       cache.put(request, response.clone());

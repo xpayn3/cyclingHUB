@@ -1,3 +1,11 @@
+/* ── Hide scrollbars globally (keep scroll functional) ── */
+* {
+    scrollbar-width: none;           /* Firefox */
+}
+*::-webkit-scrollbar {
+    display: none;                   /* Chrome / Safari / Edge */
+}
+
 /* ── Disable pinch-to-zoom globally, allow on maps ── */
 *,
 *::before,
@@ -3477,6 +3485,12 @@ code {
     display: contents;
 }
 
+/* Skip rendering of off-screen dashboard sections until scrolled into view */
+[data-dash-section] {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 400px;
+}
+
 .dash-top-spacer {
     height: 80px;
 }
@@ -3490,6 +3504,16 @@ code {
         opacity: 1;
         transform: translateY(0);
     }
+}
+
+/* ── View Transitions API — fast cross-fade for page navigation ── */
+::view-transition-old(root) {
+    animation-duration: 0.15s;
+    animation-timing-function: ease-out;
+}
+::view-transition-new(root) {
+    animation-duration: 0.15s;
+    animation-timing-function: ease-in;
 }
 
 /* ── Shimmer skeleton ── */
@@ -16059,4 +16083,84 @@ html[data-theme="light"] {
 }
 [data-theme="light"] .rb-export-tab.active {
     background: var(--accent-dim);
+}
+
+/* ============================================================
+   iOS PWA INSTALL BANNER
+============================================================ */
+.ios-install-banner {
+    display: none;
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 44px 14px 18px;
+    z-index: 9999;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    animation: iosSlideUp 0.35s ease-out;
+    max-width: 360px;
+    width: calc(100% - 32px);
+}
+.ios-install-banner.show {
+    display: block;
+}
+.ios-install-text {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text-primary);
+    line-height: 1.5;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+.ios-install-text strong {
+    color: var(--accent);
+}
+.ios-share-icon {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    vertical-align: middle;
+    stroke: var(--accent);
+    flex-shrink: 0;
+}
+.ios-install-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0;
+}
+.ios-install-close svg {
+    width: 16px;
+    height: 16px;
+}
+.ios-install-close:hover {
+    color: var(--text-primary);
+}
+/* Small arrow pointing down (toward Safari toolbar) */
+.ios-install-banner::after {
+    content: "";
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-top: 8px solid var(--bg-card);
+}
+@keyframes iosSlideUp {
+    from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+    to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }

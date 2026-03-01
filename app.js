@@ -24,6 +24,37 @@ function pwaInstall() {
   _pwaInstallPrompt.prompt();
 }
 
+// ── iOS Safari "Add to Home Screen" banner ──
+(function initIOSBanner() {
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isStandalone = window.navigator.standalone === true ||
+    window.matchMedia('(display-mode: standalone)').matches;
+  const isSafari = /Safari/.test(navigator.userAgent) &&
+    !/CriOS|FxiOS|OPiOS|EdgiOS/.test(navigator.userAgent);
+
+  if (!isIOS || isStandalone || !isSafari) return;
+  if (localStorage.getItem('iosInstallDismissed')) return;
+
+  const banner = document.getElementById('iosInstallBanner');
+  const closeBtn = document.getElementById('iosInstallClose');
+  if (!banner) return;
+
+  setTimeout(() => banner.classList.add('show'), 3000);
+
+  closeBtn?.addEventListener('click', () => {
+    banner.classList.remove('show');
+    localStorage.setItem('iosInstallDismissed', '1');
+  });
+})();
+
+/* ====================================================
+   PERF — Idle callback helper (defers non-critical work)
+==================================================== */
+const _rIC = window.requestIdleCallback
+  ? (fn, ms) => requestIdleCallback(fn, { timeout: ms || 2000 })
+  : (fn, ms) => setTimeout(fn, 0);  // fallback for Safari
+
 /* ====================================================
    STATE
 ==================================================== */
@@ -1313,14 +1344,14 @@ function runLifetimeSync() {
       updateLifetimeCacheUI();
       showToast(`Synced ${state.lifetimeActivities.length} lifetime activities`, 'success');
 
-      if (state.currentPage === 'goals') { renderStreaksPage(); renderGoalsPage(); requestAnimationFrame(() => { if (window.refreshGlow) refreshGlow(); if (window.refreshBadgeTilt) refreshBadgeTilt(); }); }
+      if (state.currentPage === 'goals') { renderStreaksPage(); renderGoalsPage(); _rIC(() => { if (window.refreshGlow) refreshGlow(); if (window.refreshBadgeTilt) refreshBadgeTilt(); }); }
       if (state.currentPage === 'activities') renderAllActivitiesList();
       if (state.currentPage === 'settings') navigate('settings');
     } catch (e) {
       console.error('Lifetime sync failed:', e);
       showToast('Lifetime sync failed: ' + (e.message || 'unknown error'), 'error');
       if (!state.lifetimeActivities) state.lifetimeActivities = state.activities || [];
-      if (state.currentPage === 'goals') { renderStreaksPage(); renderGoalsPage(); requestAnimationFrame(() => { if (window.refreshGlow) refreshGlow(); if (window.refreshBadgeTilt) refreshBadgeTilt(); }); }
+      if (state.currentPage === 'goals') { renderStreaksPage(); renderGoalsPage(); _rIC(() => { if (window.refreshGlow) refreshGlow(); if (window.refreshBadgeTilt) refreshBadgeTilt(); }); }
     }
   })();
 }
@@ -1639,10 +1670,18 @@ function navigate(page) {
   state.currentPage  = page;
   try { sessionStorage.setItem('icu_route', JSON.stringify({ type: 'page', page })); } catch {}
 
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('page-' + page)?.classList.add('active');
-  document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
+  // Swap active page — use View Transitions API for smooth cross-fade if available
+  const _swapPage = () => {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('page-' + page)?.classList.add('active');
+    document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
+  };
+  if (document.startViewTransition && state.previousPage && state.previousPage !== page) {
+    document.startViewTransition(_swapPage);
+  } else {
+    _swapPage();
+  }
 
   const info = {
     dashboard:  [GREETINGS[Math.floor(Math.random() * GREETINGS.length)], `Overview · Last ${state.rangeDays} days`],
@@ -1746,7 +1785,8 @@ function navigate(page) {
   if (page === 'wellness' || page === 'streaks') { navigate('goals'); return; }
 
   // Upgrade all native selects to custom dropdowns
-  requestAnimationFrame(() => { initCustomDropdowns(); if (window.refreshGlow) refreshGlow(); if (window.refreshBadgeTilt) refreshBadgeTilt(); });
+  requestAnimationFrame(() => initCustomDropdowns());
+  _rIC(() => { if (window.refreshGlow) refreshGlow(); if (window.refreshBadgeTilt) refreshBadgeTilt(); });
 
   // Restore scroll position when returning to activities from activity detail
   if (_restoreActScroll) {
@@ -4002,7 +4042,7 @@ async function renderWeatherPage(_restoreScrollY) {
       rail.scrollLeft = scrollLeft - (x - startX);
     }, { passive: true });
   }
-  if (window.refreshGlow) requestAnimationFrame(refreshGlow);
+  _rIC(() => { if (window.refreshGlow) refreshGlow(); });
 }
 
 function refreshWeatherPage() {
@@ -4458,7 +4498,7 @@ function renderDashboard() {
   renderRecentActivity();    // async — fetches GPS for map preview
   renderWeatherForecast();   // async — fetches Open-Meteo 7-day forecast
   renderGoalsDashWidget();   // goals & targets compact summary
-  if (window.refreshGlow) requestAnimationFrame(refreshGlow);
+  _rIC(() => { if (window.refreshGlow) refreshGlow(); });
 }
 
 function resetDashboard() {
@@ -6777,7 +6817,7 @@ function renderFitnessPage() {
   renderRacePredictor();
   state._fitZoneRange = state._fitZoneRange ?? 90;
   setFitZoneRange(state._fitZoneRange);
-  if (window.refreshGlow) requestAnimationFrame(refreshGlow);
+  _rIC(() => { if (window.refreshGlow) refreshGlow(); });
 }
 
 function setFitZoneRange(days) {
@@ -13306,8 +13346,8 @@ function renderStreaksPage() {
     });
     try { localStorage.setItem(seenKey, JSON.stringify([...seenSet])); } catch (_e) {}
   }
-  if (window.refreshGlow) requestAnimationFrame(refreshGlow);
-  if (window.refreshBadgeTilt) requestAnimationFrame(refreshBadgeTilt);
+  _rIC(() => { if (window.refreshGlow) refreshGlow(); });
+  _rIC(() => { if (window.refreshBadgeTilt) refreshBadgeTilt(); });
 }
 
 // Build a power curve object from a raw watts stream using a sliding-window max.
