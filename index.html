@@ -2067,6 +2067,11 @@
                                         id="detailTSSBadge"
                                         style="display: none"
                                     ></div>
+                                    <span
+                                        class="act-offline-tag"
+                                        id="detailOfflineTag"
+                                        style="display: none"
+                                    >SAVED</span>
                                 </div>
                             </div>
                         </div>
@@ -5002,12 +5007,77 @@
                                 <span class="stt-subsection-title">Backup &amp; Restore</span>
                             </div>
                             <div class="stt-actions">
-                                <button class="btn btn-primary" onclick="exportLifetimeJSON()">
+                                <button class="btn btn-primary" onclick="exportFullBackup()">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                                    Export JSON
+                                    Full Backup
                                 </button>
-                                <button class="btn btn-ghost" onclick="importLifetimeJSON()">Import JSON</button>
+                                <button class="btn btn-ghost" onclick="importFullBackup()">Restore Backup</button>
+                            </div>
+                            <div class="stt-actions">
+                                <button class="btn btn-ghost" onclick="exportLifetimeJSON()">Export Activities JSON</button>
+                                <button class="btn btn-ghost" onclick="importLifetimeJSON()">Import Activities JSON</button>
                                 <button class="btn btn-ghost" onclick="copySetupLink()">Copy Setup Link</button>
+                            </div>
+
+                            <!-- Offline Storage -->
+                            <div class="stt-subsection-divider"></div>
+                            <div class="stt-subsection-header">
+                                <svg class="stt-section-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                                </svg>
+                                <span class="stt-subsection-title">Offline Storage</span>
+                            </div>
+                            <div class="stt-rows">
+                                <div class="stt-row stt-row--toggle">
+                                    <div class="stt-row-info">
+                                        <div class="stt-row-label">Offline caching</div>
+                                        <div class="stt-row-sub">Download full activity data for offline analysis</div>
+                                    </div>
+                                    <label class="settings-ios-toggle">
+                                        <input type="checkbox" id="offlineToggle" onchange="setOfflineEnabled(this.checked)"/>
+                                        <span class="settings-ios-slider"></span>
+                                    </label>
+                                </div>
+                                <div class="stt-row stt-row--control" id="offlineLimitRow" style="display:none">
+                                    <div class="stt-row-info">
+                                        <div class="stt-row-label">Activities to cache</div>
+                                        <div class="stt-row-sub">Most recent cached first</div>
+                                    </div>
+                                    <div class="date-range-pill" id="offlineLimitPills">
+                                        <button data-offline-limit="50" onclick="setOfflineLimitPill('50')">50</button>
+                                        <button data-offline-limit="100" onclick="setOfflineLimitPill('100')">100</button>
+                                        <button data-offline-limit="200" onclick="setOfflineLimitPill('200')">200</button>
+                                        <button data-offline-limit="all" onclick="setOfflineLimitPill('all')">All</button>
+                                    </div>
+                                </div>
+                                <div class="stt-row" id="offlineSizeEstRow" style="display:none">
+                                    <span class="stt-row-label">Estimated size</span>
+                                    <span class="stt-row-value" id="offlineSizeEst">—</span>
+                                </div>
+                                <div class="stt-row" id="offlineCacheRow" style="display:none">
+                                    <span class="stt-row-label">Cached offline</span>
+                                    <span class="stt-row-value" id="offlineCachedCount">—</span>
+                                </div>
+                                <div class="stt-row" id="offlineCacheRow2" style="display:none">
+                                    <span class="stt-row-label">Cache size</span>
+                                    <span class="stt-row-value" id="offlineCacheSize">—</span>
+                                </div>
+                                <div id="offlineSyncRow" style="display:none">
+                                    <div class="offline-sync-progress" id="offlineSyncProgress" style="display:none">
+                                        <div class="strava-progress-bar">
+                                            <div class="strava-progress-fill" id="offlineSyncFill"></div>
+                                        </div>
+                                        <div class="strava-progress-text" id="offlineSyncText">—</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="stt-actions" id="offlineSyncActions" style="display:none">
+                                <button class="btn btn-primary" id="offlineSyncBtn" onclick="offlineSyncStart()">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                    Sync Now
+                                </button>
+                                <button class="btn btn-ghost" id="offlineSyncCancelBtn" onclick="offlineSyncCancel()" style="display:none">Cancel</button>
+                                <button class="btn btn-ghost" onclick="offlineClearCache()">Clear Offline Cache</button>
                             </div>
 
                             <!-- Smart Sync -->

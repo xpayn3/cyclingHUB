@@ -678,6 +678,27 @@ async function getHeatmapIDBSize() {
   } catch (_) { return { bytes: 0, count: 0 }; }
 }
 
+async function getActCacheIDBSize() {
+  try {
+    const db = await _actCacheDB();
+    const tx = db.transaction('items', 'readonly');
+    const store = tx.objectStore('items');
+    const all = await new Promise((res, rej) => {
+      const req = store.getAll();
+      req.onsuccess = () => res(req.result);
+      req.onerror   = () => rej(req.error);
+    });
+    if (!all || all.length === 0) return { bytes: 0, count: 0, activityIds: new Set() };
+    const bytes = new Blob([JSON.stringify(all)]).size;
+    const ids = new Set();
+    for (const row of all) {
+      const k = row.key, i = k.lastIndexOf('_');
+      if (i > 0) ids.add(k.slice(0, i));
+    }
+    return { bytes, count: all.length, activityIds: ids };
+  } catch (_) { return { bytes: 0, count: 0, activityIds: new Set() }; }
+}
+
 function fmtBytes(b) {
   if (b > 1048576) return (b / 1048576).toFixed(1) + ' MB';
   if (b > 1024)    return (b / 1024).toFixed(0) + ' KB';
@@ -701,10 +722,15 @@ async function updateStorageBar() {
   let hmIDB = { bytes: 0, count: 0 };
   try { hmIDB = await getHeatmapIDBSize(); } catch (_) {}
 
+  // Get offline activity cache IDB size
+  let actIDB = { bytes: 0, count: 0, activityIds: new Set() };
+  try { actIDB = await getActCacheIDBSize(); } catch (_) {}
+
   // Combine heatmap: localStorage GPS points + IndexedDB route cache
   breakdown.heatmap = (breakdown.heatmap || 0) + hmIDB.bytes;
-  const total = lsTotal + hmIDB.bytes;
-  const limit = STORAGE_LIMIT + hmIDB.bytes; // IDB doesn't count against localStorage limit
+  breakdown.offline = actIDB.bytes;
+  const total = lsTotal + hmIDB.bytes + actIDB.bytes;
+  const limit = STORAGE_LIMIT + hmIDB.bytes + actIDB.bytes;
 
   const pct = (v) => Math.max(0, Math.min(100, (v / Math.max(total, STORAGE_LIMIT)) * 100));
 
@@ -712,6 +738,7 @@ async function updateStorageBar() {
   const segs = [
     { key: 'activities', color: 'var(--accent)',     label: 'Activities' },
     { key: 'lifetime',   color: '#6366f1',           label: 'Lifetime' },
+    { key: 'offline',    color: '#8b5cf6',           label: 'Offline' },
     { key: 'fitness',    color: '#10b981',            label: 'Fitness' },
     { key: 'heatmap',    color: '#f59e0b',            label: 'Heat Map' },
     { key: 'other',      color: 'var(--text-muted)',  label: 'Other' },
@@ -1264,6 +1291,8 @@ function clearAllCaches() {
         if (key && key.startsWith('icu_gps_pts_')) localStorage.removeItem(key);
       }
       _hmClearCache();
+      // Clear offline activity IDB cache
+      try { _actCacheDB().then(db => { const tx = db.transaction('items', 'readwrite'); tx.objectStore('items').clear(); }); } catch (_) {}
       _hm.allRoutes = [];
       _hm.loaded = false;
       state.lifetimeActivities = null;
@@ -1411,6 +1440,118 @@ function importLifetimeJSON() {
         if (state.currentPage === 'activities') renderAllActivitiesList();
       } catch (err) {
         showToast('Failed to parse JSON file', 'error');
+      }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+/* ── Full Backup helpers (IDB read/write) ── */
+async function _idbReadAll(openFn, storeName) {
+  try {
+    const db = await openFn();
+    const tx = db.transaction(storeName, 'readonly');
+    const store = tx.objectStore(storeName);
+    return await new Promise(res => {
+      const entries = [];
+      const req = store.openCursor();
+      req.onsuccess = e => {
+        const c = e.target.result;
+        if (c) { entries.push({ k: c.key, v: c.value }); c.continue(); }
+        else res(entries);
+      };
+      req.onerror = () => res([]);
+    });
+  } catch (_) { return []; }
+}
+async function _idbWriteAll(openFn, storeName, entries, outOfLineKeys) {
+  try {
+    const db = await openFn();
+    const tx = db.transaction(storeName, 'readwrite');
+    const store = tx.objectStore(storeName);
+    store.clear();
+    for (const e of entries) {
+      if (outOfLineKeys) store.put(e.v, e.k);
+      else store.put(e.v);
+    }
+    await new Promise(r => { tx.oncomplete = r; tx.onerror = r; });
+  } catch (_) {}
+}
+
+/* ── Full Backup Export ── */
+async function exportFullBackup() {
+  showToast('Building full backup…', 'info');
+  try {
+    // 1. localStorage
+    const ls = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k.startsWith('icu_') || k.startsWith('strava_')) ls[k] = localStorage.getItem(k);
+    }
+    // 2. IndexedDB stores
+    const [actcache, hmRoutes, hmMeta, strava, routes] = await Promise.all([
+      _idbReadAll(_actCacheDB, 'items'),
+      _idbReadAll(_hmOpenDB,   HM_STORE),
+      _idbReadAll(_hmOpenDB,   HM_META_STORE),
+      _idbReadAll(_stravaOpenDB, 'streams'),
+      _idbReadAll(_rbOpenDB,   RB_STORE),
+    ]);
+    const backup = {
+      version: 1,
+      exported: new Date().toISOString(),
+      localStorage: ls,
+      indexedDB: { actcache, heatmap_routes: hmRoutes, heatmap_meta: hmMeta, strava, routes }
+    };
+    const json = JSON.stringify(backup);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `cycleiq-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    const sizeMB = (blob.size / (1024 * 1024)).toFixed(1);
+    showToast(`Full backup exported (${sizeMB} MB)`, 'success');
+  } catch (e) {
+    console.error('Full backup export failed:', e);
+    showToast('Backup export failed: ' + (e.message || 'unknown error'), 'error');
+  }
+}
+
+/* ── Full Backup Import ── */
+function importFullBackup() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async ev => {
+      try {
+        showToast('Restoring backup…', 'info');
+        const backup = JSON.parse(ev.target.result);
+        if (!backup.version || !backup.localStorage) {
+          showToast('Invalid backup file', 'error'); return;
+        }
+        // 1. Restore localStorage
+        const ls = backup.localStorage;
+        for (const k of Object.keys(ls)) localStorage.setItem(k, ls[k]);
+        // 2. Restore IndexedDB
+        const idb = backup.indexedDB || {};
+        await Promise.all([
+          idb.actcache       ? _idbWriteAll(_actCacheDB,   'items',        idb.actcache)        : null,
+          idb.heatmap_routes ? _idbWriteAll(_hmOpenDB,     HM_STORE,       idb.heatmap_routes)  : null,
+          idb.heatmap_meta   ? _idbWriteAll(_hmOpenDB,     HM_META_STORE,  idb.heatmap_meta)    : null,
+          idb.strava         ? _idbWriteAll(_stravaOpenDB, 'streams',      idb.strava, true)    : null,
+          idb.routes         ? _idbWriteAll(_rbOpenDB,     RB_STORE,       idb.routes)          : null,
+        ]);
+        showToast('Backup restored — reloading…', 'success');
+        setTimeout(() => location.reload(), 1200);
+      } catch (err) {
+        console.error('Full backup import failed:', err);
+        showToast('Backup import failed: ' + (err.message || 'parse error'), 'error');
       }
     };
     reader.readAsText(file);
@@ -1791,7 +1932,7 @@ function navigate(page) {
   if (page === 'weather')  renderWeatherPage();
   if (page === 'gear')     renderGearPage();
   if (page === 'guide')    renderGuidePage();
-  if (page === 'import')   initImportPage();
+  if (page === 'import')   { initImportPage(); offlineSyncInitUI(); }
   if (page === 'routes')   renderRouteBuilderPage();
   // Legacy: redirect old streaks/wellness routes to merged goals page
   if (page === 'wellness' || page === 'streaks') { navigate('goals'); return; }
@@ -8700,7 +8841,27 @@ function destroyActivityCharts() {
 ==================================================== */
 const ACT_CACHE_DB   = 'cycleiq_actcache';
 const ACT_CACHE_VER  = 1;
-const ACT_CACHE_MAX  = 20;
+const ACT_CACHE_MAX_DEFAULT = 20;
+
+/* ── Offline storage config ── */
+const OFFLINE_LIMITS      = [0, 50, 100, 200, Infinity];
+const OFFLINE_AVG_SIZE    = 100 * 1024; // ~100 KB per activity
+const OFFLINE_THROTTLE_MS = 400;
+
+function getOfflineLimit() {
+  const raw = localStorage.getItem('icu_offline_limit');
+  if (raw === null) return 0;
+  if (raw === 'Infinity') return Infinity;
+  const n = Number(raw);
+  return OFFLINE_LIMITS.includes(n) ? n : 0;
+}
+function setOfflineLimit(limit) {
+  localStorage.setItem('icu_offline_limit', String(limit));
+}
+function getActCacheMax() {
+  const ol = getOfflineLimit();
+  return ol > 0 ? Math.max(ol, ACT_CACHE_MAX_DEFAULT) : ACT_CACHE_MAX_DEFAULT;
+}
 
 function _actCacheDB() {
   return new Promise((resolve, reject) => {
@@ -8773,7 +8934,7 @@ async function actCachePrune() {
     const countReq = store.count();
     countReq.onsuccess = () => {
       const total = countReq.result;
-      const maxEntries = ACT_CACHE_MAX * 4;
+      const maxEntries = getActCacheMax() * 4;
       if (total <= maxEntries) return;
       const deleteCount = total - maxEntries;
       let deleted = 0;
@@ -8788,6 +8949,27 @@ async function actCachePrune() {
       };
     };
   } catch (_) {}
+}
+
+/** Get set of activity IDs that have both detail + streams cached (key-only scan) */
+async function actCacheGetCachedIds() {
+  try {
+    const db = await _actCacheDB();
+    const tx = db.transaction('items', 'readonly');
+    const keys = await new Promise((res, rej) => {
+      const req = tx.objectStore('items').getAllKeys();
+      req.onsuccess = () => res(req.result);
+      req.onerror   = () => rej(req.error);
+    });
+    const detailIds = new Set(), streamIds = new Set();
+    for (const key of keys) {
+      if (key.endsWith('_detail'))  detailIds.add(key.slice(0, -7));
+      if (key.endsWith('_streams')) streamIds.add(key.slice(0, -8));
+    }
+    const fully = new Set();
+    for (const id of detailIds) { if (streamIds.has(id)) fully.add(id); }
+    return fully;
+  } catch (_) { return new Set(); }
 }
 
 /* ====================================================
@@ -9252,6 +9434,18 @@ function renderActivityBasic(a) {
     platformTagEl.textContent  = aPlatformTag || '';
     platformTagEl.style.display = aPlatformTag ? '' : 'none';
   }
+  // Offline tag — check if activity detail+streams are cached in IDB
+  const offlineTagEl = document.getElementById('detailOfflineTag');
+  if (offlineTagEl) {
+    offlineTagEl.style.display = 'none';
+    const _actId = String(a.id || a.icu_activity_id || '');
+    if (_actId) {
+      actCacheGetCachedIds().then(ids => {
+        offlineTagEl.style.display = ids.has(_actId) ? '' : 'none';
+      });
+    }
+  }
+
   const dateStr = fmtDate(a.start_date_local || a.start_date);
   const timeStr = fmtTime(a.start_date_local || a.start_date);
   document.getElementById('detailDate').textContent = dateStr + (timeStr ? ' · ' + timeStr : '');
@@ -20118,6 +20312,216 @@ function _rlStopTick() {
   if (_rlTimer) { clearInterval(_rlTimer); _rlTimer = null; }
 }
 
+
+/* ====================================================
+   OFFLINE ACTIVITY SYNC
+   Progressively downloads detail + streams into IDB
+   for full offline analysis.
+==================================================== */
+const _offlineSync = {
+  inProgress: false,
+  cancelled:  false,
+  cached:     0,
+  total:      0,
+  errors:     0,
+};
+
+async function offlineSyncStart() {
+  if (_offlineSync.inProgress) { showToast('Offline sync already running', 'info'); return; }
+  if (!navigator.onLine) { showToast('No internet connection', 'error'); return; }
+  const limit = getOfflineLimit();
+  if (limit <= 0) return;
+
+  _offlineSync.inProgress = true;
+  _offlineSync.cancelled  = false;
+  _offlineSync.errors     = 0;
+
+  // Ensure we have the full activity list
+  ensureLifetimeLoaded();
+  const all = state.lifetimeActivities || state.activities || [];
+  if (!all.length) {
+    showToast('No activities to cache', 'info');
+    _offlineSync.inProgress = false;
+    return;
+  }
+
+  // Sort newest-first
+  const sorted = [...all].sort((a, b) =>
+    new Date(b.start_date_local || b.start_date) - new Date(a.start_date_local || a.start_date)
+  );
+  const target = limit === Infinity ? sorted : sorted.slice(0, limit);
+
+  // Skip already-cached
+  const cachedIds = await actCacheGetCachedIds();
+  const toDownload = target.filter(a => !cachedIds.has(String(a.id)));
+
+  _offlineSync.total  = target.length;
+  _offlineSync.cached = target.length - toDownload.length;
+  offlineSyncUpdateUI();
+
+  if (!toDownload.length) {
+    showToast('All activities already cached', 'success');
+    _offlineSync.inProgress = false;
+    offlineSyncUpdateUI();
+    return;
+  }
+
+  const syncBtn = document.getElementById('offlineSyncBtn');
+  if (syncBtn) syncBtn.disabled = true;
+
+  for (let i = 0; i < toDownload.length; i++) {
+    if (_offlineSync.cancelled) break;
+    if (!navigator.onLine) { showToast('Connection lost — sync paused', 'error'); break; }
+
+    const actId = String(toDownload[i].id);
+
+    try {
+      // Rate limit check
+      if (rlGetCount() >= RL_MAX - 5) {
+        const wait = rlSecsUntilReset();
+        offlineSyncSetStatus(`Rate limited — waiting ${wait}s…`);
+        await new Promise(r => setTimeout(r, (wait + 2) * 1000));
+      }
+
+      await fetchActivityDetail(actId);
+      await new Promise(r => setTimeout(r, OFFLINE_THROTTLE_MS));
+      if (_offlineSync.cancelled) break;
+
+      await fetchActivityStreams(actId);
+      _offlineSync.cached++;
+    } catch (e) {
+      console.warn('Offline sync: failed', actId, e);
+      _offlineSync.errors++;
+    }
+
+    offlineSyncUpdateUI();
+    await new Promise(r => setTimeout(r, OFFLINE_THROTTLE_MS));
+  }
+
+  _offlineSync.inProgress = false;
+  if (syncBtn) syncBtn.disabled = false;
+
+  if (_offlineSync.cancelled) {
+    showToast(`Sync cancelled — ${_offlineSync.cached}/${_offlineSync.total} cached`, 'info');
+  } else if (_offlineSync.errors > 0) {
+    showToast(`Sync done (${_offlineSync.errors} errors) — ${_offlineSync.cached}/${_offlineSync.total}`, 'info');
+  } else {
+    showToast(`Offline sync complete — ${_offlineSync.cached}/${_offlineSync.total} cached`, 'success');
+  }
+  offlineSyncUpdateUI();
+  updateStorageBar();
+}
+
+function offlineSyncCancel() {
+  _offlineSync.cancelled = true;
+}
+
+function offlineSyncSetStatus(text) {
+  const el = document.getElementById('offlineSyncText');
+  if (el) el.textContent = text;
+}
+
+function offlineSyncUpdateUI() {
+  const fillEl    = document.getElementById('offlineSyncFill');
+  const textEl    = document.getElementById('offlineSyncText');
+  const progressEl = document.getElementById('offlineSyncProgress');
+  const countEl   = document.getElementById('offlineCachedCount');
+  const sizeEl    = document.getElementById('offlineCacheSize');
+  const syncBtn   = document.getElementById('offlineSyncBtn');
+  const cancelBtn = document.getElementById('offlineSyncCancelBtn');
+
+  const { cached, total, inProgress } = _offlineSync;
+  const pct = total > 0 ? Math.round((cached / total) * 100) : 0;
+
+  if (fillEl) fillEl.style.width = pct + '%';
+  if (textEl) textEl.textContent = inProgress
+    ? `Caching ${cached}/${total} activities…`
+    : (total > 0 ? `${cached}/${total} activities cached` : '');
+  if (progressEl) progressEl.style.display = (inProgress || cached > 0) ? '' : 'none';
+  if (cancelBtn)  cancelBtn.style.display = inProgress ? '' : 'none';
+  if (syncBtn && !inProgress) syncBtn.disabled = false;
+
+  // Async: update cached count + size
+  if (countEl || sizeEl) {
+    getActCacheIDBSize().then(info => {
+      if (countEl) countEl.textContent = `${info.activityIds.size} activities`;
+      if (sizeEl)  sizeEl.textContent  = fmtBytes(info.bytes);
+    });
+  }
+}
+
+function offlineSyncInitUI() {
+  const limit = getOfflineLimit();
+  const toggle = document.getElementById('offlineToggle');
+  if (toggle) toggle.checked = limit > 0;
+
+  const depRows = ['offlineLimitRow', 'offlineSizeEstRow', 'offlineCacheRow', 'offlineCacheRow2', 'offlineSyncRow', 'offlineSyncActions'];
+  depRows.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = limit > 0 ? '' : 'none';
+  });
+
+  // Highlight active pill
+  document.querySelectorAll('#offlineLimitPills button').forEach(b => {
+    const val = b.dataset.offlineLimit === 'all' ? Infinity : Number(b.dataset.offlineLimit);
+    b.classList.toggle('active', val === limit);
+  });
+
+  offlineUpdateEstimate(limit);
+  offlineSyncUpdateUI();
+}
+
+function setOfflineEnabled(on) {
+  if (on) {
+    if (getOfflineLimit() <= 0) setOfflineLimit(50);
+  } else {
+    setOfflineLimit(0);
+    if (_offlineSync.inProgress) offlineSyncCancel();
+  }
+  offlineSyncInitUI();
+}
+
+function setOfflineLimitPill(str) {
+  const limit = str === 'all' ? Infinity : Number(str);
+  setOfflineLimit(limit);
+  document.querySelectorAll('#offlineLimitPills button').forEach(b => {
+    const val = b.dataset.offlineLimit === 'all' ? Infinity : Number(b.dataset.offlineLimit);
+    b.classList.toggle('active', val === limit);
+  });
+  offlineUpdateEstimate(limit);
+}
+
+function offlineUpdateEstimate(limit) {
+  const el = document.getElementById('offlineSizeEst');
+  if (!el) return;
+  if (limit <= 0) { el.textContent = '—'; return; }
+  const totalActs = state.lifetimeActivities
+    ? state.lifetimeActivities.length
+    : (state.activities ? state.activities.length : 0);
+  const count = limit === Infinity ? totalActs : Math.min(limit, totalActs);
+  el.textContent = `~${fmtBytes(count * OFFLINE_AVG_SIZE)} for ${count} activities`;
+}
+
+function offlineClearCache() {
+  showConfirmDialog(
+    'Clear Offline Cache',
+    'Remove all downloaded activity detail and stream data. Summary data is not affected.',
+    async () => {
+      if (_offlineSync.inProgress) offlineSyncCancel();
+      try {
+        const db = await _actCacheDB();
+        const tx = db.transaction('items', 'readwrite');
+        tx.objectStore('items').clear();
+        await new Promise(r => { tx.oncomplete = r; tx.onerror = r; });
+      } catch (_) {}
+      _offlineSync.cached = 0;
+      _offlineSync.total  = 0;
+      offlineSyncUpdateUI();
+      updateStorageBar();
+      showToast('Offline cache cleared', 'success');
+    }
+  );
+}
 
 /* ====================================================
    SMART POLLING  —  auto-sync while user is active

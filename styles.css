@@ -2060,6 +2060,17 @@ code {
     color: var(--accent);
     text-transform: uppercase;
 }
+.act-offline-tag {
+    background: rgba(139, 92, 246, 0.1);
+    border: 1px solid rgba(139, 92, 246, 0.28);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: var(--text-2xs);
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: #8b5cf6;
+    text-transform: uppercase;
+}
 .activity-tss {
     padding: 2px 8px;
     border-radius: 20px;
@@ -14399,6 +14410,15 @@ body.hm-map-dragging html,
 .strava-progress-text {
     font-size: var(--text-xs);
     color: var(--text-muted);
+}
+
+/* ── Offline sync progress ── */
+.offline-sync-progress {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+    padding: 8px 16px;
 }
 
 /* ── Mobile responsive ── */
