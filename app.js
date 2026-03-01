@@ -2184,7 +2184,7 @@ function _refreshWxLocSettings() {
 
 function renderWxLocationSwitcher() {
   const locs = getWxLocations();
-  if (locs.length <= 1) return '';
+  if (locs.length === 0) return '';
   let wxCodes = {};
   try { wxCodes = JSON.parse(localStorage.getItem('icu_wx_today_codes') || '{}'); } catch (_) {}
   return `
@@ -2199,6 +2199,9 @@ function renderWxLocationSwitcher() {
           ${l.city}
         </button>`;
       }).join('')}
+      <button class="wx-loc-pill wx-loc-pill--add" onclick="navigate('settings')" title="Add location">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
     </div>`;
 }
 
@@ -15001,7 +15004,23 @@ Object.assign(window, {
   loadTerrainEnabled, loadRoadSafetyEnabled, loadCyclOSMEnabled,
   MAP_STYLES, renderDashboard, isEmptyActivity,
   setTerrainEnabled, fetchAthleteProfile, saveCredentials, updateConnectionUI,
-  _hmOpenDB, updateLifetimeCacheUI, fmtDur,
+  _hmOpenDB, updateLifetimeCacheUI, fmtDur, renderWeekProgress,
+  setFitZoneRange, onServiceShopChange, onServiceNextModeChange,
+  updateCompareCardMetric, setCompareCardChartType, removeCompareCard,
+  renderWxLocationSwitcher, getWxLocations, setActiveWxLocation,
+  removeWxLocation, setWeatherCity, clearWeatherLocation, setWeatherModel,
+  refreshWeatherPage, renderWeatherDayDetail, initWeatherLocationUI,
+  // Gear page
+  gearSelectBike, deleteGearComponent,
+  chargeBattery, reactivateBattery, deleteBatteryPermanent, retireBattery,
+  editServiceShop, deleteServiceShop, openServiceHistory, deleteServiceFromHistory,
+  // Activity detail
+  selectCalDay, downloadActivityFile, downloadFITFile, downloadGPXFile,
+  toggleStreamLayer,
+  // Goals
+  goalNumStep, hideGoalForm, submitGoalForm, showGoalForm, deleteGoal,
+  // Settings / data
+  setWeatherModel, renderDashSectionToggles,
 });
 
 // ── Also expose constants ──
