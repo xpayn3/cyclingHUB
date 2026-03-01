@@ -1823,19 +1823,7 @@ function navigate(page) {
   state.currentPage  = page;
   try { sessionStorage.setItem('icu_route', JSON.stringify({ type: 'page', page })); } catch {}
 
-  // Swap active page — use View Transitions API for smooth cross-fade if available
-  const _swapPage = () => {
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    document.getElementById('page-' + page)?.classList.add('active');
-    document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
-  };
-  if (document.startViewTransition && state.previousPage && state.previousPage !== page) {
-    document.startViewTransition(_swapPage);
-  } else {
-    _swapPage();
-  }
-
+  // ── Prepare page-specific UI BEFORE the swap so nothing flashes ──
   const info = {
     dashboard:  [GREETINGS[Math.floor(Math.random() * GREETINGS.length)], `Overview · Last ${state.rangeDays} days`],
     activities: ['Activities',     'All recorded rides & workouts'],
@@ -1858,6 +1846,13 @@ function navigate(page) {
   document.getElementById('pageTitle').textContent    = title;
   document.getElementById('pageSubtitle').textContent = sub;
 
+  // Headline — hidden for calendar & routes
+  const headline = document.querySelector('.page-headline');
+  if (headline) {
+    if (page === 'calendar' || page === 'routes') headline.classList.add('page-headline--hidden');
+    else headline.classList.remove('page-headline--hidden');
+  }
+
   // Full-bleed pages — toggle padding-less mode
   const pc = document.getElementById('pageContent');
   if (pc) {
@@ -1866,11 +1861,11 @@ function navigate(page) {
     pc.classList.toggle('page-content--routes', page === 'routes');
   }
 
-  // Hide topbar on Route Builder for full-screen map
+  // Topbar element visibility
   const topbar = document.querySelector('.topbar');
   if (topbar) topbar.style.display = (page === 'routes') ? 'none' : '';
+  document.querySelector('.topbar')?.classList.remove('topbar--hidden');
 
-  // Always restore the activity-detail topbar elements when leaving the activity page
   const detailNav     = document.getElementById('detailTopbarNav');
   const detailBack    = document.getElementById('detailTopbarBack');
   const wxdBack       = document.getElementById('wxdTopbarBack');
@@ -1882,30 +1877,33 @@ function navigate(page) {
   const wxRefreshBtn = document.getElementById('wxTopbarRefresh');
   if (wxRefreshBtn) wxRefreshBtn.style.display = (page === 'weather') ? '' : 'none';
 
-  // Show topbar range pills per page
   const pill = document.getElementById('dateRangePill');
   if (pill) pill.style.display = (page === 'dashboard') ? 'flex' : 'none';
   const zonePill = document.getElementById('zoneRangePill');
   if (zonePill) zonePill.style.display = (page === 'zones') ? 'flex' : 'none';
 
+  const calLabel = document.getElementById('calTopbarMonth');
+  if (calLabel) calLabel.style.display = (page === 'calendar') ? '' : 'none';
+
+  // Swap active page — use View Transitions API for smooth cross-fade if available
+  const _swapPage = () => {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('page-' + page)?.classList.add('active');
+    document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
+  };
+  const _skipTransition = page === 'calendar' || page === 'routes' || state.previousPage === 'calendar' || state.previousPage === 'routes';
+  if (document.startViewTransition && state.previousPage && state.previousPage !== page && !_skipTransition) {
+    document.startViewTransition(_swapPage);
+  } else {
+    _swapPage();
+  }
+
   // Training status glow — dashboard only
   document.body.classList.toggle('dashboard-glow', page === 'dashboard');
   if (page === 'dashboard') { updateTopbarGlow(); startGlowParticles(); applyDashSectionVisibility(); }
   else stopGlowParticles();
-  if (page === 'settings') renderDashSectionToggles();
-
-  // Show month label in topbar only on calendar
-  const calLabel = document.getElementById('calTopbarMonth');
-  if (calLabel) calLabel.style.display = (page === 'calendar') ? '' : 'none';
-
-  // Ensure topbar is always visible
-  document.querySelector('.topbar')?.classList.remove('topbar--hidden');
-  // Restore page headline (hidden when viewing single activity or calendar)
-  const headline = document.querySelector('.page-headline');
-  if (headline) {
-    if (page === 'calendar' || page === 'routes') headline.classList.add('page-headline--hidden');
-    else headline.classList.remove('page-headline--hidden');
-  }
+  if (page === 'settings') { renderDashSectionToggles(); renderActSectionToggles(); }
 
   if (page === 'dashboard' && state.synced) {
     const rail = document.getElementById('recentActScrollRail');
@@ -9413,6 +9411,7 @@ function downsampleStreams(streams, targetLen = 300) {
    ACTIVITY DETAIL — RENDERING
 ==================================================== */
 function renderActivityBasic(a) {
+  applyActSectionVisibility();
   // ── Eyebrow: icon · type · TSS ────────────────────────────────────────────
   const iconEl = document.getElementById('detailIcon');
   iconEl.className = 'activity-type-icon ' + activityTypeClass(a);
@@ -10099,9 +10098,9 @@ async function shareRender(keepPreview) {
   _share._cachedMapImg = null;
 
   const fmt = SHARE_FORMATS[_share.format] || SHARE_FORMATS['1:1'];
-  // Use lower resolution for preview rendering (scale up via canvas)
-  const renderW = Math.round(fmt.w / 2);
-  const renderH = Math.round(fmt.h / 2);
+  // Render at full resolution for crisp export
+  const renderW = fmt.w;
+  const renderH = fmt.h;
 
   // Create off-screen container
   const div = document.createElement('div');
@@ -15591,6 +15590,73 @@ function renderDashSectionToggles() {
     cb.addEventListener('change', () => {
       saveDashSectionPref(sec.key, cb.checked);
       applyDashSectionVisibility();
+    });
+    container.appendChild(row);
+  }
+}
+
+// ── Activity detail section visibility toggles ───────────────────────────────
+const ACT_DETAIL_SECTIONS = [
+  { key: 'map',         label: 'Route Map',              cardId: 'detailMapCard' },
+  { key: 'streams',     label: 'Activity Streams',       cardId: 'detailStreamsCard' },
+  { key: 'charts',      label: 'Power & HR Charts',      cardId: 'detailChartsRow' },
+  { key: 'performance', label: 'Performance Analysis',    cardId: 'detailPerfCard' },
+  { key: 'decoupling',  label: 'Aerobic Decoupling',     cardId: 'detailDecoupleCard' },
+  { key: 'powerZones',  label: 'Power Zones',            cardId: 'detailZonesCard' },
+  { key: 'hrZones',     label: 'HR Zones',               cardId: 'detailHRZonesCard' },
+  { key: 'intervals',   label: 'Intervals',              cardId: 'detailIntervalsCard' },
+  { key: 'powerCurve',  label: 'Power Curve',            cardId: 'detailCurveCard' },
+  { key: 'hrCurve',     label: 'Heart Rate Curve',       cardId: 'detailHRCurveCard' },
+  { key: 'gradient',    label: 'Elevation Profile',      cardId: 'detailGradientCard' },
+  { key: 'cadence',     label: 'Cadence Distribution',   cardId: 'detailCadenceCard' },
+  { key: 'histogram',   label: 'Power Distribution',     cardId: 'detailHistogramCard' },
+  { key: 'temperature', label: 'Temperature',            cardId: 'detailTempCard' },
+  { key: 'weather',     label: 'Weather Conditions',     cardId: 'detailWeatherCard' },
+  { key: 'compare',     label: 'How You Compare',        cardId: 'detailCompareCard' },
+  { key: 'notes',       label: 'Notes',                  cardId: 'detailNotesCard' },
+  { key: 'export',      label: 'Export',                 cardId: 'detailExportCard' },
+];
+
+function loadActSectionPrefs() {
+  try { const r = localStorage.getItem('icu_act_sections'); return r ? JSON.parse(r) : {}; }
+  catch(e) { return {}; }
+}
+function saveActSectionPref(key, visible) {
+  const prefs = loadActSectionPrefs();
+  prefs[key] = visible;
+  try { localStorage.setItem('icu_act_sections', JSON.stringify(prefs)); } catch(e) {}
+}
+function isActSectionVisible(key) {
+  const prefs = loadActSectionPrefs();
+  if (prefs[key] !== undefined) return prefs[key];
+  return true; // all default on
+}
+function applyActSectionVisibility() {
+  for (const sec of ACT_DETAIL_SECTIONS) {
+    const el = document.getElementById(sec.cardId);
+    if (el) el.classList.toggle('act-hidden', !isActSectionVisible(sec.key));
+  }
+}
+function renderActSectionToggles() {
+  const container = document.getElementById('actSectionToggles');
+  if (!container) return;
+  container.innerHTML = '';
+  for (const sec of ACT_DETAIL_SECTIONS) {
+    const on = isActSectionVisible(sec.key);
+    const row = document.createElement('div');
+    row.className = 'stt-row stt-row--toggle';
+    row.innerHTML = `
+      <div class="stt-row-info">
+        <div class="stt-row-label">${sec.label}</div>
+      </div>
+      <label class="settings-ios-toggle">
+        <input type="checkbox" ${on ? 'checked' : ''} data-act-toggle="${sec.key}">
+        <span class="settings-ios-slider"></span>
+      </label>`;
+    const cb = row.querySelector('input');
+    cb.addEventListener('change', () => {
+      saveActSectionPref(sec.key, cb.checked);
+      applyActSectionVisibility();
     });
     container.appendChild(row);
   }

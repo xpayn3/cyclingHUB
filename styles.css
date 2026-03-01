@@ -305,7 +305,7 @@ select {
 .cdd-dropdown {
     position: absolute;
     top: calc(100% + 5px);
-    left: 0;
+    right: 0;
     min-width: 100%;
     max-height: 260px;
     overflow-y: auto;
@@ -320,6 +320,7 @@ select {
     opacity: 0;
     transform: translateY(-6px);
     pointer-events: none;
+    will-change: transform, opacity;
     transition:
         opacity 0.15s ease,
         transform 0.15s ease;
@@ -380,6 +381,10 @@ select {
 .cdd-wrap--flip.cdd-wrap--open .cdd-dropdown {
     transform: translateY(0);
 }
+/* Lift the parent card above siblings so the dropdown isn't clipped by stacking context */
+.card:has(.cdd-wrap--open) {
+    z-index: 10;
+}
 
 code {
     font-family: var(--font-num);
@@ -410,6 +415,7 @@ code {
     z-index: 1100; /* above Leaflet's max of 1000 */
     padding-top: env(safe-area-inset-top);
     transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform;
     overscroll-behavior: contain; /* prevent scroll chaining to body */
 }
 .sidebar-logo {
@@ -790,7 +796,7 @@ code {
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.75);
-    z-index: 500;
+    z-index: 1200;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -3415,6 +3421,7 @@ code {
         0 4px 24px rgba(0, 0, 0, 0.35),
         0 1px 0 rgba(255, 255, 255, 0.04) inset;
     animation: toastIn 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+    will-change: transform, opacity;
     background: color-mix(in srgb, var(--bg-elevated) 90%, transparent);
     border: 1px solid var(--border);
     color: var(--text-primary);
@@ -3551,25 +3558,27 @@ code {
 /* ── Badge shine sweep ── */
 @keyframes badgeShine {
     0% {
-        left: -120%;
+        transform: translateX(-120%);
         opacity: 0;
     }
     15% {
         opacity: 1;
     }
     60% {
-        left: 120%;
+        transform: translateX(120%);
         opacity: 0.6;
     }
     100% {
-        left: 120%;
+        transform: translateX(120%);
         opacity: 0;
     }
 }
 .stk-badge--earned.badge-shine-play::after {
     content: "";
     position: absolute;
-    inset: 0;
+    left: 0;
+    top: 0;
+    bottom: 0;
     background: linear-gradient(
         110deg,
         transparent 30%,
@@ -3577,9 +3586,8 @@ code {
         transparent 70%
     );
     width: 60%;
-    top: 0;
-    bottom: 0;
     animation: badgeShine 0.7s ease-out forwards;
+    will-change: transform, opacity;
     pointer-events: none;
     z-index: 10;
     border-radius: inherit;
@@ -3615,9 +3623,14 @@ code {
 }
 .page.active > * {
     animation: pageFadeIn 0.22s ease-out both;
+    will-change: transform, opacity;
 }
 /* Dashboard section wrappers */
 [data-dash-section].dash-hidden {
+    display: none !important;
+}
+/* Activity detail section toggles */
+.act-hidden {
     display: none !important;
 }
 [data-dash-section="weeklyStats"] {
@@ -15482,9 +15495,7 @@ html[data-theme="light"] {
     align-items: center;
     cursor: pointer;
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
-    transition: filter 0.15s;
 }
-.rb-poi-pin:hover { filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.45)); }
 .rb-poi-pin-inner {
     display: flex;
     flex-direction: column;
