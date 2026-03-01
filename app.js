@@ -1588,6 +1588,9 @@ function navigate(page) {
     return;
   }
 
+  // Exit fullscreen mode if leaving route builder
+  document.body.classList.remove('rb-fullscreen');
+
   // Abort any in-flight API requests from the previous page
   _navAbort?.abort();
   _navAbort = new AbortController();
@@ -8472,45 +8475,47 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+function toggleMapStats() {
+  const panel = document.getElementById('mapStatsPanel');
+  if (!panel) return;
+  panel.classList.toggle('collapsed');
+}
+
 function toggleMapFullscreen() {
   const card = document.getElementById('detailMapCard');
-  const btn  = document.getElementById('mapExpandBtn');
   if (!card) return;
-  const isFs = card.classList.toggle('map-fullscreen');
-  // Swap icon: expand ↔ collapse
-  if (btn) btn.innerHTML = isFs
-    ? '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>'
-    : '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>';
-  // Lock body scroll when fullscreen
-  document.body.style.overflow = isFs ? 'hidden' : '';
-  // Enable/disable direct scroll-wheel zoom (no Alt key needed) in fullscreen
-  if (state.activityMap) {
-    if (isFs) state.activityMap.scrollZoom.enable();
-    else      state.activityMap.scrollZoom.disable();
+
+  if (!card.classList.contains('map-fullscreen')) {
+    _onMapFullscreenEnter(card);
+  } else {
+    _onMapFullscreenExit(card);
   }
-  // Move stats content into the fullscreen bottom-left panel (or back)
-  const statsPanel  = document.getElementById('mapStatsPanel');
-  const fsLeft      = document.getElementById('fsBottomLeft');
-  if (statsPanel && fsLeft) {
-    if (isFs) {
-      // Copy gauge + metrics into the bottom-left panel
-      fsLeft.innerHTML = statsPanel.innerHTML;
-      // Re-attach glow
-      fsLeft.querySelectorAll('.mm-cell').forEach(el => {
-        if (!el.dataset.glow) { el.dataset.glow = '1'; window.attachCardGlow && window.attachCardGlow(el); }
-      });
-    } else {
-      fsLeft.innerHTML = '';
-    }
+}
+
+function _onMapFullscreenEnter(card) {
+  card.classList.add('map-fullscreen');
+  const btn = document.getElementById('mapExpandBtn');
+  if (btn) {
+    btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>';
+    btn.title = 'Close fullscreen';
   }
-  // Invalidate mini chart cache so it redraws at new size
-  if (state.flythrough?._drawMiniChart) {
-    state.flythrough._invalidateMC?.();
-    // Small delay for layout to settle
-    setTimeout(() => state.flythrough?._drawMiniChart(state.flythrough?.idx || 0), 80);
+  document.body.style.overflow = 'hidden';
+  if (state.activityMap) state.activityMap.scrollZoom.enable();
+  setTimeout(() => { if (state.activityMap) state.activityMap.resize(); }, 120);
+}
+
+function _onMapFullscreenExit(card) {
+  card.classList.add('map-fullscreen-exit');
+  card.classList.remove('map-fullscreen');
+  setTimeout(() => card.classList.remove('map-fullscreen-exit'), 250);
+  const btn = document.getElementById('mapExpandBtn');
+  if (btn) {
+    btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>';
+    btn.title = 'Expand map';
   }
-  // Let MapLibre recalculate the new container size
-  setTimeout(() => { if (state.activityMap) state.activityMap.resize(); }, 50);
+  document.body.style.overflow = '';
+  if (state.activityMap) state.activityMap.scrollZoom.disable();
+  setTimeout(() => { if (state.activityMap) state.activityMap.resize(); }, 120);
 }
 
 function destroyActivityCharts() {
@@ -8525,8 +8530,6 @@ function destroyActivityCharts() {
   // Reset mini chart + fullscreen bottom panels
   const _miniC = document.getElementById('fsMiniChart');
   if (_miniC) _miniC.classList.remove('mc-ready');
-  const _fsL = document.getElementById('fsBottomLeft');
-  if (_fsL) _fsL.innerHTML = '';
   if (state.activityMap) { state.activityMap.remove(); state.activityMap = null; }
   state._actMapThemeKey = null;
   state.activityStreamsChart   = destroyChart(state.activityStreamsChart);
@@ -9467,6 +9470,14 @@ function renderDetailExport(a) {
     </button>
   `);
 
+  // Share route image
+  buttons.push(`
+    <button class="btn btn-primary detail-export-btn" title="Generate a shareable route image" onclick="openShareModal('${actId}')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      <span>Share</span>
+    </button>
+  `);
+
   buttonsEl.innerHTML = buttons.join('');
   card.style.display = '';
 }
@@ -9560,6 +9571,556 @@ async function downloadGPXFile(actId) {
     showToast('GPX file downloaded', 'success');
   } catch (err) {
     showToast('Download failed: ' + err.message, 'error');
+  }
+}
+
+/* ====================================================
+   SHARE ROUTE IMAGE
+==================================================== */
+
+const _share = {
+  map: null,
+  container: null,
+  actId: null,
+  activity: null,
+  points: null,
+  style: 'satellite',
+  routeColor: '#00e5a0',
+  showStats: true,
+  format: '1:1',
+  rendering: false,
+  rendered: false,
+  _debounce: null,
+  _cachedMapImg: null,   // cached map+route capture as Image for fast re-composite
+  _cachedFmt: null,      // format used for cached image
+  _cachedStyle: null,    // style used for cached image
+  _markerCoords: null,   // { sx, sy, ex, ey } projected marker positions on final canvas
+};
+
+const SHARE_COLORS = [
+  { id: 'green',  hex: '#00e5a0', label: 'Green' },
+  { id: 'orange', hex: '#fc4c02', label: 'Orange' },
+  { id: 'blue',   hex: '#3b82f6', label: 'Blue' },
+  { id: 'red',    hex: '#ef4444', label: 'Red' },
+  { id: 'white',  hex: '#ffffff', label: 'White' },
+  { id: 'yellow', hex: '#facc15', label: 'Yellow' },
+];
+
+const SHARE_FORMATS = {
+  '1:1':  { w: 1080, h: 1080, label: '1:1' },
+  '4:3':  { w: 1440, h: 1080, label: '4:3' },
+  '16:9': { w: 1920, h: 1080, label: '16:9' },
+};
+
+const SHARE_STYLES = [
+  { id: 'satellite', label: 'Satellite' },
+  { id: 'dark',      label: 'Dark' },
+  { id: 'liberty',   label: 'Light' },
+];
+
+/* ── Open / Close ── */
+
+async function openShareModal(actId) {
+  _share.actId = actId;
+  _share.rendered = false;
+
+  // Find activity — match by id with or without 'i' prefix
+  const all = state.activities || [];
+  const bareId = String(actId).replace(/^i/, '');
+  _share.activity = all.find(a => {
+    const aid = String(a.id || a.icu_activity_id || '');
+    return aid === actId || aid === bareId || aid === 'i' + bareId;
+  }) || {};
+
+  // Open modal
+  document.getElementById('shareModal').classList.add('open');
+  document.getElementById('shareCanvas').style.display = 'none';
+  document.getElementById('shareLoading').style.display = '';
+
+  // Render setting chips
+  _shareRenderChips();
+
+  // Load GPS points — try multiple ID formats
+  let pts = null;
+  const cached = localStorage.getItem('icu_gps_pts_' + actId)
+    || localStorage.getItem('icu_gps_pts_i' + bareId)
+    || localStorage.getItem('icu_gps_pts_' + bareId);
+  if (cached) {
+    try { pts = JSON.parse(cached); } catch (_) {}
+  }
+  if (!pts || pts.length < 2) {
+    try { pts = await fetchMapGPS(actId); } catch (_) {}
+  }
+  if (!pts || pts.length < 2) {
+    document.getElementById('shareLoading').innerHTML = '<span style="color:var(--red)">No GPS data available for this activity</span>';
+    return;
+  }
+  // Filter valid
+  _share.points = pts.filter(p => Array.isArray(p) && p[0] != null && p[1] != null && Math.abs(p[0]) <= 90 && Math.abs(p[1]) <= 180);
+  if (_share.points.length < 2) {
+    document.getElementById('shareLoading').innerHTML = '<span style="color:var(--red)">No GPS data available</span>';
+    return;
+  }
+
+  shareRender();
+}
+
+function closeShareModal() {
+  document.getElementById('shareModal').classList.remove('open');
+  if (_share.map) { try { _share.map.remove(); } catch (_) {} _share.map = null; }
+  if (_share.container) { try { _share.container.remove(); } catch (_) {} _share.container = null; }
+  _share._cachedMapImg = null;
+  _share._cachedFmt = null;
+  _share._cachedStyle = null;
+  _share._markerCoords = null;
+  _share.rendering = false;
+}
+
+/* ── Render setting chips ── */
+
+function _shareRenderChips() {
+  // Style chips
+  const styleEl = document.getElementById('shareStyleChips');
+  if (styleEl) {
+    styleEl.innerHTML = SHARE_STYLES.map(s =>
+      `<button class="share-chip${_share.style === s.id ? ' share-chip--active' : ''}" onclick="shareUpdateSetting('style','${s.id}')">${s.label}</button>`
+    ).join('');
+  }
+  // Color chips
+  const colorEl = document.getElementById('shareColorChips');
+  if (colorEl) {
+    colorEl.innerHTML = SHARE_COLORS.map(c =>
+      `<button class="share-color-dot${_share.routeColor === c.hex ? ' share-color-dot--active' : ''}" style="background:${c.hex}" title="${c.label}" onclick="shareUpdateSetting('routeColor','${c.hex}')"></button>`
+    ).join('');
+  }
+  // Format chips
+  const fmtEl = document.getElementById('shareFormatChips');
+  if (fmtEl) {
+    fmtEl.innerHTML = Object.entries(SHARE_FORMATS).map(([k, v]) =>
+      `<button class="share-chip${_share.format === k ? ' share-chip--active' : ''}" onclick="shareUpdateSetting('format','${k}')">${v.label}</button>`
+    ).join('');
+  }
+  // Stats toggle
+  const cb = document.getElementById('shareShowStats');
+  if (cb) cb.checked = _share.showStats;
+}
+
+/* ── Setting change handler ── */
+
+function shareUpdateSetting(key, value) {
+  if (_share[key] === value) return;
+  _share[key] = value;
+  _shareRenderChips();
+
+  clearTimeout(_share._debounce);
+
+  if (key === 'showStats') {
+    // Stats toggle — instant re-composite from cached map image
+    if (_share._cachedMapImg) {
+      _shareRecomposite();
+    } else {
+      _share._debounce = setTimeout(() => shareRender(), 150);
+    }
+  } else if (key === 'routeColor') {
+    // Route color — re-render but keep current preview visible (no loading flash)
+    _share._cachedMapImg = null;
+    _share._debounce = setTimeout(() => shareRender(true), 150);
+  } else {
+    // Style or format change — full re-render with loading spinner
+    _share._cachedMapImg = null;
+    _share._debounce = setTimeout(() => shareRender(), 150);
+  }
+}
+
+/* ── Calculate route bearing ── */
+
+function _shareCalcBearing(pts) {
+  if (pts.length < 2) return 0;
+  const start = pts[0];
+  const end = pts[pts.length - 1];
+  const dLng = (end[1] - start[1]) * Math.PI / 180;
+  const lat1 = start[0] * Math.PI / 180;
+  const lat2 = end[0] * Math.PI / 180;
+  const y = Math.sin(dLng) * Math.cos(lat2);
+  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+  const bearing = Math.atan2(y, x) * 180 / Math.PI;
+  // Offset by ~30° for a more dramatic 3/4 view
+  return (bearing + 30 + 360) % 360;
+}
+
+/* ── Main render function ── */
+
+async function shareRender(keepPreview) {
+  if (!_share.points || _share.points.length < 2) return;
+  if (_share.rendering) return;
+  _share.rendering = true;
+
+  const loadingEl = document.getElementById('shareLoading');
+  const canvasEl = document.getElementById('shareCanvas');
+  if (!keepPreview) {
+    if (loadingEl) loadingEl.style.display = '';
+    if (canvasEl) canvasEl.style.display = 'none';
+  }
+
+  // Cleanup previous map & cache
+  if (_share.map) { try { _share.map.remove(); } catch (_) {} _share.map = null; }
+  if (_share.container) { try { _share.container.remove(); } catch (_) {} _share.container = null; }
+  _share._cachedMapImg = null;
+
+  const fmt = SHARE_FORMATS[_share.format] || SHARE_FORMATS['1:1'];
+  // Use lower resolution for preview rendering (scale up via canvas)
+  const renderW = Math.round(fmt.w / 2);
+  const renderH = Math.round(fmt.h / 2);
+
+  // Create off-screen container
+  const div = document.createElement('div');
+  div.style.cssText = `position:fixed;left:-9999px;top:-9999px;width:${renderW}px;height:${renderH}px;overflow:hidden;`;
+  document.body.appendChild(div);
+  _share.container = div;
+
+  const styleKey = _share.style;
+  const mapStyle = (styleKey === 'satellite')
+    ? { version: 8, sources: { 'sat-tiles': { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256 } }, layers: [{ id: 'sat', type: 'raster', source: 'sat-tiles' }] }
+    : _mlGetStyle(styleKey);
+
+  const bearing = _shareCalcBearing(_share.points);
+  const pitch = styleKey === 'satellite' ? 50 : 40;
+
+  // Calculate bounds
+  let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
+  for (const p of _share.points) {
+    if (p[0] < minLat) minLat = p[0];
+    if (p[0] > maxLat) maxLat = p[0];
+    if (p[1] < minLng) minLng = p[1];
+    if (p[1] > maxLng) maxLng = p[1];
+  }
+
+  const map = new maplibregl.Map({
+    container: div,
+    style: mapStyle,
+    center: [(minLng + maxLng) / 2, (minLat + maxLat) / 2],
+    zoom: 10,
+    bearing: bearing,
+    pitch: pitch,
+    maxPitch: 85,
+    attributionControl: false,
+    preserveDrawingBuffer: true,
+    antialias: true,
+    fadeDuration: 0,
+  });
+  _share.map = map;
+
+  map.on('load', () => {
+    // Add terrain for 3D effect
+    if (styleKey === 'satellite') {
+      map.addSource('share-dem', {
+        type: 'raster-dem',
+        tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
+        tileSize: 256,
+        encoding: 'terrarium',
+        maxzoom: 15,
+      });
+      map.setTerrain({ source: 'share-dem', exaggeration: 1.5 });
+    }
+
+    // Route GeoJSON
+    const coords = _share.points.map(p => [p[1], p[0]]);
+    const geojson = { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } };
+
+    // Glow layer (wide, transparent)
+    map.addSource('share-route', { type: 'geojson', data: geojson });
+    map.addLayer({
+      id: 'share-route-glow',
+      type: 'line',
+      source: 'share-route',
+      paint: {
+        'line-color': _share.routeColor,
+        'line-width': 12,
+        'line-opacity': 0.3,
+        'line-blur': 6,
+      },
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+    });
+    // Shadow
+    map.addLayer({
+      id: 'share-route-shadow',
+      type: 'line',
+      source: 'share-route',
+      paint: {
+        'line-color': '#000000',
+        'line-width': 6,
+        'line-opacity': 0.35,
+      },
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+    });
+    // Main route line
+    map.addLayer({
+      id: 'share-route-line',
+      type: 'line',
+      source: 'share-route',
+      paint: {
+        'line-color': _share.routeColor,
+        'line-width': 4,
+        'line-opacity': 1,
+      },
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+    });
+
+    // Fit to route bounds — extra bottom padding to center visually with pitch tilt
+    map.fitBounds([[minLng, minLat], [maxLng, maxLat]], {
+      padding: { top: 30, bottom: 140, left: 40, right: 40 },
+      bearing: bearing,
+      pitch: pitch,
+      animate: false,
+    });
+
+    // Wait for all tiles to load
+    const onIdle = () => {
+      // Double wait to ensure satellite tiles finish
+      setTimeout(() => {
+        _shareCapture(map, fmt);
+      }, 800);
+    };
+    map.once('idle', onIdle);
+  });
+}
+
+/* ── Draw start/finish dot on canvas ── */
+
+function _shareDrawMarker(ctx, x, y) {
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.4)';
+  ctx.shadowBlur = 4;
+  ctx.beginPath();
+  ctx.arc(x, y, 8, 0, Math.PI * 2);
+  ctx.fillStyle = _share.routeColor;
+  ctx.fill();
+  ctx.restore();
+}
+
+/* ── Capture map and composite final image ── */
+
+function _shareCapture(map, fmt) {
+  try {
+    const mapCanvas = map.getCanvas();
+    const finalCanvas = document.getElementById('shareCanvas');
+    finalCanvas.width = fmt.w;
+    finalCanvas.height = fmt.h;
+    const ctx = finalCanvas.getContext('2d');
+
+    // Draw map (upscaled from render size)
+    ctx.drawImage(mapCanvas, 0, 0, fmt.w, fmt.h);
+
+    // Start & Finish markers — drawn on canvas using projected coords
+    const pts = _share.points;
+    if (pts && pts.length >= 2) {
+      const scaleX = fmt.w / mapCanvas.width;
+      const scaleY = fmt.h / mapCanvas.height;
+      const startLngLat = [pts[0][1], pts[0][0]];
+      const endLngLat = [pts[pts.length - 1][1], pts[pts.length - 1][0]];
+      const sp = map.project(startLngLat);
+      const ep = map.project(endLngLat);
+      const sx = sp.x * scaleX, sy = sp.y * scaleY;
+      const ex = ep.x * scaleX, ey = ep.y * scaleY;
+      _shareDrawMarker(ctx, sx, sy);
+      _shareDrawMarker(ctx, ex, ey);
+      _share._markerCoords = { sx, sy, ex, ey };
+    }
+
+    // Cache the map+route+markers image (before overlays) for fast re-composite
+    const cacheImg = new Image();
+    cacheImg.src = finalCanvas.toDataURL('image/png');
+    _share._cachedMapImg = cacheImg;
+    _share._cachedFmt = { ...fmt };
+    _share._cachedStyle = _share.style;
+
+    // Apply overlays
+    _shareApplyOverlays(ctx, fmt);
+
+    // Show preview
+    finalCanvas.style.display = 'block';
+    document.getElementById('shareLoading').style.display = 'none';
+    _share.rendered = true;
+  } catch (err) {
+    console.error('Share capture failed:', err);
+    document.getElementById('shareLoading').innerHTML = '<span style="color:var(--red)">Failed to capture image</span>';
+  }
+  _share.rendering = false;
+
+  // Cleanup off-screen map
+  if (_share.map) { try { _share.map.remove(); } catch (_) {} _share.map = null; }
+  if (_share.container) { try { _share.container.remove(); } catch (_) {} _share.container = null; }
+}
+
+/* ── Apply vignette, stats, branding overlays ── */
+
+function _shareApplyOverlays(ctx, fmt) {
+  // Vignette overlay — subtle darkened edges
+  const vig = ctx.createRadialGradient(fmt.w / 2, fmt.h / 2, fmt.w * 0.3, fmt.w / 2, fmt.h / 2, fmt.w * 0.75);
+  vig.addColorStop(0, 'rgba(0,0,0,0)');
+  vig.addColorStop(1, 'rgba(0,0,0,0.35)');
+  ctx.fillStyle = vig;
+  ctx.fillRect(0, 0, fmt.w, fmt.h);
+
+  // Stats overlay
+  if (_share.showStats) {
+    _shareDrawStats(ctx, fmt);
+  }
+
+  // CycleIQ branding — bottom right
+  _shareDrawBranding(ctx, fmt);
+}
+
+/* ── Re-composite from cached map image (instant, no map re-render) ── */
+
+function _shareRecomposite() {
+  const img = _share._cachedMapImg;
+  const fmt = _share._cachedFmt;
+  if (!img || !fmt) return;
+  const finalCanvas = document.getElementById('shareCanvas');
+  finalCanvas.width = fmt.w;
+  finalCanvas.height = fmt.h;
+  const ctx = finalCanvas.getContext('2d');
+  ctx.drawImage(img, 0, 0, fmt.w, fmt.h);
+  _shareApplyOverlays(ctx, fmt);
+  finalCanvas.style.display = 'block';
+}
+
+
+/* ── Draw stats bar on canvas ── */
+
+function _shareDrawStats(ctx, fmt) {
+  const a = _share.activity || {};
+  const barH = Math.round(fmt.h * 0.22);
+  const y = fmt.h - barH;
+
+  // Dark glassmorphism bar
+  ctx.fillStyle = 'rgba(10, 12, 18, 0.75)';
+  ctx.fillRect(0, y, fmt.w, barH);
+
+  // Top border line
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.fillRect(0, y, fmt.w, 1);
+
+  const pad = Math.round(fmt.w * 0.035);
+  const titleSize = Math.round(fmt.h * 0.038);
+  const dateSize = Math.round(fmt.h * 0.02);
+  const labelSize = Math.round(fmt.h * 0.016);
+  const valSize = Math.round(fmt.h * 0.03);
+
+  // Row 1: Activity name + date
+  const name = a.name || a.icu_name || 'Activity';
+  const date = a.start_date_local || a.start_date || '';
+  const dateStr = date ? new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `bold ${titleSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+  ctx.textBaseline = 'top';
+  const titleY = y + pad;
+  ctx.fillText(name, pad, titleY);
+
+  if (dateStr) {
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    ctx.font = `${dateSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+    ctx.textBaseline = 'top';
+    ctx.fillText(dateStr, pad, titleY + titleSize + 4);
+  }
+
+  // Row 2: Stats spanning full width
+  const stats = [];
+  const dist = a.distance || a.icu_distance || 0;
+  if (dist) {
+    const km = dist > 1000 ? (dist / 1000).toFixed(1) : dist.toFixed(1);
+    stats.push({ label: 'DISTANCE', value: `${km} km` });
+  }
+  const dur = a.moving_time || a.icu_moving_time || a.elapsed_time || 0;
+  if (dur) {
+    const h = Math.floor(dur / 3600);
+    const m = Math.floor((dur % 3600) / 60);
+    stats.push({ label: 'TIME', value: h ? `${h}h ${m}m` : `${m}m` });
+  }
+  const elev = a.total_ascent || a.total_elevation_gain || a.icu_total_elevation_gain || 0;
+  if (elev) stats.push({ label: 'ELEVATION', value: `${Math.round(elev)} m` });
+  const pwr = a.average_watts || a.icu_average_watts || 0;
+  if (pwr) stats.push({ label: 'AVG POWER', value: `${Math.round(pwr)} W` });
+  else {
+    const spd = a.average_speed || a.icu_average_speed || 0;
+    if (spd) {
+      const kmh = spd < 50 ? spd * 3.6 : spd;
+      stats.push({ label: 'AVG SPEED', value: `${kmh.toFixed(1)} km/h` });
+    }
+  }
+
+  if (stats.length) {
+    const statsY = titleY + titleSize + dateSize + Math.round(pad * 0.6);
+    const statW = (fmt.w - pad * 2) / stats.length;
+    stats.forEach((s, i) => {
+      const sx = pad + i * statW;
+      // Label
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.font = `600 ${labelSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+      ctx.textBaseline = 'top';
+      ctx.fillText(s.label, sx, statsY);
+      // Value
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `bold ${valSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+      ctx.fillText(s.value, sx, statsY + labelSize + 3);
+    });
+  }
+}
+
+/* ── Draw CycleIQ branding ── */
+
+function _shareDrawBranding(ctx, fmt) {
+  const pad = Math.round(fmt.w * 0.025);
+  const size = Math.round(fmt.h * 0.02);
+
+  // Position: bottom-right corner (above stats bar if present)
+  const bx = fmt.w - pad;
+  const by = _share.showStats ? fmt.h - Math.round(fmt.h * 0.16) - pad : fmt.h - pad;
+
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.font = `600 ${size}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText('CycleIQ', bx, by);
+  ctx.textAlign = 'left'; // reset
+}
+
+/* ── Download image ── */
+
+function shareImageDownload() {
+  const canvas = document.getElementById('shareCanvas');
+  if (!canvas || !_share.rendered) { showToast('Image not ready yet', 'error'); return; }
+
+  canvas.toBlob(blob => {
+    if (!blob) { showToast('Failed to generate image', 'error'); return; }
+    const name = (_share.activity?.name || 'Activity').replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '-');
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `CycleIQ-${name}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('Image downloaded', 'success');
+  }, 'image/png');
+}
+
+/* ── Copy to clipboard ── */
+
+async function shareImageCopy() {
+  const canvas = document.getElementById('shareCanvas');
+  if (!canvas || !_share.rendered) { showToast('Image not ready yet', 'error'); return; }
+
+  try {
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    if (!blob) throw new Error('No blob');
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    showToast('Image copied to clipboard', 'success');
+  } catch (err) {
+    showToast('Copy failed — try Download instead', 'error');
   }
 }
 
@@ -9775,9 +10336,6 @@ function buildMapStatsHTML(streams, maxSpdKmh, maxHR) {
 // Update panel DOM in-place — no full innerHTML rebuild on every mousemove.
 function refreshMapStats(panel, streams, idx, maxSpdKmh, maxHR) {
   if (!panel) return;
-  // Also update fullscreen bottom-left clone
-  const _fsLeft = document.getElementById('fsBottomLeft');
-  if (_fsLeft?.children.length) _refreshStatPanel(_fsLeft, streams, idx, maxSpdKmh, maxHR);
   _refreshStatPanel(panel, streams, idx, maxSpdKmh, maxHR);
 }
 function _refreshStatPanel(panel, streams, idx, maxSpdKmh, maxHR) {
@@ -9871,8 +10429,6 @@ function _refreshStatPanel(panel, streams, idx, maxSpdKmh, maxHR) {
 // Reset all values back to dashes (called on mouseout).
 function resetMapStats(panel) {
   if (!panel) return;
-  const _fsLeft = document.getElementById('fsBottomLeft');
-  if (_fsLeft?.children.length) _resetStatPanel(_fsLeft);
   _resetStatPanel(panel);
 }
 function _resetStatPanel(panel) {
@@ -10048,9 +10604,20 @@ function renderActivityMap(latlng, streams) {
         if (shadowSrc) shadowSrc.setData(shadowGeoJSON);
         if (colorSrc)  colorSrc.setData(geojson);
 
-        // Keep toggle buttons in sync
+        // Keep toggle buttons in sync (desktop pills)
         document.querySelectorAll('.map-mode-btn').forEach(btn =>
           btn.classList.toggle('active', btn.dataset.mode === mode));
+        // Sync mobile dropdown trigger + menu
+        document.querySelectorAll('.map-toggle-opt').forEach(opt =>
+          opt.classList.toggle('active', opt.dataset.mode === mode));
+        const activeBtn = document.querySelector(`.map-mode-btn[data-mode="${mode}"]`);
+        const trigLabel = document.querySelector('.map-toggle-label');
+        const trigIcon = document.querySelector('.map-toggle-trigger > .map-mode-icon');
+        if (activeBtn && trigLabel) {
+          const ico = activeBtn.querySelector('.map-mode-icon');
+          if (ico && trigIcon) trigIcon.textContent = ico.textContent;
+          trigLabel.textContent = activeBtn.textContent.trim().replace(ico?.textContent || '', '').trim();
+        }
       };
 
       // ── Map load — add sources, layers, markers, controls ────────────────
@@ -10209,16 +10776,21 @@ function renderActivityMap(latlng, streams) {
         const timeLen = streams.time?.length || valid.length;
 
         if (hasStreams && statsEl) {
-          statsEl.innerHTML = buildMapStatsHTML(streams, maxSpdKmh, maxHR);
+          const statsContent = statsEl.querySelector('.map-stats-content') || statsEl;
+          statsContent.innerHTML = buildMapStatsHTML(streams, maxSpdKmh, maxHR);
           statsEl.querySelectorAll('.mm-cell').forEach(el => {
             if (!el.dataset.glow) { el.dataset.glow = '1'; window.attachCardGlow && window.attachCardGlow(el); }
           });
           requestAnimationFrame(() => map.resize());
 
+          let _lastHoverIdx = -1;
+          let _hoverRaf = 0;
+
           map.on('mousemove', (e) => {
             if (state.flythrough?.playing) return;
             const { lat, lng } = e.lngLat;
 
+            // Find nearest GPS point with hysteresis to avoid jumps at route crossings
             let bestIdx = 0, bestDist = Infinity;
             for (let i = 0; i < valid.length; i++) {
               const dlat = valid[i][0] - lat;
@@ -10227,31 +10799,57 @@ function renderActivityMap(latlng, streams) {
               if (d < bestDist) { bestDist = d; bestIdx = i; }
             }
 
-            const si = Math.round(bestIdx * (timeLen - 1) / (valid.length - 1));
-            const dotColor = routePointColor(activeMode, streams, si, maxes);
+            // Hysteresis: if the previous index is nearly as close, prefer it
+            // to prevent the scrubber from jumping between overlapping route segments
+            if (_lastHoverIdx >= 0) {
+              const WINDOW = Math.max(20, Math.round(valid.length * 0.02));
+              const lo = Math.max(0, _lastHoverIdx - WINDOW);
+              const hi = Math.min(valid.length - 1, _lastHoverIdx + WINDOW);
+              let localBest = _lastHoverIdx, localDist = Infinity;
+              for (let i = lo; i <= hi; i++) {
+                const dlat = valid[i][0] - lat;
+                const dlng = valid[i][1] - lng;
+                const d    = dlat * dlat + dlng * dlng;
+                if (d < localDist) { localDist = d; localBest = i; }
+              }
+              // Keep local result if it's within 1.5× the global best distance
+              if (localDist < bestDist * 2.25) bestIdx = localBest;
+            }
+            _lastHoverIdx = bestIdx;
 
-            // Update hover dot
-            const hoverSrc = map.getSource('hover-dot');
-            if (hoverSrc) {
-              hoverSrc.setData({
-                type: 'Feature',
-                geometry: { type: 'Point', coordinates: [valid[bestIdx][1], valid[bestIdx][0]] },
-                properties: { color: dotColor },
-              });
-            }
-            if (map.getLayer('hover-dot-outline')) {
-              map.setPaintProperty('hover-dot-outline', 'circle-opacity', 1);
-              map.setPaintProperty('hover-dot-outline', 'circle-stroke-opacity', 1);
-            }
-            if (map.getLayer('hover-dot-fill')) {
-              map.setPaintProperty('hover-dot-fill', 'circle-opacity', 1);
-            }
+            // Throttle DOM/canvas updates to one per frame
+            if (_hoverRaf) cancelAnimationFrame(_hoverRaf);
+            const capturedIdx = bestIdx;
+            _hoverRaf = requestAnimationFrame(() => {
+              _hoverRaf = 0;
+              const si = Math.round(capturedIdx * (timeLen - 1) / (valid.length - 1));
+              const dotColor = routePointColor(activeMode, streams, si, maxes);
 
-            refreshMapStats(statsEl, streams, si, maxSpdKmh, maxHR);
-            if (state.flythrough?._drawMiniChart) state.flythrough._drawMiniChart(bestIdx);
+              // Update hover dot
+              const hoverSrc = map.getSource('hover-dot');
+              if (hoverSrc) {
+                hoverSrc.setData({
+                  type: 'Feature',
+                  geometry: { type: 'Point', coordinates: [valid[capturedIdx][1], valid[capturedIdx][0]] },
+                  properties: { color: dotColor },
+                });
+              }
+              if (map.getLayer('hover-dot-outline')) {
+                map.setPaintProperty('hover-dot-outline', 'circle-opacity', 1);
+                map.setPaintProperty('hover-dot-outline', 'circle-stroke-opacity', 1);
+              }
+              if (map.getLayer('hover-dot-fill')) {
+                map.setPaintProperty('hover-dot-fill', 'circle-opacity', 1);
+              }
+
+              refreshMapStats(statsEl, streams, si, maxSpdKmh, maxHR);
+              if (state.flythrough?._drawMiniChart) state.flythrough._drawMiniChart(capturedIdx);
+            });
           });
 
           map.getContainer().addEventListener('mouseleave', () => {
+            _lastHoverIdx = -1;
+            if (_hoverRaf) { cancelAnimationFrame(_hoverRaf); _hoverRaf = 0; }
             if (state.flythrough?.playing) return;
             if (map.getLayer('hover-dot-outline')) {
               map.setPaintProperty('hover-dot-outline', 'circle-opacity', 0);
@@ -10275,6 +10873,7 @@ function renderActivityMap(latlng, streams) {
             altArr?.length  ? { key: 'altitude', label: 'Altitude', icon: '▲' } : null,
           ].filter(Boolean);
 
+          // Desktop inline pills
           togglesEl.innerHTML = modes.map(m =>
             `<button class="map-mode-btn${m.key === 'default' ? ' active' : ''}" data-mode="${m.key}">
                <span class="map-mode-icon">${m.icon}</span>${m.label}
@@ -10284,52 +10883,115 @@ function renderActivityMap(latlng, streams) {
           togglesEl.querySelectorAll('.map-mode-btn').forEach(btn =>
             btn.addEventListener('click', () => applyColorMode(btn.dataset.mode)));
 
-          // Satellite toggle button (bottom-left, DOM-based)
-          const satBtn = document.createElement('button');
-          satBtn.className = 'map-sat-control';
-          satBtn.title = 'Toggle satellite imagery';
-          satBtn.innerHTML = '<span class="map-mode-icon">🛰</span>Satellite';
-          satBtn.addEventListener('click', () => {
-            isSatellite = !isSatellite;
-            state._actIsSatellite = isSatellite;
-            map.setStyle(isSatellite ? _mlGetStyle('satellite') : _mlGetStyle(state._actMapThemeKey || themeKey));
-            satBtn.classList.toggle('active', isSatellite);
-            // Re-add route sources/layers after style swap
-            map.once('style.load', () => {
-              map.addSource('route-shadow', { type: 'geojson', data: shadowGeoJSON });
-              map.addLayer({
-                id: 'route-shadow-layer', type: 'line', source: 'route-shadow',
-                paint: { 'line-color': '#000', 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 4, 12, 6, 14, 7.5, 16, 9], 'line-opacity': 0.28 },
-                layout: { 'line-cap': 'round', 'line-join': 'round' },
-              });
-              map.addSource('route-color', { type: 'geojson', data: buildRouteGeoJSON(activeMode) });
-              map.addLayer({
-                id: 'route-color-layer', type: 'line', source: 'route-color',
-                paint: { 'line-color': ['get', 'color'], 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 2, 12, 3, 14, 4.5, 16, 6], 'line-opacity': 1 },
-                layout: { 'line-cap': 'round', 'line-join': 'round' },
-              });
-              map.addSource('hover-dot', {
-                type: 'geojson',
-                data: { type: 'Feature', geometry: { type: 'Point', coordinates: [valid[0][1], valid[0][0]] }, properties: { color: '#fff' } },
-              });
-              map.addLayer({ id: 'hover-dot-outline', type: 'circle', source: 'hover-dot',
-                paint: { 'circle-radius': 7, 'circle-color': '#fff', 'circle-stroke-width': 2.5, 'circle-stroke-color': '#fff', 'circle-opacity': 0, 'circle-stroke-opacity': 0 } });
-              map.addLayer({ id: 'hover-dot-fill', type: 'circle', source: 'hover-dot',
-                paint: { 'circle-radius': 5, 'circle-color': ['get', 'color'], 'circle-opacity': 0 } });
-              _mlApplyTerrain(map);
-            });
+          // Mobile: Export-style dropdown
+          const mtWrap = document.createElement('div');
+          mtWrap.className = 'map-toggle-wrap';
+          const mtTrigger = document.createElement('button');
+          mtTrigger.className = 'map-toggle-trigger';
+          mtTrigger.innerHTML = `<span class="map-mode-icon">${modes[0].icon}</span><span class="map-toggle-label">${modes[0].label}</span><svg class="map-toggle-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="10" height="10"><polyline points="6 9 12 15 18 9"/></svg>`;
+          const mtMenu = document.createElement('div');
+          mtMenu.className = 'map-toggle-menu';
+          modes.forEach(m => {
+            const opt = document.createElement('button');
+            opt.className = 'map-toggle-opt' + (m.key === 'default' ? ' active' : '');
+            opt.dataset.mode = m.key;
+            opt.innerHTML = `<span class="map-mode-icon">${m.icon}</span>${m.label}`;
+            mtMenu.appendChild(opt);
           });
-          map.getContainer().appendChild(satBtn);
+          mtWrap.appendChild(mtTrigger);
+          mtWrap.appendChild(mtMenu);
+          togglesEl.appendChild(mtWrap);
 
-          // Recentre button (top-right, DOM-based)
-          const recentreBtn = document.createElement('button');
-          recentreBtn.className = 'map-recentre-control';
-          recentreBtn.title = 'Recentre map';
-          recentreBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="9" r="3"/><line x1="9" y1="1" x2="9" y2="5"/><line x1="9" y1="13" x2="9" y2="17"/><line x1="1" y1="9" x2="5" y2="9"/><line x1="13" y1="9" x2="17" y2="9"/></svg>`;
-          recentreBtn.addEventListener('click', () => {
-            map.fitBounds(routeBounds, { padding: 24, duration: 600 });
+          mtTrigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            mtWrap.classList.toggle('map-toggle-wrap--open');
           });
-          map.getContainer().appendChild(recentreBtn);
+          document.addEventListener('click', () => mtWrap.classList.remove('map-toggle-wrap--open'));
+          mtWrap.addEventListener('click', (e) => e.stopPropagation());
+          mtMenu.querySelectorAll('.map-toggle-opt').forEach(opt =>
+            opt.addEventListener('click', () => {
+              applyColorMode(opt.dataset.mode);
+              mtWrap.classList.remove('map-toggle-wrap--open');
+            }));
+
+          // Append satellite + recentre buttons to the NavigationControl group
+          const navGroup = map.getContainer().querySelector('.maplibregl-ctrl-group');
+          if (navGroup) {
+            const satBtn = document.createElement('button');
+            satBtn.className = 'act-map-tool-btn';
+            satBtn.title = 'Toggle satellite imagery';
+            satBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><ellipse cx="12" cy="12" rx="5" ry="10"/></svg>';
+            // Persistent handler: re-add route layers after any style swap
+            function _readdRouteLayers() {
+              try {
+                if (!map.getSource('route-shadow')) {
+                  map.addSource('route-shadow', { type: 'geojson', data: shadowGeoJSON });
+                  map.addLayer({
+                    id: 'route-shadow-layer', type: 'line', source: 'route-shadow',
+                    paint: { 'line-color': '#000', 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 4, 12, 6, 14, 7.5, 16, 9], 'line-opacity': 0.28 },
+                    layout: { 'line-cap': 'round', 'line-join': 'round' },
+                  });
+                }
+                if (!map.getSource('route-color')) {
+                  map.addSource('route-color', { type: 'geojson', data: buildRouteGeoJSON(activeMode) });
+                  map.addLayer({
+                    id: 'route-color-layer', type: 'line', source: 'route-color',
+                    paint: { 'line-color': ['get', 'color'], 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 2, 12, 3, 14, 4.5, 16, 6], 'line-opacity': 1 },
+                    layout: { 'line-cap': 'round', 'line-join': 'round' },
+                  });
+                }
+                if (!map.getSource('hover-dot')) {
+                  map.addSource('hover-dot', {
+                    type: 'geojson',
+                    data: { type: 'Feature', geometry: { type: 'Point', coordinates: [valid[0][1], valid[0][0]] }, properties: { color: '#fff' } },
+                  });
+                  map.addLayer({ id: 'hover-dot-outline', type: 'circle', source: 'hover-dot',
+                    paint: { 'circle-radius': 7, 'circle-color': '#fff', 'circle-stroke-width': 2.5, 'circle-stroke-color': '#fff', 'circle-opacity': 0, 'circle-stroke-opacity': 0 } });
+                  map.addLayer({ id: 'hover-dot-fill', type: 'circle', source: 'hover-dot',
+                    paint: { 'circle-radius': 5, 'circle-color': ['get', 'color'], 'circle-opacity': 0 } });
+                }
+                _mlApplyTerrain(map);
+              } catch (_) {}
+            }
+            satBtn.addEventListener('click', () => {
+              isSatellite = !isSatellite;
+              state._actIsSatellite = isSatellite;
+              map.setStyle(isSatellite ? _mlGetStyle('satellite') : _mlGetStyle(state._actMapThemeKey || themeKey));
+              satBtn.classList.toggle('active', isSatellite);
+              // Use 'idle' (reliable for both vector + raster styles) to re-add layers
+              map.once('idle', _readdRouteLayers);
+            });
+            navGroup.appendChild(satBtn);
+
+            const recentreBtn = document.createElement('button');
+            recentreBtn.className = 'act-map-tool-btn';
+            recentreBtn.title = 'Recentre map';
+            recentreBtn.innerHTML = '<svg viewBox="0 0 18 18" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="9" r="3"/><line x1="9" y1="1" x2="9" y2="5"/><line x1="9" y1="13" x2="9" y2="17"/><line x1="1" y1="9" x2="5" y2="9"/><line x1="13" y1="9" x2="17" y2="9"/></svg>';
+            recentreBtn.addEventListener('click', () => {
+              map.fitBounds(routeBounds, { padding: 24, duration: 600 });
+            });
+            navGroup.appendChild(recentreBtn);
+
+            const terrainBtn = document.createElement('button');
+            terrainBtn.className = 'act-map-tool-btn' + (loadTerrainEnabled() ? ' active' : '');
+            terrainBtn.title = 'Toggle 3D terrain';
+            terrainBtn.innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20l5-10 4 6 3-4 6 8"/><circle cx="17" cy="7" r="2"/></svg>';
+            terrainBtn.addEventListener('click', () => {
+              const on = !loadTerrainEnabled();
+              setTerrainEnabled(on);
+              _mlApplyTerrain(map);
+              terrainBtn.classList.toggle('active', on);
+              // Sync settings page toggle if it exists
+              const settingsEl = document.getElementById('terrain3dToggle');
+              if (settingsEl) settingsEl.checked = on;
+              if (on) {
+                map.easeTo({ pitch: 55, duration: 600 });
+              } else {
+                map.easeTo({ pitch: 0, bearing: 0, duration: 600 });
+              }
+            });
+            navGroup.appendChild(terrainBtn);
+          }
         }
 
         // ── Flythrough (always initialised when GPS data is present) ─────
@@ -17913,18 +18575,132 @@ function impAddFiles(fileList) {
   const files = Array.from(fileList).filter(f => f.name.toLowerCase().endsWith('.fit'));
   if (!files.length) { showToast('No .FIT files found', 'error'); return; }
 
+  const newItems = [];
   for (const f of files) {
     // Avoid adding same filename twice
     if (_imp.queue.find(q => q.file.name === f.name && q.file.size === f.size)) continue;
-    _imp.queue.push({
+    const item = {
       id: Date.now() + '_' + Math.random().toString(36).slice(2, 8),
       file: f,
       parsed: null,
       status: 'pending',
       error: null,
-    });
+      settings: null,
+      settingsOpen: false,
+    };
+    _imp.queue.push(item);
+    newItems.push(item);
   }
   impRenderQueue();
+  // Early-parse to detect available data streams
+  for (const item of newItems) impEarlyParse(item);
+}
+
+/* ── Early-parse FIT to detect streams ── */
+async function impEarlyParse(item) {
+  try {
+    const buffer = await item.file.arrayBuffer();
+    const parsed = await impParseFIT(buffer);
+    item.parsed = parsed;
+    impDetectStreams(item);
+    impRenderQueue();
+  } catch (_) { /* silent — will re-parse during import */ }
+}
+
+/* ── Detect available data streams ── */
+function impDetectStreams(item) {
+  const p = item.parsed;
+  if (!p) return;
+  const s = p.sessions?.[0] || {};
+  const recs = p.records || [];
+  // Sample first 50 records for field detection
+  const sample = recs.slice(0, 50);
+  item.settings = {};
+  // GPS
+  if (sample.some(r => r.position_lat != null && r.position_long != null)) item.settings.gps = true;
+  // Heart rate
+  if ((s.avg_heart_rate && s.avg_heart_rate > 0) || sample.some(r => r.heart_rate > 0)) item.settings.heartrate = true;
+  // Power
+  if ((s.avg_power && s.avg_power > 0) || sample.some(r => r.power > 0)) item.settings.power = true;
+  // Cadence
+  if ((s.avg_cadence && s.avg_cadence > 0) || sample.some(r => r.cadence > 0)) item.settings.cadence = true;
+  // Speed
+  if ((s.avg_speed && s.avg_speed > 0) || sample.some(r => r.speed > 0 || r.enhanced_speed > 0)) item.settings.speed = true;
+  // Elevation
+  if ((s.total_ascent && s.total_ascent > 0) || sample.some(r => r.altitude != null)) item.settings.elevation = true;
+  // Temperature
+  if (sample.some(r => r.temperature != null)) item.settings.temperature = true;
+  // Calories
+  if (s.total_calories && s.total_calories > 0) item.settings.calories = true;
+}
+
+/* ── Toggle settings panel for a queue item ── */
+function impToggleSettings(id) {
+  const item = _imp.queue.find(q => q.id === id);
+  if (!item) return;
+  const wasOpen = item.settingsOpen;
+  // Close all panels first
+  _imp.queue.forEach(q => q.settingsOpen = false);
+  item.settingsOpen = !wasOpen;
+  impRenderQueue();
+}
+
+/* ── Toggle a specific data stream for a queue item ── */
+function impToggleStream(id, stream) {
+  const item = _imp.queue.find(q => q.id === id);
+  if (!item || !item.settings || !(stream in item.settings)) return;
+  item.settings[stream] = !item.settings[stream];
+  impRenderQueue();
+}
+
+/* ── Build settings panel HTML for a queue item ── */
+function impBuildSettingsPanel(q) {
+  const s = q.parsed?.sessions?.[0] || {};
+  const recs = q.parsed?.records || [];
+  const gpsCount = recs.filter(r => r.position_lat != null && r.position_long != null).length;
+
+  const allStreams = [
+    { key: 'gps', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>`,
+      name: 'GPS Route', preview: gpsCount ? `${gpsCount.toLocaleString()} pts` : '' },
+    { key: 'heartrate', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>`,
+      name: 'Heart Rate', preview: s.avg_heart_rate ? `Avg ${Math.round(s.avg_heart_rate)} bpm` : '' },
+    { key: 'power', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
+      name: 'Power', preview: s.avg_power ? `Avg ${Math.round(s.avg_power)} W` : '' },
+    { key: 'cadence', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21.54 15H17a2 2 0 0 0-2 2v4.54"/><path d="M7 3.34V5a3 3 0 0 0 3 3v0a2 2 0 0 1 2 2v0c0 1.1.9 2 2 2v0a2 2 0 0 0 2-2v0c0-1.1.9-2 2-2h3.17"/><path d="M11 21.95V18a2 2 0 0 0-2-2v0a2 2 0 0 1-2-2v-1a2 2 0 0 0-2-2H2.05"/><circle cx="12" cy="12" r="10"/></svg>`,
+      name: 'Cadence', preview: s.avg_cadence ? `Avg ${Math.round(s.avg_cadence)} rpm` : '' },
+    { key: 'speed', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 12m-10 0a10 10 0 1 0 20 0 10 10 0 1 0-20 0"/><path d="M12 12l4-4"/><path d="M12 7v1"/></svg>`,
+      name: 'Speed', preview: s.avg_speed ? `Avg ${(s.avg_speed).toFixed(1)} km/h` : (s.enhanced_avg_speed ? `Avg ${(s.enhanced_avg_speed).toFixed(1)} km/h` : '') },
+    { key: 'elevation', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg>`,
+      name: 'Elevation', preview: s.total_ascent ? `${Math.round(s.total_ascent)} m gain` : '' },
+    { key: 'temperature', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>`,
+      name: 'Temperature', preview: (() => { const t = recs.find(r => r.temperature != null); return t ? `${Math.round(t.temperature)}°C` : ''; })() },
+    { key: 'calories', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>`,
+      name: 'Calories', preview: s.total_calories ? `${Math.round(s.total_calories)} kcal` : '' },
+  ];
+
+  const rows = allStreams.map(st => {
+    const available = st.key in q.settings;
+    const enabled = available && q.settings[st.key];
+    if (!available) {
+      return `<div class="imp-sp-row imp-sp-row--unavail">
+        <span class="imp-sp-icon">${st.icon}</span>
+        <span class="imp-sp-name">${st.name}</span>
+        <span class="imp-sp-preview">Not available</span>
+      </div>`;
+    }
+    return `<label class="imp-sp-row">
+      <span class="imp-sp-icon">${st.icon}</span>
+      <span class="imp-sp-name">${st.name}</span>
+      <span class="imp-sp-preview">${st.preview}</span>
+      <input type="checkbox" ${enabled ? 'checked' : ''} onchange="impToggleStream('${q.id}','${st.key}')"/>
+      <span class="imp-toggle-switch"></span>
+    </label>`;
+  }).join('');
+
+  return `<div class="imp-qi-settings-panel">
+    <div class="imp-sp-header">Data Streams</div>
+    ${rows}
+  </div>`;
 }
 
 /* ── Render queue UI ── */
@@ -17957,19 +18733,52 @@ function impRenderQueue() {
       if (dist) metaHtml += `<span>${dist}</span>`;
     }
 
-    return `<div class="imp-queue-item" data-id="${q.id}">
+    // Stream badges
+    let badgesHtml = '';
+    if (q.settings) {
+      const streamBadges = [
+        { key: 'gps', label: 'GPS' },
+        { key: 'heartrate', label: 'HR' },
+        { key: 'power', label: 'PWR' },
+        { key: 'cadence', label: 'CAD' },
+        { key: 'speed', label: 'SPD' },
+        { key: 'elevation', label: 'ELE' },
+        { key: 'temperature', label: 'TMP' },
+        { key: 'calories', label: 'CAL' },
+      ];
+      const tags = streamBadges
+        .filter(b => b.key in q.settings)
+        .map(b => `<span class="imp-qi-badge${q.settings[b.key] ? '' : ' imp-qi-badge--off'}">${b.label}</span>`)
+        .join('');
+      if (tags) badgesHtml = `<div class="imp-qi-badges">${tags}</div>`;
+    }
+
+    // Settings button (only for pending items with parsed data)
+    const settingsBtn = (q.status === 'pending' && q.settings) ? `<div class="imp-qi-settings-btn${q.settingsOpen ? ' imp-qi-settings-btn--active' : ''}" onclick="impToggleSettings('${q.id}')" title="Import settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+      </div>` : '';
+
+    // Settings panel (expanded below this item)
+    let panelHtml = '';
+    if (q.settingsOpen && q.settings) {
+      panelHtml = impBuildSettingsPanel(q);
+    }
+
+    return `<div class="imp-queue-item${q.settingsOpen ? ' imp-queue-item--expanded' : ''}" data-id="${q.id}">
       <div class="imp-qi-icon imp-qi-icon--${sport}">
         <span style="font-size:18px">${sportIcon}</span>
       </div>
       <div class="imp-qi-info">
         <div class="imp-qi-name">${q.file.name}</div>
         <div class="imp-qi-meta">${metaHtml}</div>
+        ${badgesHtml}
       </div>
       <div class="imp-qi-status ${statusCls}">${statusLabel}</div>
+      ${settingsBtn}
       ${q.status === 'pending' ? `<div class="imp-qi-remove" onclick="impRemoveFromQueue('${q.id}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </div>` : ''}
-    </div>`;
+    </div>${panelHtml}`;
   }).join('');
 }
 
@@ -18004,9 +18813,12 @@ async function impProcessAll() {
     impRenderQueue();
 
     try {
-      const buffer = await item.file.arrayBuffer();
-      const parsed = await impParseFIT(buffer);
-      item.parsed = parsed;
+      // Reuse early-parsed data if available, otherwise parse now
+      if (!item.parsed) {
+        const buffer = await item.file.arrayBuffer();
+        item.parsed = await impParseFIT(buffer);
+      }
+      const parsed = item.parsed;
 
       // Duplicate check (returns false or a reason string)
       const dupReason = optDupes && impIsDuplicate(parsed);
@@ -18019,7 +18831,7 @@ async function impProcessAll() {
       }
 
       // Build activity object
-      const activity = impBuildActivity(parsed, item.file.name, optSport, optGPS);
+      const activity = impBuildActivity(parsed, item.file.name, optSport, optGPS, item.settings);
 
       // Save to imported activities in localStorage
       impSaveActivity(activity);
@@ -18191,9 +19003,10 @@ function impIsDuplicate(parsed) {
 }
 
 /* ── Build activity from parsed FIT ── */
-function impBuildActivity(parsed, fileName, autoSport, extractGPS) {
+function impBuildActivity(parsed, fileName, autoSport, extractGPS, settings) {
   const s = parsed.sessions?.[0] || {};
   const records = parsed.records || [];
+  const st = settings || {}; // per-file stream settings
 
   const sport = autoSport ? impDetectSport(parsed) : 'ride';
   const typeMap = { ride: 'Ride', run: 'Run', swim: 'Swim', other: 'Ride' };
@@ -18213,23 +19026,24 @@ function impBuildActivity(parsed, fileName, autoSport, extractGPS) {
     moving_time: Math.round(s.total_timer_time || s.total_elapsed_time || 0),
     elapsed_time: Math.round(s.total_elapsed_time || s.total_timer_time || 0),
     distance: s.total_distance || 0,
-    total_ascent: s.total_ascent || 0,
-    average_speed: s.avg_speed || s.enhanced_avg_speed || 0,
-    max_speed: s.max_speed || s.enhanced_max_speed || 0,
-    average_heartrate: s.avg_heart_rate || 0,
-    max_heartrate: s.max_heart_rate || 0,
-    average_watts: s.avg_power || 0,
-    max_watts: s.max_power || 0,
-    average_cadence: s.avg_cadence || 0,
-    calories: s.total_calories || 0,
-    normalized_power: s.normalized_power || 0,
-    training_stress_score: s.training_stress_score || 0,
-    intensity_factor: s.intensity_factor || 0,
+    total_ascent: st.elevation === false ? 0 : (s.total_ascent || 0),
+    average_speed: st.speed === false ? 0 : (s.avg_speed || s.enhanced_avg_speed || 0),
+    max_speed: st.speed === false ? 0 : (s.max_speed || s.enhanced_max_speed || 0),
+    average_heartrate: st.heartrate === false ? 0 : (s.avg_heart_rate || 0),
+    max_heartrate: st.heartrate === false ? 0 : (s.max_heart_rate || 0),
+    average_watts: st.power === false ? 0 : (s.avg_power || 0),
+    max_watts: st.power === false ? 0 : (s.max_power || 0),
+    average_cadence: st.cadence === false ? 0 : (s.avg_cadence || 0),
+    calories: st.calories === false ? 0 : (s.total_calories || 0),
+    normalized_power: st.power === false ? 0 : (s.normalized_power || 0),
+    training_stress_score: st.power === false ? 0 : (s.training_stress_score || 0),
+    intensity_factor: st.power === false ? 0 : (s.intensity_factor || 0),
     file_name: fileName,
   };
 
-  // Extract GPS route
-  if (extractGPS && records.length) {
+  // Extract GPS route (respect per-file GPS setting)
+  const gpsEnabled = st.gps !== false && extractGPS;
+  if (gpsEnabled && records.length) {
     const route = [];
     for (const r of records) {
       if (r.position_lat != null && r.position_long != null) {
@@ -19371,6 +20185,7 @@ function renderRouteBuilderPage() {
       <div class="rb-map-container">
         <div id="rbMap" class="rb-map"></div>
         <div class="rb-search-float">
+          <div class="rb-fs-logo" onclick="navigate('dashboard')" title="Back to dashboard"><div class="rb-fs-logo-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#0d0f14" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/><line x1="12" y1="3" x2="12" y2="10"/><line x1="12" y1="14" x2="12" y2="21"/><line x1="3" y1="12" x2="10" y2="12"/><line x1="14" y1="12" x2="21" y2="12"/></svg></div></div>
           <div class="rb-search-wrap">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <input class="rb-search-input" id="rbSearchInput" placeholder="Search places…" autocomplete="off" />
@@ -19920,6 +20735,7 @@ function _rbTogglePoi() {
 /* ── POI layer helpers (MapLibre) ── */
 const _rbPoiMarkers = [];
 let _rbPoiPopup = null;
+let _rbWpPopup = null;
 
 function _rbClearPoiLayers() {
   for (const m of _rbPoiMarkers) m.remove();
@@ -19937,6 +20753,7 @@ function _rbAddPoiMarker(lat, lon, cat, name) {
     .addTo(_rb.map);
   el.addEventListener('click', (e) => {
     e.stopPropagation();
+    _rbCloseWpPopup();
     if (_rbPoiPopup) _rbPoiPopup.remove();
     const hasRoute = _rb.routeSegments.length > 0;
     _rbPoiPopup = new maplibregl.Popup({ closeButton: false, offset: 14, className: 'rb-poi-popup-wrap' })
@@ -20258,6 +21075,7 @@ function _rbCreateWaypointMarker(lat, lng, index) {
   const el = document.createElement('div');
   el.className = 'rb-wp-icon';
   el.innerHTML = `<div class="rb-wp-marker${index === 0 ? ' rb-wp-marker--start' : ''}">${index === 0 ? 'S' : (index + 1)}</div>`;
+  let _dragged = false;
   el.addEventListener('mousedown', (e) => {
     if (e.button === 1) {
       e.preventDefault();
@@ -20266,12 +21084,114 @@ function _rbCreateWaypointMarker(lat, lng, index) {
       if (idx !== -1) _rbRemoveWaypoint(idx);
     }
   });
+  el.addEventListener('click', (e) => {
+    if (_dragged) { _dragged = false; return; }
+    e.stopPropagation();
+    const idx = _rb.waypoints.findIndex(w => w.marker?.getElement() === el);
+    if (idx !== -1) _rbShowWaypointPopup(idx);
+  });
   el.addEventListener('auxclick', (e) => { if (e.button === 1) { e.preventDefault(); e.stopPropagation(); } });
   const marker = new maplibregl.Marker({ element: el, draggable: true, anchor: 'center' })
     .setLngLat([lng, lat])
     .addTo(_rb.map);
+  marker.on('dragstart', () => { _dragged = true; _rbCloseWpPopup(); });
   el.removeAttribute('aria-label');
   return marker;
+}
+
+function _rbCloseWpPopup() {
+  if (_rbWpPopup) { _rbWpPopup.remove(); _rbWpPopup = null; }
+}
+
+function _rbWaypointDistFromStart(idx) {
+  let dist = 0;
+  for (let i = 0; i < idx && i < _rb.routeSegments.length; i++) {
+    dist += _rb.routeSegments[i].distance || 0;
+  }
+  return dist;
+}
+
+function _rbWaypointElevation(idx) {
+  if (!_rb.elevationData.length) return null;
+  const cumDist = _rbWaypointDistFromStart(idx);
+  let closest = 0, bestD = Infinity;
+  for (let i = 0; i < _rb.elevationData.length; i++) {
+    const d = Math.abs(_rb.elevationData[i].dist - cumDist);
+    if (d < bestD) { bestD = d; closest = i; }
+  }
+  return Math.round(_rb.elevationData[closest].elev);
+}
+
+function _rbShowWaypointPopup(idx) {
+  _rbCloseWpPopup();
+  if (_rbPoiPopup) { _rbPoiPopup.remove(); _rbPoiPopup = null; }
+
+  const wp = _rb.waypoints[idx];
+  if (!wp) return;
+
+  const total = _rb.waypoints.length;
+  const label = idx === 0 ? 'Start' : (idx === total - 1 && total >= 2) ? 'Finish' : `Waypoint ${idx + 1}`;
+  const name = wp._placeName || 'Loading\u2026';
+  const dist = _rbWaypointDistFromStart(idx);
+  const distStr = dist >= 1000 ? (dist / 1000).toFixed(1) + ' km' : Math.round(dist) + ' m';
+  const elev = _rbWaypointElevation(idx);
+  const elevStr = elev !== null ? elev + ' m' : '\u2013';
+
+  const html = `<div class="rb-wp-popup">
+    <div class="rb-wp-popup-header">
+      <span class="rb-wp-popup-label">${_escHtml(label)}</span>
+      <button class="rb-wp-popup-close" title="Close">\u00d7</button>
+    </div>
+    <div class="rb-wp-popup-name">${_escHtml(name)}</div>
+    <div class="rb-wp-popup-stats">
+      <div class="rb-wp-popup-stat">
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+        <span class="rb-wp-popup-val">${distStr}</span>
+      </div>
+      <div class="rb-wp-popup-stat">
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 20 7-7 4 4 9-11"/></svg>
+        <span class="rb-wp-popup-val">${elevStr}</span>
+      </div>
+      <div class="rb-wp-popup-stat">
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="10" r="3"/><path d="M12 2a8 8 0 0 0-8 8c0 5.4 8 12 8 12s8-6.6 8-12a8 8 0 0 0-8-8z"/></svg>
+        <span class="rb-wp-popup-val">${wp.lat.toFixed(4)}, ${wp.lng.toFixed(4)}</span>
+      </div>
+    </div>
+    <div class="rb-wp-popup-actions">
+      <button class="rb-wp-popup-btn rb-wp-popup-center" title="Center map">
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
+        Center
+      </button>
+      <button class="rb-wp-popup-btn rb-wp-popup-delete" title="Remove waypoint">
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        Remove
+      </button>
+    </div>
+  </div>`;
+
+  _rbWpPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: true, offset: 20, className: 'rb-wp-popup-wrap' })
+    .setLngLat([wp.lng, wp.lat])
+    .setHTML(html)
+    .addTo(_rb.map);
+
+  const popupEl = _rbWpPopup.getElement();
+  popupEl.querySelector('.rb-wp-popup-close').addEventListener('click', () => _rbCloseWpPopup());
+  popupEl.querySelector('.rb-wp-popup-center').addEventListener('click', () => {
+    _rb.map.easeTo({ center: [wp.lng, wp.lat], zoom: Math.max(_rb.map.getZoom(), 14), duration: 500 });
+    _rbCloseWpPopup();
+  });
+  popupEl.querySelector('.rb-wp-popup-delete').addEventListener('click', () => {
+    _rbCloseWpPopup();
+    _rbRemoveWaypoint(idx);
+  });
+
+  if (!wp._placeName) {
+    _rbReverseGeocode(wp.lat, wp.lng).then(placeName => {
+      wp._placeName = placeName || `Point ${idx + 1}`;
+      const nameEl = popupEl.querySelector('.rb-wp-popup-name');
+      if (nameEl) nameEl.textContent = wp._placeName;
+    });
+  }
 }
 
 function _rbUpdateWaypointMarkerIcon(marker, index) {
@@ -20986,6 +21906,13 @@ function _rbInitRouteScrub() {
   _rb._scrubBound = true;
 
   _rb._scrubMoveFn = function(e) {
+    // Don't show scrub tooltip when hovering over a waypoint marker
+    const hovered = e.originalEvent?.target?.closest?.('.rb-wp-icon');
+    if (hovered) {
+      if (_rb._scrubMarker) { _rb._scrubMarker.remove(); _rb._scrubMarker = null; }
+      if (_rb._scrubDot) { _rb._scrubDot.remove(); _rb._scrubDot = null; }
+      return;
+    }
     const allPoints = [];
     for (const seg of _rb.routeSegments) {
       if (!seg.fallback) allPoints.push(...seg.points);
@@ -21356,6 +22283,7 @@ function rbRedo() {
 }
 
 function _rbRestoreHistory(snapshot) {
+  _rbCloseWpPopup();
   _rb.waypoints.forEach(w => w.marker && w.marker.remove());
   _rb.waypoints = snapshot.waypoints.map((w, i) => {
     const marker = _rbCreateWaypointMarker(w.lat, w.lng, i);
@@ -21865,13 +22793,37 @@ function _rbUpdateStats() {
 function _rbUpdateTimeLabel(estTimeSec) {
   if (_rb._timeLabel) { _rb._timeLabel.remove(); _rb._timeLabel = null; }
   if (_rb.routeSegments.length === 0 || estTimeSec <= 0) return;
-  const mid = _rbRouteMidpoint();
-  if (!mid) return;
+  let pos = _rbRouteMidpoint();
+  if (!pos) return;
+  // Shift position if too close to any waypoint
+  const minGap = 0.003; // ~300m in degrees
+  const tooClose = () => _rb.waypoints.some(w =>
+    Math.abs(w.lat - pos[0]) < minGap && Math.abs(w.lng - pos[1]) < minGap
+  );
+  if (tooClose()) {
+    // Walk along route to find a spot away from all waypoints
+    const allPts = [];
+    for (const seg of _rb.routeSegments) allPts.push(...seg.points);
+    if (allPts.length > 4) {
+      const step = Math.max(1, Math.floor(allPts.length / 20));
+      for (let offset = step; offset < allPts.length / 2; offset += step) {
+        const mid = Math.floor(allPts.length / 2);
+        // Try ahead and behind the midpoint
+        for (const idx of [mid + offset, mid - offset]) {
+          if (idx >= 0 && idx < allPts.length) {
+            pos = allPts[idx];
+            if (!tooClose()) break;
+          }
+        }
+        if (!tooClose()) break;
+      }
+    }
+  }
   const el = document.createElement('div');
   el.className = 'rb-time-label-icon';
   el.innerHTML = `<div class="rb-time-sign"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span>${_rbFormatTime(estTimeSec)}</span></div><div class="rb-time-sign-tail"></div>`;
   _rb._timeLabel = new maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, 0] })
-    .setLngLat([mid[1], mid[0]])
+    .setLngLat([pos[1], pos[0]])
     .addTo(_rb.map);
 }
 
@@ -21973,6 +22925,7 @@ function _rbUpdateSurfaceLegend() {
 /* ── Reverse ── */
 function rbReverse() {
   if (_rb.waypoints.length < 2) return;
+  _rbCloseWpPopup();
   _rb.waypoints.forEach(w => w.marker.remove());
   _rb.waypoints.reverse();
   _rb.routeSegments.reverse();
@@ -22001,6 +22954,7 @@ function rbReverse() {
 /* ── Out-and-Back ── */
 async function rbOutAndBack() {
   if (_rb.waypoints.length < 2) return;
+  _rbCloseWpPopup();
   const returnWps = _rb.waypoints.slice(0, -1).reverse();
 
   for (const wp of returnWps) {
@@ -22027,6 +22981,7 @@ async function rbOutAndBack() {
 }
 
 async function rbLoopBack() {
+  _rbCloseWpPopup();
   if (_rb.waypoints.length < 2) { showToast('Add at least 2 waypoints first', 'error'); return; }
   const first = _rb.waypoints[0];
   const last = _rb.waypoints[_rb.waypoints.length - 1];
@@ -22189,6 +23144,7 @@ function _rbConfirmLeave(targetPage) {
 
 /* ── Clear ── */
 function rbClear() {
+  _rbCloseWpPopup();
   _rb.waypoints.forEach(w => w.marker && w.marker.remove());
   _rb.waypoints = [];
   _rb.routeSegments = [];
@@ -22198,6 +23154,7 @@ function rbClear() {
   if (_rb._fetchAbort) { try { _rb._fetchAbort.abort(); } catch(_){} _rb._fetchAbort = null; }
   // Remove route layers
   if (_rb.map) {
+    if (_rb.map.getLayer('rb-route-arrows')) _rb.map.removeLayer('rb-route-arrows');
     if (_rb.map.getLayer('rb-route-hit')) _rb.map.removeLayer('rb-route-hit');
     if (_rb.map.getLayer('rb-route')) _rb.map.removeLayer('rb-route');
     if (_rb.map.getLayer('rb-surface')) _rb.map.removeLayer('rb-surface');
@@ -22297,6 +23254,7 @@ function _rbUpdateWaypointList() {
 }
 
 async function _rbRemoveWaypoint(idx) {
+  _rbCloseWpPopup();
   if (idx < 0 || idx >= _rb.waypoints.length) return;
   _rb.waypoints[idx].marker.remove();
   _rb.waypoints.splice(idx, 1);

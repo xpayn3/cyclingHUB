@@ -585,6 +585,69 @@
             </div>
         </div>
 
+        <!-- Share Route Image Modal -->
+        <div class="modal-backdrop" id="shareModal" role="dialog" aria-modal="true" onclick="if(event.target===this)closeShareModal()">
+            <div class="modal" style="max-width:620px">
+                <div class="modal-header">
+                    <div>
+                        <div class="modal-header-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                        </div>
+                        <div class="modal-title">Share Activity</div>
+                        <div class="modal-desc">Generate a route image for social media</div>
+                    </div>
+                    <button class="modal-close" onclick="closeShareModal()" aria-label="Close">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <!-- Preview -->
+                    <div class="share-preview" id="sharePreview">
+                        <div class="share-loading" id="shareLoading">
+                            <div class="share-spinner"></div>
+                            <span>Rendering route...</span>
+                        </div>
+                        <canvas id="shareCanvas"></canvas>
+                    </div>
+
+                    <!-- Settings -->
+                    <div class="share-settings">
+                        <div class="share-setting">
+                            <label>Style</label>
+                            <div class="share-chips" id="shareStyleChips"></div>
+                        </div>
+                        <div class="share-setting">
+                            <label>Route Color</label>
+                            <div class="share-colors" id="shareColorChips"></div>
+                        </div>
+                        <div class="share-setting">
+                            <label>Show Stats</label>
+                            <label class="share-toggle">
+                                <input type="checkbox" id="shareShowStats" checked onchange="shareUpdateSetting('showStats', this.checked)"/>
+                                <span class="imp-toggle-switch"></span>
+                            </label>
+                        </div>
+                        <div class="share-setting">
+                            <label>Format</label>
+                            <div class="share-chips" id="shareFormatChips"></div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button class="btn btn-ghost" onclick="closeShareModal()">Cancel</button>
+                        <button class="btn btn-ghost" onclick="shareImageCopy()" id="shareCopyBtn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                            Copy
+                        </button>
+                        <button class="btn btn-primary" onclick="shareImageDownload()" id="shareDownloadBtn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            Download PNG
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- ============================================================  SIDEBAR  ============================================================ -->
         <div
             class="sidebar-backdrop"
@@ -2023,57 +2086,45 @@
 
                     <!-- Route map -->
                     <div class="card" id="detailMapCard" style="display: none">
-                        <button
-                            class="map-close-btn"
-                            id="mapCloseBtn"
-                            onclick="toggleMapFullscreen()"
-                            title="Close fullscreen"
-                        >
-                            <svg
-                                viewBox="0 0 24 24"
-                                width="20"
-                                height="20"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                            >
-                                <line x1="18" y1="6" x2="6" y2="18" />
-                                <line x1="6" y1="6" x2="18" y2="18" />
-                            </svg>
-                        </button>
-                        <div class="card-header">
-                            <div class="card-title">Route</div>
-                            <button
-                                class="map-expand-btn btn btn-ghost btn-sm"
-                                onclick="toggleMapFullscreen()"
-                                id="mapExpandBtn"
-                                title="Expand map"
-                            >
-                                <svg
-                                    viewBox="0 0 24 24"
-                                    width="16"
-                                    height="16"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                >
-                                    <polyline points="15 3 21 3 21 9" />
-                                    <polyline points="9 21 3 21 3 15" />
-                                    <line x1="21" y1="3" x2="14" y2="10" />
-                                    <line x1="3" y1="21" x2="10" y2="14" />
-                                </svg>
-                            </button>
-                        </div>
-                        <div
-                            id="mapColorToggles"
-                            class="map-color-toggles"
-                        ></div>
+                        <!-- Map fills entire card edge-to-edge -->
+                        <div id="activityMap" class="activity-map"></div>
 
-                        <!-- Flythrough controls — shown once GPS data is available -->
+                        <!-- Floating top-left controls -->
+                        <div class="map-float-top">
+                            <div class="map-float-top-row">
+                                <div class="card-header">
+                                    <div class="card-title">Route</div>
+                                    <button
+                                        class="map-expand-btn btn btn-ghost btn-sm"
+                                        onclick="toggleMapFullscreen()"
+                                        id="mapExpandBtn"
+                                        title="Expand map"
+                                    >
+                                        <svg
+                                            viewBox="0 0 24 24"
+                                            width="16"
+                                            height="16"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            stroke-width="2"
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                        >
+                                            <polyline points="15 3 21 3 21 9" />
+                                            <polyline points="9 21 3 21 3 15" />
+                                            <line x1="21" y1="3" x2="14" y2="10" />
+                                            <line x1="3" y1="21" x2="10" y2="14" />
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div
+                                    id="mapColorToggles"
+                                    class="map-color-toggles"
+                                ></div>
+                            </div>
+                        </div>
+
+                        <!-- Flythrough controls — floating bottom-left -->
                         <div
                             id="flythroughBar"
                             class="flythrough-bar"
@@ -2139,9 +2190,22 @@
                             </button>
                         </div>
 
-                        <div class="map-with-stats">
-                            <div id="activityMap" class="activity-map"></div>
-                            <div id="mapStatsPanel" class="map-stats-panel">
+                        <!-- Floating right stats panel -->
+                        <div id="mapStatsPanel" class="map-stats-panel collapsed">
+                            <button class="map-stats-toggle" onclick="toggleMapStats()" title="Toggle stats panel">
+                                <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="9 18 15 12 9 6"/>
+                                </svg>
+                            </button>
+                            <!-- Collapsed mini preview — visible only when panel is collapsed -->
+                            <div class="map-stats-mini">
+                                <span class="msm-label" style="color:#00e5a0">SPD</span>
+                                <span class="msm-label" style="color:#ef4444">HR</span>
+                                <span class="msm-label" style="color:#f59e0b">PWR</span>
+                                <span class="msm-label" style="color:#818cf8">CAD</span>
+                                <span class="msm-label" style="color:#94a3b8">ALT</span>
+                            </div>
+                            <div class="map-stats-content">
                                 <p class="map-stat-hint">
                                     Hover the<br />route to<br />see stats
                                 </p>
@@ -2149,7 +2213,6 @@
                         </div>
                         <!-- Fullscreen bottom row: stats left, chart right -->
                         <div class="fs-bottom-row" id="fsBottomRow">
-                            <div class="fs-bottom-left" id="fsBottomLeft"></div>
                             <div class="fs-bottom-right" id="fsMiniChart">
                                 <div class="fs-mini-chart-header">
                                     <div
