@@ -1078,6 +1078,7 @@ async function syncData(force = false) {
     // Save updated cache after a successful fetch
     saveActivityCache(state.activities);
     updateLastSyncLabel(new Date().toISOString());
+    if (window._lbAutoBackupIfEnabled) _lbAutoBackupIfEnabled();
 
     if (!isIncremental || force) setLoading(true, 'Loading fitness data…');
     else setLoading(false);
@@ -2066,6 +2067,7 @@ function navigate(page) {
     pollRestore();
     rlUpdateUI();
     _rlStartTick();
+    if (window._lbInit) _lbInit();
     const settingsBack = document.getElementById('settingsTopbarBack');
     if (settingsBack) settingsBack.style.display = (state.previousPage && state.previousPage !== 'settings') ? '' : 'none';
   } else {
@@ -20404,6 +20406,161 @@ document.addEventListener('keydown', e => {
       bs.timer = setTimeout(startB, 1500 + i * 300);
     });
   }
+})();
+
+/* ====================================================
+   LOCAL FOLDER BACKUP  (File System Access API)
+   Lets users pick a folder on their PC, save all data
+   to cycleiq-backup.json, and restore on any new device.
+==================================================== */
+(function() {
+  const FS_DB          = 'cycleiq_fshandles';
+  const FS_STORE       = 'handles';
+  const BACKUP_FILE    = 'cycleiq-backup.json';
+  const LS_LAST_BACKUP = 'icu_local_backup_last';
+  const LS_AUTO_BACKUP = 'icu_local_backup_auto';
+  let _lbDirHandle     = null;
+
+  // ── IndexedDB helpers for persisting the directory handle ──────
+  function _lbOpenDB() {
+    return new Promise((res, rej) => {
+      const req = indexedDB.open(FS_DB, 1);
+      req.onupgradeneeded = e => e.target.result.createObjectStore(FS_STORE, { keyPath: 'id' });
+      req.onsuccess = e => res(e.target.result);
+      req.onerror   = e => rej(e);
+    });
+  }
+  async function _lbSaveHandle(handle) {
+    try {
+      const db = await _lbOpenDB();
+      const tx = db.transaction(FS_STORE, 'readwrite');
+      tx.objectStore(FS_STORE).put({ id: 'localBackupDir', handle });
+      await new Promise(r => { tx.oncomplete = r; tx.onerror = r; });
+    } catch(e) {}
+  }
+  async function _lbLoadHandle() {
+    try {
+      const db  = await _lbOpenDB();
+      const tx  = db.transaction(FS_STORE, 'readonly');
+      const req = tx.objectStore(FS_STORE).get('localBackupDir');
+      return await new Promise(r => { req.onsuccess = e => r(e.target.result?.handle || null); req.onerror = () => r(null); });
+    } catch(e) { return null; }
+  }
+
+  // ── UI ─────────────────────────────────────────────────────────
+  function _lbUpdateUI() {
+    const has = !!_lbDirHandle;
+    ['lbBackupRow', 'lbRestoreRow', 'lbAutoRow'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = has ? '' : 'none';
+    });
+    const nameEl = document.getElementById('lbFolderName');
+    if (nameEl) nameEl.textContent = has ? '📁 ' + _lbDirHandle.name : 'No folder selected';
+    const lastEl = document.getElementById('lbLastBackup');
+    if (lastEl) {
+      const ts = localStorage.getItem(LS_LAST_BACKUP);
+      lastEl.textContent = ts ? new Date(ts).toLocaleString() : 'Never';
+    }
+    const autoEl = document.getElementById('lbAutoToggle');
+    if (autoEl) autoEl.checked = localStorage.getItem(LS_AUTO_BACKUP) === '1';
+  }
+
+  // ── Pick folder ────────────────────────────────────────────────
+  async function _lbPickFolder() {
+    if (!('showDirectoryPicker' in window)) { showToast('Not supported in this browser', 'error'); return; }
+    try {
+      const h = await window.showDirectoryPicker({ mode: 'readwrite', id: 'cycleiq-backup', startIn: 'documents' });
+      _lbDirHandle = h;
+      await _lbSaveHandle(h);
+      _lbUpdateUI();
+      showToast('Folder selected: ' + h.name, 'success');
+    } catch(e) { if (e.name !== 'AbortError') showToast('Could not select folder', 'error'); }
+  }
+
+  // ── Backup ─────────────────────────────────────────────────────
+  async function _lbBackup() {
+    if (!_lbDirHandle) return;
+    const btn = document.getElementById('lbBackupBtn');
+    if (btn) { btn.textContent = 'Saving…'; btn.disabled = true; }
+    try {
+      if (await _lbDirHandle.requestPermission({ mode: 'readwrite' }) !== 'granted') throw new Error('Permission denied');
+      const lsData = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        lsData[k] = localStorage.getItem(k);
+      }
+      const payload = JSON.stringify({ version: 1, app: 'CycleIQ', createdAt: new Date().toISOString(), localStorage: lsData }, null, 2);
+      const fh = await _lbDirHandle.getFileHandle(BACKUP_FILE, { create: true });
+      const w  = await fh.createWritable();
+      await w.write(payload);
+      await w.close();
+      localStorage.setItem(LS_LAST_BACKUP, new Date().toISOString());
+      _lbUpdateUI();
+      showToast('Backup saved ✓', 'success');
+    } catch(e) { showToast('Backup failed: ' + (e.message || e), 'error'); }
+    finally { if (btn) { btn.textContent = 'Backup Now'; btn.disabled = false; } }
+  }
+
+  // ── Restore ────────────────────────────────────────────────────
+  async function _lbRestore() {
+    if (!_lbDirHandle) return;
+    const btn = document.getElementById('lbRestoreBtn');
+    if (btn) { btn.textContent = 'Restoring…'; btn.disabled = true; }
+    try {
+      if (await _lbDirHandle.requestPermission({ mode: 'readwrite' }) !== 'granted') throw new Error('Permission denied');
+      let fh;
+      try { fh = await _lbDirHandle.getFileHandle(BACKUP_FILE); }
+      catch(e) { throw new Error('No backup file found in this folder'); }
+      const backup = JSON.parse(await (await fh.getFile()).text());
+      if (!backup.localStorage) throw new Error('Invalid backup file');
+      const skip = ['iosInstallDismissed', LS_LAST_BACKUP, LS_AUTO_BACKUP];
+      Object.entries(backup.localStorage).forEach(([k, v]) => { if (!skip.includes(k)) localStorage.setItem(k, v); });
+      showToast('Data restored — reloading…', 'success');
+      setTimeout(() => window.location.reload(), 1500);
+    } catch(e) { showToast('Restore failed: ' + (e.message || e), 'error'); }
+    finally { if (btn) { btn.textContent = 'Restore'; btn.disabled = false; } }
+  }
+
+  // ── Auto-backup toggle ─────────────────────────────────────────
+  function _lbSetAuto(checked) { localStorage.setItem(LS_AUTO_BACKUP, checked ? '1' : '0'); }
+
+  // ── Called after every sync if auto-backup is on ───────────────
+  async function _lbAutoBackupIfEnabled() {
+    if (localStorage.getItem(LS_AUTO_BACKUP) !== '1' || !_lbDirHandle) return;
+    try {
+      if (await _lbDirHandle.queryPermission({ mode: 'readwrite' }) !== 'granted') return;
+      await _lbBackup();
+    } catch(e) {}
+  }
+
+  // ── Init: called whenever Settings page opens ──────────────────
+  async function _lbInit() {
+    const notSupEl = document.getElementById('lbNotSupportedRow');
+    const pickBtn  = document.getElementById('lbPickFolderBtn');
+    if (!('showDirectoryPicker' in window)) {
+      if (notSupEl) notSupEl.style.display = '';
+      if (pickBtn)  pickBtn.style.display  = 'none';
+      return;
+    }
+    if (!_lbDirHandle) {
+      const saved = await _lbLoadHandle();
+      if (saved) { try { _lbDirHandle = saved; } catch(e) { _lbDirHandle = null; } }
+    }
+    _lbUpdateUI();
+    // Wire buttons once
+    const pickEl    = document.getElementById('lbPickFolderBtn');
+    const backupEl  = document.getElementById('lbBackupBtn');
+    const restoreEl = document.getElementById('lbRestoreBtn');
+    const autoEl    = document.getElementById('lbAutoToggle');
+    if (pickEl    && !pickEl._lbWired)    { pickEl.addEventListener('click',    _lbPickFolder); pickEl._lbWired = true; }
+    if (backupEl  && !backupEl._lbWired)  { backupEl.addEventListener('click',  _lbBackup);     backupEl._lbWired = true; }
+    if (restoreEl && !restoreEl._lbWired) { restoreEl.addEventListener('click', _lbRestore);    restoreEl._lbWired = true; }
+    if (autoEl    && !autoEl._lbWired)    { autoEl.addEventListener('change', e => _lbSetAuto(e.target.checked)); autoEl._lbWired = true; }
+  }
+
+  // Expose for settings page navigate hook and post-sync hook
+  window._lbInit                = _lbInit;
+  window._lbAutoBackupIfEnabled = _lbAutoBackupIfEnabled;
 })();
 
 // ── Deferred initial navigation ──
