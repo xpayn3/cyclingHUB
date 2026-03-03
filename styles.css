@@ -677,7 +677,7 @@ code {
     z-index: 0;
 }
 .dashboard-glow .topbar-glow-el {
-    opacity: 1;
+    opacity: 0;
 }
 
 .topbar-actions {
