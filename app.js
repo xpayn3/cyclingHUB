@@ -11333,7 +11333,21 @@ async function navigateToActivity(actKey, fromStep = false) {
     let gpsAlreadyResolved = false;
     // Sentinel means "we already tried and there's no GPS for this activity"
     if (gpsCached && gpsCached.__noGPS) { latlngForMap = null; gpsAlreadyResolved = true; }
-    if (gpsCached) gpsAlreadyResolved = true;
+    if (gpsCached) {
+      gpsAlreadyResolved = true;
+      // Backfill local folder from IDB (catches activities viewed before this feature)
+      if (!gpsCached.__noGPS && window._fitOfflineSave) _fitOfflineSave(actId, 'gps', gpsCached);
+    }
+
+    // Check local backup folder if IDB missed
+    if (!gpsAlreadyResolved && window._fitOfflineRead) {
+      const localGps = await _fitOfflineRead(actId, 'gps');
+      if (localGps) {
+        latlngForMap = localGps.__noGPS ? null : localGps;
+        gpsAlreadyResolved = true;
+        actCachePut(actId, 'gps', localGps);
+      }
+    }
 
     if (!gpsAlreadyResolved) {
       const latArr = normStreams.lat || normStreams.latlng;
@@ -11377,7 +11391,10 @@ async function navigateToActivity(actKey, fromStep = false) {
       }
 
       // Cache the resolved GPS for next time (or sentinel if none found)
-      actCachePut(actId, 'gps', latlngForMap || { __noGPS: true });
+      const gpsToCache = latlngForMap || { __noGPS: true };
+      actCachePut(actId, 'gps', gpsToCache);
+      // Also save to local backup folder (fire-and-forget)
+      if (latlngForMap && window._fitOfflineSave) _fitOfflineSave(actId, 'gps', gpsToCache);
     }
     renderActivityMap(latlngForMap, normStreams);
 
