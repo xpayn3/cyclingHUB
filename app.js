@@ -4242,9 +4242,24 @@ function renderWeekProgress(metric) {
   // Chart
   const ctx = document.getElementById('weekProgressChart');
   if (!ctx) return;
-  state.weekProgressChart = destroyChart(state.weekProgressChart);
 
   const todayIdx = thisWeekData.reduce((idx, v, i) => (v !== null ? i : idx), 0);
+
+  // Update in-place to avoid destroy/recreate flicker
+  if (state.weekProgressChart) {
+    const ch = state.weekProgressChart;
+    ch.data.labels = dayLabels;
+    ch.data.datasets[0].data = lastWeekData;
+    ch.data.datasets[1].data = thisWeekData;
+    ch.data.datasets[1].borderColor          = m.color;
+    ch.data.datasets[1].backgroundColor      = m.dimColor;
+    ch.data.datasets[1].pointRadius          = thisWeekData.map((_, i) => i === todayIdx ? 9 : 0);
+    ch.data.datasets[1].pointBackgroundColor = m.color;
+    ch.data.datasets[1].pointBorderColor     = 'var(--bg-card)';
+    ch.options.plugins.tooltip.callbacks.label = c => `${c.dataset.label}: ${c.raw != null ? m.tooltip(c.raw) : '—'}`;
+    ch.update();
+    return;
+  }
 
   state.weekProgressChart = new Chart(ctx.getContext('2d'), {
     type: 'line',
@@ -4257,8 +4272,8 @@ function renderWeekProgress(metric) {
           borderColor:         'rgba(136,145,168,0.45)',
           backgroundColor:     'transparent',
           borderWidth: 2,
-          borderDash: [5, 4],
-          pointRadius: 5,
+          pointRadius: 0,
+          pointHoverRadius: 6,
           pointBackgroundColor: 'rgba(136,145,168,0.5)',
           pointBorderColor:    'transparent',
           tension: 0.35,
@@ -4270,9 +4285,10 @@ function renderWeekProgress(metric) {
           borderColor:          m.color,
           backgroundColor:      m.dimColor,
           borderWidth: 2.5,
-          pointRadius:          thisWeekData.map((_, i) => i === todayIdx ? 9 : 5),
-          pointBackgroundColor: thisWeekData.map((_, i) => i === todayIdx ? m.color : m.color + '99'),
-          pointBorderColor:     thisWeekData.map((_, i) => i === todayIdx ? 'var(--bg-card)' : 'transparent'),
+          pointRadius:          thisWeekData.map((_, i) => i === todayIdx ? 9 : 0),
+          pointHoverRadius: 7,
+          pointBackgroundColor: m.color,
+          pointBorderColor:     'var(--bg-card)',
           pointBorderWidth: 2,
           fill: true,
           spanGaps: false,
@@ -4285,6 +4301,7 @@ function renderWeekProgress(metric) {
       responsive: true,
       maintainAspectRatio: false,
       interaction: { mode: 'indexEager', intersect: false },
+      layout: { padding: { top: 12, bottom: 12 } },
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -5262,8 +5279,9 @@ function renderTrainingStatus() {
         borderColor: '#00e5a0',
         backgroundColor: 'rgba(0,229,160,0.08)',
         borderWidth: 2,
-        pointRadius:          efs.map((_, i) => i === efs.length - 1 ? 8 : 5),
-        pointBackgroundColor: efs.map((_, i) => i === efs.length - 1 ? '#00e5a0' : 'rgba(0,229,160,0.6)'),
+        pointRadius: 0,
+        pointHoverRadius: 6,
+        pointBackgroundColor: '#00e5a0',
         pointBorderColor: 'transparent',
         fill: true,
         tension: 0.35
@@ -6057,7 +6075,6 @@ function renderYTDDistance() {
           data: cumLast,
           borderColor: '#62708a',
           borderWidth: 1.5,
-          borderDash: [4, 3],
           pointRadius: 0,
           pointHoverRadius: 4,
           tension: 0.3,
@@ -6506,6 +6523,16 @@ function renderIntensityDist(activities) {
     }
   }
 
+  // Title + icon color = dominant zone
+  const titleEl = card.querySelector('.card-title');
+  if (titleEl) {
+    const domColor = easyPct >= modPct && easyPct >= hardPct ? 'var(--accent)'
+                   : modPct >= hardPct ? 'var(--yellow)' : 'var(--red)';
+    titleEl.style.color = domColor;
+    const svg = titleEl.querySelector('svg');
+    if (svg) svg.setAttribute('stroke', domColor);
+  }
+
   // Stacked bar
   const barEl = document.getElementById('intensityDistBar');
   if (barEl) {
@@ -6709,7 +6736,7 @@ function renderAerobicEfficiency(activities, days) {
         borderColor: '#4a9eff',
         backgroundColor: 'rgba(74,158,255,0.08)',
         borderWidth: 2,
-        pointRadius: 3,
+        pointRadius: 0,
         pointBackgroundColor: '#4a9eff',
         pointHoverRadius: 6,
         tension: 0.4,
@@ -14770,7 +14797,7 @@ function renderDetailDecoupleChart(streams, activity) {
           pointBorderColor:     ptColors,
           pointHoverBackgroundColor: ptColors,
           pointHoverBorderColor:     ptColors,
-          pointRadius: 3,
+          pointRadius: 0,
           pointHoverRadius: 5,
           tension: 0.4,
           fill: {

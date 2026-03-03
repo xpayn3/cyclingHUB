@@ -2836,7 +2836,7 @@
                     </div>
 
                     <!-- Power zones + HR zones side by side / swipe carousel on mobile -->
-                    <div class="card detail-zones-carousel-card" id="detailZonesCarouselCard" style="display:none">
+                    <div class="detail-zones-carousel-card" id="detailZonesCarouselCard" style="display:none">
                         <div class="detail-zones-row" id="detailZonesRow">
                             <div
                                 class="card"
@@ -2879,10 +2879,6 @@
                                 </div>
                                 <div id="detailHRZoneList"></div>
                             </div>
-                        </div>
-                        <div class="zones-carousel-dots" id="zonesCarouselDots">
-                            <button class="zones-carousel-dot active" data-idx="0"></button>
-                            <button class="zones-carousel-dot" data-idx="1"></button>
                         </div>
                     </div>
 
@@ -4032,7 +4028,7 @@
                         <div class="card" id="kjIntensityCard">
                             <div class="card-header">
                                 <div>
-                                    <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>Intensity Trend</div>
+                                    <div class="card-title" style="color:#00e5a0"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#00e5a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>Intensity Trend</div>
                                     <div class="card-subtitle" id="kjIntensitySub">kJ/hr per ride</div>
                                 </div>
                             </div>
@@ -4043,7 +4039,7 @@
                         <div class="card" id="kjEfficiencyCard">
                             <div class="card-header">
                                 <div>
-                                    <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>Energy Efficiency</div>
+                                    <div class="card-title" style="color:#4a9eff"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#4a9eff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>Energy Efficiency</div>
                                     <div class="card-subtitle" id="kjEfficiencySub">kJ per km · per ride</div>
                                 </div>
                             </div>
@@ -4056,7 +4052,7 @@
                     <div class="card" id="kjCumulativeCard">
                         <div class="card-header">
                             <div>
-                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Cumulative Energy</div>
+                                <div class="card-title" style="color:#00e5a0"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#00e5a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Cumulative Energy</div>
                                 <div class="card-subtitle" id="kjCumulativeSub">Running total kJ</div>
                             </div>
                         </div>
@@ -4070,7 +4066,7 @@
                         <div class="card" id="kjTssCard">
                             <div class="card-header">
                                 <div>
-                                    <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>Work per Stress</div>
+                                    <div class="card-title" style="color:#b482ff"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#b482ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>Work per Stress</div>
                                     <div class="card-subtitle" id="kjTssSub">kJ per TSS point · per ride</div>
                                 </div>
                             </div>
@@ -4081,7 +4077,7 @@
                         <div class="card" id="kjCardiacCard">
                             <div class="card-header">
                                 <div>
-                                    <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.42 4.58a5.4 5.4 0 0 0-7.65 0L12 5.34l-.77-.76a5.4 5.4 0 0 0-7.65 7.65l.77.77L12 20.65l7.65-7.65.77-.77a5.4 5.4 0 0 0 0-7.65z"/></svg>Cardiac Efficiency</div>
+                                    <div class="card-title" style="color:#ff5252"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#ff5252" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.42 4.58a5.4 5.4 0 0 0-7.65 0L12 5.34l-.77-.76a5.4 5.4 0 0 0-7.65 7.65l.77.77L12 20.65l7.65-7.65.77-.77a5.4 5.4 0 0 0 0-7.65z"/></svg>Cardiac Efficiency</div>
                                     <div class="card-subtitle" id="kjCardiacSub">Joules per heartbeat</div>
                                 </div>
                             </div>
@@ -4095,7 +4091,7 @@
                         <div class="card" id="kjElevationCard">
                             <div class="card-header">
                                 <div>
-                                    <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20l5-10 4 6 3-4 6 8H3z"/></svg>Climbing Cost</div>
+                                    <div class="card-title" style="color:#ff9632"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#ff9632" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20l5-10 4 6 3-4 6 8H3z"/></svg>Climbing Cost</div>
                                     <div class="card-subtitle" id="kjElevationSub">kJ per 100m climbed</div>
                                 </div>
                             </div>
@@ -4106,7 +4102,7 @@
                         <div class="card" id="kjMetabolicCard">
                             <div class="card-header">
                                 <div>
-                                    <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M14.31 8l5.74 9.94M9.69 8h11.48M7.38 12l5.74-9.94M9.69 16L3.95 6.06M14.31 16H2.83M16.62 12l-5.74 9.94"/></svg>Metabolic Efficiency</div>
+                                    <div class="card-title" style="color:#00e5a0"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#00e5a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M14.31 8l5.74 9.94M9.69 8h11.48M7.38 12l5.74-9.94M9.69 16L3.95 6.06M14.31 16H2.83M16.62 12l-5.74 9.94"/></svg>Metabolic Efficiency</div>
                                     <div class="card-subtitle" id="kjMetabolicSub">Mechanical work / calories burned</div>
                                 </div>
                             </div>

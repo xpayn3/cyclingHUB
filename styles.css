@@ -6682,25 +6682,7 @@ code {
 }
 @media (max-width: 900px) {
     .detail-zones-row:not(.detail-zones-row--single) {
-        display: flex;
-        gap: 0;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: none;
-        scroll-snap-type: x mandatory;
-        margin-left: calc(-1 * var(--pad-card));
-        margin-right: calc(-1 * var(--pad-card));
-    }
-    .detail-zones-row:not(.detail-zones-row--single)::-webkit-scrollbar {
-        display: none;
-    }
-    .detail-zones-row:not(.detail-zones-row--single) > .card {
-        flex: 0 0 100%;
-        scroll-snap-align: start;
-        border: none;
-        border-radius: 0;
-        background: transparent;
-        padding: var(--pad-card);
+        grid-template-columns: 1fr;
     }
 }
 /* Zones carousel pagination dots */
