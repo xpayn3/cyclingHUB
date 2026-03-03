@@ -11778,7 +11778,11 @@ async function actCacheGetCachedIds() {
 async function fetchActivityDetail(activityId) {
   // 1. IDB (fastest — same device)
   const cached = await actCacheGet(activityId, 'detail');
-  if (cached) return cached;
+  if (cached) {
+    // Backfill local folder if not there yet (catches activities viewed before this feature)
+    if (window._fitOfflineSave) _fitOfflineSave(activityId, 'detail', cached);
+    return cached;
+  }
 
   // 2. Local backup folder (works on fresh installs / other devices)
   if (window._fitOfflineRead) {
@@ -11803,6 +11807,9 @@ async function fetchActivityStreams(activityId) {
   const cached = await actCacheGet(activityId, 'streams');
   if (cached) {
     if (cached.__noStreams) return null;  // sentinel: known to have no streams
+    // Backfill local folder if not there yet (catches activities viewed before this feature)
+    if (window._fitOfflineSave)    _fitOfflineSave(activityId, 'streams', cached);
+    if (window._fitOfflineSaveFit) _fitOfflineSaveFit(activityId);
     return cached;
   }
 
@@ -20616,7 +20623,7 @@ document.addEventListener('keydown', e => {
       // If permission was previously granted it works; if not, the catch handles it silently.
       _activitiesDir = await root.getDirectoryHandle('activities', { create: true });
       return _activitiesDir;
-    } catch(e) { return null; }
+    } catch(e) { console.warn('[FIT cache] _getDir failed:', e); return null; }
   }
 
   // Read JSON from activities/{id}-{type}.json
@@ -20639,7 +20646,7 @@ document.addEventListener('keydown', e => {
       const w  = await fh.createWritable();
       await w.write(JSON.stringify(data));
       await w.close();
-    } catch(e) { /* silent — offline save is best-effort */ }
+    } catch(e) { console.warn('[FIT cache] _save failed:', e); }
   }
 
   // Download raw FIT binary to activities/{id}.fit (skips if already saved)
@@ -20669,7 +20676,7 @@ document.addEventListener('keydown', e => {
       const w  = await fh.createWritable();
       await w.write(buf);
       await w.close();
-    } catch(e) { /* silent */ }
+    } catch(e) { console.warn('[FIT cache] _saveFit failed:', e); }
   }
 
   // Called when the user picks a new backup folder so we re-resolve the subfolder
