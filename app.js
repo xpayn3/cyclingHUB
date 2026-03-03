@@ -16245,7 +16245,7 @@ async function renderDetailHRCurve(streams) {
         const bpm = Math.round(peakHR(p.secs) || 0);
         if (!bpm) return '';
         return `<div class="curve-peak">
-          <div class="curve-peak-val">${bpm}<span class="curve-peak-unit">bpm</span></div>
+          <div class="curve-peak-val" style="color:#f87171">${bpm}<span class="curve-peak-unit">bpm</span></div>
           <div class="curve-peak-dur">${p.label}</div>
         </div>`;
       }).join('');
