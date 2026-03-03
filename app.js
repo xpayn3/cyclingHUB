@@ -4427,7 +4427,17 @@ let _vitalityRAF = null;
 let _vitalityParams = {
   radii: [0.12, 0.12, 0.12],
   ampMin: 0.15, ampMax: 0.35, freqMin: 0.8, freqMax: 1.2,
-  pulse: 0.0, distortion: 0.0, glow: 0.5, saturation: 1.0, particles: 0.0
+  pulse: 0.0, distortion: 0.0, glow: 0.5, saturation: 1.0, particles: 0.0,
+  // Visual ranges — [min, max] each driven by a fitness data signal
+  scaleRange: [0.8, 2.2],   // driver: avg fitness (CTL+ATL)
+  ampRange:   [0.7, 1.5],   // driver: weekly hours
+  speedRange: [0.7, 1.5],   // driver: weekly rides
+  freqRange:  [1.06, 1.58], // driver: weekly rides — base freq to max freq spread
+  edgeRange:  [4.0, 14.0],  // driver: TSB freshness (glow)
+  kRange:     [4.0, 16.0],  // driver: inverse stress (1 - distortion)
+  chrRange:   [0.3, 1.0],   // driver: weekly TSS
+  // Computed each frame from ranges + drivers (read by anim loop)
+  scaleOvr: 1.6, ampMult: 1.0, speedMult: 1.0, edgeOvr: 9.0, kOvr: 8.0,
 };
 
 function _initVitalityShader(canvas) {
@@ -4451,6 +4461,9 @@ uniform float u_saturation;
 uniform float u_particles;
 uniform float u_chromatic;
 uniform vec3 u_click; // xy=position in pixels, z=strength (decays over time)
+uniform float u_scale;       // blob scale multiplier (default 1.6)
+uniform float u_edge_thick;  // edge thickness base (default 9.0)
+uniform float u_k;           // smoothMin separation k (default 8.0)
 
 float hash(float n){
   return fract(sin(n+12452.234)*43758.5453);
@@ -4479,18 +4492,27 @@ float smoothMin(float a, float b, float k){
 // Returns: x=field, y=sdf, and writes color into outCol
 vec2 metaScene(vec2 px, vec2 pp0, vec2 pp1, vec2 pp2, vec3 pxR, float k,
                vec3 col0, vec3 col1, vec3 col2, out vec3 outCol){
+  // Warp pixel coords with noise for bubbly surface deformation
+  float warpScale=0.008;
+  float warpAmt=(0.3+u_distortion*0.7)*u_resolution.y*0.04;
+  float wt=u_time*0.6;
+  vec2 wpx=px+vec2(
+    noise(px*warpScale+vec2(wt,0.0))-0.5,
+    noise(px*warpScale+vec2(0.0,wt+99.0))-0.5
+  )*warpAmt;
+
   float field=0.0;
   vec3 acc=vec3(0.0);
-  float s0=pxR.x/max(length(px-pp0),0.1);
-  float s1=pxR.y/max(length(px-pp1),0.1);
-  float s2=pxR.z/max(length(px-pp2),0.1);
+  float s0=pxR.x/max(length(wpx-pp0),0.1);
+  float s1=pxR.y/max(length(wpx-pp1),0.1);
+  float s2=pxR.z/max(length(wpx-pp2),0.1);
   field=s0+s1+s2;
   acc=col0*s0+col1*s1+col2*s2;
   outCol=acc/max(field,0.001);
 
-  float d=sdfCircle(px,pp0,pxR.x);
-  d=smoothMin(d,sdfCircle(px,pp1,pxR.y),k);
-  d=smoothMin(d,sdfCircle(px,pp2,pxR.z),k);
+  float d=sdfCircle(wpx,pp0,pxR.x);
+  d=smoothMin(d,sdfCircle(wpx,pp1,pxR.y),k);
+  d=smoothMin(d,sdfCircle(wpx,pp2,pxR.z),k);
   return vec2(field,d);
 }
 
@@ -4498,7 +4520,7 @@ void main(){
   vec2 px=gl_FragCoord.xy;
   vec2 uv=px/u_resolution;
   vec2 center=u_resolution*0.5;
-  float t=u_time*0.4;
+  float t=u_time*0.6;
 
   // Per-blob amplitude and frequency (each blob gets a different value in the range)
   float amp0=mix(u_amplitude.x, u_amplitude.y, 0.7);
@@ -4509,15 +4531,24 @@ void main(){
   float frq2=mix(u_frequency.x, u_frequency.y, 0.2);
 
   // Breathing pulse
-  float breathe=sin(t*frq0*3.0)*u_pulse*0.08;
+  float breathe=sin(t*frq0*3.0)*u_pulse*0.03;
   vec3 radii=u_radii+vec3(breathe);
   radii=max(radii,vec3(0.02));
-  vec3 pxR=radii*u_resolution.y;
+  vec3 pxR=radii*u_resolution.y*u_scale;
 
-  // Metaball positions — each blob has its own amplitude and frequency
-  vec2 p0=center+vec2(sin(t*0.7*frq0)*amp0, cos(t*0.9*frq0)*amp0*0.85)*u_resolution.y;
-  vec2 p1=center+vec2(sin(t*0.5*frq1+2.1)*amp1, cos(t*0.8*frq1+1.4)*amp1*0.85)*u_resolution.y;
-  vec2 p2=center+vec2(cos(t*0.6*frq2+4.2)*amp2, sin(t*0.7*frq2+3.0)*amp2*0.85)*u_resolution.y;
+  // Metaball positions — compound Lissajous orbits for complex, interesting motion
+  vec2 p0=center+vec2(
+    sin(t*0.7*frq0)*amp0 + sin(t*1.3*frq0+0.8)*amp0*0.3,
+    cos(t*0.9*frq0)*amp0*0.85 + cos(t*1.6*frq0+1.2)*amp0*0.25
+  )*u_resolution.y;
+  vec2 p1=center+vec2(
+    sin(t*0.5*frq1+3.5)*amp1 + cos(t*1.1*frq1+0.5)*amp1*0.35,
+    cos(t*0.8*frq1+2.4)*amp1*0.85 + sin(t*1.4*frq1+2.0)*amp1*0.3
+  )*u_resolution.y;
+  vec2 p2=center+vec2(
+    cos(t*0.6*frq2+5.8)*amp2 + sin(t*1.2*frq2+3.3)*amp2*0.4,
+    sin(t*0.7*frq2+4.6)*amp2*0.85 + cos(t*1.5*frq2+5.1)*amp2*0.3
+  )*u_resolution.y;
 
   // Surface distortion
   if(u_distortion>0.01){
@@ -4528,13 +4559,12 @@ void main(){
     p2+=vec2(noise(p2*nS+t*0.9+55.0)-0.5,noise(p2*nS+t*1.2+44.0)-0.5)*nA;
   }
 
-  // Click repulsion — gentle nudge away from click point
-  if(u_click.z>0.01){
+  // Click repulsion — smooth push away from click point
+  if(u_click.z>0.005){
     vec2 cp=u_click.xy;
     float str=u_click.z;
-    float repelRadius=u_resolution.y*0.35;
-    float push=repelRadius*0.4;
-    str=str*str; // quadratic ease-out
+    float repelRadius=u_resolution.y*0.5;
+    float push=repelRadius*0.8;
     vec2 d0=p0-cp; float l0=length(d0); if(l0<repelRadius) p0+=normalize(d0+vec2(0.001))*str*push*(1.0-l0/repelRadius);
     vec2 d1=p1-cp; float l1=length(d1); if(l1<repelRadius) p1+=normalize(d1+vec2(0.001))*str*push*(1.0-l1/repelRadius);
     vec2 d2=p2-cp; float l2=length(d2); if(l2<repelRadius) p2+=normalize(d2+vec2(0.001))*str*push*(1.0-l2/repelRadius);
@@ -4544,8 +4574,8 @@ void main(){
   vec3 col1=vec3(1.0,0.42,0.21);    // fatigue orange
   vec3 col2=vec3(0.29,0.62,1.0);    // readiness blue
 
-  float k=25.0+u_distortion*15.0;
-  float edgeThick=5.3+u_distortion*2.0;
+  float k=u_k+u_distortion*8.0;
+  float edgeThick=u_edge_thick+u_distortion*3.0;
 
   // ── Chromatic aberration — compute scene at RGB-offset positions ──
   float abAmount=u_chromatic;
@@ -4685,6 +4715,7 @@ void main(){
     u_distortion: u('u_distortion'), u_glow: u('u_glow'),
     u_saturation: u('u_saturation'), u_particles: u('u_particles'),
     u_chromatic: u('u_chromatic'), u_click: u('u_click'),
+    u_scale: u('u_scale'), u_edge_thick: u('u_edge_thick'), u_k: u('u_k'),
   };
 }
 
@@ -4706,23 +4737,29 @@ function _vitalityAnimLoop() {
   gl.clear(gl.COLOR_BUFFER_BIT);
   gl.useProgram(program);
   gl.uniform2f(G.u_resolution, w, h);
-  gl.uniform1f(G.u_time, performance.now() / 1000);
+  gl.uniform1f(G.u_time, performance.now() / 1000 * (P.speedMult || 1));
   gl.uniform3f(G.u_radii, P.radii[0], P.radii[1], P.radii[2]);
-  gl.uniform2f(G.u_amplitude, P.ampMin, P.ampMax);
+  gl.uniform2f(G.u_amplitude, P.ampMin * (P.ampMult || 1), P.ampMax * (P.ampMult || 1));
   gl.uniform2f(G.u_frequency, P.freqMin, P.freqMax);
   gl.uniform1f(G.u_pulse, P.pulse);
   gl.uniform1f(G.u_distortion, P.distortion);
   gl.uniform1f(G.u_glow, P.glow);
   gl.uniform1f(G.u_saturation, P.saturation);
   gl.uniform1f(G.u_particles, P.particles);
-  gl.uniform1f(G.u_chromatic, P.chromatic);
-  // Smooth ramp toward click target, then decay
+  gl.uniform1f(G.u_chromatic, P.chrOvr != null ? P.chrOvr : (P.chromatic || 0.6));
+  gl.uniform1f(G.u_scale, P.scaleOvr || 1.6);
+  gl.uniform1f(G.u_edge_thick, P.edgeOvr || 9.0);
+  gl.uniform1f(G.u_k, P.kOvr || 8.0);
+  // Smooth ramp strength + lerp click position
   var ct = P.clickTarget || 0;
-  P.clickStr = (P.clickStr || 0) + (ct - (P.clickStr || 0)) * 0.07;
-  if (ct > 0.005) P.clickTarget *= 0.988;
+  // Smoothly move the repulsion point toward latest click
+  P.clickX = (P.clickX || 0) + ((P.clickTargetX || 0) - (P.clickX || 0)) * 0.04;
+  P.clickY = (P.clickY || 0) + ((P.clickTargetY || 0) - (P.clickY || 0)) * 0.04;
+  P.clickStr = (P.clickStr || 0) + (ct - (P.clickStr || 0)) * 0.01;
+  if (ct > 0.005) P.clickTarget *= 0.994;
   else P.clickTarget = 0;
-  if (P.clickStr < 0.003) P.clickStr = 0;
-  gl.uniform3f(G.u_click, P.clickX || 0, P.clickY || 0, P.clickStr);
+  if (P.clickStr < 0.002) P.clickStr = 0;
+  gl.uniform3f(G.u_click, P.clickX, P.clickY, P.clickStr);
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
   if (canvas.offsetWidth > 0 && state.currentPage === 'dashboard') {
@@ -4734,6 +4771,176 @@ function _vitalityAnimLoop() {
 
 function _stopVitality() {
   if (_vitalityRAF) { cancelAnimationFrame(_vitalityRAF); _vitalityRAF = null; }
+}
+
+function _initVitalityDialog() {
+  var infoBtn   = document.getElementById('vitalityInfoBtn');
+  var dialog    = document.getElementById('vitalityDialog');
+  var closeBtn  = document.getElementById('vitalityDialogClose');
+  var resetBtn  = document.getElementById('vdReset');
+  var saveBtn   = document.getElementById('vdSave');
+  if (!infoBtn || !dialog) return;
+
+  // ── Persist / restore ranges via localStorage ──────────────────────────
+  var STORAGE_KEY = 'biorhythmRanges';
+  function saveRanges() {
+    var P = _vitalityParams;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        scaleRange: P.scaleRange, ampRange:  P.ampRange,  speedRange: P.speedRange,
+        freqRange:  P.freqRange,  edgeRange: P.edgeRange, kRange:     P.kRange, chrRange: P.chrRange
+      }));
+    } catch(e) {}
+  }
+  function loadRanges() {
+    try {
+      var saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      if (!saved) return;
+      var P = _vitalityParams;
+      if (saved.scaleRange) P.scaleRange = saved.scaleRange;
+      if (saved.ampRange)   P.ampRange   = saved.ampRange;
+      if (saved.speedRange) P.speedRange = saved.speedRange;
+      if (saved.freqRange)  P.freqRange  = saved.freqRange;
+      if (saved.edgeRange)  P.edgeRange  = saved.edgeRange;
+      if (saved.kRange)     P.kRange     = saved.kRange;
+      if (saved.chrRange)   P.chrRange   = saved.chrRange;
+    } catch(e) {}
+  }
+  loadRanges(); // restore saved ranges immediately on init
+
+  function fmtMult(v) { return (+v).toFixed(2) + '×'; }
+  function fmtPx(v)   { return (+v).toFixed(1) + 'px'; }
+  function fmt2(v)    { return (+v).toFixed(2); }
+
+  // Update the filled track region between two thumbs
+  function updateFill(fillId, loVal, hiVal, physMin, physMax) {
+    var el = document.getElementById(fillId);
+    if (!el) return;
+    var span = physMax - physMin;
+    el.style.left  = ((loVal - physMin) / span * 100) + '%';
+    el.style.width = ((hiVal - loVal)   / span * 100) + '%';
+  }
+
+  // Sync both thumbs + labels + fill for a range param
+  function syncRange(loId, hiId, loValId, hiValId, fillId, loVal, hiVal, physMin, physMax, fmtFn) {
+    var loEl = document.getElementById(loId), hiEl = document.getElementById(hiId);
+    var loVEl = document.getElementById(loValId), hiVEl = document.getElementById(hiValId);
+    if (loEl) loEl.value = loVal;
+    if (hiEl) hiEl.value = hiVal;
+    if (loVEl) loVEl.textContent = fmtFn(loVal);
+    if (hiVEl) hiVEl.textContent = fmtFn(hiVal);
+    updateFill(fillId, loVal, hiVal, physMin, physMax);
+  }
+
+  function populateDialog() {
+    var P        = _vitalityParams;
+    var ctl      = (state.fitness && state.fitness.ctl)      || 0;
+    var atl      = (state.fitness && state.fitness.atl)      || 0;
+    var tsb      = (state.fitness && state.fitness.tsb  != null) ? state.fitness.tsb : (ctl - atl);
+    var rampRate = (state.fitness && state.fitness.rampRate) || 0;
+
+    // Weekly aggregates
+    var today        = new Date();
+    var weekStartStr = toDateStr(getWeekStart(today));
+    var weekRides = 0, weekHours = 0, weekTSS = 0;
+    state.activities.forEach(function(a) {
+      if (isEmptyActivity(a)) return;
+      var d = (a.start_date_local || a.start_date || '').slice(0, 10);
+      if (d < weekStartStr) return;
+      weekRides++;
+      weekTSS   += actVal(a, 'icu_training_load', 'tss');
+      weekHours += actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time', 'icu_elapsed_time') / 3600;
+    });
+
+    // Training streak
+    var daySet = new Set();
+    state.activities.forEach(function(a) {
+      if (!isEmptyActivity(a)) daySet.add((a.start_date_local || a.start_date || '').slice(0, 10));
+    });
+    var todayStr = toDateStr(today);
+    var streak = 0, startOff = daySet.has(todayStr) ? 0 : 1;
+    for (var i = startOff; i < 365; i++) {
+      if (daySet.has(toDateStr(new Date(Date.now() - i * 86400000)))) streak++;
+      else break;
+    }
+
+    // Data rows
+    function setEl(id, txt) { var e = document.getElementById(id); if (e) e.textContent = txt; }
+    setEl('vdCtl',    Math.round(ctl));
+    setEl('vdAtl',    Math.round(atl));
+    setEl('vdTsb',    (tsb >= 0 ? '+' : '') + Math.round(tsb));
+    setEl('vdRamp',   (rampRate >= 0 ? '+' : '') + rampRate.toFixed(1) + ' CTL/wk');
+    setEl('vdRides',  weekRides + ' this week');
+    setEl('vdHours',  weekHours.toFixed(1) + ' hrs');
+    setEl('vdTss',    Math.round(weekTSS));
+    setEl('vdStreak', streak + ' days');
+
+    // Sync all range sliders
+    var r = P.scaleRange;  syncRange('vdScaleLo','vdScaleHi','vdScaleLoVal','vdScaleHiVal','vdScaleFill', r[0],r[1], 0.3,4,   fmtMult);
+    r = P.ampRange;        syncRange('vdAmpLo',  'vdAmpHi',  'vdAmpLoVal',  'vdAmpHiVal',  'vdAmpFill',  r[0],r[1], 0.2,3,   fmtMult);
+    r = P.speedRange;      syncRange('vdSpeedLo','vdSpeedHi','vdSpeedLoVal','vdSpeedHiVal','vdSpeedFill', r[0],r[1], 0.2,3,   fmtMult);
+    r = P.freqRange;       syncRange('vdFreqLo', 'vdFreqHi', 'vdFreqLoVal', 'vdFreqHiVal', 'vdFreqFill',  r[0],r[1], 0.3,3,   fmt2);
+    r = P.edgeRange;       syncRange('vdEdgeLo', 'vdEdgeHi', 'vdEdgeLoVal', 'vdEdgeHiVal', 'vdEdgeFill', r[0],r[1], 1,25,    fmtPx);
+    r = P.chrRange;        syncRange('vdChrLo',  'vdChrHi',  'vdChrLoVal',  'vdChrHiVal',  'vdChrFill',  r[0],r[1], 0,1,     fmt2);
+    r = P.kRange;          syncRange('vdKLo',    'vdKHi',    'vdKLoVal',    'vdKHiVal',    'vdKFill',    r[0],r[1], 1,30,    fmt2);
+  }
+
+  infoBtn.addEventListener('click', function() { populateDialog(); dialog.showModal(); });
+  closeBtn && closeBtn.addEventListener('click', function() { dialog.close(); });
+  dialog.addEventListener('click', function(e) { if (e.target === dialog) dialog.close(); });
+
+  // Wire a dual-range pair — enforces lo ≤ hi, updates fill + labels + param array
+  function onRange(loId, hiId, loValId, hiValId, fillId, physMin, physMax, fmtFn, rangeArr) {
+    var loEl   = document.getElementById(loId);
+    var hiEl   = document.getElementById(hiId);
+    var loVEl  = document.getElementById(loValId);
+    var hiVEl  = document.getElementById(hiValId);
+    if (!loEl || !hiEl) return;
+
+    function update() {
+      var lo = parseFloat(loEl.value);
+      var hi = parseFloat(hiEl.value);
+      if (lo > hi) { lo = hi; loEl.value = lo; }  // clamp: lo ≤ hi
+      if (loVEl) loVEl.textContent = fmtFn(lo);
+      if (hiVEl) hiVEl.textContent = fmtFn(hi);
+      updateFill(fillId, lo, hi, physMin, physMax);
+      rangeArr[0] = lo;
+      rangeArr[1] = hi;
+    }
+    loEl.addEventListener('input', update);
+    hiEl.addEventListener('input', update);
+  }
+
+  var P = _vitalityParams;
+  onRange('vdScaleLo','vdScaleHi','vdScaleLoVal','vdScaleHiVal','vdScaleFill', 0.3,4,  fmtMult, P.scaleRange);
+  onRange('vdAmpLo',  'vdAmpHi',  'vdAmpLoVal',  'vdAmpHiVal',  'vdAmpFill',  0.2,3,  fmtMult, P.ampRange);
+  onRange('vdSpeedLo','vdSpeedHi','vdSpeedLoVal','vdSpeedHiVal','vdSpeedFill', 0.2,3,  fmtMult, P.speedRange);
+  onRange('vdFreqLo', 'vdFreqHi', 'vdFreqLoVal', 'vdFreqHiVal', 'vdFreqFill',  0.3,3,  fmt2,    P.freqRange);
+  onRange('vdEdgeLo', 'vdEdgeHi', 'vdEdgeLoVal', 'vdEdgeHiVal', 'vdEdgeFill', 1,25,   fmtPx,   P.edgeRange);
+  onRange('vdChrLo',  'vdChrHi',  'vdChrLoVal',  'vdChrHiVal',  'vdChrFill',  0,1,    fmt2,    P.chrRange);
+  onRange('vdKLo',    'vdKHi',    'vdKLoVal',    'vdKHiVal',    'vdKFill',    1,30,   fmt2,    P.kRange);
+
+  resetBtn && resetBtn.addEventListener('click', function() {
+    P.scaleRange  = [0.8, 2.2];
+    P.ampRange    = [0.7, 1.5];
+    P.speedRange  = [0.7, 1.5];
+    P.freqRange   = [1.06, 1.58];
+    P.edgeRange   = [4.0, 14.0];
+    P.kRange      = [4.0, 16.0];
+    P.chrRange    = [0.3, 1.0];
+    populateDialog();
+  });
+
+  saveBtn && saveBtn.addEventListener('click', function() {
+    saveRanges();
+    // Brief "Saved ✓" flash
+    saveBtn.textContent = 'Saved ✓';
+    saveBtn.classList.add('saved');
+    setTimeout(function() {
+      saveBtn.textContent = 'Save';
+      saveBtn.classList.remove('saved');
+    }, 1500);
+  });
 }
 
 function renderVitality() {
@@ -4785,21 +4992,22 @@ function renderVitality() {
   const P = _vitalityParams;
   const maxScale = 120;
 
-  // 1. Blob size — from CTL, ATL, TSB (natural range, data-driven)
-  P.radii[0] = 0.01 + (ctl / maxScale) * 0.17;
-  P.radii[1] = 0.01 + (atl / maxScale) * 0.17;
+  // 1. Blob size — data-driven, scaled to Alex's radius range (25–81px on 400px canvas)
+  //    Our shader: pxR = radii * resolution.y * 1.6, so radii = px / (res * 1.6)
+  //    Base range mapped: 0.063 (small) → 0.203 (large)
+  P.radii[0] = 0.063 + (ctl / maxScale) * 0.14;
+  P.radii[1] = 0.063 + (atl / maxScale) * 0.14;
   const normTsb = (tsb + 50) / 100;
-  P.radii[2] = 0.01 + normTsb * 0.17;
+  P.radii[2] = 0.063 + normTsb * 0.14;
 
-  // 2. Amplitude — weekly hours drives how far blobs travel (and their spread)
+  // 2. Amplitude — Alex's range 49–93px on 400px canvas = 0.123–0.232
+  //    Data modulates within this proven range
   const ampFactor = Math.min(1, weekHours / 15);
-  P.ampMin = 0.05 + ampFactor * 0.15;  // 0.05 – 0.20
-  P.ampMax = 0.15 + ampFactor * 0.30;  // 0.15 – 0.45
+  P.ampMin = 0.12 + ampFactor * 0.06;   // 0.12 – 0.18
+  P.ampMax = 0.22 + ampFactor * 0.08;   // 0.22 – 0.30
 
-  // 3. Frequency — weekly ride count drives orbit speed
+  // 3. Frequency — weekly rides spread the frequency from base toward max
   const freqFactor = Math.min(1, weekRides / 7);
-  P.freqMin = 0.4 + freqFactor * 0.6;  // 0.4 – 1.0
-  P.freqMax = 0.7 + freqFactor * 0.7;  // 0.7 – 1.4
 
   // 4. Pulse — ramp rate: positive=growing, negative=deflating, clamped -1 to 1
   P.pulse = Math.max(-1, Math.min(1, rampRate / 8));
@@ -4817,23 +5025,41 @@ function renderVitality() {
   // 8. Particles — weekly TSS energy: 0=none, 300=moderate 0.5, 600+=full 1.0
   P.particles = Math.min(1, weekTSS / 600);
 
-  // 9. Chromatic aberration — more active = stronger RGB split (0.4 – 1.0)
-  P.chromatic = 0.4 + Math.min(0.6, (weekTSS / 600) * 0.6);
+  // 9–14. Map each visual range to its data driver via lerp
+  function _vLerp(a, b, t) { return a + Math.max(0, Math.min(1, t)) * (b - a); }
+  const avgFitness = Math.min(1, (ctl + atl) / 240);  // 240 = 2 × maxScale
+  const tssFactor  = Math.min(1, weekTSS / 600);
+  P.scaleOvr  = _vLerp(P.scaleRange[0],  P.scaleRange[1],  avgFitness);
+  P.ampMult   = _vLerp(P.ampRange[0],    P.ampRange[1],    ampFactor);
+  P.speedMult = _vLerp(P.speedRange[0],  P.speedRange[1],  freqFactor);
+  // Frequency: base = freqRange[0] always; max spreads toward freqRange[1] with more rides
+  P.freqMin   = P.freqRange[0];
+  P.freqMax   = _vLerp(P.freqRange[0],   P.freqRange[1],   freqFactor);
+  P.edgeOvr   = _vLerp(P.edgeRange[0],   P.edgeRange[1],   P.glow);
+  P.kOvr      = _vLerp(P.kRange[0],      P.kRange[1],      1 - P.distortion);
+  P.chromatic = _vLerp(P.chrRange[0],    P.chrRange[1],    tssFactor);
 
   // ── Init WebGL + start loop ────────────────────────────────────────────
   if (!_vitalityGL) {
     _vitalityGL = _initVitalityShader(canvas);
     // Click interaction — blobs flee from click
     if (_vitalityGL) {
-      canvas.addEventListener('click', function(e) {
+      function _vitalityHit(cx, cy) {
         const rect = canvas.getBoundingClientRect();
         const dpr = window.devicePixelRatio || 1;
         const P = _vitalityParams;
-        P.clickX = (e.clientX - rect.left) * dpr;
-        P.clickY = (rect.height - (e.clientY - rect.top)) * dpr; // flip Y for GL
+        P.clickTargetX = (cx - rect.left) * dpr;
+        P.clickTargetY = (rect.height - (cy - rect.top)) * dpr;
         P.clickTarget = 1.0;
-      });
+      }
+      canvas.addEventListener('click', function(e) { _vitalityHit(e.clientX, e.clientY); });
+      canvas.addEventListener('touchstart', function(e) {
+        e.preventDefault();
+        var t = e.touches[0];
+        _vitalityHit(t.clientX, t.clientY);
+      }, { passive: false });
       canvas.style.cursor = 'pointer';
+      _initVitalityDialog();
     }
   }
   if (!_vitalityGL) return;

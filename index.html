@@ -1369,9 +1369,16 @@
                                     </svg>
                                 </div>
                                 <div>
-                                    <div class="card-title">Vitality</div>
+                                    <div class="card-title">Biorhythm</div>
                                     <div class="card-subtitle">Energy · Fatigue · Readiness</div>
                                 </div>
+                                <button class="vitality-info-btn" id="vitalityInfoBtn" title="Biorhythm settings">
+                                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <circle cx="10" cy="10" r="8"/>
+                                        <line x1="10" y1="9" x2="10" y2="14"/>
+                                        <circle cx="10" cy="6.5" r="0.8" fill="currentColor" stroke="none"/>
+                                    </svg>
+                                </button>
                             </div>
                             <div class="vitality-canvas-wrap">
                                 <canvas id="vitalityCanvas"></canvas>
@@ -6183,5 +6190,127 @@
             </filter>
         </defs>
     </svg>
+
+    <!-- ── Biorhythm Settings Dialog ── -->
+    <dialog class="modal-dialog" id="vitalityDialog">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-header-icon">
+                        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" width="22" height="22">
+                            <circle cx="10" cy="10" r="7"/><circle cx="8" cy="9" r="2.5"/><circle cx="13" cy="11" r="2"/>
+                        </svg>
+                    </div>
+                    <div class="card-title">Biorhythm</div>
+                    <div class="card-subtitle" style="margin-top:2px">Live parameters from your training data</div>
+                </div>
+                <button class="modal-close" id="vitalityDialogClose">
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" width="18" height="18">
+                        <line x1="5" y1="5" x2="15" y2="15"/><line x1="15" y1="5" x2="5" y2="15"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body vitality-dialog-body">
+                <!-- Data source rows -->
+                <div class="vd-section-title">Data Sources</div>
+                <div class="vd-row">
+                    <div class="vd-label"><span class="vd-dot" style="--c:#00e5a0"></span>Energy (CTL)</div>
+                    <div class="vd-value" id="vdCtl">—</div>
+                </div>
+                <div class="vd-row">
+                    <div class="vd-label"><span class="vd-dot" style="--c:#ff6b35"></span>Fatigue (ATL)</div>
+                    <div class="vd-value" id="vdAtl">—</div>
+                </div>
+                <div class="vd-row">
+                    <div class="vd-label"><span class="vd-dot" style="--c:#4a9eff"></span>Form (TSB)</div>
+                    <div class="vd-value" id="vdTsb">—</div>
+                </div>
+                <div class="vd-row">
+                    <div class="vd-label">Ramp Rate</div>
+                    <div class="vd-value" id="vdRamp">—</div>
+                </div>
+                <div class="vd-row">
+                    <div class="vd-label">Weekly Rides</div>
+                    <div class="vd-value" id="vdRides">—</div>
+                </div>
+                <div class="vd-row">
+                    <div class="vd-label">Weekly Hours</div>
+                    <div class="vd-value" id="vdHours">—</div>
+                </div>
+                <div class="vd-row">
+                    <div class="vd-label">Weekly TSS</div>
+                    <div class="vd-value" id="vdTss">—</div>
+                </div>
+                <div class="vd-row">
+                    <div class="vd-label">Streak</div>
+                    <div class="vd-value" id="vdStreak">—</div>
+                </div>
+
+                <!-- Range sliders -->
+                <div class="vd-section-title" style="margin-top:16px">Visual Ranges <small class="vd-section-hint">— data maps each effect between min and max</small></div>
+
+                <div class="vd-slider-row">
+                    <div class="vd-slider-label">Blob Scale <small class="vd-driver-hint">↕ Fitness (CTL+ATL)</small><span class="vd-range-vals"><span id="vdScaleLoVal">0.80×</span> – <span id="vdScaleHiVal">2.20×</span></span></div>
+                    <div class="vd-range-wrap"><div class="vd-range-track"><div class="vd-range-fill" id="vdScaleFill"></div></div>
+                        <input type="range" class="vd-rng" id="vdScaleLo" min="0.3" max="4" step="0.1" value="0.8">
+                        <input type="range" class="vd-rng" id="vdScaleHi" min="0.3" max="4" step="0.1" value="2.2">
+                    </div>
+                </div>
+
+                <div class="vd-slider-row">
+                    <div class="vd-slider-label">Amplitude <small class="vd-driver-hint">↕ Weekly hours</small><span class="vd-range-vals"><span id="vdAmpLoVal">0.70×</span> – <span id="vdAmpHiVal">1.50×</span></span></div>
+                    <div class="vd-range-wrap"><div class="vd-range-track"><div class="vd-range-fill" id="vdAmpFill"></div></div>
+                        <input type="range" class="vd-rng" id="vdAmpLo" min="0.2" max="3" step="0.05" value="0.7">
+                        <input type="range" class="vd-rng" id="vdAmpHi" min="0.2" max="3" step="0.05" value="1.5">
+                    </div>
+                </div>
+
+                <div class="vd-slider-row">
+                    <div class="vd-slider-label">Speed <small class="vd-driver-hint">↕ Weekly rides</small><span class="vd-range-vals"><span id="vdSpeedLoVal">0.70×</span> – <span id="vdSpeedHiVal">1.50×</span></span></div>
+                    <div class="vd-range-wrap"><div class="vd-range-track"><div class="vd-range-fill" id="vdSpeedFill"></div></div>
+                        <input type="range" class="vd-rng" id="vdSpeedLo" min="0.2" max="3" step="0.05" value="0.7">
+                        <input type="range" class="vd-rng" id="vdSpeedHi" min="0.2" max="3" step="0.05" value="1.5">
+                    </div>
+                </div>
+
+                <div class="vd-slider-row">
+                    <div class="vd-slider-label">Frequency <small class="vd-driver-hint">↕ Weekly rides</small><span class="vd-range-vals"><span id="vdFreqLoVal">1.06</span> – <span id="vdFreqHiVal">1.58</span></span></div>
+                    <div class="vd-range-wrap"><div class="vd-range-track"><div class="vd-range-fill" id="vdFreqFill"></div></div>
+                        <input type="range" class="vd-rng" id="vdFreqLo" min="0.3" max="3" step="0.02" value="1.06">
+                        <input type="range" class="vd-rng" id="vdFreqHi" min="0.3" max="3" step="0.02" value="1.58">
+                    </div>
+                </div>
+
+                <div class="vd-slider-row">
+                    <div class="vd-slider-label">Edge Thickness <small class="vd-driver-hint">↕ Form (TSB)</small><span class="vd-range-vals"><span id="vdEdgeLoVal">4.0px</span> – <span id="vdEdgeHiVal">14.0px</span></span></div>
+                    <div class="vd-range-wrap"><div class="vd-range-track"><div class="vd-range-fill" id="vdEdgeFill"></div></div>
+                        <input type="range" class="vd-rng" id="vdEdgeLo" min="1" max="25" step="0.5" value="4">
+                        <input type="range" class="vd-rng" id="vdEdgeHi" min="1" max="25" step="0.5" value="14">
+                    </div>
+                </div>
+
+                <div class="vd-slider-row">
+                    <div class="vd-slider-label">Chromatic Aberration <small class="vd-driver-hint">↕ Weekly TSS</small><span class="vd-range-vals"><span id="vdChrLoVal">0.30</span> – <span id="vdChrHiVal">1.00</span></span></div>
+                    <div class="vd-range-wrap"><div class="vd-range-track"><div class="vd-range-fill" id="vdChrFill"></div></div>
+                        <input type="range" class="vd-rng" id="vdChrLo" min="0" max="1" step="0.01" value="0.3">
+                        <input type="range" class="vd-rng" id="vdChrHi" min="0" max="1" step="0.01" value="1.0">
+                    </div>
+                </div>
+
+                <div class="vd-slider-row">
+                    <div class="vd-slider-label">Blob Separation <small class="vd-driver-hint">↕ Freshness (inv. stress)</small><span class="vd-range-vals"><span id="vdKLoVal">4.0</span> – <span id="vdKHiVal">16.0</span></span></div>
+                    <div class="vd-range-wrap"><div class="vd-range-track"><div class="vd-range-fill" id="vdKFill"></div></div>
+                        <input type="range" class="vd-rng" id="vdKLo" min="1" max="30" step="0.5" value="4">
+                        <input type="range" class="vd-rng" id="vdKHi" min="1" max="30" step="0.5" value="16">
+                    </div>
+                </div>
+
+                <div class="vd-btn-row">
+                    <button class="vd-reset-btn" id="vdReset">Reset to defaults</button>
+                    <button class="vd-save-btn" id="vdSave">Save</button>
+                </div>
+            </div>
+        </div>
+    </dialog>
     </body>
 </html>
