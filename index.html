@@ -2087,6 +2087,28 @@
                         </div>
                     </div>
 
+                    <!-- Power vs Heart Rate Scatter (colored by temperature) -->
+                    <div data-dash-section="pwrHrScatter">
+                        <div class="card" id="pwrHrScatterCard" style="display:none">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">
+                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="16" r="2"/><circle cx="16" cy="8" r="2"/><circle cx="6" cy="9" r="1.5"/><circle cx="18" cy="15" r="1.5"/><circle cx="12" cy="12" r="1.5"/></svg>Power vs Heart Rate
+                                    </div>
+                                    <div class="card-subtitle" id="pwrHrSubtitle">Colored by temperature</div>
+                                </div>
+                            </div>
+                            <div class="chart-wrap chart-wrap--lg">
+                                <canvas id="pwrHrScatterChart"></canvas>
+                            </div>
+                            <div class="pwr-hr-temp-legend" id="pwrHrTempLegend">
+                                <span class="pwr-hr-temp-label">Cold</span>
+                                <div class="pwr-hr-temp-bar"></div>
+                                <span class="pwr-hr-temp-label">Hot</span>
+                            </div>
+                        </div>
+                    </div>
+
                     <div data-dash-section="goalsTargets" id="goalsDashSection" style="display:none">
                         <div class="dash-section-header">
                             <div class="dash-section-title">Goals</div>

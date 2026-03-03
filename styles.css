@@ -17897,3 +17897,23 @@ html[data-theme="light"] {
 @supports (-webkit-touch-callout: none) {
     input, select, textarea { font-size: 16px !important; }
 }
+
+/* ── Power vs HR Scatter — temperature legend ─────────────────── */
+.pwr-hr-temp-legend {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 16px 12px;
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+}
+.pwr-hr-temp-bar {
+    flex: 1;
+    height: 5px;
+    border-radius: 3px;
+    background: linear-gradient(to right, #4a9eff, #00e5a0, #ff6b35);
+    opacity: 0.75;
+}
+.pwr-hr-temp-label {
+    flex-shrink: 0;
+}

@@ -361,7 +361,7 @@ function lazyRenderChart(canvasId, renderFn) {
 
 /* ── Chart cleanup on page navigation ── */
 const _pageChartKeys = {
-  dashboard: ['weekProgressChart', 'fitnessChart', 'weeklyChart', 'avgPowerChart', 'efSparkChart', 'powerCurveChart', 'powerProfileRadarChart', 'cyclingTrendsChart', 'monotonyChart', 'aeChart', 'rampRateChart', 'ytdDistChart'],
+  dashboard: ['weekProgressChart', 'fitnessChart', 'weeklyChart', 'avgPowerChart', 'efSparkChart', 'powerCurveChart', 'powerProfileRadarChart', 'cyclingTrendsChart', 'monotonyChart', 'aeChart', 'rampRateChart', 'ytdDistChart', 'pwrHrScatterChart'],
   fitness:   ['fitnessPageChart', 'fitnessWeeklyPageChart', '_fitZonePieChart', 'fitFatigueChart', 'fitFtpHistChart', 'fitPeriodChart', 'healthRHRChart', 'healthHRVChart', 'healthStepsChart', 'healthWeightChart', 'insightHrvTssChart', 'insightRhrCtlChart', 'insightTssWeightChart', 'insightStepsHrvChart'],
   power:     ['powerPageChart', 'powerTrendChart'],
   zones:     ['znpZoneTimeChart', '_znpDecoupleChart'],
@@ -3510,6 +3510,7 @@ function renderDashboard() {
   lazyRenderChart('avgPowerChart',  () => renderAvgPowerChart(recent));
   renderZoneDist(recent);
   lazyRenderChart('powerCurveChart', async () => { await renderPowerCurve(); renderPowerProfileRadar(); });
+  lazyRenderChart('pwrHrScatterChart', () => renderPwrHrScatter(recent));
   lazyRenderChart('cyclingTrendsChart', () => renderCyclingTrends(recent, days));
   lazyRenderChart('monotonyChart', () => { renderIntensityDist(recent); renderMonotony(recent, days); });
   lazyRenderChart('aeChart', () => { renderAerobicEfficiency(recent, days); renderRampRate(recent, days); });
@@ -6078,6 +6079,142 @@ function renderYTDDistance() {
         ctx2.restore();
       },
     }],
+  });
+}
+
+/* ====================================================
+   POWER vs HEART RATE SCATTER  (colored by temperature)
+==================================================== */
+function renderPwrHrScatter(activities) {
+  const card = document.getElementById('pwrHrScatterCard');
+  if (!card) return;
+
+  // Collect rides with both avg power and avg HR
+  const points = [];
+  let hasTemp = false;
+
+  activities.forEach(a => {
+    if (isEmptyActivity(a)) return;
+    const pwr = actVal(a, 'icu_weighted_avg_watts', 'average_watts', 'icu_average_watts');
+    const hr  = actVal(a, 'average_heartrate', 'icu_average_heartrate');
+    if (pwr < 20 || hr < 60) return;
+
+    const temp = a.average_temp != null ? a.average_temp : (a.weather_temp != null ? a.weather_temp : null);
+    if (temp != null) hasTemp = true;
+
+    points.push({
+      x: Math.round(pwr),
+      y: Math.round(hr),
+      temp,
+      name: a.name || 'Ride',
+      date: (a.start_date_local || a.start_date || '').slice(0, 10),
+    });
+  });
+
+  if (points.length < 5) { card.style.display = 'none'; return; }
+  card.style.display = '';
+
+  // Temperature gradient legend visibility
+  const legendEl = document.getElementById('pwrHrTempLegend');
+  if (legendEl) legendEl.style.display = hasTemp ? '' : 'none';
+
+  // Map temperature to a 3-stop color: cold(#4a9eff) → mild(#00e5a0) → hot(#ff6b35)
+  function tempColor(t) {
+    if (t == null) return 'rgba(100,120,160,0.65)';
+    const n = Math.max(0, Math.min(1, (Math.max(-10, Math.min(35, t)) + 10) / 45));
+    const lp = (a, b, f) => Math.round(a + (b - a) * f);
+    if (n < 0.5) {
+      const f = n / 0.5;
+      return `rgba(${lp(74,0,f)},${lp(159,229,f)},${lp(255,160,f)},0.8)`;
+    }
+    const f = (n - 0.5) / 0.5;
+    return `rgba(${lp(0,255,f)},${lp(229,107,f)},${lp(160,53,f)},0.8)`;
+  }
+
+  const colors = points.map(p => tempColor(p.temp));
+
+  // Trend line via simple linear regression
+  const xs = points.map(p => p.x), ys = points.map(p => p.y);
+  const n = xs.length;
+  const xM = xs.reduce((s, v) => s + v, 0) / n;
+  const yM = ys.reduce((s, v) => s + v, 0) / n;
+  let num = 0, dX = 0;
+  for (let i = 0; i < n; i++) { const dx = xs[i] - xM; num += dx * (ys[i] - yM); dX += dx * dx; }
+  const slope = dX ? num / dX : 0, intercept = yM - slope * xM;
+  const xMin = Math.min(...xs), xMax = Math.max(...xs);
+  const trendData = [
+    { x: xMin, y: +(intercept + slope * xMin).toFixed(1) },
+    { x: xMax, y: +(intercept + slope * xMax).toFixed(1) },
+  ];
+
+  // Update subtitle
+  const sub = document.getElementById('pwrHrSubtitle');
+  if (sub) sub.textContent = `${points.length} rides · ${hasTemp ? 'colored by temperature' : 'no temperature data'}`;
+
+  state.pwrHrScatterChart = destroyChart(state.pwrHrScatterChart);
+  const ctx = document.getElementById('pwrHrScatterChart');
+  if (!ctx) return;
+
+  state.pwrHrScatterChart = new Chart(ctx, {
+    type: 'scatter',
+    data: { datasets: [
+      {
+        label: 'Rides',
+        data: points,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        pointBackgroundColor: colors,
+        pointBorderColor: colors,
+        pointBorderWidth: 0,
+      },
+      {
+        label: 'Trend',
+        data: trendData,
+        type: 'line',
+        borderColor: 'rgba(255,255,255,0.2)',
+        borderWidth: 1.5,
+        borderDash: [5, 3],
+        pointRadius: 0,
+        pointHoverRadius: 0,
+        fill: false,
+      },
+    ]},
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'nearest', intersect: true },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          ...C_TOOLTIP,
+          callbacks: {
+            title: c => c[0]?.raw?.date || '',
+            label: c => {
+              if (c.datasetIndex !== 0) return null;
+              const d = c.raw;
+              const tStr = d.temp != null ? ` · ${Math.round(d.temp)}°C` : '';
+              return `${d.name} · ${d.x}w · ${d.y} bpm${tStr}`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          type: 'linear',
+          position: 'bottom',
+          title: { display: true, text: 'Avg Power (w)', color: '#62708a', font: { size: 10 } },
+          ticks: { ...C_TICK, maxTicksLimit: 6 },
+          grid: C_GRID,
+          border: { display: false },
+        },
+        y: {
+          title: { display: true, text: 'Avg HR (bpm)', color: '#62708a', font: { size: 10 } },
+          ticks: { ...C_TICK, maxTicksLimit: 5 },
+          grid: C_GRID,
+          border: { display: false },
+        },
+      },
+    },
   });
 }
 
