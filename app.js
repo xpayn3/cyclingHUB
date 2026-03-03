@@ -4791,6 +4791,9 @@ function _vitalityAnimLoop() {
 
 function _stopVitality() {
   if (_vitalityRAF) { cancelAnimationFrame(_vitalityRAF); _vitalityRAF = null; }
+  // Reset GL context so renderVitality() does a clean re-init on next dashboard visit.
+  // getContext('webgl') on the same canvas returns the existing context, so this is cheap.
+  _vitalityGL = null;
 }
 
 function _initVitalityDialog() {
@@ -5123,14 +5126,18 @@ function renderVitality() {
         P.clickTargetY = (rect.height - (cy - rect.top)) * dpr;
         P.clickTarget = 1.0;
       }
-      canvas.addEventListener('click', function(e) { _vitalityHit(e.clientX, e.clientY); });
-      canvas.addEventListener('touchstart', function(e) {
-        e.preventDefault();
-        var t = e.touches[0];
-        _vitalityHit(t.clientX, t.clientY);
-      }, { passive: false });
-      canvas.style.cursor = 'pointer';
-      _initVitalityDialog();
+      // Guard against duplicate listeners on repeated dashboard visits
+      if (!canvas._vitalityListeners) {
+        canvas.addEventListener('click', function(e) { _vitalityHit(e.clientX, e.clientY); });
+        canvas.addEventListener('touchstart', function(e) {
+          e.preventDefault();
+          var t = e.touches[0];
+          _vitalityHit(t.clientX, t.clientY);
+        }, { passive: false });
+        canvas.style.cursor = 'pointer';
+        canvas._vitalityListeners = true;
+        _initVitalityDialog();
+      }
     }
   }
   if (!_vitalityGL) return;
