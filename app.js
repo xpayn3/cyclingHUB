@@ -11776,24 +11776,43 @@ async function actCacheGetCachedIds() {
    ACTIVITY DETAIL — DATA FETCHING
 ==================================================== */
 async function fetchActivityDetail(activityId) {
-  // Check IDB cache first
+  // 1. IDB (fastest — same device)
   const cached = await actCacheGet(activityId, 'detail');
   if (cached) return cached;
 
+  // 2. Local backup folder (works on fresh installs / other devices)
+  if (window._fitOfflineRead) {
+    const local = await _fitOfflineRead(activityId, 'detail');
+    if (local) { actCachePut(activityId, 'detail', local); return local; }
+  }
+
+  // 3. Network
   const raw = await icuFetch(`/athlete/${state.athleteId}/activities/${activityId}`);
   const result = Array.isArray(raw) ? raw[0] : raw;
 
-  // Cache the result
-  if (result) actCachePut(activityId, 'detail', result);
+  if (result) {
+    actCachePut(activityId, 'detail', result);
+    // Save to local folder in background (fire-and-forget)
+    if (window._fitOfflineSave) _fitOfflineSave(activityId, 'detail', result);
+  }
   return result;
 }
 
 async function fetchActivityStreams(activityId) {
-  // Check IDB cache first
+  // 1. IDB (fastest — same device)
   const cached = await actCacheGet(activityId, 'streams');
   if (cached) {
     if (cached.__noStreams) return null;  // sentinel: known to have no streams
     return cached;
+  }
+
+  // 2. Local backup folder (works on fresh installs / other devices)
+  if (window._fitOfflineRead) {
+    const local = await _fitOfflineRead(activityId, 'streams');
+    if (local) {
+      actCachePut(activityId, 'streams', local);
+      return local.__noStreams ? null : local;
+    }
   }
 
   const types   = 'time,watts,heartrate,cadence,velocity_smooth,altitude,distance,latlng,lat,lng,grade_smooth,temp,temperature,lrbalance';
@@ -11838,8 +11857,10 @@ async function fetchActivityStreams(activityId) {
         }
       } catch (_) {}
     }
-    // Cache the result
+    // 3a. Cache in IDB and local folder, then return
     actCachePut(activityId, 'streams', streams);
+    if (window._fitOfflineSave)    _fitOfflineSave(activityId, 'streams', streams);   // background
+    if (window._fitOfflineSaveFit) _fitOfflineSaveFit(activityId);                    // background
     return streams;
   }
 
@@ -11851,6 +11872,9 @@ async function fetchActivityStreams(activityId) {
       const data = await res.json();
       if (data && (Array.isArray(data) ? data.length : Object.keys(data).length)) {
         actCachePut(activityId, 'streams', data);
+        // 3b. Also save to local folder
+        if (window._fitOfflineSave)    _fitOfflineSave(activityId, 'streams', data);  // background
+        if (window._fitOfflineSaveFit) _fitOfflineSaveFit(activityId);                // background
         return data;
       }
     }
@@ -20473,6 +20497,7 @@ document.addEventListener('keydown', e => {
       _lbDirHandle = h;
       await _lbSaveHandle(h);
       _lbUpdateUI();
+      if (window._fitOfflineInvalidate) _fitOfflineInvalidate(); // reset cached subfolder handle
       showToast('Folder selected: ' + h.name, 'success');
     } catch(e) { if (e.name !== 'AbortError') showToast('Could not select folder', 'error'); }
   }
@@ -20558,9 +20583,93 @@ document.addEventListener('keydown', e => {
     if (autoEl    && !autoEl._lbWired)    { autoEl.addEventListener('change', e => _lbSetAuto(e.target.checked)); autoEl._lbWired = true; }
   }
 
-  // Expose for settings page navigate hook and post-sync hook
+  // Expose for settings page navigate hook, post-sync hook, and FIT cache module
   window._lbInit                = _lbInit;
   window._lbAutoBackupIfEnabled = _lbAutoBackupIfEnabled;
+  window._lbGetDirHandle        = () => _lbDirHandle;
+})();
+
+// ── Offline FIT / Stream Cache ──────────────────────────────────────────────
+// When a user opens an activity the first time we:
+//  1. Save streams + detail JSON to <backup-folder>/activities/{id}-streams.json
+//  2. Download the raw FIT binary to <backup-folder>/activities/{id}.fit
+// On subsequent visits (any device with the same folder) we serve from local files,
+// never hitting intervals.icu again for that activity.
+(function() {
+  let _activitiesDir = null; // cached handle to the 'activities/' subfolder
+
+  async function _getDir() {
+    if (_activitiesDir) return _activitiesDir;
+    const root = window._lbGetDirHandle && window._lbGetDirHandle();
+    if (!root) return null;
+    try {
+      // Only proceed if we already have readwrite permission — don't prompt the user
+      if (await root.queryPermission({ mode: 'readwrite' }) !== 'granted') return null;
+      _activitiesDir = await root.getDirectoryHandle('activities', { create: true });
+      return _activitiesDir;
+    } catch(e) { return null; }
+  }
+
+  // Read JSON from activities/{id}-{type}.json
+  async function _read(id, type) {
+    try {
+      const dir = await _getDir();
+      if (!dir) return null;
+      const fh   = await dir.getFileHandle(`${id}-${type}.json`);
+      const file = await fh.getFile();
+      return JSON.parse(await file.text());
+    } catch(e) { return null; }
+  }
+
+  // Write JSON to activities/{id}-{type}.json (fire-and-forget, silent)
+  async function _save(id, type, data) {
+    try {
+      const dir = await _getDir();
+      if (!dir) return;
+      const fh = await dir.getFileHandle(`${id}-${type}.json`, { create: true });
+      const w  = await fh.createWritable();
+      await w.write(JSON.stringify(data));
+      await w.close();
+    } catch(e) { /* silent — offline save is best-effort */ }
+  }
+
+  // Download raw FIT binary to activities/{id}.fit (skips if already saved)
+  async function _saveFit(id) {
+    try {
+      const dir = await _getDir();
+      if (!dir) return;
+      // Skip if file already exists
+      try { await dir.getFileHandle(`${id}.fit`); return; } catch(e) {}
+      // Try the same URL patterns fetchFitFile uses
+      const headers = { ...authHeader(), 'Accept': 'application/octet-stream' };
+      const urls = [
+        ICU_BASE + `/activity/${id}.fit`,
+        ICU_BASE + `/athlete/${state.athleteId}/activities/${id}.fit`,
+        ICU_BASE + `/activity/${id}/original`,
+        ICU_BASE + `/athlete/${state.athleteId}/activities/${id}/original`,
+      ];
+      let buf = null;
+      for (const url of urls) {
+        try {
+          const res = await fetch(url, { headers });
+          if (res.ok) { rlTrackRequest(); buf = await res.arrayBuffer(); break; }
+        } catch(e) {}
+      }
+      if (!buf) return;
+      const fh = await dir.getFileHandle(`${id}.fit`, { create: true });
+      const w  = await fh.createWritable();
+      await w.write(buf);
+      await w.close();
+    } catch(e) { /* silent */ }
+  }
+
+  // Called when the user picks a new backup folder so we re-resolve the subfolder
+  function _invalidateDir() { _activitiesDir = null; }
+
+  window._fitOfflineRead       = _read;
+  window._fitOfflineSave       = _save;
+  window._fitOfflineSaveFit    = _saveFit;
+  window._fitOfflineInvalidate = _invalidateDir;
 })();
 
 // ── Deferred initial navigation ──
