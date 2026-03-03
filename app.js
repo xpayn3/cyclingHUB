@@ -468,9 +468,12 @@ function saveActivityCache(activities) {
       showToast('Storage limit reached — activity cache not saved', 'error');
       return;
     }
+    const now = new Date().toISOString();
     localStorage.setItem('icu_activities_cache', payload);
-    localStorage.setItem('icu_last_sync', new Date().toISOString());
+    localStorage.setItem('icu_last_sync', now);
     updateStorageBar();
+    // Also persist to local backup folder (fire-and-forget)
+    if (window._localSaveActivityList) _localSaveActivityList(activities, now);
   } catch (e) {
     localStorage.removeItem('icu_activities_cache');
   }
@@ -1031,7 +1034,21 @@ async function syncData(force = false) {
   // Skip network sync if data was synced recently (< 15 min) and this
   // is an automatic page-load sync, not a manual button press.
   const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
-  const cache = loadActivityCache();
+  let cache = loadActivityCache();
+
+  // On a fresh install localStorage is empty — try local backup folder first.
+  // This turns a full 90-day API sync into a cheap incremental sync.
+  if (!cache && window._localLoadActivityList) {
+    const localList = await _localLoadActivityList();
+    if (localList) {
+      try {
+        localStorage.setItem('icu_activities_cache', JSON.stringify(localList.activities));
+        localStorage.setItem('icu_last_sync', localList.lastSync);
+      } catch(e) {}
+      cache = localList;
+    }
+  }
+
   if (!force && cache && cache.activities.length > 0) {
     const ageMs = Date.now() - new Date(cache.lastSync).getTime();
     if (ageMs < CACHE_TTL) {
@@ -20755,6 +20772,31 @@ document.addEventListener('keydown', e => {
   // Called when the user picks a new backup folder so we re-resolve both subfolders
   function _invalidateDir() { _activitiesDir = null; _routesDir = null; }
 
+  // ── Activity list ─────────────────────────────────────────────────────────
+  // Saved as activities-list.json at the root of the backup folder (not in activities/)
+  async function _saveActivityList(activities, lastSync) {
+    try {
+      const root = window._lbEnsureHandle ? await _lbEnsureHandle() : (window._lbGetDirHandle && window._lbGetDirHandle());
+      if (!root) return;
+      const fh = await root.getFileHandle('activities-list.json', { create: true });
+      const w  = await fh.createWritable();
+      await w.write(JSON.stringify({ activities, lastSync }));
+      await w.close();
+    } catch(e) { console.warn('[FIT cache] _saveActivityList failed:', e); }
+  }
+
+  async function _loadActivityList() {
+    try {
+      const root = window._lbEnsureHandle ? await _lbEnsureHandle() : (window._lbGetDirHandle && window._lbGetDirHandle());
+      if (!root) return null;
+      const fh   = await root.getFileHandle('activities-list.json');
+      const file = await fh.getFile();
+      const data = JSON.parse(await file.text());
+      if (data && Array.isArray(data.activities) && data.activities.length > 0) return data;
+    } catch(e) {}
+    return null;
+  }
+
   window._fitOfflineRead         = _read;
   window._fitOfflineSave         = _save;
   window._fitOfflineSaveFit      = _saveFit;
@@ -20762,6 +20804,8 @@ document.addEventListener('keydown', e => {
   window._routeOfflineSave       = _saveRoute;
   window._routeOfflineDelete     = _deleteRoute;
   window._routeOfflineLoadAll    = _loadAllRoutes;
+  window._localSaveActivityList  = _saveActivityList;
+  window._localLoadActivityList  = _loadActivityList;
 })();
 
 // ── Deferred initial navigation ──
