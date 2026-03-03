@@ -4886,9 +4886,60 @@ function _initVitalityDialog() {
     r = P.kRange;          syncRange('vdKLo',    'vdKHi',    'vdKLoVal',    'vdKHiVal',    'vdKFill',    r[0],r[1], 1,30,    fmt2);
   }
 
-  infoBtn.addEventListener('click', function() { populateDialog(); dialog.showModal(); });
+  // ── Live preview WebGL loop inside dialog ──────────────────────────────
+  var previewCanvas = document.getElementById('vdPreviewCanvas');
+  var _vdPreviewGL  = null;
+  var _vdPreviewRAF = null;
+
+  function _startPreview() {
+    if (!previewCanvas) return;
+    if (!_vdPreviewGL) _vdPreviewGL = _initVitalityShader(previewCanvas);
+    if (!_vdPreviewGL) return;
+    cancelAnimationFrame(_vdPreviewRAF);
+    var G = _vdPreviewGL;
+    function loop() {
+      var gl = G.gl, canvas = G.canvas;
+      var P  = _vitalityParams;
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      var w = (canvas.clientWidth  * dpr) | 0;
+      var h = (canvas.clientHeight * dpr) | 0;
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w; canvas.height = h;
+        gl.viewport(0, 0, w, h);
+      }
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.useProgram(G.program);
+      gl.uniform2f(G.u_resolution, w, h);
+      gl.uniform1f(G.u_time,       performance.now() / 1000 * (P.speedMult || 1));
+      gl.uniform3f(G.u_radii,      P.radii[0], P.radii[1], P.radii[2]);
+      gl.uniform2f(G.u_amplitude,  P.ampMin * (P.ampMult || 1), P.ampMax * (P.ampMult || 1));
+      gl.uniform2f(G.u_frequency,  P.freqMin, P.freqMax);
+      gl.uniform1f(G.u_pulse,      P.pulse);
+      gl.uniform1f(G.u_distortion, P.distortion);
+      gl.uniform1f(G.u_glow,       P.glow);
+      gl.uniform1f(G.u_saturation, P.saturation);
+      gl.uniform1f(G.u_particles,  P.particles);
+      gl.uniform1f(G.u_chromatic,  P.chromatic || 0.6);
+      gl.uniform1f(G.u_scale,      P.scaleOvr  || 1.6);
+      gl.uniform1f(G.u_edge_thick, P.edgeOvr   || 9.0);
+      gl.uniform1f(G.u_k,         P.kOvr      || 8.0);
+      gl.uniform3f(G.u_click, 0, 0, 0);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      _vdPreviewRAF = requestAnimationFrame(loop);
+    }
+    loop();
+  }
+
+  function _stopPreview() {
+    cancelAnimationFrame(_vdPreviewRAF);
+    _vdPreviewRAF = null;
+  }
+
+  infoBtn.addEventListener('click', function() { populateDialog(); dialog.showModal(); _startPreview(); });
   closeBtn && closeBtn.addEventListener('click', function() { dialog.close(); });
   dialog.addEventListener('click', function(e) { if (e.target === dialog) dialog.close(); });
+  dialog.addEventListener('close', _stopPreview);
 
   // Wire a dual-range pair — enforces lo ≤ hi, updates fill + labels + param array
   function onRange(loId, hiId, loValId, hiValId, fillId, physMin, physMax, fmtFn, rangeArr) {

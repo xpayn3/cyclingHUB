@@ -17898,6 +17898,23 @@ html[data-theme="light"] {
     input, select, textarea { font-size: 16px !important; }
 }
 
+/* ── Biorhythm dialog preview canvas ─────────────────────────── */
+.vd-preview-wrap {
+    width: 100%;
+    height: 160px;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 16px;
+    background: var(--bg-page, #0b0f1a);
+    position: relative;
+    flex-shrink: 0;
+}
+.vd-preview-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
 /* ── Power vs HR Scatter — temperature legend ─────────────────── */
 .pwr-hr-temp-legend {
     display: flex;
