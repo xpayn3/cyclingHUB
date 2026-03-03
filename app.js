@@ -20583,6 +20583,14 @@ document.addEventListener('keydown', e => {
     if (autoEl    && !autoEl._lbWired)    { autoEl.addEventListener('change', e => _lbSetAuto(e.target.checked)); autoEl._lbWired = true; }
   }
 
+  // Lazily ensure the dir handle is loaded from IDB even if Settings was never visited
+  window._lbEnsureHandle = async function() {
+    if (_lbDirHandle) return _lbDirHandle;
+    const saved = await _lbLoadHandle();
+    if (saved) _lbDirHandle = saved;
+    return _lbDirHandle;
+  };
+
   // Expose for settings page navigate hook, post-sync hook, and FIT cache module
   window._lbInit                = _lbInit;
   window._lbAutoBackupIfEnabled = _lbAutoBackupIfEnabled;
@@ -20600,11 +20608,12 @@ document.addEventListener('keydown', e => {
 
   async function _getDir() {
     if (_activitiesDir) return _activitiesDir;
-    const root = window._lbGetDirHandle && window._lbGetDirHandle();
+    // Use _lbEnsureHandle so the dir is available even if Settings was never visited
+    const root = window._lbEnsureHandle ? await _lbEnsureHandle() : (window._lbGetDirHandle && window._lbGetDirHandle());
     if (!root) return null;
     try {
-      // Only proceed if we already have readwrite permission — don't prompt the user
-      if (await root.queryPermission({ mode: 'readwrite' }) !== 'granted') return null;
+      // Don't query/request permission explicitly — just attempt the operation.
+      // If permission was previously granted it works; if not, the catch handles it silently.
       _activitiesDir = await root.getDirectoryHandle('activities', { create: true });
       return _activitiesDir;
     } catch(e) { return null; }
