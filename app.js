@@ -11826,9 +11826,8 @@ async function fetchActivityStreams(activityId) {
   const cached = await actCacheGet(activityId, 'streams');
   if (cached) {
     if (cached.__noStreams) return null;  // sentinel: known to have no streams
-    // Backfill local folder if not there yet (catches activities viewed before this feature)
-    if (window._fitOfflineSave)    _fitOfflineSave(activityId, 'streams', cached);
-    if (window._fitOfflineSaveFit) _fitOfflineSaveFit(activityId);
+    // Backfill local JSON only — never download FIT from IDB path (avoids API calls)
+    if (window._fitOfflineSave) _fitOfflineSave(activityId, 'streams', cached);
     return cached;
   }
 
@@ -20656,11 +20655,13 @@ document.addEventListener('keydown', e => {
     } catch(e) { return null; }
   }
 
-  // Write JSON to activities/{id}-{type}.json (fire-and-forget, silent)
+  // Write JSON to activities/{id}-{type}.json — skips if already saved (no API calls, no rewrites)
   async function _save(id, type, data) {
     try {
       const dir = await _getDir();
       if (!dir) return;
+      // Skip if file already exists — avoids redundant writes on every activity open
+      try { await dir.getFileHandle(`${id}-${type}.json`); return; } catch(e) {}
       const fh = await dir.getFileHandle(`${id}-${type}.json`, { create: true });
       const w  = await fh.createWritable();
       await w.write(JSON.stringify(data));
