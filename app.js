@@ -6689,19 +6689,22 @@ function renderRampRate(activities, days) {
   // Current ramp rate for badge
   const currentRamp = rampData[rampData.length - 1];
   const badge = document.getElementById('rampRateBadge');
-  if (badge) {
-    const sign = currentRamp >= 0 ? '+' : '';
-    if (Math.abs(currentRamp) <= 5) {
-      badge.textContent = `${sign}${currentRamp}% · Safe`;
-      badge.className = 'ti-status-badge good';
-    } else if (Math.abs(currentRamp) <= 10) {
-      badge.textContent = `${sign}${currentRamp}% · Caution`;
-      badge.className = 'ti-status-badge warning';
-    } else {
-      badge.textContent = `${sign}${currentRamp}% · Risky`;
-      badge.className = 'ti-status-badge danger';
-    }
+  const titleEl = document.getElementById('rampRateTitle');
+  const iconEl  = document.getElementById('rampRateTitleIcon');
+  const sign = currentRamp >= 0 ? '+' : '';
+  let titleColor;
+  if (Math.abs(currentRamp) <= 5) {
+    if (badge) { badge.textContent = `${sign}${currentRamp}% · Safe`;    badge.className = 'ti-status-badge good'; }
+    titleColor = '#00e5a0';
+  } else if (Math.abs(currentRamp) <= 10) {
+    if (badge) { badge.textContent = `${sign}${currentRamp}% · Caution`; badge.className = 'ti-status-badge warning'; }
+    titleColor = '#ff6b35';
+  } else {
+    if (badge) { badge.textContent = `${sign}${currentRamp}% · Risky`;   badge.className = 'ti-status-badge danger'; }
+    titleColor = '#ff4757';
   }
+  if (titleEl) titleEl.style.color = titleColor;
+  if (iconEl)  iconEl.setAttribute('stroke', titleColor);
 
   state.rampRateChart = destroyChart(state.rampRateChart);
   const ctx = document.getElementById('rampRateChart').getContext('2d');
@@ -6778,10 +6781,9 @@ function renderAvgPowerChart(activities) {
         {
           label: 'Avg Power',
           data: watts,
-          backgroundColor: 'rgba(0,229,160,0.25)',
-          hoverBackgroundColor: 'rgba(0,229,160,0.5)',
-          borderColor: 'rgba(0,229,160,0.6)',
-          borderWidth: 1,
+          backgroundColor: '#00e5a0',
+          hoverBackgroundColor: '#00e5a0',
+          borderWidth: 0,
           borderRadius: 4,
           order: 2
         },
@@ -6789,7 +6791,7 @@ function renderAvgPowerChart(activities) {
           label: '7-ride trend',
           data: trend,
           type: 'line',
-          borderColor: '#00e5a0',
+          borderColor: '#ff6b35',
           backgroundColor: 'transparent',
           borderWidth: 2,
           pointRadius: 0,
