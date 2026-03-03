@@ -11560,6 +11560,8 @@ async function saveActivityRoute() {
     await new Promise((r, j) => { tx.oncomplete = r; tx.onerror = j; });
     db.close();
     showToast('Route saved — click to open in Route Builder', 'success');
+    // Also save to local backup folder (fire-and-forget)
+    if (window._routeOfflineSave) _routeOfflineSave(route);
     // Make toast clickable to navigate to Route Builder
     const toast = document.querySelector('.toast-container .toast:last-child');
     if (toast) {
@@ -20696,13 +20698,69 @@ document.addEventListener('keydown', e => {
     } catch(e) { console.warn('[FIT cache] _saveFit failed:', e); }
   }
 
-  // Called when the user picks a new backup folder so we re-resolve the subfolder
-  function _invalidateDir() { _activitiesDir = null; }
+  // ── Routes subfolder ─────────────────────────────────────────────────────
+  let _routesDir = null;
 
-  window._fitOfflineRead       = _read;
-  window._fitOfflineSave       = _save;
-  window._fitOfflineSaveFit    = _saveFit;
-  window._fitOfflineInvalidate = _invalidateDir;
+  async function _getRoutesDir() {
+    if (_routesDir) return _routesDir;
+    const root = window._lbEnsureHandle ? await _lbEnsureHandle() : (window._lbGetDirHandle && window._lbGetDirHandle());
+    if (!root) return null;
+    try {
+      _routesDir = await root.getDirectoryHandle('routes', { create: true });
+      return _routesDir;
+    } catch(e) { console.warn('[Route cache] _getRoutesDir failed:', e); return null; }
+  }
+
+  // Save a single route object to routes/{id}.json
+  async function _saveRoute(route) {
+    if (!route || !route.id) return;
+    try {
+      const dir = await _getRoutesDir();
+      if (!dir) return;
+      const fh = await dir.getFileHandle(`${route.id}.json`, { create: true });
+      const w  = await fh.createWritable();
+      await w.write(JSON.stringify(route));
+      await w.close();
+    } catch(e) { console.warn('[Route cache] _saveRoute failed:', e); }
+  }
+
+  // Delete routes/{id}.json when a route is deleted in-app
+  async function _deleteRoute(id) {
+    try {
+      const dir = await _getRoutesDir();
+      if (!dir) return;
+      await dir.removeEntry(`${id}.json`);
+    } catch(e) { /* silent — file may not exist yet */ }
+  }
+
+  // Read every .json file from routes/ and return as array
+  async function _loadAllRoutes() {
+    try {
+      const dir = await _getRoutesDir();
+      if (!dir) return [];
+      const routes = [];
+      for await (const [name, handle] of dir.entries()) {
+        if (handle.kind !== 'file' || !name.endsWith('.json')) continue;
+        try {
+          const file  = await handle.getFile();
+          const route = JSON.parse(await file.text());
+          if (route && route.id) routes.push(route);
+        } catch(e) {}
+      }
+      return routes;
+    } catch(e) { console.warn('[Route cache] _loadAllRoutes failed:', e); return []; }
+  }
+
+  // Called when the user picks a new backup folder so we re-resolve both subfolders
+  function _invalidateDir() { _activitiesDir = null; _routesDir = null; }
+
+  window._fitOfflineRead         = _read;
+  window._fitOfflineSave         = _save;
+  window._fitOfflineSaveFit      = _saveFit;
+  window._fitOfflineInvalidate   = _invalidateDir;
+  window._routeOfflineSave       = _saveRoute;
+  window._routeOfflineDelete     = _deleteRoute;
+  window._routeOfflineLoadAll    = _loadAllRoutes;
 })();
 
 // ── Deferred initial navigation ──

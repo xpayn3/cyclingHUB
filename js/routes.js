@@ -3567,14 +3567,30 @@ export async function rbLoopBack() {
 /* ── Saved Routes ── */
 export async function _rbLoadSavedRoutes() {
   try {
-    const db = await _rbOpenDB();
-    const tx = db.transaction(RB_STORE, 'readonly');
+    // Load from IDB
+    const db  = await _rbOpenDB();
+    const tx  = db.transaction(RB_STORE, 'readonly');
     const req = tx.objectStore(RB_STORE).getAll();
-    req.onsuccess = () => {
-      _rb.savedRoutes = (req.result || []).sort((a, b) => b.ts - a.ts);
-      _rbRenderSavedList();
-      db.close();
-    };
+    const idbRoutes = await new Promise((r, j) => { req.onsuccess = () => r(req.result || []); req.onerror = j; });
+    db.close();
+
+    // Merge routes from local backup folder (imports any missing on a fresh install)
+    if (window._routeOfflineLoadAll) {
+      const localRoutes = await _routeOfflineLoadAll();
+      const idbIds = new Set(idbRoutes.map(r => r.id));
+      const missing = localRoutes.filter(r => !idbIds.has(r.id));
+      if (missing.length > 0) {
+        const db2 = await _rbOpenDB();
+        const tx2 = db2.transaction(RB_STORE, 'readwrite');
+        for (const r of missing) tx2.objectStore(RB_STORE).put(r);
+        await new Promise((r, j) => { tx2.oncomplete = r; tx2.onerror = j; });
+        db2.close();
+        idbRoutes.push(...missing);
+      }
+    }
+
+    _rb.savedRoutes = idbRoutes.sort((a, b) => b.ts - a.ts);
+    _rbRenderSavedList();
   } catch (e) { console.warn('[RB] Failed to load saved routes:', e); }
 }
 
@@ -3642,6 +3658,8 @@ export async function rbSave() {
     await new Promise((r, j) => { tx.oncomplete = r; tx.onerror = j; });
     db.close();
     _rb.activeRouteId = route.id;
+    // Save to local backup folder (fire-and-forget)
+    if (window._routeOfflineSave) _routeOfflineSave(route);
     await _rbLoadSavedRoutes();
     showToast('Route saved', 'success');
   } catch (e) { showToast('Failed to save route', 'error'); }
@@ -3700,6 +3718,8 @@ export async function rbSaveEdit() {
     tx.objectStore(RB_STORE).put(route);
     await new Promise((r, j) => { tx.oncomplete = r; tx.onerror = j; });
     db.close();
+    // Save to local backup folder (fire-and-forget)
+    if (window._routeOfflineSave) _routeOfflineSave(route);
     await _rbLoadSavedRoutes();
     _rbRenderSavedList();
     showToast('Route saved', 'success');
@@ -3812,6 +3832,8 @@ export async function rbDeleteSavedRoute(id) {
     await new Promise((r, j) => { tx.oncomplete = r; tx.onerror = j; });
     db.close();
     if (_rb.activeRouteId === id) _rb.activeRouteId = null;
+    // Also remove from local backup folder
+    if (window._routeOfflineDelete) _routeOfflineDelete(id);
     await _rbLoadSavedRoutes();
     showToast('Route deleted', 'success');
   } catch (e) { showToast('Failed to delete route', 'error'); }
