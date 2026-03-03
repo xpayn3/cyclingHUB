@@ -4782,7 +4782,11 @@ function _vitalityAnimLoop() {
   gl.uniform3f(G.u_click, P.clickX, P.clickY, P.clickStr);
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
-  if (canvas.offsetWidth > 0 && state.currentPage === 'dashboard') {
+  // Only stop the loop when we've actually left the dashboard.
+  // Do NOT gate on canvas.offsetWidth — during a startViewTransition the canvas
+  // is temporarily 0-wide even though we're navigating TO the dashboard, which
+  // would kill the loop before the page finishes appearing.
+  if (state.currentPage === 'dashboard') {
     _vitalityRAF = requestAnimationFrame(_vitalityAnimLoop);
   } else {
     _vitalityRAF = null;
