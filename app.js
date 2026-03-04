@@ -48,6 +48,11 @@ import { initImportPage, impSwitchTab, impAddFiles, impRemoveFromQueue,
          impRenderHistory, impClearHistory, impSaveRouteToIDB } from './js/import.js';
 
 /* ====================================================
+   DESIGN TOKENS — single source of truth for JS colors
+==================================================== */
+const ACCENT = '#00e5a0';
+
+/* ====================================================
    PWA — Service Worker Registration + Install Prompt
 ==================================================== */
 if ('serviceWorker' in navigator) {
@@ -3243,13 +3248,13 @@ async function renderRecentActCardMap(a, idx, idPrefix = 'recentActCard') {
         maxZoom: 19, attribution: '', crossOrigin: 'anonymous',
         subdomains: _rcTheme.sub,
       }).addTo(map);
-      L.polyline(points, { color: '#00e5a0', weight: 3, opacity: 1 }).addTo(map);
+      L.polyline(points, { color: ACCENT, weight: 3, opacity: 1 }).addTo(map);
       const dotIcon = color => L.divIcon({
         className: '',
         html: `<div style="width:8px;height:8px;border-radius:50%;background:${color};border:2px solid rgba(255,255,255,0.9);box-shadow:0 0 3px rgba(0,0,0,0.5)"></div>`,
         iconSize: [8, 8], iconAnchor: [4, 4],
       });
-      L.marker(points[0],                 { icon: dotIcon('#00e5a0') }).addTo(map);
+      L.marker(points[0],                 { icon: dotIcon(ACCENT) }).addTo(map);
       L.marker(points[points.length - 1], { icon: dotIcon('#888')    }).addTo(map);
       const bounds = L.polyline(points).getBounds();
       map.fitBounds(bounds, { padding: [12, 12] });
@@ -3730,7 +3735,7 @@ function _actRowHTML(a, containerId, fi, powerColor) {
 }
 
 function _actPowerColor(activities) {
-  const PWR_COLORS = ['#4a9eff', '#00e5a0', '#ffcc00', '#ff6b35', '#ff5252'];
+  const PWR_COLORS = ['#4a9eff', ACCENT, '#ffcc00', '#ff6b35', '#ff5252'];
   const allPwrs = (activities || state.activities)
     .map(a => a.icu_weighted_avg_watts || a.average_watts || 0)
     .filter(w => w > 0)
@@ -4148,7 +4153,7 @@ function renderWeekProgress(metric) {
 
   // Metric config
   const cfg = {
-    tss:       { label: 'Training Load', unit: 'TSS',  color: '#00e5a0', dimColor: 'rgba(0,229,160,0.08)',    fmt: v => Math.round(v),           tooltip: v => `${Math.round(v)} TSS` },
+    tss:       { label: 'Training Load', unit: 'TSS',  color: ACCENT, dimColor: 'rgba(0,229,160,0.08)',    fmt: v => Math.round(v),           tooltip: v => `${Math.round(v)} TSS` },
     distance:  { label: 'Distance',      unit: 'km',   color: '#4a9eff', dimColor: 'rgba(74,158,255,0.08)',   fmt: v => (v/1000).toFixed(1),     tooltip: v => `${(v/1000).toFixed(1)} km` },
     time:      { label: 'Time Riding',   unit: '',     color: '#9b59ff', dimColor: 'rgba(155,89,255,0.08)',   fmt: v => fmtDur(v),               tooltip: v => fmtDur(v) },
     elevation: { label: 'Elevation',     unit: 'm',    color: '#ff6b35', dimColor: 'rgba(255,107,53,0.08)',   fmt: v => Math.round(v).toLocaleString(), tooltip: v => `${Math.round(v)} m` },
@@ -4342,7 +4347,7 @@ function drawRampGaugeSVG(rampRate) {
     return `M${px(a1)} ${py(a1)} A${R} ${R} 0 ${large} 1 ${px(a2)} ${py(a2)}`;
   };
 
-  const color = val < 8 ? '#00e5a0' : val < 10 ? '#f0c429' : '#ff4757';
+  const color = val < 8 ? ACCENT : val < 10 ? '#f0c429' : '#ff4757';
 
   // Tick marks at zone boundaries
   const tickVals = [0, 3, 8, 10, 12];
@@ -4387,7 +4392,7 @@ function drawRampGaugeSVG(rampRate) {
     <!-- Active fill tube gradient -->
     <linearGradient id="tubeFillGreen" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#5fffca"/>
-      <stop offset="30%" stop-color="#00e5a0"/>
+      <stop offset="30%" stop-color="${ACCENT}"/>
       <stop offset="70%" stop-color="#00b87f"/>
       <stop offset="100%" stop-color="#008a60"/>
     </linearGradient>
@@ -4425,7 +4430,7 @@ function drawRampGaugeSVG(rampRate) {
   // 1. Tube track — base dark fill for the empty tube
   s += `<path d="${tubePath(Math.PI * 0.999, Math.PI * 0.001, 'round')}" fill="rgba(10,12,20,0.6)"/>`;
   // 2. Zone color hints — faint tints inside the empty tube
-  const zones = [[0, 3, '#00e5a0'], [3, 8, '#00e5a0'], [8, 10, '#f0c429'], [10, 12, '#ff4757']];
+  const zones = [[0, 3, ACCENT], [3, 8, ACCENT], [8, 10, '#f0c429'], [10, 12, '#ff4757']];
   zones.forEach(([lo, hi, c]) => {
     s += `<path d="${tubePath(toA(lo), toA(hi))}" fill="${c}" opacity="0.07"/>`;
   });
@@ -4433,7 +4438,7 @@ function drawRampGaugeSVG(rampRate) {
   s += `<path d="${tubePath(Math.PI * 0.999, Math.PI * 0.001, 'round')}" fill="url(#tubeTrack)"/>`;
 
   // 4. Active fill — colored tube section
-  const fillGrad = color === '#00e5a0' ? 'url(#tubeFillGreen)' : color === '#f0c429' ? 'url(#tubeFillYellow)' : 'url(#tubeFillRed)';
+  const fillGrad = color === ACCENT ? 'url(#tubeFillGreen)' : color === '#f0c429' ? 'url(#tubeFillYellow)' : 'url(#tubeFillRed)';
   if (val > 0.15) {
     // Glow behind fill
     s += `<path d="${arcPath(Math.PI * 0.999, toA(val))}" fill="none" stroke="${color}" stroke-width="${SW + 10}" stroke-linecap="round" opacity="0.2" filter="url(#trsGlow)"/>`;
@@ -5208,9 +5213,9 @@ function renderTrainingStatus() {
     formNumEl.textContent = (tsb >= 0 ? '+' : '') + Math.round(tsb);
 
     let fLabel, fColor, fHint;
-    if      (tsb > 25)  { fLabel = 'Peak Form';     fColor = '#00e5a0'; fHint = 'Perfect for A-priority races'; }
-    else if (tsb > 15)  { fLabel = 'Race Ready';    fColor = '#00e5a0'; fHint = 'Target A-priority races now'; }
-    else if (tsb > 5)   { fLabel = 'Fresh';         fColor = '#00e5a0'; fHint = 'Good for B-priority races'; }
+    if      (tsb > 25)  { fLabel = 'Peak Form';     fColor = ACCENT; fHint = 'Perfect for A-priority races'; }
+    else if (tsb > 15)  { fLabel = 'Race Ready';    fColor = ACCENT; fHint = 'Target A-priority races now'; }
+    else if (tsb > 5)   { fLabel = 'Fresh';         fColor = ACCENT; fHint = 'Good for B-priority races'; }
     else if (tsb > -5)  { fLabel = 'Neutral';       fColor = '#f0c429'; fHint = 'Transitioning'; }
     else if (tsb > -15) { fLabel = 'Training';      fColor = '#f0c429'; fHint = 'Building fitness load'; }
     else if (tsb > -25) { fLabel = 'Deep Training'; fColor = '#ff6b35'; fHint = 'High load — monitor fatigue'; }
@@ -5276,12 +5281,12 @@ function renderTrainingStatus() {
       labels: qualifying.map(a => fmtDate(a.start_date_local || a.start_date)),
       datasets: [{
         data: efs,
-        borderColor: '#00e5a0',
+        borderColor: ACCENT,
         backgroundColor: 'rgba(0,229,160,0.08)',
         borderWidth: 2,
         pointRadius: 0,
         pointHoverRadius: 6,
-        pointBackgroundColor: '#00e5a0',
+        pointBackgroundColor: ACCENT,
         pointBorderColor: 'transparent',
         fill: true,
         tension: 0.35
@@ -5329,7 +5334,7 @@ const _sgIcons = {
 const _sgColorMap = {
   grey:   { bg: 'rgba(140,140,160,0.12)', fg: '#9ca3af', badge: 'Fatigued' },
   blue:   { bg: 'rgba(74,158,255,0.12)',  fg: '#4a9eff', badge: 'Tired'    },
-  green:  { bg: 'rgba(0,229,160,0.12)',   fg: '#00e5a0', badge: 'Fresh'    },
+  green:  { bg: 'rgba(0,229,160,0.12)',   fg: ACCENT, badge: 'Fresh'    },
   orange: { bg: 'rgba(255,107,53,0.12)',  fg: '#ff6b35', badge: 'Peak'     },
 };
 
@@ -5512,7 +5517,7 @@ function renderFitnessChart(activities, days) {
   state.fitnessChart = new Chart(ctx, {
     type: 'line',
     data: { labels, datasets: [
-      { label: 'CTL', data: ctlD, borderColor: '#00e5a0', backgroundColor: 'rgba(0,229,160,0.07)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 7, tension: 0.4, fill: true },
+      { label: 'CTL', data: ctlD, borderColor: ACCENT, backgroundColor: 'rgba(0,229,160,0.07)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 7, tension: 0.4, fill: true },
       { label: 'ATL', data: atlD, borderColor: '#ff6b35', backgroundColor: 'rgba(255,107,53,0.05)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 7, tension: 0.4 },
       { label: 'TSB', data: tsbD, borderColor: '#4a9eff', backgroundColor: 'rgba(74,158,255,0.05)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 7, tension: 0.4 }
     ]},
@@ -5544,7 +5549,7 @@ function renderWeeklyChart(activities) {
     type: 'bar',
     data: {
       labels: entries.map(([k]) => 'W' + k.slice(-2)),
-      datasets: [{ data: entries.map(([, v]) => Math.round(v)), backgroundColor: 'rgba(0,229,160,0.5)', hoverBackgroundColor: '#00e5a0', borderRadius: 4 }]
+      datasets: [{ data: entries.map(([, v]) => Math.round(v)), backgroundColor: 'rgba(0,229,160,0.5)', hoverBackgroundColor: ACCENT, borderRadius: 4 }]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
@@ -5559,7 +5564,7 @@ function renderWeeklyChart(activities) {
    CYCLING TRENDS — Energy System TSS Breakdown
 ==================================================== */
 const ENERGY_SYSTEMS = [
-  { name: 'Endure FTP',    zones: [0, 1], color: '#00e5a0' },  // Z1+Z2
+  { name: 'Endure FTP',    zones: [0, 1], color: ACCENT },  // Z1+Z2
   { name: 'Breakaway MAP', zones: [2, 3], color: '#ff6b35' },  // Z3+Z4
   { name: 'Attack AC',     zones: [4],    color: '#ff4757' },   // Z5
   { name: 'Sprint NM',     zones: [5],    color: '#9b59f0' },   // Z6
@@ -5833,7 +5838,7 @@ function renderWellnessInsights() {
       type: 'line',
       data: { labels, datasets: [
         { label: 'Resting HR', data: rhrVals, borderColor: '#ff375f', backgroundColor: 'rgba(255,55,95,0.08)', borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 3, tension: 0.35, fill: true, yAxisID: 'y' },
-        { label: 'CTL', data: ctlVals, borderColor: '#00e5a0', backgroundColor: 'rgba(0,229,160,0.08)', borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 3, tension: 0.35, fill: true, yAxisID: 'y1' },
+        { label: 'CTL', data: ctlVals, borderColor: ACCENT, backgroundColor: 'rgba(0,229,160,0.08)', borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 3, tension: 0.35, fill: true, yAxisID: 'y1' },
       ]},
       options: {
         responsive: true, maintainAspectRatio: false,
@@ -5917,7 +5922,7 @@ function renderWellnessInsights() {
     const reg = linReg(xs, ys);
     const correlEl = document.getElementById('insightCorrelDir');
     if (Math.abs(reg.r) < 0.15) { correlEl.textContent = 'No clear link'; correlEl.style.color = ''; }
-    else if (reg.r > 0) { correlEl.textContent = 'Positive ↑'; correlEl.style.color = '#00e5a0'; }
+    else if (reg.r > 0) { correlEl.textContent = 'Positive ↑'; correlEl.style.color = ACCENT; }
     else { correlEl.textContent = 'Negative ↓'; correlEl.style.color = '#ff375f'; }
 
     const pColors = points.map(p => p.y >= avgH ? 'rgba(0,229,160,0.7)' : 'rgba(255,55,95,0.7)');
@@ -6062,7 +6067,7 @@ function renderYTDDistance() {
         {
           label: String(thisYear),
           data: cumThis.map((v, i) => i <= todayIdx ? v : null),
-          borderColor: '#00e5a0',
+          borderColor: ACCENT,
           backgroundColor: grad,
           borderWidth: 2,
           pointRadius: 0,
@@ -6147,7 +6152,7 @@ function renderYTDDistance() {
         // Dot on this-year line at today
         const yThis = yScale.getPixelForValue(thisTotal);
         ctx2.setLineDash([]);
-        ctx2.fillStyle = '#00e5a0';
+        ctx2.fillStyle = ACCENT;
         ctx2.beginPath();
         ctx2.arc(x, yThis, 4, 0, Math.PI * 2);
         ctx2.fill();
@@ -6163,7 +6168,7 @@ function renderYTDDistance() {
           const flagX = Math.max(xScale.left, Math.min(x - flagW / 2, xScale.right - flagW));
           const flagY = yScale.top - flagH - 4;
 
-          ctx2.fillStyle = '#00e5a0';
+          ctx2.fillStyle = ACCENT;
           ctx2.beginPath();
           ctx2.roundRect(flagX, flagY, flagW, flagH, flagH / 2);
           ctx2.fill();
@@ -6216,7 +6221,7 @@ function renderPwrHrScatter(activities) {
   const legendEl = document.getElementById('pwrHrTempLegend');
   if (legendEl) legendEl.style.display = hasTemp ? '' : 'none';
 
-  // Map temperature to a 3-stop color: cold(#4a9eff) → mild(#00e5a0) → hot(#ff6b35)
+  // Map temperature to a 3-stop color: cold(#4a9eff) → mild(${ACCENT}) → hot(#ff6b35)
   function tempColor(t) {
     if (t == null) return 'rgba(100,120,160,0.65)';
     const n = Math.max(0, Math.min(1, (Math.max(-10, Math.min(35, t)) + 10) / 45));
@@ -6791,7 +6796,7 @@ function renderRampRate(activities, days) {
     const pct = prev > 0 ? Math.round((curr - prev) / prev * 100) : 0;
     rampData.push(pct);
     labels.push(new Date(weeks[i]).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }));
-    colors.push(Math.abs(pct) <= 5 ? '#00e5a0' : Math.abs(pct) <= 10 ? '#ff6b35' : '#ff4757');
+    colors.push(Math.abs(pct) <= 5 ? ACCENT : Math.abs(pct) <= 10 ? '#ff6b35' : '#ff4757');
   }
 
   // Current ramp rate for badge
@@ -6803,7 +6808,7 @@ function renderRampRate(activities, days) {
   let titleColor;
   if (Math.abs(currentRamp) <= 5) {
     if (badge) { badge.textContent = `${sign}${currentRamp}% · Safe`;    badge.className = 'ti-status-badge good'; }
-    titleColor = '#00e5a0';
+    titleColor = ACCENT;
   } else if (Math.abs(currentRamp) <= 10) {
     if (badge) { badge.textContent = `${sign}${currentRamp}% · Caution`; badge.className = 'ti-status-badge warning'; }
     titleColor = '#ff6b35';
@@ -6889,8 +6894,8 @@ function renderAvgPowerChart(activities) {
         {
           label: 'Avg Power',
           data: watts,
-          backgroundColor: '#00e5a0',
-          hoverBackgroundColor: '#00e5a0',
+          backgroundColor: ACCENT,
+          hoverBackgroundColor: ACCENT,
           borderWidth: 0,
           borderRadius: 4,
           order: 2
@@ -7048,7 +7053,7 @@ const COGGAN_POWER_PROFILE = {
     { name: 'Anaerobic',  color: '#ff4757', indices: [2, 3]   },   // 1m–2m    VO₂max
     { name: 'Threshold',  color: '#ff6b35', indices: [4, 5]   },   // 3m–5m    Threshold
     { name: 'Tempo',      color: '#f0c429', indices: [6, 7]   },   // 10m–15m  Tempo
-    { name: 'Endurance',  color: '#00e5a0', indices: [8, 9]   },   // 20m–30m  Endurance
+    { name: 'Endurance',  color: ACCENT, indices: [8, 9]   },   // 20m–30m  Endurance
     { name: 'Recovery',   color: '#4a9eff', indices: [10, 11] },   // 45m–60m  Recovery
   ],
   categories: {
@@ -7201,7 +7206,7 @@ async function renderPowerCurve(unit) {
     data: {
       datasets: [{
         data: chartData,
-        borderColor: '#00e5a0',
+        borderColor: ACCENT,
         backgroundColor: 'rgba(0,229,160,0.07)',
         fill: true,
         tension: 0.4,
@@ -7291,7 +7296,7 @@ const _pprRingPlugin = {
     // Build index→color map from zones + detect light backgrounds needing dark text
     const colorMap = {};
     const lightBgSet = new Set();
-    const _lightColors = ['#f0c429', '#00e5a0', '#ffd700', '#ffeb3b', '#4caf50'];
+    const _lightColors = ['#f0c429', ACCENT, '#ffd700', '#ffeb3b', '#4caf50'];
     zones.forEach(z => {
       const isLight = _lightColors.includes(z.color.toLowerCase());
       z.indices.forEach(i => { colorMap[i] = z.color; if (isLight) lightBgSet.add(i); });
@@ -7867,7 +7872,7 @@ async function renderPwrCurveChart(days, ftp, weight) {
   const datasets = [{
     label: `Last ${days}d`,
     data: chartData,
-    borderColor: '#00e5a0',
+    borderColor: ACCENT,
     backgroundColor: 'rgba(0,229,160,0.07)',
     fill: true,
     tension: 0.4,
@@ -8055,7 +8060,7 @@ function renderPwrTrend(days) {
   const flat   = Math.abs(pctChg) < 3;
 
   const barColors      = watts.map(w => w >= avgW ? 'rgba(0,229,160,0.75)' : 'rgba(0,229,160,0.25)');
-  const barHoverColors = watts.map(w => w >= avgW ? '#00e5a0' : 'rgba(0,229,160,0.5)');
+  const barHoverColors = watts.map(w => w >= avgW ? ACCENT : 'rgba(0,229,160,0.5)');
 
   state.powerTrendChart = destroyChart(state.powerTrendChart);
   state.powerTrendChart = new Chart(canvas.getContext('2d'), {
@@ -8419,7 +8424,7 @@ function renderKjIntensityChart(days) {
           label: '7-ride avg',
           data: trend,
           type: 'line',
-          borderColor: '#00e5a0',
+          borderColor: ACCENT,
           borderWidth: 2,
           pointRadius: 0,
           fill: false,
@@ -8478,7 +8483,7 @@ function renderKjCumulativeChart(days) {
       datasets: [{
         label: 'Cumulative kJ',
         data: cumulative,
-        borderColor: '#00e5a0',
+        borderColor: ACCENT,
         backgroundColor: 'rgba(0,229,160,0.08)',
         borderWidth: 2,
         pointRadius: 0,
@@ -8840,7 +8845,7 @@ function renderKjMetabolicChart(days) {
         {
           label: '7-ride avg',
           data: trend,
-          type: 'line', borderColor: '#00e5a0', borderWidth: 2,
+          type: 'line', borderColor: ACCENT, borderWidth: 2,
           pointRadius: 0, fill: false, tension: 0.35, order: 1,
         },
       ],
@@ -9250,7 +9255,7 @@ function renderFitnessZoneDist(days) {
   const lbl = days === 0 ? 'all activities' : `last ${days} days`;
   document.getElementById('fitZoneSubtitle').textContent = `Time in zone · ${lbl}`;
 
-  const RAW_COLORS = ['#4a9eff','#00e5a0','#f0c429','#ff6b35','#ff4757','#9b59ff'];
+  const RAW_COLORS = ['#4a9eff',ACCENT,'#f0c429','#ff6b35','#ff4757','#9b59ff'];
 
   // ── Doughnut chart ──
   const canvas = document.getElementById('fitZonePie');
@@ -9345,7 +9350,7 @@ function renderFitnessZoneDist(days) {
   const z56r = (totals[4]+totals[5]) / totalSecs;
   let style, hint, styleColor;
   if      (z12r >= 0.65 && z56r >= 0.10) { style='Polarized';  styleColor='#4a9eff'; hint='Strong contrast between easy base and hard efforts'; }
-  else if (z34r >= 0.40)                  { style='Sweet-spot'; styleColor='#00e5a0'; hint='Focused on productive threshold work'; }
+  else if (z34r >= 0.40)                  { style='Sweet-spot'; styleColor=ACCENT; hint='Focused on productive threshold work'; }
   else if (z12r >= 0.60)                  { style='Pyramidal';  styleColor='#f0c429'; hint='Broad aerobic base with moderate intensity work'; }
   else                                    { style='Mixed';      styleColor='#ff6b35'; hint='Varied intensity across all zones'; }
 
@@ -9432,7 +9437,7 @@ function renderFitnessHistoryChart(days) {
   state.fitnessPageChart = new Chart(canvas.getContext('2d'), {
     type: 'line',
     data: { labels, datasets: [
-      { label: 'CTL', data: ctlD, borderColor: '#00e5a0', backgroundColor: 'rgba(0,229,160,0.08)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 7, tension: 0.4, fill: true },
+      { label: 'CTL', data: ctlD, borderColor: ACCENT, backgroundColor: 'rgba(0,229,160,0.08)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 7, tension: 0.4, fill: true },
       { label: 'ATL', data: atlD, borderColor: '#ff6b35', backgroundColor: 'rgba(255,107,53,0.05)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 7, tension: 0.4 },
       { label: 'TSB', data: tsbD, borderColor: '#4a9eff', backgroundColor: 'rgba(74,158,255,0.05)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 7, tension: 0.4 }
     ]},
@@ -9504,7 +9509,7 @@ function renderFtpHistoryChart(days) {
   // Scatter colors: green for increases, red for decreases
   const scatterColors = filtered.map((p, i) => {
     if (i === 0) return '#4a9eff';
-    return p.ftp >= filtered[i - 1].ftp ? '#00e5a0' : '#ff4757';
+    return p.ftp >= filtered[i - 1].ftp ? ACCENT : '#ff4757';
   });
 
   const canvas = document.getElementById('fitFtpHistChart');
@@ -9515,7 +9520,7 @@ function renderFtpHistoryChart(days) {
       labels,
       datasets: [
         {
-          label: 'FTP', data, borderColor: '#00e5a0',
+          label: 'FTP', data, borderColor: ACCENT,
           backgroundColor: 'rgba(0,229,160,0.08)', borderWidth: 2.5,
           pointRadius: 0, pointHoverRadius: 7, tension: 0, stepped: 'before', fill: true
         },
@@ -9632,8 +9637,8 @@ function renderFatiguePredChart() {
     data: {
       labels,
       datasets: [
-        { label: 'CTL', data: ctlD, borderColor: '#00e5a0', borderWidth: 2, borderDash: dashStyle,
-          pointRadius: (ctx) => ctx.dataIndex === 0 ? 5 : 0, pointBackgroundColor: '#00e5a0',
+        { label: 'CTL', data: ctlD, borderColor: ACCENT, borderWidth: 2, borderDash: dashStyle,
+          pointRadius: (ctx) => ctx.dataIndex === 0 ? 5 : 0, pointBackgroundColor: ACCENT,
           pointHoverRadius: 7, tension: 0.3, fill: false },
         { label: 'ATL', data: atlD, borderColor: '#ff6b35', borderWidth: 2, borderDash: dashStyle,
           pointRadius: (ctx) => ctx.dataIndex === 0 ? 5 : 0, pointBackgroundColor: '#ff6b35',
@@ -9659,7 +9664,7 @@ function renderFatiguePredChart() {
 /* ── Feature: Training Periodization ── */
 const PERIOD_PHASES = {
   Recovery: { color: '#4a9eff', label: 'Recovery' },
-  Base:     { color: '#00e5a0', label: 'Base' },
+  Base:     { color: ACCENT, label: 'Base' },
   Build:    { color: '#f0c429', label: 'Build' },
   Peak:     { color: '#ff6b35', label: 'Peak' },
   Race:     { color: '#ff4757', label: 'Race' },
@@ -9784,7 +9789,7 @@ function renderPeriodizationChart(days) {
         },
         {
           label: 'CTL', data: ctlData, type: 'line',
-          borderColor: '#00e5a0', borderWidth: 2.5, pointRadius: 0,
+          borderColor: ACCENT, borderWidth: 2.5, pointRadius: 0,
           pointHoverRadius: 7, tension: 0.4, fill: false, order: 1,
           spanGaps: true
         }
@@ -9832,8 +9837,8 @@ function renderFitnessWeeklyPageChart() {
   // Color bars by intensity relative to avg
   const vals   = entries.map(([, v]) => Math.round(v));
   const avg    = vals.reduce((s, v) => s + v, 0) / vals.length;
-  const colors      = vals.map(v => v >= avg * 1.2 ? '#ff6b35' : v >= avg * 0.8 ? '#00e5a0' : 'rgba(0,229,160,0.4)');
-  const hoverColors = vals.map(v => v >= avg * 1.2 ? '#ff8c5a' : v >= avg * 0.8 ? '#33ffbc' : '#00e5a0');
+  const colors      = vals.map(v => v >= avg * 1.2 ? '#ff6b35' : v >= avg * 0.8 ? ACCENT : 'rgba(0,229,160,0.4)');
+  const hoverColors = vals.map(v => v >= avg * 1.2 ? '#ff8c5a' : v >= avg * 0.8 ? '#33ffbc' : ACCENT);
 
   state.fitnessWeeklyPageChart = new Chart(canvas.getContext('2d'), {
     type: 'bar',
@@ -10011,7 +10016,7 @@ function drawRecoveryGaugeSVG(score) {
          + `A${Ri} ${Ri} 0 ${large} 0 ${pxR(a1, Ri)} ${pyR(a1, Ri)}Z`;
   };
 
-  const color = val < 30 ? '#ff4757' : val < 60 ? '#f0c429' : '#00e5a0';
+  const color = val < 30 ? '#ff4757' : val < 60 ? '#f0c429' : ACCENT;
 
   // Tick marks at key boundaries
   const tickVals = [0, 30, 60, 100];
@@ -10034,7 +10039,7 @@ function drawRecoveryGaugeSVG(score) {
     </linearGradient>
     <linearGradient id="recTubeFillGreen" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#5fffca"/>
-      <stop offset="30%" stop-color="#00e5a0"/>
+      <stop offset="30%" stop-color="${ACCENT}"/>
       <stop offset="70%" stop-color="#00b87f"/>
       <stop offset="100%" stop-color="#008a60"/>
     </linearGradient>
@@ -10071,7 +10076,7 @@ function drawRecoveryGaugeSVG(score) {
   // Tube track base
   s += `<path d="${tubePath(Math.PI * 0.999, Math.PI * 0.001, 'round')}" fill="rgba(10,12,20,0.6)"/>`;
   // Zone color hints
-  const zones = [[0, 30, '#ff4757'], [30, 60, '#f0c429'], [60, 100, '#00e5a0']];
+  const zones = [[0, 30, '#ff4757'], [30, 60, '#f0c429'], [60, 100, ACCENT]];
   zones.forEach(([lo, hi, c]) => {
     s += `<path d="${tubePath(toA(lo), toA(hi))}" fill="${c}" opacity="0.07"/>`;
   });
@@ -10079,7 +10084,7 @@ function drawRecoveryGaugeSVG(score) {
   s += `<path d="${tubePath(Math.PI * 0.999, Math.PI * 0.001, 'round')}" fill="url(#recTubeTrack)"/>`;
 
   // Active fill
-  const fillGrad = color === '#00e5a0' ? 'url(#recTubeFillGreen)' : color === '#f0c429' ? 'url(#recTubeFillYellow)' : 'url(#recTubeFillRed)';
+  const fillGrad = color === ACCENT ? 'url(#recTubeFillGreen)' : color === '#f0c429' ? 'url(#recTubeFillYellow)' : 'url(#recTubeFillRed)';
   if (val > 1) {
     s += `<path d="${arcPath(Math.PI * 0.999, toA(val))}" fill="none" stroke="${color}" stroke-width="${SW + 10}" stroke-linecap="round" opacity="0.2" filter="url(#recGlow)"/>`;
     s += `<path d="${tubePath(Math.PI * 0.999, toA(val), 'round')}" fill="${fillGrad}"/>`;
@@ -10508,7 +10513,7 @@ function renderZnpDecoupleChart() {
     return d.toLocaleDateString('en-US', { month:'short', day:'numeric' });
   });
   const values   = acts.map(a => +a.icu_aerobic_decoupling.toFixed(1));
-  const ptColors = values.map(v => Math.abs(v)<5 ? '#00e5a0' : Math.abs(v)<8 ? '#fbbf24' : '#f87171');
+  const ptColors = values.map(v => Math.abs(v)<5 ? ACCENT : Math.abs(v)<8 ? '#fbbf24' : '#f87171');
   const avg      = +(values.reduce((s,v)=>s+v,0)/values.length).toFixed(1);
 
   if (subEl)   subEl.textContent   = `HR drift vs power · last ${acts.length} rides`;
@@ -12711,7 +12716,7 @@ function renderDetailComparison(a) {
     const positive = higherIsGood ? up : dn;
     const cls = positive ? 'cmp-up' : (up || dn ? 'cmp-down' : 'cmp-same');
     const fillColor = (!up && !dn) ? '#3d4459'   // at average → neutral grey
-                    : positive     ? '#00e5a0'   // performing better than avg → green
+                    : positive     ? ACCENT   // performing better than avg → green
                     :                '#fb923c';  // performing worse than avg → amber
     const pctAbs = Math.abs(Math.round(pct));
     const pctLabel = pctAbs < 1 ? '≈ avg' : `${up ? '+' : '-'}${pctAbs}%`;
@@ -13138,7 +13143,7 @@ function buildMapStatsHTML(streams, maxSpdKmh, maxHR) {
         <defs>
           <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%"   stop-color="#00a86b"/>
-            <stop offset="100%" stop-color="#00e5a0"/>
+            <stop offset="100%" stop-color="${ACCENT}"/>
           </linearGradient>
         </defs>
         <path class="g-track" d="${GAUGE_TRACK_PATH}"/>
@@ -13573,7 +13578,7 @@ function renderActivityMap(latlng, streams) {
           if (label) el.innerHTML = `<span style="color:#fff;font-size:7px;font-weight:900;line-height:1">${label}</span>`;
           return el;
         };
-        new maplibregl.Marker({ element: makeDotEl('#00e5a0', 'S'), anchor: 'center' })
+        new maplibregl.Marker({ element: makeDotEl(ACCENT, 'S'), anchor: 'center' })
           .setLngLat([points[0][1], points[0][0]]).addTo(map);
         new maplibregl.Marker({ element: makeDotEl('#ff4444', 'F'), anchor: 'center' })
           .setLngLat([points[points.length-1][1], points[points.length-1][0]]).addTo(map);
@@ -13925,7 +13930,7 @@ function initFlythrough(map, valid, streams, maxes, maxSpdKmh, maxHR, statsEl, t
   // Flythrough dot marker (MapLibre)
   const ftDotEl = document.createElement('div');
   ftDotEl.className = 'ft-dot-wrap';
-  ftDotEl.innerHTML = `<div class="ft-dot-core" style="background:#00e5a0"></div><div class="ft-dot-ring" style="border-color:#00e5a0aa"></div>`;
+  ftDotEl.innerHTML = `<div class="ft-dot-core" style="background:${ACCENT}"></div><div class="ft-dot-ring" style="border-color:${ACCENT}aa"></div>`;
 
   const makeFtIcon = (color) => {
     const core = ftDotEl.querySelector('.ft-dot-core');
@@ -13942,7 +13947,7 @@ function initFlythrough(map, valid, streams, maxes, maxSpdKmh, maxHR, statsEl, t
 
   const MC_METRICS = [
     { key: 'heartrate',       alt: 'heart_rate',     label: 'HR',       color: '#ff6b35', unit: 'bpm' },
-    { key: 'watts',           alt: 'power',          label: 'Power',    color: '#00e5a0', unit: 'w'   },
+    { key: 'watts',           alt: 'power',          label: 'Power',    color: ACCENT, unit: 'w'   },
     { key: 'altitude',        alt: null,             label: 'Elev',     color: '#9b59ff', unit: 'm'   },
     { key: 'cadence',         alt: null,             label: 'Cad',      color: '#4a9eff', unit: 'rpm' },
     { key: 'velocity_smooth', alt: null,             label: 'Speed',    color: '#f0c429', unit: 'km/h', scale: 3.6 },
@@ -14302,7 +14307,7 @@ function renderStreamCharts(streams, activity) {
   // Ordered stream definitions — altitude drawn first so it sits behind everything
   const STREAM_DEFS = [
     { key: 'altitude',        label: 'Altitude', color: '#9b59ff', unit: 'm',    yAxis: 'yAlt',     borderWidth: 0,   fill: 'origin', alpha: 0.18 },
-    { key: 'watts',           label: 'Power',    color: '#00e5a0', unit: 'w',    yAxis: 'yPower',   borderWidth: 1.5, fill: false,    alpha: 0 },
+    { key: 'watts',           label: 'Power',    color: ACCENT, unit: 'w',    yAxis: 'yPower',   borderWidth: 1.5, fill: false,    alpha: 0 },
     { key: 'heartrate',       label: 'HR',       color: '#ff6b35', unit: ' bpm', yAxis: 'yHR',      borderWidth: 1.5, fill: false,    alpha: 0 },
     { key: 'cadence',         label: 'Cadence',  color: '#4a9eff', unit: ' rpm', yAxis: 'yCadence', borderWidth: 1.5, fill: false,    alpha: 0 },
     { key: 'velocity_smooth', label: 'Speed',    color: '#f0c429', unit: ' km/h',yAxis: 'ySpeed',   borderWidth: 1.5, fill: false,    alpha: 0 },
@@ -14382,7 +14387,7 @@ function renderStreamCharts(streams, activity) {
   document.getElementById('detailStreamsSubtitle').textContent = subtitleParts.join(' · ');
 
   // Toggle chips
-  const STREAM_META = { watts: '#00e5a0', heartrate: '#ff6b35', cadence: '#4a9eff', velocity_smooth: '#f0c429', altitude: '#9b59ff', lrbalance: '#e84393' };
+  const STREAM_META = { watts: ACCENT, heartrate: '#ff6b35', cadence: '#4a9eff', velocity_smooth: '#f0c429', altitude: '#9b59ff', lrbalance: '#e84393' };
   const STREAM_LABEL = { watts: 'Power', heartrate: 'HR', cadence: 'Cadence', velocity_smooth: 'Speed', altitude: 'Altitude', lrbalance: 'L/R Bal' };
   const togContainer = document.getElementById('streamToggleChips');
   if (togContainer) {
@@ -14499,7 +14504,7 @@ const CYCLING_POWER_TYPES = () =>
     .filter((t, i, a) => a.indexOf(t) === i);
 
 // Hex colours that map to our zone CSS vars (used in Chart.js which needs actual colour values)
-const ZONE_HEX = ['#4a9eff', '#00e5a0', '#ffcc00', '#ff6b35', '#ff5252', '#b482ff'];
+const ZONE_HEX = ['#4a9eff', ACCENT, '#ffcc00', '#ff6b35', '#ff5252', '#b482ff'];
 
 // Render zone bar charts when time-series streams are not available.
 // Uses icu_zone_times (power) and icu_hr_zone_times (HR) from the activity object.
@@ -14668,7 +14673,7 @@ async function renderDetailPerformance(a, actId, streams) {
   const dcColor = v => Math.abs(v) < 5 ? '#34d399' : Math.abs(v) < 8 ? '#fbbf24' : '#f87171';
 
   const metrics = [];
-  if (np > 0)           metrics.push(tile(Math.round(np) + 'w',       'Normalized Power',   'NP',               '#00e5a0'));
+  if (np > 0)           metrics.push(tile(Math.round(np) + 'w',       'Normalized Power',   'NP',               ACCENT));
   if (ifVal > 0.01)     metrics.push(tile(ifVal.toFixed(2),            'Intensity Factor',   'IF = NP / FTP',    ifColor(ifVal)));
   if (vi !== null)      metrics.push(tile(vi.toFixed(2),               'Variability Index',  'VI = NP / avg W',  vi < 1.05 ? '#34d399' : vi < 1.10 ? '#fbbf24' : '#f87171'));
   if (ef !== null)      metrics.push(tile(ef.toFixed(2),               'Efficiency Factor',  'EF = NP / avg HR', '#818cf8'));
@@ -14875,7 +14880,7 @@ function renderDetailLRBalance(streams, activity) {
 
   // Badge color: green if <2% imbalance, yellow <4%, red >4%
   const imbalance = Math.abs(avgBalance - 50);
-  const badgeColor = imbalance < 2 ? '#00e5a0' : imbalance < 4 ? '#f0c429' : '#ff4757';
+  const badgeColor = imbalance < 2 ? ACCENT : imbalance < 4 ? '#f0c429' : '#ff4757';
   const badgeLabel = imbalance < 2 ? 'Balanced' : imbalance < 4 ? 'Slight imbalance' : 'Imbalanced';
 
   const badgeEl = document.getElementById('detailLRBalBadge');
@@ -15338,7 +15343,7 @@ function renderDetailHistogram(activity, streams) {
         datasets: [{
           data:  entries.map(e => e.mins),
           backgroundColor: 'rgba(0,229,160,0.45)',
-          hoverBackgroundColor: '#00e5a0',
+          hoverBackgroundColor: ACCENT,
           borderRadius: 2,
         }]
       },
@@ -15544,10 +15549,10 @@ function renderDetailCadenceHist(streams, activity) {
   // Find sweet spot (highest bin) to highlight
   const maxIdx = minutes.indexOf(Math.max(...minutes));
   const colors = minutes.map((_, i) =>
-    i === maxIdx ? '#00e5a0' : 'rgba(74,158,255,0.5)'
+    i === maxIdx ? ACCENT : 'rgba(74,158,255,0.5)'
   );
   const hoverColors = minutes.map((_, i) =>
-    i === maxIdx ? '#00e5a0' : '#4a9eff'
+    i === maxIdx ? ACCENT : '#4a9eff'
   );
 
   const sub = document.getElementById('detailCadenceSubtitle');
@@ -16231,7 +16236,7 @@ async function renderDetailCurve(actId, streams) {
   const legendEl = document.getElementById('detailCurveLegend');
   if (legendEl) {
     const items = [
-      raw     && { label: 'This ride', color: '#00e5a0' },
+      raw     && { label: 'This ride', color: ACCENT },
       rawYear && { label: '1 year',    color: '#fb923c' },
     ].filter(Boolean);
     legendEl.innerHTML = items.map(l =>
@@ -16287,7 +16292,7 @@ async function renderDetailCurve(actId, streams) {
   if (rideData.length)
     datasets.push({
       label: 'This ride', data: rideData,
-      borderColor: '#00e5a0', backgroundColor: 'rgba(0,229,160,0.08)',
+      borderColor: ACCENT, backgroundColor: 'rgba(0,229,160,0.08)',
       borderWidth: 2.5, fill: true,
       tension: 0.4, pointRadius: 0, pointHoverRadius: 7,
     });
