@@ -6159,8 +6159,7 @@ code {
     z-index: 10;
     transform: translateY(55%);
     will-change: transform;
-    transition: transform 0.35s cubic-bezier(0.2, 0, 0, 1),
-                border-radius 0.35s cubic-bezier(0.2, 0, 0, 1);
+    transition: transform 0.35s cubic-bezier(0.2, 0, 0, 1);
     background: var(--bg-base);
     border-radius: 16px 16px 0 0;
     box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.5);
@@ -6168,8 +6167,9 @@ code {
 }
 .act-bottom-sheet.dragging {
     transition: none !important;
+    border-radius: 0;
 }
-/* Expanded: square top corners, content pushed below topbar */
+/* Expanded: square top corners */
 .act-bottom-sheet.sheet-expanded {
     border-radius: 0;
 }
@@ -6188,18 +6188,15 @@ code {
     -webkit-user-select: none;
     user-select: none;
     touch-action: none;
-    overflow: hidden;
-    max-height: 21px;
-    opacity: 1;
-    transition: max-height 0.35s cubic-bezier(0.2, 0, 0, 1),
-                opacity 0.2s ease,
-                padding 0.35s cubic-bezier(0.2, 0, 0, 1);
+    transform-origin: top;
+    will-change: transform, opacity;
+    transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1),
+                opacity 0.2s ease;
 }
-/* Hide handle when expanded */
+/* Hide handle when expanded — GPU-only, no layout reflow */
 .act-bottom-sheet.sheet-expanded .act-sheet-handle {
-    max-height: 0;
+    transform: scaleY(0);
     opacity: 0;
-    padding: 0;
     pointer-events: none;
 }
 .act-sheet-handle span {
@@ -6217,7 +6214,6 @@ code {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
     padding: 0 var(--pad-page) max(20px, env(safe-area-inset-bottom));
-    transition: padding-top 0.35s cubic-bezier(0.2, 0, 0, 1);
     display: flex;
     flex-direction: column;
     gap: var(--gap-layout);

@@ -402,7 +402,6 @@ function cleanupPageCharts(leavingPage) {
   }
   // Clear activity page step-height timer and deactivate sheet mode
   if (leavingPage === 'activity') {
-    if (_stepHeightTimer) { clearTimeout(_stepHeightTimer); _stepHeightTimer = null; }
     deactivateSheetMode();
   }
   // Destroy route builder map
@@ -4110,7 +4109,8 @@ window.addEventListener('scroll', () => {
   if (_scrollTooltipRAF) return;
   _scrollTooltipRAF = requestAnimationFrame(() => {
     _scrollTooltipRAF = 0;
-    _getTooltipEl().style.opacity = '0';
+    const tt = _getTooltipEl();
+    if (tt.style.opacity !== '0') tt.style.opacity = '0';
   });
 }, { passive: true });
 
@@ -11337,7 +11337,6 @@ function renderCalDayList(dateStr, actMap) {
 /* ====================================================
    ACTIVITY DETAIL — NAVIGATION
 ==================================================== */
-let _stepHeightTimer = null; // tracks the active min-height freeze timer
 
 async function navigateToActivity(actKey, fromStep = false) {
   // Accept an activity object directly (used when stepping prev/next)
@@ -11394,11 +11393,15 @@ async function navigateToActivity(actKey, fromStep = false) {
   if (sNext) sNext.disabled = poolIdx < 0 || poolIdx >= pool.length - 1;
   if (sCtr)  sCtr.textContent = poolIdx >= 0 ? `${poolIdx + 1} / ${pool.length}` : '';
 
-  // Show the activity page
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('page-activity').classList.add('active');
-  // Swap topbar: ensure it's visible (calendar hides it), hide date-range pill; show back + prev/next
+  // Prevent flash of stale content: hide content, do all setup, then reveal
+  const _actPage = document.getElementById('page-activity');
+  const pageContent = document.getElementById('pageContent');
+  if (!fromStep && pageContent) {
+    pageContent.style.visibility = 'hidden';
+    destroyActivityCharts();
+  }
+
+  // Swap topbar before page switch
   document.querySelector('.topbar')?.classList.remove('topbar--hidden');
   const _calLabel = document.getElementById('calTopbarMonth');
   if (_calLabel) _calLabel.style.display = 'none';
@@ -11409,32 +11412,35 @@ async function navigateToActivity(actKey, fromStep = false) {
   const _detailNav = document.getElementById('detailTopbarNav');
   if (_detailNav) _detailNav.style.display = 'flex';
   document.querySelector('.page-headline')?.classList.add('page-headline--hidden');
-  // Remove calendar's full-bleed layout so normal padding is restored
-  const pageContent = document.getElementById('pageContent');
   if (pageContent) pageContent.classList.remove('page-content--calendar');
-  if (!fromStep) window.scrollTo(0, 0);
 
+  // Show the activity page
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  _actPage.classList.add('active');
+  if (!fromStep) window.scrollTo(0, 0);
 
   // Render basic info immediately from cached data
   renderActivityBasic(activity);
 
+  // Reveal after all sync DOM updates are done — rAF ensures browser
+  // paints the new content, not the stale old layout
+  if (!fromStep && pageContent) requestAnimationFrame(() => { pageContent.style.visibility = ''; });
+
 
   // Reset charts — when stepping prev/next, use skeleton overlays instead of hiding cards
+  const _loadingEl = document.getElementById('detailChartsLoading');
   if (fromStep) {
     skeletonCards(true);
     destroyChartInstances();
-    document.getElementById('detailChartsLoading').style.display = 'none';
-  } else {
-    const _pc = document.getElementById('pageContent');
-    destroyActivityCharts();
-    document.getElementById('detailChartsLoading').style.display = 'none';
   }
+  _loadingEl.style.display = 'none';
 
   // Only try to fetch detail/streams if we have an id
   const actId = activity.id;
   if (!actId) { skeletonCards(false); return; }
 
-  if (!fromStep) document.getElementById('detailChartsLoading').style.display = 'flex';
+  if (!fromStep) _loadingEl.style.display = 'flex';
 
   try {
     const [detailResult, streamsResult] = await Promise.allSettled([
@@ -11462,9 +11468,8 @@ async function navigateToActivity(actKey, fromStep = false) {
     // If the streams endpoint returned nothing, try downloading the original FIT file
     // and parsing it client-side — this gives full second-by-second data from Garmin.
     if (!streams) {
-      const loadingEl = document.getElementById('detailChartsLoading');
-      loadingEl.innerHTML = '<div class="spinner"></div><span>Parsing FIT file…</span>';
-      loadingEl.style.display = 'flex';
+      _loadingEl.innerHTML = '<div class="spinner"></div><span>Parsing FIT file…</span>';
+      _loadingEl.style.display = 'flex';
       try {
         const fitBuf = await fetchFitFile(actId);
         if (fitBuf) {
@@ -11473,9 +11478,9 @@ async function navigateToActivity(actKey, fromStep = false) {
           if (fitStreams) streams = fitStreams;
         }
       } catch (_) { /* FIT unavailable — fall through to zone bar charts */ }
-      loadingEl.style.display = 'none';
+      _loadingEl.style.display = 'none';
     } else {
-      document.getElementById('detailChartsLoading').style.display = 'none';
+      _loadingEl.style.display = 'none';
     }
 
     // Normalize streams (handles both intervals.icu API shape and our FIT-derived flat object)
@@ -11626,7 +11631,7 @@ async function navigateToActivity(actKey, fromStep = false) {
     renderDetailHRCurve(normStreams);        // async — shows/hides its own card
   } catch (err) {
     console.error('[Activity detail] Unhandled error:', err);
-    document.getElementById('detailChartsLoading').style.display = 'none';
+    _loadingEl.style.display = 'none';
     skeletonCards(false);
   }
 }
@@ -14119,6 +14124,8 @@ function renderActivityMap(latlng, streams) {
 
           map.on('mousemove', (e) => {
             if (state.flythrough?.playing) return;
+            // Skip expensive point lookup while user is panning/zooming the map
+            if (map.isMoving() || map.isZooming()) return;
             const { lat, lng } = e.lngLat;
 
             // Find nearest GPS point with hysteresis to avoid jumps at route crossings
