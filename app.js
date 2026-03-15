@@ -11419,23 +11419,22 @@ async function navigateToActivity(actKey, fromStep = false) {
   renderActivityBasic(activity);
 
 
-  // Reset charts — but when stepping prev/next, freeze the page height first so the
-  // browser doesn't snap the scroll position when cards collapse to display:none.
-  const _pc = document.getElementById('pageContent');
-  if (fromStep && _pc) {
-    if (_stepHeightTimer) { clearTimeout(_stepHeightTimer); _stepHeightTimer = null; }
-    // Pin to at least viewport height so rapid clicks never let it shrink
-    _pc.style.minHeight = Math.max(_pc.offsetHeight, window.innerHeight) + 'px';
-    _stepHeightTimer = setTimeout(() => { _pc.style.minHeight = ''; _stepHeightTimer = null; }, 800);
+  // Reset charts — when stepping prev/next, use skeleton overlays instead of hiding cards
+  if (fromStep) {
+    skeletonCards(true);
+    destroyChartInstances();
+    document.getElementById('detailChartsLoading').style.display = 'none';
+  } else {
+    const _pc = document.getElementById('pageContent');
+    destroyActivityCharts();
+    document.getElementById('detailChartsLoading').style.display = 'none';
   }
-  destroyActivityCharts();
-  document.getElementById('detailChartsLoading').style.display = 'none';
 
   // Only try to fetch detail/streams if we have an id
   const actId = activity.id;
-  if (!actId) return;
+  if (!actId) { skeletonCards(false); return; }
 
-  document.getElementById('detailChartsLoading').style.display = 'flex';
+  if (!fromStep) document.getElementById('detailChartsLoading').style.display = 'flex';
 
   try {
     const [detailResult, streamsResult] = await Promise.allSettled([
@@ -11628,6 +11627,7 @@ async function navigateToActivity(actKey, fromStep = false) {
   } catch (err) {
     console.error('[Activity detail] Unhandled error:', err);
     document.getElementById('detailChartsLoading').style.display = 'none';
+    skeletonCards(false);
   }
 }
 
@@ -12113,18 +12113,33 @@ function _setSheetState(newState) {
   }, 400);
 }
 
-function destroyActivityCharts() {
-  // Deactivate bottom sheet before destroying map
-  deactivateSheetMode();
-  // Exit map fullscreen if active
-  const mapCard = document.getElementById('detailMapCard');
-  if (mapCard?.classList.contains('map-fullscreen')) {
-    mapCard.classList.remove('map-fullscreen');
-    document.body.style.overflow = '';
-  }
+// ── Skeleton helpers for smooth activity stepping ──────────────
+const _DETAIL_CARD_IDS = [
+  'detailMapCard', 'detailStreamsCard', 'detailChartsRow', 'detailZonesCard', 'detailHRZonesCard',
+  'detailHistogramCard', 'detailCurveCard', 'detailHRCurveCard', 'detailPerfCard',
+  'detailWeatherCard', 'detailTempCard', 'detailDecoupleCard', 'detailLRBalanceCard',
+  'detailGradientCard', 'detailCadenceCard', 'detailCompareCard',
+  'detailZonesCarouselCard', 'detailCurvesRow', 'detailIntervalsCard', 'detailNotesCard'];
+
+function skeletonCards(show) {
+  _DETAIL_CARD_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (show) {
+      if (el.style.display !== 'none') el.classList.add('card-skeleton');
+    } else {
+      el.classList.remove('card-skeleton');
+    }
+  });
+}
+function unskeletonCard(id) {
+  document.getElementById(id)?.classList.remove('card-skeleton');
+}
+
+// Destroy Chart.js / Leaflet instances only (no card hiding)
+function destroyChartInstances() {
   if (state.flythrough?.rafId) { cancelAnimationFrame(state.flythrough.rafId); }
   state.flythrough = null;
-  // Reset mini chart + fullscreen bottom panels
   const _miniC = document.getElementById('fsMiniChart');
   if (_miniC) _miniC.classList.remove('mc-ready');
   if (state.activityMap) { state.activityMap.remove(); state.activityMap = null; }
@@ -12140,16 +12155,30 @@ function destroyActivityCharts() {
   window._tempChart = destroyChart(window._tempChart);
   state._detailDecoupleChart = destroyChart(state._detailDecoupleChart);
   state._detailLRBalChart = destroyChart(state._detailLRBalChart);
-  ['detailMapCard', 'detailStreamsCard', 'detailChartsRow', 'detailZonesCard', 'detailHRZonesCard',
-   'detailHistogramCard', 'detailCurveCard', 'detailHRCurveCard', 'detailPerfCard',
-   'detailWeatherCard', 'detailTempCard', 'detailDecoupleCard', 'detailLRBalanceCard',
-   'detailGradientCard', 'detailCadenceCard'].forEach(id => {
+  // Clear NA overlays so they don't double-up
+  _DETAIL_CARD_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.querySelectorAll('.detail-na-inject').forEach(e => e.remove());
+    el.querySelectorAll('[data-na-hidden]').forEach(e => { e.style.display = ''; delete e.dataset.naHidden; });
+  });
+}
+
+function destroyActivityCharts() {
+  // Deactivate bottom sheet before destroying map
+  deactivateSheetMode();
+  // Exit map fullscreen if active
+  const mapCard = document.getElementById('detailMapCard');
+  if (mapCard?.classList.contains('map-fullscreen')) {
+    mapCard.classList.remove('map-fullscreen');
+    document.body.style.overflow = '';
+  }
+  destroyChartInstances();
+  _DETAIL_CARD_IDS.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     el.style.display = 'none';
-    // Clear any injected NA overlays so they don't double-up next time
-    el.querySelectorAll('.detail-na-inject').forEach(e => e.remove());
-    el.querySelectorAll('[data-na-hidden]').forEach(e => { e.style.display = ''; delete e.dataset.naHidden; });
+    el.classList.remove('card-skeleton');
   });
 }
 
@@ -13263,6 +13292,7 @@ function renderDetailComparison(a) {
 
   rowsEl.innerHTML = html;
   card.style.display = '';
+  unskeletonCard('detailCompareCard');
 }
 
 function renderDetailSourceFooter(a) {
@@ -13898,6 +13928,7 @@ function renderActivityMap(latlng, streams) {
   if (points[points.length - 1] !== valid[valid.length - 1]) points.push(valid[valid.length - 1]);
 
   card.style.display = '';
+  unskeletonCard('detailMapCard');
 
   requestAnimationFrame(() => {
     // Destroy stale map from a previous activity (e.g. rapid prev/next stepping)
@@ -14945,6 +14976,7 @@ function renderStreamCharts(streams, activity) {
   const streamsCard = document.getElementById('detailStreamsCard');
   clearCardNA(streamsCard);
   streamsCard.style.display = '';
+  unskeletonCard('detailStreamsCard');
   document.getElementById('detailChartsRow').style.display  = 'none';
 }
 
@@ -15079,6 +15111,7 @@ function renderActivityZoneCharts(activity) {
     const both = powerCard.style.display !== 'none' && hrCard.style.display !== 'none';
     chartsRow.style.gridTemplateColumns = both ? '1fr 1fr' : '1fr';
     chartsRow.style.display = 'grid';
+    unskeletonCard('detailChartsRow');
   }
 }
 
@@ -15097,6 +15130,7 @@ const _NA_HTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 function showCardNA(cardId) {
   const card = document.getElementById(cardId);
   if (!card) return;
+  unskeletonCard(cardId);
   // If the user prefers hidden empty cards, just hide and bail
   if (localStorage.getItem('icu_hide_empty_cards') === 'true') {
     card.style.display = 'none';
@@ -15175,6 +15209,7 @@ async function renderDetailPerformance(a, actId, streams) {
   });
   document.getElementById('detailPerfSubtitle').textContent = 'Power & efficiency metrics · this ride';
   card.style.display = '';
+  unskeletonCard('detailPerfCard');
 }
 
 function renderDetailDecoupleChart(streams, activity) {
@@ -15346,6 +15381,7 @@ function renderDetailDecoupleChart(streams, activity) {
 
   clearCardNA(card);
   card.style.display = '';
+  unskeletonCard('detailDecoupleCard');
 }
 
 // ── L/R Power Balance card ───────────────────────────────────────────────────
@@ -15466,6 +15502,7 @@ function renderDetailLRBalance(streams, activity) {
 
   clearCardNA(card);
   card.style.display = '';
+  unskeletonCard('detailLRBalanceCard');
 }
 
 function renderDetailZones(activity) {
@@ -15508,6 +15545,7 @@ function renderDetailZones(activity) {
   }).join('');
 
   card.style.display = '';
+  unskeletonCard('detailZonesCard');
 }
 
 // Compute HR zone times from a raw second-by-second HR stream.
@@ -15584,6 +15622,7 @@ function renderDetailHRZones(activity) {
   }).join('');
 
   card.style.display = '';
+  unskeletonCard('detailHRZonesCard');
 }
 
 // ── Zones carousel (mobile swipe between Power Zones ↔ HR Zones) ─────────────
@@ -15599,6 +15638,7 @@ function initZonesCarousel() {
   const hasPwr = pwrCard && !pwrCard.classList.contains('card--na');
   const hasHR  = hrCard  && !hrCard.classList.contains('card--na');
   wrapper.style.display = '';
+  unskeletonCard('detailZonesCarouselCard');
 
   // If only one card, mark as single (no carousel needed)
   if (!hasPwr || !hasHR) {
@@ -15640,6 +15680,7 @@ function renderDetailTempChart(streams, activity) {
 
   // Always show the card — destroyActivityCharts() hides it, we must re-show it
   card.style.display = '';
+  unskeletonCard('detailTempCard');
 
   // Temperature comes as 'temp' from the intervals.icu streams API
   // or from our FIT parser which also writes it as 'temp'
@@ -15818,6 +15859,7 @@ function renderDetailHistogram(activity, streams) {
   if (entries.length === 0) { showCardNA('detailHistogramCard'); return; }
   clearCardNA(card);
   card.style.display = '';
+  unskeletonCard('detailHistogramCard');
 
   state.activityHistogramChart = destroyChart(state.activityHistogramChart);
   state.activityHistogramChart = new Chart(
@@ -15954,6 +15996,7 @@ function renderDetailGradientProfile(streams, activity) {
   }
 
   card.style.display = '';
+  unskeletonCard('detailGradientCard');
   state.activityGradientChart = destroyChart(state.activityGradientChart);
   state.activityGradientChart = new Chart(
     document.getElementById('detailGradientChart').getContext('2d'), {
@@ -16048,6 +16091,7 @@ function renderDetailCadenceHist(streams, activity) {
   }
 
   card.style.display = '';
+  unskeletonCard('detailCadenceCard');
   state.activityCadenceChart = destroyChart(state.activityCadenceChart);
   state.activityCadenceChart = new Chart(
     document.getElementById('detailCadenceChart').getContext('2d'), {
@@ -16695,6 +16739,7 @@ async function renderDetailCurve(actId, streams) {
   if (!raw) { showCardNA('detailCurveCard'); return; }
   clearCardNA(card);
   card.style.display = '';
+  unskeletonCard('detailCurveCard');
 
   // Peak stat pills (from this activity — raw is guaranteed non-null here)
   const peaksEl = document.getElementById('detailCurvePeaks');
@@ -16875,6 +16920,7 @@ async function renderDetailHRCurve(streams) {
   if (!raw && !rawYear) { showCardNA('detailHRCurveCard'); return; }
   clearCardNA(card);
   card.style.display = '';
+  unskeletonCard('detailHRCurveCard');
 
   // Peak pills
   const peaksEl = document.getElementById('detailHRCurvePeaks');
@@ -20730,6 +20776,7 @@ Object.assign(window, {
   setOfflineEnabled, setOfflineLimitPill, setSmartPoll, setSmartPollInterval,
   pollRestore, rlUpdateUI,
   // Functions called by modules via window proxy
+  skeletonCards, unskeletonCard, destroyChartInstances,
   icuFetch, authHeader, destroyChart, cleanupPageCharts, lazyRenderChart,
   getAllActivities, fetchMapGPS, actCacheGet, actCachePut,
   _isMobile, getActiveWxLocation, showCardNA, clearCardNA,

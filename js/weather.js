@@ -162,6 +162,7 @@ export function renderActivityWeather(a) {
 export function _paintWeatherCard(card, temp, feels, windMs, windDeg, humidity, icon, summary, uv, pressure, precip, source) {
   clearCardNA(card);
   card.style.display = '';
+  unskeletonCard('detailWeatherCard');
 
   const isRain  = icon && (icon.includes('rain') || icon.includes('drizzle') || icon.includes('storm') || icon.includes('sleet'));
   const isSnow  = icon && (icon.includes('snow') || icon.includes('blizzard'));
@@ -264,6 +265,7 @@ export function renderActivityNotes(a) {
   if (!card || !input) return;
 
   card.style.display = '';
+  unskeletonCard('detailNotesCard');
   const orig = a.description || '';
   input.value = orig;
   stat.textContent = '';
@@ -390,6 +392,7 @@ export async function renderActivityIntervals(activityId) {
     html += '</tbody></table>';
     body.innerHTML = html;
     card.style.display = '';
+    unskeletonCard('detailIntervalsCard');
   } catch (e) {
     console.error('[Intervals] Fetch failed:', e);
     showCardNA('detailIntervalsCard');
