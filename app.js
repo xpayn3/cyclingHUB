@@ -366,8 +366,8 @@ function lazyRenderChart(canvasId, renderFn) {
 
 /* ── Chart cleanup on page navigation ── */
 const _pageChartKeys = {
-  dashboard: ['weekProgressChart', 'fitnessChart', 'weeklyChart', 'avgPowerChart', 'efSparkChart', 'powerCurveChart', 'powerProfileRadarChart', 'cyclingTrendsChart', 'monotonyChart', 'aeChart', 'rampRateChart', 'ytdDistChart', 'pwrHrScatterChart'],
-  fitness:   ['fitnessPageChart', 'fitnessWeeklyPageChart', '_fitZonePieChart', 'fitFatigueChart', 'fitFtpHistChart', 'fitPeriodChart', 'healthRHRChart', 'healthHRVChart', 'healthStepsChart', 'healthWeightChart', 'insightHrvTssChart', 'insightRhrCtlChart', 'insightTssWeightChart', 'insightStepsHrvChart'],
+  dashboard: ['weekProgressChart', 'fitnessChart', '_dashFormChart', 'weeklyChart', 'avgPowerChart', 'efSparkChart', 'powerCurveChart', 'powerProfileRadarChart', 'cyclingTrendsChart', 'monotonyChart', 'aeChart', 'rampRateChart', 'ytdDistChart', 'pwrHrScatterChart'],
+  fitness:   ['fitnessPageChart', '_fitFormChart', 'fitnessWeeklyPageChart', '_fitZonePieChart', 'fitFatigueChart', 'fitFtpHistChart', 'fitPeriodChart', 'healthRHRChart', 'healthHRVChart', 'healthStepsChart', 'healthWeightChart', 'insightHrvTssChart', 'insightRhrCtlChart', 'insightTssWeightChart', 'insightStepsHrvChart'],
   power:     ['powerPageChart', 'powerTrendChart'],
   zones:     ['znpZoneTimeChart', '_znpDecoupleChart'],
   activity:  ['activityStreamsChart', 'activityPowerChart', 'activityHRChart',
@@ -5519,7 +5519,6 @@ function renderFitnessChart(activities, days) {
     data: { labels, datasets: [
       { label: 'CTL', data: ctlD, borderColor: ACCENT, backgroundColor: 'rgba(0,229,160,0.07)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 7, tension: 0.4, fill: true },
       { label: 'ATL', data: atlD, borderColor: '#ff6b35', backgroundColor: 'rgba(255,107,53,0.05)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 7, tension: 0.4 },
-      { label: 'TSB', data: tsbD, borderColor: '#4a9eff', backgroundColor: 'rgba(74,158,255,0.05)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 7, tension: 0.4 }
     ]},
     options: {
       responsive: true, maintainAspectRatio: false,
@@ -5531,6 +5530,43 @@ function renderFitnessChart(activities, days) {
       scales: cScales({ xExtra: { maxTicksLimit: 8 } })
     }
   });
+
+  // ── Form (TSB) — separate panel below ──
+  const formCanvas = document.getElementById('fitnessFormChart');
+  if (formCanvas) {
+    state._dashFormChart = destroyChart(state._dashFormChart);
+    state._dashFormChart = new Chart(formCanvas.getContext('2d'), {
+      type: 'line',
+      data: { labels, datasets: [{
+        label: 'Form', data: tsbD, borderColor: '#4a9eff', borderWidth: 2,
+        pointRadius: 0, pointHoverRadius: 5, tension: 0.4, fill: true,
+        backgroundColor: ctx => {
+          const chart = ctx.chart;
+          const { ctx: c, chartArea } = chart;
+          if (!chartArea) return 'rgba(74,158,255,0.08)';
+          const grad = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+          grad.addColorStop(0, 'rgba(74,158,255,0.15)');
+          grad.addColorStop(0.5, 'rgba(74,158,255,0.03)');
+          grad.addColorStop(1, 'rgba(0,229,160,0.08)');
+          return grad;
+        },
+        segment: { borderColor: ctx => { const v = ctx.p1.parsed.y; return v > 5 ? '#4a9eff' : v > -10 ? '#888' : ACCENT; } },
+        pointBackgroundColor: ctx => { const v = (ctx.dataset.data[ctx.dataIndex] ?? 0); return v > 5 ? '#4a9eff' : v > -10 ? '#888' : ACCENT; }
+      }]},
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'indexEager', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: { ...C_TOOLTIP, callbacks: { labelColor: C_LABEL_COLOR } }
+        },
+        scales: {
+          ...cScales({ xExtra: { maxTicksLimit: 8 } }),
+          y: { ...cScales({}).y, title: { display: false }, grid: { color: 'rgba(255,255,255,0.04)' } }
+        }
+      }
+    });
+  }
 }
 
 function renderWeeklyChart(activities) {
@@ -9439,10 +9475,46 @@ function renderFitnessHistoryChart(days) {
     data: { labels, datasets: [
       { label: 'CTL', data: ctlD, borderColor: ACCENT, backgroundColor: 'rgba(0,229,160,0.08)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 7, tension: 0.4, fill: true },
       { label: 'ATL', data: atlD, borderColor: '#ff6b35', backgroundColor: 'rgba(255,107,53,0.05)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 7, tension: 0.4 },
-      { label: 'TSB', data: tsbD, borderColor: '#4a9eff', backgroundColor: 'rgba(74,158,255,0.05)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 7, tension: 0.4 }
     ]},
     options: chartOpts
   });
+
+  // ── Form (TSB) — separate panel below ──
+  const formCanvas = document.getElementById('fitnessPageFormChart');
+  if (formCanvas) {
+    state._fitFormChart = destroyChart(state._fitFormChart);
+    state._fitFormChart = new Chart(formCanvas.getContext('2d'), {
+      type: 'line',
+      data: { labels, datasets: [{
+        label: 'Form', data: tsbD, borderColor: '#4a9eff', borderWidth: 2,
+        pointRadius: 0, pointHoverRadius: 5, tension: 0.4, fill: true,
+        backgroundColor: ctx => {
+          const chart = ctx.chart;
+          const { ctx: c, chartArea } = chart;
+          if (!chartArea) return 'rgba(74,158,255,0.08)';
+          const grad = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+          grad.addColorStop(0, 'rgba(74,158,255,0.15)');
+          grad.addColorStop(0.5, 'rgba(74,158,255,0.03)');
+          grad.addColorStop(1, 'rgba(0,229,160,0.08)');
+          return grad;
+        },
+        segment: { borderColor: ctx => { const v = ctx.p1.parsed.y; return v > 5 ? '#4a9eff' : v > -10 ? '#888' : ACCENT; } },
+        pointBackgroundColor: ctx => { const v = (ctx.dataset.data[ctx.dataIndex] ?? 0); return v > 5 ? '#4a9eff' : v > -10 ? '#888' : ACCENT; }
+      }]},
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'indexEager', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: { ...C_TOOLTIP, callbacks: { labelColor: C_LABEL_COLOR } }
+        },
+        scales: {
+          ...cScales({ xExtra: { maxTicksLimit: 10 } }),
+          y: { ...cScales({}).y, title: { display: false }, grid: { color: 'rgba(255,255,255,0.04)' } }
+        }
+      }
+    });
+  }
 }
 
 /* ── Feature: FTP History Timeline ── */
@@ -9645,7 +9717,9 @@ function renderFatiguePredChart() {
           pointHoverRadius: 7, tension: 0.3, fill: false },
         { label: 'TSB', data: tsbD, borderColor: '#4a9eff', borderWidth: 2, borderDash: dashStyle,
           backgroundColor: 'rgba(74,158,255,0.06)',
-          pointRadius: (ctx) => ctx.dataIndex === 0 ? 5 : 0, pointBackgroundColor: '#4a9eff',
+          pointRadius: (ctx) => ctx.dataIndex === 0 ? 5 : 0,
+          pointBackgroundColor: ctx => { const v = (ctx.dataset.data[ctx.dataIndex] ?? 0); return v > 5 ? '#4a9eff' : v > -10 ? '#888' : ACCENT; },
+          segment: { borderColor: ctx => { const v = ctx.p1.parsed.y; return v > 5 ? '#4a9eff' : v > -10 ? '#888' : ACCENT; } },
           pointHoverRadius: 7, tension: 0.3, fill: true }
       ]
     },
