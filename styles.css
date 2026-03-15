@@ -166,6 +166,8 @@ html {
     overflow-x: clip; /* clip without creating a scroll container — allows children to have their own h-scroll */
     max-width: 100%;
     background: var(--bg-base);
+    min-height: 100vh;
+    min-height: 100dvh;
 }
 body {
     font-family: var(--font-ui);
@@ -174,6 +176,8 @@ body {
     overflow-x: clip;
     max-width: 100%;
     overscroll-behavior-x: none;
+    min-height: 100vh;
+    min-height: 100dvh;
 }
 a {
     color: inherit;
@@ -641,8 +645,8 @@ code {
 ============================================================ */
 .main {
     margin-left: var(--sidebar-w);
-    min-height: 100svh;
     min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
     flex-direction: column;
     min-width: 0;
