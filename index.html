@@ -69,6 +69,7 @@
         <!-- ============================================================  CONNECT MODAL  ============================================================ -->
         <dialog class="modal-dialog" id="connectModal" aria-labelledby="connectModalTitle">
             <div class="modal">
+                <div class="modal-drag-indicator"></div>
                 <div class="modal-header">
                     <div>
                         <div class="modal-header-icon">
@@ -225,6 +226,7 @@
         <!-- ============================================================  GEAR MODAL  ============================================================ -->
         <dialog class="modal-dialog" id="gearModal" aria-labelledby="gearModalTitle">
             <div class="modal" style="max-width: 520px">
+                <div class="modal-drag-indicator"></div>
                 <div class="modal-header">
                     <div>
                         <div class="modal-header-icon">
@@ -375,6 +377,7 @@
         <!-- Battery Modal -->
         <dialog class="modal-dialog" id="batteryModal" aria-labelledby="batteryModalTitle">
             <div class="modal" style="max-width:520px">
+                <div class="modal-drag-indicator"></div>
                 <div class="modal-header">
                     <div>
                         <div class="modal-header-icon">
@@ -450,6 +453,7 @@
         <!-- ==================== SERVICE MODAL ==================== -->
         <dialog class="modal-dialog" id="serviceModal" aria-labelledby="serviceModalTitle">
             <div class="modal" style="max-width:560px">
+                <div class="modal-drag-indicator"></div>
                 <div class="modal-header">
                     <div>
                         <div class="modal-header-icon">
@@ -532,6 +536,7 @@
         <!-- ==================== SERVICE SHOP MODAL ==================== -->
         <dialog class="modal-dialog" id="serviceShopModal" aria-labelledby="serviceShopModalTitle">
             <div class="modal" style="max-width:480px">
+                <div class="modal-drag-indicator"></div>
                 <div class="modal-header">
                     <div>
                         <div class="modal-header-icon">
@@ -573,6 +578,7 @@
         <!-- ==================== SERVICE HISTORY MODAL ==================== -->
         <dialog class="modal-dialog" id="serviceHistoryModal" aria-labelledby="serviceHistoryTitle">
             <div class="modal" style="max-width:560px;max-height:80vh;display:flex;flex-direction:column">
+                <div class="modal-drag-indicator"></div>
                 <div class="modal-header">
                     <div>
                         <div class="modal-header-icon">
@@ -596,6 +602,7 @@
         <!-- Export Helper Dialog -->
         <dialog class="modal-dialog" id="exportHelperModal" aria-labelledby="exportHelperTitle">
             <div class="modal" style="max-width:520px">
+                <div class="modal-drag-indicator"></div>
                 <div class="modal-header">
                     <div>
                         <div class="modal-header-icon">
@@ -625,6 +632,7 @@
         <!-- Share Route Image Modal -->
         <dialog class="modal-dialog" id="shareModal">
             <div class="modal" style="max-width:620px">
+                <div class="modal-drag-indicator"></div>
                 <div class="modal-header">
                     <div>
                         <div class="modal-header-icon">
@@ -688,6 +696,7 @@
         <!-- Similar Rides Modal -->
         <dialog class="modal-dialog" id="similarRidesModal" aria-labelledby="similarRidesTitle">
             <div class="modal" style="max-width:560px">
+                <div class="modal-drag-indicator"></div>
                 <div class="modal-header">
                     <div>
                         <div class="modal-header-icon">
@@ -1714,9 +1723,9 @@
                             <div class="stat-card">
                                 <div class="stat-card-header">
                                     <div class="stat-label">Training Load</div>
-                                    <div class="stat-icon green">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                                    <div class="stat-icon trend-neutral" id="statTSSArrow">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                            <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
                                         </svg>
                                     </div>
                                 </div>
@@ -1726,9 +1735,9 @@
                             <div class="stat-card">
                                 <div class="stat-card-header">
                                     <div class="stat-label">Distance</div>
-                                    <div class="stat-icon blue">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M3 12h18M3 6l9-3 9 3M3 18l9 3 9-3"/>
+                                    <div class="stat-icon trend-neutral" id="statDistArrow">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                            <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
                                         </svg>
                                     </div>
                                 </div>
@@ -1738,10 +1747,9 @@
                             <div class="stat-card">
                                 <div class="stat-card-header">
                                     <div class="stat-label">Ride Time</div>
-                                    <div class="stat-icon orange">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <circle cx="12" cy="12" r="10"/>
-                                            <polyline points="12 6 12 12 16 14"/>
+                                    <div class="stat-icon trend-neutral" id="statTimeArrow">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                            <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
                                         </svg>
                                     </div>
                                 </div>
@@ -1751,9 +1759,9 @@
                             <div class="stat-card">
                                 <div class="stat-card-header">
                                     <div class="stat-label">Elevation</div>
-                                    <div class="stat-icon purple">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                                    <div class="stat-icon trend-neutral" id="statElevArrow">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                            <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
                                         </svg>
                                     </div>
                                 </div>
@@ -1763,9 +1771,9 @@
                             <div class="stat-card">
                                 <div class="stat-card-header">
                                     <div class="stat-label">Rides</div>
-                                    <div class="stat-icon green">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                                    <div class="stat-icon trend-neutral" id="statCountArrow">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                            <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
                                         </svg>
                                     </div>
                                 </div>
@@ -1775,9 +1783,9 @@
                             <div class="stat-card">
                                 <div class="stat-card-header">
                                     <div class="stat-label">Avg Power</div>
-                                    <div class="stat-icon orange">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                                    <div class="stat-icon trend-neutral" id="statPowerArrow">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                            <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
                                         </svg>
                                     </div>
                                 </div>
@@ -2332,14 +2340,30 @@
 
                 <!-- ==================== ACTIVITY DETAIL PAGE ==================== -->
                 <div class="page" id="page-activity">
+                    <!-- Sheet mode: full-viewport map background -->
+                    <div id="actSheetMapBg" class="act-sheet-map-bg">
+                        <button class="act-sheet-map-back" onclick="navigateBack()" title="Back">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><polyline points="15 18 9 12 15 6"/></svg>
+                        </button>
+                        <div class="act-sheet-map-nav">
+                            <button class="act-sheet-nav-btn" onclick="stepActivity(-1)" id="sheetNavPrev" title="Newer activity">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg>
+                            </button>
+                            <span class="act-sheet-nav-counter" id="sheetNavCounter"></span>
+                            <button class="act-sheet-nav-btn" onclick="stepActivity(1)" id="sheetNavNext" title="Older activity">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Sheet mode: draggable bottom sheet -->
+                    <div id="actBottomSheet" class="act-bottom-sheet">
+                        <div class="act-sheet-handle"><span></span></div>
+                        <div class="act-sheet-scroll" id="actSheetScroll">
                     <!-- Activity hero -->
                     <div class="act-hero">
                         <div class="act-hero-identity">
                             <div class="act-hero-meta">
-                                <div
-                                    class="act-hero-date"
-                                    id="detailDate"
-                                ></div>
+                                <div class="act-hero-date" id="detailDate"></div>
                                 <h1 class="act-hero-title" id="detailName">
                                     —
                                 </h1>
@@ -2368,20 +2392,23 @@
                                         id="detailOfflineTag"
                                         style="display: none"
                                     >SAVED</span>
-                                    <button class="btn btn-ghost btn-sm" id="findSimilarBtn" style="display:none"
-                                        onclick="openSimilarRidesModal()">
-                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                                        Find Similar
-                                    </button>
                                 </div>
                             </div>
                         </div>
-                        <!-- 4 primary stats -->
-                        <div class="card act-primary-card">
-                            <div
-                                class="act-primary-stats"
-                                id="actPrimaryStats"
-                            ></div>
+                        <!-- Primary stats -->
+                        <div class="act-primary-stats" id="actPrimaryStats"></div>
+                        <!-- Similar ride card -->
+                        <div class="act-similar-card" id="similarRideCard" style="display:none" onclick="openSimilarRidesModal()">
+                            <div class="act-similar-top">
+                                <div class="act-similar-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                </div>
+                                <div class="act-similar-lbl">Similar Ride</div>
+                                <div class="act-similar-score" id="similarRideScore"></div>
+                            </div>
+                            <div class="act-similar-name" id="similarRideName"></div>
+                            <div class="act-similar-meta" id="similarRideMeta"></div>
+                            <div class="act-similar-cta">View all similar rides<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
                         </div>
                     </div>
 
@@ -2496,17 +2523,12 @@
                                     id="ftScrubberThumb"
                                 ></div>
                             </div>
-                            <select
-                                class="app-select app-select--sm"
-                                id="ftSpeedSelect"
-                                onchange="ftSetSpeed(this.value)"
-                            >
-                                <option value="1">Realtime</option>
-                                <option value="5">5×</option>
-                                <option value="15">15×</option>
-                                <option value="30" selected>30×</option>
-                                <option value="60">60×</option>
-                            </select>
+                            <button
+                                class="ft-speed-toggle"
+                                id="ftSpeedToggle"
+                                onclick="ftCycleSpeed()"
+                                title="Cycle speed"
+                            >30×</button>
                             <button
                                 class="ft-follow-btn active"
                                 id="ftFollowBtn"
@@ -3138,6 +3160,8 @@
                         class="detail-source-footer"
                         id="detailSourceFooter"
                     ></div>
+                        </div><!-- close .act-sheet-scroll -->
+                    </div><!-- close #actBottomSheet -->
                 </div>
 
                 <!-- ==================== CALENDAR PAGE ==================== -->
@@ -3223,6 +3247,7 @@
                     <!-- Create Event Dialog -->
                     <dialog class="modal-dialog" id="calEventModal">
                         <div class="modal">
+                            <div class="modal-drag-indicator"></div>
                             <div class="modal-header">
                                 <div>
                                     <div class="modal-title">Add to Calendar</div>
@@ -6275,6 +6300,7 @@
     <!-- ── Biorhythm Settings Dialog ── -->
     <dialog class="modal-dialog" id="vitalityDialog">
         <div class="modal">
+            <div class="modal-drag-indicator"></div>
             <div class="modal-header">
                 <div>
                     <div class="modal-header-icon">

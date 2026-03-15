@@ -400,9 +400,10 @@ function cleanupPageCharts(leavingPage) {
     window._wxPerfTempPowerChart = destroyChart(window._wxPerfTempPowerChart);
     window._wxPerfWindSpeedChart = destroyChart(window._wxPerfWindSpeedChart);
   }
-  // Clear activity page step-height timer
-  if (leavingPage === 'activity' && _stepHeightTimer) {
-    clearTimeout(_stepHeightTimer); _stepHeightTimer = null;
+  // Clear activity page step-height timer and deactivate sheet mode
+  if (leavingPage === 'activity') {
+    if (_stepHeightTimer) { clearTimeout(_stepHeightTimer); _stepHeightTimer = null; }
+    deactivateSheetMode();
   }
   // Destroy route builder map
   if (leavingPage === 'routes') {
@@ -3001,7 +3002,7 @@ function _updateActStickyTop() {
   if (!toolbar) return;
   const update = () => {
     const h = toolbar.offsetHeight;
-    const top = 48 + h; // topbar (48px) + toolbar height
+    const top = 44 + h; // topbar (44px) + toolbar height
     const val = top + 'px';
     const list  = document.getElementById('allActivityList');
     const grid  = document.getElementById('allActivityCardGrid');
@@ -3023,12 +3024,12 @@ function _setActStickyTop(val) {
   if (zones) zones.style.setProperty('--act-sticky-top', val);
 }
 function _animateActStickyTop(toolbar, isHidden) {
-  if (isHidden) { _setActStickyTop('48px'); return; }
+  if (isHidden) { _setActStickyTop('44px'); return; }
   // Toolbar revealing — track its bottom edge each frame until transition ends
   let running = true;
   function track() {
     if (!running) return;
-    const bottom = Math.max(48, toolbar.getBoundingClientRect().bottom);
+    const bottom = Math.max(44, toolbar.getBoundingClientRect().bottom);
     _setActStickyTop(bottom + 'px');
     requestAnimationFrame(track);
   }
@@ -3475,6 +3476,29 @@ function renderDashboard() {
     el.className   = `stat-delta ${cls}`;
   }
 
+  // Arrow rotation indicator — maps % change to angle + trend class
+  function applyArrow(id, cur, prev) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    let angle = 0, cls = 'trend-neutral';
+    if (cur === 0 && prev === 0) {
+      angle = 0; cls = 'trend-neutral';
+    } else if (prev === 0) {
+      angle = -70; cls = 'trend-up';
+    } else {
+      const pct = (cur - prev) / prev * 100;
+      if (pct > 50)       { angle = -70; cls = 'trend-up'; }
+      else if (pct > 10)  { angle = -45; cls = 'trend-up'; }
+      else if (pct > 1)   { angle = -20; cls = 'trend-up'; }
+      else if (pct >= -1) { angle = 0;   cls = 'trend-neutral'; }
+      else if (pct >= -10){ angle = 20;  cls = 'trend-down'; }
+      else if (pct >= -50){ angle = 45;  cls = 'trend-down'; }
+      else                { angle = 70;  cls = 'trend-down'; }
+    }
+    el.style.transform = `rotate(${angle}deg)`;
+    el.className = `stat-icon ${cls}`;
+  }
+
   // ── Update stat values (this week) ─────────────────────────────────────────
   document.getElementById('statTSS').innerHTML   = `${Math.round(tw.tss)}<span class="unit"> tss</span>`;
   document.getElementById('statDist').innerHTML  = `${tw.dist.toFixed(1)}<span class="unit"> km</span>`;
@@ -3492,6 +3516,14 @@ function renderDashboard() {
   applyTrend('statElevDelta', tw.elev,  lw.elev);
   applyTrend('statPowerDelta', tw.pow,  lw.pow,
     { fmt: d => `${d >= 0 ? '+' : ''}${d} W` });
+
+  // ── Arrow rotation indicators ────────────────────────────────────────────
+  applyArrow('statTSSArrow',   tw.tss,   lw.tss);
+  applyArrow('statDistArrow',  tw.dist,  lw.dist);
+  applyArrow('statTimeArrow',  tw.time,  lw.time);
+  applyArrow('statElevArrow',  tw.elev,  lw.elev);
+  applyArrow('statCountArrow', tw.count, lw.count);
+  applyArrow('statPowerArrow', tw.pow,   lw.pow);
 
   // Activity count: show absolute diff (small numbers, % not meaningful)
   const countEl = document.getElementById('statCountDelta');
@@ -11354,6 +11386,13 @@ async function navigateToActivity(actKey, fromStep = false) {
   if (prevBtn) prevBtn.disabled = poolIdx <= 0;
   if (nextBtn) nextBtn.disabled = poolIdx < 0 || poolIdx >= pool.length - 1;
   if (counter) counter.textContent = poolIdx >= 0 ? `${poolIdx + 1} / ${pool.length}` : '';
+  // Sync sheet-mode floating nav
+  const sPrev = document.getElementById('sheetNavPrev');
+  const sNext = document.getElementById('sheetNavNext');
+  const sCtr  = document.getElementById('sheetNavCounter');
+  if (sPrev) sPrev.disabled = poolIdx <= 0;
+  if (sNext) sNext.disabled = poolIdx < 0 || poolIdx >= pool.length - 1;
+  if (sCtr)  sCtr.textContent = poolIdx >= 0 ? `${poolIdx + 1} / ${pool.length}` : '';
 
   // Show the activity page
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -11748,7 +11787,335 @@ function _onMapFullscreenExit(card) {
   setTimeout(() => { if (state.activityMap) state.activityMap.resize(); }, 120);
 }
 
+/* ====================================================
+   BOTTOM SHEET — Strava-style map-behind-sheet layout
+==================================================== */
+const _sheet = {
+  el: null,
+  scroll: null,
+  mapBg: null,
+  state: 'peek',
+  currentY: 0,
+  startY: 0,
+  startSheetY: 0,
+  velocity: 0,
+  prevY: 0,
+  prevT: 0,
+  tracking: false,
+  directionLocked: false,
+  touchOnHandle: false,
+  SNAP_PEEK: 0.50,
+  SNAP_EXPANDED: 0,
+  SNAP_HIDDEN: 0.85,
+  active: false,
+  _onTouch: null,
+  _onMove: null,
+  _onEnd: null,
+  _onMouse: null,
+  _onResize: null,
+};
+
+function activateSheetMode() {
+  const page = document.getElementById('page-activity');
+  const mapEl = document.getElementById('activityMap');
+  const mapBg = document.getElementById('actSheetMapBg');
+  const sheet = document.getElementById('actBottomSheet');
+  if (!page || !mapEl || !mapBg || !sheet) return;
+
+  page.classList.add('act-sheet-mode');
+
+  // Reparent map into background container
+  mapBg.appendChild(mapEl);
+
+  // Move floating controls to map background
+  const mapCard = document.getElementById('detailMapCard');
+  if (mapCard) {
+    const floatTop = mapCard.querySelector('.map-float-top');
+    const statsPanel = mapCard.querySelector('.map-stats-panel');
+    const ftBar = document.getElementById('flythroughBar');
+    const fsBottom = mapCard.querySelector('.fs-bottom-row');
+    if (floatTop) mapBg.appendChild(floatTop);
+    if (statsPanel) mapBg.appendChild(statsPanel);
+    if (ftBar) sheet.appendChild(ftBar);
+    if (fsBottom) mapBg.appendChild(fsBottom);
+  }
+
+  // Resize map after reparenting
+  requestAnimationFrame(() => {
+    if (state.activityMap) state.activityMap.resize();
+  });
+
+  _sheet.el = sheet;
+  _sheet.scroll = document.getElementById('actSheetScroll');
+  _sheet.mapBg = mapBg;
+  _sheet.active = true;
+
+  // Set initial state
+  _setSheetState('peek');
+
+  // Attach touch listeners
+  _sheet._onTouch = _sheetTouchStart;
+  _sheet._onMove = _sheetTouchMove;
+  _sheet._onEnd = _sheetTouchEnd;
+  sheet.addEventListener('touchstart', _sheet._onTouch, { passive: true });
+  sheet.addEventListener('touchmove', _sheet._onMove, { passive: false });
+  sheet.addEventListener('touchend', _sheet._onEnd, { passive: true });
+
+  // Mouse drag on handle for desktop
+  const handle = sheet.querySelector('.act-sheet-handle');
+  if (handle) {
+    _sheet._onMouse = _sheetMouseDown;
+    handle.addEventListener('mousedown', _sheet._onMouse);
+  }
+
+  // Wheel-driven sheet expand/collapse (desktop)
+  _sheet._wheelLocked = false;
+  _sheet._onWheel = (e) => {
+    if (_sheet._wheelLocked) {
+      if (_sheet.state === 'peek') e.preventDefault();
+      return;
+    }
+
+    // Scroll down while peeking → smooth expand
+    if (_sheet.state === 'peek' && e.deltaY > 0) {
+      e.preventDefault();
+      _sheet._wheelLocked = true;
+      _setSheetState('expanded');
+      setTimeout(() => { _sheet._wheelLocked = false; }, 400);
+      return;
+    }
+
+    // Scroll up at top of content → smooth collapse
+    if (_sheet.state === 'expanded' && e.deltaY < 0 && _sheet.scroll.scrollTop <= 0) {
+      e.preventDefault();
+      _sheet._wheelLocked = true;
+      _setSheetState('peek');
+      setTimeout(() => { _sheet._wheelLocked = false; }, 400);
+      return;
+    }
+  };
+  sheet.addEventListener('wheel', _sheet._onWheel, { passive: false });
+
+  // Handle window resize
+  _sheet._onResize = () => {
+    if (_sheet.active) _setSheetState(_sheet.state);
+  };
+  window.addEventListener('resize', _sheet._onResize);
+}
+
+function deactivateSheetMode() {
+  const page = document.getElementById('page-activity');
+  if (!page || !_sheet.active) return;
+
+  page.classList.remove('act-sheet-mode');
+
+  // Reparent map + controls back to #detailMapCard
+  const mapEl = document.getElementById('activityMap');
+  const mapCard = document.getElementById('detailMapCard');
+  const mapBg = _sheet.mapBg;
+
+  if (mapEl && mapCard) {
+    const mapWrap = mapCard.querySelector('.act-map-wrap') || mapCard;
+    mapWrap.insertBefore(mapEl, mapWrap.firstChild);
+  }
+  if (mapBg && mapCard) {
+    const floatTop = mapBg.querySelector('.map-float-top');
+    const statsPanel = mapBg.querySelector('.map-stats-panel');
+    const ftBar = document.getElementById('flythroughBar');
+    const fsBottom = mapBg.querySelector('.fs-bottom-row');
+    if (floatTop) mapCard.appendChild(floatTop);
+    if (statsPanel) mapCard.appendChild(statsPanel);
+    if (ftBar) mapCard.appendChild(ftBar);
+    if (fsBottom) mapCard.appendChild(fsBottom);
+  }
+
+  // Clean up listeners
+  if (_sheet.el) {
+    _sheet.el.removeEventListener('touchstart', _sheet._onTouch);
+    _sheet.el.removeEventListener('touchmove', _sheet._onMove);
+    _sheet.el.removeEventListener('touchend', _sheet._onEnd);
+    const handle = _sheet.el.querySelector('.act-sheet-handle');
+    if (handle && _sheet._onMouse) handle.removeEventListener('mousedown', _sheet._onMouse);
+    if (_sheet._onWheel) _sheet.el.removeEventListener('wheel', _sheet._onWheel);
+  }
+  if (_sheet._onResize) window.removeEventListener('resize', _sheet._onResize);
+
+  // Reset sheet transform
+  if (_sheet.el) {
+    _sheet.el.style.transform = '';
+    _sheet.el.classList.remove('dragging', 'sheet-peek');
+  }
+  if (_sheet.scroll) _sheet.scroll.style.overflowY = '';
+
+  _sheet.el = null;
+  _sheet.scroll = null;
+  _sheet.mapBg = null;
+  _sheet.active = false;
+  _sheet.state = 'peek';
+}
+
+function _sheetTouchStart(e) {
+  if (e.touches.length !== 1) return;
+  const touch = e.touches[0];
+  _sheet.startY = touch.clientY;
+  _sheet.prevY = touch.clientY;
+  _sheet.prevT = e.timeStamp;
+  _sheet.velocity = 0;
+  _sheet.directionLocked = false;
+  _sheet.tracking = false;
+  _sheet.startSheetY = _sheet.currentY;
+
+  const handle = _sheet.el.querySelector('.act-sheet-handle');
+  _sheet.touchOnHandle = handle && handle.contains(e.target);
+}
+
+function _sheetTouchMove(e) {
+  if (e.touches.length !== 1) return;
+  const touch = e.touches[0];
+  const dy = touch.clientY - _sheet.startY;
+  const absDy = Math.abs(dy);
+
+  if (!_sheet.directionLocked) {
+    if (absDy < 8) return;
+    _sheet.directionLocked = true;
+
+    if (_sheet.state === 'expanded' && !_sheet.touchOnHandle) {
+      const scrollTop = _sheet.scroll.scrollTop;
+      if (dy > 0 && scrollTop <= 1) {
+        _sheet.tracking = true;
+      } else {
+        _sheet.tracking = false;
+        return;
+      }
+    } else {
+      _sheet.tracking = true;
+    }
+    _sheet.el.classList.add('dragging');
+  }
+
+  if (!_sheet.tracking) return;
+  e.preventDefault();
+
+  // Track velocity
+  const dt = e.timeStamp - _sheet.prevT;
+  if (dt > 0) {
+    const instantV = (touch.clientY - _sheet.prevY) / dt;
+    _sheet.velocity = 0.4 * _sheet.velocity + 0.6 * instantV;
+  }
+  _sheet.prevY = touch.clientY;
+  _sheet.prevT = e.timeStamp;
+
+  // Apply transform
+  const vh = window.innerHeight;
+  const newY = _sheet.startSheetY + dy;
+  const clamped = Math.max(0, Math.min(vh * _sheet.SNAP_HIDDEN, newY));
+  _sheet.currentY = clamped;
+  _sheet.el.style.transform = `translateY(${clamped}px)`;
+}
+
+function _sheetTouchEnd() {
+  if (!_sheet.tracking) {
+    _sheet.directionLocked = false;
+    return;
+  }
+  _sheet.el.classList.remove('dragging');
+
+  const vh = window.innerHeight;
+  const currentFrac = _sheet.currentY / vh;
+  const VELOCITY_THRESHOLD = 0.4;
+  let targetState;
+
+  if (Math.abs(_sheet.velocity) > VELOCITY_THRESHOLD) {
+    if (_sheet.velocity > 0) {
+      targetState = _sheet.state === 'expanded' ? 'peek' : 'hidden';
+    } else {
+      targetState = _sheet.state === 'hidden' ? 'peek' : 'expanded';
+    }
+  } else {
+    if (currentFrac < 0.22) targetState = 'expanded';
+    else if (currentFrac < 0.68) targetState = 'peek';
+    else targetState = 'hidden';
+  }
+
+  _setSheetState(targetState);
+  _sheet.tracking = false;
+  _sheet.directionLocked = false;
+}
+
+function _sheetMouseDown(e) {
+  e.preventDefault();
+  _sheet.startY = e.clientY;
+  _sheet.startSheetY = _sheet.currentY;
+  _sheet.el.classList.add('dragging');
+
+  const onMove = (ev) => {
+    const dy = ev.clientY - _sheet.startY;
+    const vh = window.innerHeight;
+    const newY = Math.max(0, Math.min(vh * _sheet.SNAP_HIDDEN, _sheet.startSheetY + dy));
+    _sheet.currentY = newY;
+    _sheet.el.style.transform = `translateY(${newY}px)`;
+  };
+
+  const onUp = () => {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    _sheet.el.classList.remove('dragging');
+
+    const vh = window.innerHeight;
+    const frac = _sheet.currentY / vh;
+    const target = frac < 0.22 ? 'expanded' : frac < 0.68 ? 'peek' : 'hidden';
+    _setSheetState(target);
+  };
+
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+function _setSheetState(newState) {
+  const vh = window.innerHeight;
+  let targetY;
+
+  switch (newState) {
+    case 'expanded': targetY = vh * _sheet.SNAP_EXPANDED; break;
+    case 'peek':     targetY = vh * _sheet.SNAP_PEEK; break;
+    case 'hidden':   targetY = vh * _sheet.SNAP_HIDDEN; break;
+    default:         targetY = vh * _sheet.SNAP_PEEK;
+  }
+
+  _sheet.currentY = targetY;
+  _sheet.state = newState;
+  _sheet.el.classList.remove('dragging');
+  _sheet.el.style.transform = `translateY(${targetY}px)`;
+  _sheet.el.classList.toggle('sheet-expanded', newState === 'expanded');
+
+  if (newState === 'hidden') {
+    _sheet.el.classList.add('sheet-peek');
+    _sheet.scroll.style.overflowY = 'hidden';
+  } else {
+    _sheet.el.classList.remove('sheet-peek');
+    _sheet.scroll.style.overflowY = 'auto';
+  }
+
+  // Collapse flythrough bar when user changes sheet state manually
+  if (newState !== 'hidden') {
+    const ftBarEl = document.getElementById('flythroughBar');
+    if (ftBarEl && ftBarEl.classList.contains('ft-expanded')) {
+      ftBarEl.classList.remove('ft-expanded');
+      if (state.flythrough && state.flythrough.playing) {
+        window.ftTogglePlay();
+      }
+    }
+  }
+
+  // Resize map after transition completes
+  setTimeout(() => {
+    if (state.activityMap) state.activityMap.resize();
+  }, 400);
+}
+
 function destroyActivityCharts() {
+  // Deactivate bottom sheet before destroying map
+  deactivateSheetMode();
   // Exit map fullscreen if active
   const mapCard = document.getElementById('detailMapCard');
   if (mapCard?.classList.contains('map-fullscreen')) {
@@ -12538,13 +12905,32 @@ function renderActivityBasic(a) {
   tssEl.textContent   = tss > 0 ? `${tss} TSS` : '';
   tssEl.style.display = tss > 0 ? 'flex' : 'none';
 
-  // ── Find Similar button ─────────────────────────────────────────────────
-  const simBtn = document.getElementById('findSimilarBtn');
-  if (simBtn) {
+  // ── Similar ride preview card ────────────────────────────────────────────
+  _similarRidesRef = a;
+  const simCard = document.getElementById('similarRideCard');
+  if (simCard) {
+    simCard.style.display = 'none';
     const hasDist = actVal(a, 'distance', 'icu_distance') > 0;
     const hasTime = actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time') > 0;
-    simBtn.style.display = (hasDist || hasTime) ? '' : 'none';
-    _similarRidesRef = a;
+    if (hasDist || hasTime) {
+      _rIC(() => {
+        const results = findSimilarRides(a, 1);
+        if (!results.length) return;
+        const { activity: r, score } = results[0];
+        const name = (r.name || r.icu_name || 'Activity').slice(0, 50);
+        const date = fmtDate(r.start_date_local || r.start_date);
+        const dist = actVal(r, 'distance', 'icu_distance');
+        const secs = actVal(r, 'moving_time', 'elapsed_time', 'icu_moving_time');
+        const parts = [date];
+        if (dist > 0) { const d = fmtDist(dist); parts.push(d.val + ' ' + d.unit); }
+        if (secs > 0) parts.push(fmtDur(secs));
+        document.getElementById('similarRideScore').textContent = score + '% match';
+        document.getElementById('similarRideName').textContent = name;
+        document.getElementById('similarRideMeta').textContent = parts.join(' \u00b7 ');
+        simCard.style.display = '';
+        if (window.refreshGlow) refreshGlow(simCard.parentElement);
+      });
+    }
   }
 
   // ── Title & date ──────────────────────────────────────────────────────────
@@ -12659,7 +13045,7 @@ function renderActivityBasic(a) {
     bpm:        `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`,
     speed:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><polyline points="12 6 12 12 16 14"/></svg>`,
   };
-  const pStat = (val, lbl, accent = false, cmpPct = null, iconKey = '') => {
+  const pStat = (val, lbl, accent = false, cmpPct = null, iconKey = '', color = '') => {
     let cmpHtml = '';
     if (cmpPct !== null && !isNaN(cmpPct)) {
       const up = cmpPct >= 1;
@@ -12670,7 +13056,7 @@ function renderActivityBasic(a) {
       const label = pctAbs < 1 ? 'on avg' : `${arrow} ${pctAbs}% vs avg`;
       cmpHtml = `<div class="act-pstat-cmp ${cls}">${label}</div>`;
     }
-    const iconHtml = P_ICONS[iconKey] ? `<div class="act-pstat-icon${accent ? ' accent' : ''}">${P_ICONS[iconKey]}</div>` : '';
+    const iconHtml = P_ICONS[iconKey] ? `<div class="act-pstat-icon ${color}">${P_ICONS[iconKey]}</div>` : '';
     return `<div class="act-pstat${accent ? ' act-pstat--accent' : ''}">
        <div class="act-pstat-top">${iconHtml}<div class="act-pstat-lbl">${lbl}</div></div>
        <div class="act-pstat-val">${val}</div>
@@ -12679,13 +13065,13 @@ function renderActivityBasic(a) {
   };
 
   const primary = [];
-  if (distKm > 0.05) primary.push(pStat(distKm.toFixed(1), 'Distance', false, pctDist, 'km'));
-  if (secs > 0)      primary.push(pStat(fmtDur(secs), 'Duration', false, pctSecs, 'duration'));
-  if (np > 0)             primary.push(pStat(Math.round(np) + 'W', 'Norm Power', true, pctPow, 'power'));
-  else if (avgW > 0)      primary.push(pStat(Math.round(avgW) + 'W', 'Avg Power', true, pctPow, 'power'));
-  else if (powerEstimated) primary.push(pStat(estAvgW + 'W', 'Est. Power', true, null, 'power'));
-  if (avgHR > 0)     primary.push(pStat(Math.round(avgHR), 'Avg BPM', false, pctHR, 'bpm'));
-  else if (speedKmh > 0.5) primary.push(pStat(speedKmh.toFixed(1), 'Avg Speed', false, pctSpd, 'speed'));
+  if (distKm > 0.05) primary.push(pStat(distKm.toFixed(1), 'Distance', false, pctDist, 'km', 'blue'));
+  if (secs > 0)      primary.push(pStat(fmtDur(secs), 'Duration', false, pctSecs, 'duration', 'blue'));
+  if (np > 0)             primary.push(pStat(Math.round(np) + 'W', 'Norm Power', true, pctPow, 'power', 'green'));
+  else if (avgW > 0)      primary.push(pStat(Math.round(avgW) + 'W', 'Avg Power', true, pctPow, 'power', 'green'));
+  else if (powerEstimated) primary.push(pStat(estAvgW + 'W', 'Est. Power', true, null, 'power', 'green'));
+  if (avgHR > 0)     primary.push(pStat(Math.round(avgHR), 'Avg BPM', false, pctHR, 'bpm', 'red'));
+  else if (speedKmh > 0.5) primary.push(pStat(speedKmh.toFixed(1), 'Avg Speed', false, pctSpd, 'speed', 'blue'));
 
   const primaryEl = document.getElementById('actPrimaryStats');
   primaryEl.innerHTML = primary.slice(0, 4).join('');
@@ -13834,7 +14220,7 @@ function renderActivityMap(latlng, streams) {
             const satBtn = document.createElement('button');
             satBtn.className = 'act-map-tool-btn';
             satBtn.title = 'Toggle satellite imagery';
-            satBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><ellipse cx="12" cy="12" rx="5" ry="10"/></svg>';
+            satBtn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><ellipse cx="12" cy="12" rx="5" ry="10"/></svg>';
             // Persistent handler: re-add route layers after any style swap
             function _readdRouteLayers() {
               try {
@@ -13880,16 +14266,17 @@ function renderActivityMap(latlng, streams) {
             const recentreBtn = document.createElement('button');
             recentreBtn.className = 'act-map-tool-btn';
             recentreBtn.title = 'Recentre map';
-            recentreBtn.innerHTML = '<svg viewBox="0 0 18 18" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="9" r="3"/><line x1="9" y1="1" x2="9" y2="5"/><line x1="9" y1="13" x2="9" y2="17"/><line x1="1" y1="9" x2="5" y2="9"/><line x1="13" y1="9" x2="17" y2="9"/></svg>';
+            recentreBtn.innerHTML = '<svg viewBox="0 0 18 18" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="9" r="3"/><line x1="9" y1="1" x2="9" y2="5"/><line x1="9" y1="13" x2="9" y2="17"/><line x1="1" y1="9" x2="5" y2="9"/><line x1="13" y1="9" x2="17" y2="9"/></svg>';
             recentreBtn.addEventListener('click', () => {
-              map.fitBounds(routeBounds, { padding: 24, duration: 600 });
+              const rPad = _sheet.active ? Math.round(window.innerHeight * _sheet.SNAP_PEEK) : 0;
+              map.fitBounds(routeBounds, { padding: { top: 24, right: 24, bottom: rPad + 24, left: 24 }, duration: 600 });
             });
             navGroup.appendChild(recentreBtn);
 
             const terrainBtn = document.createElement('button');
             terrainBtn.className = 'act-map-tool-btn' + (loadTerrainEnabled() ? ' active' : '');
             terrainBtn.title = 'Toggle 3D terrain';
-            terrainBtn.innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20l5-10 4 6 3-4 6 8"/><circle cx="17" cy="7" r="2"/></svg>';
+            terrainBtn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20l5-10 4 6 3-4 6 8"/><circle cx="17" cy="7" r="2"/></svg>';
             terrainBtn.addEventListener('click', () => {
               const on = !loadTerrainEnabled();
               setTerrainEnabled(on);
@@ -13923,8 +14310,18 @@ function renderActivityMap(latlng, streams) {
         (b, c) => b.extend(c),
         new maplibregl.LngLatBounds(lngLats[0], lngLats[0])
       );
-      map.fitBounds(routeBounds, { padding: 24, duration: 0 });
       state.activityMap = map;
+
+      // ── Activate bottom-sheet layout ──────────────────────────────────────
+      activateSheetMode();
+
+      // Fit route with bottom padding to account for the sheet overlay
+      // Must wait for rAF so the map resizes after reparenting into sheet bg
+      requestAnimationFrame(() => {
+        map.resize();
+        const sheetPad = Math.round(window.innerHeight * _sheet.SNAP_PEEK);
+        map.fitBounds(routeBounds, { padding: { top: 24, right: 24, bottom: sheetPad + 24, left: 24 }, duration: 0 });
+      });
 
       // ── Alt + scroll to zoom ─────────────────────────────────────────────
       const altMapEl = map.getContainer();
@@ -14294,6 +14691,10 @@ function initFlythrough(map, valid, streams, maxes, maxSpdKmh, maxHR, statsEl, t
     map.flyTo({ center: [pos[1], pos[0]], zoom: Math.max(map.getZoom(), FT_ZOOM), duration: 500 });
     const btn = document.getElementById('ftPlayBtn');
     if (btn) btn.innerHTML = ICON_PAUSE;
+    // Sheet mode: expand bar and collapse sheet for more map
+    const ftBarEl = document.getElementById('flythroughBar');
+    if (ftBarEl) ftBarEl.classList.add('ft-expanded');
+    if (_sheet.active) _setSheetState('hidden');
     setTimeout(() => { if (ft.playing) ft.rafId = requestAnimationFrame(step); }, 500);
   }
 
@@ -14302,6 +14703,7 @@ function initFlythrough(map, valid, streams, maxes, maxSpdKmh, maxHR, statsEl, t
     if (ft.rafId) { cancelAnimationFrame(ft.rafId); ft.rafId = null; }
     const btn = document.getElementById('ftPlayBtn');
     if (btn) btn.innerHTML = ICON_PLAY;
+    // Sheet mode: keep bar open and sheet position unchanged
     // Zoom back out to show the full route
     if (ft._savedZoom != null) {
       map.flyTo({ center: ft._savedCenter, zoom: ft._savedZoom, duration: 400 });
@@ -14313,6 +14715,15 @@ function initFlythrough(map, valid, streams, maxes, maxSpdKmh, maxHR, statsEl, t
   // ── Window-level handlers (attached to buttons via onclick) ─────────────
   window.ftTogglePlay = () => { ft.playing ? ftPause() : ftPlay(); };
   window.ftSetSpeed   = (s) => { ft.speed = +s; };
+  const FT_SPEEDS = [1, 5, 15, 30, 60];
+  const FT_LABELS = ['1×', '5×', '15×', '30×', '60×'];
+  window.ftCycleSpeed = () => {
+    const idx = FT_SPEEDS.indexOf(ft.speed);
+    const next = (idx + 1) % FT_SPEEDS.length;
+    ft.speed = FT_SPEEDS[next];
+    const btn = document.getElementById('ftSpeedToggle');
+    if (btn) btn.textContent = FT_LABELS[next];
+  };
   window.ftToggleFollow = () => {
     ft.follow = !ft.follow;
     const btn = document.getElementById('ftFollowBtn');
@@ -19595,7 +20006,7 @@ document.getElementById('connectModal').addEventListener('click', function(e) {
   // expose so other parts of the app can attach glow to late-rendered elements
   window.attachCardGlow = attachGlow;
 
-  const GLOW_SEL = '.stat-card, .recent-act-card, .perf-metric, .act-pstat, .mm-cell, .wxp-day-card, .fit-kpi-card, .wx-day, .znp-kpi-card, .wxp-st, .wxp-best-card, .stk-hero-card, .stk-pb-card, .stk-badge--earned, .stk-stat-tile, .goal-dash-card, .fit-rec-metric, .fit-rp-card';
+  const GLOW_SEL = '.stat-card, .recent-act-card, .perf-metric, .act-pstat, .act-similar-card, .mm-cell, .wxp-day-card, .fit-kpi-card, .wx-day, .znp-kpi-card, .wxp-st, .wxp-best-card, .stk-hero-card, .stk-pb-card, .stk-badge--earned, .stk-stat-tile, .goal-dash-card, .fit-rec-metric, .fit-rp-card';
 
   function attachPress(el) {
     const press   = () => el.classList.add('is-pressed');

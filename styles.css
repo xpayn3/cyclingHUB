@@ -79,19 +79,19 @@
        Layered dark surfaces from deepest to highest.
        bg-base → bg-surface → bg-elevated → bg-card
     ──────────────────────────────────────────────────────── */
-    --bg-base: #090b0e; /* page/body background                */
-    --bg-surface: #0e1116; /* sidebar, modals                     */
-    --bg-elevated: #14171e; /* inner card sections, input fields   */
-    --bg-card: #1d2028; /* card surfaces                       */
+    --bg-base: #000000; /* page/body background  (iOS primary)  */
+    --bg-surface: #1C1C1E; /* sidebar, modals       (iOS secondary)*/
+    --bg-elevated: #2C2C2E; /* inner card sections   (iOS tertiary) */
+    --bg-card: #1C1C1E; /* card surfaces         (iOS grouped)  */
 
     /* ── Borders ─────────────────────────────────────────────*/
-    --border: #1e222b; /* default card border        */
-    --border-active: #2e3648; /* focused / active border    */
+    --border: rgba(84, 84, 88, 0.35); /* iOS separator              */
+    --border-active: rgba(84, 84, 88, 0.65); /* iOS opaque separator       */
 
     /* ── Text ────────────────────────────────────────────────*/
-    --text-primary: #f0f2fa; /* headings, values         */
-    --text-secondary: #9ba5be; /* labels, subtitles        */
-    --text-muted: #62708a; /* hints, placeholders      */
+    --text-primary: #FFFFFF; /* headings, values  (iOS primary label)   */
+    --text-secondary: rgba(235, 235, 245, 0.6); /* labels   (iOS secondary label) */
+    --text-muted: rgba(235, 235, 245, 0.4); /* hints    (iOS tertiary+, WCAG 3:1)  */
 
     /* ── Spacing ─────────────────────────────────────────────
        These three control all padding and gaps across the app.
@@ -99,9 +99,9 @@
        --gap-layout : gap between cards and sections
        --pad-card   : inner padding inside every card
     ──────────────────────────────────────────────────────── */
-    --pad-page: 14px;
-    --gap-layout: 14px;
-    --pad-card: 12px 12px;
+    --pad-page: 16px;
+    --gap-layout: 20px;
+    --pad-card: 16px;
 
     /* ── Spacing scale ───────────────────────────────────────
        Used for component-level gaps (buttons, rows, chips).
@@ -110,19 +110,19 @@
     --space-sm: 8px;
     --space-md: 12px;
     --space-lg: 16px;
-    --space-xl: 24px;
+    --space-xl: 20px;
 
     /* ── Border radius ───────────────────────────────────────
        --radius    : standard card / component radius
        --radius-lg : larger panels, modals, hero cards
        --radius-sm : small chips, badges, inputs
     ──────────────────────────────────────────────────────── */
-    --radius: 10px;
-    --radius-lg: 16px;
-    --radius-sm: 6px;
+    --radius: 12px;
+    --radius-lg: 12px;
+    --radius-sm: 8px;
 
     /* ── Motion ──────────────────────────────────────────────*/
-    --transition: 0.18s ease; /* hover colour/opacity transitions */
+    --transition: 0.25s ease; /* hover colour/opacity transitions */
 
     /* ── Layout ──────────────────────────────────────────────*/
     --sidebar-w: 220px; /* width of the left nav sidebar    */
@@ -139,14 +139,14 @@
        Base html font-size: 16px — scale all sizes by changing
        that one value in the RESET section below.
     ──────────────────────────────────────────────────────── */
-    --text-2xs: 0.62rem; /* ~10px  — micro badges, superscripts  */
-    --text-xs: 0.72rem; /* ~12px  — uppercase labels, meta      */
-    --text-sm: 0.8rem; /* ~13px  — secondary body, sub-labels  */
-    --text-base: 0.875rem; /* ~14px  — primary body text           */
-    --text-md: 1rem; /*  16px  — card sub-headings           */
-    --text-lg: 1.1rem; /* ~18px  — section titles              */
-    --text-xl: 1.9rem; /* ~30px  — primary stat values         */
-    --text-2xl: 2.2rem; /* ~35px  — hero gauge numbers          */
+    --text-2xs: 0.6875rem; /*  11px  — Caption 2                  */
+    --text-xs: 0.75rem; /*  12px  — Caption 1                  */
+    --text-sm: 0.8125rem; /*  13px  — Footnote                   */
+    --text-base: 0.9375rem; /*  15px  — Subheadline                */
+    --text-md: 1.0625rem; /*  17px  — Body / Headline            */
+    --text-lg: 1.375rem; /*  22px  — Title 2                    */
+    --text-xl: 1.75rem; /*  28px  — Title 1                    */
+    --text-2xl: 2.125rem; /*  34px  — Large Title                */
 }
 } /* end @layer tokens */
 
@@ -206,16 +206,17 @@ select {
     -webkit-appearance: none;
     display: block;
     width: 100%;
-    background: var(--bg-elevated)
+    background: rgba(120, 120, 128, 0.24)
         url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7' viewBox='0 0 12 7'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238891a8' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
-        no-repeat right 13px center;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+        no-repeat right 16px center;
+    border: none;
+    border-radius: 12px;
     color: var(--text-primary);
     font-family: var(--font-ui);
-    font-size: var(--text-base);
+    font-size: var(--text-md);
     font-weight: 500;
-    padding: 9px 38px 9px 13px;
+    padding: 12px 38px 12px 16px;
+    min-height: 44px;
     cursor: pointer;
     outline: none;
     transition:
@@ -225,10 +226,10 @@ select {
     line-height: 1.4;
 }
 .app-select:hover {
-    border-color: var(--border-active);
+    background-color: rgba(120, 120, 128, 0.32);
 }
 .app-select:focus {
-    border-color: var(--accent);
+    outline: 2px solid var(--accent);
     box-shadow: 0 0 0 3px var(--accent-dim);
 }
 .app-select option {
@@ -238,9 +239,9 @@ select {
 /* Compact variant — used in card headers / toolbars */
 .app-select--sm {
     font-size: var(--text-sm);
-    padding: 10px 32px 10px 10px;
-    height: 40px;
-    border-radius: 8px;
+    padding: 10px 32px 10px 12px;
+    height: 44px;
+    border-radius: 10px;
     background-position: right 10px center;
     width: auto;
     display: flex;
@@ -266,19 +267,20 @@ select {
     justify-content: space-between;
     gap: 8px;
     width: 100%;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+    background: rgba(120, 120, 128, 0.24);
+    border: none;
+    border-radius: 12px;
     color: var(--text-primary);
     font-family: var(--font-ui);
-    font-size: var(--text-base);
+    font-size: var(--text-md);
     font-weight: 500;
-    padding: 9px 13px;
+    padding: 12px 16px;
+    min-height: 44px;
     cursor: pointer;
     outline: none;
     line-height: 1.4;
     transition:
-        border-color var(--transition),
+        background var(--transition),
         box-shadow var(--transition);
     text-align: left;
     white-space: nowrap;
@@ -286,11 +288,11 @@ select {
     text-overflow: ellipsis;
 }
 .cdd-trigger:hover {
-    border-color: var(--border-active);
+    background: rgba(120, 120, 128, 0.32);
 }
 .cdd-trigger:focus,
 .cdd-wrap--open .cdd-trigger {
-    border-color: var(--accent);
+    outline: 2px solid var(--accent);
     box-shadow: 0 0 0 3px var(--accent-dim);
 }
 
@@ -309,9 +311,9 @@ select {
 /* ── Compact variant ──────────────────────────────────────── */
 .cdd-wrap--sm .cdd-trigger {
     font-size: var(--text-sm);
-    padding: 10px 10px;
-    height: 40px;
-    border-radius: 8px;
+    padding: 10px 12px;
+    height: 44px;
+    border-radius: 10px;
 }
 
 /* ── Dropdown panel ───────────────────────────────────────── */
@@ -324,7 +326,7 @@ select {
     overflow-y: auto;
     background: var(--bg-elevated);
     border: 1px solid var(--border-active);
-    border-radius: var(--radius);
+    border-radius: 12px;
     padding: 4px;
     z-index: 9999;
     box-shadow:
@@ -356,7 +358,8 @@ select {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 8px 10px;
+    padding: 11px 12px;
+    min-height: 44px;
     border-radius: var(--radius-sm);
     cursor: pointer;
     font-size: var(--text-sm);
@@ -465,7 +468,7 @@ code {
 }
 .sidebar-nav {
     flex: 1;
-    padding: 14px 10px;
+    padding: 8px;
     display: flex;
     flex-direction: column;
     gap: 2px;
@@ -477,9 +480,9 @@ code {
     font-size: var(--text-xs);
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.05em;
     color: var(--text-muted);
-    padding: 10px 10px 4px;
+    padding: 16px 12px 6px;
 }
 .sidebar-nav > .nav-section-label:not(:first-child) {
     margin-top: 8px;
@@ -488,11 +491,12 @@ code {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 9px 12px;
-    border-radius: 8px;
+    padding: 12px 12px;
+    min-height: 44px;
+    border-radius: 10px;
     color: var(--text-secondary);
     font-size: var(--text-md);
-    font-weight: 500;
+    font-weight: 400;
     transition:
         background var(--transition),
         color var(--transition);
@@ -500,8 +504,8 @@ code {
     user-select: none;
 }
 .nav-item svg {
-    width: 17px;
-    height: 17px;
+    width: 20px;
+    height: 20px;
     flex-shrink: 0;
 }
 .nav-item:hover {
@@ -511,6 +515,7 @@ code {
 .nav-item.active {
     background: var(--accent-dim);
     color: var(--accent);
+    font-weight: 600;
 }
 .nav-item .badge {
     margin-left: auto;
@@ -643,7 +648,7 @@ code {
     min-width: 0;
 }
 .topbar {
-    height: calc(48px + env(safe-area-inset-top));
+    height: calc(44px + env(safe-area-inset-top));
     background: var(--bg-surface);
     border-bottom: 1px solid var(--border);
     display: flex;
@@ -699,15 +704,15 @@ code {
 
 /* ── Page headline ── */
 .page-headline {
-    padding: 46px 0 8px;
+    padding: 8px 0 12px;
 }
 .page-headline--hidden {
     display: none;
 }
 .page-headline-title {
-    font-size: 1.6rem;
-    font-weight: 800;
-    letter-spacing: -0.5px;
+    font-size: var(--text-2xl);
+    font-weight: 700;
+    letter-spacing: 0.37px;
     line-height: 1.1;
 }
 .page-headline-sub {
@@ -717,7 +722,7 @@ code {
 }
 .page-content {
     flex: 1;
-    padding: calc(48px + env(safe-area-inset-top) + 14px) var(--pad-page)
+    padding: calc(44px + env(safe-area-inset-top) + 16px) var(--pad-page)
         max(20px, env(safe-area-inset-bottom));
     display: flex;
     flex-direction: column;
@@ -737,57 +742,58 @@ code {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 7px 14px;
-    border-radius: 8px;
-    font-size: var(--text-sm);
+    padding: 11px 20px;
+    border-radius: 12px;
+    font-size: var(--text-md);
     font-weight: 600;
+    min-height: 44px;
+    cursor: pointer;
     transition: background var(--transition), color var(--transition), box-shadow var(--transition);
 }
 .btn svg {
-    width: 14px;
-    height: 14px;
+    width: 17px;
+    height: 17px;
 }
 .btn-primary {
     background: var(--accent);
     color: var(--bg-base);
 }
 .btn-primary:hover {
-    background: #00ffa8;
-    box-shadow: 0 0 16px var(--accent-glow);
+    background: #33eab3;
 }
 .btn-primary:disabled {
     opacity: 0.5;
     cursor: not-allowed;
 }
 .btn-ghost {
-    background: var(--bg-elevated);
-    color: var(--text-secondary);
-    border: 1px solid var(--border);
+    background: rgba(120, 120, 128, 0.24);
+    color: var(--accent);
+    border: none;
 }
 .btn-ghost:hover {
-    color: var(--text-primary);
-    border-color: var(--border-active);
+    background: rgba(120, 120, 128, 0.36);
+    color: var(--accent);
 }
 .btn-icon {
-    width: 34px;
-    height: 34px;
+    width: 44px;
+    height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 8px;
+    border-radius: 22px;
     padding: 0;
 }
 .btn-icon svg {
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
 }
 .btn-danger {
-    background: rgba(255, 71, 87, 0.12);
-    color: var(--red);
-    border: 1px solid rgba(255, 71, 87, 0.25);
+    background: rgba(255, 69, 58, 0.15);
+    color: #FF453A;
+    border: none;
 }
 .btn-danger:hover {
-    background: rgba(255, 71, 87, 0.2);
+    background: rgba(255, 69, 58, 0.25);
 }
 .btn-spinning svg {
     animation: spin 0.7s linear infinite;
@@ -795,18 +801,19 @@ code {
 .date-range-pill {
     display: flex;
     align-items: center;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    border-radius: 8px;
+    background: rgba(120, 120, 128, 0.24);
+    border: none;
+    border-radius: 9px;
     overflow: hidden;
 }
 .date-range-pill button {
-    padding: 6px 12px;
+    padding: 8px 14px;
     font-size: var(--text-sm);
     font-weight: 500;
     color: var(--text-secondary);
     transition: background var(--transition), color var(--transition);
-    border-right: 1px solid var(--border);
+    border-right: 1px solid rgba(84, 84, 88, 0.35);
+    min-height: 36px;
 }
 .date-range-pill button:last-child {
     border-right: none;
@@ -841,27 +848,34 @@ code {
     justify-content: center;
 }
 .modal {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 18px;
+    background: #2C2C2E;
+    border: none;
+    border-radius: 14px;
     width: 100%;
     max-width: 480px;
     overflow: hidden;
-    animation: modalSlideIn 0.2s ease-out;
+    animation: modalSlideIn 0.25s ease-out;
+}
+.modal-drag-indicator {
+    width: 36px;
+    height: 5px;
+    border-radius: 2.5px;
+    background: rgba(235, 235, 245, 0.3);
+    margin: 8px auto 0;
 }
 @keyframes modalSlideIn {
     from { opacity: 0; transform: translateY(12px); }
     to   { opacity: 1; transform: translateY(0); }
 }
 .modal-header {
-    padding: 24px 28px 0;
+    padding: 16px 20px 0;
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
 }
 .modal-header-icon {
-    width: 46px;
-    height: 46px;
+    width: 44px;
+    height: 44px;
     background: var(--accent-dim);
     border-radius: 12px;
     display: flex;
@@ -877,12 +891,12 @@ code {
 .modal-close {
     width: 30px;
     height: 30px;
-    border-radius: 8px;
+    border-radius: 15px;
     display: flex;
     align-items: center;
     justify-content: center;
     color: var(--text-muted);
-    background: var(--bg-elevated);
+    background: rgba(120, 120, 128, 0.24);
     transition: color var(--transition), background var(--transition);
 }
 .modal-close:hover {
@@ -894,17 +908,17 @@ code {
     height: 14px;
 }
 .modal-body {
-    padding: 0 28px 28px;
+    padding: 0 20px 20px;
 }
 .modal-title {
     font-size: var(--text-lg);
-    font-weight: 800;
+    font-weight: 700;
     margin-bottom: 6px;
 }
 .modal-desc {
-    font-size: var(--text-sm);
+    font-size: var(--text-base);
     color: var(--text-secondary);
-    line-height: 1.5;
+    line-height: 1.45;
     margin-bottom: 22px;
 }
 .modal-footer {
@@ -916,39 +930,40 @@ code {
 
 /* Form fields */
 .field {
-    margin-bottom: 16px;
+    margin-bottom: 20px;
 }
 .field label {
     display: block;
     font-size: var(--text-sm);
-    font-weight: 600;
+    font-weight: 400;
     color: var(--text-secondary);
-    margin-bottom: 6px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+    text-transform: none;
+    letter-spacing: normal;
 }
 .field input {
     width: 100%;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    border-radius: 9px;
-    padding: 10px 14px;
+    background: rgba(120, 120, 128, 0.24);
+    border: none;
+    border-radius: 12px;
+    padding: 12px 16px;
     color: var(--text-primary);
-    font-size: var(--text-base);
+    font-size: var(--text-md);
+    min-height: 44px;
     outline: none;
     transition:
-        border-color var(--transition),
-        box-shadow var(--transition);
+        box-shadow var(--transition),
+        outline-color var(--transition);
 }
 .field input:focus {
-    border-color: var(--accent);
+    outline: 2px solid var(--accent);
     box-shadow: 0 0 0 3px var(--accent-dim);
 }
 .field input::placeholder {
     color: var(--text-muted);
 }
 .field input.error {
-    border-color: var(--red);
+    outline: 2px solid var(--red);
 }
 .field-hint {
     font-size: var(--text-xs);
@@ -1098,69 +1113,20 @@ code {
 }
 .stat-card {
     background: var(--bg-card);
-    border: 1px solid var(--border);
+    border: none;
     border-radius: var(--radius);
     padding: var(--pad-card);
     display: flex;
     flex-direction: column;
     gap: 8px;
     transition:
-        border-color var(--transition),
-        box-shadow var(--transition);
+        background var(--transition);
     position: relative;
     contain: layout style;
-    --mouse-x: 50%;
-    --mouse-y: 50%;
-}
-
-/* inner spotlight glow */
-.stat-card::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    background: radial-gradient(
-        circle at var(--mouse-x) var(--mouse-y),
-        rgba(255, 255, 255, 0.055) 0%,
-        transparent 65%
-    );
-    opacity: 0;
-    transition: opacity 0.35s ease;
-    pointer-events: none;
-    z-index: 0;
-
-}
-
-/* rim glow — masked to border edge only */
-.stat-card::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    padding: 1px;
-    background: radial-gradient(
-        circle at var(--mouse-x) var(--mouse-y),
-        rgba(255, 255, 255, 0.35) 0%,
-        transparent 60%
-    );
-    opacity: 0;
-    transition: opacity 0.35s ease;
-    pointer-events: none;
-    z-index: 0;
-    -webkit-mask:
-        linear-gradient(#fff 0 0) content-box,
-        linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
 }
 
 .stat-card:hover {
-    border-color: transparent;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
-}
-.stat-card:hover::before,
-.stat-card:hover::after {
-    opacity: 1;
+    background: var(--bg-elevated);
 }
 .stat-card-header {
     display: flex;
@@ -1175,32 +1141,29 @@ code {
     color: var(--text-muted);
 }
 .stat-icon {
-    width: 28px;
-    height: 28px;
-    border-radius: 7px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: transform 0.4s ease, background 0.3s ease, color 0.3s ease;
 }
 .stat-icon svg {
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 16px;
 }
-.stat-icon.green {
+.stat-icon.trend-up {
     background: var(--accent-dim);
     color: var(--accent);
 }
-.stat-icon.orange {
-    background: var(--orange-dim);
-    color: var(--orange);
+.stat-icon.trend-down {
+    background: rgba(255, 71, 87, 0.12);
+    color: var(--red);
 }
-.stat-icon.blue {
-    background: var(--blue-dim);
-    color: var(--blue);
-}
-.stat-icon.purple {
-    background: var(--purple-dim);
-    color: var(--purple);
+.stat-icon.trend-neutral {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-muted);
 }
 .stat-value {
     font-size: var(--text-xl);
@@ -1239,8 +1202,8 @@ code {
 ============================================================ */
 .card {
     background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
+    border: none;
+    border-radius: var(--radius);
     padding: var(--pad-card);
     min-width: 0;
     overflow: hidden;
@@ -1251,18 +1214,18 @@ code {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
 }
 .card-title {
     font-size: var(--text-md);
-    font-weight: 700;
+    font-weight: 600;
     display: flex;
     align-items: center;
     gap: 6px;
 }
 .card-title svg { flex-shrink: 0; }
 .card-subtitle {
-    font-size: var(--text-xs);
+    font-size: var(--text-sm);
     color: var(--text-muted);
     margin-top: 2px;
 }
@@ -1276,11 +1239,10 @@ code {
         background var(--transition);
 }
 .card--clickable:hover {
-    border-color: var(--border-active);
-    background: #212736;
+    background: var(--bg-elevated);
 }
 .card--clickable:active {
-    background: var(--bg-elevated);
+    background: rgba(120, 120, 128, 0.24);
 }
 /* Two cards sitting side by side in one row, equal height */
 /* ── Recent Activity card ──────────────────────────────────────────────── */
@@ -1636,7 +1598,6 @@ code {
 
 /* ── Container Queries — cards respond to their OWN width ── */
 @container (max-width: 500px) {
-    .act-primary-stats { grid-template-columns: repeat(2, 1fr); gap: 8px; }
     .fit-rp-grid { grid-template-columns: repeat(2, 1fr); }
     .fit-rec-metrics { grid-template-columns: 1fr; }
 }
@@ -1644,7 +1605,6 @@ code {
     .card-header { flex-direction: column; align-items: flex-start; gap: 8px; }
 }
 @container (max-width: 350px) {
-    .act-primary-stats { grid-template-columns: 1fr 1fr; gap: 6px; }
     .act-pstat-val { font-size: 1.3rem; }
 }
 
@@ -6057,11 +6017,347 @@ code {
     letter-spacing: 0.02em;
 }
 
+/* ── Strava-style bottom sheet for activity detail ─────────────────────── */
+
+/* Page container override in sheet mode */
+#page-activity.active.act-sheet-mode {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    overflow: hidden;
+    padding: 0;
+    gap: 0;
+}
+
+/* Map background — hidden by default, shown in sheet mode */
+.act-sheet-map-bg {
+    display: none;
+}
+.act-sheet-mode .act-sheet-map-bg {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background: var(--bg-base);
+}
+.act-sheet-map-bg > .activity-map {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    border-radius: 0;
+    z-index: 1;
+}
+
+/* Floating back button on map */
+.act-sheet-map-back {
+    display: none;
+}
+.act-sheet-mode .act-sheet-map-back {
+    display: flex;
+    position: absolute;
+    top: max(12px, env(safe-area-inset-top));
+    left: 12px;
+    z-index: 20;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(20, 23, 32, 0.82);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    align-items: center;
+    justify-content: center;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.act-sheet-mode .act-sheet-map-back:hover {
+    background: rgba(30, 34, 46, 0.92);
+}
+
+/* Floating prev/next nav on map */
+.act-sheet-map-nav {
+    display: none;
+}
+.act-sheet-mode .act-sheet-map-nav {
+    display: flex;
+    position: absolute;
+    top: max(12px, env(safe-area-inset-top));
+    right: 12px;
+    z-index: 20;
+    align-items: center;
+    gap: 4px;
+    background: rgba(20, 23, 32, 0.82);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 20px;
+    padding: 2px;
+}
+.act-sheet-nav-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: none;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.act-sheet-nav-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+.act-sheet-nav-btn:disabled {
+    opacity: 0.25;
+    pointer-events: none;
+}
+.act-sheet-nav-counter {
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+    font-family: var(--font-num);
+    min-width: 40px;
+    text-align: center;
+}
+
+/* Bottom sheet — hidden by default */
+.act-bottom-sheet {
+    display: none;
+}
+.act-sheet-mode .act-bottom-sheet {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 100dvh;
+    z-index: 10;
+    transform: translateY(55%);
+    will-change: transform;
+    transition: transform 0.35s cubic-bezier(0.2, 0, 0, 1);
+    background: var(--bg-base);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.5);
+    overflow: visible;
+}
+.act-bottom-sheet.dragging {
+    transition: none !important;
+}
+
+/* Drag handle */
+.act-sheet-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 0 6px;
+    cursor: grab;
+    flex-shrink: 0;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: none;
+}
+.act-sheet-handle span {
+    width: 36px;
+    height: 5px;
+    border-radius: 2.5px;
+    background: rgba(235, 235, 245, 0.3);
+}
+
+/* Scrollable content area inside sheet */
+.act-sheet-scroll {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding: 0 var(--pad-page) max(20px, env(safe-area-inset-bottom));
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-layout);
+}
+.act-sheet-scroll > * {
+    flex-shrink: 0;
+}
+.act-bottom-sheet.sheet-peek .act-sheet-scroll {
+    overflow-y: hidden;
+}
+
+
+/* Sheet mode overrides */
+/* Remove page transition animation from sheet elements — pageFadeIn
+   animation overrides inline transform in the CSS cascade */
+.act-sheet-mode > .act-sheet-map-bg,
+.act-sheet-mode > .act-bottom-sheet {
+    animation: none !important;
+}
+
+/* Hide topbar and sidebar when sheet mode is active */
+body:has(.act-sheet-mode) .topbar,
+body:has(.act-sheet-mode) .sidebar {
+    display: none !important;
+}
+.act-sheet-mode .act-hero {
+    padding-top: 0;
+}
+.act-sheet-mode #detailMapCard {
+    display: none !important;
+}
+
+/* Flythrough bar repositioned in sheet mode */
+.act-sheet-mode #flythroughBar {
+    position: absolute;
+    bottom: calc(100% + 12px);
+    right: 16px;
+    left: auto;
+    z-index: 15;
+    border: none;
+    padding: 0;
+    margin: 0;
+    gap: 0;
+    overflow: hidden;
+    max-width: 44px;
+    max-height: 44px;
+    transition: max-width 0.3s cubic-bezier(0.2, 0, 0, 1),
+                padding 0.3s cubic-bezier(0.2, 0, 0, 1),
+                background 0.3s ease,
+                box-shadow 0.3s ease,
+                border 0.3s ease;
+    background: none;
+    backdrop-filter: none;
+    border-radius: 22px;
+    box-shadow: none;
+}
+.act-sheet-mode #flythroughBar .ft-play-btn {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+}
+.act-sheet-mode #flythroughBar.ft-expanded {
+    max-width: calc(100vw - 32px);
+    left: 16px;
+    padding: 6px;
+    gap: 6px;
+    background: rgba(20, 23, 32, 0.82);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+.act-sheet-mode #flythroughBar.ft-expanded .ft-play-btn {
+    background: none;
+    box-shadow: none;
+    color: #fff;
+}
+.ft-speed-toggle {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 4px 8px;
+    cursor: pointer;
+    flex-shrink: 0;
+    white-space: nowrap;
+    transition: color var(--transition);
+}
+.ft-speed-toggle:hover {
+    color: var(--text-primary);
+}
+.act-sheet-mode .ft-follow-btn {
+    display: none;
+}
+.act-sheet-mode #flythroughBar:not(.ft-expanded) .ft-scrubber-thumb,
+.act-sheet-mode #flythroughBar:not(.ft-expanded) .ft-scrubber-fill {
+    display: none;
+}
+
+/* Hide map overlay controls in sheet mode (route toggles, save route, expand) */
+.act-sheet-mode .map-float-top {
+    display: none !important;
+}
+/* Hide stats panel in sheet mode (only show during flythrough fullscreen) */
+.act-sheet-mode #mapStatsPanel {
+    display: none !important;
+}
+/* Restyle MapLibre controls as individual circular glassmorphism buttons in sheet mode */
+.act-sheet-mode .maplibregl-ctrl-top-left {
+    top: max(60px, calc(env(safe-area-inset-top) + 52px)) !important;
+    left: 12px !important;
+}
+.act-sheet-mode .maplibregl-ctrl-top-left .maplibregl-ctrl {
+    margin: 0 !important;
+}
+.act-sheet-mode .maplibregl-ctrl-group {
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.act-sheet-mode .maplibregl-ctrl-group button {
+    width: 40px !important;
+    height: 40px !important;
+    border-radius: 50% !important;
+    background: rgba(20, 23, 32, 0.82) !important;
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    color: var(--text-primary) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.act-sheet-mode .maplibregl-ctrl-group button:hover {
+    background: rgba(30, 34, 46, 0.92) !important;
+}
+.act-sheet-mode .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+    width: 20px !important;
+    height: 20px !important;
+    background-size: contain !important;
+    filter: invert(0.9) !important;
+}
+.act-sheet-mode .act-map-tool-btn {
+    width: 40px !important;
+    height: 40px !important;
+    border-radius: 50% !important;
+    background: rgba(20, 23, 32, 0.82) !important;
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+    color: var(--text-primary) !important;
+}
+.act-sheet-mode .act-map-tool-btn:hover {
+    background: rgba(30, 34, 46, 0.92) !important;
+}
+.act-sheet-mode .act-map-tool-btn.active {
+    color: var(--accent) !important;
+}
+/* Hide compass in sheet mode — rarely needed, reduces clutter */
+.act-sheet-mode .maplibregl-ctrl-compass {
+    display: none !important;
+}
+
 /* ── Activity hero ───────────────────────────────────────────────────── */
 /* ── Activity Hero ─────────────────────────────────────────────────────── */
 .act-hero {
     padding: 80px 0 0;
     margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
 
 /* Identity row: large icon + meta column */
@@ -6069,7 +6365,6 @@ code {
     display: flex;
     align-items: flex-start;
     gap: 16px;
-    margin-bottom: 20px;
 }
 
 /* Icon wrapper — larger rounded-square with accent tint */
@@ -6160,22 +6455,69 @@ code {
 /* ── Primary stat cards ─────────────────────────────────────────────────── */
 .act-primary-stats {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
 }
-.act-primary-card { padding: var(--pad-card); }
 .act-pstat {
-    padding: 10px 12px;
+    padding: 13px 14px 12px;
     display: flex;
     flex-direction: column;
     gap: 6px;
     position: relative;
     overflow: hidden;
-    border-radius: var(--radius);
-    transition: background var(--transition);
+    border-radius: 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    cursor: default;
+    transition:
+        border-color var(--transition),
+        background var(--transition);
+    --mouse-x: 50%;
+    --mouse-y: 50%;
+}
+.act-pstat::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(
+        circle at var(--mouse-x) var(--mouse-y),
+        rgba(255, 255, 255, 0.055) 0%,
+        transparent 65%
+    );
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 0;
+}
+.act-pstat::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: radial-gradient(
+        circle at var(--mouse-x) var(--mouse-y),
+        rgba(255, 255, 255, 0.35) 0%,
+        transparent 60%
+    );
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 0;
+    -webkit-mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
 }
 .act-pstat:hover {
+    border-color: transparent;
     background: var(--bg-elevated);
+}
+.act-pstat:hover::before,
+.act-pstat:hover::after {
+    opacity: 1;
 }
 .act-pstat--accent {
     background: rgba(0, 229, 160, 0.06);
@@ -6185,24 +6527,42 @@ code {
 .act-pstat-top {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 7px;
+    margin-bottom: 3px;
 }
 .act-pstat-icon {
-    width: 14px;
-    height: 14px;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--text-muted);
     flex-shrink: 0;
-}
-.act-pstat-icon.accent {
-    color: var(--accent);
 }
 .act-pstat-icon svg {
     width: 13px;
     height: 13px;
     stroke-width: 2.2;
+}
+.act-pstat-icon.green {
+    background: var(--accent-dim);
+    color: var(--accent);
+}
+.act-pstat-icon.blue {
+    background: var(--blue-dim);
+    color: var(--blue);
+}
+.act-pstat-icon.red {
+    background: rgba(255, 71, 87, 0.12);
+    color: var(--red);
+}
+.act-pstat-icon.orange {
+    background: var(--orange-dim);
+    color: var(--orange);
+}
+.act-pstat-icon.yellow {
+    background: var(--yellow-dim);
+    color: var(--yellow);
 }
 .act-pstat-val {
     font-size: clamp(1.45rem, 2.8vw, 2rem);
@@ -6220,7 +6580,7 @@ code {
     font-size: var(--text-2xs);
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.07em;
     color: var(--text-muted);
     line-height: 1;
 }
@@ -6229,10 +6589,6 @@ code {
     .act-hero-icon-wrap {
         width: 46px;
         height: 46px;
-    }
-    .act-primary-stats {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 8px;
     }
     .act-pstat-val {
         font-size: 1.4rem;
@@ -6257,6 +6613,131 @@ code {
 }
 .act-pstat-cmp.cmp-same {
     color: var(--text-muted);
+}
+
+/* ── Similar ride preview card ──────────────────────────────────────────── */
+.act-similar-card {
+    padding: 14px 16px 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition:
+        border-color var(--transition),
+        background var(--transition);
+    --mouse-x: 50%;
+    --mouse-y: 50%;
+}
+.act-similar-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(
+        circle at var(--mouse-x) var(--mouse-y),
+        rgba(255, 255, 255, 0.055) 0%,
+        transparent 65%
+    );
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 0;
+}
+.act-similar-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: radial-gradient(
+        circle at var(--mouse-x) var(--mouse-y),
+        rgba(255, 255, 255, 0.35) 0%,
+        transparent 60%
+    );
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 0;
+    -webkit-mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+}
+.act-similar-card:hover {
+    border-color: transparent;
+    background: var(--bg-elevated);
+}
+.act-similar-card:hover::before,
+.act-similar-card:hover::after {
+    opacity: 1;
+}
+.act-similar-top {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 8px;
+}
+.act-similar-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: var(--purple-dim);
+    color: var(--purple);
+}
+.act-similar-icon svg {
+    width: 13px;
+    height: 13px;
+}
+.act-similar-lbl {
+    font-size: var(--text-2xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-muted);
+    flex: 1;
+}
+.act-similar-score {
+    flex-shrink: 0;
+    background: var(--accent-dim);
+    border: 1px solid var(--accent-glow);
+    color: var(--accent);
+    border-radius: 20px;
+    padding: 2px 10px;
+    font-size: var(--text-xs);
+    font-weight: 700;
+    font-family: var(--font-num);
+    white-space: nowrap;
+}
+.act-similar-name {
+    font-size: var(--text-sm);
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 2px;
+}
+.act-similar-meta {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    font-family: var(--font-num);
+    margin-bottom: 10px;
+}
+.act-similar-cta {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
 /* ── "How You Compare" card ─────────────────────────────────────────────── */
@@ -15835,6 +16316,15 @@ textarea:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
     border-radius: var(--radius);
+}
+
+/* ── High contrast preference ─────────────────────────────── */
+@media (prefers-contrast: more) {
+    :root {
+        --text-secondary: rgba(235, 235, 245, 0.75);
+        --text-muted: rgba(235, 235, 245, 0.55);
+        --border: rgba(84, 84, 88, 0.6);
+    }
 }
 
 /* ── Theme toggle pill ─────────────────────────────────────── */
