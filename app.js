@@ -6124,9 +6124,11 @@ const ENERGY_SYSTEMS = [
 /* ====================================================
    HEALTH METRICS  (Resting HR, HRV, Steps, Weight)
 ==================================================== */
-function renderHealthMetrics() {
+function renderHealthMetrics(days) {
+  const now = new Date();
+  const cutoffStr = days ? toDateStr(new Date(now - days * 86400000)) : null;
   const entries = Object.values(state.wellnessHistory || {})
-    .filter(e => e.id)
+    .filter(e => e.id && (!cutoffStr || e.id >= cutoffStr))
     .sort((a, b) => a.id.localeCompare(b.id));
 
   if (!entries.length) return;
@@ -6289,9 +6291,11 @@ function renderHealthMetrics() {
 /* ====================================================
    WELLNESS INSIGHTS — combined wellness + cycling charts
 ==================================================== */
-function renderWellnessInsights() {
+function renderWellnessInsights(days) {
+  const now = new Date();
+  const cutoffStr = days ? toDateStr(new Date(now - days * 86400000)) : null;
   const entries = Object.values(state.wellnessHistory || {})
-    .filter(e => e.id)
+    .filter(e => e.id && (!cutoffStr || e.id >= cutoffStr))
     .sort((a, b) => a.id.localeCompare(b.id));
   if (!entries.length) return;
 
@@ -6324,12 +6328,12 @@ function renderWellnessInsights() {
     y1: { position: 'right', ticks: { ...C_TICK, maxTicksLimit: 4 }, grid: { display: false }, border: { display: false } },
   };
 
-  // ── 1. HRV vs Training Load (90 days) ──
+  // ── 1. HRV vs Training Load ──
   (function() {
     const card = document.getElementById('insightHrvTssCard');
     if (!card) return;
     const labels = [], hrvVals = [], tssVals = [];
-    for (let i = 90; i >= 0; i--) {
+    for (let i = (days || 90); i >= 0; i--) {
       const d = toDateStr(daysAgo(i));
       const w = (state.wellnessHistory || {})[d];
       const hrv = w ? (w.hrv ?? w.hrvSDNN) : null;
@@ -6363,12 +6367,12 @@ function renderWellnessInsights() {
     });
   })();
 
-  // ── 2. Resting HR vs CTL (90 days) ──
+  // ── 2. Resting HR vs CTL ──
   (function() {
     const card = document.getElementById('insightRhrCtlCard');
     if (!card) return;
     const labels = [], rhrVals = [], ctlVals = [];
-    for (let i = 90; i >= 0; i--) {
+    for (let i = (days || 90); i >= 0; i--) {
       const d = toDateStr(daysAgo(i));
       const w = (state.wellnessHistory || {})[d];
       if (w && w.restingHR != null && w.ctl != null) {
@@ -9714,10 +9718,7 @@ function renderFitnessHeatmap() {
 
 function setFitnessRange(days) {
   state.fitnessRangeDays = days;
-  document.querySelectorAll('#fitRangePills button').forEach(b => b.classList.remove('active'));
-  const btn = document.getElementById('fitRange' + days);
-  if (btn) btn.classList.add('active');
-  // Sync floating pill
+  // Sync floating top pill
   const fp = document.getElementById('fitRangePillFloat');
   if (fp) {
     fp.querySelectorAll('button').forEach(b => {
@@ -9726,7 +9727,16 @@ function setFitnessRange(days) {
         (b.textContent.trim() === '1y' && days === 365));
     });
   }
-  noChartAnim(() => renderFitnessHistoryChart(days));
+  noChartAnim(() => {
+    renderFitnessHistoryChart(days);
+    renderFitnessWeeklyPageChart(days);
+    renderFitnessMonthlyTable(days);
+    renderFtpHistoryChart(days);
+    renderPeriodizationChart(days);
+    renderFitnessZoneDist(days);
+    renderWellnessInsights(days);
+    renderHealthMetrics(days);
+  });
 }
 
 function renderFitnessPage() {
@@ -9767,32 +9777,26 @@ function renderFitnessPage() {
     }
   }
 
+  const fd = state.fitnessRangeDays;
   renderFitnessStreak();
   renderFitnessWellness();
-  renderFitnessHistoryChart(state.fitnessRangeDays);
+  renderFitnessHistoryChart(fd);
   renderFitnessHeatmap();
-  renderFitnessWeeklyPageChart();
-  renderFitnessMonthlyTable();
+  renderFitnessWeeklyPageChart(fd);
+  renderFitnessMonthlyTable(fd);
   renderBestEfforts();
   renderRecoveryEstimation();
   renderRacePredictor();
   renderFatiguePredChart();
-  renderFtpHistoryChart(state._fitFtpRange ?? 0);
-  renderPeriodizationChart(state._fitPeriodRange ?? 180);
-  state._fitZoneRange = state._fitZoneRange ?? 90;
-  setFitZoneRange(state._fitZoneRange);
-  renderHealthMetrics();
-  renderWellnessInsights();
+  renderFtpHistoryChart(fd);
+  renderPeriodizationChart(fd);
+  renderFitnessZoneDist(fd);
+  renderHealthMetrics(fd);
+  renderWellnessInsights(fd);
   _rIC(() => { if (window.refreshGlow) refreshGlow(); });
 }
 
-function setFitZoneRange(days) {
-  state._fitZoneRange = days;
-  document.getElementById('fitZoneTab90')  ?.classList.toggle('active', days === 90);
-  document.getElementById('fitZoneTab365') ?.classList.toggle('active', days === 365);
-  document.getElementById('fitZoneTabAll') ?.classList.toggle('active', days === 0);
-  renderFitnessZoneDist(days);
-}
+
 
 function renderFitnessZoneDist(days) {
   const card = document.getElementById('fitZoneCard');
@@ -10084,13 +10088,6 @@ function _buildFtpTimeline() {
   return timeline;
 }
 
-function setFtpHistoryRange(days) {
-  state._fitFtpRange = days;
-  document.getElementById('fitFtpTab90')  ?.classList.toggle('active', days === 90);
-  document.getElementById('fitFtpTab365') ?.classList.toggle('active', days === 365);
-  document.getElementById('fitFtpTabAll') ?.classList.toggle('active', days === 0);
-  renderFtpHistoryChart(days);
-}
 
 function renderFtpHistoryChart(days) {
   const card = document.getElementById('fitFtpHistCard');
@@ -10299,13 +10296,6 @@ function _classifyWeek({ weeklyTSS, rollingAvgTSS, rampRate, tsb }) {
   return 'Base';
 }
 
-function setPeriodizationRange(days) {
-  state._fitPeriodRange = days;
-  document.getElementById('fitPeriodTab90')  ?.classList.toggle('active', days === 90);
-  document.getElementById('fitPeriodTab180') ?.classList.toggle('active', days === 180);
-  document.getElementById('fitPeriodTab365') ?.classList.toggle('active', days === 365);
-  renderPeriodizationChart(days);
-}
 
 function renderPeriodizationChart(days) {
   const card = document.getElementById('fitPeriodCard');
@@ -10440,18 +10430,21 @@ function renderPeriodizationChart(days) {
   });
 }
 
-function renderFitnessWeeklyPageChart() {
+function renderFitnessWeeklyPageChart(days) {
   const canvas = document.getElementById('fitnessWeeklyPageChart');
   if (!canvas) return;
   state.fitnessWeeklyPageChart = destroyChart(state.fitnessWeeklyPageChart);
 
+  const now = new Date();
+  const cutoff = days ? new Date(now - days * 86400000) : null;
   const weeks = {};
   state.activities.forEach(a => {
     const d  = new Date(a.start_date_local || a.start_date);
+    if (cutoff && d < cutoff) return;
     const wk = weekKey(d);
     weeks[wk] = (weeks[wk] || 0) + (a.icu_training_load || a.tss || 0);
   });
-  const entries = Object.entries(weeks).sort((a, b) => a[0].localeCompare(b[0])).slice(-16);
+  const entries = Object.entries(weeks).sort((a, b) => a[0].localeCompare(b[0]));
   if (!entries.length) return;
 
   // Color bars by intensity relative to avg
@@ -10478,12 +10471,15 @@ function renderFitnessWeeklyPageChart() {
   });
 }
 
-function renderFitnessMonthlyTable() {
+function renderFitnessMonthlyTable(days) {
   const tbody = document.getElementById('fitMonthlyBody');
   if (!tbody) return;
 
+  const now = new Date();
+  const cutoff = days ? new Date(now - days * 86400000) : null;
   const months = {};
   state.activities.filter(a => !isEmptyActivity(a)).forEach(a => {
+    if (cutoff) { const d = new Date(a.start_date_local || a.start_date); if (d < cutoff) return; }
     const key = (a.start_date_local || a.start_date || '').slice(0, 7); // YYYY-MM
     if (!key) return;
     if (!months[key]) months[key] = { count: 0, dist: 0, time: 0, tss: 0 };
@@ -21912,7 +21908,7 @@ Object.assign(window, {
   renderFitnessPage, renderPowerPage, renderCalendar, renderActivityBasic, renderZonesPage,
   setTerrainEnabled, fetchAthleteProfile, saveCredentials, updateConnectionUI,
   _hmOpenDB, updateLifetimeCacheUI, fmtDur, renderWeekProgress,
-  setFitZoneRange, setFatiguePredScenario, setFtpHistoryRange, setPeriodizationRange,
+  setFatiguePredScenario,
   onServiceShopChange, onServiceNextModeChange,
   updateCompareCardMetric, setCompareCardChartType, removeCompareCard,
   renderWxLocationSwitcher, getWxLocations, setActiveWxLocation,
