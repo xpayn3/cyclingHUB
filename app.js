@@ -1306,7 +1306,8 @@ const _iosSubpageNames = {
   weather: 'Weather', icu: 'intervals.icu', strava: 'Strava',
   dashsections: 'Dashboard Sections', actsections: 'Activity Sections',
   backup: 'Backup & Restore', routebuilder: 'Route Builder',
-  share: 'Share CycleIQ', donate: 'Support CycleIQ'
+  share: 'Share CycleIQ', donate: 'Support CycleIQ',
+  defaultrange: 'Default Range'
 };
 
 function openSettingsSubpage(id) {
@@ -1461,6 +1462,13 @@ function iosSettingsInit() {
       wxEl.textContent = locs.length ? locs.length + ' location' + (locs.length > 1 ? 's' : '') : 'None';
     } catch { wxEl.textContent = 'None'; }
   }
+  // Default range value
+  const defRangeEl = document.getElementById('iosDefRangeVal');
+  if (defRangeEl) defRangeEl.textContent = (state.rangeDays || 30) + ' days';
+  // Sync checkmarks
+  document.querySelectorAll('.ios-row--check[data-defrange]').forEach(r =>
+    r.classList.toggle('active', parseInt(r.dataset.defrange) === (state.rangeDays || 30))
+  );
 }
 
 /* ====================================================
@@ -2693,10 +2701,13 @@ function setRange(days) {
   // Sync topbar pill
   document.querySelectorAll('#dateRangePill button').forEach(b => b.classList.remove('active'));
   document.getElementById('range' + days)?.classList.add('active');
-  // Sync settings default-range pill
-  document.querySelectorAll('[data-defrange]').forEach(b =>
-    b.classList.toggle('active', parseInt(b.dataset.defrange) === days)
+  // Sync settings default-range checkmarks
+  document.querySelectorAll('.ios-row--check[data-defrange]').forEach(r =>
+    r.classList.toggle('active', parseInt(r.dataset.defrange) === days)
   );
+  // Update main settings row value label
+  const defLabel = document.getElementById('iosDefRangeVal');
+  if (defLabel) defLabel.textContent = days + ' days';
   // Update Training Load card range label
   const lbl = document.getElementById('fitnessRangeLabel');
   if (lbl) lbl.textContent = rangeLabel(days);
@@ -3497,6 +3508,8 @@ async function renderRecentActCardMap(a, idx, idPrefix = 'recentActCard') {
         fitBoundsOptions: { padding: 20, bearing },
         interactive: false,
         attributionControl: false,
+        fadeDuration: 0,
+        localIdeographFontFamily: 'sans-serif',
       });
 
       map.on('load', () => {
@@ -3553,7 +3566,20 @@ async function renderRecentActivity() {
   }
 
   const recent = pool.slice(0, 3);
-  rail.innerHTML = recent.map((a, i) => buildHeroActCardHTML(a, i)).join('');
+  const totalCount = pool.length;
+  let html = recent.map((a, i) => buildHeroActCardHTML(a, i)).join('');
+  // "View All" link card
+  html += `<div class="hero-act-card hero-act-card--viewall" onclick="navigate('activities')">
+    <div class="hero-viewall-inner">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="32" height="32">
+        <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/>
+        <rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>
+      </svg>
+      <span class="hero-viewall-label">View All</span>
+      <span class="hero-viewall-count">${totalCount} activities</span>
+    </div>
+  </div>`;
+  rail.innerHTML = html;
   if (sectionLabel) sectionLabel.style.display = '';
 
   recent.forEach((a, i) => {
@@ -3564,7 +3590,7 @@ async function renderRecentActivity() {
   if (window.refreshGlow) refreshGlow(rail);
 
   // ── Mobile pagination dots ──
-  _initRecentActDots(rail, recent.length);
+  _initRecentActDots(rail, recent.length + 1);
 }
 
 function _initRecentActDots(rail, count) {
@@ -14010,6 +14036,13 @@ var MAP_STYLES = {
   satellite: { label: 'Satellite', tiles: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', bg: '#1a1c22' },
 };
 
+// Pre-fetch current map style JSON so it's cached when an activity is opened
+setTimeout(() => {
+  const themeKey = loadMapTheme();
+  const entry = MAP_STYLES[themeKey];
+  if (entry && entry.style) fetch(entry.style, { priority: 'low' }).catch(() => {});
+}, 2000);
+
 // ── Strava-inspired map color overrides ─────────────────────────────────────
 // Applied after the OpenFreeMap dark style loads to produce a Strava-like look:
 // tinted navy background, subtle blue water, muted green parks, warm-grey roads.
@@ -14231,6 +14264,8 @@ function renderActivityMap(latlng, streams) {
         pitchWithRotate: _actTerrainOn,
         scrollZoom: false,
         maxPitch: 85,
+        fadeDuration: 0,
+        localIdeographFontFamily: 'sans-serif',
       });
       map.addControl(new maplibregl.NavigationControl({ showCompass: _actTerrainOn, visualizePitch: _actTerrainOn }), 'top-left');
 
