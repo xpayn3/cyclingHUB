@@ -802,6 +802,34 @@ async function icuPost(path, body) {
   return res.json();
 }
 
+async function icuPut(path, body) {
+  const res = await fetch(ICU_BASE + path, {
+    method: 'PUT',
+    headers: { ...authHeader(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  rlTrackRequest();
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(`${res.status}: ${text}`);
+  }
+  return res.json();
+}
+
+async function icuDelete(path) {
+  const res = await fetch(ICU_BASE + path, {
+    method: 'DELETE',
+    headers: authHeader(),
+  });
+  rlTrackRequest();
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(`${res.status}: ${text}`);
+  }
+  const ct = res.headers.get('content-type') || '';
+  return ct.includes('application/json') ? res.json() : null;
+}
+
 async function fetchAthleteProfile() {
   const data = await icuFetch(`/athlete/${state.athleteId}`);
   state.athlete = data;
@@ -1093,7 +1121,7 @@ async function syncData(force = false) {
     updateConnectionUI(true);
     if (state.currentPage === 'dashboard')  renderDashboard();
     if (state.currentPage === 'activities') renderAllActivitiesList();
-    if (state.currentPage === 'calendar')  renderCalendar();
+    if (state.currentPage === 'calendar')  { renderCalendar(); refreshCalendarEvents(); }
     if (state.currentPage === 'fitness')   renderFitnessPage();
     if (state.currentPage === 'power')     renderPowerPage();
     if (state.currentPage === 'goals')     { renderStreaksPage(); renderGoalsPage(); }
@@ -2262,7 +2290,7 @@ function navigate(page) {
     if (rail) rail.scrollLeft = 0;
     renderDashboard();
   }
-  if (page === 'calendar') renderCalendar();
+  if (page === 'calendar') { renderCalendar(); refreshCalendarEvents(); }
   if (page === 'fitness')  renderFitnessPage();
   if (page === 'power')    renderPowerPage();
   if (page === 'zones')    renderZonesPage();
@@ -2691,7 +2719,7 @@ function setWeekStartDay(day) {
     renderWeekProgress();
     renderFitnessStreak();
   }
-  if (state.currentPage === 'calendar') renderCalendar();
+  if (state.currentPage === 'calendar') { renderCalendar(); refreshCalendarEvents(); }
 }
 
 function rangeLabel(days) {
@@ -11118,16 +11146,39 @@ function getCalMonth() {
   return state.calMonth;
 }
 
+// Fetch planned events (workouts, notes, races, goals) from intervals.icu
+async function fetchCalendarEvents() {
+  if (!state.athleteId || !state.apiKey) return;
+  const m = getCalMonth();
+  const year = m.getFullYear(), month = m.getMonth();
+  const oldest = toDateStr(new Date(year, month - 1, 1));
+  const newest = toDateStr(new Date(year, month + 2, 0));
+  try {
+    const data = await icuFetch(`/athlete/${state.athleteId}/events?oldest=${oldest}&newest=${newest}`);
+    state.calEvents = Array.isArray(data) ? data : [];
+  } catch (e) {
+    console.warn('Failed to fetch calendar events:', e);
+    state.calEvents = [];
+  }
+}
+
+// Fetch events then re-render calendar (non-blocking background refresh)
+function refreshCalendarEvents() {
+  fetchCalendarEvents().then(() => renderCalendar());
+}
+
 function calPrevMonth() {
   const m = getCalMonth();
   state.calMonth = new Date(m.getFullYear(), m.getMonth() - 1, 1);
   renderCalendar();
+  refreshCalendarEvents();
 }
 
 function calNextMonth() {
   const m = getCalMonth();
   state.calMonth = new Date(m.getFullYear(), m.getMonth() + 1, 1);
   renderCalendar();
+  refreshCalendarEvents();
 }
 
 function calGoToday() {
@@ -11135,6 +11186,7 @@ function calGoToday() {
   state.calMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   state.calSelectedDate = toDateStr(now);
   renderCalendar();
+  refreshCalendarEvents();
 }
 
 // ── Swipe left/right on mobile to change months ──────────────────────────
@@ -11185,7 +11237,9 @@ function toggleCalPanel() {
   }
 })();
 
-/* ── Calendar: Create Event Modal ──────────────────────── */
+/* ── Calendar: Create / Edit Event Modal ──────────────────────── */
+
+let _editingCalEvent = null; // null = create mode, event object = edit mode
 
 const _calEvPresets = {
   easy:      { cat: 'WORKOUT', sport: 'Ride',        name: 'Easy Endurance',   dur: '1h 0m',  tss: 45  },
@@ -11195,24 +11249,62 @@ const _calEvPresets = {
   race:      { cat: 'RACE',    sport: 'Ride',        name: 'Race',             dur: '1h 0m',  tss: 100 },
 };
 
-function openCalEventModal(presetDate) {
+function openCalEventModal(presetDateOrEvent) {
   const modal = document.getElementById('calEventModal');
   if (!modal) return;
 
-  const date = presetDate || state.calSelectedDate || toDateStr(new Date());
-  document.getElementById('calEvDate').value       = date;
-  document.getElementById('calEvCategory').value    = 'WORKOUT';
-  document.getElementById('calEvName').value        = '';
-  document.getElementById('calEvSport').value       = 'Ride';
-  document.getElementById('calEvDuration').value    = '';
-  document.getElementById('calEvDistance').value     = '';
-  document.getElementById('calEvTss').value         = '';
-  document.getElementById('calEvDesc').value        = '';
+  const isEdit = presetDateOrEvent && typeof presetDateOrEvent === 'object' && presetDateOrEvent.id;
 
-  // Clear active preset
+  if (isEdit) {
+    // ── EDIT MODE ──
+    _editingCalEvent = presetDateOrEvent;
+    const ev = presetDateOrEvent;
+
+    document.getElementById('calEvDate').value       = (ev.start_date_local || '').slice(0, 10);
+    document.getElementById('calEvCategory').value    = ev.category || 'WORKOUT';
+    document.getElementById('calEvName').value        = ev.name || '';
+    document.getElementById('calEvSport').value       = ev.type || 'Ride';
+    document.getElementById('calEvDuration').value    = ev.moving_time > 0 ? fmtDur(ev.moving_time) : '';
+    document.getElementById('calEvDistance').value     = ev.distance > 0 ? (ev.distance / 1000).toFixed(1) : '';
+    document.getElementById('calEvTss').value         = ev.icu_training_load || '';
+    document.getElementById('calEvDesc').value        = ev.description || '';
+
+    document.querySelector('#calEventModal .modal-title').textContent = 'Edit Event';
+    document.querySelector('#calEventModal .modal-desc').textContent  = 'Modify or delete this planned event';
+    document.getElementById('calEvPresets').style.display  = 'none';
+    const delBtn = document.getElementById('calEvDeleteBtn');
+    delBtn.style.display = '';
+    delBtn.textContent = 'Delete';
+    delBtn.classList.remove('btn-danger--confirm');
+    _calEvDeleteConfirm = false;
+    document.getElementById('calEvSaveBtn').textContent     = 'Save Changes';
+  } else {
+    // ── CREATE MODE ──
+    _editingCalEvent = null;
+    const date = presetDateOrEvent || state.calSelectedDate || toDateStr(new Date());
+    document.getElementById('calEvDate').value       = date;
+    document.getElementById('calEvCategory').value    = 'WORKOUT';
+    document.getElementById('calEvName').value        = '';
+    document.getElementById('calEvSport').value       = 'Ride';
+    document.getElementById('calEvDuration').value    = '';
+    document.getElementById('calEvDistance').value     = '';
+    document.getElementById('calEvTss').value         = '';
+    document.getElementById('calEvDesc').value        = '';
+
+    document.querySelector('#calEventModal .modal-title').textContent = 'Add to Calendar';
+    document.querySelector('#calEventModal .modal-desc').textContent  = 'Plan a workout, note, race or goal';
+    document.getElementById('calEvPresets').style.display  = '';
+    document.getElementById('calEvDeleteBtn').style.display = 'none';
+    document.getElementById('calEvSaveBtn').textContent     = 'Add to Calendar';
+  }
+
+  // Clear active preset highlight & validation errors
   document.querySelectorAll('#calEvPresets button').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('#calEventModal .error').forEach(el => el.classList.remove('error'));
 
   _calEvCategoryChanged();
+  _initModalControls();
+  _syncModalControls();
   modal.showModal();
 }
 
@@ -11243,6 +11335,7 @@ function _applyCalEvPreset(key) {
   document.getElementById('calEvDuration').value = p.dur;
   document.getElementById('calEvTss').value      = p.tss;
   _calEvCategoryChanged();
+  _syncModalControls();
 }
 
 // Wire preset buttons
@@ -11256,6 +11349,184 @@ document.addEventListener('click', e => {
   const modal = document.getElementById('calEventModal');
   if (e.target === modal) modal.close();
 });
+
+/* ── Custom Form Controls (iOS-style select & date picker) ──────── */
+
+// Close any open custom dropdowns on outside click
+document.addEventListener('click', () => {
+  document.querySelectorAll('.cs-wrap--open, .dp-wrap--open').forEach(w => w.classList.remove('cs-wrap--open', 'dp-wrap--open'));
+});
+
+// Upgrade a <select> to a custom styled dropdown
+function _upgradeSelect(sel) {
+  if (sel.dataset.csReady) return;
+  sel.dataset.csReady = '1';
+  sel.style.display = 'none';
+
+  const wrap = document.createElement('div');
+  wrap.className = 'cs-wrap';
+  sel.parentNode.insertBefore(wrap, sel);
+
+  const trigger = document.createElement('button');
+  trigger.type = 'button';
+  trigger.className = 'cs-trigger';
+  const valSpan = document.createElement('span');
+  valSpan.className = 'cs-value';
+  valSpan.textContent = sel.options[sel.selectedIndex]?.text || '';
+  trigger.appendChild(valSpan);
+  trigger.insertAdjacentHTML('beforeend',
+    '<svg class="cs-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>');
+  wrap.appendChild(trigger);
+
+  const dd = document.createElement('div');
+  dd.className = 'cs-dropdown';
+  Array.from(sel.options).forEach(opt => {
+    const row = document.createElement('div');
+    row.className = 'cs-option' + (opt.value === sel.value ? ' cs-option--sel' : '');
+    row.dataset.value = opt.value;
+    row.textContent = opt.text;
+    row.addEventListener('click', e => {
+      e.stopPropagation();
+      sel.value = opt.value;
+      sel.dispatchEvent(new Event('change'));
+      valSpan.textContent = opt.text;
+      dd.querySelectorAll('.cs-option').forEach(r => r.classList.toggle('cs-option--sel', r.dataset.value === opt.value));
+      wrap.classList.remove('cs-wrap--open');
+    });
+    dd.appendChild(row);
+  });
+  wrap.appendChild(dd);
+
+  trigger.addEventListener('click', e => {
+    e.stopPropagation();
+    document.querySelectorAll('.cs-wrap--open, .dp-wrap--open').forEach(w => { if (w !== wrap) w.classList.remove('cs-wrap--open', 'dp-wrap--open'); });
+    wrap.classList.toggle('cs-wrap--open');
+  });
+
+  // Sync method: call after programmatic value change on the native select
+  wrap._sync = () => {
+    valSpan.textContent = sel.options[sel.selectedIndex]?.text || '';
+    dd.querySelectorAll('.cs-option').forEach(r => r.classList.toggle('cs-option--sel', r.dataset.value === sel.value));
+  };
+}
+
+// Upgrade an <input type="date"> to a custom calendar picker
+function _upgradeDateInput(input) {
+  if (input.dataset.dpReady) return;
+  input.dataset.dpReady = '1';
+  input.type = 'hidden'; // hide native, keep value accessible
+
+  const wrap = document.createElement('div');
+  wrap.className = 'dp-wrap';
+  input.parentNode.insertBefore(wrap, input);
+
+  const trigger = document.createElement('button');
+  trigger.type = 'button';
+  trigger.className = 'dp-trigger';
+  const valSpan = document.createElement('span');
+  valSpan.className = 'dp-value';
+  trigger.appendChild(valSpan);
+  trigger.insertAdjacentHTML('beforeend',
+    '<svg class="dp-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>');
+  wrap.appendChild(trigger);
+
+  const dd = document.createElement('div');
+  dd.className = 'dp-dropdown';
+  wrap.appendChild(dd);
+
+  let dpY, dpM;
+
+  function fmtPick(str) {
+    if (!str) return 'Select date';
+    const [y, m, d] = str.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  }
+
+  function render() {
+    const val = input.value;
+    if (val && dpY === undefined) { const [y, m] = val.split('-').map(Number); dpY = y; dpM = m - 1; }
+    if (dpY === undefined) { const n = new Date(); dpY = n.getFullYear(); dpM = n.getMonth(); }
+    valSpan.textContent = fmtPick(val);
+
+    const first = new Date(dpY, dpM, 1);
+    const last  = new Date(dpY, dpM + 1, 0);
+    const startDow = (first.getDay() - (state.weekStartDay || 1) + 7) % 7;
+    const mLabel = first.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+    const todayStr = toDateStr(new Date());
+    const dowNames = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    if (state.weekStartDay === 0) { dowNames.unshift(dowNames.pop()); }
+
+    let h = `<div class="dp-head">
+      <button type="button" class="dp-nav" data-d="-1"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+      <span class="dp-month">${mLabel}</span>
+      <button type="button" class="dp-nav" data-d="1"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+    </div>`;
+    h += '<div class="dp-dow">' + dowNames.map(d => `<span>${d.slice(0,2)}</span>`).join('') + '</div>';
+    h += '<div class="dp-grid">';
+    for (let i = startDow - 1; i >= 0; i--) {
+      const d = new Date(dpY, dpM, -i);
+      const ds = toDateStr(d);
+      h += `<button type="button" class="dp-day dp-day--other${ds === val ? ' dp-day--sel' : ''}" data-d="${ds}">${d.getDate()}</button>`;
+    }
+    for (let d = 1; d <= last.getDate(); d++) {
+      const ds = toDateStr(new Date(dpY, dpM, d));
+      const cls = ['dp-day'];
+      if (ds === val) cls.push('dp-day--sel');
+      if (ds === todayStr) cls.push('dp-day--today');
+      h += `<button type="button" class="${cls.join(' ')}" data-d="${ds}">${d}</button>`;
+    }
+    const tot = startDow + last.getDate();
+    const rem = tot % 7;
+    if (rem > 0) for (let i = 1; i <= 7 - rem; i++) {
+      const d = new Date(dpY, dpM + 1, i);
+      const ds = toDateStr(d);
+      h += `<button type="button" class="dp-day dp-day--other${ds === val ? ' dp-day--sel' : ''}" data-d="${ds}">${d.getDate()}</button>`;
+    }
+    h += '</div>';
+    dd.innerHTML = h;
+
+    dd.querySelectorAll('.dp-nav').forEach(b => b.addEventListener('click', e => {
+      e.stopPropagation();
+      dpM += parseInt(b.dataset.d);
+      if (dpM < 0) { dpM = 11; dpY--; } else if (dpM > 11) { dpM = 0; dpY++; }
+      render();
+    }));
+    dd.querySelectorAll('.dp-day').forEach(b => b.addEventListener('click', e => {
+      e.stopPropagation();
+      input.value = b.dataset.d;
+      input.dispatchEvent(new Event('change'));
+      wrap.classList.remove('dp-wrap--open');
+      const [ny, nm] = b.dataset.d.split('-').map(Number);
+      dpY = ny; dpM = nm - 1;
+      render();
+    }));
+  }
+
+  trigger.addEventListener('click', e => {
+    e.stopPropagation();
+    document.querySelectorAll('.cs-wrap--open, .dp-wrap--open').forEach(w => { if (w !== wrap) w.classList.remove('cs-wrap--open', 'dp-wrap--open'); });
+    wrap.classList.toggle('dp-wrap--open');
+    if (wrap.classList.contains('dp-wrap--open')) render();
+  });
+
+  wrap._sync = () => {
+    const val = input.value;
+    if (val) { const [y, m] = val.split('-').map(Number); dpY = y; dpM = m - 1; }
+    valSpan.textContent = fmtPick(val);
+  };
+  render();
+}
+
+// Initialize and sync all custom controls in the modal
+function _initModalControls() {
+  document.querySelectorAll('#calEventModal select').forEach(_upgradeSelect);
+  const dateInput = document.getElementById('calEvDate');
+  if (dateInput) _upgradeDateInput(dateInput);
+}
+function _syncModalControls() {
+  document.querySelectorAll('#calEventModal .cs-wrap').forEach(w => w._sync && w._sync());
+  document.querySelectorAll('#calEventModal .dp-wrap').forEach(w => w._sync && w._sync());
+}
 
 function _parseDurationToSecs(str) {
   if (!str) return 0;
@@ -11272,12 +11543,17 @@ function _parseDurationToSecs(str) {
 }
 
 async function saveCalEvent() {
-  const name = document.getElementById('calEvName').value.trim();
-  const date = document.getElementById('calEvDate').value;
+  const nameEl = document.getElementById('calEvName');
+  const dateEl = document.getElementById('calEvDate');
+  const name = nameEl.value.trim();
+  const date = dateEl.value;
   const cat  = document.getElementById('calEvCategory').value;
 
-  if (!name) { showToast('Please enter a name', 'error'); return; }
-  if (!date) { showToast('Please select a date', 'error'); return; }
+  // Inline validation — highlight empty required fields
+  nameEl.classList.toggle('error', !name);
+  dateEl.classList.toggle('error', !date);
+  if (!name) { nameEl.focus(); return; }
+  if (!date) { dateEl.focus(); return; }
 
   const saveBtn = document.getElementById('calEvSaveBtn');
   saveBtn.disabled = true;
@@ -11307,15 +11583,55 @@ async function saveCalEvent() {
     const desc = document.getElementById('calEvDesc').value.trim();
     if (desc) payload.description = desc;
 
-    await icuPost(`/athlete/${state.athleteId}/events`, payload);
-    showToast('Event added to calendar', 'success');
+    if (_editingCalEvent) {
+      await icuPut(`/athlete/${state.athleteId}/events/${_editingCalEvent.id}`, payload);
+      showToast('Event updated', 'success');
+    } else {
+      await icuPost(`/athlete/${state.athleteId}/events`, payload);
+      showToast('Event added to calendar', 'success');
+    }
     closeCalEventModal();
+    await fetchCalendarEvents();
     renderCalendar();
   } catch (err) {
     showToast('Failed to save: ' + err.message, 'error');
   } finally {
     saveBtn.disabled = false;
-    saveBtn.textContent = 'Add to Calendar';
+    saveBtn.textContent = _editingCalEvent ? 'Save Changes' : 'Add to Calendar';
+  }
+}
+
+let _calEvDeleteConfirm = false;
+
+async function deleteCalEvent() {
+  if (!_editingCalEvent || !_editingCalEvent.id) return;
+
+  const deleteBtn = document.getElementById('calEvDeleteBtn');
+
+  // Two-tap confirmation: first tap turns red with "Confirm Delete", second tap actually deletes
+  if (!_calEvDeleteConfirm) {
+    _calEvDeleteConfirm = true;
+    deleteBtn.textContent = 'Confirm Delete';
+    deleteBtn.classList.add('btn-danger--confirm');
+    return;
+  }
+
+  _calEvDeleteConfirm = false;
+  deleteBtn.disabled = true;
+  deleteBtn.textContent = 'Deleting...';
+
+  try {
+    await icuDelete(`/athlete/${state.athleteId}/events/${_editingCalEvent.id}`);
+    showToast('Event deleted', 'success');
+    closeCalEventModal();
+    await fetchCalendarEvents();
+    renderCalendar();
+  } catch (err) {
+    showToast('Failed to delete: ' + err.message, 'error');
+  } finally {
+    deleteBtn.disabled = false;
+    deleteBtn.textContent = 'Delete';
+    deleteBtn.classList.remove('btn-danger--confirm');
   }
 }
 
@@ -11376,14 +11692,24 @@ function buildCalActMap() {
     if (!actMap[d]) actMap[d] = [];
     actMap[d].push({ a, stateIdx });
   });
+  // Merge planned events from intervals.icu
+  if (state.calEvents && state.calEvents.length) {
+    state.calEvents.forEach(ev => {
+      const d = (ev.start_date_local || ev.start_date || '').slice(0, 10);
+      if (!d) return;
+      if (!actMap[d]) actMap[d] = [];
+      actMap[d].push({ a: ev, stateIdx: -1, isEvent: true });
+    });
+  }
   return actMap;
 }
 
 function renderCalendar() {
+  window._calEvLookup = {};
+
   const m     = getCalMonth();
   const year  = m.getFullYear();
   const month = m.getMonth(); // 0-based
-
 
   const actMap   = buildCalActMap();
   const todayStr = toDateStr(new Date());
@@ -11391,13 +11717,13 @@ function renderCalendar() {
   // Default selected date to today on first render
   if (!state.calSelectedDate) state.calSelectedDate = todayStr;
 
-  // ── Month stats ──
+  // ── Month stats (only completed activities, skip planned events) ──
   let totalActs = 0, totalDist = 0, totalTSS = 0, totalSecs = 0, totalCals = 0;
-  Object.entries(actMap).forEach(([d, acts]) => {
+  Object.entries(actMap).forEach(([d, items]) => {
     const [y, mo] = d.split('-').map(Number);
     if (y === year && mo === month + 1) {
-      acts.forEach(({ a }) => {
-        if (isEmptyActivity(a)) return;
+      items.forEach(({ a, isEvent }) => {
+        if (isEvent || isEmptyActivity(a)) return;
         totalActs++;
         totalDist += actVal(a, 'distance', 'icu_distance');
         totalTSS  += actVal(a, 'icu_training_load', 'tss');
@@ -11447,8 +11773,9 @@ function renderCalendar() {
   const grid = document.getElementById('calGrid');
   grid.innerHTML = cells.map(({ date, thisMonth }) => {
     const dateStr   = toDateStr(date);
-    const acts      = actMap[dateStr] || [];
-    const realActs  = acts.filter(({ a }) => !isEmptyActivity(a));
+    const allItems  = actMap[dateStr] || [];
+    const realActs  = allItems.filter(({ a, isEvent }) => !isEvent && !isEmptyActivity(a));
+    const events    = allItems.filter(({ isEvent }) => isEvent);
     const isToday    = dateStr === todayStr;
     const isSelected = dateStr === state.calSelectedDate;
     const dow        = date.getDay();
@@ -11464,10 +11791,25 @@ function renderCalendar() {
 
     // ── Desktop: mini activity cards (hidden on mobile via CSS) ──
     const maxCards = 2;
-    const shownActs = realActs.slice(0, maxCards);
-    const extraActs = realActs.length - maxCards;
+    const combined = [...events, ...realActs]; // events first, then completed activities
+    const shownItems = combined.slice(0, maxCards);
+    const extraItems = combined.length - maxCards;
 
-    const cardsHtml = shownActs.map(({ a, stateIdx }) => {
+    const cardsHtml = shownItems.map(({ a, stateIdx, isEvent: isEv }) => {
+      if (isEv) {
+        // Planned event card (workout, note, race, goal)
+        const evName = a.name || a.category || 'Event';
+        const cat = (a.category || '').toUpperCase();
+        const catLabel = cat === 'WORKOUT' ? 'Workout' : cat === 'RACE' ? 'Race' : cat === 'GOAL' ? 'Goal' : 'Note';
+        const catCls = 'cal-ev-cat--' + catLabel.toLowerCase();
+        window._calEvLookup[a.id] = a;
+        return `<div class="cal-day-card cal-day-card--planned ${catCls}" onclick="event.stopPropagation();openCalEventModal(window._calEvLookup[${a.id}])">
+          <div class="cal-day-card-top">
+            <span class="cal-ev-badge ${catCls}">${catLabel}</span>
+          </div>
+          <div class="cal-day-card-name">${evName}</div>
+        </div>`;
+      }
       const { title: name } = cleanActivityName((a.name && a.name.trim()) ? a.name.trim() : activityFallbackName(a));
       const dist = (a.distance || 0) / 1000;
       const secs = a.moving_time || a.elapsed_time || 0;
@@ -11492,11 +11834,21 @@ function renderCalendar() {
         </div>
       </div>`;
     }).join('');
-    const moreHtml = extraActs > 0 ? `<div class="cal-day-more">+${extraActs} more</div>` : '';
+    const moreHtml = extraItems > 0 ? `<div class="cal-day-more">+${extraItems} more</div>` : '';
     const desktopHtml = `<div class="cal-day-cards">${cardsHtml}${moreHtml}</div>`;
 
     // ── Mobile: dot indicators (hidden on desktop via CSS) ──
     const seenTypes = new Set();
+    // Show event dots first (hollow ring style handled via CSS)
+    const eventDots = events.reduce((acc, { a }) => {
+      const cat = (a.category || '').toLowerCase();
+      const key = 'cal-ev--' + cat;
+      if (!seenTypes.has(key) && seenTypes.size < 3) {
+        seenTypes.add(key);
+        acc += `<div class="cal-dot cal-dot--planned ${key}"></div>`;
+      }
+      return acc;
+    }, '');
     const dots = realActs.reduce((acc, { a }) => {
       const tc = calEventClass(a);
       if (!seenTypes.has(tc) && seenTypes.size < 3) {
@@ -11504,7 +11856,7 @@ function renderCalendar() {
         acc += `<div class="cal-dot ${tc}"></div>`;
       }
       return acc;
-    }, '');
+    }, eventDots);
     const mobileHtml = `<div class="cal-dots">${dots}</div>`;
 
     // ── Heart rate pill (desktop only) ──
@@ -11553,16 +11905,46 @@ function renderCalDayList(dateStr, actMap) {
 
   // Build actMap lazily if not passed in
   const map = actMap || buildCalActMap();
-  const acts = (map[dateStr] || []).filter(({ a }) => !isEmptyActivity(a));
+  const allItems = map[dateStr] || [];
+  const events = allItems.filter(({ isEvent }) => isEvent);
+  const acts   = allItems.filter(({ a, isEvent }) => !isEvent && !isEmptyActivity(a));
 
-  if (acts.length === 0) {
+  if (events.length === 0 && acts.length === 0) {
     list.innerHTML = '<div class="cal-day-empty">No activities</div>';
     return;
   }
 
   const chevronSvg = `<svg class="cal-list-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
 
-  list.innerHTML = acts.map(({ a, stateIdx }) => {
+  // Render planned events first
+  const evHtml = events.map(({ a }) => {
+    const evName = a.name || a.category || 'Event';
+    const cat = (a.category || '').toUpperCase();
+    const catLabel = cat === 'WORKOUT' ? 'Workout' : cat === 'RACE' ? 'Race' : cat === 'GOAL' ? 'Goal' : 'Note';
+    const catCls = 'cal-ev-cat--' + catLabel.toLowerCase();
+    const desc = a.description ? `<div class="cal-list-meta">${a.description.slice(0, 60)}${a.description.length > 60 ? '...' : ''}</div>` : '';
+    const tss = a.icu_training_load || 0;
+    const dist = (a.distance || 0) / 1000;
+    const secs = a.moving_time || 0;
+    const meta = [
+      dist > 0.1 ? dist.toFixed(1) + ' km' : '',
+      secs > 0   ? fmtDur(secs) : '',
+    ].filter(Boolean).join(' · ');
+    if (!window._calEvLookup) window._calEvLookup = {};
+    window._calEvLookup[a.id] = a;
+    return `<div class="cal-list-item cal-list-item--planned" onclick="openCalEventModal(window._calEvLookup[${a.id}])">
+      <div class="cal-list-dot cal-list-dot--planned ${catCls}"></div>
+      <div class="cal-list-info">
+        <div class="cal-list-name">${evName}</div>
+        ${meta ? `<div class="cal-list-meta">${meta}</div>` : desc}
+      </div>
+      ${tss > 0 ? `<div class="cal-list-tss">${Math.round(tss)} TSS</div>` : `<span class="cal-ev-badge ${catCls}">${catLabel}</span>`}
+      ${chevronSvg}
+    </div>`;
+  }).join('');
+
+  // Render completed activities
+  const actHtml = acts.map(({ a, stateIdx }) => {
     const { title: name } = cleanActivityName((a.name && a.name.trim()) ? a.name.trim() : activityFallbackName(a));
     const dist = (a.distance || 0) / 1000;
     const secs = a.moving_time || a.elapsed_time || 0;
@@ -11582,6 +11964,8 @@ function renderCalDayList(dateStr, actMap) {
       ${chevronSvg}
     </div>`;
   }).join('');
+
+  list.innerHTML = evHtml + actHtml;
 }
 
 /* ====================================================
@@ -11869,10 +12253,12 @@ async function navigateToActivity(actKey, fromStep = false) {
     renderDetailHRZones(richActivity);
     initZonesCarousel();
     renderActivityIntervals(actId);  // async — shows/hides its own card
+    renderLapSplits(richActivity);
     // Both zone cards always show now (with NA if no data), so the row is always two-column
     renderDetailHistogram(richActivity, normStreams);
     renderDetailTempChart(normStreams, richActivity);
     renderDetailGradientProfile(normStreams, richActivity);
+    renderClimbDetection(normStreams, richActivity);
     renderDetailCadenceHist(normStreams, richActivity);
     renderDetailCurve(actId, normStreams);   // async — shows/hides its own card
     renderDetailHRCurve(normStreams);        // async — shows/hides its own card
@@ -12378,8 +12764,8 @@ const _DETAIL_CARD_IDS = [
   'detailMapCard', 'detailStreamsCard', 'detailChartsRow', 'detailZonesCard', 'detailHRZonesCard',
   'detailHistogramCard', 'detailCurveCard', 'detailHRCurveCard', 'detailPerfCard',
   'detailWeatherCard', 'detailTempCard', 'detailDecoupleCard', 'detailLRBalanceCard',
-  'detailGradientCard', 'detailCadenceCard', 'detailCompareCard',
-  'detailZonesCarouselCard', 'detailCurvesRow', 'detailIntervalsCard', 'detailNotesCard'];
+  'detailGradientCard', 'detailClimbsCard', 'detailCadenceCard', 'detailCompareCard',
+  'detailZonesCarouselCard', 'detailCurvesRow', 'detailIntervalsCard', 'detailLapSplitsCard', 'detailNotesCard'];
 
 function skeletonCards(show) {
   _DETAIL_CARD_IDS.forEach(id => {
@@ -13195,6 +13581,59 @@ function renderActivityBasic(a) {
   tssEl.textContent   = tss > 0 ? `${tss} TSS` : '';
   tssEl.style.display = tss > 0 ? 'flex' : 'none';
 
+  // ── Effort type classification ─────────────────────────────────────────────
+  const effortTag = document.getElementById('detailEffortTag');
+  if (effortTag) {
+    effortTag.style.display = 'none';
+    let zonePcts = null;
+    const zt = a.icu_zone_times;
+    const hzt = a.icu_hr_zone_times;
+    if (Array.isArray(zt) && zt.length > 0) {
+      const totals = new Array(6).fill(0);
+      let totalSecs = 0;
+      zt.forEach(z => {
+        if (!z || typeof z.id !== 'string') return;
+        const m = z.id.match(/^Z(\d)$/);
+        if (!m) return;
+        const idx = parseInt(m[1], 10) - 1;
+        if (idx >= 0 && idx < 6) { totals[idx] += (z.secs || 0); totalSecs += (z.secs || 0); }
+      });
+      if (totalSecs > 0) zonePcts = totals.map(s => s / totalSecs * 100);
+    }
+    if (!zonePcts && Array.isArray(hzt) && hzt.length > 0) {
+      const totals = [];
+      let totalSecs = 0;
+      hzt.forEach(z => {
+        const s = typeof z === 'number' ? z : (z.secs || 0);
+        totals.push(s); totalSecs += s;
+      });
+      if (totalSecs > 0) {
+        const mapped = new Array(6).fill(0);
+        totals.forEach((s, i) => { mapped[Math.min(i, 5)] += s; });
+        zonePcts = mapped.map(s => s / totalSecs * 100);
+      }
+    }
+    if (zonePcts) {
+      const z12 = (zonePcts[0] || 0) + (zonePcts[1] || 0);
+      const z3  = zonePcts[2] || 0;
+      const z4  = zonePcts[3] || 0;
+      const z56 = (zonePcts[4] || 0) + (zonePcts[5] || 0);
+      const z6  = zonePcts[5] || 0;
+      let label, color;
+      if (z6 >= 10)       { label = 'Anaerobic';   color = '#b482ff'; }
+      else if (z56 >= 15) { label = 'VO2max';      color = '#ff4757'; }
+      else if (z4 >= 20)  { label = 'Threshold';   color = '#ff6b35'; }
+      else if (z3 >= 40)  { label = 'Tempo';       color = '#f0c429'; }
+      else if (z12 >= 60) { label = 'Endurance';   color = '#00e5a0'; }
+      else                { label = 'Mixed Effort'; color = '#4a9eff'; }
+      effortTag.textContent = label;
+      effortTag.style.background = color + '1a';
+      effortTag.style.borderColor = color + '47';
+      effortTag.style.color = color;
+      effortTag.style.display = '';
+    }
+  }
+
   // ── Similar ride preview card ────────────────────────────────────────────
   _similarRidesRef = a;
   const simCard = document.getElementById('similarRideCard');
@@ -13594,12 +14033,11 @@ function renderDetailSourceFooter(a) {
 }
 
 function renderDetailExport(a) {
-  const card = document.getElementById('detailExportCard');
   const buttonsEl = document.getElementById('detailExportButtons');
-  if (!card || !buttonsEl) return;
+  if (!buttonsEl) return;
 
   const actId = a.id || a.icu_activity_id;
-  if (!actId) { showCardNA('detailExportCard'); return; }
+  if (!actId) { buttonsEl.style.display = 'none'; return; }
 
   const buttons = [];
 
@@ -13629,14 +14067,14 @@ function renderDetailExport(a) {
 
   // Share route image
   buttons.push(`
-    <button class="btn btn-primary detail-export-btn" title="Generate a shareable route image" onclick="openShareModal('${actId}')">
+    <button class="btn btn-ghost detail-export-btn" title="Generate a shareable route image" onclick="openShareModal('${actId}')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
       <span>Share</span>
     </button>
   `);
 
   buttonsEl.innerHTML = buttons.join('');
-  card.style.display = '';
+  buttonsEl.style.display = '';
 }
 
 // ── Download functions ─────────────────────────────────────────────────────
@@ -16447,6 +16885,190 @@ function renderDetailGradientProfile(streams, activity) {
   );
 }
 
+// ── Climb Detection ─────────────────────────────────────────────────────────
+function renderClimbDetection(streams, activity) {
+  const card = document.getElementById('detailClimbsCard');
+  const body = document.getElementById('detailClimbsBody');
+  const sub  = document.getElementById('detailClimbsSubtitle');
+  if (!card || !body) return;
+
+  const alt  = streams?.altitude;
+  const dist = streams?.distance;
+  const time = streams?.time;
+  const watts = streams?.watts;
+
+  if (!Array.isArray(alt) || !Array.isArray(dist) || alt.length < 50) {
+    card.style.display = 'none'; return;
+  }
+
+  // Step 1: Smooth altitude (rolling average, half-window = 10)
+  const SW = 10;
+  const smooth = alt.map((_, i) => {
+    const lo = Math.max(0, i - SW), hi = Math.min(alt.length - 1, i + SW);
+    let s = 0, n = 0;
+    for (let j = lo; j <= hi; j++) { if (alt[j] != null) { s += alt[j]; n++; } }
+    return n > 0 ? s / n : alt[i];
+  });
+
+  // Step 2: Detect uphill segments (>=2% over >=300m)
+  const raw = [];
+  let segStart = null;
+  for (let i = 1; i < smooth.length; i++) {
+    const dd = dist[i] - dist[i - 1];
+    const grade = dd > 0 ? ((smooth[i] - smooth[i - 1]) / dd) * 100 : 0;
+    if (grade >= 2) {
+      if (segStart === null) segStart = i - 1;
+    } else {
+      if (segStart !== null) {
+        if (dist[i - 1] - dist[segStart] >= 300) raw.push({ s: segStart, e: i - 1 });
+        segStart = null;
+      }
+    }
+  }
+  if (segStart !== null && dist[dist.length - 1] - dist[segStart] >= 300)
+    raw.push({ s: segStart, e: dist.length - 1 });
+
+  // Step 3: Merge segments <200m apart
+  const merged = [];
+  raw.forEach(seg => {
+    if (merged.length && dist[seg.s] - dist[merged[merged.length - 1].e] < 200)
+      merged[merged.length - 1].e = seg.e;
+    else merged.push({ ...seg });
+  });
+
+  // Step 4: Calculate per-climb stats
+  const climbs = merged.map(seg => {
+    const climbDist = dist[seg.e] - dist[seg.s];
+    const elevGain  = smooth[seg.e] - smooth[seg.s];
+    const avgGrade  = climbDist > 0 ? (elevGain / climbDist) * 100 : 0;
+    // Max gradient (50m rolling)
+    let maxGrade = 0;
+    for (let i = seg.s; i <= seg.e; i++) {
+      const lo = Math.max(seg.s, i - 25), hi = Math.min(seg.e, i + 25);
+      const d = dist[hi] - dist[lo];
+      if (d > 10) { const g = ((smooth[hi] - smooth[lo]) / d) * 100; if (g > maxGrade) maxGrade = g; }
+    }
+    let duration = 0;
+    if (Array.isArray(time) && time.length > seg.e)
+      duration = (time[seg.e] || 0) - (time[seg.s] || 0);
+    const vam = duration > 0 ? Math.round(elevGain / (duration / 3600)) : 0;
+    let avgPower = 0;
+    if (Array.isArray(watts) && watts.length > seg.e) {
+      let ws = 0, wc = 0;
+      for (let i = seg.s; i <= seg.e; i++) { if (watts[i] > 0) { ws += watts[i]; wc++; } }
+      avgPower = wc > 0 ? Math.round(ws / wc) : 0;
+    }
+    // Category
+    const dk = climbDist / 1000;
+    let cat;
+    if (dk < 2)                                                cat = 'Climb';
+    else if (elevGain >= 1200)                                 cat = 'HC';
+    else if (elevGain >= 800)                                  cat = 'Cat 1';
+    else if (elevGain >= 500 || (avgGrade >= 8 && dk >= 5))    cat = 'Cat 2';
+    else if (elevGain >= 250 || (avgGrade >= 5 && dk >= 3))    cat = 'Cat 3';
+    else if (elevGain >= 100 || (avgGrade >= 2 && dk >= 2))    cat = 'Cat 4';
+    else                                                       cat = 'Climb';
+    // Grade color
+    const gc = avgGrade < 5 ? 'var(--accent)' : avgGrade < 8 ? 'var(--yellow)' : avgGrade < 12 ? 'var(--orange)' : 'var(--red)';
+    return { s: seg.s, e: seg.e, climbDist, elevGain, avgGrade, maxGrade, duration, vam, avgPower, cat, gc };
+  }).filter(c => c.elevGain >= 20);
+
+  if (!climbs.length) { card.style.display = 'none'; return; }
+
+  // Step 5: Render
+  const totalGain = climbs.reduce((s, c) => s + c.elevGain, 0);
+  sub.textContent = `${climbs.length} climb${climbs.length !== 1 ? 's' : ''} detected · +${Math.round(totalGain)}m total`;
+
+  body.innerHTML = climbs.map((c, i) => {
+    // SVG sparkline
+    const pts = [];
+    const sparkN = Math.min(30, c.e - c.s);
+    const step = Math.max(1, Math.floor((c.e - c.s) / sparkN));
+    for (let j = c.s; j <= c.e; j += step) pts.push(smooth[j]);
+    const mn = Math.min(...pts), mx = Math.max(...pts), rng = mx - mn || 1;
+    const W = 80, H = 32;
+    const path = pts.map((v, idx) => {
+      const x = (idx / (pts.length - 1)) * W;
+      const y = H - ((v - mn) / rng) * (H - 4);
+      return `${idx === 0 ? 'M' : 'L'}${x.toFixed(1)} ${y.toFixed(1)}`;
+    }).join(' ');
+
+    const catColor = c.cat === 'HC' ? 'var(--red)' : c.cat === 'Cat 1' ? 'var(--orange)' : c.cat === 'Cat 2' ? 'var(--yellow)' : c.gc;
+
+    return `<div class="act-climb-pill">
+      <div class="act-climb-pill-top">
+        <span class="act-climb-num">#${i + 1}</span>
+        <span class="act-climb-cat" style="color:${catColor}">${c.cat}</span>
+      </div>
+      <svg class="act-climb-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+        <path d="${path}" fill="none" stroke="${c.gc}" stroke-width="2"/>
+      </svg>
+      <div class="act-climb-stats">
+        <div class="act-climb-stat"><span class="act-climb-stat-val">${(c.climbDist / 1000).toFixed(1)}</span><span class="act-climb-stat-lbl">km</span></div>
+        <div class="act-climb-stat"><span class="act-climb-stat-val">+${Math.round(c.elevGain)}</span><span class="act-climb-stat-lbl">m</span></div>
+        <div class="act-climb-stat"><span class="act-climb-stat-val">${c.avgGrade.toFixed(1)}</span><span class="act-climb-stat-lbl">% avg</span></div>
+        ${c.duration > 0 ? `<div class="act-climb-stat"><span class="act-climb-stat-val">${fmtDur(c.duration)}</span><span class="act-climb-stat-lbl">time</span></div>` : ''}
+        ${c.vam > 0 ? `<div class="act-climb-stat"><span class="act-climb-stat-val">${c.vam}</span><span class="act-climb-stat-lbl">VAM</span></div>` : ''}
+        ${c.avgPower > 0 ? `<div class="act-climb-stat"><span class="act-climb-stat-val">${c.avgPower}</span><span class="act-climb-stat-lbl">W</span></div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  card.style.display = '';
+  unskeletonCard('detailClimbsCard');
+}
+
+// ── Lap Splits ──────────────────────────────────────────────────────────────
+function renderLapSplits(activity) {
+  const card = document.getElementById('detailLapSplitsCard');
+  const body = document.getElementById('detailLapSplitsBody');
+  const sub  = document.getElementById('detailLapSplitsSubtitle');
+  if (!card || !body) return;
+
+  const laps = activity.icu_laps || activity.laps;
+  if (!Array.isArray(laps) || laps.length <= 1) { showCardNA('detailLapSplitsCard'); return; }
+
+  const totalDist = laps.reduce((s, l) => s + (l.distance || 0), 0);
+  const totalDistKm = (totalDist / 1000).toFixed(1);
+  sub.textContent = `${laps.length} laps · ${totalDistKm} km`;
+
+  // Find best lap (highest avg speed)
+  let bestIdx = -1, bestSpd = 0;
+  laps.forEach((l, i) => {
+    const spd = l.average_speed || 0;
+    if (spd > bestSpd) { bestSpd = spd; bestIdx = i; }
+  });
+
+  let html = `<table class="act-ivl-table">
+    <thead><tr>
+      <th>#</th><th>Distance</th><th>Duration</th>
+      <th>Avg Speed</th><th>Avg Power</th><th>Avg HR</th>
+      <th>Avg Cad</th><th>Elev</th>
+    </tr></thead><tbody>`;
+
+  laps.forEach((l, i) => {
+    const dist  = l.distance ? (l.distance / 1000).toFixed(2) + ' km' : '—';
+    const secs  = l.moving_time || l.elapsed_time || 0;
+    const dur   = secs > 0 ? fmtDur(secs) : '—';
+    const spd   = l.average_speed ? (l.average_speed * 3.6).toFixed(1) + ' km/h' : '—';
+    const watts = l.average_watts ? Math.round(l.average_watts) + ' W' : '—';
+    const hr    = l.average_heartrate ? Math.round(l.average_heartrate) + ' bpm' : '—';
+    const cad   = l.average_cadence ? Math.round(l.average_cadence) + ' rpm' : '—';
+    const elev  = l.total_elevation_gain ? Math.round(l.total_elevation_gain) + ' m' : '—';
+    const best  = i === bestIdx ? ' style="color:var(--accent)"' : '';
+    html += `<tr>
+      <td>${i + 1}</td><td>${dist}</td><td>${dur}</td>
+      <td${best}>${spd}</td><td>${watts}</td><td>${hr}</td>
+      <td>${cad}</td><td>${elev}</td>
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+  body.innerHTML = html;
+  card.style.display = '';
+  unskeletonCard('detailLapSplitsCard');
+}
+
 // ── Feature 2: Cadence Distribution ─────────────────────────────────────────
 function renderDetailCadenceHist(streams, activity) {
   const card = document.getElementById('detailCadenceCard');
@@ -19169,16 +19791,18 @@ const ACT_DETAIL_SECTIONS = [
   { key: 'powerZones',  label: 'Power Zones',            cardId: 'detailZonesCard' },
   { key: 'hrZones',     label: 'HR Zones',               cardId: 'detailHRZonesCard' },
   { key: 'intervals',   label: 'Intervals',              cardId: 'detailIntervalsCard' },
+  { key: 'lapSplits',   label: 'Lap Splits',             cardId: 'detailLapSplitsCard' },
   { key: 'powerCurve',  label: 'Power Curve',            cardId: 'detailCurveCard' },
   { key: 'hrCurve',     label: 'Heart Rate Curve',       cardId: 'detailHRCurveCard' },
   { key: 'gradient',    label: 'Elevation Profile',      cardId: 'detailGradientCard' },
+  { key: 'climbs',      label: 'Climbs',                 cardId: 'detailClimbsCard' },
   { key: 'cadence',     label: 'Cadence Distribution',   cardId: 'detailCadenceCard' },
   { key: 'histogram',   label: 'Power Distribution',     cardId: 'detailHistogramCard' },
   { key: 'temperature', label: 'Temperature',            cardId: 'detailTempCard' },
   { key: 'weather',     label: 'Weather Conditions',     cardId: 'detailWeatherCard' },
   { key: 'compare',     label: 'How You Compare',        cardId: 'detailCompareCard' },
   { key: 'notes',       label: 'Notes',                  cardId: 'detailNotesCard' },
-  { key: 'export',      label: 'Export',                 cardId: 'detailExportCard' },
+  { key: 'export',      label: 'Export',                 cardId: 'detailExportButtons' },
 ];
 
 function loadActSectionPrefs() {
@@ -21074,8 +21698,8 @@ Object.assign(window, {
   openSettingsSubpage, closeSettingsSubpage, iosSettingsInit,
   // Vitality shader + Dashboard FAB gooey expand
   renderVitality, toggleDashFab,
-  // Calendar create event
-  icuPost, openCalEventModal, closeCalEventModal, saveCalEvent,
+  // Calendar create/edit event
+  icuPost, icuPut, icuDelete, openCalEventModal, closeCalEventModal, saveCalEvent, deleteCalEvent,
   // Head-to-head compare
   setCompareTab, h2hSearch, h2hAddActivity, h2hRemoveActivity,
   // Similar rides & radar

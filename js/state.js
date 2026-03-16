@@ -48,6 +48,7 @@ export const state = {
   efSparkChart: null,
   calMonth: null,
   calSelectedDate: null,
+  calEvents: [],
   currentPage: 'dashboard',
   previousPage: null,
   synced: false,

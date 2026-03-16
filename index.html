@@ -2290,6 +2290,11 @@
                                         style="display: none"
                                     ></div>
                                     <span
+                                        class="act-effort-tag"
+                                        id="detailEffortTag"
+                                        style="display: none"
+                                    ></span>
+                                    <span
                                         class="act-offline-tag"
                                         id="detailOfflineTag"
                                         style="display: none"
@@ -2808,6 +2813,17 @@
                         </div>
                     </div>
 
+                    <!-- Lap Splits -->
+                    <div class="card" id="detailLapSplitsCard" style="display: none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/><path d="M16.5 7.5L19 5"/><path d="M12 2v2"/></svg>Lap Splits</div>
+                                <div class="card-subtitle" id="detailLapSplitsSubtitle"></div>
+                            </div>
+                        </div>
+                        <div class="act-intervals-wrap" id="detailLapSplitsBody"></div>
+                    </div>
+
                     <!-- Intervals -->
                     <div
                         class="card"
@@ -2912,6 +2928,17 @@
                         <div class="chart-wrap" style="height: 220px">
                             <canvas id="detailGradientChart"></canvas>
                         </div>
+                    </div>
+
+                    <!-- Climbs -->
+                    <div class="card" id="detailClimbsCard" style="display: none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20l5-10 4 6 3-4 6 8H3z"/><path d="M17 6l-2.5 5"/></svg>Climbs</div>
+                                <div class="card-subtitle" id="detailClimbsSubtitle"></div>
+                            </div>
+                        </div>
+                        <div class="act-climbs-scroll" id="detailClimbsBody"></div>
                     </div>
 
                     <!-- Cadence Distribution -->
@@ -3041,20 +3068,7 @@
                     </div>
 
                     <!-- Export options -->
-                    <div class="card" id="detailExportCard">
-                        <div class="card-header">
-                            <div>
-                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export Activity</div>
-                                <div class="card-subtitle">
-                                    Download in your preferred format
-                                </div>
-                            </div>
-                        </div>
-                        <div
-                            class="detail-export-buttons"
-                            id="detailExportButtons"
-                        ></div>
-                    </div>
+                    <div class="detail-export-buttons" id="detailExportButtons"></div>
 
                     <!-- Data source footer -->
                     <div
@@ -3212,9 +3226,12 @@
                                     <textarea id="calEvDesc" rows="2" placeholder="Workout details, goals, etc."></textarea>
                                 </div>
                             </div>
-                            <div class="modal-footer">
-                                <button class="btn btn-ghost" onclick="closeCalEventModal()">Cancel</button>
-                                <button class="btn btn-primary" id="calEvSaveBtn" onclick="saveCalEvent()">Add to Calendar</button>
+                            <div class="modal-footer cal-ev-footer">
+                                <button class="btn btn-danger" id="calEvDeleteBtn" onclick="deleteCalEvent()" style="display:none">Delete</button>
+                                <div class="cal-ev-footer-right">
+                                    <button class="btn btn-ghost" onclick="closeCalEventModal()">Cancel</button>
+                                    <button class="btn btn-primary" id="calEvSaveBtn" onclick="saveCalEvent()">Add to Calendar</button>
+                                </div>
                             </div>
                         </div>
                     </dialog>
