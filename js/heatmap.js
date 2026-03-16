@@ -157,11 +157,8 @@ export function renderHeatmapPage() {
     const ld = document.getElementById('hmLoading');
     if (ld) ld.style.display = 'none';
     if (_hm.map) {
-      if (_hm.map.isStyleLoaded()) {
-        hmApplyFilters();
-      } else {
-        _hm.map.once('load', () => hmApplyFilters());
-      }
+      // hmApplyFilters → hmRedraw has its own timer-based retry if style isn't ready
+      hmApplyFilters();
     }
   }
 
@@ -294,6 +291,7 @@ export function _hmWirePills(containerId, onChange) {
 /* ── Init MapLibre map (Heatmap page) ── */
 export function _hmInitMap() {
   // Destroy old map and clear all layer references
+  if (_hm._redrawTimer) { clearTimeout(_hm._redrawTimer); _hm._redrawTimer = null; }
   if (_hm.map) { try { _hm.map.remove(); } catch (_) {} _hm.map = null; }
   _hm.polylines = [];
   _hm._initialFitDone = false;
@@ -934,16 +932,12 @@ export function hmUpdateStats(routes) {
 /* ── Draw routes on map ── */
 export function hmRedraw() {
   if (!_hm.map) return;
-  // Cancel any pending style-load retry to prevent stale redraws
-  if (_hm._redrawRetry) {
-    _hm.map.off('load', _hm._redrawRetry);
-    _hm.map.off('style.load', _hm._redrawRetry);
-    _hm._redrawRetry = null;
-  }
+  // Cancel any pending retry timer
+  if (_hm._redrawTimer) { clearTimeout(_hm._redrawTimer); _hm._redrawTimer = null; }
   if (!_hm.map.isStyleLoaded()) {
-    _hm._redrawRetry = () => hmRedraw();
-    _hm.map.once('load', _hm._redrawRetry);
-    _hm.map.once('style.load', _hm._redrawRetry);
+    // Poll until style is ready — event-based retry is unreliable when
+    // load/style.load have already fired (e.g. terrain source added after load)
+    _hm._redrawTimer = setTimeout(() => hmRedraw(), 150);
     return;
   }
   const routes = _hm._filtered || [];
