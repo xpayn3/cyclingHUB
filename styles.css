@@ -784,6 +784,27 @@ code {
     flex-direction: column;
     gap: var(--gap-layout);
 }
+/* iOS 26-style scroll edge effect — blur + dim under fixed pills */
+.page-content.has-scroll-edge::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: calc(env(safe-area-inset-top) + 56px);
+    -webkit-backdrop-filter: blur(12px) saturate(1.2);
+    backdrop-filter: blur(12px) saturate(1.2);
+    -webkit-mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
+    mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
+    background: linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.2) 50%, transparent 100%);
+    z-index: 14;
+    pointer-events: none;
+}
+@media (min-width: 769px) {
+    .page-content.has-scroll-edge::before {
+        left: var(--sidebar-w);
+    }
+}
 .page-content--has-pill {
     padding-top: calc(env(safe-area-inset-top) + 56px);
 }
@@ -3632,15 +3653,15 @@ code {
     pointer-events: none;
 }
 .ios-group-label {
-    font-size: 11px;
-    font-weight: 500;
+    font-size: 13px;
+    font-weight: 400;
     color: var(--text-muted);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    padding: 24px 16px 6px;
+    letter-spacing: -0.01em;
+    padding: 28px 16px 6px;
 }
 .ios-group-label:first-child {
-    padding-top: 8px;
+    padding-top: 6px;
 }
 .ios-group {
     background: var(--bg-card);
@@ -3651,18 +3672,32 @@ code {
 .ios-row {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 14px;
     min-height: 44px;
-    padding: 10px 16px;
-    border-bottom: 0.5px solid var(--border);
+    padding: 11px 16px;
+    border-bottom: none;
     color: var(--text-primary);
-    font-size: var(--text-base);
+    font-size: 17px;
     font-weight: 400;
     cursor: default;
     text-decoration: none;
+    letter-spacing: -0.01em;
+    position: relative;
 }
-.ios-row:last-child {
-    border-bottom: none;
+.ios-row::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 59px;
+    right: 0;
+    height: 0.5px;
+    background: var(--border);
+}
+.ios-row:last-child::after {
+    display: none;
+}
+.ios-row:not(:has(.ios-row-icon))::after {
+    left: 16px;
 }
 .ios-row[data-nav] {
     cursor: pointer;
@@ -3672,43 +3707,44 @@ code {
     background: rgba(255,255,255,0.04);
 }
 .ios-row-icon {
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
+    width: 29px;
+    height: 29px;
+    border-radius: 7px;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
 }
 .ios-row-icon svg {
-    width: 16px;
-    height: 16px;
+    width: 17px;
+    height: 17px;
     stroke: #fff;
     fill: none;
-    stroke-width: 2;
+    stroke-width: 1.8;
     stroke-linecap: round;
     stroke-linejoin: round;
 }
 .ios-row-label {
     flex: 1;
     min-width: 0;
-    font-size: var(--text-base);
+    font-size: 17px;
     font-weight: 400;
     color: var(--text-primary);
+    letter-spacing: -0.01em;
 }
 .ios-row-value {
-    font-size: var(--text-base);
+    font-size: 17px;
     color: var(--text-muted);
     flex-shrink: 0;
 }
 .ios-chevron {
     flex-shrink: 0;
     color: var(--text-muted);
-    opacity: 0.35;
-    font-size: 16px;
+    opacity: 0.3;
+    font-size: 17px;
     font-weight: 300;
     line-height: 1;
-    margin-left: -4px;
+    margin-left: -2px;
 }
 /* ── iOS checkmark selection rows ── */
 .ios-row--check {
@@ -3743,8 +3779,8 @@ code {
 .ios-profile-card {
     display: flex;
     align-items: center;
-    gap: 14px;
-    padding: 14px 16px;
+    gap: 16px;
+    padding: 12px 16px;
     background: var(--bg-card);
     border-radius: 12px;
     margin: 0;
@@ -3755,12 +3791,12 @@ code {
     background: rgba(255,255,255,0.04);
 }
 .ios-profile-avatar {
-    width: 48px;
-    height: 48px;
+    width: 60px;
+    height: 60px;
     border-radius: 50%;
     background: var(--bg-elevated);
     color: var(--text-muted);
-    font-size: var(--text-lg);
+    font-size: 24px;
     font-weight: 600;
     display: flex;
     align-items: center;
@@ -3775,13 +3811,14 @@ code {
     min-width: 0;
 }
 .ios-profile-name {
-    font-size: var(--text-lg);
+    font-size: 22px;
     font-weight: 600;
     color: var(--text-primary);
     line-height: 1.2;
+    letter-spacing: -0.01em;
 }
 .ios-profile-sub {
-    font-size: var(--text-xs);
+    font-size: 13px;
     color: var(--text-muted);
     margin-top: 2px;
 }
@@ -4351,8 +4388,8 @@ code {
 .settings-ios-toggle {
     position: relative;
     display: inline-block;
-    width: 44px;
-    height: 26px;
+    width: 51px;
+    height: 31px;
     flex-shrink: 0;
     cursor: pointer;
 }
@@ -4367,30 +4404,31 @@ code {
     inset: 0;
     background: var(--bg-elevated);
     border: 1px solid var(--border);
-    border-radius: 26px;
+    border-radius: 31px;
     transition:
-        background 0.2s ease,
-        border-color 0.2s ease;
+        background 0.25s ease,
+        border-color 0.25s ease;
 }
 .settings-ios-slider::before {
     content: "";
     position: absolute;
-    width: 20px;
-    height: 20px;
-    left: 2px;
-    top: 2px;
+    width: 27px;
+    height: 27px;
+    left: 1px;
+    top: 1px;
     background: var(--text-muted);
     border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.25);
     transition:
-        transform 0.2s ease,
-        background 0.2s ease;
+        transform 0.25s ease,
+        background 0.25s ease;
 }
 .settings-ios-toggle input:checked + .settings-ios-slider {
     background: var(--accent);
     border-color: var(--accent);
 }
 .settings-ios-toggle input:checked + .settings-ios-slider::before {
-    transform: translateX(18px);
+    transform: translateX(20px);
     background: #fff;
 }
 

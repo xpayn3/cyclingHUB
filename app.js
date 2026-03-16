@@ -2236,6 +2236,9 @@ function navigate(page) {
   if (pwrPill) pwrPill.style.display = (page === 'power') ? 'flex' : 'none';
   const fitPill = document.getElementById('fitRangePillFloat');
   if (fitPill) fitPill.style.display = (page === 'fitness') ? 'flex' : 'none';
+  // Toggle scroll edge gradient for pages with floating pills
+  const _pillPages = ['dashboard', 'zones', 'power', 'fitness'];
+  document.getElementById('pageContent')?.classList.toggle('has-scroll-edge', _pillPages.includes(page));
 
   // Swap active page — use View Transitions API for smooth cross-fade if available
   const _swapPage = () => {

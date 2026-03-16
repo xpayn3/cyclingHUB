@@ -375,7 +375,10 @@ export function _hmInitMap() {
     onRemove() { this._container.parentNode?.removeChild(this._container); this._map = undefined; }
   }
   _hm.map.addControl(new HmMapTools(), 'top-left');
-  _hm.map.on('load', () => _mlApplyTerrain(_hm.map));
+  _hm.map.on('load', () => {
+    if (typeof window._isStravaTheme === 'function' && window._isStravaTheme()) window._applyStravaOverrides(_hm.map);
+    _mlApplyTerrain(_hm.map);
+  });
 
   // Prevent scroll-wheel from scrolling page while over map
   el.addEventListener('wheel', function(e) { e.preventDefault(); }, { passive: false });

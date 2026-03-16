@@ -800,7 +800,7 @@ export function loadMapTheme() {
   // Validate against MAP_STYLES; old raster keys ('topo','voyager',etc.) fallback to 'liberty'
   const styles = window.MAP_STYLES || {};
   if (saved && styles[saved] && saved !== 'satellite') return saved;
-  return 'liberty';
+  return 'strava';
 }
 export function setMapTheme(key) {
   if (!(window.MAP_STYLES || {})[key] || key === 'satellite') return;
@@ -824,6 +824,9 @@ export function setMapTheme(key) {
     } else {
       state.activityMap.once('style.load', () => _mlApplyTerrain(state.activityMap));
     }
+    if ((window.MAP_STYLES[key] || {}).custom && typeof window._applyStravaOverrides === 'function') {
+      state.activityMap.once('style.load', () => window._applyStravaOverrides(state.activityMap));
+    }
     if (bg) state.activityMap.getContainer().style.background = bg;
   }
 
@@ -833,7 +836,10 @@ export function setMapTheme(key) {
     const hmSatBtn = document.querySelector('#heatmapMap .map-sat-control');
     if (hmSatBtn) hmSatBtn.classList.remove('active');
     window._hm.map.setStyle(style);
-    window._hm.map.once('style.load', () => { hmRedraw(); _mlApplyTerrain(window._hm.map); });
+    window._hm.map.once('style.load', () => {
+      if ((window.MAP_STYLES[key] || {}).custom && typeof window._applyStravaOverrides === 'function') window._applyStravaOverrides(window._hm.map);
+      hmRedraw(); _mlApplyTerrain(window._hm.map);
+    });
     const hmEl = document.getElementById('heatmapMap');
     if (hmEl && bg) hmEl.style.background = bg;
   }
@@ -841,6 +847,9 @@ export function setMapTheme(key) {
   // Hot-swap Route Builder map if open (routes.js module)
   if (window._rb && window._rb.map) {
     window._rb.map.setStyle(style);
+    if ((window.MAP_STYLES[key] || {}).custom && typeof window._applyStravaOverrides === 'function') {
+      window._rb.map.once('style.load', () => window._applyStravaOverrides(window._rb.map));
+    }
     if (window._rbRestoreMapLayers) window._rb.map.once('idle', window._rbRestoreMapLayers);
     const rbBtn = document.getElementById('rbLayerBtn');
     if (rbBtn) { rbBtn.classList.remove('rb-layer-active'); rbBtn.title = 'Switch map layer'; }

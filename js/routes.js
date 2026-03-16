@@ -338,6 +338,7 @@ export function _rbInitMap() {
     pixelRatio: Math.min(devicePixelRatio, 2),
   });
   _rb.map.on('load', () => {
+    if (typeof window._isStravaTheme === 'function' && window._isStravaTheme()) window._applyStravaOverrides(_rb.map);
     _mlApplyTerrain(_rb.map);
     if (_rb._cyclOSMOn) _addCyclOSMLayer(_rb.map);
     if (_rb._roadSafetyOn) _addRoadSafetyLayer(_rb.map);
