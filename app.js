@@ -1246,6 +1246,171 @@ function confirmFullResync() {
 }
 
 /* ====================================================
+   PULL TO REFRESH — Dashboard
+==================================================== */
+(() => {
+  const THRESHOLD = 80;
+  let _ptrStartY = 0, _ptrDist = 0, _ptrActive = false, _ptrRefreshing = false;
+  const indicator = () => document.getElementById('ptrIndicator');
+
+  window.addEventListener('touchstart', e => {
+    if (state.currentPage !== 'dashboard' || _ptrRefreshing) return;
+    if (window.scrollY > 5) return;
+    _ptrStartY = e.touches[0].clientY;
+    _ptrActive = true;
+    _ptrDist = 0;
+  }, { passive: true });
+
+  window.addEventListener('touchmove', e => {
+    if (!_ptrActive || _ptrRefreshing) return;
+    _ptrDist = e.touches[0].clientY - _ptrStartY;
+    if (_ptrDist < 0) { _ptrDist = 0; return; }
+    const el = indicator();
+    if (!el) return;
+    const progress = Math.min(_ptrDist / THRESHOLD, 1);
+    el.classList.add('ptr-visible');
+    el.style.top = (-44 + progress * 108) + 'px';
+    el.querySelector('.ptr-spinner').style.transform = `rotate(${progress * 270}deg)`;
+  }, { passive: true });
+
+  window.addEventListener('touchend', () => {
+    if (!_ptrActive) return;
+    _ptrActive = false;
+    const el = indicator();
+    if (!el) return;
+    if (_ptrDist >= THRESHOLD && !_ptrRefreshing) {
+      _ptrRefreshing = true;
+      el.classList.add('ptr-refreshing');
+      el.style.top = '';
+      el.querySelector('.ptr-spinner').style.transform = '';
+      syncData(true).finally(() => {
+        _ptrRefreshing = false;
+        el.classList.remove('ptr-refreshing', 'ptr-visible');
+        el.style.top = '';
+      });
+    } else {
+      el.classList.remove('ptr-visible');
+      el.style.top = '';
+      el.querySelector('.ptr-spinner').style.transform = '';
+    }
+    _ptrDist = 0;
+  }, { passive: true });
+})();
+
+/* ====================================================
+   iOS SETTINGS — SUBPAGE NAVIGATION
+==================================================== */
+let _iosActiveSubpage = null;
+const _iosSubpageNames = {
+  account: 'Account', font: 'Font', maptheme: 'Map Theme',
+  weather: 'Weather', icu: 'intervals.icu', strava: 'Strava',
+  dashsections: 'Dashboard Sections', actsections: 'Activity Sections',
+  backup: 'Backup & Restore', routebuilder: 'Route Builder',
+  share: 'Share CycleIQ', donate: 'Support CycleIQ'
+};
+
+function openSettingsSubpage(id) {
+  const main = document.getElementById('iosSettingsMain');
+  const sub  = document.getElementById('iosSubpage-' + id);
+  if (!main || !sub) return;
+  _iosActiveSubpage = id;
+  main.style.display = 'none';
+  document.querySelectorAll('.ios-subpage.active').forEach(s => s.classList.remove('active'));
+  sub.classList.add('active');
+  // Update page headline to subpage name
+  const title = document.getElementById('pageTitle');
+  const subtitle = document.getElementById('pageSubtitle');
+  if (title) title.textContent = _iosSubpageNames[id] || id;
+  if (subtitle) subtitle.textContent = '';
+  // Show back button and offset headline
+  const backBtn = document.getElementById('settingsBackBtn');
+  if (backBtn) backBtn.style.display = '';
+  const headline = document.querySelector('.page-headline');
+  if (headline) headline.classList.add('page-headline--subpage');
+  window.scrollTo(0, 0);
+}
+
+function closeSettingsSubpage() {
+  const main = document.getElementById('iosSettingsMain');
+  if (!main) return;
+  document.querySelectorAll('.ios-subpage.active').forEach(s => s.classList.remove('active'));
+  main.style.display = '';
+  _iosActiveSubpage = null;
+  // Restore page headline
+  const title = document.getElementById('pageTitle');
+  const subtitle = document.getElementById('pageSubtitle');
+  if (title) title.textContent = 'Settings';
+  if (subtitle) subtitle.textContent = 'Account & connection';
+  // Hide back button and remove offset
+  const backBtn = document.getElementById('settingsBackBtn');
+  if (backBtn) backBtn.style.display = 'none';
+  const headline = document.querySelector('.page-headline');
+  if (headline) headline.classList.remove('page-headline--subpage');
+  window.scrollTo(0, 0);
+}
+
+function iosSettingsInit() {
+  // Close any open subpage when entering settings
+  closeSettingsSubpage();
+
+  // Profile card
+  const connected = !!(state.athleteId && state.apiKey);
+  const profileName = document.getElementById('iosProfileName');
+  const profileSub  = document.getElementById('iosProfileSub');
+  const profileAv   = document.getElementById('iosProfileAvatar');
+  if (connected && state.athlete) {
+    const a = state.athlete;
+    const aName = a.name || a.firstname || 'Athlete';
+    if (profileName) profileName.textContent = aName;
+    if (profileSub)  profileSub.textContent = 'Profile, Photo & Account';
+    if (profileAv) {
+      const customAvatar = localStorage.getItem('icu_avatar');
+      const src = customAvatar || _getIntervalsAvatarUrl();
+      if (src) profileAv.innerHTML = `<img src="${src}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+      else profileAv.textContent = aName[0].toUpperCase();
+    }
+  } else {
+    if (profileName) profileName.textContent = 'Not Connected';
+    if (profileSub)  profileSub.textContent = 'Tap to set up your account';
+    if (profileAv)   profileAv.textContent = '?';
+  }
+
+  // Connection badges
+  const icuBadge    = document.getElementById('iosIcuBadge');
+  const icuBadgeOff = document.getElementById('iosIcuBadgeOff');
+  if (icuBadge && icuBadgeOff) {
+    icuBadge.style.display    = connected ? '' : 'none';
+    icuBadgeOff.style.display = connected ? 'none' : '';
+  }
+  const stravaConnected = !!localStorage.getItem('strava_access_token');
+  const stBadge    = document.getElementById('iosStravaBadge');
+  const stBadgeOff = document.getElementById('iosStravaBadgeOff');
+  if (stBadge && stBadgeOff) {
+    stBadge.style.display    = stravaConnected ? '' : 'none';
+    stBadgeOff.style.display = stravaConnected ? 'none' : '';
+  }
+
+  // Inline values
+  const fontEl = document.getElementById('iosCurrentFont');
+  if (fontEl) {
+    const fontMap = { 'inter': 'Inter', 'dm-sans': 'DM Sans', 'outfit': 'Outfit', 'space-grotesk': 'Space Grotesk' };
+    fontEl.textContent = fontMap[localStorage.getItem('icu_font') || 'inter'] || 'Inter';
+  }
+  const mapEl = document.getElementById('iosCurrentMapTheme');
+  if (mapEl) {
+    const themeMap = { 'liberty': 'Liberty', 'positron': 'Positron', 'dark': 'Dark', 'strava': 'Strava' };
+    mapEl.textContent = themeMap[localStorage.getItem('icu_map_theme') || 'dark'] || 'Dark';
+  }
+  const wxEl = document.getElementById('iosWeatherCount');
+  if (wxEl) {
+    try {
+      const locs = JSON.parse(localStorage.getItem('icu_wx_locations') || '[]');
+      wxEl.textContent = locs.length ? locs.length + ' location' + (locs.length > 1 ? 's' : '') : 'None';
+    } catch { wxEl.textContent = 'None'; }
+  }
+}
+
+/* ====================================================
    CONNECTION UI
 ==================================================== */
 function updateConnectionUI(connected) {
@@ -1267,11 +1432,16 @@ function updateConnectionUI(connected) {
     // Update settings profile card name
     const sttName = document.getElementById('settingsAthleteName');
     if (sttName) sttName.textContent = aName;
+    // iOS settings profile card
+    const iosName = document.getElementById('iosProfileName');
+    if (iosName) iosName.textContent = aName;
   } else {
     dot.className   = 'connection-dot disconnected';
     name.textContent = 'Not connected';
     sub.textContent  = 'Click to connect';
     av.textContent   = '?';
+    const iosName = document.getElementById('iosProfileName');
+    if (iosName) iosName.textContent = 'Not Connected';
   }
 
   // Update Import → ICU tab if panel exists
@@ -1993,7 +2163,7 @@ function navigate(page) {
     pc.classList.toggle('page-content--calendar', page === 'calendar');
     pc.classList.toggle('page-content--heatmap', page === 'heatmap');
     pc.classList.toggle('page-content--routes', page === 'routes');
-    pc.classList.toggle('page-content--has-pill', page === 'dashboard' || page === 'zones' || page === 'power');
+    pc.classList.toggle('page-content--has-pill', page === 'dashboard' || page === 'zones' || page === 'power' || page === 'fitness');
   }
 
   // Floating range pill visibility
@@ -2003,6 +2173,8 @@ function navigate(page) {
   if (zonePill) zonePill.style.display = (page === 'zones') ? 'flex' : 'none';
   const pwrPill = document.getElementById('pwrRangePillTopbar');
   if (pwrPill) pwrPill.style.display = (page === 'power') ? 'flex' : 'none';
+  const fitPill = document.getElementById('fitRangePillFloat');
+  if (fitPill) fitPill.style.display = (page === 'fitness') ? 'flex' : 'none';
 
   // Swap active page — use View Transitions API for smooth cross-fade if available
   const _swapPage = () => {
@@ -2035,6 +2207,7 @@ function navigate(page) {
   if (page === 'goals')    { renderStreaksPage(); renderGoalsPage(); }
   if (page === 'workout')  { wrkRefreshStats(); wrkRender(); }
   if (page === 'settings') {
+    iosSettingsInit();
     initWeatherLocationUI();
     initMapThemePicker();
     icuRenderSyncUI();
@@ -3201,20 +3374,13 @@ function buildRecentActCardHTML(a, idx, idPrefix = 'recentActCard') {
   </div>`;
 }
 
-// Fetch GPS and render the mini-map for one carousel card
+// Fetch GPS and render the mini-map for one carousel card (MapLibre GL)
 async function renderRecentActCardMap(a, idx, idPrefix = 'recentActCard') {
   const actId = a.id || a.icu_activity_id;
   const mapEl = document.getElementById(`${idPrefix}Map_${idx}`);
   if (!mapEl) return;
 
-  // 1. Best case: snapshot image cached (instant, no re-render needed)
-  const cachedImg = localStorage.getItem(`icu_map_snap_${actId}`);
-  if (cachedImg) {
-    mapEl.innerHTML = `<img src="${cachedImg}" style="width:100%;height:100%;object-fit:cover;display:block;">`;
-    return;
-  }
-
-  // 2. GPS points cached — skip the API call entirely on refresh
+  // GPS points cached — skip the API call entirely on refresh
   let points = null;
   const cachedGPS = localStorage.getItem(`icu_gps_pts_${actId}`);
   if (cachedGPS) {
@@ -3248,42 +3414,72 @@ async function renderRecentActCardMap(a, idx, idPrefix = 'recentActCard') {
 
   requestAnimationFrame(() => {
     try {
-      const map = L.map(mapEl, {
-        zoomControl: false, scrollWheelZoom: false, dragging: false,
-        doubleClickZoom: false, touchZoom: false, keyboard: false,
-        attributionControl: false, boxZoom: false,
+      const coords = points.map(p => [p[1], p[0]]); // [lng, lat]
+      // Compute bounds
+      let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
+      for (const [lng, lat] of coords) {
+        if (lng < minLng) minLng = lng; if (lng > maxLng) maxLng = lng;
+        if (lat < minLat) minLat = lat; if (lat > maxLat) maxLat = lat;
+      }
+
+      // Smart framing: tilt map so route's long axis aligns with card width
+      const midLat = (minLat + maxLat) / 2;
+      const cosLat = Math.cos(midLat * Math.PI / 180);
+      const geoW = (maxLng - minLng) * cosLat;
+      const geoH = maxLat - minLat;
+      const cardW = mapEl.clientWidth || 420;
+      const cardH = mapEl.clientHeight || 236;
+      const cardAR = cardW / cardH;
+      const routeAR = geoW / (geoH || 0.0001);
+      let bearing = 0;
+      if (routeAR < cardAR * 0.85 && geoH > geoW * 0.8) {
+        const ratio = Math.min(geoH / (geoW || 0.0001), 5);
+        bearing = Math.min(ratio * 18, 70);
+      }
+
+      const map = new maplibregl.Map({
+        container: mapEl,
+        style: _mlGetStyle(loadMapTheme()),
+        bounds: [[minLng, minLat], [maxLng, maxLat]],
+        fitBoundsOptions: { padding: 20, bearing },
+        interactive: false,
+        attributionControl: false,
       });
-      // Mini-maps use Leaflet (snapshot to static img) — map vector theme keys to raster fallbacks
-      const _rcRasterFallbacks = {
-        liberty:  { url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', sub: 'abcd', bg: '#f0ede4' },
-        positron: { url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',           sub: 'abcd', bg: '#f5f4f0' },
-        dark:     { url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',            sub: 'abcd', bg: '#1a1c22' },
-      };
-      const _rcTheme = _rcRasterFallbacks[loadMapTheme()] || _rcRasterFallbacks.liberty;
-      mapEl.style.background = _rcTheme.bg;
-      L.tileLayer(_rcTheme.url, {
-        maxZoom: 19, attribution: '', crossOrigin: 'anonymous',
-        subdomains: _rcTheme.sub,
-      }).addTo(map);
-      L.polyline(points, { color: ACCENT, weight: 3, opacity: 1 }).addTo(map);
-      const dotIcon = color => L.divIcon({
-        className: '',
-        html: `<div style="width:8px;height:8px;border-radius:50%;background:${color};border:2px solid rgba(255,255,255,0.9);box-shadow:0 0 3px rgba(0,0,0,0.5)"></div>`,
-        iconSize: [8, 8], iconAnchor: [4, 4],
+
+      map.on('load', () => {
+        if (_isStravaTheme()) _applyStravaOverrides(map);
+
+        // Route line
+        map.addSource('rc-route', {
+          type: 'geojson',
+          data: { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } },
+        });
+        map.addLayer({
+          id: 'rc-route-shadow', type: 'line', source: 'rc-route',
+          paint: { 'line-color': '#000', 'line-width': 5, 'line-opacity': 0.25 },
+          layout: { 'line-cap': 'round', 'line-join': 'round' },
+        });
+        map.addLayer({
+          id: 'rc-route-line', type: 'line', source: 'rc-route',
+          paint: { 'line-color': ACCENT, 'line-width': 3, 'line-opacity': 1 },
+          layout: { 'line-cap': 'round', 'line-join': 'round' },
+        });
+
+        // Start / end dot markers
+        const makeDot = (color) => {
+          const el = document.createElement('div');
+          el.style.cssText = `width:8px;height:8px;border-radius:50%;background:${color};border:2px solid rgba(255,255,255,0.9);box-shadow:0 0 3px rgba(0,0,0,0.5)`;
+          return el;
+        };
+        new maplibregl.Marker({ element: makeDot(ACCENT), anchor: 'center' })
+          .setLngLat(coords[0]).addTo(map);
+        new maplibregl.Marker({ element: makeDot('#888'), anchor: 'center' })
+          .setLngLat(coords[coords.length - 1]).addTo(map);
+
       });
-      L.marker(points[0],                 { icon: dotIcon(ACCENT) }).addTo(map);
-      L.marker(points[points.length - 1], { icon: dotIcon('#888')    }).addTo(map);
-      const bounds = L.polyline(points).getBounds();
-      map.fitBounds(bounds, { padding: [28, 28] });
-      map.invalidateSize();
+
       state.recentActivityMaps = state.recentActivityMaps || [];
       state.recentActivityMaps.push(map);
-      setTimeout(() => {
-        try { map.invalidateSize(); map.fitBounds(bounds, { padding: [28, 28] }); } catch (_) {}
-      }, 300);
-      map.once('load', () => {
-        setTimeout(() => snapshotRecentMap(map, mapEl, actId), 400);
-      });
     } catch (_) {}
   });
 }
@@ -3361,76 +3557,6 @@ function _initRecentActDots(rail, count) {
   }, { passive: true });
 }
 
-function snapshotRecentMap(map, container, actId) {
-  try {
-    const W = container.offsetWidth;
-    const H = container.offsetHeight;
-    if (W < 10 || H < 10) return;
-
-    // Render at half resolution for a compact JPEG
-    const scale  = 0.5;
-    const canvas = document.createElement('canvas');
-    canvas.width  = Math.round(W * scale);
-    canvas.height = Math.round(H * scale);
-    const ctx = canvas.getContext('2d');
-    ctx.scale(scale, scale);
-
-    const containerRect = container.getBoundingClientRect();
-
-    // 1. Draw satellite tile images
-    const tilePane = map.getPanes().tilePane;
-    tilePane.querySelectorAll('img').forEach(img => {
-      if (!img.complete || !img.naturalWidth) return;
-      const r = img.getBoundingClientRect();
-      try { ctx.drawImage(img, r.left - containerRect.left, r.top - containerRect.top, r.width, r.height); } catch (_) {}
-    });
-
-    // 2. Draw route SVG on top
-    const svgEl = container.querySelector('.leaflet-overlay-pane svg');
-    if (svgEl) {
-      const svgClone = svgEl.cloneNode(true);
-      svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-      const svgRect = svgEl.getBoundingClientRect();
-      const ox = svgRect.left - containerRect.left;
-      const oy = svgRect.top  - containerRect.top;
-      const blob = new Blob([new XMLSerializer().serializeToString(svgClone)], { type: 'image/svg+xml' });
-      const url  = URL.createObjectURL(blob);
-      const img  = new Image();
-      img.onload = () => {
-        ctx.drawImage(img, ox, oy, svgRect.width, svgRect.height);
-        URL.revokeObjectURL(url);
-        saveSnapshot(canvas, actId, map, container);
-      };
-      img.onerror = () => { URL.revokeObjectURL(url); saveSnapshot(canvas, actId, map, container); };
-      img.src = url;
-    } else {
-      saveSnapshot(canvas, actId, map, container);
-    }
-  } catch (_) {}
-}
-
-function saveSnapshot(canvas, actId, map, container) {
-  try {
-    // WebP is ~30% smaller than JPEG at equal quality; fall back to JPEG if unsupported
-    const fmt  = canvas.toDataURL('image/webp', 0.01).startsWith('data:image/webp') ? 'image/webp' : 'image/jpeg';
-    const data = canvas.toDataURL(fmt, 0.7);
-    localStorage.setItem(`icu_map_snap_${actId}`, data);
-
-    // Swap the live Leaflet map out for a static img immediately —
-    // prevents Leaflet from glitching during carousel scroll on first load
-    if (container) {
-      try { map.remove(); } catch (_) {}
-      // Remove from tracked maps array
-      if (state.recentActivityMaps) {
-        const idx = state.recentActivityMaps.indexOf(map);
-        if (idx !== -1) state.recentActivityMaps.splice(idx, 1);
-      }
-      container.innerHTML = `<img src="${data}" style="width:100%;height:100%;object-fit:cover;display:block;">`;
-    }
-  } catch (_) {
-    // localStorage quota exceeded — silently skip
-  }
-}
 
 /* ====================================================
    RENDER DASHBOARD
@@ -3986,8 +4112,11 @@ const C_TOOLTIP = {
   external: externalTooltipHandler,   // use floating HTML tooltip instead
   position: 'aboveLine',              // keeps caretX on data-point x
 };
-let C_TICK  = { color: '#62708a', font: { size: 10 } };
-let C_GRID  = { color: 'rgba(255,255,255,0.04)' };
+const _cs = getComputedStyle(document.documentElement);
+const C_CLR_MUTED = _cs.getPropertyValue('--text-muted').trim() || 'rgba(235,235,245,0.4)';
+const C_CLR_GRID  = _cs.getPropertyValue('--border').trim()     || 'rgba(255,255,255,0.04)';
+let C_TICK  = { color: C_CLR_MUTED, font: { size: 10 } };
+let C_GRID  = { color: C_CLR_GRID };
 const C_NOGRID = { display: false };
 window.C_TICK = C_TICK; window.C_GRID = C_GRID; window.C_TOOLTIP = C_TOOLTIP;
 // Shared grow-from-bottom animation applied globally to all charts
@@ -6390,13 +6519,13 @@ function renderPwrHrScatter(activities) {
         x: {
           type: 'linear',
           position: 'bottom',
-          title: { display: true, text: 'Avg Power (w)', color: '#62708a', font: { size: 10 } },
+          title: { display: true, text: 'Avg Power (w)', color: C_CLR_MUTED, font: { size: 10 } },
           ticks: { ...C_TICK, maxTicksLimit: 6 },
           grid: C_GRID,
           border: { display: false },
         },
         y: {
-          title: { display: true, text: 'Avg HR (bpm)', color: '#62708a', font: { size: 10 } },
+          title: { display: true, text: 'Avg HR (bpm)', color: C_CLR_MUTED, font: { size: 10 } },
           ticks: { ...C_TICK, maxTicksLimit: 5 },
           grid: C_GRID,
           border: { display: false },
@@ -9233,6 +9362,15 @@ function setFitnessRange(days) {
   document.querySelectorAll('#fitRangePills button').forEach(b => b.classList.remove('active'));
   const btn = document.getElementById('fitRange' + days);
   if (btn) btn.classList.add('active');
+  // Sync floating pill
+  const fp = document.getElementById('fitRangePillFloat');
+  if (fp) {
+    fp.querySelectorAll('button').forEach(b => {
+      b.classList.toggle('active', parseInt(b.textContent) === days ||
+        (b.textContent.trim() === '6m' && days === 180) ||
+        (b.textContent.trim() === '1y' && days === 365));
+    });
+  }
   renderFitnessHistoryChart(days);
 }
 
@@ -11421,7 +11559,11 @@ async function navigateToActivity(actKey, fromStep = false) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   _actPage.classList.add('active');
-  if (!fromStep) window.scrollTo(0, 0);
+  if (!fromStep) {
+    window.scrollTo(0, 0);
+    const _sheetScroll = document.getElementById('actSheetScroll');
+    if (_sheetScroll) _sheetScroll.scrollTop = 0;
+  }
 
   // Render basic info immediately from cached data
   renderActivityBasic(activity);
@@ -11771,6 +11913,8 @@ function toggleMapFullscreen() {
 
 function _onMapFullscreenEnter(card) {
   card.classList.add('map-fullscreen');
+  const mapBg = document.getElementById('actSheetMapBg');
+  if (mapBg) mapBg.classList.add('map-fullscreen');
   const btn = document.getElementById('mapExpandBtn');
   if (btn) {
     btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>';
@@ -11784,6 +11928,8 @@ function _onMapFullscreenEnter(card) {
 function _onMapFullscreenExit(card) {
   card.classList.add('map-fullscreen-exit');
   card.classList.remove('map-fullscreen');
+  const mapBg = document.getElementById('actSheetMapBg');
+  if (mapBg) mapBg.classList.remove('map-fullscreen');
   setTimeout(() => card.classList.remove('map-fullscreen-exit'), 250);
   const btn = document.getElementById('mapExpandBtn');
   if (btn) {
@@ -11855,6 +12001,7 @@ function activateSheetMode() {
 
   _sheet.el = sheet;
   _sheet.scroll = document.getElementById('actSheetScroll');
+  if (_sheet.scroll) _sheet.scroll.scrollTop = 0;
   _sheet.mapBg = mapBg;
   _sheet.active = true;
 
@@ -13806,8 +13953,77 @@ var MAP_STYLES = {
   liberty:   { label: 'Liberty',   style: 'https://tiles.openfreemap.org/styles/liberty',   bg: '#f0ede4' },
   positron:  { label: 'Positron',  style: 'https://tiles.openfreemap.org/styles/positron',  bg: '#f5f4f0' },
   dark:      { label: 'Dark',      style: 'https://tiles.openfreemap.org/styles/dark',      bg: '#1a1c22' },
+  strava:    { label: 'Strava',    style: 'https://tiles.openfreemap.org/styles/dark',      bg: '#1a1e24', custom: true },
   satellite: { label: 'Satellite', tiles: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', bg: '#1a1c22' },
 };
+
+// ── Strava-inspired map color overrides ─────────────────────────────────────
+// Applied after the OpenFreeMap dark style loads to produce a Strava-like look:
+// tinted navy background, subtle blue water, muted green parks, warm-grey roads.
+var _STRAVA_OVERRIDES = {
+  // Background & land — neutral, no blue tint
+  background:           { 'background-color': '#1c1c1e' },
+  landcover_wood:       { 'fill-color': '#17332a', 'fill-opacity': 1 },
+  landuse_park:         { 'fill-color': '#17332a', 'fill-opacity': 1 },
+  landuse_residential:  { 'fill-color': '#1e2022' },
+  landcover_ice_shelf:  { 'fill-color': '#1c1c1e' },
+  landcover_glacier:    { 'fill-color': '#1c1c1e' },
+  road_area_pier:       { 'fill-color': '#1c1c1e' },
+  road_pier:            { 'line-color': '#1c1c1e' },
+  // Water — darker than land, no blue cast
+  water:                { 'fill-color': '#161818' },
+  waterway:             { 'line-color': '#161818' },
+  water_name:           { 'text-color': 'rgba(70,74,78,0.6)' },
+  // Buildings
+  building:             { 'fill-color': '#1e2022', 'fill-outline-color': '#272828' },
+  // Roads — neutral greys
+  highway_path:         { 'line-color': '#272828' },
+  highway_minor:        { 'line-color': '#282a2a' },
+  highway_major_subtle: { 'line-color': '#2c2e2e' },
+  highway_major_inner:  { 'line-color': '#2c2e2e' },
+  highway_major_casing: { 'line-color': 'rgba(55,58,60,0.6)' },
+  highway_motorway_subtle: { 'line-color': '#303232' },
+  highway_motorway_inner:  { 'line-color': '#303232' },
+  highway_motorway_casing: { 'line-color': 'rgba(55,58,60,0.6)' },
+  // Rail
+  railway:              { 'line-color': '#272828' },
+  railway_transit:      { 'line-color': '#272828' },
+  railway_minor:        { 'line-color': '#272828' },
+  // Boundaries
+  boundary_state:       { 'line-color': 'rgba(88,90,92,0.25)' },
+  'boundary_country_z0-4':{ 'line-color': 'rgba(88,90,92,0.35)' },
+  'boundary_country_z5-': { 'line-color': 'rgba(88,90,92,0.35)' },
+  // Labels — neutral grey
+  place_other:          { 'text-color': '#5c5e62' },
+  place_suburb:         { 'text-color': '#5c5e62' },
+  place_village:        { 'text-color': '#6c6e72' },
+  place_town:           { 'text-color': '#7c7e82' },
+  place_city:           { 'text-color': '#8c8e92' },
+  place_city_large:     { 'text-color': '#9c9ea2' },
+  place_state:          { 'text-color': '#4c4e52' },
+  place_country_other:  { 'text-color': '#5c5e62' },
+  place_country_minor:  { 'text-color': '#5c5e62' },
+  place_country_major:  { 'text-color': '#6c6e72' },
+  highway_name_other:   { 'text-color': '#4c4e52' },
+  highway_name_motorway:{ 'text-color': '#5c5e62' },
+};
+
+function _applyStravaOverrides(map) {
+  // Remove wood fill-pattern first so solid fill-color shows through
+  try { if (map.getLayer('landcover_wood')) map.setPaintProperty('landcover_wood', 'fill-pattern', undefined); } catch (_) {}
+  for (const [layerId, props] of Object.entries(_STRAVA_OVERRIDES)) {
+    if (!map.getLayer(layerId)) continue;
+    for (const [prop, value] of Object.entries(props)) {
+      try { map.setPaintProperty(layerId, prop, value); } catch (_) {}
+    }
+  }
+}
+
+function _isStravaTheme() {
+  return (MAP_STYLES[loadMapTheme()] || {}).custom === true;
+}
+window._applyStravaOverrides = _applyStravaOverrides;
+window._isStravaTheme = _isStravaTheme;
 
 // Returns a MapLibre-compatible style for a given key.
 // Vector → URL string; raster → {version:8, sources, layers} object.
@@ -13947,6 +14163,12 @@ function renderActivityMap(latlng, streams) {
       const mapEl    = document.getElementById('activityMap');
       mapEl.style.background = themeDef.bg;
 
+      // Hide map until Strava overrides are applied to avoid flash of default dark theme
+      if (themeDef.custom) {
+        mapEl.style.opacity = '0';
+        mapEl.style.transition = 'opacity 0.3s ease';
+      }
+
       const _actTerrainOn = loadTerrainEnabled();
       const map = new maplibregl.Map({
         container: mapEl,
@@ -14039,6 +14261,8 @@ function renderActivityMap(latlng, streams) {
 
       // ── Map load — add sources, layers, markers, controls ────────────────
       map.on('load', () => {
+        if (_isStravaTheme()) _applyStravaOverrides(map);
+        if (mapEl.style.opacity === '0') requestAnimationFrame(() => { mapEl.style.opacity = '1'; });
         // Shadow layer (single thick dark line under the route)
         map.addSource('route-shadow', { type: 'geojson', data: shadowGeoJSON });
         map.addLayer({
@@ -18566,7 +18790,7 @@ function renderGuidePage() {
   // ── W/kg benchmarks card ──
   const wkgCard = ftp ? (() => {
     const rows = [
-      { label: '< 2.5', desc: 'Beginner', pct: 20, color: '#62708a' },
+      { label: '< 2.5', desc: 'Beginner', pct: 20, color: 'var(--text-muted)' },
       { label: '2.5–3.5', desc: 'Recreational', pct: 40, color: 'var(--blue)' },
       { label: '3.5–4.5', desc: 'Sportive / Cat 4', pct: 60, color: 'var(--accent)' },
       { label: '4.5–5.5', desc: 'Cat 3 / Strong amateur', pct: 80, color: 'var(--orange)' },
@@ -19435,7 +19659,7 @@ function generateCompareChart(currentPeriods, previousPeriods, metric, chartType
       maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { labels: { color: '#62708a', font: { size: 12 } } },
+        legend: { labels: { color: C_CLR_MUTED, font: { size: 12 } } },
         tooltip: { ...C_TOOLTIP }
       },
       scales: cScales({ xGrid: false, yExtra: { maxTicksLimit: 6 } })
@@ -19526,7 +19750,7 @@ function generateCompareChartForCard(cardId, currentPeriods, previousPeriods, me
       animation: animate ? undefined : false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { labels: { color: '#62708a', font: { size: 12 } } },
+        legend: { labels: { color: C_CLR_MUTED, font: { size: 12 } } },
         tooltip: { ...C_TOOLTIP }
       },
       scales: cScales({ xGrid: false, yExtra: { maxTicksLimit: 6 } })
@@ -20814,6 +21038,7 @@ Object.assign(window, {
   goalNumStep, hideGoalForm, submitGoalForm, showGoalForm, deleteGoal,
   // Settings / data
   setWeatherModel, renderDashSectionToggles,
+  openSettingsSubpage, closeSettingsSubpage, iosSettingsInit,
   // Vitality shader + Dashboard FAB gooey expand
   renderVitality, toggleDashFab,
   // Calendar create event
