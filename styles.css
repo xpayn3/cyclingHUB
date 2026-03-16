@@ -3502,7 +3502,7 @@ code {
 /* ── Training Calendar + Weekly Load row (equal height) ── */
 .fit-cal-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr));
     gap: 14px;
     align-items: stretch;
 }
