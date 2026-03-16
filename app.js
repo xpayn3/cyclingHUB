@@ -317,8 +317,9 @@ function refreshCustomDropdowns(root) {
    UTILITIES
 ==================================================== */
 /** Destroy a Chart.js instance and return null for easy assignment */
+const _chartLinks = new Map();   // chartInstance → partnerStateKey (for tooltip sync)
 function destroyChart(chart) {
-  if (chart) chart.destroy();
+  if (chart) { _chartLinks.delete(chart); chart.destroy(); }
   return null;
 }
 
@@ -4389,6 +4390,45 @@ Chart.register({
     ctx.restore();
   },
 });
+// Tooltip sync between linked chart pairs (e.g. CTL/ATL + Form charts)
+function _linkCharts(chartA, stateKeyA, chartB, stateKeyB) {
+  _chartLinks.set(chartA, stateKeyB);
+  _chartLinks.set(chartB, stateKeyA);
+}
+let _syncingTooltip = false;
+Chart.register({
+  id: 'tooltipSync',
+  afterEvent(chart, args) {
+    if (_syncingTooltip) return;
+    const partnerKey = _chartLinks.get(chart);
+    if (!partnerKey) return;
+    const partner = state[partnerKey];
+    if (!partner || !partner.canvas) return;
+
+    const evt = args.event;
+    if (evt.type === 'mouseout') {
+      _syncingTooltip = true;
+      partner.setActiveElements([]);
+      partner.tooltip.setActiveElements([], { x: 0, y: 0 });
+      partner.update('none');
+      _syncingTooltip = false;
+      return;
+    }
+    if (evt.type !== 'mousemove') return;
+
+    const active = chart.tooltip?._active;
+    if (!active || !active.length) return;
+    const idx = active[0].index;
+
+    _syncingTooltip = true;
+    const elements = partner.data.datasets.map((ds, di) => ({ datasetIndex: di, index: idx }));
+    partner.setActiveElements(elements);
+    partner.tooltip.setActiveElements(elements, { x: active[0].element.x, y: active[0].element.y });
+    partner.update('none');
+    _syncingTooltip = false;
+  }
+});
+
 // Standard scale pair — pass xGrid:false for bar charts
 function cScales({ xGrid = true, xExtra = {}, yExtra = {} } = {}) {
   return {
@@ -5824,7 +5864,10 @@ function renderFitnessChart(activities, days) {
         legend: { display: false },
         tooltip: { ...C_TOOLTIP, callbacks: { labelColor: C_LABEL_COLOR } }
       },
-      scales: cScales({ xExtra: { maxTicksLimit: 8 } })
+      scales: {
+        x: { grid: { ...C_GRID, drawTicks: false }, ticks: { ...C_TICK, maxTicksLimit: 8, display: false } },
+        y: cScales({}).y
+      }
     }
   });
 
@@ -5863,6 +5906,7 @@ function renderFitnessChart(activities, days) {
         }
       }
     });
+    _linkCharts(state.fitnessChart, 'fitnessChart', state._dashFormChart, '_dashFormChart');
   }
 }
 
@@ -6811,6 +6855,16 @@ function _renderCyclingTrendsLegend(weeks, weekMap) {
 /* ====================================================
    INTENSITY DISTRIBUTION — Polarization Check
 ==================================================== */
+function _showCardEmpty(card) {
+  card.style.display = '';
+  const bar = card.querySelector('.ti-dist-bar-wrap, .chart-wrap');
+  const brk = card.querySelector('.ti-dist-breakdown');
+  if (bar) bar.innerHTML = '<div class="card-empty-state">Not enough data yet</div>';
+  if (brk) brk.innerHTML = '';
+  const badge = card.querySelector('.ti-status-badge');
+  if (badge) { badge.textContent = ''; badge.className = 'ti-status-badge'; }
+}
+
 function renderIntensityDist(activities) {
   const card = document.getElementById('intensityDistCard');
   if (!card) return;
@@ -6818,7 +6872,7 @@ function renderIntensityDist(activities) {
   const withZones = activities.filter(a =>
     Array.isArray(a.icu_zone_times) && a.icu_zone_times.some(z => z.id?.match(/^Z\d$/))
   );
-  if (!withZones.length) { card.style.display = 'none'; return; }
+  if (!withZones.length) { _showCardEmpty(card); return; }
   card.style.display = '';
 
   // Sum zone seconds across all activities
@@ -6834,7 +6888,7 @@ function renderIntensityDist(activities) {
   });
 
   const total = zoneSecs.reduce((s, v) => s + v, 0);
-  if (total === 0) { card.style.display = 'none'; return; }
+  if (total === 0) { _showCardEmpty(card); return; }
 
   // 3 buckets: Easy (Z1+Z2), Moderate (Z3), Hard (Z4+Z5+Z6)
   const easy = zoneSecs[0] + zoneSecs[1];
@@ -6926,7 +6980,7 @@ function renderMonotony(activities, days) {
     allDays.push({ date: key, tss: dailyTSS[key] || 0 });
   }
 
-  if (allDays.length < 14) { card.style.display = 'none'; return; }
+  if (allDays.length < 14) { _showCardEmpty(card); return; }
   card.style.display = '';
 
   // Rolling 7-day monotony windows
@@ -7023,7 +7077,7 @@ function renderAerobicEfficiency(activities, days) {
     })
     .sort((a, b) => new Date(a.start_date_local || a.start_date) - new Date(b.start_date_local || b.start_date));
 
-  if (qualifying.length < 3) { card.style.display = 'none'; return; }
+  if (qualifying.length < 3) { _showCardEmpty(card); return; }
   card.style.display = '';
 
   const labels = qualifying.map(a => {
@@ -7117,7 +7171,7 @@ function renderRampRate(activities, days) {
   });
 
   const weeks = Object.keys(weekMap).sort();
-  if (weeks.length < 3) { card.style.display = 'none'; return; }
+  if (weeks.length < 3) { _showCardEmpty(card); return; }
   card.style.display = '';
 
   // Calculate % change week over week (skip first week — no baseline)
@@ -9784,13 +9838,16 @@ function renderFitnessHistoryChart(days) {
   };
 
   state.fitnessPageChart = destroyChart(state.fitnessPageChart);
+  const topChartOpts = JSON.parse(JSON.stringify(chartOpts));
+  topChartOpts.scales.x.ticks = { ...topChartOpts.scales.x.ticks, display: false };
+  topChartOpts.scales.x.grid = { ...topChartOpts.scales.x.grid, drawTicks: false };
   state.fitnessPageChart = new Chart(canvas.getContext('2d'), {
     type: 'line',
     data: { labels, datasets: [
       { label: 'CTL', data: ctlD, borderColor: ACCENT, backgroundColor: 'rgba(0,229,160,0.08)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 7, tension: 0.4, fill: true },
       { label: 'ATL', data: atlD, borderColor: '#ff6b35', backgroundColor: 'rgba(255,107,53,0.05)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 7, tension: 0.4 },
     ]},
-    options: chartOpts
+    options: topChartOpts
   });
 
   // ── Form (TSB) — separate panel below ──
@@ -9828,6 +9885,7 @@ function renderFitnessHistoryChart(days) {
         }
       }
     });
+    _linkCharts(state.fitnessPageChart, 'fitnessPageChart', state._fitFormChart, '_fitFormChart');
   }
 }
 
