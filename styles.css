@@ -4,13 +4,26 @@
 ============================================================ */
 @layer base, tokens, layout, components, pages, utilities, themes;
 
-/* ── Hide scrollbars globally (keep scroll functional) ── */
+/* ── iOS-style thin overlay scrollbar ── */
 @layer base {
 * {
-    scrollbar-width: none;           /* Firefox */
+    scrollbar-width: thin;                    /* Firefox — thin overlay */
+    scrollbar-color: rgba(255,255,255,0.25) transparent;
 }
 *::-webkit-scrollbar {
-    display: none;                   /* Chrome / Safari / Edge */
+    width: 4px;
+    height: 0;                                /* hide horizontal scrollbars */
+    background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.25);
+    border-radius: 4px;
+}
+*::-webkit-scrollbar-thumb:hover {
+    background: rgba(255,255,255,0.4);
+}
+*::-webkit-scrollbar-track {
+    background: transparent;
 }
 
 /* ── Disable pinch-to-zoom globally, allow on maps ── */
@@ -1640,7 +1653,7 @@ code {
         font-size: var(--text-lg);
     }
     .hero-act-bottom {
-        padding: 10px 16px;
+        padding: 28px 16px 12px;
     }
     .hero-act-stats {
         gap: 16px;
@@ -3522,6 +3535,31 @@ code {
 .page-headline--subpage {
     padding-top: 48px !important;
 }
+/* ── iOS nav transitions for headline ── */
+.page-headline {
+    transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+    will-change: transform, opacity;
+}
+.page-headline.ios-nav-out {
+    transform: translateX(-30%);
+    opacity: 0;
+    pointer-events: none;
+}
+.page-headline.ios-nav-in {
+    transform: translateX(30%);
+    opacity: 0;
+    transition: none;
+}
+.page-headline.ios-nav-out-right {
+    transform: translateX(30%);
+    opacity: 0;
+    pointer-events: none;
+}
+.page-headline.ios-nav-in-left {
+    transform: translateX(-30%);
+    opacity: 0;
+    transition: none;
+}
 
 /* ── iOS Settings layout ── */
 .ios-settings {
@@ -3531,11 +3569,19 @@ code {
     padding: 0;
     position: relative;
     box-sizing: border-box;
+    overflow: hidden;
 }
 .ios-settings-main {
     display: flex;
     flex-direction: column;
     gap: 0;
+    transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+    will-change: transform, opacity;
+}
+.ios-settings-main.ios-nav-out {
+    transform: translateX(-30%);
+    opacity: 0;
+    pointer-events: none;
 }
 .ios-group-label {
     font-size: 11px;
@@ -3683,9 +3729,19 @@ code {
 .ios-subpage {
     display: none;
     padding: 0 0 40px;
+    transform: translateX(100%);
+    opacity: 0;
+    transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+    will-change: transform, opacity;
 }
 .ios-subpage.active {
     display: block;
+    transform: translateX(0);
+    opacity: 1;
+}
+.ios-subpage.ios-nav-back {
+    transform: translateX(100%);
+    opacity: 0;
 }
 .ios-subpage > .card,
 .ios-subpage > .ios-group {
@@ -16977,16 +17033,25 @@ body.hm-map-dragging html,
     color: var(--text-muted);
 }
 
-/* ── Hide all scrollbars on mobile ── */
+/* ── Hide scrollbars on horizontal scroll rails (mobile) ── */
 @media (max-width: 700px) {
-    *,
-    *::before,
-    *::after {
-        scrollbar-width: none !important;           /* Firefox */
-        -ms-overflow-style: none !important;         /* IE / Edge legacy */
+    .recent-act-scroll-rail,
+    .acts-filters-row,
+    .fit-heatmap-scroll,
+    .wx-loc-switcher,
+    .wxp-week-scroll,
+    .wxd-hourly-scroll,
+    .goals-dash-scroll {
+        scrollbar-width: none !important;
     }
-    *::-webkit-scrollbar {
-        display: none !important;                    /* Chrome, Safari, Opera */
+    .recent-act-scroll-rail::-webkit-scrollbar,
+    .acts-filters-row::-webkit-scrollbar,
+    .fit-heatmap-scroll::-webkit-scrollbar,
+    .wx-loc-switcher::-webkit-scrollbar,
+    .wxp-week-scroll::-webkit-scrollbar,
+    .wxd-hourly-scroll::-webkit-scrollbar,
+    .goals-dash-scroll::-webkit-scrollbar {
+        display: none !important;
     }
 }
 
@@ -17246,15 +17311,18 @@ html[data-theme="light"] {
 }
 
 /* ── Scrollbar ── */
+[data-theme="light"] * {
+    scrollbar-color: rgba(0,0,0,0.2) transparent;
+}
 [data-theme="light"] ::-webkit-scrollbar-track {
-    background: var(--bg-base);
+    background: transparent;
 }
 [data-theme="light"] ::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.15);
-    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
 }
 [data-theme="light"] ::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 0, 0, 0.25);
+    background: rgba(0, 0, 0, 0.35);
 }
 
 /* ── Stat cards (weekly stats row) ── */

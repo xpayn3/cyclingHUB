@@ -1101,27 +1101,6 @@
                     </svg>
                     Install App
                 </button>
-                <button
-                    class="sidebar-create-btn"
-                    onclick="
-                        navigate('workout');
-                        closeSidebar();
-                    "
-                >
-                    <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                    >
-                        <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                        <path d="M2 17l10 5 10-5" />
-                        <path d="M2 12l10 5 10-5" />
-                    </svg>
-                    Create Workout
-                </button>
                 <div
                     class="athlete-chip"
                     onclick="openModal()"
@@ -1140,27 +1119,6 @@
                         class="connection-dot disconnected"
                         id="connectionDot"
                     ></div>
-                </div>
-                <div class="sidebar-actions">
-                    <button
-                        class="btn btn-ghost sidebar-action-btn"
-                        id="syncBtn"
-                        onclick="syncData(true)"
-                    >
-                        <svg
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                        >
-                            <polyline points="23 4 23 10 17 10" />
-                            <path d="M20.49 15a9 9 0 1 1-.08-8.58" />
-                        </svg>
-                        Sync
-                    </button>
-                    <div class="sync-age" id="syncAgeLabel"></div>
                 </div>
             </div>
         </aside>

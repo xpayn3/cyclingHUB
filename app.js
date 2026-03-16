@@ -1314,38 +1314,91 @@ function openSettingsSubpage(id) {
   const sub  = document.getElementById('iosSubpage-' + id);
   if (!main || !sub) return;
   _iosActiveSubpage = id;
-  main.style.display = 'none';
-  document.querySelectorAll('.ios-subpage.active').forEach(s => s.classList.remove('active'));
-  sub.classList.add('active');
-  // Update page headline to subpage name
-  const title = document.getElementById('pageTitle');
-  const subtitle = document.getElementById('pageSubtitle');
-  if (title) title.textContent = _iosSubpageNames[id] || id;
-  if (subtitle) subtitle.textContent = '';
-  // Show back button and offset headline
-  const backBtn = document.getElementById('settingsBackBtn');
-  if (backBtn) backBtn.style.display = '';
   const headline = document.querySelector('.page-headline');
-  if (headline) headline.classList.add('page-headline--subpage');
+
+  // Close any other active subpage instantly
+  document.querySelectorAll('.ios-subpage.active').forEach(s => {
+    s.classList.remove('active');
+    s.style.display = 'none';
+  });
+
+  // Slide main + headline out to the left
+  main.classList.add('ios-nav-out');
+  if (headline) headline.classList.add('ios-nav-out');
+
+  // Prepare subpage: show it off-screen right, then slide in
+  sub.style.display = 'block';
+  sub.offsetHeight; // force reflow
+  sub.classList.add('active');
+
+  // Hide main after transition
+  setTimeout(() => { main.style.display = 'none'; }, 380);
+
+  // Update page headline to subpage name after slide-out starts
+  setTimeout(() => {
+    const title = document.getElementById('pageTitle');
+    const subtitle = document.getElementById('pageSubtitle');
+    if (title) title.textContent = _iosSubpageNames[id] || id;
+    if (subtitle) subtitle.textContent = '';
+    const backBtn = document.getElementById('settingsBackBtn');
+    if (backBtn) backBtn.style.display = '';
+    if (headline) {
+      headline.classList.add('page-headline--subpage');
+      headline.classList.remove('ios-nav-out');
+      headline.classList.add('ios-nav-in');
+      headline.offsetHeight;
+      headline.classList.remove('ios-nav-in');
+    }
+  }, 180);
+
   window.scrollTo(0, 0);
 }
 
 function closeSettingsSubpage() {
   const main = document.getElementById('iosSettingsMain');
   if (!main) return;
-  document.querySelectorAll('.ios-subpage.active').forEach(s => s.classList.remove('active'));
-  main.style.display = '';
-  _iosActiveSubpage = null;
-  // Restore page headline
-  const title = document.getElementById('pageTitle');
-  const subtitle = document.getElementById('pageSubtitle');
-  if (title) title.textContent = 'Settings';
-  if (subtitle) subtitle.textContent = 'Account & connection';
-  // Hide back button and remove offset
-  const backBtn = document.getElementById('settingsBackBtn');
-  if (backBtn) backBtn.style.display = 'none';
+  const activeSub = document.querySelector('.ios-subpage.active, .ios-subpage.ios-nav-back');
   const headline = document.querySelector('.page-headline');
-  if (headline) headline.classList.remove('page-headline--subpage');
+
+  // Also find subpage by _iosActiveSubpage if class-based query missed it
+  const sub = activeSub || (_iosActiveSubpage ? document.getElementById('iosSubpage-' + _iosActiveSubpage) : null);
+
+  // Slide headline out to the right with subpage
+  if (headline) headline.classList.add('ios-nav-out-right');
+
+  // Slide subpage out to the right
+  if (sub) {
+    sub.style.display = 'block';
+    sub.classList.remove('active');
+    sub.classList.add('ios-nav-back');
+    setTimeout(() => {
+      sub.classList.remove('ios-nav-back');
+      sub.style.display = 'none';
+    }, 380);
+  }
+
+  // Show main: clear inline display, remove transition class, force reflow
+  main.style.display = '';
+  main.classList.remove('ios-nav-out');
+  main.offsetHeight; // force reflow so browser sees the state change
+
+  // Update headline mid-transition, then slide it back in from the left
+  setTimeout(() => {
+    const title = document.getElementById('pageTitle');
+    const subtitle = document.getElementById('pageSubtitle');
+    if (title) title.textContent = 'Settings';
+    if (subtitle) subtitle.textContent = 'Account & connection';
+    const backBtn = document.getElementById('settingsBackBtn');
+    if (backBtn) backBtn.style.display = 'none';
+    if (headline) {
+      headline.classList.remove('page-headline--subpage', 'ios-nav-out-right');
+      headline.classList.add('ios-nav-in-left');
+      headline.offsetHeight;
+      headline.classList.remove('ios-nav-in-left');
+    }
+  }, 180);
+
+  _iosActiveSubpage = null;
   window.scrollTo(0, 0);
 }
 
@@ -6292,7 +6345,7 @@ function renderYTDDistance() {
         {
           label: String(lastYear),
           data: cumLast,
-          borderColor: '#62708a',
+          borderColor: '#636366',
           borderWidth: 1.5,
           pointRadius: 0,
           pointHoverRadius: 4,
