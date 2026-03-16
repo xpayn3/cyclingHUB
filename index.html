@@ -1165,6 +1165,15 @@
             </div>
         </aside>
 
+        <!-- Floating menu FAB — mobile only, matches dashboard FAB style -->
+        <button class="floating-menu-btn" id="floatingMenuBtn" onclick="toggleSidebar()" aria-label="Menu">
+            <svg width="20" height="14" viewBox="0 0 20 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <line x1="0" y1="1" x2="20" y2="1"/>
+                <line x1="0" y1="7" x2="20" y2="7"/>
+                <line x1="0" y1="13" x2="20" y2="13"/>
+            </svg>
+        </button>
+
         <!-- ============================================================  MAIN  ============================================================ -->
         <main class="main">
             <header class="topbar">
@@ -1259,88 +1268,28 @@
                     </svg>
                     Refresh
                 </button>
-                <div class="topbar-actions">
-                    <div class="date-range-pill" id="dateRangePill">
-                        <button onclick="setRange(7)" id="range7">7d</button>
-                        <button
-                            onclick="setRange(30)"
-                            id="range30"
-                            class="active"
-                        >
-                            30d
-                        </button>
-                        <button onclick="setRange(90)" id="range90">90d</button>
-                        <button onclick="setRange(365)" id="range365">
-                            1y
-                        </button>
-                    </div>
-                    <div class="date-range-pill" id="zoneRangePill" style="display:none">
-                        <button data-zdays="7" onclick="setZnpRange(7)">7d</button>
-                        <button class="active" data-zdays="30" onclick="setZnpRange(30)">30d</button>
-                        <button data-zdays="90" onclick="setZnpRange(90)">90d</button>
-                        <button data-zdays="365" onclick="setZnpRange(365)">1y</button>
-                    </div>
-                    <div class="date-range-pill" id="pwrRangePillTopbar" style="display:none">
-                        <button data-days="30" onclick="setPwrRange(30)">30d</button>
-                        <button data-days="90" onclick="setPwrRange(90)" class="active">90d</button>
-                        <button data-days="180" onclick="setPwrRange(180)">6mo</button>
-                        <button data-days="365" onclick="setPwrRange(365)">1y</button>
-                    </div>
-                    <!-- Prev/next arrows — shown on the RIGHT only when viewing a single activity -->
-                    <div
-                        class="detail-nav-arrows"
-                        id="detailTopbarNav"
-                        style="display: none"
-                    >
-                        <button
-                            class="btn btn-ghost detail-nav-btn"
-                            id="detailNavPrev"
-                            onclick="stepActivity(-1)"
-                            title="Newer activity"
-                            disabled
-                        >
-                            <svg
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2.5"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                width="16"
-                                height="16"
-                            >
-                                <polyline points="15 18 9 12 15 6" />
-                            </svg>
-                        </button>
-                        <span
-                            class="detail-nav-counter"
-                            id="detailNavCounter"
-                        ></span>
-                        <button
-                            class="btn btn-ghost detail-nav-btn"
-                            id="detailNavNext"
-                            onclick="stepActivity(1)"
-                            title="Older activity"
-                            disabled
-                        >
-                            <svg
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2.5"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                width="16"
-                                height="16"
-                            >
-                                <polyline points="9 18 15 12 9 6" />
-                            </svg>
-                        </button>
-                    </div>
-                </div>
+                <div class="topbar-actions"></div>
             </header>
             <div class="page-content" id="pageContent">
-                <div class="topbar-glow-el"></div>
+                <!-- Floating date range pills (moved from topbar) -->
+                <div class="floating-range-pill date-range-pill" id="dateRangePill">
+                    <button onclick="setRange(7)" id="range7">7d</button>
+                    <button onclick="setRange(30)" id="range30" class="active">30d</button>
+                    <button onclick="setRange(90)" id="range90">90d</button>
+                    <button onclick="setRange(365)" id="range365">1y</button>
+                </div>
+                <div class="floating-range-pill date-range-pill" id="zoneRangePill" style="display:none">
+                    <button data-zdays="7" onclick="setZnpRange(7)">7d</button>
+                    <button class="active" data-zdays="30" onclick="setZnpRange(30)">30d</button>
+                    <button data-zdays="90" onclick="setZnpRange(90)">90d</button>
+                    <button data-zdays="365" onclick="setZnpRange(365)">1y</button>
+                </div>
+                <div class="floating-range-pill date-range-pill" id="pwrRangePillTopbar" style="display:none">
+                    <button data-days="30" onclick="setPwrRange(30)">30d</button>
+                    <button data-days="90" onclick="setPwrRange(90)" class="active">90d</button>
+                    <button data-days="180" onclick="setPwrRange(180)">6mo</button>
+                    <button data-days="365" onclick="setPwrRange(365)">1y</button>
+                </div>
                 <!-- ── Page headline ── -->
                 <div class="page-headline">
                     <div class="page-headline-title" id="pageTitle">

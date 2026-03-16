@@ -425,29 +425,6 @@ function updateSidebarCTL() {
   }
 }
 
-/** Update the topbar glow colour based on current TSB / training status */
-function _tsbParticleColor(tsb) {
-  if (tsb == null) return [148,163,190];
-  if (tsb < -30)   return [239,68,68];
-  if (tsb < -10)   return [251,146,60];
-  if (tsb < 5)     return [0,229,160];
-  if (tsb <= 25)   return [74,158,255];
-  return [148,163,190];
-}
-
-function updateTopbarGlow() {
-  const tsb = state.fitness?.tsb;
-  const [r,g,b] = _tsbParticleColor(tsb);
-  let a;
-  if (tsb == null)       a = 0.2;
-  else if (tsb < -30)    a = 0.4;
-  else if (tsb < -10)    a = 0.35;
-  else if (tsb < 5)      a = 0.35;
-  else if (tsb <= 25)    a = 0.35;
-  else                   a = 0.25;
-  document.documentElement.style.setProperty('--topbar-glow', `rgba(${r},${g},${b},${a})`);
-}
-
 /* ====================================================
    CREDENTIALS (localStorage)
 ==================================================== */
@@ -931,8 +908,6 @@ async function fetchFitness() {
       rampRate: latest.rampRate
     };
   }
-  // Update topbar glow if on dashboard
-  if (state.currentPage === 'dashboard') updateTopbarGlow();
   return state.fitness;
 }
 
@@ -1646,10 +1621,10 @@ function _lockBodyScroll(lock) {
 function toggleSidebar() {
   const sidebar  = document.getElementById('sidebar');
   const backdrop = document.getElementById('sidebarBackdrop');
-  const burger   = document.getElementById('burgerBtn');
+  const fab      = document.getElementById('floatingMenuBtn');
   const open     = sidebar.classList.toggle('open');
   backdrop.classList.toggle('open', open);
-  burger?.classList.toggle('is-open', open);
+  fab?.classList.toggle('is-open', open);
   if (open) { const nav = sidebar.querySelector('.sidebar-nav'); if (nav) nav.scrollTop = 0; }
   _lockBodyScroll(open);
 }
@@ -1657,7 +1632,7 @@ function toggleSidebar() {
 function closeSidebar() {
   document.getElementById('sidebar')?.classList.remove('open');
   document.getElementById('sidebarBackdrop')?.classList.remove('open');
-  document.getElementById('burgerBtn')?.classList.remove('is-open');
+  document.getElementById('floatingMenuBtn')?.classList.remove('is-open');
   _lockBodyScroll(false);
 }
 
@@ -2018,33 +1993,16 @@ function navigate(page) {
     pc.classList.toggle('page-content--calendar', page === 'calendar');
     pc.classList.toggle('page-content--heatmap', page === 'heatmap');
     pc.classList.toggle('page-content--routes', page === 'routes');
+    pc.classList.toggle('page-content--has-pill', page === 'dashboard' || page === 'zones' || page === 'power');
   }
 
-  // Topbar element visibility
-  const topbar = document.querySelector('.topbar');
-  if (topbar) topbar.style.display = (page === 'routes' || page === 'heatmap') ? 'none' : '';
-  document.querySelector('.topbar')?.classList.remove('topbar--hidden');
-
-  const detailNav     = document.getElementById('detailTopbarNav');
-  const detailBack    = document.getElementById('detailTopbarBack');
-  const wxdBack       = document.getElementById('wxdTopbarBack');
-  const settingsBack  = document.getElementById('settingsTopbarBack');
-  if (detailNav)    detailNav.style.display    = 'none';
-  if (detailBack)   detailBack.style.display   = 'none';
-  if (wxdBack)      wxdBack.style.display      = 'none';
-  if (settingsBack) settingsBack.style.display = 'none';
-  const wxRefreshBtn = document.getElementById('wxTopbarRefresh');
-  if (wxRefreshBtn) wxRefreshBtn.style.display = (page === 'weather') ? '' : 'none';
-
+  // Floating range pill visibility
   const pill = document.getElementById('dateRangePill');
   if (pill) pill.style.display = (page === 'dashboard') ? 'flex' : 'none';
   const zonePill = document.getElementById('zoneRangePill');
   if (zonePill) zonePill.style.display = (page === 'zones') ? 'flex' : 'none';
   const pwrPill = document.getElementById('pwrRangePillTopbar');
   if (pwrPill) pwrPill.style.display = (page === 'power') ? 'flex' : 'none';
-
-  const calLabel = document.getElementById('calTopbarMonth');
-  if (calLabel) calLabel.style.display = (page === 'calendar') ? '' : 'none';
 
   // Swap active page — use View Transitions API for smooth cross-fade if available
   const _swapPage = () => {
@@ -2060,9 +2018,7 @@ function navigate(page) {
     _swapPage();
   }
 
-  // Training status glow — dashboard only
-  document.body.classList.toggle('dashboard-glow', page === 'dashboard');
-  if (page === 'dashboard') { updateTopbarGlow(); applyDashSectionVisibility(); }
+  if (page === 'dashboard') { applyDashSectionVisibility(); }
   if (page === 'settings') { renderDashSectionToggles(); renderActSectionToggles(); }
 
   if (page === 'dashboard' && state.synced) {
@@ -2090,8 +2046,6 @@ function navigate(page) {
     rlUpdateUI();
     _rlStartTick();
     if (window._lbInit) _lbInit();
-    const settingsBack = document.getElementById('settingsTopbarBack');
-    if (settingsBack) settingsBack.style.display = (state.previousPage && state.previousPage !== 'settings') ? '' : 'none';
   } else {
     _rlStopTick();
   }
@@ -3001,7 +2955,7 @@ function _updateActStickyTop() {
   if (!toolbar) return;
   const update = () => {
     const h = toolbar.offsetHeight;
-    const top = 44 + h; // topbar (44px) + toolbar height
+    const top = h; // toolbar height (topbar removed)
     const val = top + 'px';
     const list  = document.getElementById('allActivityList');
     const grid  = document.getElementById('allActivityCardGrid');
@@ -3023,19 +2977,19 @@ function _setActStickyTop(val) {
   if (zones) zones.style.setProperty('--act-sticky-top', val);
 }
 function _animateActStickyTop(toolbar, isHidden) {
-  if (isHidden) { _setActStickyTop('44px'); return; }
+  if (isHidden) { _setActStickyTop('0px'); return; }
   // Toolbar revealing — track its bottom edge each frame until transition ends
   let running = true;
   function track() {
     if (!running) return;
-    const bottom = Math.max(44, toolbar.getBoundingClientRect().bottom);
+    const bottom = Math.max(0, toolbar.getBoundingClientRect().bottom);
     _setActStickyTop(bottom + 'px');
     requestAnimationFrame(track);
   }
   toolbar.addEventListener('transitionend', function handler() {
     running = false;
     toolbar.removeEventListener('transitionend', handler);
-    _setActStickyTop((48 + toolbar.offsetHeight) + 'px');
+    _setActStickyTop(toolbar.offsetHeight + 'px');
   }, { once: true });
   requestAnimationFrame(track);
 }
@@ -3117,7 +3071,70 @@ function _refreshYearDropdown() {
 /* ====================================================
    RECENT ACTIVITY CARD (dashboard)
 ==================================================== */
-// Build HTML for a single recent-activity carousel card
+// Build hero-style card (App Store aesthetic) for dashboard carousel
+function buildHeroActCardHTML(a, idx) {
+  const rawName = (a.name && a.name.trim()) ? a.name.trim() : (a.icu_name || 'Activity');
+  const { title: name, platformTag } = cleanActivityName(rawName);
+  const dateStr = a.start_date_local || a.start_date || '';
+  const dateObj = dateStr ? new Date(dateStr) : null;
+  const dateFmt = dateObj
+    ? dateObj.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+    : '—';
+  const timeFmt = dateObj
+    ? dateObj.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+    : '';
+
+  const dist  = actVal(a, 'distance', 'icu_distance');
+  const secs  = actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time', 'icu_elapsed_time');
+  const tss   = actVal(a, 'icu_training_load', 'tss');
+  const speed = actVal(a, 'average_speed', 'icu_average_speed');
+
+  const dFmt = dist  > 0 ? fmtDist(dist)  : null;
+  const sFmt = speed > 0 ? fmtSpeed(speed) : null;
+
+  const sportLabel = activityFallbackName(a).toUpperCase();
+
+  const statItems = [
+    dFmt && { val: dFmt.val, unit: dFmt.unit, lbl: 'Distance' },
+    secs && { val: fmtDur(secs), unit: '',    lbl: 'Time' },
+    sFmt && { val: sFmt.val, unit: sFmt.unit, lbl: 'Avg Speed' },
+  ].filter(Boolean);
+
+  const tssClass = tss >= 250 ? 'ra-tss--extreme' : tss >= 150 ? 'ra-tss--hard' : tss >= 100 ? 'ra-tss--moderate' : tss >= 50 ? 'ra-tss--easy' : '';
+  const tssBadge = tss > 0
+    ? `<span class="ra-tss-badge ${tssClass}">${Math.round(tss)} TSS</span>`
+    : '';
+
+  const wxChip = a.weather_temp != null
+    ? `<div class="ra-wx-chip hero-wx-chip">
+        <span class="ra-wx-icon">${weatherIconSvg(a.weather_icon)}</span>
+        <span class="ra-wx-temp">${fmtTempC(a.weather_temp)}</span>
+        ${a.weather_wind_speed != null ? `<span class="ra-wx-wind">${fmtWindMs(a.weather_wind_speed)}</span>` : ''}
+      </div>`
+    : '';
+
+  const statsHTML = statItems.map(s =>
+    `<div class="hero-stat">
+      <span class="hero-stat-val">${s.val}${s.unit ? `<span class="hero-stat-unit"> ${s.unit}</span>` : ''}</span>
+      <span class="hero-stat-lbl">${s.lbl}</span>
+    </div>`
+  ).join('');
+
+  return `<div class="card card--clickable hero-act-card" id="recentActCard_${idx}">
+    <div class="hero-act-map" id="recentActCardMap_${idx}"></div>
+    <div class="hero-act-top">
+      <div class="hero-act-category">${sportLabel}</div>
+      <div class="hero-act-title">${name}</div>
+      <div class="hero-act-subtitle">${dateFmt}${timeFmt ? ' \u00B7 ' + timeFmt : ''}${platformTag ? ` \u00B7 ${platformTag}` : ''}</div>
+    </div>
+    <div class="hero-act-bottom">
+      <div class="hero-act-stats">${statsHTML}</div>
+      ${(tssBadge || wxChip) ? `<div class="hero-act-trailing">${tssBadge}${wxChip}</div>` : ''}
+    </div>
+  </div>`;
+}
+
+// Build HTML for a single recent-activity carousel card (used by Activities grid)
 function buildRecentActCardHTML(a, idx, idPrefix = 'recentActCard') {
   const rawName = (a.name && a.name.trim()) ? a.name.trim() : (a.icu_name || 'Activity');
   const { title: name, platformTag } = cleanActivityName(rawName);
@@ -3257,12 +3274,12 @@ async function renderRecentActCardMap(a, idx, idPrefix = 'recentActCard') {
       L.marker(points[0],                 { icon: dotIcon(ACCENT) }).addTo(map);
       L.marker(points[points.length - 1], { icon: dotIcon('#888')    }).addTo(map);
       const bounds = L.polyline(points).getBounds();
-      map.fitBounds(bounds, { padding: [12, 12] });
+      map.fitBounds(bounds, { padding: [28, 28] });
       map.invalidateSize();
       state.recentActivityMaps = state.recentActivityMaps || [];
       state.recentActivityMaps.push(map);
       setTimeout(() => {
-        try { map.invalidateSize(); map.fitBounds(bounds, { padding: [12, 12] }); } catch (_) {}
+        try { map.invalidateSize(); map.fitBounds(bounds, { padding: [28, 28] }); } catch (_) {}
       }, 300);
       map.once('load', () => {
         setTimeout(() => snapshotRecentMap(map, mapEl, actId), 400);
@@ -3287,7 +3304,7 @@ async function renderRecentActivity() {
   }
 
   const recent = pool.slice(0, 3);
-  rail.innerHTML = recent.map((a, i) => buildRecentActCardHTML(a, i)).join('');
+  rail.innerHTML = recent.map((a, i) => buildHeroActCardHTML(a, i)).join('');
   if (sectionLabel) sectionLabel.style.display = '';
 
   recent.forEach((a, i) => {
@@ -3328,7 +3345,7 @@ function _initRecentActDots(rail, count) {
     scrollTick = true;
     requestAnimationFrame(() => {
       scrollTick = false;
-      const cards = rail.querySelectorAll('.recent-act-card');
+      const cards = rail.querySelectorAll('.recent-act-card, .hero-act-card');
       if (!cards.length) return;
       const railLeft = rail.scrollLeft + rail.offsetWidth * 0.5;
       let closest = 0;
@@ -11130,10 +11147,6 @@ function renderCalendar() {
   const year  = m.getFullYear();
   const month = m.getMonth(); // 0-based
 
-  // Month label (topbar only)
-  const monthStr = m.toLocaleString('default', { month: 'long', year: 'numeric' });
-  const calTopbar = document.getElementById('calTopbarMonth');
-  if (calTopbar) calTopbar.textContent = monthStr;
 
   const actMap   = buildCalActMap();
   const todayStr = toDateStr(new Date());
@@ -11371,9 +11384,6 @@ async function navigateToActivity(actKey, fromStep = false) {
   if (!fromStep) state.previousPage = state.currentPage;
   state.currentPage = 'activity';
 
-  // Remove dashboard glow (not using navigate() here, so remove manually)
-  document.body.classList.remove('dashboard-glow');
-
   // Track position in the non-empty pool for prev/next navigation
   const pool = state.activities.filter(a => !isEmptyActivity(a));
   const poolIdx = pool.findIndex(a => (a.id && a.id === activity.id) || a === activity);
@@ -11401,16 +11411,9 @@ async function navigateToActivity(actKey, fromStep = false) {
     destroyActivityCharts();
   }
 
-  // Swap topbar before page switch
-  document.querySelector('.topbar')?.classList.remove('topbar--hidden');
-  const _calLabel = document.getElementById('calTopbarMonth');
-  if (_calLabel) _calLabel.style.display = 'none';
+  // Hide floating range pill when entering activity page
   const _pill = document.getElementById('dateRangePill');
   if (_pill) _pill.style.display = 'none';
-  const _back = document.getElementById('detailTopbarBack');
-  if (_back) _back.style.display = '';
-  const _detailNav = document.getElementById('detailTopbarNav');
-  if (_detailNav) _detailNav.style.display = 'flex';
   document.querySelector('.page-headline')?.classList.add('page-headline--hidden');
   if (pageContent) pageContent.classList.remove('page-content--calendar');
 
@@ -20059,7 +20062,7 @@ document.getElementById('connectModal').addEventListener('click', function(e) {
   // expose so other parts of the app can attach glow to late-rendered elements
   window.attachCardGlow = attachGlow;
 
-  const GLOW_SEL = '.stat-card, .recent-act-card, .perf-metric, .act-pstat, .act-similar-card, .mm-cell, .wxp-day-card, .fit-kpi-card, .wx-day, .znp-kpi-card, .wxp-st, .wxp-best-card, .stk-hero-card, .stk-pb-card, .stk-badge--earned, .stk-stat-tile, .goal-dash-card, .fit-rec-metric, .fit-rp-card';
+  const GLOW_SEL = '.stat-card, .recent-act-card, .hero-act-card, .perf-metric, .act-pstat, .act-similar-card, .mm-cell, .wxp-day-card, .fit-kpi-card, .wx-day, .znp-kpi-card, .wxp-st, .wxp-best-card, .stk-hero-card, .stk-pb-card, .stk-badge--earned, .stk-stat-tile, .goal-dash-card, .fit-rec-metric, .fit-rp-card';
 
   function attachPress(el) {
     const press   = () => el.classList.add('is-pressed');
