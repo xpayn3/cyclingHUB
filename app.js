@@ -7802,6 +7802,11 @@ function renderPowerProfileRadar() {
     }
   });
 
+  // Ensure correct dimensions after layout settles (fixes glitch on re-entry)
+  requestAnimationFrame(() => {
+    if (state.powerProfileRadarChart) state.powerProfileRadarChart.resize();
+  });
+
   // Grow-from-centre animation triggered by IntersectionObserver
   const radarChart = state.powerProfileRadarChart;
   let _pprAnimated = false;
@@ -7810,7 +7815,6 @@ function renderPowerProfileRadar() {
       if (entry.isIntersecting && !_pprAnimated) {
         _pprAnimated = true;
         pprObs.disconnect();
-        // Ensure chart has correct dimensions (card may have just become visible)
         radarChart.resize();
         const duration = 800;
         const start = performance.now();
