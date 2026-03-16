@@ -666,11 +666,6 @@ function fmtBytes(b) {
   return b + ' B';
 }
 
-function canStoreBytes(newBytes) {
-  const { total } = getAppStorageUsage();
-  return (total + newBytes) <= STORAGE_LIMIT;
-}
-
 async function updateStorageBar() {
   const bar    = document.getElementById('storageBarTrack');
   const label  = document.getElementById('storageBarLabel');
@@ -3395,7 +3390,6 @@ function buildRecentActCardHTML(a, idx, idPrefix = 'recentActCard') {
   const speed = actVal(a, 'average_speed', 'icu_average_speed');
 
   const dFmt = dist  > 0 ? fmtDist(dist)  : null;
-  const eFmt = elev  > 0 ? fmtElev(elev)  : null;
   const sFmt = speed > 0 ? fmtSpeed(speed) : null;
 
   const statItems = [
@@ -3626,7 +3620,6 @@ function _initRecentActDots(rail, count) {
       scrollTick = false;
       const cards = rail.querySelectorAll('.recent-act-card, .hero-act-card');
       if (!cards.length) return;
-      const railLeft = rail.scrollLeft + rail.offsetWidth * 0.5;
       let closest = 0;
       let minDist = Infinity;
       cards.forEach((c, i) => {
@@ -6315,7 +6308,6 @@ function renderYTDDistance() {
   // Stats
   const thisTotal = cumThis[todayIdx] ?? cumThis[cumThis.length - 1] ?? 0;
   const lastTotal = cumLast.length > todayIdx ? (cumLast[todayIdx] ?? cumLast[cumLast.length - 1] ?? 0) : (cumLast[cumLast.length - 1] ?? 0);
-  const lastFullYear = cumLast[cumLast.length - 1] ?? 0;
 
   const fmt = v => v >= 1000 ? (v / 1000).toFixed(1).replace(/\.0$/, '') + 'k' : Math.round(v).toString();
 
@@ -13347,7 +13339,7 @@ function renderActivityBasic(a) {
   };
 
   const primary = [];
-  if (distKm > 0.05) primary.push(pStat(distKm.toFixed(1), 'Distance', false, pctDist, 'km', 'blue'));
+  if (distKm > 0.05) primary.push(pStat(distKm.toFixed(1) + ' km', 'Distance', false, pctDist, 'km', 'blue'));
   if (secs > 0)      primary.push(pStat(fmtDur(secs), 'Duration', false, pctSecs, 'duration', 'blue'));
   if (np > 0)             primary.push(pStat(Math.round(np) + 'W', 'Norm Power', true, pctPow, 'power', 'green'));
   else if (avgW > 0)      primary.push(pStat(Math.round(avgW) + 'W', 'Avg Power', true, pctPow, 'power', 'green'));
@@ -14748,10 +14740,12 @@ function renderActivityMap(latlng, streams) {
         new maplibregl.LngLatBounds(lngLats[0], lngLats[0])
       );
       state.activityMap = map;
-      _sheet.routeBounds = routeBounds;
 
       // ── Activate bottom-sheet layout ──────────────────────────────────────
       activateSheetMode();
+
+      // Set route bounds AFTER activateSheetMode so _sheet._ctrl exists
+      _sheet.routeBounds = routeBounds;
 
       // Fit route with bottom padding to account for the sheet overlay
       // Must wait for rAF so the map resizes after reparenting into sheet bg
@@ -15711,9 +15705,6 @@ function renderDetailDecoupleChart(streams, activity) {
   state._detailDecoupleChart = destroyChart(state._detailDecoupleChart);
   const ctx = document.getElementById('detailDecoupleChart')?.getContext('2d');
   if (!ctx) return;
-
-  // Midpoint vertical annotation via dataset trick
-  const midX = labels[mid] || null;
 
   state._detailDecoupleChart = new Chart(ctx, {
     type: 'line',
@@ -17436,22 +17427,6 @@ async function renderDetailHRCurve(streams) {
   );
 }
 
-function streamChartConfig(labels, data, color, fill, unit) {
-  return {
-    type: 'line',
-    data: { labels, datasets: [{ data, borderColor: color, backgroundColor: fill, borderWidth: 2, pointRadius: 0, pointHoverRadius: 7, tension: 0.4, fill: true, spanGaps: true }] },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      interaction: { mode: 'indexEager', intersect: false },
-      plugins: {
-        legend: { display: false },
-        tooltip: { ...C_TOOLTIP, callbacks: { label: c => `${c.raw} ${unit}` } }
-      },
-      scales: cScales({ xExtra: { maxTicksLimit: 8 } })
-    }
-  };
-}
-
 /* ====================================================
    SETUP LINK (cross-device credential sharing)
 ==================================================== */
@@ -18634,14 +18609,6 @@ function submitServiceForm() {
   showToast(editId ? 'Service updated' : 'Service recorded', 'success');
 }
 
-function deleteService(id) {
-  if (!confirm('Delete this service record?')) return;
-  const all = loadGearServices().filter(s => s.id !== id);
-  saveGearServices(all);
-  renderGearServices();
-  showToast('Service deleted', 'info');
-}
-
 // ── Service Shop Management ─────────────────────────────────────────────────
 function openServiceShopModal() {
   const modal = document.getElementById('serviceShopModal');
@@ -19676,18 +19643,6 @@ function setComparePeriod(days) {
   updateComparePage(new Set());
 }
 
-function setCompareChartType(type) {
-  _compare.chartType = type;
-  _compare.cards.forEach(c => c.chartType = type);
-  document.querySelectorAll('.compare-chart-type-toggle button').forEach(b => b.classList.remove('active'));
-  if (type === 'bar') {
-    document.querySelectorAll('.compare-chart-type-toggle .compareBarBtn').forEach(b => b.classList.add('active'));
-  } else {
-    document.querySelectorAll('.compare-chart-type-toggle .compareLineBtn').forEach(b => b.classList.add('active'));
-  }
-  updateComparePage(new Set());
-}
-
 function setCompareCardChartType(cardId, type) {
   const card = _compare.cards.find(c => c.id === cardId);
   if (!card) return;
@@ -19775,92 +19730,6 @@ function aggregateDataForComparison(startDate, endDate, grouping) {
   }
 
   return periods;
-}
-
-function generateCompareChart(currentPeriods, previousPeriods, metric, chartType) {
-  const canvas = document.getElementById('compareChart');
-  if (!canvas) return;
-
-  _compare.chart = destroyChart(_compare.chart);
-  const ctx = canvas.getContext('2d');
-
-  const currentValues = currentPeriods.map(p => p.data[metric] || 0);
-  const previousValues = previousPeriods.map(p => p.data[metric] || 0);
-
-  const currentColor = { r: 0, g: 229, b: 160 };   // accent green
-  const previousColor = { r: 120, g: 120, b: 140 }; // muted blue-gray
-
-  const isBar = chartType === 'bar';
-
-  const currentDataset = {
-    label: 'This Period',
-    data: currentValues,
-    borderColor: isBar ? 'transparent' : `rgb(${currentColor.r},${currentColor.g},${currentColor.b})`,
-    backgroundColor: isBar ? `rgba(${currentColor.r},${currentColor.g},${currentColor.b},0.5)` : `rgba(${currentColor.r},${currentColor.g},${currentColor.b},0.1)`,
-    hoverBackgroundColor: isBar ? `rgb(${currentColor.r},${currentColor.g},${currentColor.b})` : undefined,
-    tension: 0.3,
-    borderWidth: isBar ? 0 : 2,
-    borderRadius: 4,
-    fill: !isBar,
-    pointRadius: isBar ? 0 : 4,
-    pointBackgroundColor: `rgb(${currentColor.r},${currentColor.g},${currentColor.b})`
-  };
-
-  const previousDataset = {
-    label: 'Previous Period',
-    data: previousValues,
-    borderColor: isBar ? 'transparent' : `rgb(${previousColor.r},${previousColor.g},${previousColor.b})`,
-    backgroundColor: isBar ? `rgba(${previousColor.r},${previousColor.g},${previousColor.b},0.35)` : `rgba(${previousColor.r},${previousColor.g},${previousColor.b},0.08)`,
-    hoverBackgroundColor: isBar ? `rgb(${previousColor.r},${previousColor.g},${previousColor.b})` : undefined,
-    tension: 0.3,
-    borderWidth: isBar ? 0 : 2,
-    borderRadius: 4,
-    borderDash: isBar ? [] : [5, 5],
-    fill: !isBar,
-    pointRadius: isBar ? 0 : 3,
-    pointBackgroundColor: `rgb(${previousColor.r},${previousColor.g},${previousColor.b})`
-  };
-
-  const config = {
-    type: chartType === 'bar' ? 'bar' : 'line',
-    data: {
-      labels: currentPeriods.map(p => p.label),
-      datasets: [currentDataset, previousDataset]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: { labels: { color: C_CLR_MUTED, font: { size: 12 } } },
-        tooltip: { ...C_TOOLTIP }
-      },
-      scales: cScales({ xGrid: false, yExtra: { maxTicksLimit: 6 } })
-    }
-  };
-
-  _compare.chart = destroyChart(_compare.chart);
-  _compare.chart = new Chart(ctx, config);
-}
-
-function generateCompareStats(currentPeriods, previousPeriods, metric) {
-  const currentValues = currentPeriods.map(p => p.data[metric] || 0);
-  const previousValues = previousPeriods.map(p => p.data[metric] || 0);
-
-  const currentSum = currentValues.reduce((a, b) => a + b, 0);
-  const previousSum = previousValues.reduce((a, b) => a + b, 0);
-  const currentAvg = (currentSum / currentValues.length).toFixed(1);
-  const previousAvg = (previousSum / previousValues.length).toFixed(1);
-
-  const change = previousSum > 0 ? (((currentSum - previousSum) / previousSum) * 100).toFixed(1) : 0;
-  const changeClass = change > 0 ? 'stat-positive' : (change < 0 ? 'stat-negative' : '');
-
-  let html = '<table><thead><tr><th>Metric</th><th>This Period</th><th>Previous Period</th><th>Change</th></tr></thead><tbody>';
-  html += `<tr><td><strong>Total</strong></td><td>${currentSum}</td><td>${previousSum}</td><td class="${changeClass}">${change > 0 ? '+' : ''}${change}%</td></tr>`;
-  html += `<tr><td><strong>Average</strong></td><td>${currentAvg}</td><td>${previousAvg}</td><td>-</td></tr>`;
-  html += `</tbody></table>`;
-
-  document.getElementById('compareStatsTable').innerHTML = html;
 }
 
 function generateCompareChartForCard(cardId, currentPeriods, previousPeriods, metric, chartType, animate = true) {
@@ -20460,17 +20329,6 @@ document.getElementById('connectModal').addEventListener('click', function(e) {
   window.attachCardGlow = attachGlow;
 
   const GLOW_SEL = '.stat-card, .recent-act-card, .hero-act-card, .perf-metric, .act-pstat, .act-similar-card, .mm-cell, .wxp-day-card, .fit-kpi-card, .wx-day, .znp-kpi-card, .wxp-st, .wxp-best-card, .stk-hero-card, .stk-pb-card, .stk-badge--earned, .stk-stat-tile, .goal-dash-card, .fit-rec-metric, .fit-rp-card';
-
-  function attachPress(el) {
-    const press   = () => el.classList.add('is-pressed');
-    const release = () => el.classList.remove('is-pressed');
-    el.addEventListener('mousedown',   press);
-    el.addEventListener('touchstart',  press,  { passive: true });
-    el.addEventListener('mouseup',     release);
-    el.addEventListener('mouseleave',  release);
-    el.addEventListener('touchend',    release);
-    el.addEventListener('touchcancel', release);
-  }
 
   function attachGlowAndPress(el) {
     attachGlow(el);

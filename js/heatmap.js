@@ -358,16 +358,17 @@ export function _hmInitMap() {
         () => {
           _hm._isSatellite = !_hm._isSatellite;
           satBtnEl.classList.toggle('active', _hm._isSatellite);
+          // Clear tracked layers — setStyle destroys them anyway
+          _hm._layerIds = [];
+          _hm._sourceIds = [];
+          _hm.polylines = [];
+          _hm.heatLayer = null;
           _hm.map.setStyle(_hm._isSatellite ? _mlGetStyle('satellite') : _mlGetStyle(loadMapTheme()));
-          const _waitStyle = () => {
-            if (_hm.map.isStyleLoaded()) {
-              _mlApplyTerrain(_hm.map);
-              hmRedraw();
-            } else {
-              setTimeout(_waitStyle, 100);
-            }
-          };
-          setTimeout(_waitStyle, 100);
+          // Single reliable listener for style swap — no polling
+          _hm.map.once('style.load', () => {
+            _mlApplyTerrain(_hm.map);
+            hmRedraw();
+          });
         });
 
       return this._container;
@@ -933,11 +934,16 @@ export function hmUpdateStats(routes) {
 /* ── Draw routes on map ── */
 export function hmRedraw() {
   if (!_hm.map) return;
+  // Cancel any pending style-load retry to prevent stale redraws
+  if (_hm._redrawRetry) {
+    _hm.map.off('load', _hm._redrawRetry);
+    _hm.map.off('style.load', _hm._redrawRetry);
+    _hm._redrawRetry = null;
+  }
   if (!_hm.map.isStyleLoaded()) {
-    // Listen for both events — 'load' fires on first init, 'style.load' fires after setStyle()
-    const retry = () => hmRedraw();
-    _hm.map.once('load', retry);
-    _hm.map.once('style.load', retry);
+    _hm._redrawRetry = () => hmRedraw();
+    _hm.map.once('load', _hm._redrawRetry);
+    _hm.map.once('style.load', _hm._redrawRetry);
     return;
   }
   const routes = _hm._filtered || [];
