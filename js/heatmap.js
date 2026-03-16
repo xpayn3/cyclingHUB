@@ -310,6 +310,11 @@ export function _hmInitMap() {
     dragRotate: _hmTerrainOn,
     pitchWithRotate: _hmTerrainOn,
     maxPitch: 85,
+    renderWorldCopies: false,
+    antialias: false,
+    collectResourceTiming: false,
+    maxTileCacheSize: 150,
+    pixelRatio: Math.min(devicePixelRatio, 2),
   });
   // Unified map tools control (matches Route Builder pattern)
   class HmMapTools {

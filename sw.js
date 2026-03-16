@@ -2,14 +2,14 @@
    Service Worker — App Shell + Map Tile Cache
    ============================================================
    1. App shell (HTML, CSS, JS): network-first with cache fallback
-   2. Satellite tiles from Esri: cache-first for speed
+   2. Satellite tiles from Esri + OSM: cache-first for speed
    3. Navigation Preload: fetch starts while SW boots
 ============================================================ */
 
-const APP_CACHE    = 'icu-app-shell-v75';
+const APP_CACHE    = 'icu-app-shell-v77';
 const TILE_CACHE   = 'icu-map-tiles-v1';
 const MAX_TILES    = 2000; // rough cap to avoid unbounded disk use
-const TILE_ORIGINS = ['server.arcgisonline.com'];
+const TILE_ORIGINS = ['server.arcgisonline.com', 'tile.openstreetmap.de', 'tile-cyclosm.openstreetmap.fr', 'api.maptiler.com'];
 
 const APP_SHELL = [
   './',
@@ -78,7 +78,6 @@ self.addEventListener('fetch', e => {
 // ── Network-first for app shell (uses preload when available) ─
 async function handleAppShell(request, preloadResponse) {
   try {
-    // Use the preloaded response if available (navigation preload)
     const response = (await preloadResponse) || (await fetch(request));
     if (response.ok) {
       const cache = await caches.open(APP_CACHE);
@@ -88,7 +87,6 @@ async function handleAppShell(request, preloadResponse) {
   } catch {
     const cached = await caches.match(request);
     if (cached) return cached;
-    // Fallback for navigation requests: serve cached index.html
     if (request.mode === 'navigate') {
       const fallback = await caches.match('./index.html');
       if (fallback) return fallback;

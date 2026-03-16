@@ -414,6 +414,10 @@ function cleanupPageCharts(leavingPage) {
   if (leavingPage === 'heatmap') {
     if (window.hmCleanupSheetMode) hmCleanupSheetMode();
   }
+  // Clean up card grid maps when leaving activities page
+  if (leavingPage === 'activities') {
+    _cleanupCardGrid('allActivityCardGrid');
+  }
   // Also clean up any pending lazy renders
   _lazyCharts.pending.forEach((fn, card) => {
     _lazyCharts.observer.unobserve(card);
@@ -1072,8 +1076,7 @@ async function syncData(force = false) {
     }
   }
 
-  btn.classList.add('btn-spinning');
-  btn.disabled = true;
+  if (btn) { btn.classList.add('btn-spinning'); btn.disabled = true; }
 
   try {
     if (!state.athlete) await fetchAthleteProfile();
@@ -1092,25 +1095,30 @@ async function syncData(force = false) {
       const since = new Date(cache.lastSync);
       since.setDate(since.getDate() - 2);
       // Silent background sync — no loading spinner for incremental updates
-      if (!force) { btn.classList.add('btn-spinning'); }
+      if (!force && btn) { btn.classList.add('btn-spinning'); }
       else { setLoading(true, 'Checking for new activities…'); }
-      await fetchActivities(null, since);
+
+      // Fetch activities and fitness in parallel for incremental sync
+      const [, fitOk] = await Promise.all([
+        fetchActivities(null, since),
+        fetchFitness().then(() => true).catch(() => false),
+      ]);
+      if (fitOk) { saveFitnessCache(); updateSidebarCTL(); }
     } else {
       const days = defaultSyncDays();
       setLoading(true, `Loading activities — syncing ${days} days…`);
       await fetchActivities(days);
+
+      setLoading(true, 'Loading fitness data…');
+      await fetchFitness().catch(() => null);
+      saveFitnessCache();
+      updateSidebarCTL();
     }
 
     // Save updated cache after a successful fetch
     saveActivityCache(state.activities);
     updateLastSyncLabel(new Date().toISOString());
     if (window._lbAutoBackupIfEnabled) _lbAutoBackupIfEnabled();
-
-    if (!isIncremental || force) setLoading(true, 'Loading fitness data…');
-    else setLoading(false);
-    await fetchFitness().catch(() => null); // non-fatal
-    saveFitnessCache();
-    updateSidebarCTL(); // refresh badge with latest fetched value
 
     // Invalidate power curve cache so it re-fetches with fresh range
     state.powerCurve = null;
@@ -1155,8 +1163,7 @@ async function syncData(force = false) {
   } finally {
     _syncInProgress = false;
     setLoading(false);
-    btn.classList.remove('btn-spinning');
-    btn.disabled = false;
+    if (btn) { btn.classList.remove('btn-spinning'); btn.disabled = false; }
   }
 }
 
@@ -2863,6 +2870,55 @@ function updateSortButtons() {
   });
 }
 
+function _cleanupCardGrid(containerId) {
+  const gs = window._actCardGridState[containerId];
+  if (!gs) return;
+  if (gs.observer) gs.observer.disconnect();
+  if (gs.mapObserver) gs.mapObserver.disconnect();
+  gs.mapQueue = [];
+  gs.mapActive = 0;
+  (gs.maps || []).forEach(m => { try { m.remove(); } catch (_) {} });
+  gs.maps = [];
+  window._actCardGridState[containerId] = null;
+}
+
+const CARD_MAP_CONC = 2; // max simultaneous map renders
+
+function _ensureCardMapObserver(containerId) {
+  const ls = window._actCardGridState[containerId];
+  if (!ls || ls.mapObserver) return;
+
+  ls.mapObserver = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      const mapEl = entry.target;
+      ls.mapObserver.unobserve(mapEl);
+      // Queue it for rendering
+      ls.mapQueue.push(mapEl);
+    }
+    _drainCardMapQueue(containerId);
+  }, { rootMargin: '200px 0px' }); // start loading 200px before visible
+}
+
+function _drainCardMapQueue(containerId) {
+  const ls = window._actCardGridState[containerId];
+  if (!ls) return;
+  while (ls.mapQueue.length > 0 && ls.mapActive < CARD_MAP_CONC) {
+    const mapEl = ls.mapQueue.shift();
+    const a = mapEl._activity;
+    const idx = parseInt(mapEl.dataset.actIdx, 10);
+    if (!a) continue;
+    ls.mapActive++;
+    renderRecentActCardMap(a, idx, 'actGridCard', ls.maps)
+      .catch(() => {})
+      .finally(() => {
+        if (!window._actCardGridState[containerId]) return;
+        ls.mapActive--;
+        _drainCardMapQueue(containerId);
+      });
+  }
+}
+
 function setActivitiesView(mode) {
   state.activitiesView = mode;
   document.querySelectorAll('[data-view]').forEach(btn => {
@@ -2874,6 +2930,10 @@ function setActivitiesView(mode) {
   if (listEl)  listEl.style.display  = mode === 'list'  ? '' : 'none';
   if (gridEl)  gridEl.style.display  = mode === 'card'  ? '' : 'none';
   if (zonesEl) zonesEl.style.display = mode === 'zones' ? '' : 'none';
+
+  // Clean up card grid maps when switching away to free WebGL contexts
+  if (mode !== 'card') _cleanupCardGrid('allActivityCardGrid');
+
   renderAllActivitiesList();
 }
 
@@ -2918,6 +2978,8 @@ function renderAllActivitiesList() {
 /* ── Activity card grid (reuses recent-act card design) ── */
 window._actCardGridState = {};
 const ACT_CARD_GRID_BATCH = 12;
+// In-memory cache of card map snapshots keyed by `${actId}_${theme}`
+const _cardMapImgCache = new Map();
 
 function renderActivityCardGrid(containerId, activities) {
   const el = document.getElementById(containerId);
@@ -2937,7 +2999,8 @@ function renderActivityCardGrid(containerId, activities) {
   }
 
   window._actCardGridState[containerId] = {
-    el, filtered, cursor: 0, observer: null, lastMonth: null, maps: [], idCounter: 0
+    el, filtered, cursor: 0, observer: null, lastMonth: null, maps: [],
+    idCounter: 0, mapObserver: null, mapQueue: [], mapActive: 0,
   };
 
   el.innerHTML = '';
@@ -2974,27 +3037,25 @@ function _actCardGridLoadMore(containerId) {
 
   ls.el.insertAdjacentHTML('beforeend', html);
 
-  // Wire click handlers for this batch
+  // Wire click handlers + lazy map observer for this batch
   let mapIdx = batchStart;
-  const mapJobs = [];
   for (let i = ls.cursor; i < end; i++) {
     const a = ls.filtered[i];
     const card = document.getElementById(`actGridCard_${mapIdx}`);
     if (card) card.onclick = () => navigateToActivity(a);
-    mapJobs.push({ a, idx: mapIdx });
+
+    // Register map container for lazy loading
+    const mapEl = document.getElementById(`actGridCardMap_${mapIdx}`);
+    if (mapEl) {
+      mapEl.dataset.actIdx = mapIdx;
+      mapEl.dataset.actId = a.id || a.icu_activity_id;
+      mapEl._activity = a;  // keep reference for lazy loader
+      _ensureCardMapObserver(containerId);
+      ls.mapObserver.observe(mapEl);
+    }
     mapIdx++;
   }
   ls.cursor = end;
-
-  // Render maps with limited concurrency to avoid failed fetches
-  (async () => {
-    const CONC = 3;
-    for (let i = 0; i < mapJobs.length; i += CONC) {
-      await Promise.all(mapJobs.slice(i, i + CONC).map(
-        j => renderRecentActCardMap(j.a, j.idx, 'actGridCard')
-      ));
-    }
-  })();
 
   // Sentinel for infinite scroll
   if (ls.cursor < ls.filtered.length) {
@@ -3471,11 +3532,29 @@ function buildRecentActCardHTML(a, idx, idPrefix = 'recentActCard') {
   </div>`;
 }
 
-// Fetch GPS and render the mini-map for one carousel card (MapLibre GL)
-async function renderRecentActCardMap(a, idx, idPrefix = 'recentActCard') {
+// Fetch GPS and render the mini-map for one card (MapLibre GL).
+// Returns a Promise that resolves once the map is fully rendered (idle)
+// so callers can enforce real concurrency limits.
+async function renderRecentActCardMap(a, idx, idPrefix = 'recentActCard', mapStore = null) {
   const actId = a.id || a.icu_activity_id;
   const mapEl = document.getElementById(`${idPrefix}Map_${idx}`);
   if (!mapEl) return;
+
+  // Check in-memory snapshot cache — instant restore, no map creation needed
+  const isCardGrid = idPrefix === 'actGridCard';
+  if (isCardGrid) {
+    const cacheKey = `${actId}_${loadMapTheme()}`;
+    const cached = _cardMapImgCache.get(cacheKey);
+    if (cached) {
+      const img = document.createElement('img');
+      img.src = cached;
+      img.className = 'ra-card-map-img';
+      img.alt = '';
+      mapEl.innerHTML = '';
+      mapEl.appendChild(img);
+      return;
+    }
+  }
 
   // GPS points cached — skip the API call entirely on refresh
   let points = null;
@@ -3484,7 +3563,7 @@ async function renderRecentActCardMap(a, idx, idPrefix = 'recentActCard') {
     try { points = JSON.parse(cachedGPS); } catch (_) {}
   }
 
-  // 3. Nothing cached — fetch from API then save GPS points for next refresh
+  // Nothing cached — fetch from API then save GPS points for next refresh
   if (!points || points.length < 2) {
     let latlng = null;
     try { latlng = await fetchMapGPS(actId); } catch (_) {}
@@ -3509,77 +3588,130 @@ async function renderRecentActCardMap(a, idx, idPrefix = 'recentActCard') {
     try { localStorage.setItem(`icu_gps_pts_${actId}`, JSON.stringify(points)); } catch (_) {}
   }
 
-  requestAnimationFrame(() => {
-    try {
-      const coords = points.map(p => [p[1], p[0]]); // [lng, lat]
-      // Compute bounds
-      let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
-      for (const [lng, lat] of coords) {
-        if (lng < minLng) minLng = lng; if (lng > maxLng) maxLng = lng;
-        if (lat < minLat) minLat = lat; if (lat > maxLat) maxLat = lat;
-      }
+  // Card grid thumbnails are small — further downsample to ~150 points
+  let renderPts = points;
+  if (isCardGrid && points.length > 150) {
+    const s = Math.ceil(points.length / 150);
+    renderPts = points.filter((_, i) => i % s === 0);
+    if (renderPts[renderPts.length - 1] !== points[points.length - 1]) renderPts.push(points[points.length - 1]);
+  }
+  const coords = renderPts.map(p => [p[1], p[0]]); // [lng, lat]
 
-      // Smart framing: tilt map so route's long axis aligns with card width
-      const midLat = (minLat + maxLat) / 2;
-      const cosLat = Math.cos(midLat * Math.PI / 180);
-      const geoW = (maxLng - minLng) * cosLat;
-      const geoH = maxLat - minLat;
-      const cardW = mapEl.clientWidth || 420;
-      const cardH = mapEl.clientHeight || 236;
-      const cardAR = cardW / cardH;
-      const routeAR = geoW / (geoH || 0.0001);
-      let bearing = 0;
-      if (routeAR < cardAR * 0.85 && geoH > geoW * 0.8) {
-        const ratio = Math.min(geoH / (geoW || 0.0001), 5);
-        bearing = Math.min(ratio * 18, 70);
-      }
+  // Compute bounds
+  let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
+  for (const [lng, lat] of coords) {
+    if (lng < minLng) minLng = lng; if (lng > maxLng) maxLng = lng;
+    if (lat < minLat) minLat = lat; if (lat > maxLat) maxLat = lat;
+  }
 
-      const map = new maplibregl.Map({
-        container: mapEl,
-        style: _mlGetStyle(loadMapTheme()),
-        bounds: [[minLng, minLat], [maxLng, maxLat]],
-        fitBoundsOptions: { padding: 20, bearing },
-        interactive: false,
-        attributionControl: false,
-        fadeDuration: 0,
-        localIdeographFontFamily: 'sans-serif',
+  // Smart framing: tilt map so route's long axis aligns with card width
+  const midLat = (minLat + maxLat) / 2;
+  const cosLat = Math.cos(midLat * Math.PI / 180);
+  const geoW = (maxLng - minLng) * cosLat;
+  const geoH = maxLat - minLat;
+  const cardW = mapEl.clientWidth || 420;
+  const cardH = mapEl.clientHeight || 236;
+  const cardAR = cardW / cardH;
+  const routeAR = geoW / (geoH || 0.0001);
+  let bearing = 0;
+  if (routeAR < cardAR * 0.85 && geoH > geoW * 0.8) {
+    const ratio = Math.min(geoH / (geoW || 0.0001), 5);
+    bearing = Math.min(ratio * 18, 70);
+  }
+
+  const map = new maplibregl.Map({
+    container: mapEl,
+    style: _mlGetStyle(loadMapTheme()),
+    bounds: [[minLng, minLat], [maxLng, maxLat]],
+    fitBoundsOptions: { padding: 20, bearing },
+    interactive: false,
+    attributionControl: false,
+    fadeDuration: 0,
+    renderWorldCopies: false,
+    antialias: false,
+    collectResourceTiming: false,
+    trackResize: !isCardGrid,
+    preserveDrawingBuffer: isCardGrid,
+    maxTileCacheSize: isCardGrid ? 30 : 50,
+    pixelRatio: isCardGrid ? 1 : Math.min(devicePixelRatio, 2),
+    localIdeographFontFamily: 'sans-serif',
+  });
+
+  // Track map for cleanup
+  if (mapStore) {
+    mapStore.push(map);
+  } else {
+    state.recentActivityMaps = state.recentActivityMaps || [];
+    state.recentActivityMaps.push(map);
+  }
+
+  // Wait for load → add route → wait for idle → snapshot (card grid)
+  return new Promise(resolve => {
+    let settled = false;
+    const done = () => { if (settled) return; settled = true; resolve(); };
+    // Safety timeout — don't block the queue forever
+    const timer = setTimeout(done, 8000);
+
+    map.on('load', () => {
+      if (_isStravaTheme()) _applyStravaOverrides(map);
+
+      map.addSource('rc-route', {
+        type: 'geojson',
+        data: { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } },
+      });
+      map.addLayer({
+        id: 'rc-route-shadow', type: 'line', source: 'rc-route',
+        paint: { 'line-color': '#000', 'line-width': 7, 'line-opacity': 0.55 },
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+      });
+      map.addLayer({
+        id: 'rc-route-line', type: 'line', source: 'rc-route',
+        paint: { 'line-color': ACCENT, 'line-width': 4.5, 'line-opacity': 1 },
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
       });
 
-      map.on('load', () => {
-        if (_isStravaTheme()) _applyStravaOverrides(map);
+      // Start / end dot markers
+      const makeDot = (color) => {
+        const el = document.createElement('div');
+        el.style.cssText = `width:8px;height:8px;border-radius:50%;background:${color};border:2px solid rgba(255,255,255,0.9);box-shadow:0 0 3px rgba(0,0,0,0.5)`;
+        return el;
+      };
+      new maplibregl.Marker({ element: makeDot(ACCENT), anchor: 'center' })
+        .setLngLat(coords[0]).addTo(map);
+      new maplibregl.Marker({ element: makeDot('#888'), anchor: 'center' })
+        .setLngLat(coords[coords.length - 1]).addTo(map);
 
-        // Route line
-        map.addSource('rc-route', {
-          type: 'geojson',
-          data: { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } },
+      // Card grid: snapshot to static image once rendered, then destroy the
+      // WebGL context so dozens of cards don't exhaust GPU resources.
+      if (isCardGrid) {
+        map.once('idle', () => {
+          clearTimeout(timer);
+          try {
+            const canvas = map.getCanvas();
+            const dataUrl = canvas.toDataURL('image/webp', 0.82);
+            // Save to in-memory cache for instant restore on re-visit
+            _cardMapImgCache.set(`${actId}_${loadMapTheme()}`, dataUrl);
+            const img = document.createElement('img');
+            img.src = dataUrl;
+            img.className = 'ra-card-map-img';
+            img.alt = '';
+            map.remove();
+            mapEl.innerHTML = '';
+            mapEl.appendChild(img);
+          } catch (_) {}
+          if (mapStore) {
+            const mi = mapStore.indexOf(map);
+            if (mi !== -1) mapStore.splice(mi, 1);
+          }
+          done();
         });
-        map.addLayer({
-          id: 'rc-route-shadow', type: 'line', source: 'rc-route',
-          paint: { 'line-color': '#000', 'line-width': 7, 'line-opacity': 0.55 },
-          layout: { 'line-cap': 'round', 'line-join': 'round' },
-        });
-        map.addLayer({
-          id: 'rc-route-line', type: 'line', source: 'rc-route',
-          paint: { 'line-color': ACCENT, 'line-width': 4.5, 'line-opacity': 1 },
-          layout: { 'line-cap': 'round', 'line-join': 'round' },
-        });
+      } else {
+        clearTimeout(timer);
+        done();
+      }
+    });
 
-        // Start / end dot markers
-        const makeDot = (color) => {
-          const el = document.createElement('div');
-          el.style.cssText = `width:8px;height:8px;border-radius:50%;background:${color};border:2px solid rgba(255,255,255,0.9);box-shadow:0 0 3px rgba(0,0,0,0.5)`;
-          return el;
-        };
-        new maplibregl.Marker({ element: makeDot(ACCENT), anchor: 'center' })
-          .setLngLat(coords[0]).addTo(map);
-        new maplibregl.Marker({ element: makeDot('#888'), anchor: 'center' })
-          .setLngLat(coords[coords.length - 1]).addTo(map);
-
-      });
-
-      state.recentActivityMaps = state.recentActivityMaps || [];
-      state.recentActivityMaps.push(map);
-    } catch (_) {}
+    map.on('error', () => { clearTimeout(timer); done(); });
   });
 }
 
@@ -4423,7 +4555,12 @@ Chart.register({
     _syncingTooltip = true;
     const elements = partner.data.datasets.map((ds, di) => ({ datasetIndex: di, index: idx }));
     partner.setActiveElements(elements);
-    partner.tooltip.setActiveElements(elements, { x: active[0].element.x, y: active[0].element.y });
+    // Use partner's own element position so crosshairs align to its chart area
+    const pMeta = partner.getDatasetMeta(0);
+    const pPt = pMeta && pMeta.data[idx];
+    const px = pPt ? pPt.x : active[0].element.x;
+    const py = pPt ? pPt.y : active[0].element.y;
+    partner.tooltip.setActiveElements(elements, { x: px, y: py });
     partner.update('none');
     _syncingTooltip = false;
   }
@@ -5865,8 +6002,8 @@ function renderFitnessChart(activities, days) {
         tooltip: { ...C_TOOLTIP, callbacks: { labelColor: C_LABEL_COLOR } }
       },
       scales: {
-        x: { grid: { ...C_GRID, drawTicks: false }, ticks: { ...C_TICK, maxTicksLimit: 8, display: false } },
-        y: cScales({}).y
+        x: { grid: C_GRID, ticks: { ...C_TICK, maxTicksLimit: 8, color: 'transparent' } },
+        y: { ...cScales({}).y, afterFit(axis) { axis.width = 45; } }
       }
     }
   });
@@ -5902,7 +6039,7 @@ function renderFitnessChart(activities, days) {
         },
         scales: {
           ...cScales({ xExtra: { maxTicksLimit: 8 } }),
-          y: { ...cScales({}).y, title: { display: false }, grid: { color: 'rgba(255,255,255,0.04)' } }
+          y: { ...cScales({}).y, afterFit(axis) { axis.width = 45; }, title: { display: false }, grid: { color: 'rgba(255,255,255,0.04)' } }
         }
       }
     });
@@ -9827,27 +9964,27 @@ function renderFitnessHistoryChart(days) {
     labels.push(d.slice(5));
   }
 
-  const chartOpts = {
-    responsive: true, maintainAspectRatio: false,
-    interaction: { mode: 'indexEager', intersect: false },
-    plugins: {
-      legend: { display: false },
-      tooltip: { ...C_TOOLTIP, callbacks: { labelColor: C_LABEL_COLOR } }
-    },
-    scales: cScales({ xExtra: { maxTicksLimit: 10 } })
-  };
+  const _fitYAxisFix = axis => { axis.width = 45; };
 
   state.fitnessPageChart = destroyChart(state.fitnessPageChart);
-  const topChartOpts = JSON.parse(JSON.stringify(chartOpts));
-  topChartOpts.scales.x.ticks = { ...topChartOpts.scales.x.ticks, display: false };
-  topChartOpts.scales.x.grid = { ...topChartOpts.scales.x.grid, drawTicks: false };
   state.fitnessPageChart = new Chart(canvas.getContext('2d'), {
     type: 'line',
     data: { labels, datasets: [
       { label: 'CTL', data: ctlD, borderColor: ACCENT, backgroundColor: 'rgba(0,229,160,0.08)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 7, tension: 0.4, fill: true },
       { label: 'ATL', data: atlD, borderColor: '#ff6b35', backgroundColor: 'rgba(255,107,53,0.05)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 7, tension: 0.4 },
     ]},
-    options: topChartOpts
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'indexEager', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: { ...C_TOOLTIP, callbacks: { labelColor: C_LABEL_COLOR } }
+      },
+      scales: {
+        x: { grid: C_GRID, ticks: { ...C_TICK, maxTicksLimit: 10, color: 'transparent' } },
+        y: { ...cScales({}).y, afterFit: _fitYAxisFix }
+      }
+    }
   });
 
   // ── Form (TSB) — separate panel below ──
@@ -9881,7 +10018,7 @@ function renderFitnessHistoryChart(days) {
         },
         scales: {
           ...cScales({ xExtra: { maxTicksLimit: 10 } }),
-          y: { ...cScales({}).y, title: { display: false }, grid: { color: 'rgba(255,255,255,0.04)' } }
+          y: { ...cScales({}).y, afterFit: _fitYAxisFix, title: { display: false }, grid: { color: 'rgba(255,255,255,0.04)' } }
         }
       }
     });
@@ -12467,7 +12604,6 @@ function _onMapFullscreenEnter(card) {
     btn.title = 'Close fullscreen';
   }
   document.body.style.overflow = 'hidden';
-  if (state.activityMap) state.activityMap.scrollZoom.enable();
   setTimeout(() => { if (state.activityMap) state.activityMap.resize(); }, 120);
 }
 
@@ -12483,7 +12619,6 @@ function _onMapFullscreenExit(card) {
     btn.title = 'Expand map';
   }
   document.body.style.overflow = '';
-  if (state.activityMap) state.activityMap.scrollZoom.disable();
   setTimeout(() => { if (state.activityMap) state.activityMap.resize(); }, 120);
 }
 
@@ -14770,14 +14905,19 @@ function _preWarmActivityMap() {
       container: mapEl,
       style: _mlGetStyle(themeKey),
       attributionControl: true,
-      dragRotate: _actTerrainOn,
-      pitchWithRotate: _actTerrainOn,
+      dragRotate: true,
+      pitchWithRotate: true,
       scrollZoom: false,
       maxPitch: 85,
       fadeDuration: 0,
+      renderWorldCopies: false,
+      antialias: false,
+      collectResourceTiming: false,
+      maxTileCacheSize: 150,
+      pixelRatio: Math.min(devicePixelRatio, 2),
       localIdeographFontFamily: 'sans-serif',
     });
-    map.addControl(new maplibregl.NavigationControl({ showCompass: _actTerrainOn, visualizePitch: _actTerrainOn }), 'top-left');
+    map.addControl(new maplibregl.NavigationControl({ showCompass: true, visualizePitch: true }), 'top-left');
     state._preWarmMap = map;
     state._preWarmTheme = themeKey;
   } catch (e) {
@@ -14838,19 +14978,23 @@ function renderActivityMap(latlng, streams) {
         mapEl.style.transition = 'opacity 0.3s ease';
       }
 
-      const _actTerrainOn = loadTerrainEnabled();
       map = new maplibregl.Map({
         container: mapEl,
         style: _mlGetStyle(themeKey),
         attributionControl: true,
-        dragRotate: _actTerrainOn,
-        pitchWithRotate: _actTerrainOn,
+        dragRotate: true,
+        pitchWithRotate: true,
         scrollZoom: false,
         maxPitch: 85,
         fadeDuration: 0,
+        renderWorldCopies: false,
+        antialias: false,
+        collectResourceTiming: false,
+        maxTileCacheSize: 150,
+        pixelRatio: Math.min(devicePixelRatio, 2),
         localIdeographFontFamily: 'sans-serif',
       });
-      map.addControl(new maplibregl.NavigationControl({ showCompass: _actTerrainOn, visualizePitch: _actTerrainOn }), 'top-left');
+      map.addControl(new maplibregl.NavigationControl({ showCompass: true, visualizePitch: true }), 'top-left');
     }
 
     try {
@@ -15232,6 +15376,24 @@ function renderActivityMap(latlng, streams) {
               }
             });
             navGroup.appendChild(terrainBtn);
+
+            // Color-mode cycle button (cycles through available route color modes)
+            const colorModeIcons = { default: '◉', hr: '♥', speed: '⚡', power: '◈', altitude: '▲' };
+            const colorModeColors = { default: '#00e5a0', hr: '#f87171', speed: '#3b82f6', power: '#f97316', altitude: '#7c3aed' };
+            const colorCycleBtn = document.createElement('button');
+            colorCycleBtn.className = 'act-map-tool-btn';
+            colorCycleBtn.title = 'Cycle route color';
+            colorCycleBtn.innerHTML = `<span style="font-size:14px;line-height:1">${colorModeIcons[activeMode] || '◉'}</span>`;
+            colorCycleBtn.style.color = colorModeColors[activeMode] || '#00e5a0';
+            colorCycleBtn.addEventListener('click', () => {
+              const idx = modes.findIndex(m => m.key === activeMode);
+              const next = modes[(idx + 1) % modes.length];
+              applyColorMode(next.key);
+              colorCycleBtn.innerHTML = `<span style="font-size:14px;line-height:1">${colorModeIcons[next.key] || '◉'}</span>`;
+              colorCycleBtn.style.color = colorModeColors[next.key] || '#00e5a0';
+              colorCycleBtn.title = `Route: ${next.label}`;
+            });
+            navGroup.appendChild(colorCycleBtn);
           }
         }
 
@@ -15267,51 +15429,16 @@ function renderActivityMap(latlng, streams) {
         map.fitBounds(routeBounds, { padding: { top: 64, right: 40, bottom: sheetPad + 120, left: 40 }, duration: 0 });
       });
 
-      // ── Alt + scroll to zoom ─────────────────────────────────────────────
-      const altMapEl = map.getContainer();
-      let hintTimer;
-      const ALT_HINT_KEY = 'icu_alt_zoom_hint_seen';
+      // ── Scroll-to-zoom on hover + right-click 3D tilt ─────────────────────
+      const mapContainer = map.getContainer();
 
-      altMapEl.addEventListener('wheel', (e) => {
-        if (e.altKey) {
-          e.preventDefault();
-          e.stopPropagation();
-          const delta = e.deltaY < 0 ? 1 : -1;
-          map.zoomTo(map.getZoom() + delta, { around: map.unproject([e.offsetX, e.offsetY]) });
-        } else if (!localStorage.getItem(ALT_HINT_KEY)) {
-          let hint = altMapEl.querySelector('.map-scroll-hint');
-          if (!hint) {
-            hint = document.createElement('div');
-            hint.className = 'map-scroll-hint';
-            hint.textContent = 'Hold Alt to zoom';
-            altMapEl.appendChild(hint);
-          }
-          hint.classList.add('visible');
-          clearTimeout(hintTimer);
-          hintTimer = setTimeout(() => {
-            hint.classList.remove('visible');
-            try { localStorage.setItem(ALT_HINT_KEY, '1'); } catch (_e) {}
-          }, 1600);
-        }
-      }, { passive: false });
+      // Enable scroll zoom only while mouse is over the map
+      mapContainer.addEventListener('mouseenter', () => map.scrollZoom.enable());
+      mapContainer.addEventListener('mouseleave', () => map.scrollZoom.disable());
 
-      // Cursor feedback when Alt is held
-      const onKeyDown = (e) => { if (e.key === 'Alt') altMapEl.classList.add('alt-zoom');    };
-      const onKeyUp   = (e) => { if (e.key === 'Alt') altMapEl.classList.remove('alt-zoom'); };
-      const resetAltZoom = () => altMapEl.classList.remove('alt-zoom');
-
-      window.addEventListener('keydown', onKeyDown);
-      window.addEventListener('keyup',   onKeyUp);
-      window.addEventListener('blur',               resetAltZoom);
-      document.addEventListener('visibilitychange', resetAltZoom);
-
-      // Clean up global listeners on map remove
-      map.on('remove', () => {
-        window.removeEventListener('keydown',            onKeyDown);
-        window.removeEventListener('keyup',              onKeyUp);
-        window.removeEventListener('blur',               resetAltZoom);
-        document.removeEventListener('visibilitychange', resetAltZoom);
-      });
+      // Enable right-click drag for 3D tilt/rotate (bearing + pitch)
+      map.dragRotate.enable();
+      map.keyboard.enable();
 
     } catch(e) { console.error('[Map] MapLibre error:', e); }
   });
@@ -15324,7 +15451,7 @@ function initFlythrough(map, valid, streams, maxes, maxSpdKmh, maxHR, statsEl, t
   const ft = {
     playing: false,
     idx: 0,
-    speed: 30,   // multiplier: GPS points are ~1Hz, so 30× ≈ 30 pts/sec
+    speed: 15,   // multiplier: GPS points are ~1Hz, so 15× ≈ 15 pts/sec
     follow: true,
     rafId: null,
     lastTs: null,
@@ -15551,22 +15678,25 @@ function initFlythrough(map, valid, streams, maxes, maxSpdKmh, maxHR, statsEl, t
     _updatePosition(ft.idx, valid[ft.idx]);
   }
 
+  let _lastStatsIdx = -1;
   function _updatePosition(idxForStats, pos) {
-    // Update marker colour to match active route-colour mode
-    const si = Math.round(idxForStats * (timeLen - 1) / (valid.length - 1));
-    const color = routePointColor(getMode(), streams, si, maxes);
-    makeFtIcon(color);
     const lngLat = Array.isArray(pos) ? [pos[1], pos[0]] : pos;
+    // Always update marker + camera at full 60fps for smooth movement
     ftMarker.setLngLat(lngLat);
     if (!ftMarker._map) ftMarker.addTo(map);
+    if (ft.follow) map.jumpTo({ center: lngLat });
 
-    if (ft.follow) map.panTo(lngLat, { animate: false });
-    if (statsEl)   refreshMapStats(statsEl, streams, si, maxSpdKmh, maxHR);
+    // Throttle heavier UI updates to when the integer index changes
+    if (idxForStats !== _lastStatsIdx) {
+      _lastStatsIdx = idxForStats;
+      const si = Math.round(idxForStats * (timeLen - 1) / (valid.length - 1));
+      const color = routePointColor(getMode(), streams, si, maxes);
+      makeFtIcon(color);
+      if (statsEl) refreshMapStats(statsEl, streams, si, maxSpdKmh, maxHR);
+      drawMiniChart(idxForStats);
+    }
 
-    // Update mini chart cursor
-    drawMiniChart(idxForStats);
-
-    // Update scrubber UI
+    // Scrubber is cheap — update every frame
     const pct = idxForStats / (valid.length - 1);
     const fill  = document.getElementById('ftScrubberFill');
     const thumb = document.getElementById('ftScrubberThumb');
@@ -15631,6 +15761,14 @@ function initFlythrough(map, valid, streams, maxes, maxSpdKmh, maxHR, statsEl, t
     const ftBarEl = document.getElementById('flythroughBar');
     if (ftBarEl) ftBarEl.classList.add('ft-expanded');
     if (_sheet.active) _setSheetState('hidden');
+    // Zoom into the current position, then start animation after zoom completes
+    const pos = valid[ft.idx];
+    if (pos && map.getZoom() < FT_ZOOM - 1) {
+      ft.playing = true; // mark playing so pause works during zoom
+      map.once('moveend', () => { if (ft.playing) { ft.lastTs = null; ft.rafId = requestAnimationFrame(step); } });
+      map.easeTo({ center: [pos[1], pos[0]], zoom: FT_ZOOM, duration: 600 });
+      return;
+    }
     ft.rafId = requestAnimationFrame(step);
   }
 
@@ -20963,8 +21101,8 @@ if (hasCredentials) {
   const cached = loadActivityCache();
   if (cached) {
     state.activities = cached.activities;
-    loadFitnessCache(); // restore CTL/ATL/TSB, wellness history & athlete profile
-    updateSidebarCTL(); // show cached CTL in sidebar immediately
+    loadFitnessCache();
+    updateSidebarCTL();
     state.synced = true;
     updateConnectionUI(true);
     updateLastSyncLabel(cached.lastSync);

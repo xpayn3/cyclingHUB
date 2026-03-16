@@ -1634,7 +1634,9 @@ code {
     overflow: hidden;
     border-radius: inherit;
 }
-.hero-act-map .maplibregl-map {
+.hero-act-map.maplibregl-map,
+.hero-act-map .maplibregl-canvas-container,
+.hero-act-map .maplibregl-canvas {
     width: 100% !important;
     height: 100% !important;
 }
@@ -2132,6 +2134,12 @@ code {
     justify-content: center;
     font-size: var(--text-xs);
     color: var(--text-muted);
+}
+.ra-card-map-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
 }
 .recent-act-badges {
     display: flex;
@@ -6201,6 +6209,9 @@ code {
     width: 14px;
     height: 14px;
     position: relative;
+    will-change: transform;
+    backface-visibility: hidden;
+    transform: translateZ(0);
 }
 .ft-dot-core {
     width: 14px;
@@ -6450,6 +6461,7 @@ code {
     min-width: 0;
     min-height: 200px;
     isolation: isolate;
+    contain: layout style paint;
     border-radius: var(--radius);
     overflow: hidden;
     background: var(--bg-elevated);
@@ -6997,34 +7009,6 @@ code {
         color: var(--accent);
     }
 }
-/* Alt + scroll zoom — cursor + hint overlay */
-.activity-map.alt-zoom,
-.activity-map.alt-zoom * {
-    cursor: zoom-in !important;
-}
-
-.map-scroll-hint {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(0, 0, 0, 0.72);
-    color: #e2e8f0;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.03em;
-    padding: 7px 16px;
-    border-radius: 20px;
-    pointer-events: none;
-    z-index: 800;
-    opacity: 0;
-    transition: opacity 0.2s ease;
-    white-space: nowrap;
-}
-.map-scroll-hint.visible {
-    opacity: 1;
-}
-
 /* Attribution — small and unobtrusive, dark theme */
 .activity-map .leaflet-control-attribution,
 .recent-act-map .leaflet-control-attribution {
@@ -16379,6 +16363,7 @@ body:has(.act-sheet-mode) .topbar {
     width: 100%;
     height: 100%;
     background: #1a1c22;
+    contain: layout style paint;
 }
 
 /* ── Shared floating overlay panel ── */
@@ -18708,7 +18693,7 @@ html[data-theme="light"] {
 
 /* ── Map ── */
 .rb-map-container { flex: 1; position: relative; min-height: 0; }
-.rb-map { width: 100%; height: 100%; background: #1a1c22; position: relative; z-index: 0; }
+.rb-map { width: 100%; height: 100%; background: #1a1c22; position: relative; z-index: 0; contain: layout style paint; }
 .rb-panel-toggle { display: none; }
 
 /* ── MapLibre map controls (shared across all map pages) ── */
