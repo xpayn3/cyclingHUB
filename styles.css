@@ -7390,10 +7390,10 @@ body:has(.act-sheet-mode) .topbar {
     white-space: nowrap;
     color: var(--text-primary);
 }
-/* Color-coded values — Apple Health style */
-.act-pstat-val.val-blue  { color: var(--blue); }
-.act-pstat-val.val-green { color: var(--accent); }
-.act-pstat-val.val-red   { color: var(--red); }
+/* Values stay white — icons provide the color accent */
+.act-pstat-val.val-blue,
+.act-pstat-val.val-green,
+.act-pstat-val.val-red   { color: var(--text-primary); }
 
 .act-pstat-lbl {
     font-size: var(--text-xs);
@@ -17673,9 +17673,9 @@ html[data-theme="light"] {
 }
 
 /* ── Apple Health stat values — light theme contrast ── */
-[data-theme="light"] .act-pstat-val.val-blue  { color: #2b7de9; }
-[data-theme="light"] .act-pstat-val.val-green { color: #00b87a; }
-[data-theme="light"] .act-pstat-val.val-red   { color: #e63950; }
+[data-theme="light"] .act-pstat-val.val-blue,
+[data-theme="light"] .act-pstat-val.val-green,
+[data-theme="light"] .act-pstat-val.val-red   { color: var(--text-primary); }
 
 /* ── Training Status card inner sections ── */
 [data-theme="light"] .trs-metrics-row {

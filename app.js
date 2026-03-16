@@ -5416,11 +5416,20 @@ function renderVitality() {
       // Guard against duplicate listeners on repeated dashboard visits
       if (!canvas._vitalityListeners) {
         canvas.addEventListener('click', function(e) { _vitalityHit(e.clientX, e.clientY); });
+        // Use touchend + movement check so scroll is never blocked
+        let _vTouchStart = null;
         canvas.addEventListener('touchstart', function(e) {
-          e.preventDefault();
-          var t = e.touches[0];
-          _vitalityHit(t.clientX, t.clientY);
-        }, { passive: false });
+          const t = e.touches[0];
+          _vTouchStart = { x: t.clientX, y: t.clientY };
+        }, { passive: true });
+        canvas.addEventListener('touchend', function(e) {
+          if (!_vTouchStart) return;
+          const t = e.changedTouches[0];
+          const dx = t.clientX - _vTouchStart.x;
+          const dy = t.clientY - _vTouchStart.y;
+          if (dx * dx + dy * dy < 100) _vitalityHit(t.clientX, t.clientY);
+          _vTouchStart = null;
+        }, { passive: true });
         canvas.style.cursor = 'pointer';
         canvas._vitalityListeners = true;
         _initVitalityDialog();
