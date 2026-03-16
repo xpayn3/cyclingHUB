@@ -1285,13 +1285,14 @@ function confirmFullResync() {
    PULL TO REFRESH — Dashboard
 ==================================================== */
 (() => {
-  const THRESHOLD = 80;
+  const THRESHOLD = 120;
+  const DEAD_ZONE = 15; // ignore small accidental drags
   let _ptrStartY = 0, _ptrDist = 0, _ptrActive = false, _ptrRefreshing = false;
   const indicator = () => document.getElementById('ptrIndicator');
 
   window.addEventListener('touchstart', e => {
     if (state.currentPage !== 'dashboard' || _ptrRefreshing) return;
-    if (window.scrollY > 5) return;
+    if (window.scrollY > 0) return;
     _ptrStartY = e.touches[0].clientY;
     _ptrActive = true;
     _ptrDist = 0;
@@ -1300,7 +1301,8 @@ function confirmFullResync() {
   window.addEventListener('touchmove', e => {
     if (!_ptrActive || _ptrRefreshing) return;
     _ptrDist = e.touches[0].clientY - _ptrStartY;
-    if (_ptrDist < 0) { _ptrDist = 0; return; }
+    if (_ptrDist < DEAD_ZONE) { _ptrDist = 0; return; }
+    _ptrDist -= DEAD_ZONE; // offset so indicator starts at 0
     const el = indicator();
     if (!el) return;
     const progress = Math.min(_ptrDist / THRESHOLD, 1);
