@@ -409,6 +409,10 @@ function cleanupPageCharts(leavingPage) {
     if (window.rbCleanupSheetMode) rbCleanupSheetMode();
     if (window._rb && _rb.map) { try { _rb.map.remove(); } catch(_){} _rb.map = null; }
   }
+  // Cleanup heatmap sheet
+  if (leavingPage === 'heatmap') {
+    if (window.hmCleanupSheetMode) hmCleanupSheetMode();
+  }
   // Also clean up any pending lazy renders
   _lazyCharts.pending.forEach((fn, card) => {
     _lazyCharts.observer.unobserve(card);
@@ -2186,7 +2190,7 @@ function navigate(page) {
 
   // ── Prepare page-specific UI BEFORE the swap so nothing flashes ──
   const info = {
-    dashboard:  [GREETINGS[Math.floor(Math.random() * GREETINGS.length)], `Overview · Last ${state.rangeDays} days`],
+    dashboard:  ['Summary', `Overview · Last ${state.rangeDays} days`],
     activities: ['Activities',     'All recorded rides & workouts'],
     calendar:   ['Calendar',       'Planned workouts & events'],
     fitness:    ['Fitness',        'CTL · ATL · TSB history'],
@@ -3356,16 +3360,18 @@ function buildHeroActCardHTML(a, idx) {
     </div>`
   ).join('');
 
-  return `<div class="card card--clickable hero-act-card" id="recentActCard_${idx}">
-    <div class="hero-act-map" id="recentActCardMap_${idx}"></div>
-    <div class="hero-act-top">
-      <div class="hero-act-category">${sportLabel}</div>
+  return `<div class="hero-act-wrap" id="recentActCard_${idx}">
+    <div class="hero-act-outer-header">
       <div class="hero-act-title">${name}</div>
       <div class="hero-act-subtitle">${dateFmt}${timeFmt ? ' \u00B7 ' + timeFmt : ''}${platformTag ? ` \u00B7 ${platformTag}` : ''}</div>
     </div>
-    <div class="hero-act-bottom">
-      <div class="hero-act-stats">${statsHTML}</div>
-      ${(tssBadge || wxChip) ? `<div class="hero-act-trailing">${tssBadge}${wxChip}</div>` : ''}
+    <div class="card card--clickable hero-act-card">
+      <div class="hero-act-map" id="recentActCardMap_${idx}"></div>
+      <div class="hero-act-category">${sportLabel}</div>
+      <div class="hero-act-bottom">
+        <div class="hero-act-stats">${statsHTML}</div>
+        ${(tssBadge || wxChip) ? `<div class="hero-act-trailing">${tssBadge}${wxChip}</div>` : ''}
+      </div>
     </div>
   </div>`;
 }
@@ -3520,12 +3526,12 @@ async function renderRecentActCardMap(a, idx, idPrefix = 'recentActCard') {
         });
         map.addLayer({
           id: 'rc-route-shadow', type: 'line', source: 'rc-route',
-          paint: { 'line-color': '#000', 'line-width': 5, 'line-opacity': 0.25 },
+          paint: { 'line-color': '#000', 'line-width': 7, 'line-opacity': 0.55 },
           layout: { 'line-cap': 'round', 'line-join': 'round' },
         });
         map.addLayer({
           id: 'rc-route-line', type: 'line', source: 'rc-route',
-          paint: { 'line-color': ACCENT, 'line-width': 3, 'line-opacity': 1 },
+          paint: { 'line-color': ACCENT, 'line-width': 4.5, 'line-opacity': 1 },
           layout: { 'line-cap': 'round', 'line-join': 'round' },
         });
 
@@ -3618,7 +3624,7 @@ function _initRecentActDots(rail, count) {
     scrollTick = true;
     requestAnimationFrame(() => {
       scrollTick = false;
-      const cards = rail.querySelectorAll('.recent-act-card, .hero-act-card');
+      const cards = rail.querySelectorAll('.hero-act-wrap, .hero-act-card, .recent-act-card');
       if (!cards.length) return;
       let closest = 0;
       let minDist = Infinity;
@@ -12296,6 +12302,9 @@ function activateSheetMode() {
     SNAP_EXPANDED: _sheet.SNAP_EXPANDED,
     SNAP_HIDDEN: _sheet.SNAP_HIDDEN,
     onStateChange(newState) {
+      // Hide floating menu button when sheet covers the title area
+      const menuBtn = document.getElementById('floatingMenuBtn');
+      if (menuBtn) menuBtn.style.display = (newState === 'hidden') ? 'none' : '';
       // Collapse flythrough bar
       if (newState !== 'hidden') {
         const ftBarEl = document.getElementById('flythroughBar');
@@ -12354,6 +12363,9 @@ function deactivateSheetMode() {
   if (_sheet._ctrl) _sheet._ctrl.deactivate();
   _sheet._ctrl = null;
   _sheet.mapBg = null;
+  // Restore floating menu button visibility
+  const menuBtn = document.getElementById('floatingMenuBtn');
+  if (menuBtn) menuBtn.style.display = '';
 }
 
 // Compatibility wrapper — code outside may call _setSheetState directly
@@ -14047,7 +14059,7 @@ var MAP_STYLES = {
   liberty:   { label: 'Liberty',   style: 'https://tiles.openfreemap.org/styles/liberty',   bg: '#f0ede4' },
   positron:  { label: 'Positron',  style: 'https://tiles.openfreemap.org/styles/positron',  bg: '#f5f4f0' },
   dark:      { label: 'Dark',      style: 'https://tiles.openfreemap.org/styles/dark',      bg: '#1a1c22' },
-  strava:    { label: 'Strava',    style: 'https://tiles.openfreemap.org/styles/dark',      bg: '#1a1e24', custom: true },
+  strava:    { label: 'Strava',    style: 'https://tiles.openfreemap.org/styles/dark',      bg: '#192428', custom: true },
   satellite: { label: 'Satellite', tiles: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', bg: '#1a1c22' },
 };
 
@@ -14062,51 +14074,51 @@ setTimeout(() => {
 // Applied after the OpenFreeMap dark style loads to produce a Strava-like look:
 // tinted navy background, subtle blue water, muted green parks, warm-grey roads.
 var _STRAVA_OVERRIDES = {
-  // Background & land — neutral, no blue tint
-  background:           { 'background-color': '#1c1c1e' },
-  landcover_wood:       { 'fill-color': '#17332a', 'fill-opacity': 1 },
-  landuse_park:         { 'fill-color': '#17332a', 'fill-opacity': 1 },
-  landuse_residential:  { 'fill-color': '#1e2022' },
-  landcover_ice_shelf:  { 'fill-color': '#1c1c1e' },
-  landcover_glacier:    { 'fill-color': '#1c1c1e' },
-  road_area_pier:       { 'fill-color': '#1c1c1e' },
-  road_pier:            { 'line-color': '#1c1c1e' },
-  // Water — darker than land, no blue cast
-  water:                { 'fill-color': '#161818' },
-  waterway:             { 'line-color': '#161818' },
-  water_name:           { 'text-color': 'rgba(70,74,78,0.6)' },
-  // Buildings
-  building:             { 'fill-color': '#1e2022', 'fill-outline-color': '#272828' },
-  // Roads — neutral greys
-  highway_path:         { 'line-color': '#272828' },
-  highway_minor:        { 'line-color': '#282a2a' },
-  highway_major_subtle: { 'line-color': '#2c2e2e' },
-  highway_major_inner:  { 'line-color': '#2c2e2e' },
-  highway_major_casing: { 'line-color': 'rgba(55,58,60,0.6)' },
-  highway_motorway_subtle: { 'line-color': '#303232' },
-  highway_motorway_inner:  { 'line-color': '#303232' },
-  highway_motorway_casing: { 'line-color': 'rgba(55,58,60,0.6)' },
+  // Background & land — dark teal tint (Strava's signature blue-green)
+  background:           { 'background-color': '#192428' },
+  landcover_wood:       { 'fill-color': '#1a3630', 'fill-opacity': 1 },
+  landuse_park:         { 'fill-color': '#1a3630', 'fill-opacity': 1 },
+  landuse_residential:  { 'fill-color': '#1c2628' },
+  landcover_ice_shelf:  { 'fill-color': '#192428' },
+  landcover_glacier:    { 'fill-color': '#192428' },
+  road_area_pier:       { 'fill-color': '#192428' },
+  road_pier:            { 'line-color': '#192428' },
+  // Water — darker teal, distinct from land
+  water:                { 'fill-color': '#121e22' },
+  waterway:             { 'line-color': '#121e22' },
+  water_name:           { 'text-color': 'rgba(60,90,100,0.6)' },
+  // Buildings — subtle blue-grey
+  building:             { 'fill-color': '#1e2a2e', 'fill-outline-color': '#263234' },
+  // Roads — blue-grey tints
+  highway_path:         { 'line-color': '#263032' },
+  highway_minor:        { 'line-color': '#283234' },
+  highway_major_subtle: { 'line-color': '#2c3638' },
+  highway_major_inner:  { 'line-color': '#2e3a3c' },
+  highway_major_casing: { 'line-color': 'rgba(50,68,72,0.6)' },
+  highway_motorway_subtle: { 'line-color': '#323e40' },
+  highway_motorway_inner:  { 'line-color': '#323e40' },
+  highway_motorway_casing: { 'line-color': 'rgba(50,68,72,0.6)' },
   // Rail
-  railway:              { 'line-color': '#272828' },
-  railway_transit:      { 'line-color': '#272828' },
-  railway_minor:        { 'line-color': '#272828' },
+  railway:              { 'line-color': '#263032' },
+  railway_transit:      { 'line-color': '#263032' },
+  railway_minor:        { 'line-color': '#263032' },
   // Boundaries
-  boundary_state:       { 'line-color': 'rgba(88,90,92,0.25)' },
-  'boundary_country_z0-4':{ 'line-color': 'rgba(88,90,92,0.35)' },
-  'boundary_country_z5-': { 'line-color': 'rgba(88,90,92,0.35)' },
-  // Labels — neutral grey
-  place_other:          { 'text-color': '#5c5e62' },
-  place_suburb:         { 'text-color': '#5c5e62' },
-  place_village:        { 'text-color': '#6c6e72' },
-  place_town:           { 'text-color': '#7c7e82' },
-  place_city:           { 'text-color': '#8c8e92' },
-  place_city_large:     { 'text-color': '#9c9ea2' },
-  place_state:          { 'text-color': '#4c4e52' },
-  place_country_other:  { 'text-color': '#5c5e62' },
-  place_country_minor:  { 'text-color': '#5c5e62' },
-  place_country_major:  { 'text-color': '#6c6e72' },
-  highway_name_other:   { 'text-color': '#4c4e52' },
-  highway_name_motorway:{ 'text-color': '#5c5e62' },
+  boundary_state:       { 'line-color': 'rgba(70,95,100,0.25)' },
+  'boundary_country_z0-4':{ 'line-color': 'rgba(70,95,100,0.35)' },
+  'boundary_country_z5-': { 'line-color': 'rgba(70,95,100,0.35)' },
+  // Labels — cool grey with slight blue
+  place_other:          { 'text-color': '#546468' },
+  place_suburb:         { 'text-color': '#546468' },
+  place_village:        { 'text-color': '#647478' },
+  place_town:           { 'text-color': '#748488' },
+  place_city:           { 'text-color': '#8a9a9e' },
+  place_city_large:     { 'text-color': '#9aaaae' },
+  place_state:          { 'text-color': '#4a5a5e' },
+  place_country_other:  { 'text-color': '#546468' },
+  place_country_minor:  { 'text-color': '#546468' },
+  place_country_major:  { 'text-color': '#647478' },
+  highway_name_other:   { 'text-color': '#4a5a5e' },
+  highway_name_motorway:{ 'text-color': '#546468' },
 };
 
 function _applyStravaOverrides(map) {
@@ -14438,8 +14450,8 @@ function renderActivityMap(latlng, streams) {
           source: 'route-shadow',
           paint: {
             'line-color': '#000',
-            'line-width': ['interpolate', ['linear'], ['zoom'], 8, 4, 12, 6, 14, 7.5, 16, 9],
-            'line-opacity': 0.28,
+            'line-width': ['interpolate', ['linear'], ['zoom'], 8, 5, 12, 7, 14, 9, 16, 11],
+            'line-opacity': 0.55,
           },
           layout: { 'line-cap': 'round', 'line-join': 'round' },
         });
@@ -14453,7 +14465,7 @@ function renderActivityMap(latlng, streams) {
           source: 'route-color',
           paint: {
             'line-color': ['get', 'color'],
-            'line-width': ['interpolate', ['linear'], ['zoom'], 8, 2, 12, 3, 14, 4.5, 16, 6],
+            'line-width': ['interpolate', ['linear'], ['zoom'], 8, 3, 12, 4.5, 14, 6, 16, 8],
             'line-opacity': 1,
           },
           layout: { 'line-cap': 'round', 'line-join': 'round' },
@@ -14660,7 +14672,7 @@ function renderActivityMap(latlng, streams) {
                   map.addSource('route-shadow', { type: 'geojson', data: shadowGeoJSON });
                   map.addLayer({
                     id: 'route-shadow-layer', type: 'line', source: 'route-shadow',
-                    paint: { 'line-color': '#000', 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 4, 12, 6, 14, 7.5, 16, 9], 'line-opacity': 0.28 },
+                    paint: { 'line-color': '#000', 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 5, 12, 7, 14, 9, 16, 11], 'line-opacity': 0.55 },
                     layout: { 'line-cap': 'round', 'line-join': 'round' },
                   });
                 }
@@ -14668,7 +14680,7 @@ function renderActivityMap(latlng, streams) {
                   map.addSource('route-color', { type: 'geojson', data: buildRouteGeoJSON(activeMode) });
                   map.addLayer({
                     id: 'route-color-layer', type: 'line', source: 'route-color',
-                    paint: { 'line-color': ['get', 'color'], 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 2, 12, 3, 14, 4.5, 16, 6], 'line-opacity': 1 },
+                    paint: { 'line-color': ['get', 'color'], 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 3, 12, 4.5, 14, 6, 16, 8], 'line-opacity': 1 },
                     layout: { 'line-cap': 'round', 'line-join': 'round' },
                   });
                 }
@@ -15117,21 +15129,13 @@ function initFlythrough(map, valid, streams, maxes, maxSpdKmh, maxHR, statsEl, t
     ft.playing = true;
     ft.lastTs  = null;
     ft._fIdx   = ft.idx;
-    // Save current view so we can restore on pause/stop
-    if (!ft._savedZoom) {
-      ft._savedZoom   = map.getZoom();
-      ft._savedCenter = map.getCenter();
-    }
-    // Zoom in to the current position
-    const pos = valid[ft.idx];
-    map.flyTo({ center: [pos[1], pos[0]], zoom: Math.max(map.getZoom(), FT_ZOOM), duration: 500 });
     const btn = document.getElementById('ftPlayBtn');
     if (btn) btn.innerHTML = ICON_PAUSE;
     // Sheet mode: expand bar and collapse sheet for more map
     const ftBarEl = document.getElementById('flythroughBar');
     if (ftBarEl) ftBarEl.classList.add('ft-expanded');
     if (_sheet.active) _setSheetState('hidden');
-    setTimeout(() => { if (ft.playing) ft.rafId = requestAnimationFrame(step); }, 500);
+    ft.rafId = requestAnimationFrame(step);
   }
 
   function ftPause() {
@@ -15139,13 +15143,7 @@ function initFlythrough(map, valid, streams, maxes, maxSpdKmh, maxHR, statsEl, t
     if (ft.rafId) { cancelAnimationFrame(ft.rafId); ft.rafId = null; }
     const btn = document.getElementById('ftPlayBtn');
     if (btn) btn.innerHTML = ICON_PLAY;
-    // Sheet mode: keep bar open and sheet position unchanged
-    // Zoom back out to show the full route
-    if (ft._savedZoom != null) {
-      map.flyTo({ center: ft._savedCenter, zoom: ft._savedZoom, duration: 400 });
-      ft._savedZoom   = null;
-      ft._savedCenter = null;
-    }
+    // Keep current zoom/position on pause — don't zoom back out
   }
 
   // ── Window-level handlers (attached to buttons via onclick) ─────────────

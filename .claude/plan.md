@@ -1,38 +1,152 @@
-# Fix: Heatmap inconsistent route counts on scan/rescan
+# Settings Page Redesign — iOS Style
 
-## Root Causes
+## Overview
+Redesign the settings page from a 2-column card grid into a modern iOS Settings-style single-column layout with:
+- **Profile card** at top (iCloud-style account banner)
+- **Grouped inset lists** with rounded corners (iOS grouped tableview style)
+- **Navigation rows** that push to subpages for complex sections
+- **Section headers** as small uppercase grey labels above each group
 
-1. **`fetchMapGPS()` tries 4 URLs per activity** — URLs 1, 3, and 4 all hit the same intervals.icu endpoint. When the API rate-limits or times out one request, the next URL in the chain may or may not succeed depending on timing. This creates non-deterministic results.
+## Architecture: Main Page + Subpages
 
-2. **No distinction between "no GPS data" vs "transient error"** — `_hmFetchOneRoute()` catches ALL errors and returns `null`. Rate limits (429), timeouts, and network blips are treated the same as genuinely missing GPS. These activities get added to the `noGpsIds` blacklist and aren't retried.
+### Main Settings Page (single scrollable column)
+```
+┌──────────────────────────────┐
+│  ← Settings                  │
+├──────────────────────────────┤
+│ ┌──────────────────────────┐ │
+│ │ 👤 xpayne                │ │  Profile card (iCloud-style)
+│ │    Connected · i148049   │ │  Avatar + name + subtitle
+│ │                      ›   │ │  Taps into Account subpage
+│ └──────────────────────────┘ │
+│                              │
+│ GENERAL                      │  section label
+│ ┌──────────────────────────┐ │
+│ │ Theme            Dark  › │ │  value shown inline
+│ ├──────────────────────────┤ │
+│ │ Units         Metric   › │ │
+│ ├──────────────────────────┤ │
+│ │ Font            Inter  › │ │
+│ ├──────────────────────────┤ │
+│ │ Default Range      30d   │ │  pill selector inline
+│ └──────────────────────────┘ │
+│                              │
+│ DISPLAY                      │
+│ ┌──────────────────────────┐ │
+│ │ Physics Scroll       🔘  │ │  toggle
+│ ├──────────────────────────┤ │
+│ │ Hide Empty Cards     🔘  │ │
+│ └──────────────────────────┘ │
+│                              │
+│ MAP                          │
+│ ┌──────────────────────────┐ │
+│ │ Map Theme       Strava › │ │  taps to Map Theme subpage
+│ ├──────────────────────────┤ │
+│ │ Smooth Flyover       🔘  │ │
+│ ├──────────────────────────┤ │
+│ │ 3D Terrain           🔘  │ │
+│ └──────────────────────────┘ │
+│                              │
+│ WEATHER                      │
+│ ┌──────────────────────────┐ │
+│ │ Weather          2 loc › │ │  taps to Weather subpage
+│ └──────────────────────────┘ │
+│                              │
+│ CONNECTIONS                  │
+│ ┌──────────────────────────┐ │
+│ │ intervals.icu  Connected │ │  taps to ICU subpage
+│ ├──────────────────────────┤ │
+│ │ Strava      Not Connected│ │  taps to Strava subpage
+│ └──────────────────────────┘ │
+│                              │
+│ CUSTOMIZE                    │
+│ ┌──────────────────────────┐ │
+│ │ Dashboard Sections     › │ │
+│ ├──────────────────────────┤ │
+│ │ Activity Sections      › │ │
+│ └──────────────────────────┘ │
+│                              │
+│ DATA                         │
+│ ┌──────────────────────────┐ │
+│ │ Backup & Restore       › │ │
+│ ├──────────────────────────┤ │
+│ │ Route Builder API      › │ │
+│ └──────────────────────────┘ │
+│                              │
+│ ABOUT                        │
+│ ┌──────────────────────────┐ │
+│ │ Share Setup Link         │ │
+│ ├──────────────────────────┤ │
+│ │ Import Setup Link        │ │
+│ └──────────────────────────┘ │
+└──────────────────────────────┘
+```
 
-3. **Batch of 5 concurrent requests x up to 4 URLs each = up to 20 simultaneous API hits** — with only 150ms between batches, this easily triggers rate limiting. Different timing on each scan means different activities fail.
+### Subpages (pushed via JS, slide from right)
+Clicking a `›` row navigates to a subpage rendered inside `#page-settings`, with a back button. Each subpage contains the detailed controls currently on the main page.
 
-## Fix Plan
+**Subpages:**
+1. **Account** — Profile photo, athlete name, avatar upload/remove
+2. **intervals.icu** — Connection form OR connected card (Data & Storage, Lifetime, Offline, Smart Sync, API Usage)
+3. **Strava** — Connection form OR connected card + sync options + history
+4. **Weather** — Location list, add, forecast model, clear
+5. **Map Theme** — Visual map theme picker (swatches)
+6. **Dashboard Sections** — Toggle list
+7. **Activity Sections** — Toggle list
+8. **Backup & Restore** — Export/import backup, lifetime JSON
+9. **Route Builder** — ORS API key input
 
-### 1. Fix `fetchMapGPS()` — deduplicate URL attempts (app.js ~line 9020)
-- Use a single URL strategy: try the authenticated API endpoint once
-- Only fall back to the proxy URL if the primary fails with a non-404 error
-- Remove redundant URLs 2 and 4 that hit the same endpoint differently
-- Add 8s timeout per request to avoid hangs
-- Return `{ status: 404 }` vs throwing on transient errors so callers can distinguish
+## Implementation Steps
 
-### 2. Fix `_hmFetchOneRoute()` — distinguish errors from missing data (heatmap.js ~line 742)
-- Return a sentinel `{ noGps: true }` when the API returns 404 or empty data
-- Return `{ error: true }` on transient errors (network, timeout, rate limit)
-- Only add to `noGpsIds` blacklist when we get a definitive "no GPS" response
+### Step 1: CSS — iOS Grouped List Styles (~100 lines)
+New classes in `styles.css`:
+- `.ios-settings` — single-column, max-width 600px, centered, padding 16px
+- `.ios-group` — `background: var(--bg-card); border-radius: 12px; overflow: hidden`
+- `.ios-group-label` — uppercase, `var(--text-muted)`, `var(--text-2xs)`, `letter-spacing: 0.05em`, padding `8px 16px 6px`
+- `.ios-row` — flex, `min-height: 44px`, padding `12px 16px`, separator via `border-bottom: 0.5px solid var(--border)` except `:last-child`
+- `.ios-row[data-nav]` — clickable with chevron, cursor pointer
+- `.ios-chevron` — `›` character or SVG, `var(--text-muted)`, opacity 0.4
+- `.ios-row-value` — right-aligned secondary text
+- `.ios-profile-card` — taller row (72px), avatar 48px, two-line text
+- `.ios-subpage` — `position: absolute; inset: 0; transform: translateX(100%); transition: transform 0.3s ease`
+- `.ios-subpage.active` — `transform: translateX(0)`
 
-### 3. Fix `_hmFetchAllRoutes()` — add retry for transient failures (heatmap.js ~line 782)
-- Reduce batch size from 5 to 3 concurrent requests
-- Increase delay between batches from 150ms to 300ms
-- Collect transient failures separately from "no GPS" activities
-- After first pass, retry transient failures once with a longer delay (1s between batches)
-- Only blacklist activities that definitively have no GPS
+### Step 2: HTML — Restructure `#page-settings`
+Replace the 2-column `settings-grid` with:
+- `.ios-settings` container with main view + hidden subpage containers
+- Profile card as first element
+- Grouped sections with rows
+- Subpage `<div>` elements containing the existing detailed HTML (moved, not rewritten)
+- All existing `id` attributes preserved
 
-### 4. Add rate-limit awareness
-- Check `rlGetCount()` before each batch — if approaching limit, slow down
-- If we get a 429 response, pause for 5 seconds before continuing
+### Step 3: JS — Subpage Navigation (~30 lines)
+- `openSettingsSubpage(id)` — hides main, shows subpage with slide-in
+- `closeSettingsSubpage()` — reverse animation
+- Wire up `onclick` on navigation rows
+- Existing init functions still called on `navigate('settings')`
 
-## Files to Change
-- `C:\Users\Luka\Downloads\CyclingHub\app.js` — `fetchMapGPS()` (~line 9020)
-- `C:\Users\Luka\Downloads\CyclingHub\js\heatmap.js` — `_hmFetchOneRoute()` (~line 742) and `_hmFetchAllRoutes()` (~line 782)
+### Step 4: Migrate controls
+- Move existing toggle/pill HTML into new row structure
+- Move connection cards, weather, etc. into subpage containers
+- No logic changes — only DOM restructuring
+
+### Step 5: Responsive
+- Mobile: full width, 16px padding
+- Desktop: `max-width: 600px`, centered (iOS Settings on iPad style)
+
+## Design Tokens
+- Group bg: `var(--bg-card)`
+- Group radius: `12px`
+- Row min-height: `44px`
+- Row padding: `12px 16px`
+- Separator: `0.5px solid var(--border)`, left-indented 16px
+- Section label: `var(--text-muted)`, `11px`, uppercase
+- Chevron: `var(--text-muted)`, 0.4 opacity
+- Profile avatar: `48px`, rounded
+- Subpage transition: `300ms cubic-bezier(0.25, 0.1, 0.25, 1)`
+
+## Files Modified
+- `index.html` — settings page HTML restructured
+- `styles.css` — iOS grouped list styles
+- `app.js` — subpage nav functions, settings init
+- `sw.js` — bump cache version

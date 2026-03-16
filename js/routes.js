@@ -96,6 +96,12 @@ export function renderRouteBuilderPage() {
     <div class="rb-wrapper">
       <div class="rb-map-container">
         <div id="rbMap" class="rb-map"></div>
+        <div class="rb-map-float-stats" id="rbMapFloatStats" style="display:none">
+          <div class="rb-mfs-row"><span class="rb-mfs-val" id="rbMfsDist">0.0</span><span class="rb-mfs-unit">km</span></div>
+          <div class="rb-mfs-row"><span class="rb-mfs-val" id="rbMfsElev">0</span><span class="rb-mfs-unit">m</span></div>
+          <div class="rb-mfs-row"><span class="rb-mfs-val" id="rbMfsTime">0:00</span><span class="rb-mfs-unit">est</span></div>
+          <div class="rb-mfs-badge" id="rbMfsBadge"></div>
+        </div>
         <div class="rb-search-float">
           <div class="rb-fs-logo" onclick="navigate('dashboard')" title="Back to dashboard"><div class="rb-fs-logo-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#0d0f14" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/><line x1="12" y1="3" x2="12" y2="10"/><line x1="12" y1="14" x2="12" y2="21"/><line x1="3" y1="12" x2="10" y2="12"/><line x1="14" y1="12" x2="21" y2="12"/></svg></div></div>
           <div class="rb-search-wrap">
@@ -323,6 +329,19 @@ export function rbActivateSheetMode() {
   const actionsCard = panel.querySelector('.rb-actions-card');
   if (actionsCard) panel.prepend(actionsCard);
 
+  // Reparent options menu into panel as a card after waypoints
+  const optionsWrap = document.getElementById('rbOptionsWrap');
+  const waypointsCard = panel.querySelector('.rb-waypoints-card');
+  if (optionsWrap) {
+    optionsWrap._origParent = optionsWrap.parentNode;
+    optionsWrap._origNext   = optionsWrap.nextSibling;
+    if (waypointsCard && waypointsCard.nextSibling) {
+      panel.insertBefore(optionsWrap, waypointsCard.nextSibling);
+    } else {
+      panel.appendChild(optionsWrap);
+    }
+  }
+
   // Move export wrap into panel as last card
   const exportWrap = document.getElementById('rbExportWrap');
   if (exportWrap) {
@@ -335,15 +354,23 @@ export function rbActivateSheetMode() {
   const toggle = wrapper.querySelector('.rb-panel-toggle');
   if (toggle) toggle.style.display = 'none';
 
+  // Compute peek snap so only handle + actions card are visible
+  const actionsH = actionsCard ? actionsCard.offsetHeight : 50;
+  const handleH = 28; // handle bar + padding
+  const peekVh = 1 - (handleH + actionsH + 16) / window.innerHeight;
+
   // Create shared sheet controller
   _rbSheetCtrl = window.createSheetController({
     sheetEl: sheet,
     scrollEl: scroll,
     handleSelector: '.rb-sheet-handle',
-    SNAP_PEEK: 0.50,
+    SNAP_PEEK: Math.min(Math.max(peekVh, 0.75), 0.92),
     SNAP_EXPANDED: 0,
     SNAP_HIDDEN: 0.85,
     onStateChange(newState) {
+      // Hide floating menu button unless sheet is fully expanded
+      const menuBtn = document.getElementById('floatingMenuBtn');
+      if (menuBtn) menuBtn.style.display = (newState === 'expanded') ? '' : 'none';
       // Resize map after transition
       setTimeout(() => { if (_rb.map) _rb.map.resize(); }, 400);
     },
@@ -389,6 +416,15 @@ export function rbDeactivateSheetMode() {
     if (actionsCard && waypointsCard) panel.insertBefore(actionsCard, waypointsCard);
   }
 
+  // Restore options wrap to original position in search float
+  const optionsWrap = document.getElementById('rbOptionsWrap');
+  if (optionsWrap && optionsWrap._origParent) {
+    if (optionsWrap._origNext) optionsWrap._origParent.insertBefore(optionsWrap, optionsWrap._origNext);
+    else optionsWrap._origParent.appendChild(optionsWrap);
+    delete optionsWrap._origParent;
+    delete optionsWrap._origNext;
+  }
+
   // Restore export wrap to original position in search float
   const exportWrap = document.getElementById('rbExportWrap');
   if (exportWrap && exportWrap._origParent) {
@@ -397,6 +433,10 @@ export function rbDeactivateSheetMode() {
     delete exportWrap._origParent;
     delete exportWrap._origNext;
   }
+
+  // Restore floating menu button visibility
+  const menuBtn = document.getElementById('floatingMenuBtn');
+  if (menuBtn) menuBtn.style.display = '';
 
   // Remove mode class
   if (wrapper) wrapper.classList.remove('rb-sheet-mode');
@@ -1941,7 +1981,7 @@ export function _rbShowAltRoute(altRoute, segIdx) {
   });
   _rb.map.addLayer({
     id: 'rb-alt-route', type: 'line', source: 'rb-alt-route',
-    paint: { 'line-color': '#888888', 'line-width': 4, 'line-opacity': 0.6 },
+    paint: { 'line-color': '#888888', 'line-width': 5.5, 'line-opacity': 0.6 },
   });
   // Wide hit area for clicking
   _rb.map.addLayer({
@@ -2191,6 +2231,7 @@ export function _rbRedrawRoute() {
   try { if (_rb.map.getLayer('rb-route-arrows')) _rb.map.removeLayer('rb-route-arrows'); } catch(_){}
   try { if (_rb.map.getLayer('rb-route-hit')) _rb.map.removeLayer('rb-route-hit'); } catch(_){}
   try { if (_rb.map.getLayer('rb-route')) _rb.map.removeLayer('rb-route'); } catch(_){}
+  try { if (_rb.map.getLayer('rb-route-border')) _rb.map.removeLayer('rb-route-border'); } catch(_){}
   try { if (_rb.map.getLayer('rb-surface')) _rb.map.removeLayer('rb-surface'); } catch(_){}
   try { if (_rb.map.getLayer('rb-gradient')) _rb.map.removeLayer('rb-gradient'); } catch(_){}
   try { if (_rb.map.getLayer('rb-fallback')) _rb.map.removeLayer('rb-fallback'); } catch(_){}
@@ -2256,7 +2297,7 @@ export function _rbRedrawRoute() {
     _rb.map.addSource('rb-surface', { type: 'geojson', data: { type: 'FeatureCollection', features } });
     _rb.map.addLayer({
       id: 'rb-surface', type: 'line', source: 'rb-surface',
-      paint: { 'line-color': ['get', 'color'], 'line-width': 4, 'line-opacity': 0.9 },
+      paint: { 'line-color': ['get', 'color'], 'line-width': 5.5, 'line-opacity': 0.9 },
     });
     _rb._surfaceLayer = true;
   }
@@ -2266,6 +2307,13 @@ export function _rbRedrawRoute() {
     const geojson = { type: 'Feature', geometry: { type: 'LineString', coordinates: routedPoints.map(p => [p[1], p[0]]) } };
     _rb.map.addSource('rb-route', { type: 'geojson', data: geojson });
 
+    // Black border layer (drawn first, underneath the color line)
+    _rb.map.addLayer({
+      id: 'rb-route-border', type: 'line', source: 'rb-route',
+      paint: { 'line-color': '#000', 'line-width': 8, 'line-opacity': 0.55 },
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+    });
+
     // Gradient / elevation shading coloring
     if ((_rb._gradientMode || _rb._elevShading) && _rb.elevationData.length >= 2 && !_rb._surfaceMode) {
       const segs = _rbBuildGradientSegments(routedPoints);
@@ -2273,13 +2321,15 @@ export function _rbRedrawRoute() {
         _rb.map.addSource('rb-gradient', { type: 'geojson', data: { type: 'FeatureCollection', features: segs } });
         _rb.map.addLayer({
           id: 'rb-gradient', type: 'line', source: 'rb-gradient',
-          paint: { 'line-color': ['get', 'color'], 'line-width': 4, 'line-opacity': 0.9 },
+          paint: { 'line-color': ['get', 'color'], 'line-width': 5.5, 'line-opacity': 0.9 },
+          layout: { 'line-cap': 'round', 'line-join': 'round' },
         });
       }
     } else if (!_rb._surfaceMode) {
       _rb.map.addLayer({
         id: 'rb-route', type: 'line', source: 'rb-route',
-        paint: { 'line-color': '#00e5a0', 'line-width': 4, 'line-opacity': 0.9 },
+        paint: { 'line-color': '#00e5a0', 'line-width': 5.5, 'line-opacity': 0.9 },
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
       });
     }
     _rb.routePolyline = true;
@@ -2294,7 +2344,7 @@ export function _rbRedrawRoute() {
     _rb.map.addSource('rb-fallback', { type: 'geojson', data: { type: 'FeatureCollection', features: fallbackFeatures } });
     _rb.map.addLayer({
       id: 'rb-fallback', type: 'line', source: 'rb-fallback',
-      paint: { 'line-color': '#888888', 'line-width': 3, 'line-opacity': 0.8 },
+      paint: { 'line-color': '#888888', 'line-width': 4.5, 'line-opacity': 0.8 },
     });
   }
 
@@ -2622,7 +2672,7 @@ export function _rbRenderElevChart() {
         }
       },
       scales: {
-        x: { ticks: { ...window.C_TICK, maxTicksLimit: 10, callback: (v, i) => labels[i] + ' km' }, grid: { display: false }, border: { display: false } },
+        x: { ticks: { ...window.C_TICK, maxRotation: 0, maxTicksLimit: 6, callback: (v, i) => Math.round(labels[i]) }, grid: { display: false }, border: { display: false } },
         y: { ticks: { ...window.C_TICK, callback: v => v + 'm' }, grid: window.C_GRID, border: { display: false } }
       }
     }
@@ -3228,6 +3278,33 @@ export function _rbUpdateStats() {
   if (el('rbStatElev'))    el('rbStatElev').textContent = Math.round(elevGain);
   if (el('rbStatLoss'))    el('rbStatLoss').textContent = Math.round(elevLoss);
   if (el('rbStatTime'))    el('rbStatTime').textContent = _rbFormatTime(estTimeSec);
+  // Floating map stats (mobile)
+  if (el('rbMfsDist'))     el('rbMfsDist').textContent = (totalDist / 1000).toFixed(1);
+  if (el('rbMfsElev'))     el('rbMfsElev').textContent = Math.round(elevGain);
+  if (el('rbMfsTime'))     el('rbMfsTime').textContent = _rbFormatTime(estTimeSec);
+  const floatStats = el('rbMapFloatStats');
+  if (floatStats) floatStats.style.display = totalDist > 50 ? '' : 'none';
+  // Difficulty badge based on fitness
+  const badge = el('rbMfsBadge');
+  if (badge && totalDist > 50) {
+    const distKm = totalDist / 1000;
+    const ctl = window.state?.fitness?.ctl || 60;
+    // Estimate TSS: ~45/hr base + mild climbing bonus
+    const estTSS = (estTimeSec / 3600) * 45 + (elevGain / 20);
+    // Ratio of route stress to daily fitness capacity
+    const ratio = estTSS / Math.max(ctl, 1);
+    let label, color;
+    if (ratio < 0.7)      { label = 'Easy';       color = '#8bc34a'; }
+    else if (ratio < 1.2) { label = 'Moderate';   color = '#ffc107'; }
+    else if (ratio < 2.0) { label = 'Hard';       color = '#ff9800'; }
+    else if (ratio < 3.0) { label = 'Very Hard';  color = '#ff5722'; }
+    else                   { label = 'Epic';       color = '#e53935'; }
+    badge.textContent = label;
+    badge.style.color = color;
+    badge.style.display = 'block';
+  } else if (badge) {
+    badge.style.display = 'none';
+  }
   if (el('rbStatGrade'))   el('rbStatGrade').textContent = gradeCount ? (totalGrade / gradeCount).toFixed(1) : '0.0';
   if (el('rbStatSurface')) el('rbStatSurface').textContent = _rbDetectSurfaces() || '\u2014';
   if (el('rbWpCount'))     el('rbWpCount').textContent = `${_rb.waypoints.length} points`;
@@ -4001,6 +4078,7 @@ export function rbClear() {
     if (_rb.map.getLayer('rb-route-arrows')) _rb.map.removeLayer('rb-route-arrows');
     if (_rb.map.getLayer('rb-route-hit')) _rb.map.removeLayer('rb-route-hit');
     if (_rb.map.getLayer('rb-route')) _rb.map.removeLayer('rb-route');
+    if (_rb.map.getLayer('rb-route-border')) _rb.map.removeLayer('rb-route-border');
     if (_rb.map.getLayer('rb-surface')) _rb.map.removeLayer('rb-surface');
     if (_rb.map.getLayer('rb-gradient')) _rb.map.removeLayer('rb-gradient');
     if (_rb.map.getLayer('rb-fallback')) _rb.map.removeLayer('rb-fallback');

@@ -537,7 +537,7 @@ export async function renderWeatherForecast() {
     else if (isRain && !isDriz) score -= 50 + Math.min(precip, 55) * 0.6;
     else if (isDriz)           score -= 38;
     else if (isFog)            score -= 35;
-    else if (isCloudy)         score -= 5;
+    else if (isCloudy)         score -= 12;
 
     // Precipitation probability
     if (!isRain && !isDriz && !isSnow && !isStorm) {
@@ -551,16 +551,18 @@ export async function renderWeatherForecast() {
     if (high < coldThresh)                     score -= 40;
     else if (high < (isMetric ? 8  : 46))      score -= 25;
     else if (high < (isMetric ? 12 : 54))      score -= 10;
+    else if (high < (isMetric ? 18 : 64))      score -= 5;
     else if (high > (isMetric ? 35 : 95))      score -= 30;
     else if (high > (isMetric ? 32 : 90))      score -= 12;
 
     // Wind
     if (wind > windPoor)      score -= 40;
     else if (wind > windHigh) score -= 25;
-    else if (wind > (isMetric ? 20 : 12)) score -= 8;
+    else if (wind > (isMetric ? 20 : 12)) score -= 15;
+    else if (wind > (isMetric ? 12 : 8))  score -= 8;
 
     score = Math.max(0, Math.min(100, Math.round(score)));
-    return score >= 85 ? 'good' : score >= 35 ? 'fair' : 'poor';
+    return score >= 75 ? 'good' : score >= 35 ? 'fair' : 'poor';
   }
 
   // Use city from athlete profile, or fall back to timezone from forecast response
@@ -859,7 +861,7 @@ export async function renderWeatherPage(_restoreScrollY) {
     else if (isRain && !isDriz){ score -= 50 + Math.min(precip, 55) * 0.6; reasons.push(`🌧 Rain (${Math.round(precip)}% chance)`); }
     else if (isDriz)           { score -= 38; reasons.push(`🌦 Drizzle expected — wet roads`); }
     else if (isFog)            { score -= 35; reasons.push('🌫 Foggy — poor visibility, dangerous'); }
-    else if (isCloudy)         { score -= 5;  reasons.push('⛅ Overcast skies'); }
+    else if (isCloudy)         { score -= 12; reasons.push('⛅ Overcast skies'); }
 
     // ── Precipitation probability (catches mismatches where code looks clear
     //    but rain chance is still significant) ─────────────────────────────
@@ -881,13 +883,15 @@ export async function renderWeatherPage(_restoreScrollY) {
     if (high < coldThresh)               { score -= 40; reasons.push(`🥶 Very cold (high ${Math.round(high)}${deg})`); }
     else if (high < (isMetric ? 8 : 46)) { score -= 25; reasons.push(`🌡 Chilly (high ${Math.round(high)}${deg})`); }
     else if (high < (isMetric ? 12 : 54)){ score -= 10; reasons.push(`🌡 Cool (high ${Math.round(high)}${deg})`); }
+    else if (high < (isMetric ? 18 : 64)){ score -= 5;  reasons.push(`🌡 Mild (high ${Math.round(high)}${deg})`); }
     else if (high > hotThresh)           { score -= 30; reasons.push(`🥵 Extreme heat (${Math.round(high)}${deg})`); }
     else if (high > (isMetric ? 32 : 90)){ score -= 12; reasons.push(`🥵 Hot (${Math.round(high)}${deg})`); }
 
     // ── Wind ──────────────────────────────────────────────────────────────
     if (wind > windPoor)       { score -= 40; reasons.push(`💨 Very strong winds (${Math.round(wind)} ${windLbl})`); }
     else if (wind > windThresh){ score -= 25; reasons.push(`💨 Windy (${Math.round(wind)} ${windLbl})`); }
-    else if (wind > (isMetric ? 20 : 12)){ score -= 8;  reasons.push(`💨 Breezy (${Math.round(wind)} ${windLbl})`); }
+    else if (wind > (isMetric ? 20 : 12)){ score -= 15; reasons.push(`💨 Moderate wind (${Math.round(wind)} ${windLbl})`); }
+    else if (wind > (isMetric ? 12 : 8)) { score -= 8;  reasons.push(`💨 Breezy (${Math.round(wind)} ${windLbl})`); }
 
     // ── Positive indicators (only on genuinely good days) ─────────────────
     if (score >= 85) {
@@ -1455,6 +1459,7 @@ export function renderWeatherDayDetail(dayIdx) {
   else if (isRain && !isDriz){ score -= 45 + Math.min(precip, 55) * 0.5; reasons.push(`🌧 Rain (${Math.round(precip)}% chance)`); }
   else if (isDriz)           { score -= 30; reasons.push(`🌦 Drizzle expected`); }
   else if (isFog)            { score -= 25; reasons.push('🌫 Foggy — low visibility'); }
+  else if ([2,3].includes(code)) { score -= 12; reasons.push('⛅ Overcast skies'); }
   if (!isRain && !isDriz && !isSnow && !isStorm) {
     if      (precip >= 60) { score -= 30; reasons.push(`🌧 ${Math.round(precip)}% rain chance`); }
     else if (precip >= 40) { score -= 18; reasons.push(`🌦 ${Math.round(precip)}% rain chance`); }
@@ -1462,9 +1467,13 @@ export function renderWeatherDayDetail(dayIdx) {
   }
   if (high < coldThresh)               { score -= 35; reasons.push(`🥶 Very cold (high ${Math.round(high)}${deg})`); }
   else if (high < (isMetric ? 8 : 46)) { score -= 20; reasons.push(`🌡 Chilly (high ${Math.round(high)}${deg})`); }
+  else if (high < (isMetric ? 12 : 54)){ score -= 10; reasons.push(`🌡 Cool (high ${Math.round(high)}${deg})`); }
+  else if (high < (isMetric ? 18 : 64)){ score -= 5;  reasons.push(`🌡 Mild (high ${Math.round(high)}${deg})`); }
   else if (high > hotThresh)           { score -= 25; reasons.push(`🥵 Extreme heat (${Math.round(high)}${deg})`); }
   if (wind > windPoor)       { score -= 35; reasons.push(`💨 Very strong winds (${Math.round(wind)} ${windLbl})`); }
   else if (wind > windThresh){ score -= 20; reasons.push(`💨 Windy (${Math.round(wind)} ${windLbl})`); }
+  else if (wind > (isMetric ? 20 : 12)){ score -= 15; reasons.push(`💨 Moderate wind (${Math.round(wind)} ${windLbl})`); }
+  else if (wind > (isMetric ? 12 : 8)) { score -= 8;  reasons.push(`💨 Breezy (${Math.round(wind)} ${windLbl})`); }
   if (score >= 80) {
     if (isClear) reasons.unshift('☀️ Clear skies');
     else         reasons.unshift('⛅ Mostly cloudy but dry');
@@ -1472,6 +1481,7 @@ export function renderWeatherDayDetail(dayIdx) {
   }
   score = Math.max(0, Math.min(100, Math.round(score)));
   const label = score >= 80 ? 'great' : score >= 55 ? 'good' : score >= 30 ? 'fair' : 'poor';
+
 
   // ── Sunrise / sunset ─────────────────────────────────────────────────────
   let srStr = '—', ssStr = '—';

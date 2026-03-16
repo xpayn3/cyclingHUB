@@ -1355,6 +1355,7 @@ code {
 /* Scroll rail — App Store-style horizontal carousel */
 .recent-act-scroll-rail {
     display: flex;
+    align-items: flex-end;
     gap: 14px;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
@@ -1367,8 +1368,19 @@ code {
 }
 
 /* ── Hero Activity Card (App Store style) ─────────────────────────── */
-.hero-act-card {
+/* Wrapper = flex child in scroll rail */
+.hero-act-wrap {
     flex: 0 0 420px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    cursor: pointer;
+}
+/* Outside header — App Store style */
+.hero-act-outer-header {
+    padding: 0 2px;
+}
+.hero-act-card {
     aspect-ratio: 16 / 9;
     padding: 0;
     position: relative;
@@ -1413,44 +1425,37 @@ code {
     color: var(--text-muted);
 }
 
-/* Top gradient overlay with text */
-.hero-act-top {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    padding: 20px 20px 40px;
-    z-index: 3;
-    background: linear-gradient(
-        to bottom,
-        rgba(0, 0, 0, 0.75) 0%,
-        rgba(0, 0, 0, 0.45) 50%,
-        transparent 100%
-    );
-}
+/* Outside header text — App Store style */
 .hero-act-category {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 4;
     font-size: var(--text-2xs);
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--accent);
-    margin-bottom: 6px;
+    letter-spacing: 0.06em;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.45);
+    -webkit-backdrop-filter: blur(12px) saturate(1.4);
+    backdrop-filter: blur(12px) saturate(1.4);
+    padding: 4px 10px;
+    border-radius: 8px;
 }
 .hero-act-title {
     font-size: var(--text-lg);
     font-weight: 600;
-    color: #fff;
+    color: var(--text-primary);
     line-height: 1.15;
     letter-spacing: -0.01em;
-    margin-bottom: 4px;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+    margin-bottom: 2px;
+    white-space: nowrap;
     overflow: hidden;
+    text-overflow: ellipsis;
 }
 .hero-act-subtitle {
-    font-size: var(--text-sm);
-    color: rgba(255, 255, 255, 0.65);
+    font-size: var(--text-xs);
+    color: var(--text-muted);
     font-weight: 500;
 }
 
@@ -1585,8 +1590,9 @@ code {
     align-items: center;
     justify-content: center;
     flex: 0 0 180px;
+    /* Match the hero card height (420px × 9/16 ≈ 236px) */
+    height: calc(420px * 9 / 16);
     aspect-ratio: auto;
-    height: auto;
 }
 .hero-viewall-inner {
     display: flex;
@@ -1701,25 +1707,18 @@ code {
         margin-right: var(--pad-page);
     }
     /* ── Hero cards (App Store style) ── */
-    .recent-act-scroll-rail .hero-act-card {
+    .recent-act-scroll-rail .hero-act-wrap {
         flex: 0 0 calc(100vw - 2 * var(--pad-page));
-        aspect-ratio: 16 / 9;
         scroll-snap-align: start;
         scroll-margin-inline-start: var(--pad-page);
         margin-left: var(--pad-page);
     }
-    .recent-act-scroll-rail .hero-act-card:last-child {
+    .recent-act-scroll-rail .hero-act-wrap:last-of-type {
         margin-right: var(--pad-page);
     }
     .recent-act-scroll-rail .hero-act-card--viewall {
         flex: 0 0 calc(50vw - 2 * var(--pad-page));
         aspect-ratio: auto;
-    }
-    .hero-act-top {
-        padding: 16px 16px 32px;
-    }
-    .hero-act-title {
-        font-size: var(--text-lg);
     }
     .hero-act-bottom {
         padding: 28px 16px 12px;
@@ -4560,9 +4559,9 @@ code {
 }
 .toast-container {
     position: fixed;
-    bottom: 28px;
-    left: 50%;
-    transform: translateX(-50%);
+    top: 60px;
+    left: 16px;
+    right: 16px;
     z-index: 600;
     display: flex;
     flex-direction: column;
@@ -4575,19 +4574,21 @@ code {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 9px 16px 9px 12px;
-    border-radius: 999px;
+    max-width: 100%;
+    padding: 10px 16px 10px 12px;
+    border-radius: 20px;
     font-size: var(--text-sm);
     font-weight: 500;
-    white-space: nowrap;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    line-height: 1.3;
+    text-align: center;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     box-shadow:
-        0 4px 24px rgba(0, 0, 0, 0.35),
-        0 1px 0 rgba(255, 255, 255, 0.04) inset;
-    animation: toastIn 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+        0 8px 32px rgba(0, 0, 0, 0.3),
+        0 1px 0 rgba(255, 255, 255, 0.06) inset;
+    animation: toastIn 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
 
-    background: color-mix(in srgb, var(--bg-elevated) 90%, transparent);
+    background: color-mix(in srgb, var(--bg-elevated) 85%, transparent);
     border: 1px solid var(--border);
     color: var(--text-primary);
 }
@@ -4625,7 +4626,7 @@ code {
 @keyframes toastIn {
     from {
         opacity: 0;
-        transform: translateY(10px) scale(0.92);
+        transform: translateY(-10px) scale(0.92);
     }
     to {
         opacity: 1;
@@ -7004,36 +7005,45 @@ body:has(.act-sheet-mode) .topbar {
 }
 
 /* Flythrough bar repositioned in sheet mode */
+/* ── Sheet-mode flythrough bar — collapsed circle → expanded glass pill ── */
 .act-sheet-mode #flythroughBar {
     position: absolute;
     bottom: calc(100% + 12px);
     right: 16px;
-    left: auto;
     z-index: 15;
     border: none;
     padding: 0;
     margin: 0;
     gap: 0;
     overflow: hidden;
-    max-width: 44px;
-    max-height: 44px;
-    transition: max-width 0.3s cubic-bezier(0.2, 0, 0, 1),
-                padding 0.3s cubic-bezier(0.2, 0, 0, 1),
-                background 0.3s ease,
-                box-shadow 0.3s ease,
-                border 0.3s ease;
+    width: 44px;
+    height: 44px;
     background: none;
     backdrop-filter: none;
     border-radius: 22px;
     box-shadow: none;
+    transition: width 0.3s cubic-bezier(0.2, 0, 0, 1),
+                padding 0.3s cubic-bezier(0.2, 0, 0, 1),
+                background 0.3s ease,
+                box-shadow 0.3s ease,
+                border-color 0.3s ease;
 }
-/* ── Sheet-mode flythrough bar — iOS video player style ─────── */
 .act-sheet-mode #flythroughBar .ft-play-btn {
     width: 44px;
     height: 44px;
     flex-shrink: 0;
 }
-/* Only strip green bg when bar is expanded (collapsed keeps accent circle) */
+.act-sheet-mode #flythroughBar.ft-expanded {
+    width: calc(100vw - 32px);
+    padding: 4px 6px;
+    gap: 6px;
+    background: rgba(30, 30, 30, 0.7);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    backdrop-filter: blur(20px) saturate(1.4);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 100px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+}
 .act-sheet-mode #flythroughBar.ft-expanded .ft-play-btn {
     width: 36px;
     height: 36px;
@@ -7044,43 +7054,27 @@ body:has(.act-sheet-mode) .topbar {
 .act-sheet-mode #flythroughBar.ft-expanded .ft-play-btn:hover {
     background: rgba(255, 255, 255, 0.1);
     box-shadow: none;
-    transform: scale(1.05);
-}
-.act-sheet-mode #flythroughBar.ft-expanded .ft-play-btn:active {
-    transform: scale(0.92);
-}
-.act-sheet-mode #flythroughBar.ft-expanded {
-    max-width: calc(100vw - 32px);
-    left: 16px;
-    padding: 4px 6px;
-    gap: 4px;
-    background: rgba(30, 30, 30, 0.7);
-    -webkit-backdrop-filter: blur(20px) saturate(1.4);
-    backdrop-filter: blur(20px) saturate(1.4);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 100px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
 }
 .act-sheet-mode #flythroughBar .ft-scrubber-track {
     height: 4px;
     border-radius: 2px;
     background: rgba(255, 255, 255, 0.2);
-    padding: 6px 0;
-    margin: -6px 0;
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+    overflow: hidden;
 }
 .act-sheet-mode #flythroughBar .ft-scrubber-fill {
     background: rgba(255, 255, 255, 0.85);
-    height: 4px;
-    top: 6px;
+    height: 100%;
+    top: 0;
     border-radius: 2px;
 }
 .act-sheet-mode #flythroughBar .ft-scrubber-thumb {
-    width: 10px;
-    height: 10px;
-    background: #fff;
-    border: none;
-    box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
+    display: none;
 }
+/* Hide follow button in sheet mode — not needed */
+.act-sheet-mode #flythroughBar .ft-follow-btn { display: none; }
 .ft-speed-toggle {
     background: none;
     border: none;
@@ -9704,6 +9698,10 @@ body:has(.act-sheet-mode) .topbar {
 }
 .trs-ef-chart-area {
     height: 96px;
+}
+.trs-ef-chart-area canvas {
+    display: block;
+    margin-bottom: -8px;
 }
 .trs-ef-footer {
     display: none;
@@ -16100,7 +16098,7 @@ body:has(.act-sheet-mode) .topbar {
 
 /* ── Legend pill: top-center floating ── */
 .hm-overlay--legend {
-    top: 16px;
+    top: calc(16px + env(safe-area-inset-top, 0px));
     left: 50%;
     transform: translateX(-50%);
 }
@@ -16181,31 +16179,6 @@ body:has(.act-sheet-mode) .topbar {
 .hm-animate-btn:hover {
     background: var(--accent);
     color: var(--bg-base);
-}
-.hm-speed-pills {
-    display: flex;
-    gap: 2px;
-}
-.hm-speed-pill {
-    padding: 3px 8px;
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: transparent;
-    color: var(--text-muted);
-    font-size: 10px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
-    font-family: inherit;
-}
-.hm-speed-pill:hover {
-    border-color: var(--accent);
-    color: var(--text-primary);
-}
-.hm-speed-pill.active {
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--text-primary);
-    border-color: rgba(255, 255, 255, 0.2);
 }
 .hm-animate-btn svg {
     width: 14px;
@@ -16289,53 +16262,24 @@ body.hm-map-dragging html,
         left: 0;
     }
 
-    /* Edge-to-edge bottom sheet */
-    .hm-overlay--bottom {
-        left: 0;
-        right: 0;
-        bottom: 0;
-        transition: transform 0.35s cubic-bezier(0.34, 1.4, 0.64, 1);
-    
-    }
-    .hm-overlay--bottom.hm-sheet-collapsed {
-        transform: translateY(var(--hm-collapse-h, 0px));
-    }
-    .hm-overlay--bottom.hm-sheet-hidden {
-        transform: translateY(var(--hm-hide-h, 0px));
-    }
+    /* Hide desktop panel in sheet mode */
+    .hm-sheet-mode .hm-overlay--bottom { display: none !important; }
+
+    /* Stack panel vertically on mobile (applies in both desktop overlay and sheet) */
     .hm-bottom-panel {
-        padding: 0 14px 14px;
-        margin-bottom: -60px;
-        padding-bottom: 74px; /* 14px real + 60px overshoot buffer */
+        flex-direction: column;
+        align-items: stretch;
         gap: 16px;
-        border-radius: 16px 16px 0 0;
     }
-
-    /* Grabber visible on mobile */
-    .hm-grabber {
-        display: flex;
-        justify-content: center;
-        padding: 10px 0 2px;
-        cursor: grab;
-        touch-action: none;
-    }
-
-    /* Restore section wrappers on mobile (overrides desktop display:contents) */
     .hm-panel-stats,
     .hm-panel-filters,
     .hm-panel-animate {
         display: block;
     }
-    /* Divider lines between sections */
     .hm-panel-filters,
     .hm-panel-animate {
         padding-top: 14px;
         border-top: 1px solid rgba(255, 255, 255, 0.06);
-    }
-    /* Stack panel vertically on mobile */
-    .hm-bottom-panel {
-        flex-direction: column;
-        align-items: stretch;
     }
     .hm-stats {
         display: grid;
@@ -16353,15 +16297,219 @@ body.hm-map-dragging html,
     .hm-animate-count {
         display: none;
     }
-
-    /* Replay button: icon only on mobile */
     .hm-animate-btn #hmAnimateLabel {
         display: none;
     }
     .hm-animate-btn {
         padding: 6px 10px;
     }
+
+    /* Non-sheet mobile: edge-to-edge floating panel */
+    .hm-wrapper:not(.hm-sheet-mode) .hm-overlay--bottom {
+        left: 0;
+        right: 0;
+        bottom: 0;
+    }
+    .hm-wrapper:not(.hm-sheet-mode) .hm-bottom-panel {
+        padding: 14px;
+        border-radius: 16px 16px 0 0;
+    }
 }
+
+/* ── Heatmap bottom sheet (shared controller) ── */
+/* Sheet mode: container becomes fixed viewport (same as activity page) */
+.hm-sheet-mode {
+    position: fixed !important;
+    inset: 0;
+    z-index: 100;
+    overflow: hidden;
+}
+.hm-sheet-mode .hm-wrapper {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+}
+
+.hm-bottom-sheet { display: none; }
+
+.hm-sheet-mode .hm-bottom-sheet {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    left: 0; right: 0; top: 0;
+    height: 100dvh;
+    z-index: 10;
+    will-change: transform;
+    transition: transform 0.35s cubic-bezier(0.2, 0, 0, 1);
+    background: var(--bg-base);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.5);
+    overflow: visible;
+}
+.hm-bottom-sheet.dragging { transition: none !important; }
+/* Keep handle and border-radius even in expanded (50/50) */
+.hm-bottom-sheet.sheet-peek .hm-sheet-scroll { overflow-y: hidden; }
+
+.hm-sheet-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 0 6px;
+    cursor: grab;
+    flex-shrink: 0;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: none;
+}
+.hm-sheet-handle span {
+    width: 36px;
+    height: 5px;
+    border-radius: 2.5px;
+    background: rgba(235, 235, 245, 0.3);
+}
+
+.hm-sheet-scroll {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding: 0 var(--pad-page) max(20px, env(safe-area-inset-bottom));
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-layout);
+}
+.hm-sheet-scroll > * { flex-shrink: 0; }
+
+/* ── Floating playbar above sheet (matches flythrough bar style) ── */
+.hm-playbar { display: none; }
+.hm-sheet-mode .hm-playbar {
+    display: flex;
+    align-items: center;
+    position: absolute;
+    bottom: calc(100% + 12px);
+    right: 16px;
+    z-index: 15;
+    padding: 0;
+    gap: 0;
+    overflow: hidden;
+    width: 44px;
+    height: 44px;
+    background: none;
+    backdrop-filter: none;
+    border: none;
+    border-radius: 22px;
+    box-shadow: none;
+    transition: width 0.3s cubic-bezier(0.2, 0, 0, 1),
+                padding 0.3s cubic-bezier(0.2, 0, 0, 1),
+                background 0.3s ease,
+                box-shadow 0.3s ease,
+                border-color 0.3s ease;
+}
+.hm-sheet-mode .hm-playbar.hm-playbar-expanded {
+    width: calc(100vw - 32px);
+    padding: 4px 6px;
+    gap: 6px;
+    background: rgba(30, 30, 30, 0.7);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    backdrop-filter: blur(20px) saturate(1.4);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 100px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+}
+/* Reset animate section inside playbar */
+.hm-playbar .hm-panel-animate {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 0 !important;
+    border: none !important;
+    border-top: none !important;
+}
+.hm-playbar .hm-animate-bar {
+    gap: 6px;
+}
+/* Play button — collapsed: 44px accent circle */
+.hm-playbar .hm-animate-btn:first-child {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    flex-shrink: 0;
+    justify-content: center;
+}
+.hm-playbar .hm-animate-btn:first-child span { display: none; }
+.hm-playbar .hm-animate-btn:first-child:hover {
+    background: #00ffb3;
+    box-shadow: 0 0 12px rgba(0, 229, 160, 0.45);
+}
+/* Play button — expanded: smaller, no bg */
+.hm-playbar-expanded .hm-animate-btn:first-child {
+    width: 36px;
+    height: 36px;
+    background: none;
+    box-shadow: none;
+    color: rgba(255, 255, 255, 0.9);
+}
+.hm-playbar-expanded .hm-animate-btn:first-child:hover {
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: none;
+}
+/* Speed toggle → same as flythrough */
+.hm-speed-toggle {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 6px;
+    cursor: pointer;
+    flex-shrink: 0;
+    white-space: nowrap;
+    border-radius: 6px;
+    transition: color 0.15s ease, background 0.15s ease;
+    font-family: inherit;
+}
+.hm-speed-toggle:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+}
+/* Progress bar → white track */
+.hm-playbar .hm-animate-progress {
+    background: rgba(255, 255, 255, 0.2);
+    height: 4px;
+    border-radius: 2px;
+}
+.hm-playbar .hm-animate-bar-fill {
+    background: rgba(255, 255, 255, 0.85);
+}
+/* Count text */
+.hm-playbar .hm-animate-count {
+    display: none;
+}
+/* Re-scan section stays in card */
+.hm-panel-rescan {
+    padding-top: 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* Panel inside sheet: reset glass background, use transparent card style */
+.hm-sheet-mode .hm-bottom-panel {
+    background: none;
+    border: none;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-radius: 0;
+    padding: 0;
+}
+/* Hide old grabber in sheet mode (handle is on the sheet itself) */
+.hm-sheet-mode .hm-grabber { display: none; }
 
 /* ============================================================
    IMPORT PAGE
@@ -17567,12 +17715,6 @@ html[data-theme="light"] {
 [data-theme="light"] .hm-pill {
     border-color: rgba(0, 0, 0, 0.12);
 }
-[data-theme="light"] .hm-speed-pill {
-    border-color: rgba(0, 0, 0, 0.12);
-}
-[data-theme="light"] .hm-speed-pill.active {
-    border-color: rgba(0, 0, 0, 0.18);
-}
 [data-theme="light"] .hm-animate-progress {
     background: rgba(0, 0, 0, 0.08);
 }
@@ -17796,22 +17938,25 @@ html[data-theme="light"] {
     display: flex;
     align-items: center;
     gap: 6px;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 6px 10px;
+    background: rgba(30, 30, 35, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: none;
+    border-radius: 10px;
+    padding: 0 10px;
     color: var(--text-primary);
     font-size: var(--text-sm);
     font-weight: 500;
     cursor: pointer;
     outline: none;
     white-space: nowrap;
-    transition: border-color var(--transition), box-shadow var(--transition);
-    height: 32px;
+    transition: background var(--transition);
+    height: 36px;
+    font-family: inherit;
 }
-.rb-router-trigger:hover { border-color: var(--border-active); }
+.rb-router-trigger:hover { background: rgba(40, 40, 48, 0.9); }
 .rb-router-wrap--open .rb-router-trigger {
-    border-color: var(--accent);
+    background: rgba(40, 40, 48, 0.9);
     box-shadow: 0 0 0 3px var(--accent-dim);
 }
 .rb-router-trigger svg:first-child { color: var(--accent); flex-shrink: 0; }
@@ -17915,20 +18060,24 @@ html[data-theme="light"] {
 .rb-tool-btn--danger { color: var(--text-muted); }
 .rb-tool-btn--danger:hover { color: #ff4757; }
 .rb-search-input {
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 6px 12px 6px 32px;
+    background: rgba(30, 30, 35, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: none;
+    border-radius: 10px;
+    padding: 0 12px 0 34px;
     color: var(--text-primary);
-    font-size: var(--text-sm);
+    font-size: 17px;
     width: 220px;
-    height: 32px;
+    height: 36px;
     outline: none;
-    transition: border-color var(--transition);
+    transition: background var(--transition);
     box-sizing: border-box;
+    font-family: inherit;
 }
-.rb-search-input:focus { border-color: var(--accent); }
-.rb-search-wrap > svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--text-muted); pointer-events: none; }
+.rb-search-input::placeholder { color: rgba(235,235,245,0.3); }
+.rb-search-input:focus { background: rgba(40, 40, 48, 0.9); }
+.rb-search-wrap > svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: rgba(235,235,245,0.3); pointer-events: none; z-index: 1; }
 
 /* Routing status */
 .rb-routing-status {
@@ -17963,23 +18112,24 @@ html[data-theme="light"] {
     display: flex;
     align-items: center;
     gap: 6px;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 6px 10px;
+    background: rgba(30, 30, 35, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: none;
+    border-radius: 10px;
+    padding: 0 10px;
     color: var(--text-primary);
     font-size: var(--text-sm);
     font-weight: 500;
     cursor: pointer;
     white-space: nowrap;
     font-family: inherit;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-    height: 32px;
+    height: 36px;
+    transition: background var(--transition);
 }
-.rb-options-trigger:hover { border-color: var(--border-active); }
+.rb-options-trigger:hover { background: rgba(40, 40, 48, 0.9); }
 .rb-options-wrap--open .rb-options-trigger {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-dim);
+    background: rgba(40, 40, 48, 0.9);
 }
 .rb-options-trigger svg:first-child { color: var(--accent); flex-shrink: 0; }
 .rb-options-chevron { color: var(--text-muted); flex-shrink: 0; transition: transform 0.2s ease; }
@@ -18155,6 +18305,8 @@ html[data-theme="light"] {
 #rbMap .maplibregl-canvas,
 #activityMap .maplibregl-canvas,
 #heatmapMap .maplibregl-canvas { outline: none; }
+#heatmapMap .maplibregl-ctrl-top-left { top: env(safe-area-inset-top, 0px); }
+#heatmapMap .maplibregl-ctrl-top-right { top: env(safe-area-inset-top, 0px); }
 
 #activityMap .maplibregl-ctrl-group { background: rgba(20, 23, 32, 0.82); border: 1px solid rgba(255,255,255,0.13); border-radius: 8px; box-shadow: 0 1px 5px rgba(0,0,0,0.5); overflow: hidden; }
 #activityMap .maplibregl-ctrl-group button { background: rgba(20, 23, 32, 0.82); color: var(--text-secondary); border-bottom: 1px solid rgba(255,255,255,0.08); width: 30px; height: 30px; }
@@ -18884,7 +19036,7 @@ html[data-theme="light"] {
     .rb-poi-filter { left: 8px; top: auto; bottom: 8px; max-width: calc(100% - 16px); flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .rb-poi-filter::-webkit-scrollbar { display: none; }
     .rb-search-float { left: 10px; top: 10px; }
-    .rb-search-input { width: 130px; padding: 5px 10px 5px 28px; font-size: 12px; }
+    .rb-search-input { width: 140px; padding: 0 10px 0 32px; font-size: 15px; height: 36px; }
     .rb-router-trigger span { display: none; }
     .rb-router-trigger { padding: 6px 8px; gap: 4px; }
     .rb-router-chevron { display: none; }
@@ -18989,6 +19141,77 @@ html[data-theme="light"] {
 /* Sheet mode overrides */
 .rb-sheet-mode .rb-overlay--right { display: none !important; }
 .rb-sheet-mode .rb-panel-toggle { display: none !important; }
+.rb-sheet-mode #rbFullscreenBtn { display: none !important; }
+
+/* Floating map stats (mobile only) */
+.rb-map-float-stats {
+    display: none;
+    position: absolute;
+    top: 60px;
+    right: 12px;
+    z-index: 10;
+    text-align: right;
+    pointer-events: none;
+}
+.rb-sheet-mode .rb-map-float-stats { display: block; }
+.rb-mfs-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: flex-end;
+    gap: 3px;
+    line-height: 1.2;
+}
+.rb-mfs-val {
+    font-size: 24px;
+    font-weight: 700;
+    color: #fff;
+    text-shadow: 0 1px 6px rgba(0,0,0,0.7);
+}
+.rb-mfs-unit {
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.7);
+    text-shadow: 0 1px 6px rgba(0,0,0,0.7);
+}
+
+.rb-mfs-badge {
+    display: none;
+    margin-top: 6px;
+    margin-left: auto;
+    width: fit-content;
+    padding: 4px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-radius: 20px;
+    background: rgba(0,0,0,0.45);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    text-shadow: none;
+}
+
+/* Options as inline card inside sheet */
+.rb-sheet-mode .rb-options-wrap {
+    background: rgba(23, 26, 33, 0.88);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: var(--radius);
+    padding: 6px;
+}
+.rb-sheet-mode .rb-options-trigger { display: none; }
+.rb-sheet-mode .rb-options-menu {
+    position: static;
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+    background: none;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    min-width: 0;
+}
 
 /* Elevation panel as card inside sheet scroll */
 .rb-elev-card-header { display: none; }

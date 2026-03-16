@@ -56,10 +56,9 @@ export function renderHeatmapPage() {
         <div class="hm-legend" id="hmLegend"></div>
       </div>
 
-      <!-- Unified floating bottom panel -->
-      <div class="hm-overlay hm-overlay--bottom">
+      <!-- Unified floating bottom panel (desktop) -->
+      <div class="hm-overlay hm-overlay--bottom" id="hmDesktopPanel">
         <div class="hm-bottom-panel">
-          <div class="hm-grabber"><span class="hm-grabber-pill"></span></div>
           <!-- Section 1: Stats -->
           <div class="hm-panel-stats">
             <div class="hm-stats" id="hmStats">
@@ -108,23 +107,29 @@ export function renderHeatmapPage() {
                 <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><polygon points="5,3 19,12 5,21"/></svg>
                 <span id="hmAnimateLabel">Replay Rides</span>
               </button>
-              <div class="hm-speed-pills" id="hmSpeedPills">
-                <button class="hm-speed-pill active" data-speed="1">1x</button>
-                <button class="hm-speed-pill" data-speed="2">2x</button>
-                <button class="hm-speed-pill" data-speed="3">3x</button>
-              </div>
               <div class="hm-animate-progress" id="hmAnimateProgress">
                 <div class="hm-animate-bar-fill" id="hmAnimateBarFill"></div>
               </div>
+              <button class="hm-speed-toggle" id="hmSpeedToggle" onclick="hmCycleSpeed()" title="Cycle speed">1×</button>
               <span class="hm-animate-count" id="hmAnimateCount"></span>
-              <button class="hm-animate-btn" style="margin-left:auto;font-size:.75rem;padding:4px 10px;opacity:.7" onclick="hmRescanGPS()" title="Clear GPS cache and re-fetch all routes">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.08-8.58"/></svg>
-                Re-scan
-              </button>
             </div>
+          </div>
+          <!-- Re-scan stays in card, not in floating playbar -->
+          <div class="hm-panel-rescan">
+            <button class="hm-animate-btn" style="font-size:.75rem;padding:4px 10px;opacity:.7" onclick="hmRescanGPS()" title="Clear GPS cache and re-fetch all routes">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.08-8.58"/></svg>
+              Re-scan
+            </button>
           </div>
         </div>
       </div>
+
+    </div>
+    <!-- Mobile bottom sheet (outside wrapper so map stays static) -->
+    <div id="hmBottomSheet" class="hm-bottom-sheet">
+      <div id="hmPlaybar" class="hm-playbar"></div>
+      <div class="hm-sheet-handle"><span></span></div>
+      <div class="hm-sheet-scroll" id="hmSheetScroll"></div>
     </div>
   `;
 
@@ -134,17 +139,17 @@ export function renderHeatmapPage() {
   _hmWirePills('hmColorPills',  v => { _hm.colorMode = v; hmRedraw(); });
   _hmWirePills('hmTimePills',   v => { _hm.timeFilter = v; hmApplyFilters(); });
 
-  // Wire speed pills
-  const speedWrap = document.getElementById('hmSpeedPills');
-  if (speedWrap) {
-    speedWrap.querySelectorAll('.hm-speed-pill').forEach(btn => {
-      btn.addEventListener('click', () => {
-        speedWrap.querySelectorAll('.hm-speed-pill').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        _hm.animSpeed = parseInt(btn.dataset.speed, 10) || 1;
-      });
-    });
-  }
+  // Speed toggle (cycles through speeds on click)
+  const HM_SPEEDS = [1, 2, 3, 5, 10];
+  const HM_LABELS = ['1×', '2×', '3×', '5×', '10×'];
+  _hm.animSpeed = 1;
+  window.hmCycleSpeed = () => {
+    const idx = HM_SPEEDS.indexOf(_hm.animSpeed);
+    const next = (idx + 1) % HM_SPEEDS.length;
+    _hm.animSpeed = HM_SPEEDS[next];
+    const btn = document.getElementById('hmSpeedToggle');
+    if (btn) btn.textContent = HM_LABELS[next];
+  };
 
   // Init map
   _hmInitMap();
@@ -162,119 +167,108 @@ export function renderHeatmapPage() {
     }
   }
 
-  _hmInitSheet();
+  if (window.innerWidth <= 820) hmActivateSheetMode();
 }
 
-/* ── Mobile bottom-sheet (swipe to collapse / expand) ── */
-/* state: 0=expanded, 1=stats-only, 2=hidden (grabber only) */
-const _hmSheet = { startY: 0, startX: 0, tracking: false, directionLocked: false, state: 0, collapseH: 0, hideH: 0 };
+/* ── Mobile bottom-sheet via shared controller ── */
+let _hmSheetCtrl = null;
+let _hmSheetResizeHandler = null;
 
-export function _hmSetSheetState(s, overlay) {
-  _hmSheet.state = s;
-  overlay.classList.toggle('hm-sheet-collapsed', s === 1);
-  overlay.classList.toggle('hm-sheet-hidden', s === 2);
+export function hmActivateSheetMode() {
+  if (_hmSheetCtrl) return;
+  const container = document.getElementById('heatmapPageContent');
+  const sheet   = document.getElementById('hmBottomSheet');
+  const scroll  = document.getElementById('hmSheetScroll');
+  const panel   = document.querySelector('.hm-bottom-panel');
+  if (!container || !sheet || !scroll || !panel) return;
+
+  container.classList.add('hm-sheet-mode');
+
+  // Reparent bottom panel into sheet scroll
+  scroll.appendChild(panel);
+
+  // Reparent animate bar into floating playbar above sheet
+  const animateSection = panel.querySelector('.hm-panel-animate');
+  const playbar = document.getElementById('hmPlaybar');
+  if (animateSection && playbar) {
+    animateSection._origParent = animateSection.parentNode;
+    animateSection._origNext   = animateSection.nextSibling;
+    playbar.appendChild(animateSection);
+  }
+
+  // Use requestAnimationFrame so layout settles after reparenting + CSS change
+  requestAnimationFrame(() => {
+    // Measure the actual stats grid (not the wrapper which may have display:contents)
+    const statsGrid = panel.querySelector('.hm-stats');
+    const statsH = statsGrid ? statsGrid.offsetHeight : 120;
+    const handleH = 28;
+    const padding = 24; // top + bottom breathing room
+    const peekVh = 1 - (handleH + statsH + padding) / window.innerHeight;
+    const snap = Math.min(Math.max(peekVh, 0.60), 0.85);
+
+    _hmSheetCtrl = window.createSheetController({
+      sheetEl: sheet,
+      scrollEl: scroll,
+      handleSelector: '.hm-sheet-handle',
+      SNAP_PEEK: snap,
+      SNAP_EXPANDED: 0.50,
+      SNAP_HIDDEN: 0.92,
+      onStateChange(newState) {
+        const menuBtn = document.getElementById('floatingMenuBtn');
+        if (menuBtn) menuBtn.style.display = (newState === 'expanded') ? '' : 'none';
+        setTimeout(() => { if (_hm.map) _hm.map.resize(); }, 400);
+      },
+    });
+    _hmSheetCtrl.activate();
+  }); // end rAF
+
+  if (!_hmSheetResizeHandler) {
+    _hmSheetResizeHandler = () => {
+      if (window.innerWidth > 820 && _hmSheetCtrl) hmDeactivateSheetMode();
+      else if (window.innerWidth <= 820 && !_hmSheetCtrl) hmActivateSheetMode();
+    };
+    window.addEventListener('resize', _hmSheetResizeHandler);
+  }
 }
 
-export function _hmInitSheet() {
-  const overlay = document.querySelector('.hm-overlay--bottom');
-  const grabber = document.querySelector('.hm-grabber');
-  if (!overlay || !grabber) return;
+export function hmDeactivateSheetMode() {
+  if (!_hmSheetCtrl) return;
+  const container = document.getElementById('heatmapPageContent');
+  const desktop  = document.getElementById('hmDesktopPanel');
+  const panel    = document.querySelector('.hm-bottom-panel');
 
-  // Measure snap distances
-  function _hmMeasure() {
-    const filters = overlay.querySelector('.hm-panel-filters');
-    const animate = overlay.querySelector('.hm-panel-animate');
-    const stats = overlay.querySelector('.hm-panel-stats');
-    const panel = overlay.querySelector('.hm-bottom-panel');
-    const gap = panel ? parseFloat(getComputedStyle(panel).gap) || 0 : 0;
-    // collapseH: distance to hide filters + animate (show stats only)
-    let ch = 0;
-    if (filters) ch += filters.offsetHeight + gap;
-    if (animate) ch += animate.offsetHeight + gap;
-    _hmSheet.collapseH = ch;
-    overlay.style.setProperty('--hm-collapse-h', ch + 'px');
-    // hideH: distance to hide everything (show grabber only)
-    let hh = ch;
-    if (stats) hh += stats.offsetHeight + gap;
-    _hmSheet.hideH = hh;
-    overlay.style.setProperty('--hm-hide-h', hh + 'px');
-  }
+  _hmSheetCtrl.deactivate();
+  _hmSheetCtrl = null;
 
-  // Snap offsets for each state
-  function _snapOffsets() {
-    return [0, _hmSheet.collapseH, _hmSheet.hideH];
-  }
-  function _stateOffset(s) { return _snapOffsets()[s] || 0; }
-
-  // Find nearest snap state for a given offset
-  function _nearestSnap(offset) {
-    const snaps = _snapOffsets();
-    let best = 0, bestDist = Math.abs(offset - snaps[0]);
-    for (let i = 1; i < snaps.length; i++) {
-      const d = Math.abs(offset - snaps[i]);
-      if (d < bestDist) { bestDist = d; best = i; }
+  // Reparent animate bar back into panel
+  const animateSection = document.querySelector('.hm-panel-animate');
+  if (animateSection && animateSection._origParent) {
+    if (animateSection._origNext) {
+      animateSection._origParent.insertBefore(animateSection, animateSection._origNext);
+    } else {
+      animateSection._origParent.appendChild(animateSection);
     }
-    return best;
+    delete animateSection._origParent;
+    delete animateSection._origNext;
   }
 
-  // Grabber click cycles: expanded → stats → hidden → expanded
-  grabber.addEventListener('click', () => {
-    if (!_isMobile()) return;
-    _hmMeasure();
-    const next = (_hmSheet.state + 1) % 3;
-    _hmSetSheetState(next, overlay);
-  });
+  // Reparent panel back into desktop overlay
+  if (desktop && panel) desktop.appendChild(panel);
 
-  // Touch handling on the entire panel
-  const panel = overlay.querySelector('.hm-bottom-panel');
-  if (!panel) return;
+  if (container) container.classList.remove('hm-sheet-mode');
 
-  panel.addEventListener('touchstart', (e) => {
-    if (!_isMobile() || e.touches.length !== 1) return;
-    _hmMeasure();
-    _hmSheet.startY = e.touches[0].clientY;
-    _hmSheet.startX = e.touches[0].clientX;
-    _hmSheet.tracking = false;
-    _hmSheet.directionLocked = false;
-    overlay.style.transition = 'none';
-  }, { passive: true });
-
-  panel.addEventListener('touchmove', (e) => {
-    if (!_isMobile() || e.touches.length !== 1) return;
-    const y = e.touches[0].clientY;
-    const dy = y - _hmSheet.startY;
-    const dx = Math.abs(e.touches[0].clientX - _hmSheet.startX);
-
-    if (!_hmSheet.directionLocked) {
-      if (Math.abs(dy) < 8 && dx < 8) return;
-      if (dx > Math.abs(dy)) { _hmSheet.directionLocked = true; _hmSheet.tracking = false; return; }
-      _hmSheet.directionLocked = true;
-      _hmSheet.tracking = true;
-    }
-    if (!_hmSheet.tracking) return;
-    e.preventDefault();
-
-    const maxDown = _hmSheet.hideH;
-    const baseOffset = _stateOffset(_hmSheet.state);
-    let offset = Math.max(0, Math.min(maxDown, baseOffset + dy));
-    overlay.style.transform = `translateY(${offset}px)`;
-  }, { passive: false });
-
-  panel.addEventListener('touchend', (e) => {
-    if (!_hmSheet.tracking) { overlay.style.transition = ''; return; }
-    overlay.style.transition = '';
-
-    const dy = e.changedTouches[0].clientY - _hmSheet.startY;
-    const maxDown = _hmSheet.hideH;
-    const baseOffset = _stateOffset(_hmSheet.state);
-    let offset = Math.max(0, Math.min(maxDown, baseOffset + dy));
-
-    const snap = _nearestSnap(offset);
-    overlay.style.transform = '';
-    _hmSetSheetState(snap, overlay);
-    _hmSheet.tracking = false;
-  }, { passive: true });
+  const menuBtn = document.getElementById('floatingMenuBtn');
+  if (menuBtn) menuBtn.style.display = '';
 }
+
+export function hmCleanupSheetMode() {
+  hmDeactivateSheetMode();
+  if (_hmSheetResizeHandler) {
+    window.removeEventListener('resize', _hmSheetResizeHandler);
+    _hmSheetResizeHandler = null;
+  }
+}
+window.hmCleanupSheetMode = hmCleanupSheetMode;
 
 export function _hmWirePills(containerId, onChange) {
   const wrap = document.getElementById(containerId);
@@ -1353,6 +1347,8 @@ export function hmStartAnimate() {
   if (routes.length === 0) return;
 
   _hm.animating = true;
+  const playbar = document.getElementById('hmPlaybar');
+  if (playbar) playbar.classList.add('hm-playbar-expanded');
   _hm.animState = 'playing';
   _hm.animIdx = 0;
 
@@ -1437,5 +1433,7 @@ export function hmStopAnimate() {
   _hmSetAnimBtn('play', 'Replay Rides');
   const barFill = document.getElementById('hmAnimateBarFill');
   if (barFill) barFill.style.width = '0%';
+  const playbar = document.getElementById('hmPlaybar');
+  if (playbar) playbar.classList.remove('hm-playbar-expanded');
 }
 
