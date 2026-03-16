@@ -6,7 +6,7 @@
    3. Navigation Preload: fetch starts while SW boots
 ============================================================ */
 
-const APP_CACHE    = 'icu-app-shell-v82';
+const APP_CACHE    = 'icu-app-shell-v83';
 const TILE_CACHE   = 'icu-map-tiles-v1';
 const MAX_TILES    = 2000; // rough cap to avoid unbounded disk use
 const TILE_ORIGINS = ['server.arcgisonline.com', 'tile.openstreetmap.de', 'tile-cyclosm.openstreetmap.fr', 'api.maptiler.com'];
@@ -122,10 +122,16 @@ async function handleTile(request) {
   }
 }
 
-// ── Prune: keep cache under MAX_TILES ───────────────────────
+// ── Prune: keep cache under MAX_TILES (with 20% hysteresis to avoid constant churn) ──
+let _pruning = false;
 async function pruneCache(cache) {
+  if (_pruning) return;
   const keys = await cache.keys();
-  if (keys.length <= MAX_TILES) return;
-  const toDelete = keys.slice(0, keys.length - MAX_TILES);
-  await Promise.all(toDelete.map(k => cache.delete(k)));
+  // Only prune when 20% over limit — avoids running on every single tile fetch
+  if (keys.length <= MAX_TILES * 1.2) return;
+  _pruning = true;
+  try {
+    const toDelete = keys.slice(0, keys.length - MAX_TILES);
+    await Promise.all(toDelete.map(k => cache.delete(k)));
+  } finally { _pruning = false; }
 }

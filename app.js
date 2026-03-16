@@ -21018,10 +21018,10 @@ function h2hRenderSpreadsheet() {
     const cols = table.querySelectorAll('colgroup col');
     const ths = table.querySelectorAll('thead th');
 
-    // Freeze all cols to their rendered widths on first layout
+    // Freeze all cols to their rendered widths — batch reads then writes
     let totalW = 0;
-    ths.forEach((th, i) => {
-      const w = th.getBoundingClientRect().width;
+    const widths = Array.from(ths, th => th.getBoundingClientRect().width);
+    widths.forEach((w, i) => {
       if (cols[i]) cols[i].style.width = w + 'px';
       totalW += w;
     });
@@ -21180,7 +21180,7 @@ document.getElementById('connectModal').addEventListener('click', function(e) {
         el.style.setProperty('--mouse-x', x);
         el.style.setProperty('--mouse-y', y);
       });
-    });
+    }, { passive: true });
   }
   // expose so other parts of the app can attach glow to late-rendered elements
   window.attachCardGlow = attachGlow;
@@ -21238,7 +21238,7 @@ document.getElementById('connectModal').addEventListener('click', function(e) {
         el.classList.remove('badge-tilt-reset');
         el.style.transform = `perspective(480px) rotateX(${rx}deg) rotateY(${ry}deg) scale(1.03)`;
       });
-    });
+    }, { passive: true });
 
     el.addEventListener('mouseleave', () => {
       el.classList.add('badge-tilt-reset');
@@ -22117,13 +22117,28 @@ document.addEventListener('keydown', e => {
     if (!s.running) { s.restDirty = true; s.running = true; requestAnimationFrame(tickers[i]); }
   }
 
-  window.addEventListener('resize', () => phys.forEach(s => { s.restDirty = true; }));
+  let _fabResizeT = 0;
+  window.addEventListener('resize', () => {
+    clearTimeout(_fabResizeT);
+    _fabResizeT = setTimeout(() => phys.forEach(s => { s.restDirty = true; }), 120);
+  }, { passive: true });
 
-  // Desktop: mousemove drives all visible FABs
+  // Desktop: mousemove drives all visible FABs (throttled to RAF)
+  let _fabMoveRAF = 0;
+  // Cache which FABs are visible — recompute on resize, not per mousemove
+  let _fabVisible = fabs.map(() => true);
+  function _refreshFabVis() { fabs.forEach((fab, i) => { _fabVisible[i] = fab.offsetWidth > 0; }); }
+  _refreshFabVis();
+  window.addEventListener('resize', _refreshFabVis, { passive: true });
+
   document.addEventListener('mousemove', e => {
     globalMouseX = e.clientX; globalMouseY = e.clientY;
-    fabs.forEach((fab, i) => { if (fab.offsetWidth > 0) startFab(i); });
-  });
+    if (_fabMoveRAF) return;
+    _fabMoveRAF = requestAnimationFrame(() => {
+      _fabMoveRAF = 0;
+      for (let i = 0; i < fabs.length; i++) { if (_fabVisible[i]) startFab(i); }
+    });
+  }, { passive: true });
 
   // Per-FAB events
   fabs.forEach((fab, i) => {
