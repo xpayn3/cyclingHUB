@@ -404,8 +404,9 @@ function cleanupPageCharts(leavingPage) {
   if (leavingPage === 'activity') {
     deactivateSheetMode();
   }
-  // Destroy route builder map
+  // Destroy route builder map + sheet
   if (leavingPage === 'routes') {
+    if (window.rbCleanupSheetMode) rbCleanupSheetMode();
     if (window._rb && _rb.map) { try { _rb.map.remove(); } catch(_){} _rb.map = null; }
   }
   // Also clean up any pending lazy renders
@@ -3971,7 +3972,7 @@ function _actRowHTML(a, containerId, fi, powerColor) {
   const stats = [];
   stats.push(statPill(distKm > 0.05 ? distKm.toFixed(2) : '—', 'km'));
   stats.push(statPill(secs > 0 ? fmtDur(secs) : '—', 'time'));
-  stats.push(statPill(elev > 0 ? elev.toLocaleString() : '—', 'm elev'));
+  stats.push(statPill(elev > 0 ? elev.toLocaleString() : '—', 'elev'));
   stats.push(statPill(pwr > 0 ? Math.round(pwr) + 'w' : '—', 'power', pwr > 0 ? powerColor(pwr) : null));
   stats.push(statPill(hr > 0 ? hr : '—', 'bpm'));
 
@@ -7576,6 +7577,8 @@ const _pprRingPlugin = {
     if (!scale) return;
     const cx = scale.xCenter, cy = scale.yCenter;
     const outerR = scale.drawingArea;
+    // Guard: if layout hasn't settled, drawing area is too small — defer resize
+    if (outerR < 30) { requestAnimationFrame(() => chart.resize()); return; }
     const ringW = 22;
     const n = meta.data.length;
     const startAngle = -Math.PI / 2;
@@ -7806,10 +7809,13 @@ function renderPowerProfileRadar() {
       if (entry.isIntersecting && !_pprAnimated) {
         _pprAnimated = true;
         pprObs.disconnect();
+        // Ensure chart has correct dimensions (card may have just become visible)
+        radarChart.resize();
         const duration = 800;
         const start = performance.now();
         const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; // easeInOutCubic
         function tick(now) {
+          if (state.powerProfileRadarChart !== radarChart) return; // chart was replaced
           const elapsed = now - start;
           const t = Math.min(elapsed / duration, 1);
           const p = ease(t);
@@ -11669,6 +11675,9 @@ async function navigateToActivity(actKey, fromStep = false) {
 
   if (!fromStep) _loadingEl.style.display = 'flex';
 
+  // Pre-warm the MapLibre map immediately (loads style + tiles in parallel with API fetches)
+  _preWarmActivityMap();
+
   try {
     const [detailResult, streamsResult] = await Promise.allSettled([
       fetchActivityDetail(actId),
@@ -12026,29 +12035,219 @@ function _onMapFullscreenExit(card) {
 /* ====================================================
    BOTTOM SHEET — Strava-style map-behind-sheet layout
 ==================================================== */
+// ── Shared Bottom Sheet Controller Factory ─────────────────────────────────
+// Used by both the Activity page and Route Builder page.
+// config: { sheetEl, scrollEl, handleSelector, onStateChange(newState),
+//           SNAP_PEEK, SNAP_EXPANDED, SNAP_HIDDEN }
+function createSheetController(config) {
+  const SNAP_PEEK     = config.SNAP_PEEK     ?? 0.50;
+  const SNAP_EXPANDED = config.SNAP_EXPANDED ?? 0;
+  const SNAP_HIDDEN   = config.SNAP_HIDDEN   ?? 0.85;
+  const handleSel     = config.handleSelector || '[class*="sheet-handle"]';
+
+  const s = {
+    el: config.sheetEl,
+    scroll: config.scrollEl,
+    state: 'peek',
+    currentY: 0,
+    startY: 0,
+    startSheetY: 0,
+    velocity: 0,
+    prevY: 0,
+    prevT: 0,
+    tracking: false,
+    directionLocked: false,
+    touchOnHandle: false,
+    active: false,
+    routeBounds: null,
+    _onTouch: null, _onMove: null, _onEnd: null,
+    _onMouse: null, _onResize: null, _onWheel: null,
+    _wheelLocked: false,
+  };
+
+  function _setState(newState) {
+    const vh = window.innerHeight;
+    let targetY;
+    switch (newState) {
+      case 'expanded': targetY = vh * SNAP_EXPANDED; break;
+      case 'peek':     targetY = vh * SNAP_PEEK; break;
+      case 'hidden':   targetY = vh * SNAP_HIDDEN; break;
+      default:         targetY = vh * SNAP_PEEK;
+    }
+    s.currentY = targetY;
+    s.state = newState;
+    s.el.classList.remove('dragging');
+    s.el.style.transform = `translateY(${targetY}px)`;
+    s.el.classList.toggle('sheet-expanded', newState === 'expanded');
+    if (newState === 'hidden') {
+      s.el.classList.add('sheet-peek');
+      s.scroll.style.overflowY = 'hidden';
+    } else {
+      s.el.classList.remove('sheet-peek');
+      s.scroll.style.overflowY = 'auto';
+    }
+    if (config.onStateChange) config.onStateChange(newState, s);
+  }
+
+  function _touchStart(e) {
+    if (e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    s.startY = touch.clientY;
+    s.prevY = touch.clientY;
+    s.prevT = e.timeStamp;
+    s.velocity = 0;
+    s.directionLocked = false;
+    s.tracking = false;
+    s.startSheetY = s.currentY;
+    const handle = s.el.querySelector(handleSel);
+    s.touchOnHandle = handle && handle.contains(e.target);
+  }
+
+  function _touchMove(e) {
+    if (e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    const dy = touch.clientY - s.startY;
+    const absDy = Math.abs(dy);
+    if (!s.directionLocked) {
+      if (absDy < 8) return;
+      s.directionLocked = true;
+      if (s.state === 'expanded' && !s.touchOnHandle) {
+        if (dy > 0 && s.scroll.scrollTop <= 1) { s.tracking = true; }
+        else { s.tracking = false; return; }
+      } else { s.tracking = true; }
+      s.el.classList.add('dragging');
+    }
+    if (!s.tracking) return;
+    e.preventDefault();
+    const dt = e.timeStamp - s.prevT;
+    if (dt > 0) {
+      const instantV = (touch.clientY - s.prevY) / dt;
+      s.velocity = 0.4 * s.velocity + 0.6 * instantV;
+    }
+    s.prevY = touch.clientY;
+    s.prevT = e.timeStamp;
+    const vh = window.innerHeight;
+    const newY = s.startSheetY + dy;
+    const clamped = Math.max(0, Math.min(vh * SNAP_HIDDEN, newY));
+    s.currentY = clamped;
+    s.el.style.transform = `translateY(${clamped}px)`;
+  }
+
+  function _touchEnd() {
+    if (!s.tracking) { s.directionLocked = false; return; }
+    s.el.classList.remove('dragging');
+    const vh = window.innerHeight;
+    const currentFrac = s.currentY / vh;
+    const VEL = 0.4;
+    let target;
+    if (Math.abs(s.velocity) > VEL) {
+      target = s.velocity > 0
+        ? (s.state === 'expanded' ? 'peek' : 'hidden')
+        : (s.state === 'hidden' ? 'peek' : 'expanded');
+    } else {
+      target = currentFrac < 0.22 ? 'expanded' : currentFrac < 0.68 ? 'peek' : 'hidden';
+    }
+    _setState(target);
+    s.tracking = false;
+    s.directionLocked = false;
+  }
+
+  function _mouseDown(e) {
+    e.preventDefault();
+    s.startY = e.clientY;
+    s.startSheetY = s.currentY;
+    s.el.classList.add('dragging');
+    const onMove = (ev) => {
+      const dy = ev.clientY - s.startY;
+      const vh = window.innerHeight;
+      const newY = Math.max(0, Math.min(vh * SNAP_HIDDEN, s.startSheetY + dy));
+      s.currentY = newY;
+      s.el.style.transform = `translateY(${newY}px)`;
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      s.el.classList.remove('dragging');
+      const vh = window.innerHeight;
+      const frac = s.currentY / vh;
+      _setState(frac < 0.22 ? 'expanded' : frac < 0.68 ? 'peek' : 'hidden');
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }
+
+  return {
+    get state()  { return s.state; },
+    get active() { return s.active; },
+    get routeBounds() { return s.routeBounds; },
+    set routeBounds(v) { s.routeBounds = v; },
+
+    activate() {
+      if (s.active) return;
+      s.active = true;
+      if (s.scroll) s.scroll.scrollTop = 0;
+      _setState('peek');
+
+      s._onTouch = _touchStart;
+      s._onMove  = _touchMove;
+      s._onEnd   = _touchEnd;
+      s.el.addEventListener('touchstart', s._onTouch, { passive: true });
+      s.el.addEventListener('touchmove',  s._onMove,  { passive: false });
+      s.el.addEventListener('touchend',   s._onEnd,   { passive: true });
+
+      const handle = s.el.querySelector(handleSel);
+      if (handle) { s._onMouse = _mouseDown; handle.addEventListener('mousedown', s._onMouse); }
+
+      s._wheelLocked = false;
+      s._onWheel = (e) => {
+        if (s._wheelLocked) { if (s.state === 'peek') e.preventDefault(); return; }
+        if (s.state === 'peek' && e.deltaY > 0) {
+          e.preventDefault(); s._wheelLocked = true; _setState('expanded');
+          setTimeout(() => { s._wheelLocked = false; }, 400); return;
+        }
+        if (s.state === 'expanded' && e.deltaY < 0 && s.scroll.scrollTop <= 0) {
+          e.preventDefault(); s._wheelLocked = true; _setState('peek');
+          setTimeout(() => { s._wheelLocked = false; }, 400); return;
+        }
+      };
+      s.el.addEventListener('wheel', s._onWheel, { passive: false });
+
+      s._onResize = () => { if (s.active) _setState(s.state); };
+      window.addEventListener('resize', s._onResize);
+    },
+
+    deactivate() {
+      if (!s.active) return;
+      s.el.removeEventListener('touchstart', s._onTouch);
+      s.el.removeEventListener('touchmove',  s._onMove);
+      s.el.removeEventListener('touchend',   s._onEnd);
+      const handle = s.el.querySelector(handleSel);
+      if (handle && s._onMouse) handle.removeEventListener('mousedown', s._onMouse);
+      if (s._onWheel) s.el.removeEventListener('wheel', s._onWheel);
+      if (s._onResize) window.removeEventListener('resize', s._onResize);
+      s.el.style.transform = '';
+      s.el.classList.remove('dragging', 'sheet-peek', 'sheet-expanded');
+      if (s.scroll) s.scroll.style.overflowY = '';
+      s.active = false;
+      s.state = 'peek';
+    },
+
+    setState(name) { _setState(name); },
+  };
+}
+window.createSheetController = createSheetController;
+
+// ── Activity-page sheet (uses shared controller) ───────────────────────────
 const _sheet = {
-  el: null,
-  scroll: null,
+  _ctrl: null,
   mapBg: null,
-  state: 'peek',
-  currentY: 0,
-  startY: 0,
-  startSheetY: 0,
-  velocity: 0,
-  prevY: 0,
-  prevT: 0,
-  tracking: false,
-  directionLocked: false,
-  touchOnHandle: false,
+  get state()       { return this._ctrl ? this._ctrl.state : 'peek'; },
+  get active()      { return this._ctrl ? this._ctrl.active : false; },
+  get routeBounds() { return this._ctrl ? this._ctrl.routeBounds : null; },
+  set routeBounds(v){ if (this._ctrl) this._ctrl.routeBounds = v; },
   SNAP_PEEK: 0.50,
   SNAP_EXPANDED: 0,
   SNAP_HIDDEN: 0.85,
-  active: false,
-  _onTouch: null,
-  _onMove: null,
-  _onEnd: null,
-  _onMouse: null,
-  _onResize: null,
 };
 
 function activateSheetMode() {
@@ -12081,63 +12280,44 @@ function activateSheetMode() {
     if (state.activityMap) state.activityMap.resize();
   });
 
-  _sheet.el = sheet;
-  _sheet.scroll = document.getElementById('actSheetScroll');
-  if (_sheet.scroll) _sheet.scroll.scrollTop = 0;
   _sheet.mapBg = mapBg;
-  _sheet.active = true;
 
-  // Set initial state
-  _setSheetState('peek');
-
-  // Attach touch listeners
-  _sheet._onTouch = _sheetTouchStart;
-  _sheet._onMove = _sheetTouchMove;
-  _sheet._onEnd = _sheetTouchEnd;
-  sheet.addEventListener('touchstart', _sheet._onTouch, { passive: true });
-  sheet.addEventListener('touchmove', _sheet._onMove, { passive: false });
-  sheet.addEventListener('touchend', _sheet._onEnd, { passive: true });
-
-  // Mouse drag on handle for desktop
-  const handle = sheet.querySelector('.act-sheet-handle');
-  if (handle) {
-    _sheet._onMouse = _sheetMouseDown;
-    handle.addEventListener('mousedown', _sheet._onMouse);
-  }
-
-  // Wheel-driven sheet expand/collapse (desktop)
-  _sheet._wheelLocked = false;
-  _sheet._onWheel = (e) => {
-    if (_sheet._wheelLocked) {
-      if (_sheet.state === 'peek') e.preventDefault();
-      return;
-    }
-
-    // Scroll down while peeking → smooth expand
-    if (_sheet.state === 'peek' && e.deltaY > 0) {
-      e.preventDefault();
-      _sheet._wheelLocked = true;
-      _setSheetState('expanded');
-      setTimeout(() => { _sheet._wheelLocked = false; }, 400);
-      return;
-    }
-
-    // Scroll up at top of content → smooth collapse
-    if (_sheet.state === 'expanded' && e.deltaY < 0 && _sheet.scroll.scrollTop <= 0) {
-      e.preventDefault();
-      _sheet._wheelLocked = true;
-      _setSheetState('peek');
-      setTimeout(() => { _sheet._wheelLocked = false; }, 400);
-      return;
-    }
-  };
-  sheet.addEventListener('wheel', _sheet._onWheel, { passive: false });
-
-  // Handle window resize
-  _sheet._onResize = () => {
-    if (_sheet.active) _setSheetState(_sheet.state);
-  };
-  window.addEventListener('resize', _sheet._onResize);
+  // Create the shared controller
+  _sheet._ctrl = createSheetController({
+    sheetEl: sheet,
+    scrollEl: document.getElementById('actSheetScroll'),
+    handleSelector: '.act-sheet-handle',
+    SNAP_PEEK: _sheet.SNAP_PEEK,
+    SNAP_EXPANDED: _sheet.SNAP_EXPANDED,
+    SNAP_HIDDEN: _sheet.SNAP_HIDDEN,
+    onStateChange(newState) {
+      // Collapse flythrough bar
+      if (newState !== 'hidden') {
+        const ftBarEl = document.getElementById('flythroughBar');
+        if (ftBarEl && ftBarEl.classList.contains('ft-expanded')) {
+          ftBarEl.classList.remove('ft-expanded');
+          if (state.flythrough && state.flythrough.playing) window.ftTogglePlay();
+        }
+      }
+      // Resize map and refit route
+      const vh = window.innerHeight;
+      setTimeout(() => {
+        if (state.activityMap) {
+          state.activityMap.resize();
+          if (_sheet.routeBounds) {
+            const bPad = newState === 'hidden'
+              ? Math.round(vh * (1 - _sheet.SNAP_HIDDEN)) + 80
+              : Math.round(vh * (newState === 'peek' ? _sheet.SNAP_PEEK : 0.15)) + 120;
+            state.activityMap.fitBounds(_sheet.routeBounds, {
+              padding: { top: 64, right: 40, bottom: bPad, left: 40 },
+              duration: 400
+            });
+          }
+        }
+      }, 400);
+    },
+  });
+  _sheet._ctrl.activate();
 }
 
 function deactivateSheetMode() {
@@ -12166,188 +12346,14 @@ function deactivateSheetMode() {
     if (fsBottom) mapCard.appendChild(fsBottom);
   }
 
-  // Clean up listeners
-  if (_sheet.el) {
-    _sheet.el.removeEventListener('touchstart', _sheet._onTouch);
-    _sheet.el.removeEventListener('touchmove', _sheet._onMove);
-    _sheet.el.removeEventListener('touchend', _sheet._onEnd);
-    const handle = _sheet.el.querySelector('.act-sheet-handle');
-    if (handle && _sheet._onMouse) handle.removeEventListener('mousedown', _sheet._onMouse);
-    if (_sheet._onWheel) _sheet.el.removeEventListener('wheel', _sheet._onWheel);
-  }
-  if (_sheet._onResize) window.removeEventListener('resize', _sheet._onResize);
-
-  // Reset sheet transform
-  if (_sheet.el) {
-    _sheet.el.style.transform = '';
-    _sheet.el.classList.remove('dragging', 'sheet-peek');
-  }
-  if (_sheet.scroll) _sheet.scroll.style.overflowY = '';
-
-  _sheet.el = null;
-  _sheet.scroll = null;
+  if (_sheet._ctrl) _sheet._ctrl.deactivate();
+  _sheet._ctrl = null;
   _sheet.mapBg = null;
-  _sheet.active = false;
-  _sheet.state = 'peek';
 }
 
-function _sheetTouchStart(e) {
-  if (e.touches.length !== 1) return;
-  const touch = e.touches[0];
-  _sheet.startY = touch.clientY;
-  _sheet.prevY = touch.clientY;
-  _sheet.prevT = e.timeStamp;
-  _sheet.velocity = 0;
-  _sheet.directionLocked = false;
-  _sheet.tracking = false;
-  _sheet.startSheetY = _sheet.currentY;
-
-  const handle = _sheet.el.querySelector('.act-sheet-handle');
-  _sheet.touchOnHandle = handle && handle.contains(e.target);
-}
-
-function _sheetTouchMove(e) {
-  if (e.touches.length !== 1) return;
-  const touch = e.touches[0];
-  const dy = touch.clientY - _sheet.startY;
-  const absDy = Math.abs(dy);
-
-  if (!_sheet.directionLocked) {
-    if (absDy < 8) return;
-    _sheet.directionLocked = true;
-
-    if (_sheet.state === 'expanded' && !_sheet.touchOnHandle) {
-      const scrollTop = _sheet.scroll.scrollTop;
-      if (dy > 0 && scrollTop <= 1) {
-        _sheet.tracking = true;
-      } else {
-        _sheet.tracking = false;
-        return;
-      }
-    } else {
-      _sheet.tracking = true;
-    }
-    _sheet.el.classList.add('dragging');
-  }
-
-  if (!_sheet.tracking) return;
-  e.preventDefault();
-
-  // Track velocity
-  const dt = e.timeStamp - _sheet.prevT;
-  if (dt > 0) {
-    const instantV = (touch.clientY - _sheet.prevY) / dt;
-    _sheet.velocity = 0.4 * _sheet.velocity + 0.6 * instantV;
-  }
-  _sheet.prevY = touch.clientY;
-  _sheet.prevT = e.timeStamp;
-
-  // Apply transform
-  const vh = window.innerHeight;
-  const newY = _sheet.startSheetY + dy;
-  const clamped = Math.max(0, Math.min(vh * _sheet.SNAP_HIDDEN, newY));
-  _sheet.currentY = clamped;
-  _sheet.el.style.transform = `translateY(${clamped}px)`;
-}
-
-function _sheetTouchEnd() {
-  if (!_sheet.tracking) {
-    _sheet.directionLocked = false;
-    return;
-  }
-  _sheet.el.classList.remove('dragging');
-
-  const vh = window.innerHeight;
-  const currentFrac = _sheet.currentY / vh;
-  const VELOCITY_THRESHOLD = 0.4;
-  let targetState;
-
-  if (Math.abs(_sheet.velocity) > VELOCITY_THRESHOLD) {
-    if (_sheet.velocity > 0) {
-      targetState = _sheet.state === 'expanded' ? 'peek' : 'hidden';
-    } else {
-      targetState = _sheet.state === 'hidden' ? 'peek' : 'expanded';
-    }
-  } else {
-    if (currentFrac < 0.22) targetState = 'expanded';
-    else if (currentFrac < 0.68) targetState = 'peek';
-    else targetState = 'hidden';
-  }
-
-  _setSheetState(targetState);
-  _sheet.tracking = false;
-  _sheet.directionLocked = false;
-}
-
-function _sheetMouseDown(e) {
-  e.preventDefault();
-  _sheet.startY = e.clientY;
-  _sheet.startSheetY = _sheet.currentY;
-  _sheet.el.classList.add('dragging');
-
-  const onMove = (ev) => {
-    const dy = ev.clientY - _sheet.startY;
-    const vh = window.innerHeight;
-    const newY = Math.max(0, Math.min(vh * _sheet.SNAP_HIDDEN, _sheet.startSheetY + dy));
-    _sheet.currentY = newY;
-    _sheet.el.style.transform = `translateY(${newY}px)`;
-  };
-
-  const onUp = () => {
-    document.removeEventListener('mousemove', onMove);
-    document.removeEventListener('mouseup', onUp);
-    _sheet.el.classList.remove('dragging');
-
-    const vh = window.innerHeight;
-    const frac = _sheet.currentY / vh;
-    const target = frac < 0.22 ? 'expanded' : frac < 0.68 ? 'peek' : 'hidden';
-    _setSheetState(target);
-  };
-
-  document.addEventListener('mousemove', onMove);
-  document.addEventListener('mouseup', onUp);
-}
-
+// Compatibility wrapper — code outside may call _setSheetState directly
 function _setSheetState(newState) {
-  const vh = window.innerHeight;
-  let targetY;
-
-  switch (newState) {
-    case 'expanded': targetY = vh * _sheet.SNAP_EXPANDED; break;
-    case 'peek':     targetY = vh * _sheet.SNAP_PEEK; break;
-    case 'hidden':   targetY = vh * _sheet.SNAP_HIDDEN; break;
-    default:         targetY = vh * _sheet.SNAP_PEEK;
-  }
-
-  _sheet.currentY = targetY;
-  _sheet.state = newState;
-  _sheet.el.classList.remove('dragging');
-  _sheet.el.style.transform = `translateY(${targetY}px)`;
-  _sheet.el.classList.toggle('sheet-expanded', newState === 'expanded');
-
-  if (newState === 'hidden') {
-    _sheet.el.classList.add('sheet-peek');
-    _sheet.scroll.style.overflowY = 'hidden';
-  } else {
-    _sheet.el.classList.remove('sheet-peek');
-    _sheet.scroll.style.overflowY = 'auto';
-  }
-
-  // Collapse flythrough bar when user changes sheet state manually
-  if (newState !== 'hidden') {
-    const ftBarEl = document.getElementById('flythroughBar');
-    if (ftBarEl && ftBarEl.classList.contains('ft-expanded')) {
-      ftBarEl.classList.remove('ft-expanded');
-      if (state.flythrough && state.flythrough.playing) {
-        window.ftTogglePlay();
-      }
-    }
-  }
-
-  // Resize map after transition completes
-  setTimeout(() => {
-    if (state.activityMap) state.activityMap.resize();
-  }, 400);
+  if (_sheet._ctrl) _sheet._ctrl.setState(newState);
 }
 
 // ── Skeleton helpers for smooth activity stepping ──────────────
@@ -12379,6 +12385,7 @@ function destroyChartInstances() {
   state.flythrough = null;
   const _miniC = document.getElementById('fsMiniChart');
   if (_miniC) _miniC.classList.remove('mc-ready');
+  if (state._preWarmMap) { try { state._preWarmMap.remove(); } catch(_){} state._preWarmMap = null; }
   if (state.activityMap) { state.activityMap.remove(); state.activityMap = null; }
   state._actMapThemeKey = null;
   state.activityStreamsChart   = destroyChart(state.activityStreamsChart);
@@ -13194,7 +13201,6 @@ function renderActivityBasic(a) {
         document.getElementById('similarRideName').textContent = name;
         document.getElementById('similarRideMeta').textContent = parts.join(' \u00b7 ');
         simCard.style.display = '';
-        if (window.refreshGlow) refreshGlow(simCard.parentElement);
       });
     }
   }
@@ -13323,9 +13329,10 @@ function renderActivityBasic(a) {
       cmpHtml = `<div class="act-pstat-cmp ${cls}">${label}</div>`;
     }
     const iconHtml = P_ICONS[iconKey] ? `<div class="act-pstat-icon ${color}">${P_ICONS[iconKey]}</div>` : '';
-    return `<div class="act-pstat${accent ? ' act-pstat--accent' : ''}">
+    const valColor = color ? `val-${color}` : '';
+    return `<div class="act-pstat">
        <div class="act-pstat-top">${iconHtml}<div class="act-pstat-lbl">${lbl}</div></div>
-       <div class="act-pstat-val">${val}</div>
+       <div class="act-pstat-val ${valColor}">${val}</div>
        ${cmpHtml}
      </div>`;
   };
@@ -13341,7 +13348,7 @@ function renderActivityBasic(a) {
 
   const primaryEl = document.getElementById('actPrimaryStats');
   primaryEl.innerHTML = primary.slice(0, 4).join('');
-  if (window.refreshGlow) refreshGlow(primaryEl);
+  primaryEl.dataset.count = Math.min(primary.length, 4);
 
   // Store computed avgs for comparison card
   a._avgs = { avgDistM, avgSecsV, avgPowV, avgHrV, avgSpdMs, peerCount: peers.length };
@@ -14223,16 +14230,66 @@ function _mlApplyTerrain(map) {
   }
 }
 
+// ── Pre-warm activity map ───────────────────────────────────────────────────
+// Creates the MapLibre map instance immediately so style JSON + vector tiles
+// start downloading in parallel with the activity API fetches.
+function _preWarmActivityMap() {
+  // Don't double-warm or warm if a map already exists
+  if (state._preWarmMap || state.activityMap) return;
+  const mapEl = document.getElementById('activityMap');
+  if (!mapEl) return;
+
+  const card = document.getElementById('detailMapCard');
+  if (card) { card.style.display = ''; }
+
+  const themeKey = loadMapTheme();
+  const themeDef = MAP_STYLES[themeKey] || MAP_STYLES.liberty;
+  mapEl.style.background = themeDef.bg;
+
+  if (themeDef.custom) {
+    mapEl.style.opacity = '0';
+    mapEl.style.transition = 'opacity 0.3s ease';
+  }
+
+  const _actTerrainOn = loadTerrainEnabled();
+  try {
+    const map = new maplibregl.Map({
+      container: mapEl,
+      style: _mlGetStyle(themeKey),
+      attributionControl: true,
+      dragRotate: _actTerrainOn,
+      pitchWithRotate: _actTerrainOn,
+      scrollZoom: false,
+      maxPitch: 85,
+      fadeDuration: 0,
+      localIdeographFontFamily: 'sans-serif',
+    });
+    map.addControl(new maplibregl.NavigationControl({ showCompass: _actTerrainOn, visualizePitch: _actTerrainOn }), 'top-left');
+    state._preWarmMap = map;
+    state._preWarmTheme = themeKey;
+  } catch (e) {
+    console.warn('[Map] Pre-warm failed:', e);
+    state._preWarmMap = null;
+  }
+}
+
 function renderActivityMap(latlng, streams) {
 
   const card = document.getElementById('detailMapCard');
   if (!card) return;
 
-  if (!latlng || latlng.length < 2) { showCardNA('detailMapCard'); return; }
+  if (!latlng || latlng.length < 2) {
+    // No GPS — discard pre-warmed map
+    if (state._preWarmMap) { try { state._preWarmMap.remove(); } catch(_){} state._preWarmMap = null; }
+    showCardNA('detailMapCard'); return;
+  }
 
   const pairs = latlng.filter(p => Array.isArray(p) && p[0] != null && p[1] != null);
   const valid = pairs.filter(p => Math.abs(p[0]) <= 90 && Math.abs(p[1]) <= 180);
-  if (valid.length < 2) { showCardNA('detailMapCard'); return; }
+  if (valid.length < 2) {
+    if (state._preWarmMap) { try { state._preWarmMap.remove(); } catch(_){} state._preWarmMap = null; }
+    showCardNA('detailMapCard'); return;
+  }
   clearCardNA(card);
 
   // Downsample for rendering — keep full `valid` array for hover detection
@@ -14244,22 +14301,32 @@ function renderActivityMap(latlng, streams) {
   unskeletonCard('detailMapCard');
 
   requestAnimationFrame(() => {
+    // Reuse pre-warmed map if available and theme matches, otherwise create fresh
+    let map = null;
+    const themeKey = loadMapTheme();
+
     // Destroy stale map from a previous activity (e.g. rapid prev/next stepping)
     if (state.activityMap) { state.activityMap.remove(); state.activityMap = null; }
-    try {
-      const themeKey = loadMapTheme();
+
+    if (state._preWarmMap && state._preWarmTheme === themeKey) {
+      // Reuse — style + tiles already loading/loaded
+      map = state._preWarmMap;
+      state._preWarmMap = null;
+      state._preWarmTheme = null;
+    } else {
+      // Discard stale pre-warm if theme changed
+      if (state._preWarmMap) { try { state._preWarmMap.remove(); } catch(_){} state._preWarmMap = null; }
+
       const themeDef = MAP_STYLES[themeKey] || MAP_STYLES.liberty;
       const mapEl    = document.getElementById('activityMap');
       mapEl.style.background = themeDef.bg;
-
-      // Hide map until Strava overrides are applied to avoid flash of default dark theme
       if (themeDef.custom) {
         mapEl.style.opacity = '0';
         mapEl.style.transition = 'opacity 0.3s ease';
       }
 
       const _actTerrainOn = loadTerrainEnabled();
-      const map = new maplibregl.Map({
+      map = new maplibregl.Map({
         container: mapEl,
         style: _mlGetStyle(themeKey),
         attributionControl: true,
@@ -14271,7 +14338,9 @@ function renderActivityMap(latlng, streams) {
         localIdeographFontFamily: 'sans-serif',
       });
       map.addControl(new maplibregl.NavigationControl({ showCompass: _actTerrainOn, visualizePitch: _actTerrainOn }), 'top-left');
+    }
 
+    try {
       let isSatellite = false;
       state._actMapThemeKey = themeKey; // track for hot-swap
 
@@ -14351,7 +14420,9 @@ function renderActivityMap(latlng, streams) {
       };
 
       // ── Map load — add sources, layers, markers, controls ────────────────
-      map.on('load', () => {
+      // If pre-warmed map already loaded its style, fire immediately; else wait
+      const _onMapReady = () => {
+        const mapEl = map.getContainer();
         if (_isStravaTheme()) _applyStravaOverrides(map);
         if (mapEl.style.opacity === '0') requestAnimationFrame(() => { mapEl.style.opacity = '1'; });
         // Shadow layer (single thick dark line under the route)
@@ -14625,7 +14696,7 @@ function renderActivityMap(latlng, streams) {
             recentreBtn.innerHTML = '<svg viewBox="0 0 18 18" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="9" r="3"/><line x1="9" y1="1" x2="9" y2="5"/><line x1="9" y1="13" x2="9" y2="17"/><line x1="1" y1="9" x2="5" y2="9"/><line x1="13" y1="9" x2="17" y2="9"/></svg>';
             recentreBtn.addEventListener('click', () => {
               const rPad = _sheet.active ? Math.round(window.innerHeight * _sheet.SNAP_PEEK) : 0;
-              map.fitBounds(routeBounds, { padding: { top: 24, right: 24, bottom: rPad + 24, left: 24 }, duration: 600 });
+              map.fitBounds(routeBounds, { padding: { top: 64, right: 40, bottom: rPad + 120, left: 40 }, duration: 600 });
             });
             navGroup.appendChild(recentreBtn);
 
@@ -14657,7 +14728,8 @@ function renderActivityMap(latlng, streams) {
 
         // ── 3D terrain ─────────────────────────────────────────────────────
         _mlApplyTerrain(map);
-      }); // end map.on('load')
+      }; // end _onMapReady
+      if (map.isStyleLoaded()) _onMapReady(); else map.on('load', _onMapReady);
 
       // ── Fit bounds ─────────────────────────────────────────────────────
       // Compute LngLatBounds from points
@@ -14667,6 +14739,7 @@ function renderActivityMap(latlng, streams) {
         new maplibregl.LngLatBounds(lngLats[0], lngLats[0])
       );
       state.activityMap = map;
+      _sheet.routeBounds = routeBounds;
 
       // ── Activate bottom-sheet layout ──────────────────────────────────────
       activateSheetMode();
@@ -14676,7 +14749,7 @@ function renderActivityMap(latlng, streams) {
       requestAnimationFrame(() => {
         map.resize();
         const sheetPad = Math.round(window.innerHeight * _sheet.SNAP_PEEK);
-        map.fitBounds(routeBounds, { padding: { top: 24, right: 24, bottom: sheetPad + 24, left: 24 }, duration: 0 });
+        map.fitBounds(routeBounds, { padding: { top: 64, right: 40, bottom: sheetPad + 120, left: 40 }, duration: 0 });
       });
 
       // ── Alt + scroll to zoom ─────────────────────────────────────────────

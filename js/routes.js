@@ -65,6 +65,7 @@ const _rb = {
 /* ── Expose for cross-module access (theme hot-swap) ── */
 window._rb = _rb;
 window._rbRestoreMapLayers = _rbRestoreMapLayers;
+window.rbCleanupSheetMode = null; // set after function definition
 
 /* ── IndexedDB ── */
 const RB_DB_NAME = 'cycleiq_routes';
@@ -259,11 +260,16 @@ export function renderRouteBuilderPage() {
           </div>
         </div>
       </div>
+      <div id="rbBottomSheet" class="rb-bottom-sheet">
+        <div class="rb-sheet-handle"><span></span></div>
+        <div class="rb-sheet-scroll" id="rbSheetScroll"></div>
+      </div>
       <div class="rb-elev-panel" id="rbElevPanel">
         <div class="rb-elev-toggle" onclick="rbToggleElevPanel()">
           <span class="rb-elev-toggle-icon" id="rbElevToggleIcon">&#9650;</span>
           <span>Elevation Profile</span>
         </div>
+        <div class="rb-elev-card-header card-header"><div class="card-title">Elevation Profile</div></div>
         <div class="rb-elev-chart-wrap" id="rbElevChartWrap">
           <canvas id="rbElevCanvas"></canvas>
         </div>
@@ -279,7 +285,136 @@ export function renderRouteBuilderPage() {
   // Collapse elevation panel by default
   const ep = document.getElementById('rbElevPanel');
   if (ep) ep.classList.add('collapsed');
+
+  // Activate bottom-sheet layout on mobile
+  if (window.innerWidth <= 820) rbActivateSheetMode();
 }
+
+// ── Route Builder Bottom Sheet (mobile) ────────────────────────────────────
+let _rbSheetCtrl = null;
+let _rbSheetResizeHandler = null;
+
+export function rbActivateSheetMode() {
+  if (_rbSheetCtrl) return; // already active
+  const wrapper = document.querySelector('.rb-wrapper');
+  const sheet   = document.getElementById('rbBottomSheet');
+  const scroll  = document.getElementById('rbSheetScroll');
+  const panel   = document.querySelector('.rb-side-panel');
+  if (!wrapper || !sheet || !scroll || !panel) return;
+
+  // Add mode class
+  wrapper.classList.add('rb-sheet-mode');
+
+  // Reparent side panel content into the sheet scroll area
+  scroll.appendChild(panel);
+
+  // Reparent elevation panel into the side panel, right after stats card
+  const elevPanel = document.getElementById('rbElevPanel');
+  const statsCard = panel.querySelector('.rb-stats-card');
+  if (elevPanel && statsCard) {
+    elevPanel.classList.remove('collapsed');
+    statsCard.after(elevPanel);
+  } else if (elevPanel) {
+    elevPanel.classList.remove('collapsed');
+    panel.prepend(elevPanel);
+  }
+
+  // Move actions card to end (after saved routes)
+  const actionsCard = panel.querySelector('.rb-actions-card');
+  if (actionsCard) panel.appendChild(actionsCard);
+
+  // Move export wrap into panel as last card
+  const exportWrap = document.getElementById('rbExportWrap');
+  if (exportWrap) {
+    exportWrap._origParent = exportWrap.parentNode;
+    exportWrap._origNext   = exportWrap.nextSibling;
+    panel.appendChild(exportWrap);
+  }
+
+  // Hide the old mobile panel toggle
+  const toggle = wrapper.querySelector('.rb-panel-toggle');
+  if (toggle) toggle.style.display = 'none';
+
+  // Create shared sheet controller
+  _rbSheetCtrl = window.createSheetController({
+    sheetEl: sheet,
+    scrollEl: scroll,
+    handleSelector: '.rb-sheet-handle',
+    SNAP_PEEK: 0.50,
+    SNAP_EXPANDED: 0,
+    SNAP_HIDDEN: 0.85,
+    onStateChange(newState) {
+      // Resize map after transition
+      setTimeout(() => { if (_rb.map) _rb.map.resize(); }, 400);
+    },
+  });
+  _rbSheetCtrl.activate();
+
+  // Listen for resize to deactivate if user goes past 820px
+  if (!_rbSheetResizeHandler) {
+    _rbSheetResizeHandler = () => {
+      if (window.innerWidth > 820 && _rbSheetCtrl) rbDeactivateSheetMode();
+      else if (window.innerWidth <= 820 && !_rbSheetCtrl) rbActivateSheetMode();
+    };
+    window.addEventListener('resize', _rbSheetResizeHandler);
+  }
+}
+
+export function rbDeactivateSheetMode() {
+  if (!_rbSheetCtrl) return;
+  const wrapper = document.querySelector('.rb-wrapper');
+  const overlay = document.getElementById('rbSidePanel');
+  const panel   = document.querySelector('.rb-side-panel');
+
+  // Deactivate controller
+  _rbSheetCtrl.deactivate();
+  _rbSheetCtrl = null;
+
+  // Reparent side panel back
+  if (overlay && panel) overlay.appendChild(panel);
+
+  // Reparent elevation panel back to wrapper
+  const elevPanel = document.getElementById('rbElevPanel');
+  if (elevPanel && wrapper) {
+    wrapper.appendChild(elevPanel);
+    elevPanel.classList.add('collapsed');
+    elevPanel.style.bottom = '';
+    elevPanel.style.display = '';
+  }
+
+  // Restore actions card order (before waypoints)
+  if (panel) {
+    const actionsCard = panel.querySelector('.rb-actions-card');
+    const waypointsCard = panel.querySelector('.rb-waypoints-card');
+    if (actionsCard && waypointsCard) panel.insertBefore(actionsCard, waypointsCard);
+  }
+
+  // Restore export wrap to original position in search float
+  const exportWrap = document.getElementById('rbExportWrap');
+  if (exportWrap && exportWrap._origParent) {
+    if (exportWrap._origNext) exportWrap._origParent.insertBefore(exportWrap, exportWrap._origNext);
+    else exportWrap._origParent.appendChild(exportWrap);
+    delete exportWrap._origParent;
+    delete exportWrap._origNext;
+  }
+
+  // Remove mode class
+  if (wrapper) wrapper.classList.remove('rb-sheet-mode');
+
+  // Show toggle again
+  const toggle = wrapper?.querySelector('.rb-panel-toggle');
+  if (toggle) toggle.style.display = '';
+}
+
+// Clean up on leaving routes page
+export function rbCleanupSheetMode() {
+  rbDeactivateSheetMode();
+  if (_rbSheetResizeHandler) {
+    window.removeEventListener('resize', _rbSheetResizeHandler);
+    _rbSheetResizeHandler = null;
+  }
+}
+window.rbCleanupSheetMode = rbCleanupSheetMode;
 
 /* ── Map Init ── */
 /* ── Coordinate helpers: internal is [lat,lng], MapLibre is [lng,lat] ── */

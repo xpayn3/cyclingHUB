@@ -79,16 +79,16 @@ export const _rIC = window.requestIdleCallback
   : (fn, ms) => setTimeout(fn, 0);
 
 export const GREETINGS = [
-  "Welcome back! 💪",
+  "Welcome back!",
   "Good to see you! Let's ride.",
   "Ready to crush it today?",
   "Keep up the great work!",
-  "Your progress is looking great 🚴",
+  "Your progress is looking great.",
   "Every ride counts. Let's go!",
   "You're on a roll — keep it up!",
-  "Another day, another ride 🔥",
+  "Another day, another ride.",
   "Stay consistent, stay strong.",
-  "Great athletes review their data 📊",
+  "Great athletes review their data.",
   "You've got this. One pedal at a time.",
   "Champions train even when it's hard.",
   "Your legs are stronger than you think.",
