@@ -2750,7 +2750,7 @@ function setRange(days) {
   // Update Training Load card range label
   const lbl = document.getElementById('fitnessRangeLabel');
   if (lbl) lbl.textContent = rangeLabel(days);
-  if (state.synced) renderDashboard();
+  if (state.synced) noChartAnim(() => renderDashboard());
 }
 
 /* ====================================================
@@ -2978,8 +2978,39 @@ function renderAllActivitiesList() {
 /* ── Activity card grid (reuses recent-act card design) ── */
 window._actCardGridState = {};
 const ACT_CARD_GRID_BATCH = 12;
-// In-memory cache of card map snapshots keyed by `${actId}_${theme}`
+// In-memory + persistent cache of card map snapshots keyed by `${actId}_${theme}`
 const _cardMapImgCache = new Map();
+const _CARD_MAP_CACHE_NAME = 'icu-card-map-snaps-v1';
+const _CARD_MAP_MAX = 120; // max snapshots to keep on disk
+
+async function _cardMapCacheSave(key, dataUrl) {
+  _cardMapImgCache.set(key, dataUrl);
+  try {
+    const c = await caches.open(_CARD_MAP_CACHE_NAME);
+    await c.put(`/_snap/${key}`, new Response(dataUrl));
+    // Prune if over limit
+    const keys = await c.keys();
+    if (keys.length > _CARD_MAP_MAX) {
+      for (let i = 0; i < keys.length - _CARD_MAP_MAX; i++) c.delete(keys[i]);
+    }
+  } catch (_) {}
+}
+
+async function _cardMapCacheLoad(key) {
+  // Check in-memory first
+  if (_cardMapImgCache.has(key)) return _cardMapImgCache.get(key);
+  // Check persistent cache
+  try {
+    const c = await caches.open(_CARD_MAP_CACHE_NAME);
+    const resp = await c.match(`/_snap/${key}`);
+    if (resp) {
+      const dataUrl = await resp.text();
+      _cardMapImgCache.set(key, dataUrl); // promote to memory
+      return dataUrl;
+    }
+  } catch (_) {}
+  return null;
+}
 
 function renderActivityCardGrid(containerId, activities) {
   const el = document.getElementById(containerId);
@@ -3540,11 +3571,11 @@ async function renderRecentActCardMap(a, idx, idPrefix = 'recentActCard', mapSto
   const mapEl = document.getElementById(`${idPrefix}Map_${idx}`);
   if (!mapEl) return;
 
-  // Check in-memory snapshot cache — instant restore, no map creation needed
+  // Check snapshot cache (memory + persistent) — instant restore, no map needed
   const isCardGrid = idPrefix === 'actGridCard';
   if (isCardGrid) {
     const cacheKey = `${actId}_${loadMapTheme()}`;
-    const cached = _cardMapImgCache.get(cacheKey);
+    const cached = await _cardMapCacheLoad(cacheKey);
     if (cached) {
       const img = document.createElement('img');
       img.src = cached;
@@ -3689,8 +3720,8 @@ async function renderRecentActCardMap(a, idx, idPrefix = 'recentActCard', mapSto
           try {
             const canvas = map.getCanvas();
             const dataUrl = canvas.toDataURL('image/webp', 0.82);
-            // Save to in-memory cache for instant restore on re-visit
-            _cardMapImgCache.set(`${actId}_${loadMapTheme()}`, dataUrl);
+            // Save to memory + persistent cache for instant restore
+            _cardMapCacheSave(`${actId}_${loadMapTheme()}`, dataUrl);
             const img = document.createElement('img');
             img.src = dataUrl;
             img.className = 'ra-card-map-img';
@@ -4372,6 +4403,12 @@ const C_ANIM = {
   },
 };
 Chart.defaults.animations = C_ANIM;
+const C_NO_ANIM = { x: { duration: 0 }, y: { duration: 0 } };
+/** Run fn() with chart animations suppressed (instant render) */
+function noChartAnim(fn) {
+  Chart.defaults.animations = C_NO_ANIM;
+  try { fn(); } finally { Chart.defaults.animations = C_ANIM; }
+}
 // Resize redraws must be instant. Per-property `animations` (C_ANIM) override the
 // base `animation.duration`, so we must override each property inside the resize
 // transition too — otherwise the y-grow still fires on every window resize.
@@ -8200,7 +8237,7 @@ function setPwrRange(days) {
   // Bust page-curve cache so it re-fetches for the new window
   state.powerPageCurve = null;
   state.powerPageCurveRange = null;
-  renderPowerPage();
+  noChartAnim(() => renderPowerPage());
 }
 
 async function renderPowerPage() {
@@ -9689,7 +9726,7 @@ function setFitnessRange(days) {
         (b.textContent.trim() === '1y' && days === 365));
     });
   }
-  renderFitnessHistoryChart(days);
+  noChartAnim(() => renderFitnessHistoryChart(days));
 }
 
 function renderFitnessPage() {
@@ -10873,7 +10910,7 @@ function setZnpRange(days) {
   document.querySelectorAll('#zoneRangePill button').forEach(b =>
     b.classList.toggle('active', +b.dataset.zdays === days)
   );
-  renderZonesPage();
+  noChartAnim(() => renderZonesPage());
 }
 
 function renderZonesPage() {
