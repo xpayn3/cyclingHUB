@@ -319,9 +319,9 @@ export function rbActivateSheetMode() {
     panel.prepend(elevPanel);
   }
 
-  // Move actions card to end (after saved routes)
+  // Move actions card to first position in sheet
   const actionsCard = panel.querySelector('.rb-actions-card');
-  if (actionsCard) panel.appendChild(actionsCard);
+  if (actionsCard) panel.prepend(actionsCard);
 
   // Move export wrap into panel as last card
   const exportWrap = document.getElementById('rbExportWrap');
