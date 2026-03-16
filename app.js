@@ -1081,6 +1081,18 @@ async function syncData(force = false) {
   try {
     if (!state.athlete) await fetchAthleteProfile();
 
+    // FTP change detection
+    if (loadFtpAlert() && state.athlete?.ftp) {
+      const prevFtp = parseFloat(localStorage.getItem('icu_last_ftp') || '0');
+      const curFtp = state.athlete.ftp;
+      if (prevFtp > 0 && curFtp !== prevFtp) {
+        const delta = curFtp - prevFtp;
+        const sign = delta > 0 ? '+' : '';
+        showToast(`FTP updated: ${prevFtp} → ${curFtp} W (${sign}${delta})`, delta > 0 ? 'success' : 'info');
+      }
+      try { localStorage.setItem('icu_last_ftp', String(curFtp)); } catch (e) { /* ignore */ }
+    }
+
     // Decide between incremental and full sync
     const isIncremental = !!(cache && cache.activities.length > 0);
 
@@ -1285,14 +1297,25 @@ function confirmFullResync() {
    PULL TO REFRESH — Dashboard
 ==================================================== */
 (() => {
-  const THRESHOLD = 120;
-  const DEAD_ZONE = 15; // ignore small accidental drags
+  const THRESHOLD = 160;
+  const DEAD_ZONE = 20; // ignore small accidental drags
   let _ptrStartY = 0, _ptrDist = 0, _ptrActive = false, _ptrRefreshing = false;
   const indicator = () => document.getElementById('ptrIndicator');
 
   window.addEventListener('touchstart', e => {
     if (state.currentPage !== 'dashboard' || _ptrRefreshing) return;
     if (window.scrollY > 0) return;
+    // Don't trigger inside scrollable containers (sidebar, modals, panels)
+    const t = e.target;
+    if (t.closest('.sidebar, .nav-sidebar, .modal, .modal-dialog, dialog[open], [data-scrollable]')) return;
+    // Check if touch started inside any element that is itself scrolled or scrollable vertically
+    let el = t;
+    while (el && el !== document.body) {
+      if (el.scrollTop > 0) return;
+      const ov = getComputedStyle(el).overflowY;
+      if ((ov === 'auto' || ov === 'scroll') && el.scrollHeight > el.clientHeight) return;
+      el = el.parentElement;
+    }
     _ptrStartY = e.touches[0].clientY;
     _ptrActive = true;
     _ptrDist = 0;
@@ -2663,6 +2686,10 @@ function initWeatherLocationUI() {
   // Restore hide-empty-cards toggle
   const hideToggle = document.getElementById('hideEmptyCardsToggle');
   if (hideToggle) hideToggle.checked = localStorage.getItem('icu_hide_empty_cards') === 'true';
+
+  // Restore FTP alert toggle
+  const ftpT = document.getElementById('ftpAlertToggle');
+  if (ftpT) ftpT.checked = loadFtpAlert();
 }
 
 function setWeatherModel(model) {
@@ -9787,6 +9814,7 @@ function renderFitnessPage() {
   renderFitnessWeeklyPageChart(fd);
   renderFitnessMonthlyTable(fd);
   renderBestEfforts();
+  renderPrWall();
   renderRecoveryEstimation();
   renderRacePredictor();
   renderFatiguePredChart();
@@ -10599,6 +10627,79 @@ function renderBestEfforts() {
   if (window.refreshGlow) refreshGlow(grid);
 }
 
+/* ── Personal Records Wall ── */
+function renderPrWall() {
+  const grid = document.getElementById('prWallGrid');
+  if (!grid || !state.synced) return;
+
+  const CYCLING_RE = /ride|cycling|bike|velo|virtualride/i;
+  const rides = (state.activities || []).filter(a => {
+    if (isEmptyActivity(a)) return false;
+    return CYCLING_RE.test(a.sport_type || a.type || '');
+  });
+
+  if (!rides.length) {
+    grid.innerHTML = '<div class="pr-empty">No rides yet</div>';
+    return;
+  }
+
+  const records = [
+    { label: 'Longest Ride',       icon: '↔',  unit: 'km',
+      val: a => (actVal(a, 'distance', 'icu_distance') || 0) / 1000,
+      fmt: v => v.toFixed(1) },
+    { label: 'Most Climbing',      icon: '▲',  unit: 'm',
+      val: a => actVal(a, 'total_elevation_gain', 'icu_total_elevation_gain') || 0,
+      fmt: v => Math.round(v).toLocaleString() },
+    { label: 'Fastest Avg Speed',  icon: '⚡',  unit: 'km/h',
+      val: a => {
+        const d = actVal(a, 'distance', 'icu_distance') || 0;
+        const t = actVal(a, 'moving_time', 'icu_moving_time') || 0;
+        return t > 0 ? (d / t) * 3.6 : 0;
+      },
+      fmt: v => v.toFixed(1) },
+    { label: 'Highest Avg Power',  icon: '🔋', unit: 'W',
+      val: a => actVal(a, 'weighted_average_watts', 'icu_weighted_avg_watts', 'icu_average_watts', 'average_watts') || 0,
+      fmt: v => Math.round(v) },
+    { label: 'Biggest Load',       icon: '💪', unit: 'TSS',
+      val: a => actVal(a, 'icu_training_load', 'suffer_score') || 0,
+      fmt: v => Math.round(v) },
+    { label: 'Most Calories',      icon: '🔥', unit: 'kcal',
+      val: a => actVal(a, 'calories', 'icu_calories', 'kilojoules') || 0,
+      fmt: v => Math.round(v).toLocaleString() },
+  ];
+
+  grid.innerHTML = records.map(r => {
+    let best = null, bestVal = 0;
+    for (const a of rides) {
+      const v = r.val(a);
+      if (v > bestVal) { bestVal = v; best = a; }
+    }
+    if (!best || bestVal <= 0) {
+      return `<div class="pr-tile">
+        <div class="pr-icon">${r.icon}</div>
+        <div class="pr-label">${r.label}</div>
+        <div class="pr-value">—</div>
+      </div>`;
+    }
+    const dateStr = fmtDate(best.start_date_local || best.start_date || '');
+    const name = (best.name || '').length > 24 ? (best.name || '').slice(0, 22) + '…' : (best.name || '');
+    return `<div class="pr-tile pr-tile--clickable" data-pr-id="${best.id}">
+      <div class="pr-icon">${r.icon}</div>
+      <div class="pr-label">${r.label}</div>
+      <div class="pr-value">${r.fmt(bestVal)} <span class="pr-unit">${r.unit}</span></div>
+      <div class="pr-meta">${name} · ${dateStr}</div>
+    </div>`;
+  }).join('');
+
+  // Click to navigate to source activity
+  grid.querySelectorAll('.pr-tile--clickable').forEach(tile => {
+    const id = tile.dataset.prId;
+    const act = rides.find(a => String(a.id) === id);
+    if (act) tile.onclick = () => navigateToActivity(act);
+  });
+  if (window.refreshGlow) refreshGlow(grid);
+}
+
 /* ====================================================
    RECOVERY ESTIMATION & RACE PREDICTOR
 ==================================================== */
@@ -11256,6 +11357,142 @@ function renderZnpInsights(recent, prev) {
 }
 
 
+/* ── Swipe-to-dismiss on mobile modal sheets ── */
+function initModalSwipeDismiss(dialog) {
+  if (!dialog) return;
+  const inner = dialog.querySelector('.modal');
+  if (!inner) return;
+
+  let startY = 0, lastY = 0, currentDy = 0;
+  // idle → pending → dragging | scrolling
+  let gesture = 'idle';
+  let startedOnHeader = false;
+  let scrollWasAtTop = false;
+
+  function onTouchStart(e) {
+    if (e.touches.length !== 1) return;
+    startY = e.touches[0].clientY;
+    lastY = startY;
+    currentDy = 0;
+    startedOnHeader = !!e.target.closest('.modal-drag-indicator, .modal-header');
+    const scrollEl = inner.querySelector('.modal-body');
+    scrollWasAtTop = !scrollEl || scrollEl.scrollTop <= 0;
+
+    if (startedOnHeader) {
+      gesture = 'pending';
+    } else if (scrollWasAtTop) {
+      gesture = 'pending';
+    } else {
+      // Content is scrolled down — always scroll, never dismiss
+      gesture = 'scrolling';
+    }
+  }
+
+  function onTouchMove(e) {
+    if (gesture === 'scrolling' || gesture === 'idle' || e.touches.length !== 1) return;
+    const y = e.touches[0].clientY;
+    const dy = y - startY;
+
+    if (gesture === 'pending') {
+      if (Math.abs(dy) < 8) { lastY = y; return; } // dead zone
+
+      if (dy > 0) {
+        // Pulling down — check scroll position RIGHT NOW
+        const scrollEl = inner.querySelector('.modal-body');
+        const atTop = !scrollEl || scrollEl.scrollTop <= 0;
+        if (atTop) {
+          gesture = 'dragging';
+          inner.style.transition = 'none';
+          startY = y; // reset origin
+          currentDy = 0;
+          if (!startedOnHeader && scrollEl) {
+            // Prevent the scroll from bouncing while we drag
+            scrollEl.style.overflowY = 'hidden';
+          }
+        } else {
+          gesture = 'scrolling';
+        }
+      } else {
+        // Pulling up — let content scroll
+        gesture = 'scrolling';
+      }
+      lastY = y;
+      return;
+    }
+
+    // gesture === 'dragging'
+    const dragDy = y - startY;
+    if (dragDy < 0) { currentDy = 0; inner.style.transform = ''; lastY = y; return; }
+    currentDy = dragDy;
+    const visual = dragDy < 100 ? dragDy : 100 + (dragDy - 100) * 0.3;
+    inner.style.transform = `translate3d(0, ${visual}px, 0)`;
+    if (dragDy > 10) e.preventDefault();
+    lastY = y;
+  }
+
+  function onTouchEnd() {
+    // Restore scroll if we locked it
+    const scrollEl = inner.querySelector('.modal-body');
+    if (scrollEl) scrollEl.style.overflowY = '';
+
+    if (gesture === 'dragging') {
+      inner.style.transition = '';
+      if (currentDy > 120) {
+        inner.style.transform = '';
+        closeModalAnimated(dialog);
+      } else {
+        inner.style.transition = 'transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1)';
+        inner.style.transform = '';
+        inner.addEventListener('transitionend', () => { inner.style.transition = ''; }, { once: true });
+      }
+    }
+    gesture = 'idle';
+    currentDy = 0;
+  }
+
+  dialog.addEventListener('touchstart', onTouchStart, { passive: true });
+  dialog.addEventListener('touchmove', onTouchMove, { passive: false });
+  dialog.addEventListener('touchend', onTouchEnd, { passive: true });
+}
+
+// Auto-init swipe dismiss on all modal dialogs
+document.querySelectorAll('.modal-dialog').forEach(initModalSwipeDismiss);
+// Also init on any dynamically shown modal
+const _origShowModal = HTMLDialogElement.prototype.showModal;
+HTMLDialogElement.prototype.showModal = function() {
+  _origShowModal.call(this);
+  if (this.classList.contains('modal-dialog') && !this._swipeInited) {
+    initModalSwipeDismiss(this);
+    this._swipeInited = true;
+  }
+};
+
+/* ── Smooth modal close (slide-down animation before dialog.close()) ── */
+function closeModalAnimated(dialog) {
+  if (!dialog || !dialog.open) return;
+  // If no animation support or not mobile-width, just close immediately
+  if (!dialog.animate && !('getAnimations' in dialog)) {
+    dialog.close(); return;
+  }
+  dialog.classList.add('modal--closing');
+  const inner = dialog.querySelector('.modal');
+  if (!inner) { dialog.classList.remove('modal--closing'); dialog.close(); return; }
+  function onDone() {
+    inner.removeEventListener('animationend', onDone);
+    dialog.classList.remove('modal--closing');
+    dialog.close();
+  }
+  inner.addEventListener('animationend', onDone, { once: true });
+  // Fallback: if animation doesn't fire (e.g. desktop where there's no .modal--closing override)
+  setTimeout(() => {
+    if (dialog.open) {
+      inner.removeEventListener('animationend', onDone);
+      dialog.classList.remove('modal--closing');
+      dialog.close();
+    }
+  }, 800);
+}
+
 function showToast(msg, type = 'success') {
   const ICONS = {
     success: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`,
@@ -11540,7 +11777,7 @@ function openCalEventModal(presetDateOrEvent) {
 
 function closeCalEventModal() {
   const modal = document.getElementById('calEventModal');
-  if (modal) modal.close();
+  if (modal) closeModalAnimated(modal);
 }
 
 function _calEvCategoryChanged() {
@@ -11574,10 +11811,12 @@ document.addEventListener('click', e => {
   if (btn) _applyCalEvPreset(btn.dataset.preset);
 });
 
-// Backdrop click to close
+// Backdrop click to close (animated)
 document.addEventListener('click', e => {
   const modal = document.getElementById('calEventModal');
-  if (e.target === modal) modal.close();
+  if (e.target === modal) closeModalAnimated(modal);
+  const tpModal = document.getElementById('trainingPlanModal');
+  if (e.target === tpModal) closeModalAnimated(tpModal);
 });
 
 /* ── Custom Form Controls (iOS-style select & date picker) ──────── */
@@ -11862,6 +12101,190 @@ async function deleteCalEvent() {
     deleteBtn.disabled = false;
     deleteBtn.textContent = 'Delete';
     deleteBtn.classList.remove('btn-danger--confirm');
+  }
+}
+
+/* ====================================================
+   TRAINING PLAN BUILDER
+==================================================== */
+const _tpDayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+let _tpWeekSlots = [[], [], [], [], [], [], []]; // 7 days, each an array of { name, dur, tss, cat }
+
+function openTrainingPlanModal() {
+  const modal = document.getElementById('trainingPlanModal');
+  if (!modal) return;
+
+  // Reset week slots
+  _tpWeekSlots = [[], [], [], [], [], [], []];
+
+  // Set default start date to next Monday
+  const now = new Date();
+  const dayOff = (8 - now.getDay()) % 7 || 7; // days until next Monday
+  const nextMon = new Date(now);
+  nextMon.setDate(now.getDate() + dayOff);
+  document.getElementById('tpStartDate').value = toDateStr(nextMon);
+  document.getElementById('tpWeeks').value = '4';
+
+  renderTpWeek();
+  modal.showModal();
+}
+
+function closeTrainingPlanModal() {
+  const modal = document.getElementById('trainingPlanModal');
+  if (modal) closeModalAnimated(modal);
+}
+
+function renderTpWeek() {
+  const grid = document.getElementById('tpWeekGrid');
+  if (!grid) return;
+
+  grid.innerHTML = _tpDayNames.map((day, di) => {
+    const slots = _tpWeekSlots[di];
+    const slotsHtml = slots.map((s, si) => `
+      <div class="tp-slot">
+        <div class="tp-slot-info">
+          <span class="tp-slot-name">${s.name}</span>
+          ${s.dur ? `<span class="tp-slot-detail">${s.dur}</span>` : ''}
+          ${s.tss ? `<span class="tp-slot-detail">${s.tss} TSS</span>` : ''}
+        </div>
+        <span class="tp-slot-remove" onclick="removeTpSlot(${di},${si})" title="Remove">×</span>
+      </div>
+    `).join('');
+
+    return `<div class="tp-day">
+      <div class="tp-day-label">${day}</div>
+      ${slotsHtml}
+      <button class="tp-add-btn" onclick="showTpSlotForm(${di})">+ Add</button>
+      <div class="tp-slot-form" id="tpForm${di}" style="display:none">
+        <input type="text" class="tp-input" id="tpName${di}" placeholder="Workout name">
+        <div class="tp-form-row">
+          <input type="text" class="tp-input tp-input--sm" id="tpDur${di}" placeholder="e.g. 1h 30m">
+          <input type="number" class="tp-input tp-input--sm" id="tpTss${di}" placeholder="TSS">
+        </div>
+        <div class="tp-form-actions">
+          <button class="tp-confirm-btn" onclick="addTpSlot(${di})">Add</button>
+          <button class="tp-cancel-btn" onclick="hideTpSlotForm(${di})">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function showTpSlotForm(dayIdx) {
+  const form = document.getElementById(`tpForm${dayIdx}`);
+  if (form) {
+    form.style.display = '';
+    const nameInput = document.getElementById(`tpName${dayIdx}`);
+    if (nameInput) { nameInput.value = ''; nameInput.focus(); }
+    const durInput = document.getElementById(`tpDur${dayIdx}`);
+    if (durInput) durInput.value = '';
+    const tssInput = document.getElementById(`tpTss${dayIdx}`);
+    if (tssInput) tssInput.value = '';
+  }
+}
+
+function hideTpSlotForm(dayIdx) {
+  const form = document.getElementById(`tpForm${dayIdx}`);
+  if (form) form.style.display = 'none';
+}
+
+function addTpSlot(dayIdx) {
+  const name = (document.getElementById(`tpName${dayIdx}`)?.value || '').trim();
+  if (!name) {
+    document.getElementById(`tpName${dayIdx}`)?.classList.add('error');
+    return;
+  }
+  const dur = (document.getElementById(`tpDur${dayIdx}`)?.value || '').trim();
+  const tss = parseInt(document.getElementById(`tpTss${dayIdx}`)?.value) || 0;
+
+  _tpWeekSlots[dayIdx].push({ name, dur, tss, cat: 'WORKOUT' });
+  renderTpWeek();
+}
+
+function removeTpSlot(dayIdx, slotIdx) {
+  _tpWeekSlots[dayIdx].splice(slotIdx, 1);
+  renderTpWeek();
+}
+
+async function applyTrainingPlan() {
+  const startDate = document.getElementById('tpStartDate')?.value;
+  const weeks = parseInt(document.getElementById('tpWeeks')?.value) || 4;
+
+  if (!startDate) {
+    showToast('Please set a start date', 'error');
+    return;
+  }
+
+  // Count total events to create
+  const totalSlots = _tpWeekSlots.reduce((sum, d) => sum + d.length, 0);
+  if (totalSlots === 0) {
+    showToast('Add at least one workout to the plan', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('tpApplyBtn');
+  btn.disabled = true;
+  btn.textContent = 'Applying...';
+
+  const totalEvents = totalSlots * weeks;
+  let created = 0;
+  let failed = 0;
+
+  try {
+    // Build all event payloads
+    const events = [];
+    const baseDate = new Date(startDate + 'T00:00:00');
+
+    for (let w = 0; w < weeks; w++) {
+      for (let d = 0; d < 7; d++) {
+        for (const slot of _tpWeekSlots[d]) {
+          const eventDate = new Date(baseDate);
+          eventDate.setDate(baseDate.getDate() + w * 7 + d);
+          const dateStr = toDateStr(eventDate);
+
+          const payload = {
+            start_date_local: dateStr + 'T00:00:00',
+            name: slot.name,
+            category: slot.cat || 'WORKOUT',
+            type: 'Ride',
+          };
+
+          const durSecs = _parseDurationToSecs(slot.dur);
+          if (durSecs > 0) payload.moving_time = durSecs;
+          if (slot.tss > 0) payload.icu_training_load = slot.tss;
+
+          events.push(payload);
+        }
+      }
+    }
+
+    // Batch create with concurrency limit
+    const BATCH = 5;
+    for (let i = 0; i < events.length; i += BATCH) {
+      const batch = events.slice(i, i + BATCH);
+      const results = await Promise.allSettled(
+        batch.map(ev => icuPost(`/athlete/${state.athleteId}/events`, ev))
+      );
+      results.forEach(r => {
+        if (r.status === 'fulfilled') created++;
+        else failed++;
+      });
+      btn.textContent = `Creating... (${created}/${totalEvents})`;
+    }
+
+    closeTrainingPlanModal();
+    if (failed > 0) {
+      showToast(`Plan applied: ${created} events created, ${failed} failed`, 'info');
+    } else {
+      showToast(`Training plan applied — ${created} events created`, 'success');
+    }
+    await fetchCalendarEvents();
+    renderCalendar();
+  } catch (err) {
+    showToast('Failed to apply plan: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Apply to Calendar';
   }
 }
 
@@ -12513,17 +12936,55 @@ function stepActivity(delta) {
   navigateToActivity(pool[newIdx], true);
 }
 
+/* ── Unified keyboard shortcuts ── */
+function toggleKbOverlay() {
+  const o = document.getElementById('kbShortcutsOverlay');
+  if (!o) return;
+  o.style.display = o.style.display === 'flex' ? 'none' : 'flex';
+}
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && document.getElementById('detailMapCard')?.classList.contains('map-fullscreen')) {
-    toggleMapFullscreen();
+  // Skip when typing in form fields (Escape still blurs)
+  if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) {
+    if (e.key === 'Escape') document.activeElement.blur();
+    return;
   }
-  // Press "S" to focus search on activities page
-  if (e.key === 's' && state.currentPage === 'activities' &&
-      !e.ctrlKey && !e.metaKey && !e.altKey &&
-      !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+  // Escape → close fullscreen map / keyboard overlay / open dialogs
+  if (e.key === 'Escape') {
+    if (document.getElementById('detailMapCard')?.classList.contains('map-fullscreen')) {
+      toggleMapFullscreen(); return;
+    }
+    const overlay = document.getElementById('kbShortcutsOverlay');
+    if (overlay?.style.display === 'flex') { overlay.style.display = 'none'; return; }
+    return;
+  }
+
+  // 1-8 → navigate pages
+  const PAGE_KEYS = {
+    '1': 'dashboard', '2': 'activities', '3': 'calendar', '4': 'fitness',
+    '5': 'power', '6': 'zones', '7': 'goals', '8': 'settings'
+  };
+  if (PAGE_KEYS[e.key]) { e.preventDefault(); navigate(PAGE_KEYS[e.key]); return; }
+
+  // Arrow keys → step activity (on activity page)
+  if (state.currentPage === 'activity') {
+    if (e.key === 'ArrowLeft')  { e.preventDefault(); stepActivity(-1); return; }
+    if (e.key === 'ArrowRight') { e.preventDefault(); stepActivity(1);  return; }
+  }
+
+  // S → focus search on activities page
+  if (e.key === 's' && state.currentPage === 'activities') {
     e.preventDefault();
     document.getElementById('activitiesSearch')?.focus();
+    return;
   }
+
+  // R → refresh / sync
+  if (e.key === 'r') { e.preventDefault(); syncData(true); return; }
+
+  // ? → toggle keyboard shortcut help
+  if (e.key === '?') { e.preventDefault(); toggleKbOverlay(); return; }
 });
 
 function toggleMapStats() {
@@ -12946,6 +13407,37 @@ function activateSheetMode() {
     },
   });
   _sheet._ctrl.activate();
+
+  // ── Horizontal swipe on sheet handle → step between activities ──
+  const handle = sheet.querySelector('.act-sheet-handle');
+  if (handle) {
+    let swStartX = 0, swStartY = 0, swTracking = false;
+    function swTouchStart(e) {
+      if (e.touches.length !== 1) return;
+      swStartX = e.touches[0].clientX;
+      swStartY = e.touches[0].clientY;
+      swTracking = true;
+    }
+    function swTouchMove(e) {
+      if (!swTracking || e.touches.length !== 1) return;
+      const dx = e.touches[0].clientX - swStartX;
+      const dy = e.touches[0].clientY - swStartY;
+      // Only process horizontal swipes (ratio > 2:1, min 50px)
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 2) {
+        swTracking = false;
+        stepActivity(dx < 0 ? 1 : -1); // swipe left = older, right = newer
+      }
+    }
+    function swTouchEnd() { swTracking = false; }
+    handle.addEventListener('touchstart', swTouchStart, { passive: true });
+    handle.addEventListener('touchmove', swTouchMove, { passive: true });
+    handle.addEventListener('touchend', swTouchEnd, { passive: true });
+    _pageCleanupFns.push(() => {
+      handle.removeEventListener('touchstart', swTouchStart);
+      handle.removeEventListener('touchmove', swTouchMove);
+      handle.removeEventListener('touchend', swTouchEnd);
+    });
+  }
 }
 
 function deactivateSheetMode() {
@@ -13790,7 +14282,8 @@ function openSimilarRidesModal() {
 }
 
 function closeSimilarRidesModal() {
-  document.getElementById('similarRidesModal').close();
+  const modal = document.getElementById('similarRidesModal');
+  if (modal) closeModalAnimated(modal);
 }
 
 /* ====================================================
@@ -16225,6 +16718,16 @@ function setHideEmptyCards(enabled) {
   try { localStorage.setItem('icu_hide_empty_cards', String(enabled)); } catch (e) { console.warn('localStorage.setItem failed:', e); }
   const toggle = document.getElementById('hideEmptyCardsToggle');
   if (toggle) toggle.checked = enabled;
+}
+
+/* ── FTP change alert toggle ── */
+function loadFtpAlert() {
+  return localStorage.getItem('icu_ftp_alert') !== 'false'; // default ON
+}
+function setFtpAlert(on) {
+  try { localStorage.setItem('icu_ftp_alert', String(on)); } catch (e) { console.warn('localStorage.setItem failed:', e); }
+  const t = document.getElementById('ftpAlertToggle');
+  if (t) t.checked = on;
 }
 
 function clearCardNA(card) {
@@ -21888,7 +22391,9 @@ Object.assign(window, {
   openServiceModal, closeServiceModal, submitServiceForm,
   openServiceShopModal, closeServiceShopModal, saveServiceShop, closeServiceHistory,
   calPrevMonth, calNextMonth, calGoToday, toggleCalPanel,
-  setHideEmptyCards,
+  openTrainingPlanModal, closeTrainingPlanModal, applyTrainingPlan,
+  showTpSlotForm, hideTpSlotForm, addTpSlot, removeTpSlot,
+  setHideEmptyCards, setFtpAlert,
   gearSwitchTab, addCompareCard, setComparePeriod, updateComparePage,
   clearAllCaches, clearLifetimeCache, exportFullBackup, importFullBackup,
   exportLifetimeJSON, importLifetimeJSON, resyncLifetimeData,
