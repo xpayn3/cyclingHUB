@@ -2980,7 +2980,7 @@ window._actCardGridState = {};
 const ACT_CARD_GRID_BATCH = 12;
 // In-memory + persistent cache of card map snapshots keyed by `${actId}_${theme}`
 const _cardMapImgCache = new Map();
-const _CARD_MAP_CACHE_NAME = 'icu-card-map-snaps-v1';
+const _CARD_MAP_CACHE_NAME = 'icu-card-map-snaps-v2';
 const _CARD_MAP_MAX = 120; // max snapshots to keep on disk
 
 async function _cardMapCacheSave(key, dataUrl) {
@@ -3664,7 +3664,7 @@ async function renderRecentActCardMap(a, idx, idPrefix = 'recentActCard', mapSto
     trackResize: !isCardGrid,
     preserveDrawingBuffer: isCardGrid,
     maxTileCacheSize: isCardGrid ? 30 : 50,
-    pixelRatio: isCardGrid ? 1 : Math.min(devicePixelRatio, 2),
+    pixelRatio: Math.min(devicePixelRatio, 2),
     localIdeographFontFamily: 'sans-serif',
   });
 
