@@ -9653,11 +9653,11 @@ body:has(.act-sheet-mode) .topbar {
 
     /* ── Header: iOS-style big headline row ── */
     .cal-header {
-        padding: max(4px, env(safe-area-inset-top)) 20px 10px;
+        padding: 6px 20px 10px;
         border-bottom: none;
         background: #101010;
         gap: 0;
-        min-height: 60px;
+        min-height: 44px;
         align-items: center;
     }
     .cal-header {
