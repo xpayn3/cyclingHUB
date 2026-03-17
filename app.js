@@ -11545,8 +11545,8 @@ function initModalSwipeDismiss(dialog) {
 
     if (gesture === 'dragging') {
       if (currentDy > 120) {
-        // Dismiss — remove dragging, then animate out
-        inner.classList.remove('dragging');
+        // Dismiss — DON'T remove dragging here, let closeModalAnimated
+        // handle it atomically to prevent sheet-enter animation replay
         closeModalAnimated(dialog);
       } else {
         // Snap back: keep .dragging on (kills animation), use inline transition
@@ -11701,8 +11701,15 @@ function closeModalAnimated(dialog) {
   const match = ct && ct.match(/translateY\((\d+)/);
   inner.style.setProperty('--sheet-dy', match ? `${match[1]}px` : '0px');
 
-  inner.classList.remove('dragging', 'sheet-enter');
-  inner.classList.add('sheet-dismiss');
+  // Atomic class swap: set the dismiss animation in one className write
+  // to prevent any frame where sheet-enter could replay
+  const classes = inner.className
+    .replace(/\bsheet-enter\b/, '')
+    .replace(/\bdragging\b/, '')
+    .trim();
+  inner.className = classes + ' sheet-dismiss';
+  // Clear inline transition (keep transform — animation overrides it with fill:both)
+  inner.style.transition = '';
 
   // Fade backdrop during dismiss
   if (_sheetBackdrop) _sheetBackdrop.classList.add('fading');
