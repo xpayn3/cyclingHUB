@@ -6319,7 +6319,7 @@ code {
     /* Solid dark glass — no backdrop-filter for iOS perf */
     background: rgba(28, 28, 30, 0.92);
     border-radius: 100px;
-    padding: 5px 5px;
+    padding: 4px 4px;
     flex-direction: row;
     align-items: center;
     gap: 0;
@@ -6340,9 +6340,9 @@ code {
     justify-content: center;
     gap: 4px;
     /* iOS 26: wider, taller tabs */
-    min-width: 76px;
+    min-width: 64px;
     height: 54px;
-    padding: 0 6px;
+    padding: 0 2px;
     border-radius: 100px;
     border: none;
     background: transparent;
