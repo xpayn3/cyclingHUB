@@ -11604,17 +11604,20 @@ function _getBackdrop() {
   return _sheetBackdrop;
 }
 
-function _lockBodyScroll() {
-  if (document.body.style.position === 'fixed') return;
-  document.body.dataset.scrollY = window.scrollY;
+function _lockSheetScroll() {
+  if (document.body.dataset.sheetLocked === '1') return;
+  document.body.dataset.sheetLocked = '1';
+  document.body.dataset.sheetScrollY = window.scrollY;
   document.body.style.position = 'fixed';
   document.body.style.width = '100%';
   document.body.style.top = `-${window.scrollY}px`;
 }
 
-function _unlockBodyScroll() {
-  if (document.body.style.position !== 'fixed') return;
-  const y = parseInt(document.body.dataset.scrollY || '0', 10);
+function _unlockSheetScroll() {
+  if (document.body.dataset.sheetLocked !== '1') return;
+  delete document.body.dataset.sheetLocked;
+  const y = parseInt(document.body.dataset.sheetScrollY || '0', 10);
+  delete document.body.dataset.sheetScrollY;
   document.body.style.position = '';
   document.body.style.width = '';
   document.body.style.top = '';
@@ -11643,7 +11646,7 @@ HTMLDialogElement.prototype.showModal = function() {
   }
 
   // ── MOBILE: bypass showModal(), use show() + manual backdrop ──
-  _lockBodyScroll();
+  _lockSheetScroll();
   _cleanSheet(inner);
 
   // Show backdrop
@@ -11676,7 +11679,7 @@ HTMLDialogElement.prototype.close = function(rv) {
   // Hide backdrop + unlock scroll if no other sheets are open
   if (!document.querySelector('dialog.modal-dialog[open]')) {
     if (_sheetBackdrop) _sheetBackdrop.classList.remove('active');
-    _unlockBodyScroll();
+    _unlockSheetScroll();
   }
 };
 
