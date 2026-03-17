@@ -9738,8 +9738,8 @@ body:has(.act-sheet-mode) .topbar {
         flex: 0 0 auto;
         padding: 8px 12px;
         min-width: 70px;
-        text-align: center;
-        align-items: center;
+        text-align: left;
+        align-items: flex-start;
     }
     .cal-hstat-val {
         font-size: 20px;
@@ -9753,7 +9753,7 @@ body:has(.act-sheet-mode) .topbar {
         text-transform: uppercase;
         letter-spacing: 0.05em;
         opacity: 0.45;
-        justify-content: center;
+        justify-content: flex-start;
         gap: 3px;
     }
     .cal-hstat-label svg {
