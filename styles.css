@@ -6273,7 +6273,7 @@ code {
 #calFab,
 #dashRouteFab {
     position: fixed;
-    bottom: 12px;
+    bottom: 18px;
     right: 16px;
     width: 64px;
     height: 64px;
@@ -6313,7 +6313,7 @@ code {
 .dash-pill-nav {
     display: none;
     position: fixed;
-    bottom: 12px;
+    bottom: 18px;
     left: 16px;
     z-index: 1100;
     /* Solid dark glass — no backdrop-filter for iOS perf */
