@@ -1213,6 +1213,7 @@ function applyAvatar(src) {
   const sidebarAv  = document.getElementById('athleteAvatar');
   const previewAv  = document.getElementById('avatarPreview');
   const connAv     = document.getElementById('icuConnAvatar');
+  const floatAv    = document.querySelector('.floating-profile-btn');
   const removeBtn  = document.getElementById('avatarRemoveBtn');
   const hasCustom  = !!localStorage.getItem('icu_avatar');
   if (src) {
@@ -1220,6 +1221,7 @@ function applyAvatar(src) {
     if (sidebarAv) { sidebarAv.innerHTML = img; sidebarAv.style.background = 'none'; }
     if (previewAv) { previewAv.innerHTML = img; previewAv.style.background = 'none'; }
     if (connAv)    { connAv.innerHTML = img; connAv.style.background = 'none'; }
+    if (floatAv)   { floatAv.innerHTML = img; floatAv.style.background = 'none'; }
     if (removeBtn) removeBtn.style.display = hasCustom ? 'inline-flex' : 'none';
   } else {
     // Revert to initials
@@ -1228,6 +1230,7 @@ function applyAvatar(src) {
     if (sidebarAv) { sidebarAv.textContent = initial; sidebarAv.style.background = ''; }
     if (previewAv) { previewAv.textContent = initial; previewAv.style.background = ''; }
     if (connAv)    { connAv.textContent = initial; connAv.style.background = ''; }
+    if (floatAv)   { floatAv.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>'; floatAv.style.background = ''; }
     if (removeBtn) removeBtn.style.display = 'none';
   }
 }
