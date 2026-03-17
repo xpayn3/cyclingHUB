@@ -3773,20 +3773,18 @@ async function renderRecentActCardMap(a, idx, idPrefix = 'recentActCard', mapSto
   const mapEl = document.getElementById(`${idPrefix}Map_${idx}`);
   if (!mapEl) return;
 
-  // Check snapshot cache (memory + persistent) — instant restore, no map needed
+  // All card types use snapshot cache — hero cards get same treatment as grid cards
   const isCardGrid = idPrefix === 'actGridCard';
-  if (isCardGrid) {
-    const cacheKey = `${actId}_${loadMapTheme()}`;
-    const cached = await _cardMapCacheLoad(cacheKey);
-    if (cached) {
-      const img = document.createElement('img');
-      img.src = cached;
-      img.className = 'ra-card-map-img';
-      img.alt = '';
-      mapEl.innerHTML = '';
-      mapEl.appendChild(img);
-      return;
-    }
+  const cacheKey = `${actId}_${loadMapTheme()}`;
+  const cached = await _cardMapCacheLoad(cacheKey);
+  if (cached) {
+    const img = document.createElement('img');
+    img.src = cached;
+    img.className = 'ra-card-map-img';
+    img.alt = '';
+    mapEl.innerHTML = '';
+    mapEl.appendChild(img);
+    return;
   }
 
   // GPS points cached — skip the API call entirely on refresh
@@ -3863,9 +3861,9 @@ async function renderRecentActCardMap(a, idx, idPrefix = 'recentActCard', mapSto
     renderWorldCopies: false,
     antialias: false,
     collectResourceTiming: false,
-    trackResize: !isCardGrid,
-    preserveDrawingBuffer: isCardGrid,
-    maxTileCacheSize: isCardGrid ? 30 : 50,
+    trackResize: false,
+    preserveDrawingBuffer: true,
+    maxTileCacheSize: 30,
     pixelRatio: Math.min(devicePixelRatio, 2),
     localIdeographFontFamily: 'sans-serif',
   });
@@ -3914,34 +3912,32 @@ async function renderRecentActCardMap(a, idx, idPrefix = 'recentActCard', mapSto
       new maplibregl.Marker({ element: makeDot('#888'), anchor: 'center' })
         .setLngLat(coords[coords.length - 1]).addTo(map);
 
-      // Card grid: snapshot to static image once rendered, then destroy the
-      // WebGL context so dozens of cards don't exhaust GPU resources.
-      if (isCardGrid) {
-        map.once('idle', () => {
-          clearTimeout(timer);
-          try {
-            const canvas = map.getCanvas();
-            const dataUrl = canvas.toDataURL('image/webp', 0.82);
-            // Save to memory + persistent cache for instant restore
-            _cardMapCacheSave(`${actId}_${loadMapTheme()}`, dataUrl);
-            const img = document.createElement('img');
-            img.src = dataUrl;
-            img.className = 'ra-card-map-img';
-            img.alt = '';
-            map.remove();
-            mapEl.innerHTML = '';
-            mapEl.appendChild(img);
-          } catch (_) {}
-          if (mapStore) {
-            const mi = mapStore.indexOf(map);
-            if (mi !== -1) mapStore.splice(mi, 1);
-          }
-          done();
-        });
-      } else {
+      // Snapshot to static image once rendered, then destroy the WebGL context.
+      // Applies to all card types (hero + grid) to prevent GPU exhaustion and
+      // enable instant cache restore on subsequent dashboard loads.
+      map.once('idle', () => {
         clearTimeout(timer);
+        try {
+          const canvas = map.getCanvas();
+          const dataUrl = canvas.toDataURL('image/webp', 0.82);
+          _cardMapCacheSave(cacheKey, dataUrl);
+          const img = document.createElement('img');
+          img.src = dataUrl;
+          img.className = 'ra-card-map-img';
+          img.alt = '';
+          map.remove();
+          mapEl.innerHTML = '';
+          mapEl.appendChild(img);
+        } catch (_) {}
+        if (mapStore) {
+          const mi = mapStore.indexOf(map);
+          if (mi !== -1) mapStore.splice(mi, 1);
+        } else {
+          const si = (state.recentActivityMaps || []).indexOf(map);
+          if (si !== -1) state.recentActivityMaps.splice(si, 1);
+        }
         done();
-      }
+      });
     });
 
     map.on('error', () => { clearTimeout(timer); done(); });
