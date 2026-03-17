@@ -6218,7 +6218,8 @@ code {
 }
 /* ── FABs: liquid glass pill style, matching dash-pill-nav height ── */
 #actSearchFab,
-#calFab {
+#calFab,
+#dashRouteFab {
     position: fixed;
     bottom: max(8px, env(safe-area-inset-bottom, 8px));
     right: 16px;
@@ -6243,13 +6244,15 @@ code {
     transition: background 0.2s ease;
 }
 #actSearchFab svg,
-#calFab svg {
+#calFab svg,
+#dashRouteFab svg {
     width: 22px;
     height: 22px;
     stroke-width: 2;
 }
 #actSearchFab:active,
-#calFab:active {
+#calFab:active,
+#dashRouteFab:active {
     background: rgba(255, 255, 255, 0.08);
 }
 
