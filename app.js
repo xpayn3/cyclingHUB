@@ -2252,7 +2252,7 @@ function navigate(page) {
   // ── Prepare page-specific UI BEFORE the swap so nothing flashes ──
   const info = {
     dashboard:  ['Summary', `Overview · Last ${state.rangeDays} days`],
-    activities: ['Activities',     'All recorded rides & workouts'],
+    activities: ['Activities',     ''],
     calendar:   ['Calendar',       'Planned workouts & events'],
     fitness:    ['Fitness',        'CTL · ATL · TSB history'],
     power:      ['Power Curve',    'Best efforts across durations'],
@@ -2989,9 +2989,13 @@ function setActivitiesSort(field) {
 }
 
 function _updateSportButtons() {
+  const sportOrder = ['all', 'outdoor', 'indoor'];
+  const idx = sportOrder.indexOf(state.activitiesSportFilter || 'all');
   document.querySelectorAll('[data-sport]').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.sport === state.activitiesSportFilter);
   });
+  const seg = document.getElementById('actsTypeSegmented');
+  if (seg) seg.dataset.active = String(Math.max(0, idx));
 }
 
 function updateSortButtons() {
@@ -3072,11 +3076,10 @@ function setActivitiesView(mode) {
 }
 
 function renderAllActivitiesList() {
+  // Sync segmented control indicator
+  _updateSportButtons();
   const sorted = sortedAllActivities();
-  const subtitle = document.getElementById('allActivitiesSubtitle');
-  if (subtitle) subtitle.textContent = `${sorted.length} ${sorted.length === 1 ? 'activity' : 'activities'}`;
   // Count placeholder activities (planned workouts never completed — all metrics zero).
-  // These exist in the intervals.icu /activities endpoint but have no recorded data.
   let allPool = getAllActivities().filter(a => !!(a.start_date_local || a.start_date));
   if (state.activitiesYear !== null) {
     allPool = allPool.filter(a => {
@@ -3086,22 +3089,19 @@ function renderAllActivitiesList() {
   }
   const emptyCount = allPool.filter(a => isEmptyActivity(a)).length;
 
+  const pageSub = document.getElementById('pageSubtitle');
+  if (pageSub && state.currentPage === 'activities') {
+    let text = `${sorted.length} ${sorted.length === 1 ? 'activity' : 'activities'}`;
+    if (emptyCount > 0) text += ` · ${emptyCount} without data`;
+    pageSub.textContent = text;
+  }
+
   if (state.activitiesView === 'card') {
-    // Card grid view
     renderActivityCardGrid('allActivityCardGrid', sorted);
   } else if (state.activitiesView === 'zones') {
-    // Zones view — intervals bar graphs
     renderActivityZonesView('allActivityZonesGrid', sorted);
   } else {
-    // List view (default)
     renderActivityList('allActivityList', sorted);
-    const listEl = document.getElementById('allActivityList');
-    if (listEl && emptyCount > 0) {
-      const note = document.createElement('div');
-      note.className = 'act-empty-note';
-      note.textContent = `+ ${emptyCount} planned ${emptyCount === 1 ? 'workout' : 'workouts'} with no recorded data`;
-      listEl.insertBefore(note, listEl.firstChild);
-    }
   }
 
   _refreshYearDropdown();
@@ -3277,16 +3277,20 @@ function buildZonesCardHTML(a, idx) {
 
   const statsHTML = statItems.map(s =>
     `<div class="ra-stat">
-      <div class="ra-stat-lbl">${s.lbl}</div>
       <div class="ra-stat-val">${s.val}</div>
+      <div class="ra-stat-lbl">${s.lbl}</div>
     </div>`
   ).join('');
+
+  const badgesHTML = (tssBadge || platformTag)
+    ? `<div class="zones-card-badges">${tssBadge}${platformTag ? `<span class="act-platform-tag">${platformTag}</span>` : ''}</div>`
+    : '';
 
   return `<div class="card card--clickable zones-card" id="zonesCard_${idx}">
     <div class="zones-card-header">
       <div class="zones-card-date">${dateFmt}${timeFmt ? ' · ' + timeFmt : ''}</div>
       <div class="zones-card-name">${name}</div>
-      <div class="zones-card-badges">${tssBadge}${platformTag ? `<span class="act-platform-tag">${platformTag}</span>` : ''}</div>
+      ${badgesHTML}
     </div>
     <div class="zones-card-graph" id="zonesCardGraph_${idx}"></div>
     <div class="zones-card-stats">${statsHTML}</div>
@@ -4097,8 +4101,7 @@ function renderDashboard() {
     wkRangeEl.textContent = `${startFmt} – ${endFmt}`;
   }
 
-  document.getElementById('activitiesSubtitle').textContent    = `Last ${days} days · ${recent.length} activities`;
-  document.getElementById('allActivitiesSubtitle').textContent = `${getAllActivities().filter(a => !isEmptyActivity(a)).length} total`;
+  document.getElementById('activitiesSubtitle').textContent = `Last ${days} days · ${recent.length} activities`;
 
   // Fitness gauges removed — elements no longer in DOM
 

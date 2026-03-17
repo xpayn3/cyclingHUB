@@ -1175,7 +1175,7 @@
                 <button
                     class="btn btn-ghost detail-topbar-back"
                     id="wxdTopbarBack"
-                    onclick="navigate('dashboard')"
+                    onclick="renderWeatherPage()"
                     style="display: none"
                 >
                     <svg
@@ -2094,124 +2094,45 @@
                 <!-- ==================== ACTIVITIES PAGE ==================== -->
                 <div class="page" id="page-activities">
                         <div class="acts-toolbar">
-                            <!-- Row 1: search + year + count -->
+                            <!-- Row 1: Year picker + view toggle (desktop: also search) -->
                             <div class="acts-toolbar-top">
                                 <div class="acts-search-wrap">
-                                    <svg
-                                        class="acts-search-icon"
-                                        viewBox="0 0 20 20"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="1.8"
-                                    >
-                                        <circle cx="8.5" cy="8.5" r="5.5" />
-                                        <line x1="13" y1="13" x2="18" y2="18" />
+                                    <svg class="acts-search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+                                        <circle cx="8.5" cy="8.5" r="5.5"/><line x1="13" y1="13" x2="18" y2="18"/>
                                     </svg>
-                                    <input
-                                        class="acts-search-input"
-                                        id="activitiesSearch"
-                                        type="text"
-                                        placeholder="Search activities…"
-                                        oninput="
-                                            setActivitiesSearch(this.value)
-                                        "
-                                        autocomplete="off"
-                                    />
+                                    <input class="acts-search-input" id="activitiesSearch" type="text" placeholder="Search activities…" oninput="setActivitiesSearch(this.value)" autocomplete="off"/>
                                     <kbd class="acts-search-kbd" id="searchKbd">S</kbd>
                                 </div>
-                                <select
-                                    class="app-select app-select--sm"
-                                    id="activitiesYearSelect"
-                                    onchange="setActivitiesYear(this.value)"
-                                >
+                                <select class="app-select app-select--sm" id="activitiesYearSelect" onchange="setActivitiesYear(this.value)">
                                     <option value="all">All years</option>
                                 </select>
-                                <span
-                                    class="acts-count"
-                                    id="allActivitiesSubtitle"
-                                ></span>
+                                <div class="acts-view-toggle">
+                                    <button class="acts-view-btn active" data-view="list" onclick="setActivitiesView('list')" aria-label="List view">
+                                        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="4" y1="5" x2="16" y2="5"/><line x1="4" y1="10" x2="16" y2="10"/><line x1="4" y1="15" x2="16" y2="15"/></svg>
+                                    </button>
+                                    <button class="acts-view-btn" data-view="card" onclick="setActivitiesView('card')" aria-label="Card view">
+                                        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="6" height="6" rx="1.5"/><rect x="11" y="3" width="6" height="6" rx="1.5"/><rect x="3" y="11" width="6" height="6" rx="1.5"/><rect x="11" y="11" width="6" height="6" rx="1.5"/></svg>
+                                    </button>
+                                    <button class="acts-view-btn" data-view="zones" onclick="setActivitiesView('zones')" aria-label="Zones view">
+                                        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="14" height="4" rx="1.5"/><rect x="3" y="9" width="14" height="4" rx="1.5"/><rect x="3" y="15" width="8" height="2" rx="1"/></svg>
+                                    </button>
+                                </div>
                             </div>
-                            <!-- Row 2: sport filter + sort -->
-                            <div class="acts-filters-row">
-                                <div class="acts-filter-group">
-                                    <span class="sort-label">Type</span>
-                                    <button
-                                        class="sort-btn active"
-                                        data-sport="all"
-                                        onclick="setActivitiesSport('all')"
-                                    >
-                                        All
-                                    </button>
-                                    <button
-                                        class="sort-btn"
-                                        data-sport="outdoor"
-                                        onclick="setActivitiesSport('outdoor')"
-                                    >
-                                        Outdoor
-                                    </button>
-                                    <button
-                                        class="sort-btn"
-                                        data-sport="indoor"
-                                        onclick="setActivitiesSport('indoor')"
-                                    >
-                                        Indoor
-                                    </button>
-                                </div>
-                                <div class="acts-toolbar-sep"></div>
-                                <div class="acts-filter-group">
-                                    <span class="sort-label">Sort</span>
-                                    <button
-                                        class="sort-btn active"
-                                        data-sort="date"
-                                        onclick="setActivitiesSort('date')"
-                                    >
-                                        Date<span class="sort-arrow"> ↓</span>
-                                    </button>
-                                    <button
-                                        class="sort-btn"
-                                        data-sort="distance"
-                                        onclick="setActivitiesSort('distance')"
-                                    >
-                                        Distance<span class="sort-arrow"></span>
-                                    </button>
-                                    <button
-                                        class="sort-btn"
-                                        data-sort="time"
-                                        onclick="setActivitiesSort('time')"
-                                    >
-                                        Time<span class="sort-arrow"></span>
-                                    </button>
-                                    <button
-                                        class="sort-btn"
-                                        data-sort="elevation"
-                                        onclick="setActivitiesSort('elevation')"
-                                    >
-                                        Elevation<span
-                                            class="sort-arrow"
-                                        ></span>
-                                    </button>
-                                    <button
-                                        class="sort-btn"
-                                        data-sort="power"
-                                        onclick="setActivitiesSort('power')"
-                                    >
-                                        Power<span class="sort-arrow"></span>
-                                    </button>
-                                    <button
-                                        class="sort-btn"
-                                        data-sort="bpm"
-                                        onclick="setActivitiesSort('bpm')"
-                                    >
-                                        BPM<span class="sort-arrow"></span>
-                                    </button>
-                                </div>
-                                <div class="acts-toolbar-sep"></div>
-                                <div class="acts-filter-group">
-                                    <span class="sort-label">View</span>
-                                    <button class="sort-btn active" data-view="list" onclick="setActivitiesView('list')">List</button>
-                                    <button class="sort-btn" data-view="card" onclick="setActivitiesView('card')">Card</button>
-                                    <button class="sort-btn" data-view="zones" onclick="setActivitiesView('zones')">Zones</button>
-                                </div>
+                            <!-- Row 2: iOS segmented control for type -->
+                            <div class="acts-segmented" id="actsTypeSegmented">
+                                <button class="acts-seg-btn active" data-sport="all" onclick="setActivitiesSport('all')">All</button>
+                                <button class="acts-seg-btn" data-sport="outdoor" onclick="setActivitiesSport('outdoor')">Outdoor</button>
+                                <button class="acts-seg-btn" data-sport="indoor" onclick="setActivitiesSport('indoor')">Indoor</button>
+                                <div class="acts-seg-indicator"></div>
+                            </div>
+                            <!-- Row 3: Sort chips -->
+                            <div class="acts-sort-scroll">
+                                <button class="acts-chip active" data-sort="date" onclick="setActivitiesSort('date')">Date<span class="sort-arrow"> ↓</span></button>
+                                <button class="acts-chip" data-sort="distance" onclick="setActivitiesSort('distance')">Distance<span class="sort-arrow"></span></button>
+                                <button class="acts-chip" data-sort="time" onclick="setActivitiesSort('time')">Time<span class="sort-arrow"></span></button>
+                                <button class="acts-chip" data-sort="elevation" onclick="setActivitiesSort('elevation')">Elevation<span class="sort-arrow"></span></button>
+                                <button class="acts-chip" data-sort="power" onclick="setActivitiesSort('power')">Power<span class="sort-arrow"></span></button>
+                                <button class="acts-chip" data-sort="bpm" onclick="setActivitiesSort('bpm')">BPM<span class="sort-arrow"></span></button>
                             </div>
                         </div>
                         <div class="activity-list" id="allActivityList">

@@ -42,6 +42,21 @@ const WEATHER_SVGS = {
   wind: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 15h18a4 4 0 1 0-4-4" stroke="#94A3B8" stroke-width="2.5" stroke-linecap="round" fill="none"/><path d="M6 22h24a4 4 0 1 1-4 4" stroke="#94A3B8" stroke-width="2.5" stroke-linecap="round" fill="none"/><path d="M6 29h14a3 3 0 1 0-3-3" stroke="#94A3B8" stroke-width="2.5" stroke-linecap="round" fill="none"/></svg>`,
   temp: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="17" y="6" width="6" height="20" rx="3" fill="#94A3B8"/><circle cx="20" cy="30" r="5" fill="#F87171"/><rect x="18.5" y="14" width="3" height="14" rx="1.5" fill="#F87171"/></svg>`,
   moon: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M32 22.5A12 12 0 1 1 17.5 8a9 9 0 0 0 14.5 14.5z" fill="#FCD34D"/></svg>`,
+  uv: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="7" fill="#FBBF24"/><g stroke="#FBBF24" stroke-width="2" stroke-linecap="round"><line x1="20" y1="5" x2="20" y2="9"/><line x1="20" y1="31" x2="20" y2="35"/><line x1="5" y1="20" x2="9" y2="20"/><line x1="31" y1="20" x2="35" y2="20"/><line x1="9.4" y1="9.4" x2="12.2" y2="12.2"/><line x1="27.8" y1="27.8" x2="30.6" y2="30.6"/><line x1="30.6" y1="9.4" x2="27.8" y2="12.2"/><line x1="12.2" y1="27.8" x2="9.4" y2="30.6"/></g><text x="20" y="23" text-anchor="middle" font-size="10" font-weight="700" fill="#78350F" font-family="system-ui">UV</text></svg>`,
+  humidity: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6 C20 6 10 18 10 24a10 10 0 0 0 20 0C30 18 20 6 20 6z" fill="#60A5FA" opacity="0.9"/><path d="M18 28a4 4 0 0 1-4-4" stroke="#fff" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/></svg>`,
+  pressure: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="22" r="14" stroke="#94A3B8" stroke-width="2" fill="none"/><circle cx="20" cy="22" r="2" fill="#94A3B8"/><line x1="20" y1="22" x2="28" y2="14" stroke="#94A3B8" stroke-width="2" stroke-linecap="round"/><g fill="#94A3B8"><circle cx="10" cy="30" r="1.5"/><circle cx="30" cy="30" r="1.5"/><circle cx="8" cy="22" r="1.5"/><circle cx="20" cy="10" r="1.5"/></g></svg>`,
+  visibility: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 20s6-10 16-10 16 10 16 10-6 10-16 10S4 20 4 20z" fill="none" stroke="#94A3B8" stroke-width="2"/><circle cx="20" cy="20" r="5" fill="#60A5FA" opacity="0.8"/><circle cx="20" cy="20" r="2" fill="#1D4ED8"/></svg>`,
+  sunrise_icon: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><line x1="6" y1="30" x2="34" y2="30" stroke="#94A3B8" stroke-width="2" stroke-linecap="round"/><path d="M20 28a8 8 0 0 1 8-8" stroke="#FBBF24" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M20 28a8 8 0 0 0-8-8" stroke="#FBBF24" stroke-width="2" fill="none" stroke-linecap="round"/><line x1="20" y1="8" x2="20" y2="16" stroke="#FBBF24" stroke-width="2" stroke-linecap="round"/><polyline points="15,13 20,8 25,13" stroke="#FBBF24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`,
+  sunset_icon: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><line x1="6" y1="30" x2="34" y2="30" stroke="#94A3B8" stroke-width="2" stroke-linecap="round"/><path d="M20 28a8 8 0 0 1 8-8" stroke="#FB923C" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M20 28a8 8 0 0 0-8-8" stroke="#FB923C" stroke-width="2" fill="none" stroke-linecap="round"/><line x1="20" y1="8" x2="20" y2="16" stroke="#FB923C" stroke-width="2" stroke-linecap="round"/><polyline points="15,11 20,16 25,11" stroke="#FB923C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`,
+  feelslike: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="16" y="4" width="8" height="24" rx="4" stroke="#94A3B8" stroke-width="2" fill="none"/><circle cx="20" cy="32" r="5" fill="#F87171"/><rect x="18" y="16" width="4" height="14" rx="2" fill="#F87171"/><path d="M28 12h4" stroke="#94A3B8" stroke-width="1.5" stroke-linecap="round"/><path d="M28 18h4" stroke="#94A3B8" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+  bike: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="11" cy="28" r="6" stroke="#94A3B8" stroke-width="2" fill="none"/><circle cx="29" cy="28" r="6" stroke="#94A3B8" stroke-width="2" fill="none"/><polyline points="11,28 18,16 24,28 29,28" stroke="#00e5a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><line x1="18" y1="16" x2="26" y2="16" stroke="#00e5a0" stroke-width="2" stroke-linecap="round"/><circle cx="26" cy="16" r="2" fill="#00e5a0"/></svg>`,
+  caution: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 4L2 36h36L20 4z" fill="#FBBF24" opacity="0.15" stroke="#FBBF24" stroke-width="2" stroke-linejoin="round"/><line x1="20" y1="16" x2="20" y2="26" stroke="#FBBF24" stroke-width="2.5" stroke-linecap="round"/><circle cx="20" cy="31" r="1.5" fill="#FBBF24"/></svg>`,
+  kit: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 12h16v20H12z" fill="#60A5FA" opacity="0.2" stroke="#60A5FA" stroke-width="2" rx="2"/><path d="M16 12V8h8v4" stroke="#60A5FA" stroke-width="2" stroke-linecap="round"/><line x1="20" y1="18" x2="20" y2="26" stroke="#60A5FA" stroke-width="2" stroke-linecap="round"/><line x1="16" y1="22" x2="24" y2="22" stroke="#60A5FA" stroke-width="2" stroke-linecap="round"/></svg>`,
+  sunprotect: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="18" r="8" fill="#FBBF24" opacity="0.3"/><circle cx="20" cy="18" r="8" stroke="#FBBF24" stroke-width="2" fill="none"/><path d="M14 28c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" fill="none"/><line x1="20" y1="28" x2="20" y2="36" stroke="#94A3B8" stroke-width="2" stroke-linecap="round"/></svg>`,
+  hydration: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14 8h12l2 10v14a4 4 0 0 1-4 4h-8a4 4 0 0 1-4-4V18l2-10z" fill="#60A5FA" opacity="0.2" stroke="#60A5FA" stroke-width="2"/><path d="M12 22h16" stroke="#60A5FA" stroke-width="1.5" opacity="0.5"/><path d="M12 26h16" stroke="#60A5FA" stroke-width="1.5" opacity="0.3"/></svg>`,
+  raingear: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 20a12 12 0 0 1 24 0" stroke="#64748B" stroke-width="2" fill="none"/><line x1="20" y1="20" x2="20" y2="32" stroke="#64748B" stroke-width="2" stroke-linecap="round"/><path d="M20 32c0 2.2-1.8 4-4 4" stroke="#64748B" stroke-width="2" stroke-linecap="round" fill="none"/><g stroke="#60A5FA" stroke-width="2" stroke-linecap="round"><line x1="30" y1="24" x2="29" y2="28"/><line x1="34" y1="24" x2="33" y2="28"/></g></svg>`,
+  windstrat: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 14h18a4 4 0 1 0-4-4" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M6 22h24a4 4 0 1 1-4 4" stroke="#00e5a0" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M10 30h10a3 3 0 1 0-3-3" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" fill="none"/></svg>`,
+  checkmark: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="14" fill="#00e5a0" opacity="0.15"/><polyline points="13,20 18,26 28,14" stroke="#00e5a0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`,
 };
 
 // Map intervals.icu icon string → SVG
@@ -635,7 +650,7 @@ export function _buildSunArc(sunProgress, heroSr, heroSs) {
   const dotColor = isDay ? '#FFD93D' : 'rgba(255,217,61,0.4)';
   const dotStroke = isDay ? '#FFB800' : 'rgba(255,184,0,0.4)';
 
-  let svg = '<svg class="wxp-sun-svg" viewBox="0 0 ' + W + ' ' + (H + 12) + '" preserveAspectRatio="xMidYMid meet">';
+  let svg = '<svg class="aw-sun-svg" viewBox="0 0 ' + W + ' ' + (H + 12) + '" preserveAspectRatio="xMidYMid meet">';
   // Filled area under the traversed arc (subtle glow)
   if (isDay && t > 0.02) {
     // Build the fill: arc up to current point, then line back to start
@@ -664,11 +679,11 @@ export function _buildSunArc(sunProgress, heroSr, heroSs) {
   svg += '<circle cx="' + dotX.toFixed(1) + '" cy="' + dotY.toFixed(1) + '" r="6" fill="' + dotColor + '" stroke="' + dotStroke + '" stroke-width="1.5"/>';
   svg += '</svg>';
 
-  return '<div class="wxp-sun-arc">'
-    + '<div class="wxp-sun-arc-label">' + primaryLabel + '</div>'
-    + '<div class="wxp-sun-arc-time">' + primaryTime + '</div>'
+  return '<div class="aw-sun-arc">'
+    + '<div class="aw-sun-arc-label">' + primaryLabel + '</div>'
+    + '<div class="aw-sun-arc-time">' + primaryTime + '</div>'
     + svg
-    + '<div class="wxp-sun-arc-times"><span>☀️ ' + heroSr + '</span><span>🌙 ' + heroSs + '</span></div>'
+    + '<div class="aw-sun-arc-times"><span class="aw-sun-arc-sr">' + WEATHER_SVGS.sunrise_icon + heroSr + '</span><span class="aw-sun-arc-ss">' + WEATHER_SVGS.sunset_icon + heroSs + '</span></div>'
     + '</div>';
 }
 
@@ -856,47 +871,47 @@ export async function renderWeatherPage(_restoreScrollY) {
     let score = 100;
 
     // ── Weather condition ─────────────────────────────────────────────────
-    if (isStorm)               { score -= 80; reasons.push('⛈ Thunderstorms expected'); }
-    else if (isSnow)           { score -= 70; reasons.push('❄️ Snow or sleet forecast'); }
-    else if (isRain && !isDriz){ score -= 50 + Math.min(precip, 55) * 0.6; reasons.push(`🌧 Rain (${Math.round(precip)}% chance)`); }
-    else if (isDriz)           { score -= 38; reasons.push(`🌦 Drizzle expected — wet roads`); }
-    else if (isFog)            { score -= 35; reasons.push('🌫 Foggy — poor visibility, dangerous'); }
-    else if (isCloudy)         { score -= 12; reasons.push('⛅ Overcast skies'); }
+    if (isStorm)               { score -= 80; reasons.push({ svg: 'storm', text: 'Thunderstorms expected' }); }
+    else if (isSnow)           { score -= 70; reasons.push({ svg: 'snow', text: 'Snow or sleet forecast' }); }
+    else if (isRain && !isDriz){ score -= 50 + Math.min(precip, 55) * 0.6; reasons.push({ svg: 'rain', text: `Rain (${Math.round(precip)}% chance)` }); }
+    else if (isDriz)           { score -= 38; reasons.push({ svg: 'drizzle', text: 'Drizzle expected — wet roads' }); }
+    else if (isFog)            { score -= 35; reasons.push({ svg: 'fog', text: 'Foggy — poor visibility, dangerous' }); }
+    else if (isCloudy)         { score -= 12; reasons.push({ svg: 'pcloud', text: 'Overcast skies' }); }
 
     // ── Precipitation probability (catches mismatches where code looks clear
     //    but rain chance is still significant) ─────────────────────────────
     if (!isRain && !isDriz && !isSnow && !isStorm) {
-      if      (precip >= 60) { score -= 35; reasons.push(`🌧 ${Math.round(precip)}% rain chance`); }
-      else if (precip >= 40) { score -= 22; reasons.push(`🌦 ${Math.round(precip)}% rain chance`); }
-      else if (precip >= 25) { score -= 14; reasons.push(`🌂 ${Math.round(precip)}% rain chance`); }
-      else if (precip >= 10) { score -= 6;  reasons.push(`🌂 ${Math.round(precip)}% rain chance`); }
+      if      (precip >= 60) { score -= 35; reasons.push({ svg: 'rain', text: `${Math.round(precip)}% rain chance` }); }
+      else if (precip >= 40) { score -= 22; reasons.push({ svg: 'drizzle', text: `${Math.round(precip)}% rain chance` }); }
+      else if (precip >= 25) { score -= 14; reasons.push({ svg: 'rain', text: `${Math.round(precip)}% rain chance` }); }
+      else if (precip >= 10) { score -= 6;  reasons.push({ svg: 'rain', text: `${Math.round(precip)}% rain chance` }); }
     }
 
     // ── Actual rainfall mm (wet roads even if code doesn't say "rain") ───
     if (!isRain && !isDriz && rain > 0) {
-      if      (rain >= 5) { score -= 20; reasons.push(`💧 ${rain.toFixed(1)} mm rain expected`); }
-      else if (rain >= 1) { score -= 12; reasons.push(`💧 ${rain.toFixed(1)} mm rain expected — wet roads`); }
-      else if (rain > 0.3){ score -= 5;  reasons.push(`💧 Light rain (${rain.toFixed(1)} mm)`); }
+      if      (rain >= 5) { score -= 20; reasons.push({ svg: 'humidity', text: `${rain.toFixed(1)} mm rain expected` }); }
+      else if (rain >= 1) { score -= 12; reasons.push({ svg: 'humidity', text: `${rain.toFixed(1)} mm rain expected — wet roads` }); }
+      else if (rain > 0.3){ score -= 5;  reasons.push({ svg: 'humidity', text: `Light rain (${rain.toFixed(1)} mm)` }); }
     }
 
     // ── Temperature ───────────────────────────────────────────────────────
-    if (high < coldThresh)               { score -= 40; reasons.push(`🥶 Very cold (high ${Math.round(high)}${deg})`); }
-    else if (high < (isMetric ? 8 : 46)) { score -= 25; reasons.push(`🌡 Chilly (high ${Math.round(high)}${deg})`); }
-    else if (high < (isMetric ? 12 : 54)){ score -= 10; reasons.push(`🌡 Cool (high ${Math.round(high)}${deg})`); }
-    else if (high < (isMetric ? 18 : 64)){ score -= 5;  reasons.push(`🌡 Mild (high ${Math.round(high)}${deg})`); }
-    else if (high > hotThresh)           { score -= 30; reasons.push(`🥵 Extreme heat (${Math.round(high)}${deg})`); }
-    else if (high > (isMetric ? 32 : 90)){ score -= 12; reasons.push(`🥵 Hot (${Math.round(high)}${deg})`); }
+    if (high < coldThresh)               { score -= 40; reasons.push({ svg: 'temp', text: `Very cold (high ${Math.round(high)}${deg})` }); }
+    else if (high < (isMetric ? 8 : 46)) { score -= 25; reasons.push({ svg: 'temp', text: `Chilly (high ${Math.round(high)}${deg})` }); }
+    else if (high < (isMetric ? 12 : 54)){ score -= 10; reasons.push({ svg: 'temp', text: `Cool (high ${Math.round(high)}${deg})` }); }
+    else if (high < (isMetric ? 18 : 64)){ score -= 5;  reasons.push({ svg: 'temp', text: `Mild (high ${Math.round(high)}${deg})` }); }
+    else if (high > hotThresh)           { score -= 30; reasons.push({ svg: 'temp', text: `Extreme heat (${Math.round(high)}${deg})` }); }
+    else if (high > (isMetric ? 32 : 90)){ score -= 12; reasons.push({ svg: 'temp', text: `Hot (${Math.round(high)}${deg})` }); }
 
     // ── Wind ──────────────────────────────────────────────────────────────
-    if (wind > windPoor)       { score -= 40; reasons.push(`💨 Very strong winds (${Math.round(wind)} ${windLbl})`); }
-    else if (wind > windThresh){ score -= 25; reasons.push(`💨 Windy (${Math.round(wind)} ${windLbl})`); }
-    else if (wind > (isMetric ? 20 : 12)){ score -= 15; reasons.push(`💨 Moderate wind (${Math.round(wind)} ${windLbl})`); }
-    else if (wind > (isMetric ? 12 : 8)) { score -= 8;  reasons.push(`💨 Breezy (${Math.round(wind)} ${windLbl})`); }
+    if (wind > windPoor)       { score -= 40; reasons.push({ svg: 'wind', text: `Very strong winds (${Math.round(wind)} ${windLbl})` }); }
+    else if (wind > windThresh){ score -= 25; reasons.push({ svg: 'wind', text: `Windy (${Math.round(wind)} ${windLbl})` }); }
+    else if (wind > (isMetric ? 20 : 12)){ score -= 15; reasons.push({ svg: 'wind', text: `Moderate wind (${Math.round(wind)} ${windLbl})` }); }
+    else if (wind > (isMetric ? 12 : 8)) { score -= 8;  reasons.push({ svg: 'wind', text: `Breezy (${Math.round(wind)} ${windLbl})` }); }
 
     // ── Positive indicators (only on genuinely good days) ─────────────────
     if (score >= 85) {
-      if (isClear)   reasons.unshift('☀️ Clear skies');
-      if (uv >= 6)   reasons.push(`🕶 High UV (${uv}) — wear sunscreen`);
+      if (isClear)   reasons.unshift({ svg: 'sun', text: 'Clear skies' });
+      if (uv >= 6)   reasons.push({ svg: 'uv', text: `High UV (${uv}) — wear sunscreen` });
     }
 
     score = Math.max(0, Math.min(100, Math.round(score)));
@@ -966,143 +981,18 @@ export async function renderWeatherPage(_restoreScrollY) {
   // ── Build HTML ────────────────────────────────────────────────────────────
   const DAYS_OF_WEEK = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
-  // Weekly overview cards
-  const weekCards = time.map((dateStr, i) => {
-    const d      = new Date(dateStr + 'T12:00:00');
-    const dayName = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : DAYS_OF_WEEK[d.getDay()];
-    const full   = i === 0 ? 'Today' : i === 1 ? 'Tomorrow'
-                 : d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
-    const { score, label, reasons } = rideScore(i);
-    const precipPct = Math.round(precips?.[i] ?? 0);
-    const rainVal   = rainMm?.[i] ?? 0;
-    const windVal   = Math.round(winds?.[i] ?? 0);
-    const wdir      = windDir(windDirs?.[i] ?? 0);
-    const uvVal     = Math.round(uvs?.[i] ?? 0);
-
-    // Sunrise/sunset — format from ISO string
-    let srStr = '—', ssStr = '—';
-    try {
-      srStr = new Date(sunrises[i]).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-      ssStr = new Date(sunsets[i]).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-    } catch (_) {}
-
-    const topReasons = reasons.slice(0, 3);
-    const reasonHtml = topReasons.map(r => `<div class="wxp-reason">${r}</div>`).join('');
-
-    return `
-      <div class="wxp-day-card wxp-day-card--${label}" data-day-idx="${i}">
-        <div class="wxp-day-header">
-          <div class="wxp-day-name-wrap">
-            <span class="wxp-day-name">${dayName}</span>
-            ${i > 1 ? `<span class="wxp-day-full">${full}</span>` : ''}
-          </div>
-          <div class="wxp-day-icon-row">
-            <div class="wxp-day-icon">${wmoIcon(codes[i])}</div>
-            <div class="wxp-score-badge wxp-score--${label}" title="WMO code: ${codes[i]}">${label === 'great' ? '🚴 Great' : label === 'good' ? '👍 Good' : label === 'fair' ? '⚠️ Fair' : '✗ Poor'}</div>
-          </div>
-        </div>
-        <div class="wxp-day-conditions">
-          <div class="wxp-cond-row">
-            <span class="wxp-cond-icon">${WEATHER_SVGS.temp}</span>
-            <span class="wxp-cond-val">${Math.round(highs[i])}° / ${Math.round(lows[i])}°</span>
-          </div>
-          <div class="wxp-cond-row">
-            <span class="wxp-cond-icon">${WEATHER_SVGS.rain}</span>
-            <span class="wxp-cond-val">${precipPct}%${rainVal > 0.5 ? ` · ${rainVal.toFixed(1)} mm` : ''}</span>
-          </div>
-          <div class="wxp-cond-row">
-            <span class="wxp-cond-icon">${WEATHER_SVGS.wind}</span>
-            <span class="wxp-cond-val">${windVal} ${windLbl} ${wdir}</span>
-          </div>
-          <div class="wxp-cond-row">
-            <span class="wxp-cond-label">UV</span>
-            <span class="wxp-cond-val">${uvVal} · 🌅 ${srStr}</span>
-          </div>
-        </div>
-        <div class="wxp-score-bar-wrap">
-          <div class="wxp-score-bar wxp-score-bar--${label}" style="width:${score}%"></div>
-        </div>
-        <div class="wxp-reasons">${reasonHtml}</div>
-      </div>`;
-  }).join('');
-
-  // Best days to ride (score ≥ 50, top 3 sorted by score)
-  const scored7 = time.map((_, i) => ({ i, ...rideScore(i) }))
-    .filter(d => d.score >= 50)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 3);
-
-  const bestCardsHtml = scored7.length ? scored7.map(({ i, score, label, reasons }) => {
-    const d = new Date(time[i] + 'T12:00:00');
-    const name = i === 0 ? 'Today' : i === 1 ? 'Tomorrow'
-               : d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
-    const tip = reasons.filter(r => r.startsWith('☀') || r.startsWith('⛅') || r.startsWith('🕶') || r.startsWith('👌')).join(' · ') || reasons[0] || 'Good conditions';
-    const badgeLabel = label === 'great' ? '🚴 Great' : label === 'good' ? '👍 Good' : '⚠️ Fair';
-    return `
-      <div class="card wxp-best-card wxp-best--${label}" data-day-idx="${i}">
-        <div class="wxp-best-head">
-          <div class="wxp-best-day">${name}</div>
-          <div class="wxp-score-badge wxp-score--${label}">${badgeLabel}</div>
-        </div>
-        <div class="wxp-best-mid">
-          <div class="wxp-best-icon">${wmoIcon(codes[i])}</div>
-          <div class="wxp-best-score-num">${score}<span>/ 100</span></div>
-        </div>
-        <div class="wxp-best-stats">
-          <div class="wxp-best-temp">${Math.round(highs[i])}${deg} <span class="wxp-best-low">/ ${Math.round(lows[i])}${deg}</span></div>
-          <div class="wxp-best-meta">💨 ${Math.round(winds[i])} ${windLbl} · 🌧 ${Math.round(precips[i] ?? 0)}%</div>
-        </div>
-        <div class="wxp-best-score-bar">
-          <div class="wxp-best-score-fill wxp-best-score--${label}" style="width:${score}%"></div>
-        </div>
-        <div class="wxp-best-tip">${tip}</div>
-      </div>`;
-  }).join('') : '';
-
-  // Days to avoid (score < 30)
-  const badDays = time.map((_, i) => ({ i, ...rideScore(i) }))
-    .filter(d => d.score < 30);
-
-  const badDaysHtml = badDays.length ? badDays.map(({ i, score, reasons }) => {
-    const d = new Date(time[i] + 'T12:00:00');
-    const name = i === 0 ? 'Today' : i === 1 ? 'Tomorrow'
-               : d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
-    return `
-      <div class="wxp-avoid-card">
-        <div class="wxp-avoid-icon">${wmoIcon(codes[i])}</div>
-        <div class="wxp-avoid-info">
-          <div class="wxp-avoid-day">${name}</div>
-          <div class="wxp-avoid-reasons">${reasons.slice(0,2).join(' · ')}</div>
-        </div>
-        <div class="wxp-avoid-score">${score}<span>/100</span></div>
-      </div>`;
-  }).join('') : '';
-
   // Weekly summary stats
   const avgHigh    = Math.round(highs.reduce((s,v)=>s+v,0)/highs.length);
   const maxWind    = Math.round(Math.max(...winds));
   const rainDays   = codes.filter(c => [51,53,55,56,57,61,63,65,67,80,81,82,95,96,99].includes(c)).length;
   const rideableDays = time.filter((_, i) => rideScore(i).score >= 50).length;
-  const bestScore  = Math.max(...time.map((_,i)=>rideScore(i).score));
-  const bestDayIdx = time.findIndex((_,i)=>rideScore(i).score===bestScore);
-  const bestDayName = bestDayIdx === 0 ? 'Today' : bestDayIdx === 1 ? 'Tomorrow'
-    : new Date(time[bestDayIdx]+'T12:00:00').toLocaleDateString('en-US',{weekday:'long'});
 
-  // Mini 7-day strip for summary card
-  const miniStripHtml = time.map((dateStr, i) => {
-    const d       = new Date(dateStr + 'T12:00:00');
-    const dayAbbr = i === 0 ? 'Now' : DAYS_OF_WEEK[d.getDay()];
-    const { label } = rideScore(i);
-    return `
-      <div class="wxp-ms-day">
-        <div class="wxp-ms-label">${dayAbbr}</div>
-        <div class="wxp-ms-icon">${wmoIcon(codes[i])}</div>
-        <div class="wxp-ms-temp">${Math.round(highs[i])}°</div>
-        <div class="wxp-ms-dot wxp-ms-dot--${label}"></div>
-      </div>`;
-  }).join('');
+  // Compute weekly min/max for gradient temperature bars
+  const weekMin = Math.min(...lows);
+  const weekMax = Math.max(...highs);
+  const weekRange = weekMax - weekMin || 1;
 
-  // ── Current conditions hero card data ─────────────────────────────────────
+  // ── Current conditions data (needed before forecast rows) ───────────────
   const cur = data.current || {};
   const curTemp = cur.temperature_2m;
   const curFeels = cur.apparent_temperature;
@@ -1125,7 +1015,9 @@ export async function renderWeatherPage(_restoreScrollY) {
 
   // Sunrise/sunset for today
   let heroSr = '—', heroSs = '—';
-  let sunProgress = -1; // 0..1 during daylight, <0 before sunrise, >1 after sunset
+  let sunProgress = -1;
+  let daylightHrs = '', daylightMin = '', sunTimeLeft = '', sunNextEvent = '', sunNextLabel = '';
+  let goldenStart = '', goldenEnd = '', tomorrowSr = '';
   try {
     heroSr = new Date(sunrises[0]).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
     heroSs = new Date(sunsets[0]).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
@@ -1133,7 +1025,86 @@ export async function renderWeatherPage(_restoreScrollY) {
     const ssMs = new Date(sunsets[0]).getTime();
     const nowMs = Date.now();
     if (ssMs > srMs) sunProgress = (nowMs - srMs) / (ssMs - srMs);
+    // Daylight duration
+    const dlMs = ssMs - srMs;
+    daylightHrs = Math.floor(dlMs / 3600000);
+    daylightMin = Math.round((dlMs % 3600000) / 60000);
+    // Time remaining until next event
+    if (nowMs < srMs) {
+      const diff = srMs - nowMs;
+      sunTimeLeft = `${Math.floor(diff / 3600000)}h ${Math.round((diff % 3600000) / 60000)}m`;
+      sunNextEvent = heroSr;
+      sunNextLabel = 'Sunrise in';
+    } else if (nowMs < ssMs) {
+      const diff = ssMs - nowMs;
+      sunTimeLeft = `${Math.floor(diff / 3600000)}h ${Math.round((diff % 3600000) / 60000)}m`;
+      sunNextEvent = heroSs;
+      sunNextLabel = 'Sunset in';
+    } else {
+      sunNextLabel = 'Sun has set';
+      sunTimeLeft = '';
+    }
+    // Golden hour (last hour before sunset)
+    const ghStart = new Date(ssMs - 3600000);
+    const ghEnd = new Date(ssMs);
+    goldenStart = ghStart.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    goldenEnd = ghEnd.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    // Tomorrow's sunrise
+    if (sunrises[1]) {
+      tomorrowSr = new Date(sunrises[1]).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    }
   } catch (_) {}
+
+  // Hourly strip for main page (from current hour, ~24h)
+  let hourlyStripHtml = '';
+  if (data.hourly) {
+    const { time: hTimes, temperature_2m: hTemps, weathercode: hCodes, precipitation_probability: hPrecip } = data.hourly;
+    const nowISO = new Date().toISOString().slice(0, 13);
+    const startIdx = hTimes.findIndex(t => t.startsWith(nowISO.slice(0, 13)));
+    const start = startIdx >= 0 ? startIdx : 0;
+    const end = Math.min(start + 24, hTimes.length);
+    for (let hi = start; hi < end; hi++) {
+      const hDate = new Date(hTimes[hi]);
+      const h = hDate.getHours();
+      const isNow = hi === start;
+      const label = isNow ? 'Now' : (h === 0 ? '12am' : h < 12 ? h + 'am' : h === 12 ? '12pm' : (h - 12) + 'pm');
+      const temp = hTemps[hi] != null ? Math.round(hTemps[hi]) : '—';
+      const cod = hCodes[hi] ?? 0;
+      hourlyStripHtml += `<div class="aw-hour${isNow ? ' aw-hour--now' : ''}"><div class="aw-hour-time">${label}</div><div class="aw-hour-icon">${wmoIcon(cod)}</div><div class="aw-hour-temp">${temp}°</div></div>`;
+    }
+  }
+
+  // 7-day forecast rows
+  const forecastRows = time.map((dateStr, i) => {
+    const d = new Date(dateStr + 'T12:00:00');
+    const dayName = i === 0 ? 'Today' : DAYS_OF_WEEK[d.getDay()];
+    const { score, label } = rideScore(i);
+    const lo = Math.round(lows[i]);
+    const hi = Math.round(highs[i]);
+    const leftPct = ((lows[i] - weekMin) / weekRange * 100).toFixed(1);
+    const widthPct = ((highs[i] - lows[i]) / weekRange * 100).toFixed(1);
+    // Current temp dot position (only for today)
+    let dotHtml = '';
+    if (i === 0 && curTemp != null) {
+      const dotPct = ((curTemp - weekMin) / weekRange * 100).toFixed(1);
+      dotHtml = `<div class="aw-bar-dot" style="left:${dotPct}%"></div>`;
+    }
+    return `<div class="aw-forecast-row" data-day-idx="${i}"><span class="aw-fc-day">${dayName}</span><span class="aw-fc-icon">${wmoIcon(codes[i])}</span><span class="aw-fc-lo">${lo}°</span><div class="aw-fc-bar-track"><div class="aw-fc-bar" style="left:${leftPct}%;width:${widthPct}%"></div>${dotHtml}</div><span class="aw-fc-hi">${hi}°</span><span class="aw-fc-dot aw-fc-dot--${label}"></span></div>`;
+  }).join('');
+
+  // Today's ride score
+  const todayScore = rideScore(0);
+  const topReasons = todayScore.reasons.slice(0, 3);
+  const reasonsHtml = topReasons.map(r => `<div class="aw-reason-row"><span class="aw-reason-icon">${WEATHER_SVGS[r.svg] || ''}</span><span class="aw-reason-text">${r.text}</span></div>`).join('');
+
+  // UV description helper
+  const uvDesc = v => v >= 11 ? 'Extreme' : v >= 8 ? 'Very High' : v >= 6 ? 'High' : v >= 3 ? 'Moderate' : 'Low';
+  const feelsDesc = (f, a) => {
+    if (f == null) return '';
+    const diff = f - a;
+    if (Math.abs(diff) < 2) return 'Similar to the actual temperature';
+    return diff > 0 ? 'Wind is making it feel warmer' : 'Wind is making it feel colder';
+  };
 
   // Lock page height before DOM swap to prevent scroll clamping during location switch
   if (_restoreScrollY != null) {
@@ -1142,175 +1113,133 @@ export async function renderWeatherPage(_restoreScrollY) {
   }
 
   body.innerHTML = `
-    <!-- Current conditions + ride window row -->
-    <div class="wxp-top-row">
-    <div class="card wxp-hero">
-      <div class="card-header">
-        <div>
-          <div class="card-title">Right Now</div>
-          <div class="card-subtitle">${wmoLabel(curCode)}</div>
-        </div>
-        <div class="wxp-hero-temps">${Math.round(highs[0])}° / ${Math.round(lows[0])}°</div>
-      </div>
-      <div class="wxp-hero-main">
-        <div class="wxp-hero-icon">${wmoIcon(curCode)}</div>
-        <div class="wxp-hero-temp">${curTemp != null ? Math.round(curTemp) : '—'}<span>${deg}</span></div>
-        <div class="wxp-hero-feels">Feels ${curFeels != null ? Math.round(curFeels) + deg : '—'}</div>
-      </div>
-      <div class="wxp-hero-grid">
-        <div class="wxp-hero-stat">
-          <div class="wxp-st-icon">💨</div>
-          <div class="wxp-st-val">${Math.round(curWind)}<span> ${windLbl}</span></div>
-          <div class="wxp-st-lbl">Wind ${curWindDir}</div>
-        </div>
-        <div class="wxp-hero-stat">
-          <div class="wxp-st-icon">🌧</div>
-          <div class="wxp-st-val">${Math.round(curPrecipProb)}<span>%</span></div>
-          <div class="wxp-st-lbl">Rain Chance</div>
-        </div>
-        <div class="wxp-hero-stat">
-          <div class="wxp-st-icon">☀️</div>
-          <div class="wxp-st-val">${Math.round(curUV)}</div>
-          <div class="wxp-st-lbl">UV Index</div>
-        </div>
-        <div class="wxp-hero-stat">
-          <div class="wxp-st-icon">💧</div>
-          <div class="wxp-st-val">${curHumidity != null ? Math.round(curHumidity) : '—'}<span>%</span></div>
-          <div class="wxp-st-lbl">Humidity</div>
-        </div>
-        <div class="wxp-hero-stat">
-          <div class="wxp-st-icon">👁</div>
-          <div class="wxp-st-val">${visStr}</div>
-          <div class="wxp-st-lbl">Visibility</div>
-        </div>
-        <div class="wxp-hero-stat">
-          <div class="wxp-st-icon">☁️</div>
-          <div class="wxp-st-val">${curCloud != null ? Math.round(curCloud) : '—'}<span>%</span></div>
-          <div class="wxp-st-lbl">Cloud Cover</div>
-        </div>
-        <div class="wxp-hero-stat">
-          <div class="wxp-st-icon">🧭</div>
-          <div class="wxp-st-val">${curPressure != null ? Math.round(curPressure) : '—'}<span> hPa</span></div>
-          <div class="wxp-st-lbl">Pressure</div>
-        </div>
-        <div class="wxp-hero-stat">
-          <div class="wxp-st-icon">🌅</div>
-          <div class="wxp-st-val">${heroSr}</div>
-          <div class="wxp-st-lbl">Sunrise</div>
-        </div>
-      </div>
-      <div class="wxp-hero-tip">${ridingTip}</div>
+    <!-- Apple Weather Hero -->
+    <div class="aw-hero">
+      <div class="aw-hero-condition">${wmoLabel(curCode)}</div>
+      <div class="aw-hero-temp">${curTemp != null ? Math.round(curTemp) : '—'}°</div>
+      <div class="aw-hero-hl">H:${Math.round(highs[0])}°  L:${Math.round(lows[0])}°</div>
     </div>
 
-    <!-- Today's ride window -->
-    ${rideWindow ? `
-    <div class="card wxp-window-card${rideWindowMissed ? ' wxp-window-card--missed' : ''}">
-      <div class="card-header">
-        <div>
-          <div class="card-title">Best Ride Window</div>
-          <div class="card-subtitle">${rideWindowMissed ? 'Today\'s window has passed' : 'Today\'s optimal riding hours'}</div>
-        </div>
-        <div class="wxp-window-temps">${Math.round(highs[0])}° / ${Math.round(lows[0])}°</div>
-      </div>
-      <div class="wxp-window-inner">
-        <div class="wxp-window-icon">${wmoIcon(codes[0])}</div>
-        <div class="wxp-window-text">
-          <div class="wxp-window-label">${rideWindowMissed ? 'Window missed' : 'Recommended window'}</div>
-          <div class="wxp-window-time${rideWindowMissed ? ' wxp-window-time--missed' : ''}">${rideWindow.label}</div>
-          ${rideWindowMissed ? '<div class="wxp-window-missed-note">You missed today\'s best window. Check tomorrow\'s forecast.</div>' : ''}
-        </div>
-      </div>
-      ${_buildSunArc(sunProgress, heroSr, heroSs)}
-    </div>` : ''}
-    </div><!-- /wxp-top-row -->
-
-    <!-- Weekly summary — no card wrapper -->
-    <div class="wxp-section-label">7-Day Summary</div>
-    <!-- Mini icon strip -->
-    <div class="wxp-mini-strip">${miniStripHtml}</div>
-    <!-- Stat tiles -->
-    <div class="wxp-stats-grid">
-      <div class="wxp-st">
-        <div class="wxp-st-icon">🌡</div>
-        <div class="wxp-st-val">${avgHigh}<span>${deg}</span></div>
-        <div class="wxp-st-lbl">Avg High</div>
-      </div>
-      <div class="wxp-st">
-        <div class="wxp-st-icon">💨</div>
-        <div class="wxp-st-val">${maxWind}<span> ${windLbl}</span></div>
-        <div class="wxp-st-lbl">Max Wind</div>
-      </div>
-      <div class="wxp-st">
-        <div class="wxp-st-icon">🌧</div>
-        <div class="wxp-st-val">${rainDays}<span> d</span></div>
-        <div class="wxp-st-lbl">Rain Days</div>
-      </div>
-      <div class="wxp-st wxp-st--highlight">
-        <div class="wxp-st-icon">🚴</div>
-        <div class="wxp-st-val">${rideableDays}<span> d</span></div>
-        <div class="wxp-st-lbl">Rideable</div>
-      </div>
-    </div>
-
-    <!-- Best days to ride — individual cards -->
-    ${bestCardsHtml ? `
-    <div class="wxp-section-label">Best Days to Ride</div>
-    <div class="wxp-best-grid">${bestCardsHtml}</div>
-    ` : `
-    <div class="card wxp-no-rec-card">
-      <div class="wxp-no-rec">No great riding days this week — looks like a tough stretch.</div>
-    </div>
-    `}
-
-    ${badDaysHtml ? `
-    <!-- Days to avoid -->
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <div class="card-title">Days to Skip</div>
-          <div class="card-subtitle">Poor riding conditions</div>
-        </div>
-      </div>
-      <div class="wxp-avoid-list">${badDaysHtml}</div>
+    <!-- Hourly Forecast -->
+    ${hourlyStripHtml ? `
+    <div class="card aw-card">
+      <div class="aw-card-label">HOURLY FORECAST</div>
+      <div class="aw-hourly-scroll">${hourlyStripHtml}</div>
     </div>` : ''}
 
-    <!-- Full weekly breakdown — standalone day cards -->
-    <div class="wxp-section-label">This Week</div>
-    <div class="wxp-week-scroll">${weekCards}</div>
+    <!-- 7-Day Forecast -->
+    <div class="card aw-card">
+      <div class="aw-card-label">7-DAY FORECAST</div>
+      <div class="aw-forecast-list">${forecastRows}</div>
+    </div>
+
+    <!-- Ride Score -->
+    <div class="card aw-card">
+      <div class="aw-card-label">TODAY'S RIDE SCORE</div>
+      <div class="aw-ride-score">
+        <div class="aw-rs-top">
+          <div class="aw-rs-num">${todayScore.score}</div>
+          <div class="aw-rs-label">${todayScore.label === 'great' ? 'Great Day' : todayScore.label === 'good' ? 'Good Day' : todayScore.label === 'fair' ? 'Fair Day' : 'Poor Day'}</div>
+        </div>
+        <div class="aw-rs-bar-track"><div class="aw-rs-bar aw-rs-bar--${todayScore.label}" style="width:${todayScore.score}%"></div></div>
+        ${rideWindow ? `<div class="aw-rs-window">${WEATHER_SVGS.bike}<span>${rideWindowMissed ? 'Best window passed' : 'Best window'}: ${rideWindow.label}</span></div>` : ''}
+        <div class="aw-rs-reasons">${reasonsHtml}</div>
+      </div>
+    </div>
+
+    <!-- Conditions Grid -->
+    <div class="aw-conditions-grid">
+      <div class="card aw-tile">
+        <div class="aw-tile-label">${WEATHER_SVGS.uv} UV INDEX</div>
+        <div class="aw-tile-val">${Math.round(curUV)}</div>
+        <div class="aw-tile-desc">${uvDesc(curUV)}</div>
+        <div class="aw-tile-bar-track"><div class="aw-tile-bar" style="width:${Math.min(curUV / 11 * 100, 100)}%;background:linear-gradient(to right,#34C759,#FFD60A,#FF453A)"></div></div>
+      </div>
+      <div class="card aw-tile">
+        <div class="aw-tile-label">${WEATHER_SVGS.wind} WIND</div>
+        <div class="aw-tile-val">${Math.round(curWind)}<span> ${windLbl}</span></div>
+        <div class="aw-tile-desc">${curWindDir}</div>
+      </div>
+      <div class="card aw-tile">
+        <div class="aw-tile-label">${WEATHER_SVGS.rain} PRECIPITATION</div>
+        <div class="aw-tile-val">${Math.round(curPrecipProb)}<span>%</span></div>
+        <div class="aw-tile-desc">${(rainMm?.[0] ?? 0) > 0.5 ? (rainMm[0]).toFixed(1) + ' mm expected' : 'None expected'}</div>
+      </div>
+      <div class="card aw-tile">
+        <div class="aw-tile-label">${WEATHER_SVGS.feelslike} FEELS LIKE</div>
+        <div class="aw-tile-val">${curFeels != null ? Math.round(curFeels) : '—'}°</div>
+        <div class="aw-tile-desc">${feelsDesc(curFeels, curTemp)}</div>
+      </div>
+      <div class="card aw-tile">
+        <div class="aw-tile-label">${WEATHER_SVGS.humidity} HUMIDITY</div>
+        <div class="aw-tile-val">${curHumidity != null ? Math.round(curHumidity) : '—'}<span>%</span></div>
+        <div class="aw-tile-desc">The dew point is ${curTemp != null && curHumidity != null ? Math.round(curTemp - ((100 - curHumidity) / 5)) : '—'}° right now</div>
+      </div>
+      <div class="card aw-tile">
+        <div class="aw-tile-label">${WEATHER_SVGS.visibility} VISIBILITY</div>
+        <div class="aw-tile-val">${visStr}</div>
+        <div class="aw-tile-desc">${curVis != null && curVis >= 10000 ? 'Perfectly clear' : curVis != null && curVis >= 5000 ? 'Good visibility' : 'Reduced visibility'}</div>
+      </div>
+      <div class="card aw-tile">
+        <div class="aw-tile-label">${WEATHER_SVGS.pressure} PRESSURE</div>
+        <div class="aw-tile-val">${curPressure != null ? Math.round(curPressure) : '—'}<span> hPa</span></div>
+        <div class="aw-tile-desc">${curPressure != null ? (curPressure > 1020 ? 'High pressure' : curPressure < 1000 ? 'Low pressure' : 'Normal') : ''}</div>
+      </div>
+    </div>
+
+    <!-- Sunrise & Sunset — full-width premium card -->
+    <div class="card aw-card aw-sun-card">
+      <div class="aw-card-label">${WEATHER_SVGS.sunrise_icon} SUNRISE & SUNSET</div>
+      <div class="aw-sun-card-body">
+        <div class="aw-sun-card-hero">
+          <div class="aw-sun-card-next">
+            <div class="aw-sun-card-next-label">${sunNextLabel}</div>
+            <div class="aw-sun-card-next-time">${sunTimeLeft || '—'}</div>
+          </div>
+        </div>
+        ${_buildSunArc(sunProgress, heroSr, heroSs)}
+        <div class="aw-sun-card-details">
+          <div class="aw-sun-detail">
+            <div class="aw-sun-detail-icon">${WEATHER_SVGS.sunrise_icon}</div>
+            <div class="aw-sun-detail-info">
+              <div class="aw-sun-detail-label">Sunrise</div>
+              <div class="aw-sun-detail-val">${heroSr}</div>
+            </div>
+          </div>
+          <div class="aw-sun-detail">
+            <div class="aw-sun-detail-icon">${WEATHER_SVGS.sunset_icon}</div>
+            <div class="aw-sun-detail-info">
+              <div class="aw-sun-detail-label">Sunset</div>
+              <div class="aw-sun-detail-val">${heroSs}</div>
+            </div>
+          </div>
+          <div class="aw-sun-detail">
+            <div class="aw-sun-detail-icon">${WEATHER_SVGS.sun}</div>
+            <div class="aw-sun-detail-info">
+              <div class="aw-sun-detail-label">Daylight</div>
+              <div class="aw-sun-detail-val">${daylightHrs}h ${daylightMin}m</div>
+            </div>
+          </div>
+          <div class="aw-sun-detail">
+            <div class="aw-sun-detail-icon"><svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="8" fill="#FFB800" opacity="0.2"/><circle cx="20" cy="20" r="5" fill="#FFB800"/></svg></div>
+            <div class="aw-sun-detail-info">
+              <div class="aw-sun-detail-label">Golden Hour</div>
+              <div class="aw-sun-detail-val">${goldenStart} – ${goldenEnd}</div>
+            </div>
+          </div>
+        </div>
+        ${tomorrowSr ? `<div class="aw-sun-card-tomorrow">Tomorrow's sunrise: <strong>${tomorrowSr}</strong></div>` : ''}
+      </div>
+    </div>
 
     <!-- Weather vs Performance -->
-    <div class="wxp-section-label">Weather vs Performance</div>
+    <div class="aw-card-label" style="margin-top:8px">WEATHER VS PERFORMANCE</div>
     <div id="wxPerfSection" class="wxp-perf-section">
       <div class="wxp-perf-loading"><div class="spinner"></div><p>Analysing ride data...</p></div>
     </div>
 
-    <!-- Data source footer -->
-    <div class="wxp-data-source">
-      <div class="wxp-ds-row">
-        <span class="wxp-ds-label">Data source</span>
-        <a class="wxp-ds-link" href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a>
-        <span class="wxp-ds-sep">·</span>
-        <span class="wxp-ds-label">Model</span>
-        <span class="wxp-ds-val">${localStorage.getItem('icu_wx_model') || 'best_match'}</span>
-      </div>
-      <div class="wxp-ds-row">
-        <span class="wxp-ds-label">Endpoint</span>
-        <code class="wxp-ds-endpoint">api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&amp;longitude=${lng.toFixed(4)}&amp;daily=weathercode,…&amp;hourly=weathercode,…&amp;forecast_days=7&amp;timezone=auto&amp;models=${localStorage.getItem('icu_wx_model') || 'best_match'}</code>
-      </div>
-      <div class="wxp-ds-row">
-        <span class="wxp-ds-label">Coordinates</span>
-        <span class="wxp-ds-val">${lat.toFixed(4)}° N, ${lng.toFixed(4)}° E</span>
-        <span class="wxp-ds-sep">·</span>
-        <span class="wxp-ds-label">Cache</span>
-        <span class="wxp-ds-val">30 min (cleared on refresh)</span>
-      </div>
-      <div class="wxp-ds-row">
-        <span class="wxp-ds-label">Weather codes</span>
-        <a class="wxp-ds-link" href="https://open-meteo.com/en/docs#weathervariables" target="_blank" rel="noopener">WMO 4677 standard</a>
-        <span class="wxp-ds-sep">·</span>
-        <span class="wxp-ds-label">Hover score badges to see raw code per day</span>
-      </div>
-    </div>
+    <!-- Footer -->
+    <div class="aw-footer">Data from <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> · ${localStorage.getItem('icu_wx_model') || 'best_match'} · ${lat.toFixed(2)}°N, ${lng.toFixed(2)}°E</div>
   `;
 
   // Restore scroll position after location switch
@@ -1323,8 +1252,8 @@ export async function renderWeatherPage(_restoreScrollY) {
     });
   }
 
-  // Attach click handlers on day cards (with drag-detection guard)
-  body.querySelectorAll('.wxp-day-card, .wxp-best-card').forEach(card => {
+  // Attach click handlers on forecast rows (with drag-detection guard)
+  body.querySelectorAll('.aw-forecast-row').forEach(card => {
     let startX = 0, startY = 0, dragged = false;
     card.addEventListener('mousedown', e => {
       startX = e.clientX; startY = e.clientY; dragged = false;
@@ -1353,45 +1282,34 @@ export async function renderWeatherPage(_restoreScrollY) {
     });
   });
 
-  // Attach drag-to-scroll on the week rail (desktop mouse drag)
-  const rail = body.querySelector('.wxp-week-scroll');
-  if (rail) {
+  // Drag-to-scroll on hourly strip
+  const hStrip = body.querySelector('.aw-hourly-scroll');
+  if (hStrip) {
     let isDown = false, startX = 0, scrollLeft = 0;
-    rail.addEventListener('mousedown', e => {
-      isDown = true;
-      rail.classList.add('is-dragging');
-      startX = e.pageX - rail.getBoundingClientRect().left;
-      scrollLeft = rail.scrollLeft;
+    hStrip.addEventListener('mousedown', e => {
+      isDown = true; hStrip.classList.add('is-dragging');
+      startX = e.pageX - hStrip.getBoundingClientRect().left;
+      scrollLeft = hStrip.scrollLeft;
       e.preventDefault();
-      e.stopPropagation();
     });
-    const wxWeekUp = () => { isDown = false; rail.classList.remove('is-dragging'); };
-    let _wxMoveRAF = 0;
-    const wxWeekMove = e => {
+    const wxHUp = () => { isDown = false; hStrip.classList.remove('is-dragging'); };
+    let _wxHRAF = 0;
+    const wxHMove = e => {
       if (!isDown) return;
       const px = e.pageX;
-      if (_wxMoveRAF) return;
-      _wxMoveRAF = requestAnimationFrame(() => {
-        _wxMoveRAF = 0;
-        const x = px - rail.getBoundingClientRect().left;
-        rail.scrollLeft = scrollLeft - (x - startX);
+      if (_wxHRAF) return;
+      _wxHRAF = requestAnimationFrame(() => {
+        _wxHRAF = 0;
+        const x = px - hStrip.getBoundingClientRect().left;
+        hStrip.scrollLeft = scrollLeft - (x - startX);
       });
     };
-    document.addEventListener('mouseup', wxWeekUp);
-    document.addEventListener('mousemove', wxWeekMove);
+    document.addEventListener('mouseup', wxHUp);
+    document.addEventListener('mousemove', wxHMove);
     _pageCleanupFns.push(() => {
-      document.removeEventListener('mouseup', wxWeekUp);
-      document.removeEventListener('mousemove', wxWeekMove);
+      document.removeEventListener('mouseup', wxHUp);
+      document.removeEventListener('mousemove', wxHMove);
     });
-    // Touch support
-    rail.addEventListener('touchstart', e => {
-      startX = e.touches[0].pageX - rail.getBoundingClientRect().left;
-      scrollLeft = rail.scrollLeft;
-    }, { passive: true });
-    rail.addEventListener('touchmove', e => {
-      const x = e.touches[0].pageX - rail.getBoundingClientRect().left;
-      rail.scrollLeft = scrollLeft - (x - startX);
-    }, { passive: true });
   }
   _rIC(() => { if (window.refreshGlow) refreshGlow(); });
   _rIC(() => renderWeatherPerformance());
@@ -1454,30 +1372,30 @@ export function renderWeatherDayDetail(dayIdx) {
 
   const reasons = [];
   let score = 100;
-  if (isStorm)               { score -= 75; reasons.push('⛈ Thunderstorms expected'); }
-  else if (isSnow)           { score -= 65; reasons.push('❄️ Snow or sleet forecast'); }
-  else if (isRain && !isDriz){ score -= 45 + Math.min(precip, 55) * 0.5; reasons.push(`🌧 Rain (${Math.round(precip)}% chance)`); }
-  else if (isDriz)           { score -= 30; reasons.push(`🌦 Drizzle expected`); }
-  else if (isFog)            { score -= 25; reasons.push('🌫 Foggy — low visibility'); }
-  else if ([2,3].includes(code)) { score -= 12; reasons.push('⛅ Overcast skies'); }
+  if (isStorm)               { score -= 75; reasons.push({ svg: 'storm', text: 'Thunderstorms expected' }); }
+  else if (isSnow)           { score -= 65; reasons.push({ svg: 'snow', text: 'Snow or sleet forecast' }); }
+  else if (isRain && !isDriz){ score -= 45 + Math.min(precip, 55) * 0.5; reasons.push({ svg: 'rain', text: `Rain (${Math.round(precip)}% chance)` }); }
+  else if (isDriz)           { score -= 30; reasons.push({ svg: 'drizzle', text: 'Drizzle expected' }); }
+  else if (isFog)            { score -= 25; reasons.push({ svg: 'fog', text: 'Foggy — low visibility' }); }
+  else if ([2,3].includes(code)) { score -= 12; reasons.push({ svg: 'pcloud', text: 'Overcast skies' }); }
   if (!isRain && !isDriz && !isSnow && !isStorm) {
-    if      (precip >= 60) { score -= 30; reasons.push(`🌧 ${Math.round(precip)}% rain chance`); }
-    else if (precip >= 40) { score -= 18; reasons.push(`🌦 ${Math.round(precip)}% rain chance`); }
-    else if (precip >= 25) { score -= 8;  reasons.push(`🌂 ${Math.round(precip)}% rain chance`); }
+    if      (precip >= 60) { score -= 30; reasons.push({ svg: 'rain', text: `${Math.round(precip)}% rain chance` }); }
+    else if (precip >= 40) { score -= 18; reasons.push({ svg: 'drizzle', text: `${Math.round(precip)}% rain chance` }); }
+    else if (precip >= 25) { score -= 8;  reasons.push({ svg: 'rain', text: `${Math.round(precip)}% rain chance` }); }
   }
-  if (high < coldThresh)               { score -= 35; reasons.push(`🥶 Very cold (high ${Math.round(high)}${deg})`); }
-  else if (high < (isMetric ? 8 : 46)) { score -= 20; reasons.push(`🌡 Chilly (high ${Math.round(high)}${deg})`); }
-  else if (high < (isMetric ? 12 : 54)){ score -= 10; reasons.push(`🌡 Cool (high ${Math.round(high)}${deg})`); }
-  else if (high < (isMetric ? 18 : 64)){ score -= 5;  reasons.push(`🌡 Mild (high ${Math.round(high)}${deg})`); }
-  else if (high > hotThresh)           { score -= 25; reasons.push(`🥵 Extreme heat (${Math.round(high)}${deg})`); }
-  if (wind > windPoor)       { score -= 35; reasons.push(`💨 Very strong winds (${Math.round(wind)} ${windLbl})`); }
-  else if (wind > windThresh){ score -= 20; reasons.push(`💨 Windy (${Math.round(wind)} ${windLbl})`); }
-  else if (wind > (isMetric ? 20 : 12)){ score -= 15; reasons.push(`💨 Moderate wind (${Math.round(wind)} ${windLbl})`); }
-  else if (wind > (isMetric ? 12 : 8)) { score -= 8;  reasons.push(`💨 Breezy (${Math.round(wind)} ${windLbl})`); }
+  if (high < coldThresh)               { score -= 35; reasons.push({ svg: 'temp', text: `Very cold (high ${Math.round(high)}${deg})` }); }
+  else if (high < (isMetric ? 8 : 46)) { score -= 20; reasons.push({ svg: 'temp', text: `Chilly (high ${Math.round(high)}${deg})` }); }
+  else if (high < (isMetric ? 12 : 54)){ score -= 10; reasons.push({ svg: 'temp', text: `Cool (high ${Math.round(high)}${deg})` }); }
+  else if (high < (isMetric ? 18 : 64)){ score -= 5;  reasons.push({ svg: 'temp', text: `Mild (high ${Math.round(high)}${deg})` }); }
+  else if (high > hotThresh)           { score -= 25; reasons.push({ svg: 'temp', text: `Extreme heat (${Math.round(high)}${deg})` }); }
+  if (wind > windPoor)       { score -= 35; reasons.push({ svg: 'wind', text: `Very strong winds (${Math.round(wind)} ${windLbl})` }); }
+  else if (wind > windThresh){ score -= 20; reasons.push({ svg: 'wind', text: `Windy (${Math.round(wind)} ${windLbl})` }); }
+  else if (wind > (isMetric ? 20 : 12)){ score -= 15; reasons.push({ svg: 'wind', text: `Moderate wind (${Math.round(wind)} ${windLbl})` }); }
+  else if (wind > (isMetric ? 12 : 8)) { score -= 8;  reasons.push({ svg: 'wind', text: `Breezy (${Math.round(wind)} ${windLbl})` }); }
   if (score >= 80) {
-    if (isClear) reasons.unshift('☀️ Clear skies');
-    else         reasons.unshift('⛅ Mostly cloudy but dry');
-    if (uv >= 6) reasons.push(`🕶 High UV (${uv}) — wear sunscreen`);
+    if (isClear) reasons.unshift({ svg: 'sun', text: 'Clear skies' });
+    else         reasons.unshift({ svg: 'pcloud', text: 'Mostly cloudy but dry' });
+    if (uv >= 6) reasons.push({ svg: 'uv', text: `High UV (${uv}) — wear sunscreen` });
   }
   score = Math.max(0, Math.min(100, Math.round(score)));
   const label = score >= 80 ? 'great' : score >= 55 ? 'good' : score >= 30 ? 'fair' : 'poor';
@@ -1485,9 +1403,14 @@ export function renderWeatherDayDetail(dayIdx) {
 
   // ── Sunrise / sunset ─────────────────────────────────────────────────────
   let srStr = '—', ssStr = '—';
+  let sunProgress = -1;
   try {
     srStr = new Date(sunrises[i]).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
     ssStr = new Date(sunsets[i]).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    const srMs = new Date(sunrises[i]).getTime();
+    const ssMs = new Date(sunsets[i]).getTime();
+    const nowMs = Date.now();
+    if (ssMs > srMs) sunProgress = (nowMs - srMs) / (ssMs - srMs);
   } catch (_) {}
 
   // ── Hourly data for this day ──────────────────────────────────────────────
@@ -1553,14 +1476,14 @@ export function renderWeatherDayDetail(dayIdx) {
       const cod   = hCodes[idx] ?? 0;
       const hScore = hourlyScoreMap.get(idx);
       const dotLabel = hScore == null ? '' : hScore >= 75 ? 'great' : hScore >= 55 ? 'good' : hScore >= 35 ? 'fair' : 'poor';
-      const dotHtml = dotLabel ? `<div class="wxd-h-dot wxd-h-dot--${dotLabel}"></div>` : '';
+      const dotHtml = dotLabel ? `<div class="aw-h-dot aw-h-dot--${dotLabel}"></div>` : '';
       return `
-        <div class="wxd-h-card">
-          <div class="wxd-h-time">${hDisp}</div>
-          <div class="wxd-h-icon">${wmoIcon(cod)}</div>
-          <div class="wxd-h-temp">${temp}°</div>
-          <div class="wxd-h-wind">${wnd} ${windLbl}</div>
-          <div class="wxd-h-rain">${Math.round(pr)}%</div>
+        <div class="aw-hour">
+          <div class="aw-hour-time">${hDisp}</div>
+          <div class="aw-hour-icon">${wmoIcon(cod)}</div>
+          <div class="aw-hour-temp">${temp}°</div>
+          <div class="aw-hour-wind">${wnd} ${windLbl}</div>
+          <div class="aw-hour-rain">${Math.round(pr)}%</div>
           ${dotHtml}
         </div>`;
     }).join('');
@@ -1571,50 +1494,50 @@ export function renderWeatherDayDetail(dayIdx) {
     const tips = [];
 
     // Kit recommendation
-    if (high < coldThresh)               tips.push({ icon: '🧥', title: 'Kit', body: `Cold day — full thermal kit, wind vest, gloves & overshoes. Dress for ${Math.round(high)}${deg}.` });
-    else if (high < (isMetric ? 10 : 50)) tips.push({ icon: '🧤', title: 'Kit', body: `Chilly — bib tights, long-sleeve base layer, arm warmers. High: ${Math.round(high)}${deg}.` });
-    else if (high < (isMetric ? 18 : 65)) tips.push({ icon: '🚴', title: 'Kit', body: `Cool — jersey + arm warmers, knee warmers. May warm up midday.` });
-    else if (high > hotThresh)            tips.push({ icon: '🌡', title: 'Kit', body: `Hot day — minimal kit, light colours, cooling vest if available. ${Math.round(high)}${deg} expected.` });
-    else                                  tips.push({ icon: '🚴', title: 'Kit', body: `Comfortable temps — standard jersey & bibs. High: ${Math.round(high)}${deg}.` });
+    if (high < coldThresh)               tips.push({ svg: 'kit', title: 'Kit', body: `Cold day — full thermal kit, wind vest, gloves & overshoes. Dress for ${Math.round(high)}${deg}.` });
+    else if (high < (isMetric ? 10 : 50)) tips.push({ svg: 'kit', title: 'Kit', body: `Chilly — bib tights, long-sleeve base layer, arm warmers. High: ${Math.round(high)}${deg}.` });
+    else if (high < (isMetric ? 18 : 65)) tips.push({ svg: 'kit', title: 'Kit', body: `Cool — jersey + arm warmers, knee warmers. May warm up midday.` });
+    else if (high > hotThresh)            tips.push({ svg: 'kit', title: 'Kit', body: `Hot day — minimal kit, light colours, cooling vest if available. ${Math.round(high)}${deg} expected.` });
+    else                                  tips.push({ svg: 'kit', title: 'Kit', body: `Comfortable temps — standard jersey & bibs. High: ${Math.round(high)}${deg}.` });
 
     // Rain gear
-    if (isStorm)      tips.push({ icon: '⛈', title: 'Rain Gear', body: 'Thunderstorm forecast — consider an indoor session or reschedule.' });
-    else if (isSnow)  tips.push({ icon: '❄️', title: 'Rain Gear', body: 'Snow forecast — not recommended. If riding, use full waterproofs & studded tyres.' });
-    else if (isRain)  tips.push({ icon: '🌧', title: 'Rain Gear', body: 'Rain expected — waterproof jacket essential, mudguards recommended, check braking distance.' });
-    else if (isDriz)  tips.push({ icon: '🌦', title: 'Rain Gear', body: 'Drizzle possible — light rain jacket or gilet in back pocket. Avoid white kit.' });
-    else if (precip >= 40) tips.push({ icon: '🌂', title: 'Rain Gear', body: `${Math.round(precip)}% rain chance — pack a lightweight gilet as insurance.` });
-    else              tips.push({ icon: '✅', title: 'Rain Gear', body: 'Dry conditions expected — no rain gear needed. Leave the jacket at home.' });
+    if (isStorm)      tips.push({ svg: 'raingear', title: 'Rain Gear', body: 'Thunderstorm forecast — consider an indoor session or reschedule.' });
+    else if (isSnow)  tips.push({ svg: 'raingear', title: 'Rain Gear', body: 'Snow forecast — not recommended. If riding, use full waterproofs & studded tyres.' });
+    else if (isRain)  tips.push({ svg: 'raingear', title: 'Rain Gear', body: 'Rain expected — waterproof jacket essential, mudguards recommended, check braking distance.' });
+    else if (isDriz)  tips.push({ svg: 'raingear', title: 'Rain Gear', body: 'Drizzle possible — light rain jacket or gilet in back pocket. Avoid white kit.' });
+    else if (precip >= 40) tips.push({ svg: 'raingear', title: 'Rain Gear', body: `${Math.round(precip)}% rain chance — pack a lightweight gilet as insurance.` });
+    else              tips.push({ svg: 'checkmark', title: 'Rain Gear', body: 'Dry conditions expected — no rain gear needed. Leave the jacket at home.' });
 
     // Wind strategy
-    if (wind > windPoor)        tips.push({ icon: '💨', title: 'Wind Strategy', body: `Strong winds (${Math.round(wind)} ${windLbl} ${wdir}) — ride into the wind on the way out so you have it at your back coming home.` });
-    else if (wind > windThresh) tips.push({ icon: '🍃', title: 'Wind Strategy', body: `Moderate wind (${Math.round(wind)} ${windLbl} ${wdir}) — expect effort spikes on exposed roads. Draft where possible.` });
-    else                        tips.push({ icon: '🌿', title: 'Wind Strategy', body: `Light winds (${Math.round(wind)} ${windLbl}) — great day for time-trial efforts or PB attempts.` });
+    if (wind > windPoor)        tips.push({ svg: 'windstrat', title: 'Wind Strategy', body: `Strong winds (${Math.round(wind)} ${windLbl} ${wdir}) — ride into the wind on the way out so you have it at your back coming home.` });
+    else if (wind > windThresh) tips.push({ svg: 'windstrat', title: 'Wind Strategy', body: `Moderate wind (${Math.round(wind)} ${windLbl} ${wdir}) — expect effort spikes on exposed roads. Draft where possible.` });
+    else                        tips.push({ svg: 'windstrat', title: 'Wind Strategy', body: `Light winds (${Math.round(wind)} ${windLbl}) — great day for time-trial efforts or PB attempts.` });
 
     // Sun / UV
-    if (uv >= 8)       tips.push({ icon: '🕶', title: 'Sun Protection', body: `Very high UV index (${uv}) — SPF 50+ on all exposed skin, quality sunglasses essential.` });
-    else if (uv >= 5)  tips.push({ icon: '☀️', title: 'Sun Protection', body: `Moderate UV (${uv}) — apply sunscreen before heading out, especially on shoulders & neck.` });
-    else               tips.push({ icon: '🌤', title: 'Sun Protection', body: `Low UV (${uv}) — no special precautions needed. Sunglasses still useful for road debris.` });
+    if (uv >= 8)       tips.push({ svg: 'sunprotect', title: 'Sun Protection', body: `Very high UV index (${uv}) — SPF 50+ on all exposed skin, quality sunglasses essential.` });
+    else if (uv >= 5)  tips.push({ svg: 'sunprotect', title: 'Sun Protection', body: `Moderate UV (${uv}) — apply sunscreen before heading out, especially on shoulders & neck.` });
+    else               tips.push({ svg: 'sunprotect', title: 'Sun Protection', body: `Low UV (${uv}) — no special precautions needed. Sunglasses still useful for road debris.` });
 
     // Hydration
-    if (high > (isMetric ? 28 : 82))   tips.push({ icon: '💧', title: 'Hydration', body: `Hot day — aim for at least 1 bottle (500ml) per 45 min. Add electrolyte mix in one bottle.` });
-    else if (high > (isMetric ? 20 : 68)) tips.push({ icon: '🚰', title: 'Hydration', body: `Warm — 500ml/hr is a solid target. Note any cafes or water stops along the route.` });
-    else                                tips.push({ icon: '🫗', title: 'Hydration', body: `Cool weather suppresses thirst — still drink 400–500ml/hr to stay on top of it.` });
+    if (high > (isMetric ? 28 : 82))   tips.push({ svg: 'hydration', title: 'Hydration', body: `Hot day — aim for at least 1 bottle (500ml) per 45 min. Add electrolyte mix in one bottle.` });
+    else if (high > (isMetric ? 20 : 68)) tips.push({ svg: 'hydration', title: 'Hydration', body: `Warm — 500ml/hr is a solid target. Note any cafes or water stops along the route.` });
+    else                                tips.push({ svg: 'hydration', title: 'Hydration', body: `Cool weather suppresses thirst — still drink 400–500ml/hr to stay on top of it.` });
 
     return tips;
   }
 
   const tips = plannerTips();
   const tipsHtml = tips.map(t => `
-    <div class="wxd-tip-card">
-      <div class="wxd-tip-icon">${t.icon}</div>
-      <div class="wxd-tip-body">
-        <div class="wxd-tip-title">${t.title}</div>
-        <div class="wxd-tip-text">${t.body}</div>
+    <div class="aw-tip-row">
+      <div class="aw-tip-icon">${WEATHER_SVGS[t.svg] || ''}</div>
+      <div class="aw-tip-body">
+        <div class="aw-tip-title">${t.title}</div>
+        <div class="aw-tip-text">${t.body}</div>
       </div>
     </div>`).join('');
 
   // ── Score color bar / badge ───────────────────────────────────────────────
-  const reasonsHtml = reasons.map(r => `<div class="wxd-reason">${r}</div>`).join('');
+  const reasonsHtml = reasons.map(r => `<div class="aw-reason-row"><span class="aw-reason-icon">${WEATHER_SVGS[r.svg] || ''}</span><span class="aw-reason-text">${r.text}</span></div>`).join('');
 
   // ── Show back button in topbar, update page title ────────────────────────
   const wxdBack = document.getElementById('wxdTopbarBack');
@@ -1626,80 +1549,59 @@ export function renderWeatherDayDetail(dayIdx) {
 
   // ── Build page ────────────────────────────────────────────────────────────
   container.innerHTML = `
-    <!-- Hero card -->
-    <div class="wxd-hero">
-      <div class="wxd-hero-left">
-        <div class="wxd-hero-icon">${wmoIcon(codes[i])}</div>
-        <div class="wxd-hero-temps">
-          <span class="wxd-hero-high">${Math.round(high)}${deg}</span>
-          <span class="wxd-hero-low">/ ${Math.round(low)}${deg}</span>
-        </div>
+    <div class="aw-detail-wrap">
+    <!-- Back link -->
+    <button class="aw-back-btn" onclick="renderWeatherPage()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg>
+      Weather
+    </button>
+    <!-- Hero -->
+    <div class="aw-detail-hero">
+      <div class="aw-dh-icon">${wmoIcon(codes[i])}</div>
+      <div class="aw-dh-info">
+        <div class="aw-dh-condition">${wmoLabel(codes[i])}</div>
+        <div class="aw-dh-temp">${Math.round(high)}°<span class="aw-dh-lo">/${Math.round(low)}°</span></div>
       </div>
-      <div class="wxd-hero-right">
-        <div class="wxp-score-badge wxp-score--${label} wxd-hero-badge">${label === 'great' ? '🚴 Great day' : label === 'good' ? '👍 Good day' : label === 'fair' ? '⚠️ Fair day' : '✗ Poor day'}</div>
-        <div class="wxd-score-bar-wrap">
-          <div class="wxd-score-bar wxd-score-bar--${label}" style="width:${score}%"></div>
-        </div>
-        <div class="wxd-score-num">${score}<span> / 100</span></div>
-      </div>
-    </div>
-
-    <!-- Key stats row -->
-    <div class="wxd-stats-row">
-      <div class="wxd-stat">
-        <div class="wxd-stat-icon">💨</div>
-        <div class="wxd-stat-val">${Math.round(wind)}</div>
-        <div class="wxd-stat-lbl">${windLbl} ${wdir}</div>
-      </div>
-      <div class="wxd-stat">
-        <div class="wxd-stat-icon">🌧</div>
-        <div class="wxd-stat-val">${Math.round(precip)}%</div>
-        <div class="wxd-stat-lbl">Rain chance</div>
-      </div>
-      <div class="wxd-stat">
-        <div class="wxd-stat-icon">☀️</div>
-        <div class="wxd-stat-val">${uv}</div>
-        <div class="wxd-stat-lbl">UV Index</div>
-      </div>
-      <div class="wxd-stat">
-        <div class="wxd-stat-icon">🌅</div>
-        <div class="wxd-stat-val">${srStr}</div>
-        <div class="wxd-stat-lbl">Sunrise</div>
-      </div>
-      <div class="wxd-stat">
-        <div class="wxd-stat-icon">🌇</div>
-        <div class="wxd-stat-val">${ssStr}</div>
-        <div class="wxd-stat-lbl">Sunset</div>
+      <div class="aw-dh-score">
+        <div class="aw-score-badge aw-score--${label}">${score}</div>
+        <div class="aw-dh-score-label">${label === 'great' ? 'Great' : label === 'good' ? 'Good' : label === 'fair' ? 'Fair' : 'Poor'}</div>
       </div>
     </div>
-
-    <!-- Ride score reasons -->
-    ${reasonsHtml ? `
-    <div class="wxp-section-label">Ride Assessment</div>
-    <div class="wxd-reasons">${reasonsHtml}</div>` : ''}
-
-    <!-- Best ride window for this day -->
-    ${bestWindowStr ? `
-    <div class="wxd-window-banner">
-      <span class="wxd-window-label">🚴 Best Ride Window</span>
-      <span class="wxd-window-time">${bestWindowStr}</span>
-    </div>` : ''}
 
     <!-- Hourly conditions -->
     ${hourlyHtml ? `
-    <div class="wxp-section-label">Hourly Conditions</div>
-    <div class="wxd-h-legend">
-      <span>Temp</span><span>Wind</span><span>Rain%</span>
-    </div>
-    <div class="wxd-hourly-scroll">${hourlyHtml}</div>` : ''}
+    <div class="card aw-card">
+      <div class="aw-card-label">HOURLY CONDITIONS</div>
+      <div class="aw-hourly-scroll">${hourlyHtml}</div>
+    </div>` : ''}
 
-    <!-- Ride planner -->
-    <div class="wxp-section-label">Ride Planner</div>
-    <div class="wxd-tips">${tipsHtml}</div>
+    <!-- Ride Assessment -->
+    ${reasonsHtml ? `
+    <div class="card aw-card">
+      <div class="aw-card-label">RIDE ASSESSMENT</div>
+      <div class="aw-reasons-list">${reasonsHtml}</div>
+    </div>` : ''}
+
+    <!-- Best Ride Window -->
+    ${bestWindowStr ? `
+    <div class="card aw-card">
+      <div class="aw-card-label">BEST RIDE WINDOW</div>
+      <div class="aw-window-content">
+        <div class="aw-window-time">${bestWindowStr}</div>
+        ${_buildSunArc(sunProgress, srStr, ssStr)}
+      </div>
+    </div>` : ''}
+
+    <!-- Ride Planner -->
+    <div class="card aw-card">
+      <div class="aw-card-label">RIDE PLANNER</div>
+      <div class="aw-tips-list">${tipsHtml}</div>
+    </div>
+    </div><!-- /.aw-detail-wrap -->
   `;
 
   // Drag-to-scroll on hourly rail
-  const hRail = container.querySelector('.wxd-hourly-scroll');
+  const hRail = container.querySelector('.aw-hourly-scroll');
   if (hRail) {
     let isDown = false, startX = 0, scrollLeft = 0;
     hRail.addEventListener('mousedown', e => {
