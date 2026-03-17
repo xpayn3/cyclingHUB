@@ -11618,6 +11618,7 @@ function _lockSheetScroll() {
   document.body.style.position = 'fixed';
   document.body.style.width = '100%';
   document.body.style.top = `-${window.scrollY}px`;
+  document.body.style.overflow = 'hidden';
 }
 
 function _unlockSheetScroll() {
@@ -11628,6 +11629,7 @@ function _unlockSheetScroll() {
   document.body.style.position = '';
   document.body.style.width = '';
   document.body.style.top = '';
+  document.body.style.overflow = '';
   window.scrollTo(0, y);
 }
 
@@ -11638,6 +11640,76 @@ function _cleanSheet(inner) {
   inner.style.transition = '';
   inner.style.animation = '';
 }
+
+// ── iOS keyboard-aware viewport tracking ──
+// When the virtual keyboard opens on iOS, visualViewport shrinks and offsets.
+// We reposition the dialog container to match the actual visible area so the
+// modal doesn't fly off-screen.
+let _sheetVVHandler = null;
+function _startViewportTracking(dialog) {
+  if (!window.visualViewport) return;
+  _stopViewportTracking();
+
+  const vv = window.visualViewport;
+  const layoutH = window.innerHeight;
+
+  function onVVResize() {
+    // Only adjust when a sheet is actually open
+    if (!dialog.open || !dialog.classList.contains('sheet-open')) return;
+
+    const vvH = vv.height;
+    const vvTop = vv.offsetTop;
+
+    // If keyboard shrunk the viewport significantly (>50px difference)
+    if (layoutH - vvH > 50) {
+      // Reposition dialog to cover only the visual viewport
+      dialog.style.top = vvTop + 'px';
+      dialog.style.height = vvH + 'px';
+      dialog.style.bottom = 'auto';
+    } else {
+      // Keyboard hidden — reset to full viewport
+      dialog.style.top = '0';
+      dialog.style.height = '100%';
+      dialog.style.bottom = '0';
+    }
+  }
+
+  _sheetVVHandler = onVVResize;
+  vv.addEventListener('resize', onVVResize);
+  vv.addEventListener('scroll', onVVResize);
+}
+
+function _stopViewportTracking() {
+  if (_sheetVVHandler && window.visualViewport) {
+    window.visualViewport.removeEventListener('resize', _sheetVVHandler);
+    window.visualViewport.removeEventListener('scroll', _sheetVVHandler);
+    _sheetVVHandler = null;
+  }
+}
+
+// Prevent iOS from scrolling the page when focusing inputs inside sheets.
+// Instead, let the visualViewport handler reposition the dialog.
+document.addEventListener('focusin', function(e) {
+  if (!_isMobileSheet()) return;
+  const sheet = e.target.closest('dialog.modal-dialog.sheet-open');
+  if (!sheet) return;
+  const tag = e.target.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+    // Prevent the browser's default scroll-into-view which fights with our
+    // viewport tracking and causes the modal to fly away
+    requestAnimationFrame(function() {
+      // Scroll the input into view WITHIN the modal body, not the page
+      const modalBody = e.target.closest('.modal-body');
+      if (modalBody) {
+        const rect = e.target.getBoundingClientRect();
+        const bodyRect = modalBody.getBoundingClientRect();
+        if (rect.bottom > bodyRect.bottom || rect.top < bodyRect.top) {
+          e.target.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+      }
+    });
+  }
+});
 
 HTMLDialogElement.prototype.showModal = function() {
   const inner = this.querySelector('.modal');
@@ -11670,6 +11742,9 @@ HTMLDialogElement.prototype.showModal = function() {
     this._swipeInited = true;
   }
 
+  // Start tracking visualViewport for keyboard avoidance
+  _startViewportTracking(this);
+
   // Trigger slide-in: start off-screen, force paint, then animate
   if (inner) {
     inner.style.transform = 'translateY(100%)';
@@ -11682,9 +11757,14 @@ HTMLDialogElement.prototype.close = function(rv) {
   const inner = this.querySelector('.modal');
   _cleanSheet(inner);
   this.classList.remove('sheet-open');
+  // Reset any keyboard viewport adjustments
+  this.style.top = '';
+  this.style.height = '';
+  this.style.bottom = '';
   _origClose.call(this, rv);
   // Hide backdrop + unlock scroll if no other sheets are open
   if (!document.querySelector('dialog.modal-dialog[open]')) {
+    _stopViewportTracking();
     if (_sheetBackdrop) _sheetBackdrop.classList.remove('active');
     _unlockSheetScroll();
   }
