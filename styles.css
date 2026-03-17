@@ -9848,7 +9848,7 @@ body:has(.act-sheet-mode) .topbar {
         opacity: 0.18;
     }
     .cal-day--weekend:not(.cal-day--other-month) {
-        background: rgba(255, 255, 255, 0.04);
+        background: rgba(255, 255, 255, 0.08);
     }
 
     /* ── Day numbers: larger, cleaner ── */
