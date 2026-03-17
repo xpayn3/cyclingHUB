@@ -13630,8 +13630,8 @@ body:has(.act-sheet-mode) .topbar {
         overflow: visible;
         opacity: 1 !important;
         animation: none !important;
-        /* ── Same approach as activity bottom sheet ── */
-        transform: translate3d(0, 100%, 0);
+        /* JS controls transform for slide-in/out — no CSS default transform
+           to avoid racing with showModal() on iOS Safari */
         transition: transform 0.35s cubic-bezier(0.2, 0, 0, 1);
         will-change: transform;
         -webkit-backface-visibility: hidden;
