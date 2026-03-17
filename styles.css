@@ -6219,8 +6219,8 @@ code {
 #actSearchFab,
 #calFab {
     position: fixed;
-    bottom: 28px;
-    right: 28px;
+    bottom: max(8px, env(safe-area-inset-bottom, 8px));
+    right: 20px;
     transition: box-shadow 0.2s ease !important;
 }
 #actSearchFab:hover,
@@ -9928,7 +9928,7 @@ body:has(.act-sheet-mode) .topbar {
 
     /* ── FAB: bottom-right, green accent ── */
     #calFab {
-        bottom: max(28px, env(safe-area-inset-bottom, 28px));
+        bottom: max(8px, env(safe-area-inset-bottom, 8px));
         right: 20px;
         width: 52px;
         height: 52px;
