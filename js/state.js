@@ -57,7 +57,7 @@ export const state = {
   activitiesYear: new Date().getFullYear(),
   activitiesSportFilter: 'all',
   activitiesSearch: '',
-  activitiesView: 'list',
+  activitiesView: 'card',
   flythrough: null,
   weatherPageData: null,
   weatherPageMeta: null,
