@@ -2302,13 +2302,37 @@ function navigate(page) {
 
   // Floating range pill visibility
   const pill = document.getElementById('dateRangePill');
-  if (pill) pill.style.display = (page === 'dashboard') ? 'flex' : 'none';
+  if (pill) {
+    pill.style.display = (page === 'dashboard') ? 'flex' : 'none';
+    if (page === 'dashboard') {
+      const activeBtn = pill.querySelector('button.active');
+      if (activeBtn) requestAnimationFrame(() => activeBtn.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'instant' }));
+    }
+  }
   const zonePill = document.getElementById('zoneRangePill');
-  if (zonePill) zonePill.style.display = (page === 'zones') ? 'flex' : 'none';
+  if (zonePill) {
+    zonePill.style.display = (page === 'zones') ? 'flex' : 'none';
+    if (page === 'zones') {
+      const ab = zonePill.querySelector('button.active');
+      if (ab) requestAnimationFrame(() => ab.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'instant' }));
+    }
+  }
   const pwrPill = document.getElementById('pwrRangePillTopbar');
-  if (pwrPill) pwrPill.style.display = (page === 'power') ? 'flex' : 'none';
+  if (pwrPill) {
+    pwrPill.style.display = (page === 'power') ? 'flex' : 'none';
+    if (page === 'power') {
+      const ab = pwrPill.querySelector('button.active');
+      if (ab) requestAnimationFrame(() => ab.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'instant' }));
+    }
+  }
   const fitPill = document.getElementById('fitRangePillFloat');
-  if (fitPill) fitPill.style.display = (page === 'fitness') ? 'flex' : 'none';
+  if (fitPill) {
+    fitPill.style.display = (page === 'fitness') ? 'flex' : 'none';
+    if (page === 'fitness') {
+      const ab = fitPill.querySelector('button.active');
+      if (ab) requestAnimationFrame(() => ab.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'instant' }));
+    }
+  }
   // Toggle scroll edge gradient for pages with floating pills
   const _pillPages = ['dashboard', 'zones', 'power', 'fitness'];
   document.getElementById('pageContent')?.classList.toggle('has-scroll-edge', _pillPages.includes(page));
@@ -2832,7 +2856,11 @@ function setRange(days) {
   try { localStorage.setItem('icu_range_days', days); } catch (e) { console.warn('localStorage.setItem failed:', e); }
   // Sync topbar pill
   document.querySelectorAll('#dateRangePill button').forEach(b => b.classList.remove('active'));
-  document.getElementById('range' + days)?.classList.add('active');
+  const _rangeBtn = document.getElementById('range' + days);
+  if (_rangeBtn) {
+    _rangeBtn.classList.add('active');
+    _rangeBtn.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+  }
   // Sync settings default-range checkmarks
   document.querySelectorAll('.ios-row--check[data-defrange]').forEach(r =>
     r.classList.toggle('active', parseInt(r.dataset.defrange) === days)
@@ -8432,9 +8460,11 @@ function pwrNextCategory(wkg) {
 // Range-pill click handler for the power page
 function setPwrRange(days) {
   state.powerPageRangeDays = days;
-  document.querySelectorAll('#pwrRangePills button, #pwrRangePillTopbar button').forEach(b =>
-    b.classList.toggle('active', +b.dataset.days === days)
-  );
+  document.querySelectorAll('#pwrRangePills button, #pwrRangePillTopbar button').forEach(b => {
+    const isActive = +b.dataset.days === days;
+    b.classList.toggle('active', isActive);
+    if (isActive && b.closest('.floating-range-pill')) b.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+  });
   // Bust page-curve cache so it re-fetches for the new window
   state.powerPageCurve = null;
   state.powerPageCurveRange = null;
@@ -11174,9 +11204,11 @@ const HR_ZONE_HEX  = ['#60a5fa','#34d399','#86efac','#fbbf24','#f97316','#f87171
 
 function setZnpRange(days) {
   state.znpRangeDays = days;
-  document.querySelectorAll('#zoneRangePill button').forEach(b =>
-    b.classList.toggle('active', +b.dataset.zdays === days)
-  );
+  document.querySelectorAll('#zoneRangePill button').forEach(b => {
+    const isActive = +b.dataset.zdays === days;
+    b.classList.toggle('active', isActive);
+    if (isActive) b.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+  });
   noChartAnim(() => renderZonesPage());
 }
 

@@ -712,30 +712,48 @@ code {
     transform: translateY(-6px) rotate(-45deg);
 }
 
-/* ── Floating range pills — centered, iOS segmented style ─ */
+/* ── Floating range pills — liquid glass, horizontally scrollable ─ */
 .floating-range-pill {
     position: fixed;
     top: max(12px, env(safe-area-inset-top));
     left: 50%;
     transform: translateX(-50%);
     z-index: 15;
-    background: rgba(30, 30, 32, 0.72);
-    -webkit-backdrop-filter: blur(12px);
-    backdrop-filter: blur(12px);
+    /* Liquid glass */
+    background: rgba(40, 42, 48, 0.42);
+    backdrop-filter: blur(48px) saturate(220%) brightness(1.1);
+    -webkit-backdrop-filter: blur(48px) saturate(220%) brightness(1.1);
     border: none;
     border-radius: 22px;
     padding: 3px;
-    box-shadow: 0 1px 6px rgba(0,0,0,0.3);
+    box-shadow:
+        0 0.5px 0 0 rgba(255, 255, 255, 0.20) inset,
+        0 0 0 0.5px rgba(255, 255, 255, 0.10) inset,
+        0 -0.5px 0 0 rgba(0, 0, 0, 0.15) inset,
+        0 12px 40px rgba(0, 0, 0, 0.50),
+        0 4px 12px rgba(0, 0, 0, 0.30);
+    /* Horizontal scroll — show ~3 buttons, scroll for more */
     display: flex;
     gap: 2px;
+    max-width: 180px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+.floating-range-pill::-webkit-scrollbar {
+    display: none;
 }
 .floating-range-pill.date-range-pill {
-    overflow: visible;
+    overflow-x: auto;
+    overflow-y: hidden;
 }
 .floating-range-pill button {
     border-radius: 19px;
     border: none;
     min-height: 34px;
+    min-width: 52px;
     padding: 7px 16px;
     background: none;
     color: rgba(255, 255, 255, 0.55);
@@ -744,6 +762,8 @@ code {
     transition: background 0.25s, color 0.25s;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
+    flex-shrink: 0;
+    scroll-snap-align: center;
 }
 .floating-range-pill button:hover {
     background: rgba(255, 255, 255, 0.08);
@@ -1436,7 +1456,7 @@ code {
 .stat-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
-    gap: var(--gap-layout);
+    gap: 8px;
 }
 .stat-card {
     background: var(--bg-card);
@@ -6214,20 +6234,22 @@ code {
     bottom: max(24px, env(safe-area-inset-bottom, 24px));
     left: 16px;
     z-index: 1100;
-    /* iOS 26: very dark, near-opaque pill with strong blur */
-    background: rgba(18, 18, 20, 0.92);
-    backdrop-filter: blur(32px) saturate(200%);
-    -webkit-backdrop-filter: blur(32px) saturate(200%);
+    /* Liquid glass: translucent, high blur, slight tint */
+    background: rgba(40, 42, 48, 0.42);
+    backdrop-filter: blur(48px) saturate(220%) brightness(1.1);
+    -webkit-backdrop-filter: blur(48px) saturate(220%) brightness(1.1);
     border-radius: 100px;
     padding: 5px 5px;
     flex-direction: row;
     align-items: center;
     gap: 0;
-    /* Layered shadow like iOS floating elements */
+    /* Liquid glass layered edges: specular top, soft inset, outer depth */
     box-shadow:
-        0 0 0 0.5px rgba(255, 255, 255, 0.08) inset,
-        0 12px 40px rgba(0, 0, 0, 0.65),
-        0 4px 12px rgba(0, 0, 0, 0.4);
+        0 0.5px 0 0 rgba(255, 255, 255, 0.20) inset,
+        0 0 0 0.5px rgba(255, 255, 255, 0.10) inset,
+        0 -0.5px 0 0 rgba(0, 0, 0, 0.15) inset,
+        0 12px 40px rgba(0, 0, 0, 0.50),
+        0 4px 12px rgba(0, 0, 0, 0.30);
 }
 .dash-pill-btn {
     display: flex;
@@ -10607,10 +10629,8 @@ body:has(.act-sheet-mode) .topbar {
     overflow: hidden;
     position: relative;
     background: var(--bg-card);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow:
-        0 8px 32px rgba(0, 0, 0, 0.3),
-        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    border: none;
+    box-shadow: none;
 }
 .vitality-header {
     display: flex;
@@ -10831,11 +10851,8 @@ body:has(.act-sheet-mode) .topbar {
     flex-direction: column;
     padding: 0;
     background: linear-gradient(160deg, #12151b 0%, var(--bg-card) 55%, var(--bg-card) 100%);
-    border: 1px solid rgba(0, 229, 160, 0.18);
-    box-shadow:
-        0 0 0 1px rgba(0, 229, 160, 0.06),
-        0 8px 32px rgba(0, 0, 0, 0.45),
-        inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    border: none;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
     overflow: hidden;
     position: relative;
 }
@@ -10918,19 +10935,7 @@ body:has(.act-sheet-mode) .topbar {
     max-width: 230px;
 }
 .trs-gauge-glow-wrap::after {
-    content: "";
-    position: absolute;
-    bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 70%;
-    height: 30px;
-    background: radial-gradient(
-        ellipse,
-        rgba(0, 229, 160, 0.15) 0%,
-        transparent 70%
-    );
-    pointer-events: none;
+    display: none;
 }
 .trs-gauge-container {
     position: relative;

@@ -806,7 +806,7 @@ export function setMapTheme(key) {
   if (!(window.MAP_STYLES || {})[key] || key === 'satellite') return;
   try { localStorage.setItem('icu_map_theme', key); } catch (e) { console.warn('localStorage.setItem failed:', e); }
   // Update active state on picker buttons
-  document.querySelectorAll('.map-theme-option').forEach(b =>
+  document.querySelectorAll('.map-theme-card').forEach(b =>
     b.classList.toggle('active', b.dataset.theme === key));
 
   const style = _mlGetStyle(key);
@@ -866,7 +866,7 @@ export function setMapTheme(key) {
 }
 // Deferred — called when Settings page opens (MAP_STYLES not yet on window at module eval)
 export function initMapThemePicker() {
-  document.querySelectorAll('.map-theme-option').forEach(b =>
+  document.querySelectorAll('.map-theme-card').forEach(b =>
     b.classList.toggle('active', b.dataset.theme === loadMapTheme()));
 }
 
