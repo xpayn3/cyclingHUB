@@ -956,7 +956,7 @@ function openModal() {
 }
 
 function closeModal() {
-  document.getElementById('connectModal').close();
+  closeModalAnimated(document.getElementById('connectModal'));
 }
 
 function toggleApiKeyVisibility() {
@@ -2237,7 +2237,7 @@ function navigate(page) {
   if (!_restoreActScroll) window.scrollTo(0, 0);
 
   // Close any open dialogs when navigating away
-  document.querySelectorAll('dialog[open]').forEach(d => d.close());
+  document.querySelectorAll('dialog[open]').forEach(d => closeModalAnimated(d));
 
   // Clean up charts from the page we're leaving to free memory
   if (state.currentPage) cleanupPageCharts(state.currentPage);
@@ -5624,8 +5624,8 @@ function _initVitalityDialog() {
   }
 
   infoBtn.addEventListener('click', function() { populateDialog(); dialog.showModal(); _startPreview(); });
-  closeBtn && closeBtn.addEventListener('click', function() { dialog.close(); });
-  dialog.addEventListener('click', function(e) { if (e.target === dialog) dialog.close(); });
+  closeBtn && closeBtn.addEventListener('click', function() { closeModalAnimated(dialog); });
+  dialog.addEventListener('click', function(e) { if (e.target === dialog) closeModalAnimated(dialog); });
   dialog.addEventListener('close', _stopPreview);
 
   // Wire a dual-range pair — enforces lo ≤ hi, updates fill + labels + param array
@@ -19119,7 +19119,7 @@ function applySetupLink(inputId) {
 
   // Close the connect modal if it's open (so confirm dialog is visible)
   const connectModal = document.getElementById('connectModal');
-  if (connectModal?.open) connectModal.close();
+  if (connectModal?.open) closeModalAnimated(connectModal);
 
   showConfirmDialog(
     'Apply Setup Link',
@@ -19427,7 +19427,7 @@ function openGearModal(editId) {
 
 function closeGearModal() {
   const modal = document.getElementById('gearModal');
-  if (modal?.open) modal.close();
+  if (modal?.open) closeModalAnimated(modal);
 }
 
 function submitGearForm() {
@@ -19766,7 +19766,7 @@ function openBatteryModal(editId) {
 
 function closeBatteryModal() {
   const m = document.getElementById('batteryModal');
-  if (m?.open) m.close();
+  if (m?.open) closeModalAnimated(m);
 }
 
 function onBatterySystemChange() {
@@ -20117,7 +20117,7 @@ function openServiceModal(editId, presetBikeId) {
 
 function closeServiceModal() {
   const m = document.getElementById('serviceModal');
-  if (m?.open) m.close();
+  if (m?.open) closeModalAnimated(m);
 }
 
 function onServiceShopChange() {
@@ -20224,7 +20224,7 @@ function openServiceShopModal() {
 
 function closeServiceShopModal() {
   const m = document.getElementById('serviceShopModal');
-  if (m?.open) m.close();
+  if (m?.open) closeModalAnimated(m);
 }
 
 function renderServiceShopList() {
@@ -20312,7 +20312,7 @@ function openServiceHistory(bikeId) {
 
 function closeServiceHistory() {
   const m = document.getElementById('serviceHistoryModal');
-  if (m?.open) m.close();
+  if (m?.open) closeModalAnimated(m);
 }
 
 function renderServiceHistoryList(bikeId) {
@@ -21849,7 +21849,7 @@ let _hashSetupPending = false;
     setTimeout(() => {
       // Close connect modal if it opened
       const cm = document.getElementById('connectModal');
-      if (cm?.open) cm.close();
+      if (cm?.open) closeModalAnimated(cm);
       showConfirmDialog(
         'Setup Link Detected',
         `Connect with Athlete ID: <strong>${hashId}</strong>${hasSettings ? ` and apply ${Object.keys(cfgObj).length} saved settings (theme, units, goals, weather, etc.)?` : '?'}`,
