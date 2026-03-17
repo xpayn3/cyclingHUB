@@ -2094,10 +2094,10 @@
                                     <option value="all">All years</option>
                                 </select>
                                 <div class="acts-view-toggle">
-                                    <button class="acts-view-btn active" data-view="list" onclick="setActivitiesView('list')" aria-label="List view">
+                                    <button class="acts-view-btn" data-view="list" onclick="setActivitiesView('list')" aria-label="List view">
                                         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="4" y1="5" x2="16" y2="5"/><line x1="4" y1="10" x2="16" y2="10"/><line x1="4" y1="15" x2="16" y2="15"/></svg>
                                     </button>
-                                    <button class="acts-view-btn" data-view="card" onclick="setActivitiesView('card')" aria-label="Card view">
+                                    <button class="acts-view-btn active" data-view="card" onclick="setActivitiesView('card')" aria-label="Card view">
                                         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="6" height="6" rx="1.5"/><rect x="11" y="3" width="6" height="6" rx="1.5"/><rect x="3" y="11" width="6" height="6" rx="1.5"/><rect x="11" y="11" width="6" height="6" rx="1.5"/></svg>
                                     </button>
                                     <button class="acts-view-btn" data-view="zones" onclick="setActivitiesView('zones')" aria-label="Zones view">
@@ -2122,7 +2122,7 @@
                                 <button class="acts-chip" data-sort="bpm" onclick="setActivitiesSort('bpm')">BPM<span class="sort-arrow"></span></button>
                             </div>
                         </div>
-                        <div class="activity-list" id="allActivityList">
+                        <div class="activity-list" id="allActivityList" style="display:none">
                             <div class="empty-state">
                                 <svg
                                     viewBox="0 0 24 24"
@@ -2137,7 +2137,7 @@
                                 <p>Sync data to view all activities.</p>
                             </div>
                         </div>
-                        <div class="acts-card-grid" id="allActivityCardGrid" style="display:none"></div>
+                        <div class="acts-card-grid" id="allActivityCardGrid"></div>
                         <div class="acts-zones-grid" id="allActivityZonesGrid" style="display:none"></div>
                         <!-- Apple-style Search Modal -->
                         <dialog class="modal-dialog" id="actSearchModal">
