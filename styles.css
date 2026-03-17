@@ -6232,7 +6232,7 @@ code {
 .dash-pill-nav {
     display: none;
     position: fixed;
-    bottom: max(24px, env(safe-area-inset-bottom, 24px));
+    bottom: max(8px, env(safe-area-inset-bottom, 8px));
     left: 16px;
     z-index: 1100;
     /* Liquid glass: translucent, high blur, slight tint */
