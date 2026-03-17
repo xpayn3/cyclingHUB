@@ -56,6 +56,14 @@ const ACCENT = '#00e5a0';
    PWA — Service Worker Registration + Install Prompt
 ==================================================== */
 if ('serviceWorker' in navigator) {
+  // Auto-reload when a new SW takes control (ensures fresh HTML)
+  let _swRefreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (_swRefreshing) return;
+    _swRefreshing = true;
+    window.location.reload();
+  });
+
   navigator.serviceWorker.register('./sw.js')
     .then(reg => {
       if (!reg) return;
@@ -64,7 +72,7 @@ if ('serviceWorker' in navigator) {
         if (!newSW) return;
         newSW.addEventListener('statechange', () => {
           if (newSW.state === 'activated' && navigator.serviceWorker.controller) {
-            showToast('App updated — refresh for the latest version', 'success');
+            showToast('Updating…', 'success');
           }
         });
       });
