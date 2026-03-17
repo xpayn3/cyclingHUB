@@ -73,7 +73,12 @@ if ('serviceWorker' in navigator) {
 }
 
 // Temporary version check toast — remove after confirming
-setTimeout(() => showToast('CycleIQ v120', 'success'), 1500);
+setTimeout(() => {
+  caches.keys().then(k => {
+    const v = k.find(n => n.startsWith('icu-app-shell-'));
+    showToast('CycleIQ ' + (v ? v.replace('icu-app-shell-', '') : '?'), 'success');
+  }).catch(() => showToast('CycleIQ v?', 'success'));
+}, 1500);
 
 let _pwaInstallPrompt = null;
 window.addEventListener('beforeinstallprompt', e => {
