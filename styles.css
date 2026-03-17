@@ -1033,13 +1033,7 @@ code {
     justify-content: flex-end;
     padding: 4px 20px 20px;
 }
-.cal-ev-footer {
-    justify-content: space-between;
-}
-.cal-ev-footer-right {
-    display: flex;
-    gap: 10px;
-}
+/* .cal-ev-footer removed — replaced by cev-header save button */
 
 /* ── Custom Select (iOS-style) ──────────────────────── */
 .cs-wrap {
@@ -6258,37 +6252,453 @@ code {
     }
 }
 
-.cal-ev-presets {
+/* ── Calendar Event Modal — iOS Calendar Style ─────────────────── */
+
+/* iOS Calendar modal surface — secondarySystemBackground (#1C1C1E) */
+.cev-modal {
+    background: #1C1C1E !important;
+}
+
+/* iOS Calendar header: × title ✓
+   Apple HIG: 20pt content inset, 30pt circular buttons, 17pt semibold title */
+.cev-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px 14px;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 3;
+    background: #1C1C1E;
+}
+/* Soft fade overlay below header — scrolling content dissolves under it */
+.cev-header::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    height: 20px;
+    background: linear-gradient(
+        to bottom,
+        #1C1C1E 0%,
+        rgba(28, 28, 30, 0.55) 40%,
+        rgba(28, 28, 30, 0.2) 70%,
+        rgba(28, 28, 30, 0) 100%
+    );
+    pointer-events: none;
+}
+[data-theme="light"] .cev-header {
+    background: #F2F2F7;
+}
+[data-theme="light"] .cev-header::after {
+    background: linear-gradient(
+        to bottom,
+        #F2F2F7 0%,
+        rgba(242, 242, 247, 0.55) 40%,
+        rgba(242, 242, 247, 0.2) 70%,
+        rgba(242, 242, 247, 0) 100%
+    );
+}
+.cev-hdr-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+    border: 0.5px solid rgba(255, 255, 255, 0.18);
+    box-shadow:
+        inset 0 0.5px 0 0 rgba(255, 255, 255, 0.2),
+        0 1px 3px rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(235, 235, 245, 0.85);
+    cursor: pointer;
+    transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+}
+/* Specular highlight — top-edge sheen */
+.cev-hdr-btn::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 10%; right: 10%;
+    height: 50%;
+    border-radius: 50% 50% 40% 40%;
+    background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.22) 0%,
+        rgba(255, 255, 255, 0.04) 60%,
+        transparent 100%
+    );
+    pointer-events: none;
+}
+.cev-hdr-btn svg {
+    width: 18px;
+    height: 18px;
+    position: relative;
+    z-index: 1;
+}
+.cev-hdr-btn:active {
+    background: rgba(255, 255, 255, 0.16);
+    transform: scale(0.92);
+    box-shadow:
+        inset 0 0.5px 0 0 rgba(255, 255, 255, 0.15),
+        0 0.5px 2px rgba(0, 0, 0, 0.25);
+}
+.cev-hdr-btn--done {
+    color: #fff;
+}
+.cev-hdr-btn--done:active {
+    color: #fff;
+}
+.cev-hdr-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: #fff;
+    text-align: center;
+    flex: 1;
+}
+
+/* Scrollable body */
+.cev-body {
+    padding: 0 20px 32px !important;
+    background: transparent !important;
+}
+
+/* Preset pills — horizontal scroll with HIG spacing */
+.cev-presets {
     display: flex;
     gap: 8px;
-    flex-wrap: wrap;
-    margin-bottom: 16px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding: 0 0 20px;
+    flex-wrap: nowrap;
 }
-.cal-ev-presets button {
-    padding: 6px 14px;
+.cev-presets::-webkit-scrollbar { display: none; }
+.cev-presets button {
+    padding: 8px 18px;
     border-radius: 20px;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    color: var(--text-primary);
-    font-size: var(--text-xs);
+    background: #2C2C2E;
+    border: 1px solid rgba(120, 120, 128, 0.3);
+    color: rgba(235, 235, 245, 0.6);
+    font-size: 14px;
+    font-weight: 500;
     cursor: pointer;
     transition: border-color 0.15s, color 0.15s, background 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
-.cal-ev-presets button:hover {
-    border-color: var(--accent);
-    color: var(--accent);
+.cev-presets button:active {
+    background: rgba(120, 120, 128, 0.24);
 }
-.cal-ev-presets button.active {
+.cev-presets button.active {
     background: var(--accent);
-    color: #111;
+    color: #000;
     border-color: var(--accent);
     font-weight: 600;
 }
 
-.cal-ev-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
+/* iOS grouped section — tertiarySystemBackground (#2C2C2E) */
+.cev-section {
+    background: #2C2C2E;
+    border-radius: 10px;
+    margin-bottom: 35px;
+    overflow: visible;
+    position: relative;
+}
+.cev-section:last-child {
+    margin-bottom: 0;
+}
+
+/* Individual row inside a section — Apple HIG: 44pt height, 20pt horizontal padding */
+.cev-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 44px;
+    padding: 0 20px;
+    position: relative;
+}
+/* Hairline separator between rows — Apple HIG: inset from left by 20pt */
+.cev-row + .cev-row::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 20px;
+    right: 0;
+    height: 0.5px;
+    background: rgba(84, 84, 88, 0.65);
+}
+
+/* Row label (left side) — Apple HIG: 17pt body text */
+.cev-label {
+    font-size: 17px;
+    color: #fff;
+    flex-shrink: 0;
+    padding: 12px 0;
+}
+
+/* Input rows (Title, Notes) — full width, no label */
+.cev-row--input {
+    padding: 0;
+}
+.cev-input {
+    width: 100%;
+    border: none;
+    background: transparent;
+    color: #fff;
+    font-family: inherit;
+    font-size: 17px;
+    padding: 13px 20px;
+    outline: none;
+    min-height: 44px;
+}
+.cev-input::placeholder {
+    color: rgba(235, 235, 245, 0.3);
+}
+.cev-textarea {
+    resize: none;
+    line-height: 1.5;
+    min-height: 100px;
+    max-height: 200px;
+    overflow-y: auto;
+    padding-top: 13px;
+    padding-bottom: 13px;
+}
+
+/* Select control (right side, iOS pill style) — Apple HIG: rounded rect, secondary fill */
+.cev-select {
+    appearance: none;
+    -webkit-appearance: none;
+    border: none;
+    background: #3A3A3C;
+    color: rgba(235, 235, 245, 0.6);
+    font-family: inherit;
+    font-size: 15px;
+    padding: 7px 30px 7px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    outline: none;
+    min-height: 34px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+}
+
+/* Date input (pill style) — Apple HIG: secondary fill bg */
+.cev-date {
+    appearance: none;
+    -webkit-appearance: none;
+    border: none;
+    background: #3A3A3C;
+    color: rgba(235, 235, 245, 0.6);
+    font-family: inherit;
+    font-size: 15px;
+    padding: 7px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    outline: none;
+    min-height: 34px;
+    color-scheme: dark;
+}
+
+/* Right-aligned value input (duration, distance, tss) */
+.cev-value-input {
+    border: none;
+    background: #3A3A3C;
+    color: rgba(235, 235, 245, 0.6);
+    font-family: inherit;
+    font-size: 15px;
+    padding: 7px 14px;
+    border-radius: 8px;
+    outline: none;
+    text-align: right;
+    width: 140px;
+    min-height: 34px;
+    flex-shrink: 0;
+}
+.cev-value-input::placeholder {
+    color: rgba(235, 235, 245, 0.2);
+}
+.cev-value-input:focus {
+    outline: 2px solid var(--accent);
+}
+
+/* Delete section — iOS destructive style */
+.cev-section--danger {
+    background: #2C2C2E;
+}
+.cev-delete-btn {
+    width: 100%;
+    text-align: center;
+    font-size: 17px;
+    font-weight: 400;
+    color: var(--red, #FF453A);
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    padding: 13px 20px;
+    display: block;
+    min-height: 44px;
+    transition: color 0.15s, background 0.15s;
+}
+.cev-delete-btn:active {
+    background: rgba(255, 69, 58, 0.12);
+}
+.cev-delete-btn--confirm {
+    background: var(--red, #FF453A) !important;
+    color: #fff !important;
+    font-weight: 600;
+}
+
+/* Focus states — subtle like iOS, no green accent ring */
+.cev-modal input:focus,
+.cev-modal input:focus-visible,
+.cev-modal textarea:focus,
+.cev-modal textarea:focus-visible,
+.cev-modal select:focus,
+.cev-modal select:focus-visible,
+.cev-modal button:focus,
+.cev-modal button:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+    outline-offset: 0 !important;
+}
+.cev-value-input:focus,
+.cev-select:focus,
+.cev-date:focus {
+    background: #48484A;
+}
+
+/* Validation error state */
+.cev-input.error,
+.cev-value-input.error {
+    outline: 2px solid var(--red, #FF453A);
+}
+
+/* Custom select/date picker overrides inside calendar modal rows */
+.cev-row .cs-wrap {
+    flex-shrink: 0;
+    position: relative;
+}
+.cev-row .cs-wrap--open,
+.cev-row .dp-wrap--open {
+    z-index: 300;
+}
+.cev-row .cs-trigger {
+    width: auto;
+    background: #3A3A3C;
+    border-radius: 8px;
+    padding: 7px 14px;
+    min-height: 34px;
+    font-size: 15px;
+    color: rgba(235, 235, 245, 0.6);
+    border: 2px solid transparent;
+}
+.cev-row .cs-chevron {
+    margin-left: 8px;
+}
+.cev-row .cs-dropdown {
+    left: auto;
+    right: 0;
+    min-width: 180px;
+    z-index: 300;
+}
+.cev-row .dp-wrap {
+    flex-shrink: 0;
+}
+.cev-row .dp-trigger {
+    width: auto;
+    background: #3A3A3C;
+    border-radius: 8px;
+    padding: 7px 14px;
+    min-height: 34px;
+    font-size: 15px;
+    color: rgba(235, 235, 245, 0.6);
+    border: 2px solid transparent;
+}
+.cev-row .dp-icon {
+    margin-left: 8px;
+}
+.cev-row .dp-dropdown {
+    left: auto;
+    right: 0;
+    z-index: 300;
+}
+[data-theme="light"] .cev-row .cs-trigger,
+[data-theme="light"] .cev-row .dp-trigger {
+    background: rgba(120, 120, 128, 0.12);
+    color: rgba(60, 60, 67, 0.6);
+}
+
+/* ── Light theme overrides ── */
+[data-theme="light"] .cev-modal {
+    background: #F2F2F7 !important;
+}
+[data-theme="light"] .cev-body {
+    background: transparent !important;
+}
+[data-theme="light"] .cev-hdr-btn {
+    background: rgba(255, 255, 255, 0.55);
+    border-color: rgba(0, 0, 0, 0.08);
+    box-shadow:
+        inset 0 0.5px 0 0 rgba(255, 255, 255, 0.7),
+        0 1px 3px rgba(0, 0, 0, 0.1);
+    color: rgba(60, 60, 67, 0.7);
+}
+[data-theme="light"] .cev-hdr-btn::before {
+    background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.6) 0%,
+        rgba(255, 255, 255, 0.1) 60%,
+        transparent 100%
+    );
+}
+[data-theme="light"] .cev-hdr-btn:active {
+    background: rgba(255, 255, 255, 0.7);
+}
+[data-theme="light"] .cev-hdr-title {
+    color: #000;
+}
+[data-theme="light"] .cev-section {
+    background: #fff;
+}
+[data-theme="light"] .cev-label {
+    color: #000;
+}
+[data-theme="light"] .cev-input {
+    color: #000;
+}
+[data-theme="light"] .cev-input::placeholder {
+    color: rgba(60, 60, 67, 0.3);
+}
+[data-theme="light"] .cev-row + .cev-row::before {
+    background: rgba(60, 60, 67, 0.18);
+}
+[data-theme="light"] .cev-select,
+[data-theme="light"] .cev-date,
+[data-theme="light"] .cev-value-input {
+    background: rgba(120, 120, 128, 0.12);
+    color: rgba(60, 60, 67, 0.6);
+    color-scheme: light;
+}
+[data-theme="light"] .cev-presets button {
+    background: #fff;
+    color: rgba(60, 60, 67, 0.6);
+    border-color: rgba(60, 60, 67, 0.18);
+}
+[data-theme="light"] .cev-presets button.active {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
+}
+[data-theme="light"] .cev-section--danger {
+    background: #fff;
 }
 
 /* ============================================================
@@ -9154,109 +9564,311 @@ body:has(.act-sheet-mode) .topbar {
     }
 }
 @media (max-width: 600px) {
-    /* Mobile: stack calendar above day panel again */
-    .cal-body {
-        flex-direction: column;
+    /* ═══════════════════════════════════════════════════
+       MOBILE CALENDAR — iOS / SwiftUI style redesign
+       Pure black, borderless cells, compact month grid,
+       horizontally scrollable stats, day-detail panel
+    ═══════════════════════════════════════════════════ */
+
+    /* ── Shell: full-screen, no sidebar offset ── */
+    .cal-shell {
+        left: 0;
+        background: var(--bg-base);
     }
-    .cal-left {
-        flex: 1;
-        border-right: none;
+
+    /* ── Header: compact nav row ── */
+    .cal-header {
+        padding: 8px 16px;
         border-bottom: none;
+        background: var(--bg-base);
+        gap: 8px;
+        min-height: 44px;
     }
-    .cal-day-panel {
-        width: 100% !important;
-        flex: none;
-        border-top: 1px solid var(--border);
-    }
-    /* ── Bump fonts & touch targets for mobile ── */
-    .cal-dow-row > div {
-        font-size: var(--text-xs);
-        letter-spacing: 0;
-        padding: 9px 0;
-    }
-    .cal-month-title {
-        min-width: 130px;
-        font-size: 1rem;
+    .cal-header-nav {
+        gap: 2px;
     }
     .cal-header-nav .btn-icon {
-        width: 40px;
-        height: 40px;
-        min-height: 40px;
+        width: 36px;
+        height: 36px;
+        min-height: 36px;
+        color: var(--accent);
     }
     .cal-header-nav .btn-sm {
         font-size: var(--text-sm);
         padding: 6px 14px;
     }
+    /* Hide plan button & panel toggle on mobile */
+    .cal-plan-btn,
+    .cal-panel-toggle {
+        display: none !important;
+    }
+    .cal-today-btn {
+        font-size: 11px;
+        padding: 4px 12px;
+    }
+
+    /* ── Month title (centered label between nav arrows) ── */
+    .cal-month-title {
+        min-width: auto;
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: -0.2px;
+    }
+
+    /* ── Stats strip: horizontal scroll band ── */
+    .cal-stats-strip {
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        border-bottom: none;
+        background: var(--bg-base);
+        flex-shrink: 0;
+        gap: 0;
+        padding: 0 4px;
+    }
+    .cal-stats-strip::-webkit-scrollbar {
+        display: none;
+    }
     .cal-stats-strip .cal-hstat {
-        padding: 8px 8px;
+        flex: 0 0 auto;
+        padding: 8px 12px;
+        min-width: 70px;
+        text-align: center;
+        align-items: center;
     }
     .cal-hstat-val {
-        font-size: 1rem;
+        font-size: 20px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+        line-height: 1.1;
     }
     .cal-hstat-label {
-        font-size: var(--text-xs);
+        font-size: 9px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        opacity: 0.45;
+        justify-content: center;
+        gap: 3px;
+    }
+    .cal-hstat-label svg {
+        width: 9px;
+        height: 9px;
+    }
+    .cal-hstat-div {
+        display: none;
+    }
+
+    /* ── Body: vertical stack, grid above panel ── */
+    .cal-body {
+        flex-direction: column;
+        background: var(--bg-base);
+    }
+    .cal-left {
+        flex: none;
+        border-right: none;
+        border-bottom: none;
+        background: var(--bg-base);
+    }
+
+    /* ── DOW header: muted uppercase labels ── */
+    .cal-dow-row {
+        border-bottom: none;
+        background: var(--bg-base);
+        padding: 4px 0 2px;
+    }
+    .cal-dow-row > div {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0;
+        padding: 6px 0;
+        color: var(--text-muted);
+        opacity: 0.5;
+    }
+    .cal-dow--weekend {
+        opacity: 0.35;
+    }
+
+    /* ── Grid: borderless, compact cells ── */
+    .cal-grid {
+        background: var(--bg-base);
+        gap: 0;
     }
     .cal-day {
-        padding: 5px 1px 4px;
+        border: none !important;
+        padding: 6px 0 4px;
+        background: transparent;
+        gap: 3px;
+        min-height: 44px;
     }
+    .cal-day:hover {
+        background: transparent;
+    }
+    .cal-day:active {
+        background: rgba(255, 255, 255, 0.04);
+        border-radius: 12px;
+    }
+    .cal-day--other-month {
+        background: rgba(255, 255, 255, 0.02);
+    }
+    .cal-day--other-month:hover {
+        background: rgba(255, 255, 255, 0.02);
+    }
+    .cal-day--other-month .cal-day-num {
+        opacity: 0.18;
+    }
+    .cal-day--weekend:not(.cal-day--other-month) {
+        background: transparent;
+    }
+
+    /* ── Day numbers: larger, cleaner ── */
     .cal-day-num {
-        width: 28px;
-        height: 28px;
-        font-size: var(--text-sm);
+        width: 32px;
+        height: 32px;
+        font-size: 15px;
+        font-weight: 400;
+        color: var(--text-primary);
     }
-    /* Mobile: swap to dot indicators, hide cards */
+    /* Today: accent green filled circle */
+    .cal-day--today .cal-day-num {
+        background: var(--accent);
+        color: #000;
+        font-weight: 700;
+    }
+    /* Selected: white filled circle */
+    .cal-day--selected:not(.cal-day--today) .cal-day-num {
+        background: var(--text-primary);
+        color: var(--bg-base);
+        font-weight: 600;
+    }
+    .cal-day--selected.cal-day--today .cal-day-num {
+        box-shadow: none;
+    }
+
+    /* ── Activity dots: centered below number ── */
     .cal-day-cards {
         display: none;
     }
     .cal-dots {
         display: flex;
+        gap: 3px;
+        min-height: 6px;
     }
     .cal-dot {
         width: 5px;
         height: 5px;
     }
+
+    /* ── Row separators between weeks ── */
+    .cal-day {
+        position: relative;
+    }
+    .cal-day:nth-child(n+8) {
+        border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
+    }
+
+    /* ── Day panel: below the grid, full width ── */
+    .cal-day-panel {
+        width: 100% !important;
+        flex: 1 1 0 !important;
+        min-height: 120px;
+        background: var(--bg-base);
+        border-top: none;
+        overflow-y: auto;
+        transition: opacity 0.25s ease;
+    }
     .cal-day-panel-header {
-        font-size: 1rem;
-        padding: 11px 16px 9px;
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--text-primary);
+        padding: 16px 16px 8px;
+        border-bottom: none;
+        background: var(--bg-base);
+        letter-spacing: -0.3px;
     }
+    .cal-day-panel-list {
+        padding: 0;
+    }
+
+    /* ── List items: iOS grouped list style ── */
     .cal-list-item {
-        padding: 12px 16px;
-        gap: 14px;
+        padding: 14px 16px;
+        gap: 12px;
+        border-bottom: none;
+        border-radius: 0;
+        background: transparent;
     }
-    .cal-list-name {
-        font-size: var(--text-base);
+    .cal-list-item:active {
+        background: rgba(255, 255, 255, 0.04);
     }
-    .cal-list-meta {
-        font-size: var(--text-sm);
-    }
-    .cal-list-tss {
-        font-size: var(--text-sm);
+    .cal-list-item + .cal-list-item {
+        border-top: 1px solid rgba(255, 255, 255, 0.04);
     }
     .cal-list-dot {
-        width: 12px;
-        height: 12px;
+        width: 10px;
+        height: 10px;
     }
-    .cal-empty-msg {
-        font-size: var(--text-base);
+    .cal-list-name {
+        font-size: 15px;
+        font-weight: 500;
     }
-    .cal-left {
-        flex: 6 1 0;
+    .cal-list-meta {
+        font-size: 13px;
+        color: var(--text-muted);
+        opacity: 0.6;
     }
-    .cal-day-panel {
-        flex: 4 1 0 !important;
-        max-height: none;
-        transition: flex 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-                    opacity 0.2s ease;
-        overflow: hidden;
+    .cal-list-tss {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-muted);
+        opacity: 0.5;
     }
+    .cal-list-chevron {
+        opacity: 0.25;
+    }
+    .cal-day-empty {
+        font-size: 15px;
+        color: var(--text-muted);
+        opacity: 0.4;
+        padding: 32px 16px;
+    }
+
+    /* ── Mobile: panel always visible (ignore desktop hide state) ── */
     .cal-body--panel-hidden .cal-day-panel {
-        flex: 0 0 0px !important;
-        opacity: 0;
-        pointer-events: none;
-        border-top-color: transparent;
+        flex: 1 1 0 !important;
+        opacity: 1;
+        pointer-events: auto;
+        min-height: 120px;
     }
     .cal-body--panel-hidden .cal-left {
+        flex: none;
         border-bottom: none;
+    }
+
+    /* ── FAB: bottom-right, green accent ── */
+    #calFab {
+        bottom: max(28px, env(safe-area-inset-bottom, 28px));
+        right: 20px;
+        width: 52px;
+        height: 52px;
+        box-shadow: 0 4px 20px rgba(0, 229, 160, 0.35);
+    }
+
+    /* ── Month swipe transition ── */
+    .cal-grid.cal-swipe-left {
+        animation: calSwipeLeft 0.28s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+    }
+    .cal-grid.cal-swipe-right {
+        animation: calSwipeRight 0.28s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+    }
+    @keyframes calSwipeLeft {
+        0%   { transform: translateX(60px); opacity: 0; }
+        100% { transform: translateX(0);    opacity: 1; }
+    }
+    @keyframes calSwipeRight {
+        0%   { transform: translateX(-60px); opacity: 0; }
+        100% { transform: translateX(0);     opacity: 1; }
     }
 }
 /* ── Backdrop: always in DOM, invisible + non-interactive when closed ── */

@@ -11642,35 +11642,34 @@ function _cleanSheet(inner) {
 }
 
 // ── iOS keyboard-aware viewport tracking ──
-// When the virtual keyboard opens on iOS, visualViewport shrinks and offsets.
-// We reposition the dialog container to match the actual visible area so the
-// modal doesn't fly off-screen.
+// When the virtual keyboard opens on iOS, visualViewport shrinks.
+// Instead of repositioning the dialog (which causes flyaway), we keep the
+// dialog fixed full-screen and add bottom padding to the scroll body so the
+// user can scroll inputs above the keyboard.
 let _sheetVVHandler = null;
 function _startViewportTracking(dialog) {
   if (!window.visualViewport) return;
   _stopViewportTracking();
 
   const vv = window.visualViewport;
-  const layoutH = window.innerHeight;
 
   function onVVResize() {
-    // Only adjust when a sheet is actually open
     if (!dialog.open || !dialog.classList.contains('sheet-open')) return;
 
-    const vvH = vv.height;
-    const vvTop = vv.offsetTop;
+    const kbHeight = window.innerHeight - vv.height;
+    const inner = dialog.querySelector('.modal');
+    // Find the scrollable body inside the modal
+    const body = inner && (inner.querySelector('.cev-body') || inner.querySelector('.modal-body') || inner.querySelector('.act-search-results'));
 
-    // If keyboard shrunk the viewport significantly (>50px difference)
-    if (layoutH - vvH > 50) {
-      // Reposition dialog to cover only the visual viewport
-      dialog.style.top = vvTop + 'px';
-      dialog.style.height = vvH + 'px';
-      dialog.style.bottom = 'auto';
+    if (kbHeight > 50) {
+      // Keyboard is open — add padding so user can scroll past keyboard
+      if (body) body.style.paddingBottom = (kbHeight + 20) + 'px';
+      // Also shrink the modal max-height so it doesn't extend behind keyboard
+      if (inner) inner.style.maxHeight = (vv.height - 20) + 'px';
     } else {
-      // Keyboard hidden — reset to full viewport
-      dialog.style.top = '0';
-      dialog.style.height = '100%';
-      dialog.style.bottom = '0';
+      // Keyboard hidden — reset
+      if (body) body.style.paddingBottom = '';
+      if (inner) inner.style.maxHeight = '';
     }
   }
 
@@ -11685,29 +11684,34 @@ function _stopViewportTracking() {
     window.visualViewport.removeEventListener('scroll', _sheetVVHandler);
     _sheetVVHandler = null;
   }
+  // Reset any keyboard adjustments on all open modals
+  document.querySelectorAll('dialog.modal-dialog[open] .modal').forEach(inner => {
+    inner.style.maxHeight = '';
+    const body = inner.querySelector('.cev-body') || inner.querySelector('.modal-body') || inner.querySelector('.act-search-results');
+    if (body) body.style.paddingBottom = '';
+  });
 }
 
 // Prevent iOS from scrolling the page when focusing inputs inside sheets.
-// Instead, let the visualViewport handler reposition the dialog.
+// Instead, scroll the input into view within the modal's own scroll container.
 document.addEventListener('focusin', function(e) {
   if (!_isMobileSheet()) return;
   const sheet = e.target.closest('dialog.modal-dialog.sheet-open');
   if (!sheet) return;
   const tag = e.target.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
-    // Prevent the browser's default scroll-into-view which fights with our
-    // viewport tracking and causes the modal to fly away
-    requestAnimationFrame(function() {
-      // Scroll the input into view WITHIN the modal body, not the page
-      const modalBody = e.target.closest('.modal-body');
+    // Small delay to let keyboard animation settle, then scroll within modal
+    setTimeout(function() {
+      const modalBody = e.target.closest('.cev-body') || e.target.closest('.modal-body');
       if (modalBody) {
         const rect = e.target.getBoundingClientRect();
         const bodyRect = modalBody.getBoundingClientRect();
-        if (rect.bottom > bodyRect.bottom || rect.top < bodyRect.top) {
-          e.target.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        // If the input is below the visible area of the modal body, scroll it up
+        if (rect.bottom > bodyRect.bottom - 20 || rect.top < bodyRect.top + 20) {
+          e.target.scrollIntoView({ block: 'center', behavior: 'smooth' });
         }
       }
-    });
+    }, 300);
   }
 });
 
@@ -11745,11 +11749,27 @@ HTMLDialogElement.prototype.showModal = function() {
   // Start tracking visualViewport for keyboard avoidance
   _startViewportTracking(this);
 
-  // Trigger slide-in: start off-screen, force paint, then animate
+  // Trigger slide-in: start off-screen, force paint, then animate.
+  // Double-RAF ensures DOM mutations (custom controls, etc.) have settled
+  // before starting the animation — prevents overshoot on first open.
   if (inner) {
     inner.style.transform = 'translateY(100%)';
-    void inner.offsetHeight; // force paint of off-screen state
-    inner.classList.add('sheet-enter');
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (!this.open) return;
+        void inner.offsetHeight; // force paint of off-screen state
+        inner.classList.add('sheet-enter');
+        // After animation duration (350ms + 50ms buffer), replace the
+        // animation with a stable inline transform. animationend events
+        // are unreliable with fill-mode:both + inline styles.
+        setTimeout(() => {
+          if (inner.classList.contains('sheet-enter')) {
+            inner.classList.remove('sheet-enter');
+            inner.style.transform = 'translateY(0)';
+          }
+        }, 400);
+      });
+    });
   }
 };
 
@@ -11758,9 +11778,11 @@ HTMLDialogElement.prototype.close = function(rv) {
   _cleanSheet(inner);
   this.classList.remove('sheet-open');
   // Reset any keyboard viewport adjustments
-  this.style.top = '';
-  this.style.height = '';
-  this.style.bottom = '';
+  if (inner) {
+    inner.style.maxHeight = '';
+    const body = inner.querySelector('.cev-body') || inner.querySelector('.modal-body') || inner.querySelector('.act-search-results');
+    if (body) body.style.paddingBottom = '';
+  }
   _origClose.call(this, rv);
   // Hide backdrop + unlock scroll if no other sheets are open
   if (!document.querySelector('dialog.modal-dialog[open]')) {
@@ -11961,6 +11983,7 @@ function calPrevMonth() {
   const m = getCalMonth();
   state.calMonth = new Date(m.getFullYear(), m.getMonth() - 1, 1);
   renderCalendar();
+  _calSwipeAnim('right');
   refreshCalendarEvents();
 }
 
@@ -11968,7 +11991,21 @@ function calNextMonth() {
   const m = getCalMonth();
   state.calMonth = new Date(m.getFullYear(), m.getMonth() + 1, 1);
   renderCalendar();
+  _calSwipeAnim('left');
   refreshCalendarEvents();
+}
+
+// Animate grid on month change (mobile only)
+function _calSwipeAnim(dir) {
+  if (window.innerWidth > 600) return;
+  const grid = document.getElementById('calGrid');
+  if (!grid) return;
+  grid.classList.remove('cal-swipe-left', 'cal-swipe-right');
+  void grid.offsetWidth; // force reflow
+  grid.classList.add(dir === 'left' ? 'cal-swipe-left' : 'cal-swipe-right');
+  grid.addEventListener('animationend', () => {
+    grid.classList.remove('cal-swipe-left', 'cal-swipe-right');
+  }, { once: true });
 }
 
 function calGoToday() {
@@ -12057,17 +12094,20 @@ function openCalEventModal(presetDateOrEvent) {
     document.getElementById('calEvDuration').value    = ev.moving_time > 0 ? fmtDur(ev.moving_time) : '';
     document.getElementById('calEvDistance').value     = ev.distance > 0 ? (ev.distance / 1000).toFixed(1) : '';
     document.getElementById('calEvTss').value         = ev.icu_training_load || '';
-    document.getElementById('calEvDesc').value        = ev.description || '';
+    // Parse location from description if present (stored as first line: "📍 Location")
+    const _desc = ev.description || '';
+    const _locMatch = _desc.match(/^📍\s*(.+)\n?/);
+    document.getElementById('calEvLocation').value    = _locMatch ? _locMatch[1].trim() : '';
+    document.getElementById('calEvDesc').value        = _locMatch ? _desc.replace(/^📍\s*.+\n?\n?/, '') : _desc;
 
-    document.querySelector('#calEventModal .modal-title').textContent = 'Edit Event';
-    document.querySelector('#calEventModal .modal-desc').textContent  = 'Modify or delete this planned event';
+    document.querySelector('#calEventModal .cev-hdr-title').textContent = 'Edit Event';
     document.getElementById('calEvPresets').style.display  = 'none';
+    const delSection = document.getElementById('calEvDeleteSection');
+    delSection.style.display = '';
     const delBtn = document.getElementById('calEvDeleteBtn');
-    delBtn.style.display = '';
-    delBtn.textContent = 'Delete';
-    delBtn.classList.remove('btn-danger--confirm');
+    delBtn.textContent = 'Delete Event';
+    delBtn.classList.remove('cev-delete-btn--confirm');
     _calEvDeleteConfirm = false;
-    document.getElementById('calEvSaveBtn').textContent     = 'Save Changes';
   } else {
     // ── CREATE MODE ──
     _editingCalEvent = null;
@@ -12079,13 +12119,12 @@ function openCalEventModal(presetDateOrEvent) {
     document.getElementById('calEvDuration').value    = '';
     document.getElementById('calEvDistance').value     = '';
     document.getElementById('calEvTss').value         = '';
+    document.getElementById('calEvLocation').value    = '';
     document.getElementById('calEvDesc').value        = '';
 
-    document.querySelector('#calEventModal .modal-title').textContent = 'Add to Calendar';
-    document.querySelector('#calEventModal .modal-desc').textContent  = 'Plan a workout, note, race or goal';
+    document.querySelector('#calEventModal .cev-hdr-title').textContent = 'New';
     document.getElementById('calEvPresets').style.display  = '';
-    document.getElementById('calEvDeleteBtn').style.display = 'none';
-    document.getElementById('calEvSaveBtn').textContent     = 'Add to Calendar';
+    document.getElementById('calEvDeleteSection').style.display = 'none';
   }
 
   // Clear active preset highlight & validation errors
@@ -12108,7 +12147,6 @@ function _calEvCategoryChanged() {
   const showMetrics = cat === 'WORKOUT' || cat === 'RACE';
   document.getElementById('calEvSportField').style.display   = showMetrics ? '' : 'none';
   document.getElementById('calEvMetricsRow').style.display    = showMetrics ? '' : 'none';
-  document.getElementById('calEvTssField').style.display      = showMetrics ? '' : 'none';
 }
 
 function _applyCalEvPreset(key) {
@@ -12349,7 +12387,7 @@ async function saveCalEvent() {
 
   const saveBtn = document.getElementById('calEvSaveBtn');
   saveBtn.disabled = true;
-  saveBtn.textContent = 'Saving...';
+  saveBtn.style.opacity = '0.4';
 
   try {
     const payload = {
@@ -12372,8 +12410,10 @@ async function saveCalEvent() {
       if (tss > 0) payload.icu_training_load = tss;
     }
 
+    const loc  = document.getElementById('calEvLocation').value.trim();
     const desc = document.getElementById('calEvDesc').value.trim();
-    if (desc) payload.description = desc;
+    const fullDesc = (loc ? '📍 ' + loc + '\n\n' : '') + desc;
+    if (fullDesc.trim()) payload.description = fullDesc.trim();
 
     if (_editingCalEvent) {
       await icuPut(`/athlete/${state.athleteId}/events/${_editingCalEvent.id}`, payload);
@@ -12389,7 +12429,7 @@ async function saveCalEvent() {
     showToast('Failed to save: ' + err.message, 'error');
   } finally {
     saveBtn.disabled = false;
-    saveBtn.textContent = _editingCalEvent ? 'Save Changes' : 'Add to Calendar';
+    saveBtn.style.opacity = '';
   }
 }
 
@@ -12404,7 +12444,7 @@ async function deleteCalEvent() {
   if (!_calEvDeleteConfirm) {
     _calEvDeleteConfirm = true;
     deleteBtn.textContent = 'Confirm Delete';
-    deleteBtn.classList.add('btn-danger--confirm');
+    deleteBtn.classList.add('cev-delete-btn--confirm');
     return;
   }
 
@@ -12422,8 +12462,8 @@ async function deleteCalEvent() {
     showToast('Failed to delete: ' + err.message, 'error');
   } finally {
     deleteBtn.disabled = false;
-    deleteBtn.textContent = 'Delete';
-    deleteBtn.classList.remove('btn-danger--confirm');
+    deleteBtn.textContent = 'Delete Event';
+    deleteBtn.classList.remove('cev-delete-btn--confirm');
   }
 }
 
@@ -12710,6 +12750,10 @@ function renderCalendar() {
   });
 
   const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  // Month title label
+  const _calMonthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  setEl('calMonthTitle', _calMonthNames[month] + ' ' + year);
+
   setEl('calStatActivities', totalActs || '0');
   setEl('calStatDist',       totalDist > 0 ? (totalDist / 1000).toFixed(0) + ' km' : '—');
   setEl('calStatTSS',        totalTSS > 0  ? Math.round(totalTSS) : '—');
