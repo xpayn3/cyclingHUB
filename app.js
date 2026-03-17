@@ -3563,9 +3563,7 @@ function _updateActStickyTop() {
   const toolbar = document.querySelector('#page-activities .acts-toolbar');
   if (!toolbar) return;
   const update = () => {
-    const h = toolbar.offsetHeight;
-    const top = h; // toolbar height (topbar removed)
-    const val = top + 'px';
+    const val = Math.max(0, toolbar.getBoundingClientRect().bottom) + 'px';
     const list  = document.getElementById('allActivityList');
     const grid  = document.getElementById('allActivityCardGrid');
     const zones = document.getElementById('allActivityZonesGrid');
@@ -3598,7 +3596,7 @@ function _animateActStickyTop(toolbar, isHidden) {
   toolbar.addEventListener('transitionend', function handler() {
     running = false;
     toolbar.removeEventListener('transitionend', handler);
-    _setActStickyTop(toolbar.offsetHeight + 'px');
+    _setActStickyTop(Math.max(0, toolbar.getBoundingClientRect().bottom) + 'px');
   }, { once: true });
   requestAnimationFrame(track);
 }

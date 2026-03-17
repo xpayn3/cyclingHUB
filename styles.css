@@ -2623,7 +2623,7 @@ code {
     flex-direction: column;
     gap: 12px;
     position: sticky;
-    top: 0;
+    top: env(safe-area-inset-top, 0px);
     z-index: 10;
     background: var(--bg-base);
     transition: top 0.3s linear;
@@ -2976,7 +2976,7 @@ code {
     align-items: center;
     padding: 24px 0 6px;
     position: sticky;
-    top: var(--act-sticky-top, env(safe-area-inset-top, 0px));
+    top: var(--act-sticky-top, 0px);
     z-index: 9;
     background: var(--bg-base);
 }
