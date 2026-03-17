@@ -11582,14 +11582,17 @@ HTMLDialogElement.prototype.showModal = function() {
   }
 
   if (inner && isMobile) {
-    // 1. Place off-screen with transition disabled (element is now visible)
+    // 1. Hide modal off-screen instantly (no transition)
     inner.style.transition = 'none';
-    inner.style.transform = 'translate3d(0, 100%, 0)';
-    // 2. Force reflow so the off-screen state is committed
-    void inner.offsetHeight;
-    // 3. Re-enable transition and slide into view in the same frame
-    inner.style.transition = '';
-    inner.style.transform = 'translate3d(0, 0, 0)';
+    inner.style.transform = 'translate3d(0, 100vh, 0)';
+    inner.style.opacity = '0';
+    // 2. Give iOS Safari real time to paint the off-screen state,
+    //    then animate into view
+    setTimeout(() => {
+      inner.style.opacity = '1';
+      inner.style.transition = 'transform 0.35s cubic-bezier(0.2, 0, 0, 1)';
+      inner.style.transform = 'translate3d(0, 0, 0)';
+    }, 30);
   }
 };
 
