@@ -2872,6 +2872,111 @@ function setActivitiesSearch(q) {
   renderAllActivitiesList();
 }
 
+/* ── Apple-style Activity Search Modal ── */
+let _actSearchDebounce = null;
+
+function openActivitySearch() {
+  const modal = document.getElementById('actSearchModal');
+  if (!modal) return;
+  document.body.style.overflow = 'hidden';
+  modal.showModal();
+  const input = document.getElementById('actSearchInput');
+  if (input) {
+    input.value = '';
+    setTimeout(() => input.focus(), 100);
+  }
+  const clearBtn = document.getElementById('actSearchClear');
+  if (clearBtn) clearBtn.classList.remove('visible');
+  document.getElementById('actSearchResults').innerHTML =
+    '<div class="act-search-empty">Type to search all activities</div>';
+}
+
+function closeActivitySearch() {
+  const modal = document.getElementById('actSearchModal');
+  document.body.style.overflow = '';
+  if (modal) closeModalAnimated(modal);
+}
+
+function clearActivitySearch() {
+  const input = document.getElementById('actSearchInput');
+  if (input) { input.value = ''; input.focus(); }
+  document.getElementById('actSearchClear')?.classList.remove('visible');
+  document.getElementById('actSearchResults').innerHTML =
+    '<div class="act-search-empty">Type to search all activities</div>';
+}
+
+function _onActivitySearchInput(e) {
+  const q = e.target.value.trim();
+  const clearBtn = document.getElementById('actSearchClear');
+  if (clearBtn) clearBtn.classList.toggle('visible', q.length > 0);
+
+  clearTimeout(_actSearchDebounce);
+  if (!q) {
+    document.getElementById('actSearchResults').innerHTML =
+      '<div class="act-search-empty">Type to search all activities</div>';
+    return;
+  }
+  _actSearchDebounce = setTimeout(() => _runActivitySearch(q), 150);
+}
+
+function _runActivitySearch(q) {
+  const lower = q.toLowerCase();
+  const all = getAllActivities().filter(a => !isEmptyActivity(a));
+  const matches = all.filter(a => {
+    const name = (a.name || a.icu_name || '').toLowerCase();
+    const type = (a.sport_type || a.type || a.icu_sport_type || '').toLowerCase();
+    return name.includes(lower) || type.includes(lower);
+  }).sort((a, b) => {
+    const da = new Date(a.start_date_local || a.start_date).getTime();
+    const db = new Date(b.start_date_local || b.start_date).getTime();
+    return db - da;
+  });
+
+  const container = document.getElementById('actSearchResults');
+  if (!matches.length) {
+    container.innerHTML = '<div class="act-search-empty">No activities found</div>';
+    return;
+  }
+
+  const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  let html = `<div class="act-search-count">${matches.length} result${matches.length !== 1 ? 's' : ''}</div>`;
+  const limit = Math.min(matches.length, 50);
+  for (let i = 0; i < limit; i++) {
+    const a = matches[i];
+    const rawName = (a.name && a.name.trim()) ? a.name.trim() : activityFallbackName(a);
+    const { title: name } = cleanActivityName(rawName);
+    const d = new Date(a.start_date_local || a.start_date);
+    const dateStr = `${d.getDate()} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
+    const type = a.sport_type || a.type || '';
+    const dist = actVal(a, 'distance', 'icu_distance') / 1000;
+    const secs = actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time', 'icu_elapsed_time', 'total_elapsed_time');
+    const sub = [dateStr, type, dist > 0.05 ? dist.toFixed(1) + ' km' : '', secs > 0 ? fmtDur(secs) : ''].filter(Boolean).join(' · ');
+    const tc = activityTypeClass(a);
+    const icon = activityTypeIcon(a);
+    // Store in lookup for navigation
+    const key = '_search_' + i;
+    window._actLookup[key] = a;
+    html += `<div class="act-search-row" onclick="navigateToActivity('${key}');closeActivitySearch()">
+      <div class="act-search-row-icon ${tc}">${icon}</div>
+      <div class="act-search-row-info">
+        <div class="act-search-row-name">${name}</div>
+        <div class="act-search-row-sub">${sub}</div>
+      </div>
+      <div class="act-search-row-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+    </div>`;
+  }
+  if (matches.length > 50) {
+    html += `<div class="act-search-empty" style="padding:16px 0;font-size:13px">Showing first 50 of ${matches.length} results</div>`;
+  }
+  container.innerHTML = html;
+}
+
+// Wire up the search input listener
+document.addEventListener('DOMContentLoaded', () => {
+  const inp = document.getElementById('actSearchInput');
+  if (inp) inp.addEventListener('input', _onActivitySearchInput);
+});
+
 function setActivitiesSort(field) {
   if (state.activitiesSort === field) {
     state.activitiesSortDir = state.activitiesSortDir === 'desc' ? 'asc' : 'desc';
@@ -12998,10 +13103,10 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowRight') { e.preventDefault(); stepActivity(1);  return; }
   }
 
-  // S → focus search on activities page
+  // S → open activity search modal on activities page
   if (e.key === 's' && state.currentPage === 'activities') {
     e.preventDefault();
-    document.getElementById('activitiesSearch')?.focus();
+    openActivitySearch();
     return;
   }
 
@@ -22465,6 +22570,8 @@ Object.assign(window, {
   setCompareTab, h2hSearch, h2hAddActivity, h2hRemoveActivity,
   // Similar rides & radar
   openSimilarRidesModal, closeSimilarRidesModal, renderPowerProfileRadar, switchPowerCurveUnit,
+  // Activity search modal
+  openActivitySearch, closeActivitySearch, clearActivitySearch,
   // Weather performance proxies
   actVal, fmtDate, fmtDist, fmtSpeed,
   C_TOOLTIP, C_TICK, C_GRID,

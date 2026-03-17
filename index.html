@@ -2232,11 +2232,30 @@
                         <div class="acts-card-grid" id="allActivityCardGrid" style="display:none"></div>
                         <div class="acts-zones-grid" id="allActivityZonesGrid" style="display:none"></div>
                         <!-- Floating Search Button -->
-                        <button class="cal-fab" id="actSearchFab" onclick="document.getElementById('activitiesSearch').focus();document.getElementById('activitiesSearch').scrollIntoView({behavior:'smooth',block:'center'})">
+                        <button class="cal-fab" id="actSearchFab" onclick="openActivitySearch()" aria-label="Search activities">
                             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                                 <circle cx="8.5" cy="8.5" r="5.5"/><line x1="13" y1="13" x2="18" y2="18"/>
                             </svg>
                         </button>
+                        <!-- Apple-style Search Modal -->
+                        <dialog class="modal-dialog" id="actSearchModal">
+                            <div class="modal act-search-modal">
+                                <div class="modal-drag-indicator"></div>
+                                <div class="act-search-bar">
+                                    <svg class="act-search-bar-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+                                        <circle cx="8.5" cy="8.5" r="5.5"/><line x1="13" y1="13" x2="18" y2="18"/>
+                                    </svg>
+                                    <input id="actSearchInput" type="text" placeholder="Search activities…" autocomplete="off" />
+                                    <button class="act-search-clear" id="actSearchClear" onclick="clearActivitySearch()" aria-label="Clear">
+                                        <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18"><circle cx="10" cy="10" r="8" opacity="0.4"/><path d="M7.5 7.5l5 5M12.5 7.5l-5 5" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+                                    </button>
+                                    <button class="act-search-cancel" onclick="closeActivitySearch()">Cancel</button>
+                                </div>
+                                <div class="act-search-results" id="actSearchResults">
+                                    <div class="act-search-empty">Type to search all activities</div>
+                                </div>
+                            </div>
+                        </dialog>
                 </div>
 
                 <!-- ==================== ACTIVITY DETAIL PAGE ==================== -->
