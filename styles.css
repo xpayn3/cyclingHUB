@@ -724,9 +724,9 @@ code {
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    border: none;
+    border: 1.5px solid rgba(255, 255, 255, 0.12);
     overflow: hidden;
-    background: rgba(30, 30, 32, 0.72);
+    background: rgba(30, 30, 32, 0.92);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     box-shadow: 0 1px 6px rgba(0,0,0,0.3);
