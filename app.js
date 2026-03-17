@@ -11570,89 +11570,46 @@ function initModalSwipeDismiss(dialog) {
 // Auto-init swipe dismiss on all modal dialogs
 document.querySelectorAll('.modal-dialog').forEach(initModalSwipeDismiss);
 
-/* ── iOS-robust modal open/close using CSS @keyframes ── */
+// ESC key closes mobile sheets (show() doesn't handle this natively)
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    const open = document.querySelector('dialog.modal-dialog.sheet-open[open]');
+    if (open) { e.preventDefault(); closeModalAnimated(open); }
+  }
+});
+
+/* ── Mobile bottom-sheet system ──
+   On mobile (≤600px), we bypass showModal() entirely because iOS Safari's
+   top-layer positioning fights with CSS overrides causing overshoot/jump.
+   Instead we use dialog.show() + a manual backdrop div for full control.
+   On desktop, showModal() works fine and is used as normal.
+── */
 const _origShowModal = HTMLDialogElement.prototype.showModal;
-HTMLDialogElement.prototype.showModal = function() {
-  const inner = this.querySelector('.modal');
-  const isMobile = window.innerWidth <= 600;
+const _origClose = HTMLDialogElement.prototype.close;
+const _isMobileSheet = () => window.innerWidth <= 600;
 
-  // Lock background scroll on iOS
-  if (isMobile) {
-    document.body.style.position = 'fixed';
-    document.body.style.width = '100%';
-    document.body.dataset.scrollY = window.scrollY;
-    document.body.style.top = `-${window.scrollY}px`;
+// Shared backdrop element for mobile sheets
+let _sheetBackdrop = null;
+function _getBackdrop() {
+  if (!_sheetBackdrop) {
+    _sheetBackdrop = document.createElement('div');
+    _sheetBackdrop.className = 'sheet-backdrop';
+    _sheetBackdrop.addEventListener('click', () => {
+      // Close the topmost open dialog
+      const open = document.querySelector('dialog.modal-dialog[open]');
+      if (open) closeModalAnimated(open);
+    });
+    document.body.appendChild(_sheetBackdrop);
   }
+  return _sheetBackdrop;
+}
 
-  // Clean up any leftover state and remove enter class so we can re-trigger
-  if (inner) {
-    inner.classList.remove('sheet-dismiss', 'dragging', 'sheet-enter');
-    inner.style.transform = '';
-    inner.style.transition = '';
-    inner.style.animation = '';
-  }
-
-  _origShowModal.call(this);
-
-  // Trigger the slide-in animation by adding the class after dialog is open
-  // Force a reflow between removing and adding the class so the browser
-  // treats it as a fresh animation
-  if (inner && isMobile) {
-    void inner.offsetHeight;
-    inner.classList.add('sheet-enter');
-  }
-
-  // Init swipe dismiss once
-  if (this.classList.contains('modal-dialog') && !this._swipeInited) {
-    initModalSwipeDismiss(this);
-    this._swipeInited = true;
-  }
-  // CSS @keyframes sheetSlideIn handles the animation automatically
-};
-
-function closeModalAnimated(dialog) {
-  if (!dialog || !dialog.open) return;
-  const inner = dialog.querySelector('.modal');
-  const isMobile = window.innerWidth <= 600;
-
-  if (!inner || !isMobile) {
-    _unlockBodyScroll();
-    dialog.close();
-    return;
-  }
-
-  // Get current drag offset (if swiping) so the dismiss starts from there
-  const currentTransform = inner.style.transform;
-  const match = currentTransform && currentTransform.match(/translateY\((\d+)/);
-  inner.style.setProperty('--sheet-dy', match ? `${match[1]}px` : '0px');
-
-  // Trigger CSS dismiss animation
-  inner.classList.remove('dragging', 'sheet-enter');
-  inner.classList.add('sheet-dismiss');
-
-  function onDone() {
-    inner.removeEventListener('animationend', onDone);
-    inner.classList.remove('sheet-dismiss');
-    inner.style.transform = '';
-    inner.style.transition = '';
-    inner.style.removeProperty('--sheet-dy');
-    _unlockBodyScroll();
-    dialog.close();
-  }
-  inner.addEventListener('animationend', onDone, { once: true });
-
-  // Fallback if animationend doesn't fire
-  setTimeout(() => {
-    if (dialog.open) {
-      inner.removeEventListener('animationend', onDone);
-      inner.classList.remove('sheet-dismiss');
-      inner.style.transform = '';
-      inner.style.transition = '';
-      inner.style.removeProperty('--sheet-dy');
-      _unlockBodyScroll();
-      dialog.close();
-    }
-  }, 400);
+function _lockBodyScroll() {
+  if (document.body.style.position === 'fixed') return;
+  document.body.dataset.scrollY = window.scrollY;
+  document.body.style.position = 'fixed';
+  document.body.style.width = '100%';
+  document.body.style.top = `-${window.scrollY}px`;
 }
 
 function _unlockBodyScroll() {
@@ -11664,22 +11621,103 @@ function _unlockBodyScroll() {
   window.scrollTo(0, y);
 }
 
-// Ensure body scroll unlock whenever ANY dialog closes
-const _origClose = HTMLDialogElement.prototype.close;
+function _cleanSheet(inner) {
+  if (!inner) return;
+  inner.classList.remove('sheet-enter', 'sheet-dismiss', 'dragging');
+  inner.style.transform = '';
+  inner.style.transition = '';
+  inner.style.animation = '';
+}
+
+HTMLDialogElement.prototype.showModal = function() {
+  const inner = this.querySelector('.modal');
+
+  if (!_isMobileSheet()) {
+    // Desktop: use native showModal() — works perfectly
+    _origShowModal.call(this);
+    if (this.classList.contains('modal-dialog') && !this._swipeInited) {
+      initModalSwipeDismiss(this);
+      this._swipeInited = true;
+    }
+    return;
+  }
+
+  // ── MOBILE: bypass showModal(), use show() + manual backdrop ──
+  _lockBodyScroll();
+  _cleanSheet(inner);
+
+  // Show backdrop
+  const backdrop = _getBackdrop();
+  backdrop.classList.add('active');
+
+  // Use show() instead of showModal() — no top-layer, no UA positioning
+  this.show();
+  this.classList.add('sheet-open');
+
+  // Init swipe dismiss once
+  if (this.classList.contains('modal-dialog') && !this._swipeInited) {
+    initModalSwipeDismiss(this);
+    this._swipeInited = true;
+  }
+
+  // Trigger slide-in: start off-screen, force paint, then animate
+  if (inner) {
+    inner.style.transform = 'translateY(100%)';
+    void inner.offsetHeight; // force paint of off-screen state
+    inner.classList.add('sheet-enter');
+  }
+};
+
 HTMLDialogElement.prototype.close = function(rv) {
   const inner = this.querySelector('.modal');
-  if (inner) {
-    inner.classList.remove('sheet-dismiss', 'dragging', 'sheet-enter');
-    inner.style.transform = '';
-    inner.style.transition = '';
-    inner.style.animation = '';
-  }
+  _cleanSheet(inner);
+  this.classList.remove('sheet-open');
   _origClose.call(this, rv);
-  // Unlock only if no other dialogs remain open
+  // Hide backdrop + unlock scroll if no other sheets are open
   if (!document.querySelector('dialog.modal-dialog[open]')) {
+    if (_sheetBackdrop) _sheetBackdrop.classList.remove('active');
     _unlockBodyScroll();
   }
 };
+
+function closeModalAnimated(dialog) {
+  if (!dialog || !dialog.open) return;
+  const inner = dialog.querySelector('.modal');
+
+  if (!inner || !_isMobileSheet()) {
+    dialog.close();
+    return;
+  }
+
+  // Get current drag position for smooth dismiss continuation
+  const ct = inner.style.transform;
+  const match = ct && ct.match(/translateY\((\d+)/);
+  inner.style.setProperty('--sheet-dy', match ? `${match[1]}px` : '0px');
+
+  inner.classList.remove('dragging', 'sheet-enter');
+  inner.classList.add('sheet-dismiss');
+
+  // Fade backdrop during dismiss
+  if (_sheetBackdrop) _sheetBackdrop.classList.add('fading');
+
+  function onDone() {
+    inner.removeEventListener('animationend', onDone);
+    inner.style.removeProperty('--sheet-dy');
+    if (_sheetBackdrop) _sheetBackdrop.classList.remove('fading');
+    dialog.close();
+  }
+  inner.addEventListener('animationend', onDone, { once: true });
+
+  // Fallback
+  setTimeout(() => {
+    if (dialog.open) {
+      inner.removeEventListener('animationend', onDone);
+      inner.style.removeProperty('--sheet-dy');
+      if (_sheetBackdrop) _sheetBackdrop.classList.remove('fading');
+      dialog.close();
+    }
+  }, 400);
+}
 
 function showToast(msg, type = 'success') {
   const ICONS = {

@@ -13597,14 +13597,38 @@ body:has(.act-sheet-mode) .topbar {
     margin-bottom: 14px;
 }
 
+/* ── Manual backdrop for mobile sheets (replaces ::backdrop) ── */
+.sheet-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+    background: rgba(0, 0, 0, 0);
+    transition: background 0.3s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+.sheet-backdrop.active {
+    display: block;
+    background: rgba(0, 0, 0, 0.6);
+}
+.sheet-backdrop.fading {
+    background: rgba(0, 0, 0, 0);
+}
+
 /* ── Modal & gear form – mobile (iOS-robust bottom sheet) ── */
 @media (max-width: 600px) {
-    .modal-dialog[open] {
-        /* Fixed full-screen container — never scrolls, never resizes */
+    /* On mobile we use dialog.show() (not showModal) to avoid iOS
+       top-layer positioning bugs. Dialog is positioned with fixed+z-index. */
+    .modal-dialog[open].sheet-open {
         position: fixed;
-        inset: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        top: 0;
         margin: 0;
         padding: 0;
+        border: none;
+        background: transparent;
         width: 100%;
         height: 100%;
         max-width: none;
@@ -13613,19 +13637,17 @@ body:has(.act-sheet-mode) .topbar {
         display: flex;
         flex-direction: column;
         justify-content: flex-end;
-        /* Kill ALL browser-UA open/close animations */
+        z-index: 1000;
         opacity: 1 !important;
         animation: none !important;
         transition: none !important;
-        /* Prevent background scroll bleed on iOS */
         overscroll-behavior: none;
         touch-action: none;
     }
-    @starting-style {
-        .modal-dialog[open] { opacity: 1 !important; }
-    }
-    .modal-dialog::backdrop {
-        background: rgba(0, 0, 0, 0.6);
+    /* Hide native ::backdrop — we use .sheet-backdrop instead */
+    .modal-dialog.sheet-open::backdrop {
+        display: none !important;
+        background: transparent !important;
     }
     .modal {
         max-width: 100% !important;
@@ -13636,19 +13658,15 @@ body:has(.act-sheet-mode) .topbar {
         flex-direction: column;
         overflow: hidden;
         will-change: transform;
-        /* Start off-screen — JS class triggers the animation */
         transform: translateY(100%);
         box-shadow: 0 200px 0 200px #2C2C2E;
     }
-    /* Enter animation — JS adds this class on every showModal() */
     .modal.sheet-enter {
         animation: sheetSlideIn 0.35s cubic-bezier(0.2, 0.9, 0.3, 1) both;
     }
-    /* Dismiss animation — applied by JS on close */
     .modal.sheet-dismiss {
         animation: sheetSlideOut 0.25s cubic-bezier(0.4, 0, 1, 1) both !important;
     }
-    /* During swipe drag — no animation, instant feedback */
     .modal.dragging {
         animation: none !important;
         transition: none !important;
@@ -13674,16 +13692,15 @@ body:has(.act-sheet-mode) .topbar {
         flex: 1;
         min-height: 0;
     }
-    /* Prevent iOS keyboard from pushing modal up */
+    /* Prevent iOS keyboard zoom on input focus */
     .modal-body input,
     .modal-body textarea,
     .modal-body select {
-        font-size: 16px; /* prevents iOS auto-zoom on focus */
+        font-size: 16px;
     }
     .modal-footer {
         flex-shrink: 0;
         padding: 12px 18px 20px;
-        /* safe area for bottom notch */
         padding-bottom: max(20px, env(safe-area-inset-bottom));
     }
     .gear-form-grid {
