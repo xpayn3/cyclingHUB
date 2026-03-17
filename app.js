@@ -23028,9 +23028,8 @@ function _closeDashFab() { /* replaced by dash-pill-nav */ }
 })();
 
 // ── Bubble FAB physics ──
-// Zero-gravity fluid bubble that reacts to mouse proximity
-// Applied to FABs: activities search, calendar +
-(function bubbleFabs() {
+// bubbleFabs removed — FABs are static
+if (false) (function bubbleFabs() {
   const fabIds = ['actSearchFab', 'calFab'];
   const fabs = fabIds.map(id => document.getElementById(id)).filter(Boolean);
   if (!fabs.length) return;
