@@ -13237,7 +13237,7 @@ async function navigateToActivity(actKey, fromStep = false) {
   if (!fromStep) state.previousPage = state.currentPage;
   state.currentPage = 'activity';
   const _pillEl = document.getElementById('dashPillNav');
-  if (_pillEl) _pillEl.style.display = 'none';
+  if (_pillEl) { _pillEl.style.visibility = 'hidden'; _pillEl.style.pointerEvents = 'none'; }
 
   // Track position in the non-empty pool for prev/next navigation
   const pool = state.activities.filter(a => !isEmptyActivity(a));
