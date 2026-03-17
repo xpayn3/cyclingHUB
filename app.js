@@ -72,6 +72,9 @@ if ('serviceWorker' in navigator) {
     .catch(err => console.warn('SW registration failed:', err));
 }
 
+// Temporary version check toast — remove after confirming
+setTimeout(() => showToast('CycleIQ v120', 'success'), 1500);
+
 let _pwaInstallPrompt = null;
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
