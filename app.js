@@ -2249,20 +2249,22 @@ function navigate(page) {
   state.currentPage  = page;
   try { sessionStorage.setItem('icu_route', JSON.stringify({ type: 'page', page })); } catch {}
 
-  // Update pill nav active state + visibility
+  // Update pill nav active state + visibility (use visibility to keep backdrop-filter warm)
   const _pillNav = document.getElementById('dashPillNav');
   const _pillHidePages = new Set(['settings', 'routes', 'workout', 'activity']);
   if (_pillNav) {
-    _pillNav.style.display = _pillHidePages.has(page) ? 'none' : '';
+    const hide = _pillHidePages.has(page);
+    _pillNav.style.visibility = hide ? 'hidden' : '';
+    _pillNav.style.pointerEvents = hide ? 'none' : '';
   }
 
-  // Show/hide global FABs based on current page
+  // Show/hide global FABs based on current page (visibility to keep backdrop-filter warm)
   const _calFab = document.getElementById('calFab');
   const _actFab = document.getElementById('actSearchFab');
   const _dashFab = document.getElementById('dashRouteFab');
-  if (_calFab) _calFab.style.display = page === 'calendar' ? '' : 'none';
-  if (_actFab) _actFab.style.display = page === 'activities' ? '' : 'none';
-  if (_dashFab) _dashFab.style.display = page === 'dashboard' ? '' : 'none';
+  if (_calFab)  { _calFab.style.visibility  = page === 'calendar'   ? '' : 'hidden'; _calFab.style.pointerEvents  = page === 'calendar'   ? '' : 'none'; }
+  if (_actFab)  { _actFab.style.visibility  = page === 'activities' ? '' : 'hidden'; _actFab.style.pointerEvents  = page === 'activities' ? '' : 'none'; }
+  if (_dashFab) { _dashFab.style.visibility = page === 'dashboard'  ? '' : 'hidden'; _dashFab.style.pointerEvents = page === 'dashboard'  ? '' : 'none'; }
   document.querySelectorAll('.dash-pill-btn').forEach(btn => {
     const lbl = btn.querySelector('span')?.textContent?.toLowerCase() || '';
     const match = lbl === page || (lbl === 'home' && page === 'dashboard');
