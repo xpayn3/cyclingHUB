@@ -23045,7 +23045,9 @@ function _closeDashFab() { /* replaced by dash-pill-nav */ }
     const cur = window._currentPage || 'dashboard';
     pillBtns.forEach(btn => {
       const lbl = btn.querySelector('span')?.textContent?.toLowerCase() || '';
-      btn.classList.toggle('active', cur === lbl || (lbl === 'menu' && false));
+      const pageMap = { home: 'dashboard' };
+      const mappedPage = pageMap[lbl] || lbl;
+      btn.classList.toggle('active', cur === mappedPage);
     });
   }
   window.addEventListener('pagechange', updatePillActive);
