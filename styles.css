@@ -13635,13 +13635,16 @@ body:has(.act-sheet-mode) .topbar {
         display: flex;
         flex-direction: column;
         overflow: hidden;
-        /* Slide animation — CSS keyframe is far more reliable on iOS
-           than JS-managed inline transitions */
-        animation: sheetSlideIn 0.35s cubic-bezier(0.2, 0.9, 0.3, 1) both;
         will-change: transform;
+        /* Start off-screen — JS class triggers the animation */
+        transform: translateY(100%);
         box-shadow: 0 200px 0 200px #2C2C2E;
     }
-    /* Dismiss animation — applied by JS */
+    /* Enter animation — JS adds this class on every showModal() */
+    .modal.sheet-enter {
+        animation: sheetSlideIn 0.35s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+    }
+    /* Dismiss animation — applied by JS on close */
     .modal.sheet-dismiss {
         animation: sheetSlideOut 0.25s cubic-bezier(0.4, 0, 1, 1) both !important;
     }
@@ -13670,6 +13673,12 @@ body:has(.act-sheet-mode) .topbar {
         touch-action: pan-y;
         flex: 1;
         min-height: 0;
+    }
+    /* Prevent iOS keyboard from pushing modal up */
+    .modal-body input,
+    .modal-body textarea,
+    .modal-body select {
+        font-size: 16px; /* prevents iOS auto-zoom on focus */
     }
     .modal-footer {
         flex-shrink: 0;

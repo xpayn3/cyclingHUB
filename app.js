@@ -11584,14 +11584,23 @@ HTMLDialogElement.prototype.showModal = function() {
     document.body.style.top = `-${window.scrollY}px`;
   }
 
-  // Clean up any leftover dismiss state
+  // Clean up any leftover state and remove enter class so we can re-trigger
   if (inner) {
-    inner.classList.remove('sheet-dismiss', 'dragging');
+    inner.classList.remove('sheet-dismiss', 'dragging', 'sheet-enter');
     inner.style.transform = '';
     inner.style.transition = '';
+    inner.style.animation = '';
   }
 
   _origShowModal.call(this);
+
+  // Trigger the slide-in animation by adding the class after dialog is open
+  // Force a reflow between removing and adding the class so the browser
+  // treats it as a fresh animation
+  if (inner && isMobile) {
+    void inner.offsetHeight;
+    inner.classList.add('sheet-enter');
+  }
 
   // Init swipe dismiss once
   if (this.classList.contains('modal-dialog') && !this._swipeInited) {
@@ -11618,7 +11627,7 @@ function closeModalAnimated(dialog) {
   inner.style.setProperty('--sheet-dy', match ? `${match[1]}px` : '0px');
 
   // Trigger CSS dismiss animation
-  inner.classList.remove('dragging');
+  inner.classList.remove('dragging', 'sheet-enter');
   inner.classList.add('sheet-dismiss');
 
   function onDone() {
@@ -11660,9 +11669,10 @@ const _origClose = HTMLDialogElement.prototype.close;
 HTMLDialogElement.prototype.close = function(rv) {
   const inner = this.querySelector('.modal');
   if (inner) {
-    inner.classList.remove('sheet-dismiss', 'dragging');
+    inner.classList.remove('sheet-dismiss', 'dragging', 'sheet-enter');
     inner.style.transform = '';
     inner.style.transition = '';
+    inner.style.animation = '';
   }
   _origClose.call(this, rv);
   // Unlock only if no other dialogs remain open
