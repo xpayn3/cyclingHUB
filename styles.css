@@ -6216,19 +6216,41 @@ code {
     width: 24px;
     height: 24px;
 }
+/* ── FABs: liquid glass pill style, matching dash-pill-nav height ── */
 #actSearchFab,
 #calFab {
     position: fixed;
     bottom: max(8px, env(safe-area-inset-bottom, 8px));
     right: 16px;
-    width: 44px;
-    height: 44px;
+    width: 64px;
+    height: 64px;
     z-index: 1100;
-    transition: box-shadow 0.2s ease !important;
+    /* Liquid glass — same as dash-pill-nav */
+    background: rgba(40, 42, 48, 0.42);
+    backdrop-filter: blur(48px) saturate(220%) brightness(1.1);
+    -webkit-backdrop-filter: blur(48px) saturate(220%) brightness(1.1);
+    border-radius: 100px;
+    border: none;
+    color: rgba(255, 255, 255, 0.55);
+    box-shadow:
+        0 0.5px 0 0 rgba(255, 255, 255, 0.20) inset,
+        0 0 0 0.5px rgba(255, 255, 255, 0.10) inset,
+        0 -0.5px 0 0 rgba(0, 0, 0, 0.15) inset,
+        0 12px 40px rgba(0, 0, 0, 0.50),
+        0 4px 12px rgba(0, 0, 0, 0.30);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.2s ease;
 }
-#actSearchFab:hover,
-#calFab:hover {
-    box-shadow: 0 6px 28px rgba(0, 229, 160, 0.5);
+#actSearchFab svg,
+#calFab svg {
+    width: 22px;
+    height: 22px;
+    stroke-width: 2;
+}
+#actSearchFab:active,
+#calFab:active {
+    background: rgba(255, 255, 255, 0.08);
 }
 
 /* ── iOS 26-style floating pill nav ── */
@@ -9927,15 +9949,6 @@ body:has(.act-sheet-mode) .topbar {
     .cal-body--panel-hidden .cal-left {
         flex: none;
         border-bottom: none;
-    }
-
-    /* ── FAB: bottom-right, green accent ── */
-    #calFab {
-        bottom: max(8px, env(safe-area-inset-bottom, 8px));
-        right: 16px;
-        width: 44px;
-        height: 44px;
-        box-shadow: 0 4px 20px rgba(0, 229, 160, 0.35);
     }
 
     /* ── Month swipe transition ── */
