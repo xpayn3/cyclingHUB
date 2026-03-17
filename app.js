@@ -2255,6 +2255,12 @@ function navigate(page) {
   if (_pillNav) {
     _pillNav.style.display = _pillHidePages.has(page) ? 'none' : '';
   }
+
+  // Show/hide global FABs based on current page
+  const _calFab = document.getElementById('calFab');
+  const _actFab = document.getElementById('actSearchFab');
+  if (_calFab) _calFab.style.display = page === 'calendar' ? '' : 'none';
+  if (_actFab) _actFab.style.display = page === 'activities' ? '' : 'none';
   document.querySelectorAll('.dash-pill-btn').forEach(btn => {
     const lbl = btn.querySelector('span')?.textContent?.toLowerCase() || '';
     const match = lbl === page || (lbl === 'home' && page === 'dashboard');
