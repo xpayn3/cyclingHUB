@@ -11530,10 +11530,10 @@ function initModalSwipeDismiss(dialog) {
 
     // gesture === 'dragging'
     const dragDy = y - startY;
-    if (dragDy < 0) { currentDy = 0; inner.style.transform = ''; lastY = y; return; }
+    if (dragDy < 0) { currentDy = 0; inner.style.transform = 'translateY(0)'; lastY = y; return; }
     currentDy = dragDy;
     const visual = dragDy < 100 ? dragDy : 100 + (dragDy - 100) * 0.3;
-    inner.style.transform = `translate3d(0, ${visual}px, 0)`;
+    inner.style.transform = `translateY(${visual}px)`;
     if (dragDy > 10) e.preventDefault();
     lastY = y;
   }
@@ -11544,13 +11544,18 @@ function initModalSwipeDismiss(dialog) {
     if (scrollEl) scrollEl.style.overflowY = '';
 
     if (gesture === 'dragging') {
-      inner.classList.remove('dragging'); // re-enable CSS transition
+      inner.classList.remove('dragging');
       if (currentDy > 120) {
-        // Dismiss — slide to 100% via CSS transition
+        // Dismiss — use CSS keyframe animation
         closeModalAnimated(dialog);
       } else {
-        // Snap back — CSS transition animates to 0
-        inner.style.transform = 'translate3d(0, 0, 0)';
+        // Snap back with a short transition
+        inner.style.transition = 'transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1)';
+        inner.style.transform = 'translateY(0)';
+        inner.addEventListener('transitionend', () => {
+          inner.style.transition = '';
+          inner.style.transform = '';
+        }, { once: true });
       }
     }
     gesture = 'idle';
@@ -11565,14 +11570,27 @@ function initModalSwipeDismiss(dialog) {
 // Auto-init swipe dismiss on all modal dialogs
 document.querySelectorAll('.modal-dialog').forEach(initModalSwipeDismiss);
 
-/* ── Transition-based modal open/close (same approach as activity sheet) ── */
+/* ── iOS-robust modal open/close using CSS @keyframes ── */
 const _origShowModal = HTMLDialogElement.prototype.showModal;
 HTMLDialogElement.prototype.showModal = function() {
   const inner = this.querySelector('.modal');
   const isMobile = window.innerWidth <= 600;
 
-  // Show dialog first — element must be in the render tree
-  // before iOS Safari will honour inline style changes
+  // Lock background scroll on iOS
+  if (isMobile) {
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
+    document.body.dataset.scrollY = window.scrollY;
+    document.body.style.top = `-${window.scrollY}px`;
+  }
+
+  // Clean up any leftover dismiss state
+  if (inner) {
+    inner.classList.remove('sheet-dismiss', 'dragging');
+    inner.style.transform = '';
+    inner.style.transition = '';
+  }
+
   _origShowModal.call(this);
 
   // Init swipe dismiss once
@@ -11580,20 +11598,7 @@ HTMLDialogElement.prototype.showModal = function() {
     initModalSwipeDismiss(this);
     this._swipeInited = true;
   }
-
-  if (inner && isMobile) {
-    // 1. Hide modal off-screen instantly (no transition)
-    inner.style.transition = 'none';
-    inner.style.transform = 'translate3d(0, 100vh, 0)';
-    inner.style.opacity = '0';
-    // 2. Give iOS Safari real time to paint the off-screen state,
-    //    then animate into view
-    setTimeout(() => {
-      inner.style.opacity = '1';
-      inner.style.transition = 'transform 0.35s cubic-bezier(0.2, 0, 0, 1)';
-      inner.style.transform = 'translate3d(0, 0, 0)';
-    }, 30);
-  }
+  // CSS @keyframes sheetSlideIn handles the animation automatically
 };
 
 function closeModalAnimated(dialog) {
@@ -11601,29 +11606,70 @@ function closeModalAnimated(dialog) {
   const inner = dialog.querySelector('.modal');
   const isMobile = window.innerWidth <= 600;
 
-  if (!inner || !isMobile) { dialog.close(); return; }
+  if (!inner || !isMobile) {
+    _unlockBodyScroll();
+    dialog.close();
+    return;
+  }
 
-  // Slide down — CSS transition handles the animation
-  inner.style.transform = 'translate3d(0, 100%, 0)';
+  // Get current drag offset (if swiping) so the dismiss starts from there
+  const currentTransform = inner.style.transform;
+  const match = currentTransform && currentTransform.match(/translateY\((\d+)/);
+  inner.style.setProperty('--sheet-dy', match ? `${match[1]}px` : '0px');
+
+  // Trigger CSS dismiss animation
+  inner.classList.remove('dragging');
+  inner.classList.add('sheet-dismiss');
 
   function onDone() {
-    inner.removeEventListener('transitionend', onDone);
+    inner.removeEventListener('animationend', onDone);
+    inner.classList.remove('sheet-dismiss');
     inner.style.transform = '';
     inner.style.transition = '';
+    inner.style.removeProperty('--sheet-dy');
+    _unlockBodyScroll();
     dialog.close();
   }
-  inner.addEventListener('transitionend', onDone, { once: true });
+  inner.addEventListener('animationend', onDone, { once: true });
 
-  // Fallback if transitionend doesn't fire
+  // Fallback if animationend doesn't fire
   setTimeout(() => {
     if (dialog.open) {
-      inner.removeEventListener('transitionend', onDone);
+      inner.removeEventListener('animationend', onDone);
+      inner.classList.remove('sheet-dismiss');
       inner.style.transform = '';
       inner.style.transition = '';
+      inner.style.removeProperty('--sheet-dy');
+      _unlockBodyScroll();
       dialog.close();
     }
-  }, 500);
+  }, 400);
 }
+
+function _unlockBodyScroll() {
+  if (document.body.style.position !== 'fixed') return;
+  const y = parseInt(document.body.dataset.scrollY || '0', 10);
+  document.body.style.position = '';
+  document.body.style.width = '';
+  document.body.style.top = '';
+  window.scrollTo(0, y);
+}
+
+// Ensure body scroll unlock whenever ANY dialog closes
+const _origClose = HTMLDialogElement.prototype.close;
+HTMLDialogElement.prototype.close = function(rv) {
+  const inner = this.querySelector('.modal');
+  if (inner) {
+    inner.classList.remove('sheet-dismiss', 'dragging');
+    inner.style.transform = '';
+    inner.style.transition = '';
+  }
+  _origClose.call(this, rv);
+  // Unlock only if no other dialogs remain open
+  if (!document.querySelector('dialog.modal-dialog[open]')) {
+    _unlockBodyScroll();
+  }
+};
 
 function showToast(msg, type = 'success') {
   const ICONS = {
