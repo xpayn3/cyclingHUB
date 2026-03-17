@@ -11544,17 +11544,21 @@ function initModalSwipeDismiss(dialog) {
     if (scrollEl) scrollEl.style.overflowY = '';
 
     if (gesture === 'dragging') {
-      inner.classList.remove('dragging');
       if (currentDy > 120) {
-        // Dismiss — use CSS keyframe animation
+        // Dismiss — remove dragging, then animate out
+        inner.classList.remove('dragging');
         closeModalAnimated(dialog);
       } else {
-        // Snap back with a short transition
+        // Snap back: keep .dragging on (kills animation), use inline transition
+        // to smoothly return to 0, then clean up ONLY the transition (keep transform)
         inner.style.transition = 'transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1)';
         inner.style.transform = 'translateY(0)';
         inner.addEventListener('transitionend', () => {
           inner.style.transition = '';
-          inner.style.transform = '';
+          // Remove sheet-enter BEFORE removing dragging so the animation
+          // can't replay. The inline transform: translateY(0) keeps it in place.
+          inner.classList.remove('sheet-enter');
+          inner.classList.remove('dragging');
         }, { once: true });
       }
     }
