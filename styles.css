@@ -9707,7 +9707,7 @@ body:has(.act-sheet-mode) .topbar {
     .cal-month-title {
         min-width: auto;
         font-size: 34px;
-        font-weight: 800;
+        font-weight: 600;
         letter-spacing: -1px;
         line-height: 1.05;
         text-align: left;
