@@ -3586,7 +3586,7 @@ function _setActStickyTop(val) {
   if (zones) zones.style.setProperty('--act-sticky-top', val);
 }
 function _animateActStickyTop(toolbar, isHidden) {
-  if (isHidden) { _setActStickyTop('0px'); return; }
+  if (isHidden) { _setActStickyTop('env(safe-area-inset-top, 0px)'); return; }
   // Toolbar revealing — track its bottom edge each frame until transition ends
   let running = true;
   function track() {

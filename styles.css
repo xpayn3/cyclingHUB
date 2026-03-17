@@ -2617,6 +2617,7 @@ code {
 /* ---- Activities toolbar ---- */
 .acts-toolbar {
     padding: 12px 0;
+    padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
     margin-bottom: 4px;
     display: flex;
     flex-direction: column;
@@ -2975,7 +2976,7 @@ code {
     align-items: center;
     padding: 24px 0 6px;
     position: sticky;
-    top: var(--act-sticky-top, 0px);
+    top: var(--act-sticky-top, env(safe-area-inset-top, 0px));
     z-index: 9;
     background: var(--bg-base);
 }
