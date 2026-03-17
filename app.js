@@ -11586,13 +11586,13 @@ HTMLDialogElement.prototype.showModal = function() {
   }
 
   if (inner && isMobile) {
-    // Double rAF: first ensures the off-screen state is painted,
-    // second enables the CSS transition and moves to final position
+    // Force synchronous reflow so iOS Safari commits the off-screen state
+    // before we enable the transition. rAF alone is unreliable on iOS.
+    void inner.offsetHeight;
+    inner.style.transition = '';  // re-enable CSS transition
+    // One rAF to start the slide after the reflow is painted
     requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        inner.style.transition = '';  // re-enable CSS transition
-        inner.style.transform = 'translate3d(0, 0, 0)'; // slide into view
-      });
+      inner.style.transform = 'translate3d(0, 0, 0)';
     });
   }
 };
