@@ -11571,12 +11571,8 @@ HTMLDialogElement.prototype.showModal = function() {
   const inner = this.querySelector('.modal');
   const isMobile = window.innerWidth <= 600;
 
-  if (inner && isMobile) {
-    // Set starting position OFF SCREEN with no transition
-    inner.style.transition = 'none';
-    inner.style.transform = 'translate3d(0, 100%, 0)';
-  }
-
+  // Show dialog first — element must be in the render tree
+  // before iOS Safari will honour inline style changes
   _origShowModal.call(this);
 
   // Init swipe dismiss once
@@ -11586,14 +11582,14 @@ HTMLDialogElement.prototype.showModal = function() {
   }
 
   if (inner && isMobile) {
-    // Force synchronous reflow so iOS Safari commits the off-screen state
-    // before we enable the transition. rAF alone is unreliable on iOS.
+    // 1. Place off-screen with transition disabled (element is now visible)
+    inner.style.transition = 'none';
+    inner.style.transform = 'translate3d(0, 100%, 0)';
+    // 2. Force reflow so the off-screen state is committed
     void inner.offsetHeight;
-    inner.style.transition = '';  // re-enable CSS transition
-    // One rAF to start the slide after the reflow is painted
-    requestAnimationFrame(() => {
-      inner.style.transform = 'translate3d(0, 0, 0)';
-    });
+    // 3. Re-enable transition and slide into view in the same frame
+    inner.style.transition = '';
+    inner.style.transform = 'translate3d(0, 0, 0)';
   }
 };
 
