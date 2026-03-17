@@ -818,6 +818,7 @@ code {
 /* ── Page headline ── */
 .page-headline {
     padding: 8px 0 12px;
+    padding-top: calc(env(safe-area-inset-top, 0px) + 8px);
 }
 .page-headline--hidden {
     display: none;
