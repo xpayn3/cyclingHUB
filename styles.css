@@ -6278,17 +6278,14 @@ code {
     width: 64px;
     height: 64px;
     z-index: 1100;
-    /* Liquid glass — lightweight for iOS perf */
-    background: rgba(28, 28, 30, 0.75);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    /* Solid dark glass — no backdrop-filter for iOS perf */
+    background: rgba(28, 28, 30, 0.92);
     border-radius: 100px;
     border: none;
     color: rgba(255, 255, 255, 0.55);
     box-shadow:
-        0 0.5px 0 0 rgba(255, 255, 255, 0.20) inset,
-        0 0 0 0.5px rgba(255, 255, 255, 0.10) inset,
-        0 -0.5px 0 0 rgba(0, 0, 0, 0.15) inset,
+        0 0.5px 0 0 rgba(255, 255, 255, 0.15) inset,
+        0 0 0 0.5px rgba(255, 255, 255, 0.08) inset,
         0 12px 40px rgba(0, 0, 0, 0.50),
         0 4px 12px rgba(0, 0, 0, 0.30);
     cursor: pointer;
@@ -6319,20 +6316,16 @@ code {
     bottom: 12px;
     left: 16px;
     z-index: 1100;
-    /* Liquid glass — lightweight for iOS perf */
-    background: rgba(28, 28, 30, 0.75);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    /* Solid dark glass — no backdrop-filter for iOS perf */
+    background: rgba(28, 28, 30, 0.92);
     border-radius: 100px;
     padding: 5px 5px;
     flex-direction: row;
     align-items: center;
     gap: 0;
-    /* Liquid glass layered edges: specular top, soft inset, outer depth */
     box-shadow:
-        0 0.5px 0 0 rgba(255, 255, 255, 0.20) inset,
-        0 0 0 0.5px rgba(255, 255, 255, 0.10) inset,
-        0 -0.5px 0 0 rgba(0, 0, 0, 0.15) inset,
+        0 0.5px 0 0 rgba(255, 255, 255, 0.15) inset,
+        0 0 0 0.5px rgba(255, 255, 255, 0.08) inset,
         0 12px 40px rgba(0, 0, 0, 0.50),
         0 4px 12px rgba(0, 0, 0, 0.30);
     /* GPU: keep compositing layer alive to prevent backdrop-filter flicker */
