@@ -2249,6 +2249,18 @@ function navigate(page) {
   state.currentPage  = page;
   try { sessionStorage.setItem('icu_route', JSON.stringify({ type: 'page', page })); } catch {}
 
+  // Update pill nav active state + visibility
+  const _pillNav = document.getElementById('dashPillNav');
+  const _pillHidePages = new Set(['settings', 'routes', 'workout', 'activity']);
+  if (_pillNav) {
+    _pillNav.style.display = _pillHidePages.has(page) ? 'none' : '';
+  }
+  document.querySelectorAll('.dash-pill-btn').forEach(btn => {
+    const lbl = btn.querySelector('span')?.textContent?.toLowerCase() || '';
+    const match = lbl === page || (lbl === 'home' && page === 'dashboard');
+    btn.classList.toggle('active', match);
+  });
+
   // ── Prepare page-specific UI BEFORE the swap so nothing flashes ──
   const info = {
     dashboard:  ['Summary', `Overview · Last ${state.rangeDays} days`],
@@ -2408,6 +2420,58 @@ function loadUnits() {
 }
 
 /* ── Weather location (manual city setting) ─────────────────────────────── */
+let _wxSearchTimer = null;
+function _initWxAutocomplete() {
+  const input = document.getElementById('wxCityInput');
+  if (!input || input._wxAcInit) return;
+  input._wxAcInit = true;
+  input.addEventListener('input', () => {
+    clearTimeout(_wxSearchTimer);
+    const q = (input.value || '').trim();
+    if (q.length < 2) { _hideWxSuggestions(); return; }
+    _wxSearchTimer = setTimeout(() => _fetchWxSuggestions(q), 300);
+  });
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Escape') _hideWxSuggestions();
+  });
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.wx-search-wrap')) _hideWxSuggestions();
+  });
+}
+async function _fetchWxSuggestions(query) {
+  const box = document.getElementById('wxSuggestions');
+  if (!box) return;
+  try {
+    const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=5&language=en&format=json`);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.results?.length) { box.innerHTML = '<div class="wx-sug-empty">No results</div>'; box.classList.add('active'); return; }
+    box.innerHTML = data.results.map(r => {
+      const label = [r.name, r.admin1, r.country].filter(Boolean).join(', ');
+      return `<button class="wx-sug-item" data-lat="${r.latitude}" data-lng="${r.longitude}" data-label="${label.replace(/"/g, '&quot;')}">${label}</button>`;
+    }).join('');
+    box.classList.add('active');
+    box.querySelectorAll('.wx-sug-item').forEach(btn => {
+      btn.addEventListener('click', () => _selectWxSuggestion(btn));
+    });
+  } catch (_) {}
+}
+function _selectWxSuggestion(btn) {
+  const lat = parseFloat(btn.dataset.lat);
+  const lng = parseFloat(btn.dataset.lng);
+  const label = btn.dataset.label;
+  addWxLocation(lat, lng, label);
+  const statusEl = document.getElementById('wxCurrentLocation');
+  if (statusEl) statusEl.textContent = `${getWxLocations().length} / ${WX_MAX_LOCATIONS} locations`;
+  const input = document.getElementById('wxCityInput');
+  if (input) input.value = '';
+  _hideWxSuggestions();
+}
+function _hideWxSuggestions() {
+  const box = document.getElementById('wxSuggestions');
+  if (box) { box.classList.remove('active'); box.innerHTML = ''; }
+}
+
 async function setWeatherCity() {
   const input = document.getElementById('wxCityInput');
   const city  = (input?.value || '').trim();
@@ -2429,6 +2493,7 @@ async function setWeatherCity() {
     addWxLocation(lat, lng, label);
     if (statusEl) statusEl.textContent = `${getWxLocations().length} / ${WX_MAX_LOCATIONS} locations`;
     if (input) input.value = '';
+    _hideWxSuggestions();
   } catch (e) {
     if (statusEl) statusEl.textContent = 'City not found — try a different name';
   }
@@ -2625,21 +2690,20 @@ function clearWeatherLocation() {
 }
 
 function _refreshWxLocSettings() {
+  _initWxAutocomplete();
   const list = document.getElementById('wxLocationsList');
   if (!list) return;
   const locs = getWxLocations();
   if (!locs.length) {
-    list.innerHTML = '<div class="stt-row"><span class="stt-row-label" style="color:var(--text-muted)">No locations added</span></div>';
+    list.innerHTML = '<div class="ios-row"><span class="ios-row-label" style="color:var(--text-muted)">No locations added</span></div>';
     return;
   }
   list.innerHTML = locs.map(l => `
-    <div class="stt-row wx-loc-row${l.active ? ' wx-loc-row--active' : ''}">
-      <button class="wx-loc-activate btn btn-ghost btn-sm" onclick="setActiveWxLocation(${l.id})" title="Set active">
-        <span class="wx-loc-dot${l.active ? ' wx-loc-dot--on' : ''}"></span>
-      </button>
-      <span class="stt-row-label">${l.city}</span>
-      <button class="wx-loc-remove btn btn-ghost btn-sm" onclick="removeWxLocation(${l.id})" title="Remove">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    <div class="ios-row" onclick="setActiveWxLocation(${l.id})" style="cursor:pointer">
+      <span class="wx-loc-dot${l.active ? ' wx-loc-dot--on' : ''}"></span>
+      <span class="ios-row-label">${l.city}</span>
+      <button class="wx-loc-remove btn btn-ghost btn-sm" onclick="event.stopPropagation();removeWxLocation(${l.id})" title="Remove">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--text-muted)" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
   `).join('');
@@ -11983,7 +12047,7 @@ function calPrevMonth() {
   const m = getCalMonth();
   state.calMonth = new Date(m.getFullYear(), m.getMonth() - 1, 1);
   renderCalendar();
-  _calSwipeAnim('right');
+  if (window.innerWidth > 600) _calSwipeAnim('right');
   refreshCalendarEvents();
 }
 
@@ -11991,7 +12055,7 @@ function calNextMonth() {
   const m = getCalMonth();
   state.calMonth = new Date(m.getFullYear(), m.getMonth() + 1, 1);
   renderCalendar();
-  _calSwipeAnim('left');
+  if (window.innerWidth > 600) _calSwipeAnim('left');
   refreshCalendarEvents();
 }
 
@@ -12016,29 +12080,64 @@ function calGoToday() {
   refreshCalendarEvents();
 }
 
-// ── Swipe left/right on mobile to change months ──────────────────────────
-(function _initCalSwipe() {
-  let startX = 0, startY = 0, tracking = false;
-  const MIN_DX = 50, MAX_DY_RATIO = 0.6; // swipe must be mostly horizontal
+// ── Band drag: real-time horizontal drag to change months (mobile) ────────
+(function _initCalBandDrag() {
+  let startX = 0, startY = 0, isHoriz = null, dragging = false;
+  const SNAP = 60; // px drag needed to commit month change
+
+  function getState() {
+    const track   = document.getElementById('calBandTrack');
+    const wrapper = document.getElementById('calBandWrapper');
+    if (!track || !wrapper) return null;
+    return { track, w: wrapper.offsetWidth };
+  }
+
+  function resetToCenter(track, w, animate) {
+    track.style.transition = animate ? 'transform 0.3s cubic-bezier(0.2,0.9,0.3,1)' : 'none';
+    track.style.transform = `translateX(${-w}px)`;
+  }
 
   document.addEventListener('touchstart', e => {
-    if (state.currentPage !== 'calendar') return;
-    const body = document.querySelector('.cal-body');
-    if (!body || !body.contains(e.target)) return;
+    if (state.currentPage !== 'calendar' || window.innerWidth > 600) return;
+    const wrapper = document.getElementById('calBandWrapper');
+    if (!wrapper || !wrapper.contains(e.target)) return;
     startX = e.touches[0].clientX;
     startY = e.touches[0].clientY;
-    tracking = true;
+    isHoriz = null;
+    dragging = false;
+    const s = getState();
+    if (s) s.track.style.transition = 'none';
+  }, { passive: true });
+
+  document.addEventListener('touchmove', e => {
+    if (state.currentPage !== 'calendar' || window.innerWidth > 600) return;
+    const dx = e.touches[0].clientX - startX;
+    const dy = e.touches[0].clientY - startY;
+    if (isHoriz === null && (Math.abs(dx) > 5 || Math.abs(dy) > 5))
+      isHoriz = Math.abs(dx) > Math.abs(dy);
+    if (!isHoriz) return;
+    dragging = true;
+    const s = getState();
+    if (!s) return;
+    s.track.style.transform = `translateX(${-s.w + dx}px)`;
   }, { passive: true });
 
   document.addEventListener('touchend', e => {
-    if (!tracking) return;
-    tracking = false;
+    if (!dragging || !isHoriz) { isHoriz = null; dragging = false; return; }
+    dragging = false; isHoriz = null;
     const dx = e.changedTouches[0].clientX - startX;
-    const dy = e.changedTouches[0].clientY - startY;
-    if (Math.abs(dx) < MIN_DX) return;          // too short
-    if (Math.abs(dy) > Math.abs(dx) * MAX_DY_RATIO) return; // too vertical
-    if (dx < 0) calNextMonth();  // swipe left  → next month
-    else        calPrevMonth();  // swipe right → prev month
+    const s = getState();
+    if (!s) return;
+    if (Math.abs(dx) >= SNAP) {
+      const toNext = dx < 0;
+      s.track.style.transition = 'transform 0.28s cubic-bezier(0.2,0.9,0.3,1)';
+      s.track.style.transform = `translateX(${toNext ? -2 * s.w : 0}px)`;
+      s.track.addEventListener('transitionend', () => {
+        if (toNext) calNextMonth(); else calPrevMonth();
+      }, { once: true });
+    } else {
+      resetToCenter(s.track, s.w, true);
+    }
   }, { passive: true });
 })();
 
@@ -12720,6 +12819,49 @@ function buildCalActMap() {
   return actMap;
 }
 
+// Build simplified grid HTML for the prev/next band slides (mobile only)
+function _buildCalSideGridHTML(year, month, actMap, todayStr) {
+  const firstDay = new Date(year, month, 1);
+  const lastDay  = new Date(year, month + 1, 0);
+  const startDow = (firstDay.getDay() - state.weekStartDay + 7) % 7;
+  const cells = [];
+  for (let i = startDow - 1; i >= 0; i--)
+    cells.push({ date: new Date(year, month, -i), thisMonth: false });
+  for (let d = 1; d <= lastDay.getDate(); d++)
+    cells.push({ date: new Date(year, month, d), thisMonth: true });
+  const rem = cells.length % 7;
+  if (rem > 0)
+    for (let i = 1; i <= 7 - rem; i++)
+      cells.push({ date: new Date(year, month + 1, i), thisMonth: false });
+
+  return cells.map(({ date, thisMonth }) => {
+    const dateStr  = toDateStr(date);
+    const items    = actMap[dateStr] || [];
+    const realActs = items.filter(({ a, isEvent }) => !isEvent && !isEmptyActivity(a));
+    const events   = items.filter(({ isEvent }) => isEvent);
+    const isToday  = dateStr === todayStr;
+    const dow      = date.getDay();
+    const isWeekend = dow === 0 || dow === 6;
+    const cls = ['cal-day',
+      !thisMonth  ? 'cal-day--other-month' : '',
+      isToday     ? 'cal-day--today'       : '',
+      isWeekend   ? 'cal-day--weekend'     : '',
+    ].filter(Boolean).join(' ');
+    const seenTypes = new Set();
+    const eventDots = events.reduce((acc, { a }) => {
+      const key = 'cal-ev--' + (a.category || '').toLowerCase();
+      if (!seenTypes.has(key) && seenTypes.size < 3) { seenTypes.add(key); acc += `<div class="cal-dot cal-dot--planned ${key}"></div>`; }
+      return acc;
+    }, '');
+    const dots = realActs.reduce((acc, { a }) => {
+      const tc = calEventClass(a);
+      if (!seenTypes.has(tc) && seenTypes.size < 3) { seenTypes.add(tc); acc += `<div class="cal-dot ${tc}"></div>`; }
+      return acc;
+    }, eventDots);
+    return `<div class="${cls}" data-date="${dateStr}"><div class="cal-day-num">${date.getDate()}</div><div class="cal-dots">${dots}</div></div>`;
+  }).join('');
+}
+
 function renderCalendar() {
   window._calEvLookup = {};
 
@@ -12752,7 +12894,8 @@ function renderCalendar() {
   const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   // Month title label
   const _calMonthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-  setEl('calMonthTitle', _calMonthNames[month] + ' ' + year);
+  const _calTitleEl = document.getElementById('calMonthTitle');
+  if (_calTitleEl) _calTitleEl.innerHTML = `<span class="cal-month-name">${_calMonthNames[month]}</span> <span class="cal-month-year">${year}</span>`;
 
   setEl('calStatActivities', totalActs || '0');
   setEl('calStatDist',       totalDist > 0 ? (totalDist / 1000).toFixed(0) + ' km' : '—');
@@ -12898,6 +13041,22 @@ function renderCalendar() {
 
   // Render the day panel for the currently selected date
   renderCalDayList(state.calSelectedDate, actMap);
+
+  // On mobile: fill prev/next band slides and reset track to center
+  if (window.innerWidth <= 600) {
+    const prevM = new Date(year, month - 1, 1);
+    const nextM = new Date(year, month + 1, 1);
+    const prevGrid = document.getElementById('calGridPrev');
+    const nextGrid = document.getElementById('calGridNext');
+    if (prevGrid) prevGrid.innerHTML = _buildCalSideGridHTML(prevM.getFullYear(), prevM.getMonth(), actMap, todayStr);
+    if (nextGrid) nextGrid.innerHTML = _buildCalSideGridHTML(nextM.getFullYear(), nextM.getMonth(), actMap, todayStr);
+    const track = document.getElementById('calBandTrack');
+    const wrapper = document.getElementById('calBandWrapper');
+    if (track && wrapper) {
+      track.style.transition = 'none';
+      track.style.transform = `translateX(${-wrapper.offsetWidth}px)`;
+    }
+  }
 }
 
 // Select a day in the calendar and update the bottom panel
@@ -13024,6 +13183,8 @@ async function navigateToActivity(actKey, fromStep = false) {
 
   if (!fromStep) state.previousPage = state.currentPage;
   state.currentPage = 'activity';
+  const _pillEl = document.getElementById('dashPillNav');
+  if (_pillEl) _pillEl.style.display = 'none';
 
   // Track position in the non-empty pool for prev/next navigation
   const pool = state.activities.filter(a => !isEmptyActivity(a));
@@ -22818,59 +22979,33 @@ Object.assign(window, {
 window.COGGAN_ZONES = COGGAN_ZONES;
 window.ZONE_HEX = ZONE_HEX;
 
-// ── Dashboard FAB gooey expand/collapse ──
-window._dashFabExpanded = false;
-window._dashFabAnimDone = false;
-let _dashFabAnimTimer = null;
-function toggleDashFab(e) {
-  if (e) e.stopPropagation();
-  const group = document.getElementById('dashFabGroup');
-  if (!group) return;
-  clearTimeout(_dashFabAnimTimer);
-  window._dashFabExpanded = !window._dashFabExpanded;
-  if (window._dashFabExpanded) {
-    window._dashFabAnimDone = false;
-    group.classList.add('expanded');
-    // Enable child physics only after CSS transition completes (600ms)
-    _dashFabAnimTimer = setTimeout(() => { window._dashFabAnimDone = true; }, 650);
-  } else {
-    window._dashFabAnimDone = false;
-    // Clear child physics transforms so CSS transition can animate collapse
-    document.getElementById('dashFab')?.style.removeProperty('transform');
-    document.getElementById('dashFabRoute')?.style.removeProperty('transform');
-    group.classList.remove('expanded');
+// ── Dashboard FAB gooey expand/collapse (legacy stub — pill nav replaces this) ──
+function toggleDashFab(e) { /* replaced by dash-pill-nav */ }
+function _closeDashFab() { /* replaced by dash-pill-nav */ }
+
+// ── Pill nav active state ──
+(function initPillNav() {
+  const pillBtns = document.querySelectorAll('.dash-pill-btn');
+  if (!pillBtns.length) return;
+  // Highlight active tab based on current page
+  function updatePillActive() {
+    const cur = window._currentPage || 'dashboard';
+    pillBtns.forEach(btn => {
+      const lbl = btn.querySelector('span')?.textContent?.toLowerCase() || '';
+      btn.classList.toggle('active', cur === lbl || (lbl === 'menu' && false));
+    });
   }
-}
-function _closeDashFab() {
-  clearTimeout(_dashFabAnimTimer);
-  window._dashFabExpanded = false;
-  window._dashFabAnimDone = false;
-  document.getElementById('dashFab')?.style.removeProperty('transform');
-  document.getElementById('dashFabRoute')?.style.removeProperty('transform');
-  document.getElementById('dashFabGroup')?.classList.remove('expanded');
-}
-document.addEventListener('click', e => {
-  if (!window._dashFabExpanded) return;
-  const g = document.getElementById('dashFabGroup');
-  if (g && !g.contains(e.target)) _closeDashFab();
-});
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && window._dashFabExpanded) _closeDashFab();
-});
+  window.addEventListener('pagechange', updatePillActive);
+  updatePillActive();
+})();
 
 // ── Bubble FAB physics ──
 // Zero-gravity fluid bubble that reacts to mouse proximity
-// Applied to all FABs: activities search, calendar +, dashboard group/children
+// Applied to FABs: activities search, calendar +
 (function bubbleFabs() {
-  // dashFabGroup = collapsed mode; dashFab + dashFabRoute = expanded mode (individual)
-  const fabIds = ['actSearchFab', 'calFab', 'dashFabGroup', 'dashFab', 'dashFabRoute'];
+  const fabIds = ['actSearchFab', 'calFab'];
   const fabs = fabIds.map(id => document.getElementById(id)).filter(Boolean);
   if (!fabs.length) return;
-
-  // Track which IDs are dash-related for gating
-  const dashGroupIdx = fabIds.indexOf('dashFabGroup');
-  const dashMainIdx  = fabIds.indexOf('dashFab');
-  const dashRouteIdx = fabIds.indexOf('dashFabRoute');
 
   const CFG = {
     attractRadius: 200, pullStrength: 0.08, maxDisplace: 20,
@@ -22886,14 +23021,7 @@ document.addEventListener('keydown', e => {
     restX: 0, restY: 0, restDirty: true, running: false,
   }));
 
-  // Should this fab index be active right now?
-  function isActive(i) {
-    const expanded = window._dashFabExpanded;
-    if (i === dashGroupIdx) return !expanded;   // group only when collapsed
-    // Children only after expand animation finishes (so CSS transition plays first)
-    if (i === dashMainIdx || i === dashRouteIdx) return expanded && window._dashFabAnimDone;
-    return true; // actSearchFab, calFab always active
-  }
+  function isActive() { return true; }
 
   function calcRest(fab, s) {
     const r = fab.getBoundingClientRect();
@@ -22914,7 +23042,7 @@ document.addEventListener('keydown', e => {
   function makeTick(fab, s, idx) {
     return function tick() {
       // If this fab became inactive mid-animation, settle immediately
-      if (!isActive(idx)) { resetState(fab, s); return; }
+      if (!isActive()) { resetState(fab, s); return; }
       if (s.restDirty && !calcRest(fab, s)) { s.running = false; return; }
 
       const dx = globalMouseX - (s.restX + s.posX);
@@ -22934,26 +23062,6 @@ document.addEventListener('keydown', e => {
         const cx = Math.abs(Math.cos(ang)), cy = Math.abs(Math.sin(ang));
         s.sVelX += ((cx * stretchDir + (1 - cx) * squishDir) - s.scaleX) * CFG.scaleSpring;
         s.sVelY += ((cy * stretchDir + (1 - cy) * squishDir) - s.scaleY) * CFG.scaleSpring;
-      }
-
-      // Repulsion between dash child buttons when expanded
-      if (window._dashFabExpanded && (idx === dashMainIdx || idx === dashRouteIdx)) {
-        const otherIdx = idx === dashMainIdx ? dashRouteIdx : dashMainIdx;
-        const o = phys[otherIdx];
-        const otherFab = fabs[otherIdx];
-        if (otherFab && o.running) {
-          // World positions of both buttons
-          const myX = s.restX + s.posX, myY = s.restY + s.posY;
-          const oX = o.restX + o.posX, oY = o.restY + o.posY;
-          const rdx = myX - oX, rdy = myY - oY;
-          const rDist = Math.sqrt(rdx * rdx + rdy * rdy) || 1;
-          const minDist = 90; // repulsion radius (wider than rest gap)
-          if (rDist < minDist) {
-            const repel = (1 - rDist / minDist) * 0.4;
-            s.velX += (rdx / rDist) * repel * CFG.maxDisplace;
-            s.velY += (rdy / rDist) * repel * CFG.maxDisplace;
-          }
-        }
       }
 
       s.velX -= s.posX * CFG.returnSpring;
@@ -22986,7 +23094,7 @@ document.addEventListener('keydown', e => {
   const tickers = fabs.map((fab, i) => makeTick(fab, phys[i], i));
 
   function startFab(i) {
-    if (!isActive(i)) return;
+    if (!isActive()) return;
     const s = phys[i];
     if (!s.running) { s.restDirty = true; s.running = true; requestAnimationFrame(tickers[i]); }
   }
@@ -23017,18 +23125,18 @@ document.addEventListener('keydown', e => {
   // Per-FAB events
   fabs.forEach((fab, i) => {
     fab.addEventListener('mouseleave', () => {
-      if (!isActive(i)) return;
+      if (!isActive()) return;
       const s = phys[i];
       s.velX += (Math.random() - 0.5) * 4; s.velY -= 3;
       s.sVelX += 0.12; s.sVelY -= 0.12;
       startFab(i);
     });
     fab.addEventListener('pointerdown', () => {
-      if (!isActive(i)) return;
+      if (!isActive()) return;
       const s = phys[i]; s.sVelX -= 0.2; s.sVelY -= 0.2; startFab(i);
     });
     fab.addEventListener('pointerup', () => {
-      if (!isActive(i)) return;
+      if (!isActive()) return;
       const s = phys[i]; s.sVelX += 0.25; s.sVelY += 0.25; s.velY -= 2; startFab(i);
     });
   });
@@ -23039,7 +23147,7 @@ document.addEventListener('keydown', e => {
     const breathStates = fabs.map(() => ({ phase: Math.random() * Math.PI * 2, breathing: false, timer: null }));
 
     function breathe(fabEl, bs, idx) {
-      if (!bs.breathing || !isActive(idx)) return;
+      if (!bs.breathing || !isActive()) return;
       if (fabEl.offsetWidth === 0) { requestAnimationFrame(() => breathe(fabEl, bs, idx)); return; }
       bs.phase += 0.035;
       const s1 = Math.sin(bs.phase), s2 = Math.sin(bs.phase * 1.7 + 0.5);
@@ -23052,7 +23160,7 @@ document.addEventListener('keydown', e => {
 
     fabs.forEach((fab, i) => {
       const bs = breathStates[i];
-      const startB = () => { if (!bs.breathing && isActive(i)) { bs.breathing = true; requestAnimationFrame(() => breathe(fab, bs, i)); } };
+      const startB = () => { if (!bs.breathing && isActive()) { bs.breathing = true; requestAnimationFrame(() => breathe(fab, bs, i)); } };
       const stopB = () => { bs.breathing = false; clearTimeout(bs.timer); bs.timer = setTimeout(startB, 2000); };
       fab.addEventListener('pointerdown', stopB);
       fab.addEventListener('pointerup', () => { clearTimeout(bs.timer); bs.timer = setTimeout(startB, 2000); });

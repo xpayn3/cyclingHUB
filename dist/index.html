@@ -27,20 +27,20 @@
         <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
         <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com" />
         <link rel="dns-prefetch" href="https://unpkg.com" />
-        <link rel="modulepreload" href="js/state.min.js" />
-        <link rel="modulepreload" href="js/weather.min.js" />
-        <link rel="modulepreload" href="js/share.min.js" />
-        <link rel="modulepreload" href="js/routes.min.js" />
-        <link rel="modulepreload" href="js/heatmap.min.js" />
-        <link rel="modulepreload" href="js/workout.min.js" />
-        <link rel="modulepreload" href="js/strava.min.js" />
-        <link rel="modulepreload" href="js/import.min.js" />
+        <link rel="modulepreload" href="js/state.js" />
+        <link rel="modulepreload" href="js/weather.js" />
+        <link rel="modulepreload" href="js/share.js" />
+        <link rel="modulepreload" href="js/routes.js" />
+        <link rel="modulepreload" href="js/heatmap.js" />
+        <link rel="modulepreload" href="js/workout.js" />
+        <link rel="modulepreload" href="js/strava.js" />
+        <link rel="modulepreload" href="js/import.js" />
         <link
             href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap"
             rel="stylesheet"
             media="print" onload="this.media='all'"
         />
-        <link rel="stylesheet" href="styles.min.css" />
+        <link rel="stylesheet" href="styles.css?v=4" />
         <script>
             // Apply saved theme immediately to avoid flash of dark theme
             (function(){var t=localStorage.getItem('icu_theme');if(t)document.documentElement.setAttribute('data-theme',t)})();
@@ -64,7 +64,7 @@
         <script defer src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" integrity="sha384-NElt3Op+9NBMCYaef5HxeJmU4Xeard/Lku8ek6hoPTvYkQPh3zLIrJP7KiRocsxO" crossorigin="anonymous"></script>
         <script defer src="https://unpkg.com/maplibre-gl@5.1.0/dist/maplibre-gl.js" crossorigin="anonymous"></script>
         <!-- FIT parser loaded on-demand in app.js (not needed at startup) -->
-        <script type="module" src="app.min.js"></script>
+        <script type="module" src="app.js?v=7"></script>
     </head>
     <body>
         <!-- ============================================================  CONNECT MODAL  ============================================================ -->
@@ -2076,19 +2076,6 @@
                             </div>
                         </div>
                     </div>
-                    <!-- Floating Action Button Group — Gooey expand -->
-                    <div class="dash-fab-group" id="dashFabGroup">
-                        <button class="cal-fab dash-fab-route" id="dashFabRoute" onclick="navigate('routes')" aria-label="New Route">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M3 17l6-6 4 4 8-8"/><path d="M17 7h4v4"/>
-                            </svg>
-                        </button>
-                        <button class="cal-fab dash-fab-main" id="dashFab" onclick="toggleDashFab(event)" aria-label="Quick actions">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                            </svg>
-                        </button>
-                    </div>
                 </div>
 
                 <!-- ==================== ACTIVITIES PAGE ==================== -->
@@ -3031,6 +3018,7 @@
                                 <button class="btn btn-ghost btn-icon" onclick="calNextMonth()" title="Next month">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
                                 </button>
+                                <span class="cal-month-title" id="calMonthTitle"></span>
                                 <button class="cal-today-btn" onclick="calGoToday()">Today</button>
                                 <button class="cal-plan-btn" onclick="openTrainingPlanModal()" title="Training Plan Builder">
                                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="10" y1="14" x2="14" y2="14"/><line x1="12" y1="12" x2="12" y2="16"/></svg>
@@ -3088,7 +3076,13 @@
                                     <div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div>
                                     <div class="cal-dow--weekend">Sat</div><div class="cal-dow--weekend">Sun</div>
                                 </div>
-                                <div class="cal-grid" id="calGrid"></div>
+                                <div class="cal-band-wrapper" id="calBandWrapper">
+                                    <div class="cal-band-track" id="calBandTrack">
+                                        <div class="cal-band-slide"><div class="cal-grid" id="calGridPrev"></div></div>
+                                        <div class="cal-band-slide"><div class="cal-grid" id="calGrid"></div></div>
+                                        <div class="cal-band-slide"><div class="cal-grid" id="calGridNext"></div></div>
+                                    </div>
+                                </div>
                             </div>
                             <div class="cal-day-panel" id="calDayPanel">
                                 <div class="cal-day-panel-header" id="calDayPanelHeader">Select a day</div>
@@ -3106,76 +3100,86 @@
 
                     <!-- Create Event Dialog -->
                     <dialog class="modal-dialog" id="calEventModal">
-                        <div class="modal">
+                        <div class="modal cev-modal">
                             <div class="modal-drag-indicator"></div>
-                            <div class="modal-header">
-                                <div>
-                                    <div class="modal-title">Add to Calendar</div>
-                                    <div class="modal-desc">Plan a workout, note, race or goal</div>
-                                </div>
-                                <button class="modal-close" onclick="closeCalEventModal()" aria-label="Close">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            <!-- iOS Calendar-style header -->
+                            <div class="cev-header">
+                                <button class="cev-hdr-btn" onclick="closeCalEventModal()" aria-label="Close">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                </button>
+                                <span class="cev-hdr-title modal-title">New</span>
+                                <button class="cev-hdr-btn cev-hdr-btn--done" id="calEvSaveBtn" onclick="saveCalEvent()" aria-label="Save">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                                 </button>
                             </div>
-                            <div class="modal-body">
-                                <div class="cal-ev-presets" id="calEvPresets">
+                            <div class="modal-body cev-body">
+                                <!-- Preset pills -->
+                                <div class="cev-presets" id="calEvPresets">
                                     <button type="button" data-preset="easy">Easy Ride</button>
                                     <button type="button" data-preset="intervals">Intervals</button>
                                     <button type="button" data-preset="long">Long Ride</button>
                                     <button type="button" data-preset="rest">Rest Day</button>
                                     <button type="button" data-preset="race">Race</button>
                                 </div>
-                                <div class="field">
-                                    <label>Type</label>
-                                    <select id="calEvCategory" onchange="_calEvCategoryChanged()">
-                                        <option value="WORKOUT">Workout</option>
-                                        <option value="NOTE">Note</option>
-                                        <option value="RACE">Race</option>
-                                        <option value="GOAL">Goal</option>
-                                    </select>
-                                </div>
-                                <div class="field">
-                                    <label>Date</label>
-                                    <input type="date" id="calEvDate">
-                                </div>
-                                <div class="field">
-                                    <label>Name</label>
-                                    <input type="text" id="calEvName" placeholder="e.g. Threshold Intervals">
-                                </div>
-                                <div class="field" id="calEvSportField">
-                                    <label>Sport</label>
-                                    <select id="calEvSport">
-                                        <option value="Ride">Ride</option>
-                                        <option value="Run">Run</option>
-                                        <option value="Swim">Swim</option>
-                                        <option value="VirtualRide">Virtual Ride</option>
-                                        <option value="Other">Other</option>
-                                    </select>
-                                </div>
-                                <div class="cal-ev-row" id="calEvMetricsRow">
-                                    <div class="field">
-                                        <label>Duration</label>
-                                        <input type="text" id="calEvDuration" placeholder="e.g. 1h 30m">
+                                <!-- Section: Title & Location -->
+                                <div class="cev-section">
+                                    <div class="cev-row cev-row--input">
+                                        <input type="text" id="calEvName" class="cev-input" placeholder="Title">
                                     </div>
-                                    <div class="field">
-                                        <label>Distance (km)</label>
-                                        <input type="number" id="calEvDistance" step="0.1" placeholder="0">
+                                    <div class="cev-row cev-row--input">
+                                        <input type="text" id="calEvLocation" class="cev-input" placeholder="Location">
                                     </div>
                                 </div>
-                                <div class="field" id="calEvTssField">
-                                    <label>Target TSS</label>
-                                    <input type="number" id="calEvTss" placeholder="e.g. 75">
+                                <!-- Section: Notes -->
+                                <div class="cev-section">
+                                    <div class="cev-row cev-row--input">
+                                        <textarea id="calEvDesc" class="cev-input cev-textarea" rows="4" placeholder="Notes"></textarea>
+                                    </div>
                                 </div>
-                                <div class="field">
-                                    <label>Notes</label>
-                                    <textarea id="calEvDesc" rows="2" placeholder="Workout details, goals, etc."></textarea>
+                                <!-- Section: Event details -->
+                                <div class="cev-section">
+                                    <div class="cev-row">
+                                        <span class="cev-label">Type</span>
+                                        <select id="calEvCategory" class="cev-select" onchange="_calEvCategoryChanged()">
+                                            <option value="WORKOUT">Workout</option>
+                                            <option value="NOTE">Note</option>
+                                            <option value="RACE">Race</option>
+                                            <option value="GOAL">Goal</option>
+                                        </select>
+                                    </div>
+                                    <div class="cev-row">
+                                        <span class="cev-label">Date</span>
+                                        <input type="date" id="calEvDate" class="cev-date">
+                                    </div>
+                                    <div class="cev-row" id="calEvSportField">
+                                        <span class="cev-label">Sport</span>
+                                        <select id="calEvSport" class="cev-select">
+                                            <option value="Ride">Ride</option>
+                                            <option value="Run">Run</option>
+                                            <option value="Swim">Swim</option>
+                                            <option value="VirtualRide">Virtual Ride</option>
+                                            <option value="Other">Other</option>
+                                        </select>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="modal-footer cal-ev-footer">
-                                <button class="btn btn-danger" id="calEvDeleteBtn" onclick="deleteCalEvent()" style="display:none">Delete</button>
-                                <div class="cal-ev-footer-right">
-                                    <button class="btn btn-ghost" onclick="closeCalEventModal()">Cancel</button>
-                                    <button class="btn btn-primary" id="calEvSaveBtn" onclick="saveCalEvent()">Add to Calendar</button>
+                                <!-- Section: Metrics (workout/race only) -->
+                                <div class="cev-section" id="calEvMetricsRow">
+                                    <div class="cev-row">
+                                        <span class="cev-label">Duration</span>
+                                        <input type="text" id="calEvDuration" class="cev-value-input" placeholder="e.g. 1h 30m">
+                                    </div>
+                                    <div class="cev-row">
+                                        <span class="cev-label">Distance</span>
+                                        <input type="number" id="calEvDistance" class="cev-value-input" step="0.1" placeholder="km">
+                                    </div>
+                                    <div class="cev-row" id="calEvTssField">
+                                        <span class="cev-label">Target TSS</span>
+                                        <input type="number" id="calEvTss" class="cev-value-input" placeholder="e.g. 75">
+                                    </div>
+                                </div>
+                                <!-- Delete (edit mode only) -->
+                                <div class="cev-section cev-section--danger" id="calEvDeleteSection" style="display:none">
+                                    <button class="cev-row cev-delete-btn" id="calEvDeleteBtn" onclick="deleteCalEvent()">Delete Event</button>
                                 </div>
                             </div>
                         </div>
@@ -4392,7 +4396,7 @@
                                     <div class="ios-profile-name" id="iosProfileName">—</div>
                                     <div class="ios-profile-sub" id="iosProfileSub">Profile, Photo &amp; Account</div>
                                 </div>
-                                <span class="ios-chevron">›</span>
+                                <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                             </div>
 
                             <!-- GENERAL -->
@@ -4411,7 +4415,7 @@
                                     <div class="ios-row-icon" style="background:#ff9500"><svg viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg></div>
                                     <span class="ios-row-label">Font</span>
                                     <span class="ios-row-value" id="iosCurrentFont">Inter</span>
-                                    <span class="ios-chevron">›</span>
+                                    <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                 </div>
                                 <div class="ios-row">
                                     <div class="ios-row-icon" style="background:#30d158"><svg viewBox="0 0 24 24"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
@@ -4466,7 +4470,7 @@
                                     <div class="ios-row-icon" style="background:#007aff"><svg viewBox="0 0 24 24"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg></div>
                                     <span class="ios-row-label">Map Theme</span>
                                     <span class="ios-row-value" id="iosCurrentMapTheme">Strava</span>
-                                    <span class="ios-chevron">›</span>
+                                    <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                 </div>
                                 <div class="ios-row">
                                     <span class="ios-row-label">Smooth flyover</span>
@@ -4485,7 +4489,7 @@
                                     <div class="ios-row-icon" style="background:#5ac8fa"><svg viewBox="0 0 24 24"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9z"/></svg></div>
                                     <span class="ios-row-label">Locations &amp; Forecast</span>
                                     <span class="ios-row-value" id="iosWeatherCount">—</span>
-                                    <span class="ios-chevron">›</span>
+                                    <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                 </div>
                             </div>
 
@@ -4497,14 +4501,14 @@
                                     <span class="ios-row-label">intervals.icu</span>
                                     <span class="ios-badge ios-badge--green" id="iosIcuBadge" style="display:none">Connected</span>
                                     <span class="ios-badge ios-badge--grey" id="iosIcuBadgeOff">Not Connected</span>
-                                    <span class="ios-chevron">›</span>
+                                    <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                 </div>
                                 <div class="ios-row" data-nav onclick="openSettingsSubpage('strava')">
                                     <div class="ios-row-icon" style="background:#fc4c02"><svg viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg></div>
                                     <span class="ios-row-label">Strava</span>
                                     <span class="ios-badge ios-badge--green" id="iosStravaBadge" style="display:none">Connected</span>
                                     <span class="ios-badge ios-badge--grey" id="iosStravaBadgeOff">Not Connected</span>
-                                    <span class="ios-chevron">›</span>
+                                    <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                 </div>
                             </div>
 
@@ -4514,12 +4518,12 @@
                                 <div class="ios-row" data-nav onclick="openSettingsSubpage('dashsections')">
                                     <div class="ios-row-icon" style="background:#ff9500"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></div>
                                     <span class="ios-row-label">Dashboard Sections</span>
-                                    <span class="ios-chevron">›</span>
+                                    <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                 </div>
                                 <div class="ios-row" data-nav onclick="openSettingsSubpage('actsections')">
                                     <div class="ios-row-icon" style="background:#5856d6"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
                                     <span class="ios-row-label">Activity Sections</span>
-                                    <span class="ios-chevron">›</span>
+                                    <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                 </div>
                             </div>
 
@@ -4529,12 +4533,12 @@
                                 <div class="ios-row" data-nav onclick="openSettingsSubpage('backup')">
                                     <div class="ios-row-icon" style="background:#ff3b30"><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></div>
                                     <span class="ios-row-label">Backup &amp; Restore</span>
-                                    <span class="ios-chevron">›</span>
+                                    <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                 </div>
                                 <div class="ios-row" data-nav onclick="openSettingsSubpage('routebuilder')">
                                     <div class="ios-row-icon" style="background:#30d158"><svg viewBox="0 0 24 24"><path d="M3 17l4-8 4 4 4-8 4 8"/></svg></div>
                                     <span class="ios-row-label">Route Builder API</span>
-                                    <span class="ios-chevron">›</span>
+                                    <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                 </div>
                             </div>
 
@@ -4544,12 +4548,12 @@
                                 <div class="ios-row" data-nav onclick="openSettingsSubpage('share')">
                                     <div class="ios-row-icon" style="background:#007aff"><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></div>
                                     <span class="ios-row-label">Share CycleIQ</span>
-                                    <span class="ios-chevron">›</span>
+                                    <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                 </div>
                                 <div class="ios-row" data-nav onclick="openSettingsSubpage('donate')">
                                     <div class="ios-row-icon" style="background:#ff2d55"><svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>
                                     <span class="ios-row-label">Support CycleIQ</span>
-                                    <span class="ios-chevron">›</span>
+                                    <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                 </div>
                             </div>
 
@@ -4665,68 +4669,87 @@
                         </div>
 
                         <!-- Map Theme subpage -->
-                        <div class="ios-subpage" id="iosSubpage-maptheme">                            <div class="ios-group" style="margin-top:8px">
-                                <div class="map-theme-picker" id="mapThemePicker">
-                                    <button class="map-theme-option" data-theme="liberty" onclick="setMapTheme('liberty')">
-                                        <span class="map-theme-swatch" style="background:linear-gradient(135deg,#f0ede4 0%,#d9d4c5 50%,#b8cca0 100%)"></span>
-                                        <span class="map-theme-label">Liberty</span>
+                        <div class="ios-subpage" id="iosSubpage-maptheme">
+                            <div class="ios-group-label">Choose Theme</div>
+                            <div class="ios-group">
+                                <div class="map-theme-grid" id="mapThemePicker">
+                                    <button class="map-theme-card" data-theme="liberty" onclick="setMapTheme('liberty')">
+                                        <span class="map-theme-preview" style="background:linear-gradient(135deg,#f0ede4 0%,#d9d4c5 50%,#b8cca0 100%)"></span>
+                                        <span class="map-theme-info">
+                                            <span class="map-theme-name">Liberty</span>
+                                            <span class="map-theme-desc">Classic, warm tones</span>
+                                        </span>
+                                        <svg class="map-theme-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                                     </button>
-                                    <button class="map-theme-option" data-theme="positron" onclick="setMapTheme('positron')">
-                                        <span class="map-theme-swatch" style="background:linear-gradient(135deg,#f8f8f5 0%,#ebebea 50%,#d4d4cc 100%)"></span>
-                                        <span class="map-theme-label">Positron</span>
+                                    <button class="map-theme-card" data-theme="positron" onclick="setMapTheme('positron')">
+                                        <span class="map-theme-preview" style="background:linear-gradient(135deg,#f8f8f5 0%,#ebebea 50%,#d4d4cc 100%)"></span>
+                                        <span class="map-theme-info">
+                                            <span class="map-theme-name">Positron</span>
+                                            <span class="map-theme-desc">Clean, minimal light</span>
+                                        </span>
+                                        <svg class="map-theme-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                                     </button>
-                                    <button class="map-theme-option" data-theme="dark" onclick="setMapTheme('dark')">
-                                        <span class="map-theme-swatch" style="background:linear-gradient(135deg,#2a2d35 0%,#1e2028 50%,#14151a 100%)"></span>
-                                        <span class="map-theme-label">Dark</span>
+                                    <button class="map-theme-card" data-theme="dark" onclick="setMapTheme('dark')">
+                                        <span class="map-theme-preview" style="background:linear-gradient(135deg,#2a2d35 0%,#1e2028 50%,#14151a 100%)"></span>
+                                        <span class="map-theme-info">
+                                            <span class="map-theme-name">Dark</span>
+                                            <span class="map-theme-desc">Dark neutral tones</span>
+                                        </span>
+                                        <svg class="map-theme-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                                     </button>
-                                    <button class="map-theme-option" data-theme="strava" onclick="setMapTheme('strava')">
-                                        <span class="map-theme-swatch" style="background:linear-gradient(135deg,#1a3028 0%,#1a1e24 50%,#1a2a36 100%)"></span>
-                                        <span class="map-theme-label">Strava</span>
+                                    <button class="map-theme-card" data-theme="strava" onclick="setMapTheme('strava')">
+                                        <span class="map-theme-preview" style="background:linear-gradient(135deg,#1a3028 0%,#1a1e24 50%,#1a2a36 100%)"></span>
+                                        <span class="map-theme-info">
+                                            <span class="map-theme-name">Strava</span>
+                                            <span class="map-theme-desc">Dark with green hues</span>
+                                        </span>
+                                        <svg class="map-theme-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                                     </button>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Weather subpage -->
-                        <div class="ios-subpage" id="iosSubpage-weather">                            <div class="ios-group" style="margin-top:8px">
-                                <div class="stt-rows">
-                                    <div class="stt-row stt-row--control">
-                                        <div class="stt-row-info">
-                                            <div class="stt-row-label">Add location</div>
-                                            <div class="stt-row-sub" id="wxCurrentLocation">Up to 5 locations</div>
-                                        </div>
-                                        <div class="wx-location-input-row">
-                                            <input type="text" id="wxCityInput" class="wx-city-input" placeholder="e.g. Ljubljana" autocomplete="off"/>
-                                            <button class="btn btn-primary btn-sm" onclick="setWeatherCity()">Add</button>
-                                            <button class="btn btn-ghost btn-sm" onclick="useMyLocation()" title="Use browser location">
-                                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/><circle cx="12" cy="12" r="8"/></svg>
-                                                Locate me
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div id="wxLocationsList"></div>
-                                    <div class="stt-row stt-row--control">
-                                        <div class="stt-row-info">
-                                            <div class="stt-row-label">Forecast model</div>
-                                            <div class="stt-row-sub">Best match auto-selects highest-res for your region</div>
-                                        </div>
-                                        <select id="wxModelSelect" class="app-select app-select--sm" onchange="setWeatherModel(this.value)">
-                                            <option value="best_match">Best match (auto)</option>
-                                            <option value="icon_seamless">ICON — DWD (Europe)</option>
-                                            <option value="ecmwf_ifs04">ECMWF IFS (global)</option>
-                                            <option value="gfs_seamless">GFS — NOAA (global)</option>
-                                            <option value="meteofrance_seamless">Météo-France (Europe)</option>
-                                            <option value="gem_seamless">GEM — Canada (global)</option>
-                                            <option value="metno_seamless">MET Norway (Scandinavia)</option>
-                                            <option value="jma_seamless">JMA (Japan/Asia)</option>
-                                        </select>
+                        <div class="ios-subpage" id="iosSubpage-weather">
+                            <!-- LOCATIONS group -->
+                            <div class="ios-group-label" style="display:flex;justify-content:space-between;align-items:baseline">Locations <span id="wxCurrentLocation" style="font-weight:400;text-transform:none">Up to 5 locations</span></div>
+                            <div class="ios-group" style="overflow:visible">
+                                <div class="wx-add-row">
+                                    <div class="wx-search-wrap">
+                                        <input type="text" id="wxCityInput" class="wx-city-input" placeholder="Search city..." autocomplete="off"/>
+                                        <div class="wx-suggestions" id="wxSuggestions"></div>
                                     </div>
                                 </div>
-                                <div class="stt-actions">
-                                    <button class="btn btn-ghost" onclick="clearWeatherLocation()">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-                                        Clear Location
-                                    </button>
+                                <div id="wxLocationsList"></div>
+                                <div class="ios-row" onclick="useMyLocation()" style="cursor:pointer">
+                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--accent)" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/><circle cx="12" cy="12" r="8"/></svg>
+                                    <span class="ios-row-label" style="color:var(--accent)">Use Current Location</span>
+                                </div>
+                            </div>
+
+                            <!-- FORECAST MODEL group -->
+                            <div class="ios-group-label">Forecast Model</div>
+                            <div class="ios-group" style="overflow:visible">
+                                <div class="ios-row">
+                                    <span class="ios-row-label">Model</span>
+                                    <select id="wxModelSelect" class="app-select app-select--sm" onchange="setWeatherModel(this.value)">
+                                        <option value="best_match">Best match (auto)</option>
+                                        <option value="icon_seamless">ICON (Europe)</option>
+                                        <option value="ecmwf_ifs04">ECMWF IFS (global)</option>
+                                        <option value="gfs_seamless">GFS (global)</option>
+                                        <option value="meteofrance_seamless">Météo-France (EU)</option>
+                                        <option value="gem_seamless">GEM (global)</option>
+                                        <option value="metno_seamless">MET Norway</option>
+                                        <option value="jma_seamless">JMA (Asia)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="ios-group-label" style="text-transform:none;font-weight:400">Auto-selects the highest resolution model for your region.</div>
+
+                            <!-- DANGER ZONE -->
+                            <div class="ios-group" style="margin-top:24px">
+                                <div class="ios-row" onclick="clearWeatherLocation()" style="cursor:pointer">
+                                    <span class="ios-row-label" style="color:var(--red)">Clear All Locations</span>
                                 </div>
                             </div>
                         </div>
@@ -5766,6 +5789,29 @@
 
             </div>
             <!-- end page-content -->
+
+            <!-- ── Global floating pill nav (mobile only) ── -->
+            <nav class="dash-pill-nav" id="dashPillNav">
+                <button class="dash-pill-btn" onclick="navigate('dashboard')" aria-label="Home">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/><polyline points="9 21 9 12 15 12 15 21"/>
+                    </svg>
+                    <span>Home</span>
+                </button>
+                <button class="dash-pill-btn" onclick="navigate('activities')" aria-label="Activities">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                    </svg>
+                    <span>Activities</span>
+                </button>
+                <button class="dash-pill-btn" onclick="navigate('calendar')" aria-label="Calendar">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                    </svg>
+                    <span>Calendar</span>
+                </button>
+            </nav>
+
         </main>
 
         <!-- LOADING OVERLAY -->

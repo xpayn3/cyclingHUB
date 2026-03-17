@@ -261,8 +261,10 @@ select {
     border-radius: 10px;
     background-position: right 10px center;
     width: auto;
+    max-width: 100%;
     display: flex;
     align-items: center;
+    text-overflow: ellipsis;
 }
 
 /* ============================================================
@@ -4080,7 +4082,7 @@ code {
    SETTINGS PAGE — iOS Grouped List
 ============================================================ */
 
-/* ── Settings subpage back button (in page headline) ── */
+/* ── Settings subpage back button (inline with title) ── */
 .settings-back-btn {
     display: flex;
     align-items: center;
@@ -4095,15 +4097,7 @@ code {
     padding: 0;
     -webkit-tap-highlight-color: transparent;
     transition: background 0.15s;
-    position: fixed;
-    top: 16px;
-    left: var(--pad-page);
-    z-index: 100;
-}
-@media (min-width: 769px) {
-    .settings-back-btn {
-        left: calc(var(--sidebar-w) + var(--pad-page));
-    }
+    flex-shrink: 0;
 }
 .settings-back-btn svg {
     flex-shrink: 0;
@@ -4113,7 +4107,12 @@ code {
     background: rgba(255,255,255,0.15);
 }
 .page-headline--subpage {
-    padding-top: 48px !important;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.page-headline--subpage .page-headline-title {
+    flex: 1;
 }
 /* ── iOS nav transitions for headline ── */
 .page-headline {
@@ -4177,7 +4176,7 @@ code {
 .ios-group {
     background: var(--bg-card);
     border-radius: 12px;
-    overflow: hidden;
+    overflow: clip;
     margin: 0;
 }
 .ios-row {
@@ -4199,16 +4198,13 @@ code {
     content: '';
     position: absolute;
     bottom: 0;
-    left: 59px;
-    right: 0;
+    left: 16px;
+    right: 16px;
     height: 0.5px;
     background: var(--border);
 }
 .ios-row:last-child::after {
     display: none;
-}
-.ios-row:not(:has(.ios-row-icon))::after {
-    left: 16px;
 }
 .ios-row[data-nav] {
     cursor: pointer;
@@ -4411,29 +4407,26 @@ code {
         overflow: hidden;
     }
     .stt-row {
-        gap: 8px;
-        padding: 8px 8px;
+        gap: 10px;
+        padding: 12px 16px;
     }
     .stt-row--control {
         flex-wrap: wrap;
     }
     .stt-row--control .stt-row-info {
         min-width: 0;
+        width: 100%;
     }
     .stt-section-header {
         gap: 8px;
         flex-wrap: wrap;
     }
-    .map-theme-picker {
-        padding: 8px 6px;
-        gap: 6px;
-    }
-    .map-theme-swatch {
-        width: 40px;
-        height: 28px;
+    .map-theme-preview {
+        width: 48px;
+        height: 34px;
     }
     .wx-location-input-row {
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
     }
     .connection-status-badge {
         max-width: 100%;
@@ -4521,7 +4514,7 @@ code {
 .stt-subsection-divider {
     height: 1px;
     background: var(--border);
-    margin: 14px 12px 0;
+    margin: 14px 0 0;
 }
 .stt-subsection-header {
     display: flex;
@@ -4796,18 +4789,16 @@ code {
     flex-shrink: 0;
 }
 
-/* ── Map theme picker (inline in card body) ── */
-.map-theme-picker {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    padding: 10px 12px;
-}
-.map-theme-option {
+/* ── Map theme picker (iOS list style) ── */
+.map-theme-grid {
     display: flex;
     flex-direction: column;
+}
+.map-theme-card {
+    display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 14px;
+    padding: 10px 16px;
     background: none;
     border: 2px solid var(--border);
     border-radius: var(--radius);
@@ -4817,29 +4808,51 @@ code {
         border-color 0.15s,
         transform 0.1s;
 }
-.map-theme-option:hover {
-    border-color: var(--border-active);
-    transform: translateY(-1px);
+.map-theme-card + .map-theme-card {
+    border-top: 0.5px solid var(--border);
 }
-.map-theme-option.active {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 1px var(--accent);
+.map-theme-card:active {
+    background: rgba(120, 120, 128, 0.12);
 }
-.map-theme-swatch {
-    display: block;
-    width: 52px;
-    height: 36px;
-    border-radius: var(--radius-sm);
-    border: 1px solid rgba(0, 0, 0, 0.25);
-}
-.map-theme-label {
-    font-size: var(--text-xs);
+.map-theme-card.active .map-theme-name {
+    color: var(--text-primary);
     font-weight: 600;
-    color: var(--text-muted);
-    letter-spacing: 0.02em;
 }
-.map-theme-option.active .map-theme-label {
-    color: var(--accent);
+.map-theme-preview {
+    display: block;
+    width: 56px;
+    height: 40px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    flex-shrink: 0;
+}
+.map-theme-card.active .map-theme-preview {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1.5px var(--accent);
+}
+.map-theme-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+}
+.map-theme-name {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+.map-theme-desc {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+.map-theme-check {
+    opacity: 0;
+    flex-shrink: 0;
+    transition: opacity 0.15s;
+}
+.map-theme-card.active .map-theme-check {
+    opacity: 1;
 }
 
 /* ── Font picker ── */
@@ -5536,6 +5549,29 @@ code {
     opacity: 0.45;
 }
 
+/* ── Band wrapper: 3-slide horizontal carousel ── */
+.cal-band-wrapper {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+.cal-band-track {
+    display: flex;
+    height: 100%;
+    will-change: transform;
+}
+/* Desktop: only show middle slide */
+.cal-band-slide {
+    display: none;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+}
+.cal-band-slide:nth-child(2) {
+    display: flex;
+}
+
 /* ── Calendar grid ── */
 .cal-grid {
     display: grid;
@@ -6171,85 +6207,73 @@ code {
     box-shadow: 0 6px 28px rgba(0, 229, 160, 0.5);
 }
 
-/* ── Dashboard FAB Gooey Expand ── */
-.dash-fab-group {
+/* ── iOS 26-style floating pill nav ── */
+.dash-pill-nav {
+    display: none;
     position: fixed;
-    bottom: 28px;
-    right: 28px;
-    z-index: 10;
-    filter: url(#gooeyFilter);
-    width: 56px;
-    height: 56px;
-    overflow: visible;
-    pointer-events: none;
+    bottom: max(24px, env(safe-area-inset-bottom, 24px));
+    left: 16px;
+    z-index: 1100;
+    /* iOS 26: very dark, near-opaque pill with strong blur */
+    background: rgba(18, 18, 20, 0.92);
+    backdrop-filter: blur(32px) saturate(200%);
+    -webkit-backdrop-filter: blur(32px) saturate(200%);
+    border-radius: 100px;
+    padding: 5px 5px;
+    flex-direction: row;
+    align-items: center;
+    gap: 0;
+    /* Layered shadow like iOS floating elements */
+    box-shadow:
+        0 0 0 0.5px rgba(255, 255, 255, 0.08) inset,
+        0 12px 40px rgba(0, 0, 0, 0.65),
+        0 4px 12px rgba(0, 0, 0, 0.4);
 }
-.dash-fab-group .cal-fab {
-    position: absolute;
-    pointer-events: auto;
-    transition: box-shadow 0.2s ease !important;
+.dash-pill-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    /* iOS 26: wider, taller tabs */
+    min-width: 76px;
+    height: 54px;
+    padding: 0 6px;
+    border-radius: 100px;
+    border: none;
+    background: transparent;
+    /* Inactive: muted white like iOS system grey */
+    color: rgba(255, 255, 255, 0.45);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.18s cubic-bezier(0.25, 1, 0.5, 1),
+                color 0.18s cubic-bezier(0.25, 1, 0.5, 1),
+                transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+    touch-action: manipulation;
 }
-.dash-fab-group .cal-fab:hover {
-    box-shadow: 0 6px 28px rgba(0, 229, 160, 0.5);
+.dash-pill-btn svg {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+    stroke-width: 1.75;
 }
-.dash-fab-main {
-    bottom: 0;
-    right: 0;
-}
-.dash-fab-main svg {
-    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-.dash-fab-group.expanded .dash-fab-main svg {
-    transform: rotate(45deg);
-}
-.dash-fab-route {
-    bottom: 0;
-    right: 4px;
-    width: 48px;
-    height: 48px;
-    transform: scale(0);
-    opacity: 0;
-    transition:
-        transform 0.6s cubic-bezier(0.2, 1.4, 0.35, 1),
-        bottom 0.6s cubic-bezier(0.2, 1.4, 0.35, 1),
-        opacity 0.3s ease;
-}
-.dash-fab-route svg {
-    width: 20px;
-    height: 20px;
-}
-.dash-fab-group.expanded .dash-fab-route {
-    bottom: 74px;
-    transform: scale(1);
-    opacity: 1;
-}
-.dash-fab-group:not(.expanded) .dash-fab-route {
-    transition:
-        transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-        bottom 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-        opacity 0.2s ease;
-}
-.dash-fab-route::after {
-    content: 'New Route';
-    position: absolute;
-    right: calc(100% + 12px);
-    top: 50%;
-    transform: translateY(-50%);
-    background: var(--bg-elevated);
-    color: var(--text-primary);
-    font-size: var(--text-xs);
+.dash-pill-btn span {
+    font-size: 10px;
     font-weight: 500;
-    padding: 4px 10px;
-    border-radius: 6px;
+    letter-spacing: -0.02em;
+    line-height: 1;
     white-space: nowrap;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.15s ease;
-    border: 1px solid var(--border);
 }
-@media (hover: hover) {
-    .dash-fab-route:hover::after {
-        opacity: 1;
-    }
+.dash-pill-btn:active {
+    transform: scale(0.90);
+}
+/* Active: filled rounded rect behind icon+label, accent colour */
+.dash-pill-btn.active {
+    color: var(--accent);
+    background: rgba(0, 229, 160, 0.14);
+}
+.dash-pill-btn.active svg {
+    stroke-width: 2.25;
 }
 
 /* ── Calendar Event Modal — iOS Calendar Style ─────────────────── */
@@ -9573,23 +9597,25 @@ body:has(.act-sheet-mode) .topbar {
     /* ── Shell: full-screen, no sidebar offset ── */
     .cal-shell {
         left: 0;
-        background: var(--bg-base);
+        background: #101010;
     }
 
-    /* ── Header: compact nav row ── */
+    /* ── Header: iOS-style big headline row ── */
     .cal-header {
-        padding: 8px 16px;
+        padding: max(14px, calc(env(safe-area-inset-top) + 10px)) 20px 10px;
         border-bottom: none;
-        background: var(--bg-base);
-        gap: 8px;
-        min-height: 44px;
+        background: #101010;
+        gap: 0;
+        min-height: 60px;
+        align-items: center;
     }
     .cal-header {
-        justify-content: flex-start;
+        justify-content: space-between;
     }
     .cal-header-nav {
         flex: 1;
         gap: 0;
+        align-items: center;
     }
     /* Hide nav arrows, plan button & panel toggle on mobile */
     .cal-header-nav .btn-icon,
@@ -9598,17 +9624,27 @@ body:has(.act-sheet-mode) .topbar {
         display: none !important;
     }
     .cal-today-btn {
-        font-size: 11px;
-        padding: 4px 12px;
-        margin-left: auto;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 5px 14px;
+        margin-left: 0;
+        flex-shrink: 0;
     }
 
-    /* ── Month title: large, left-aligned ── */
+    /* ── Month title: iOS-style big headline ── */
     .cal-month-title {
         min-width: auto;
-        font-size: 20px;
-        font-weight: 700;
-        letter-spacing: -0.4px;
+        font-size: 34px;
+        font-weight: 800;
+        letter-spacing: -1px;
+        line-height: 1.05;
+        text-align: left;
+    }
+    .cal-month-name {
+        color: var(--text-primary);
+    }
+    .cal-month-year {
+        color: var(--accent);
     }
 
     /* ── Stats strip: horizontal scroll band ── */
@@ -9618,7 +9654,7 @@ body:has(.act-sheet-mode) .topbar {
         -webkit-overflow-scrolling: touch;
         scrollbar-width: none;
         border-bottom: none;
-        background: var(--bg-base);
+        background: #101010;
         flex-shrink: 0;
         gap: 0;
         padding: 0 4px;
@@ -9666,6 +9702,31 @@ body:has(.act-sheet-mode) .topbar {
         border-right: none;
         border-bottom: none;
         background: var(--bg-base);
+    }
+
+    /* ── Band: 3-slide drag carousel on mobile ── */
+    .cal-band-wrapper {
+        overflow: hidden;
+        flex: none;
+        width: 100%;
+        background: #101010;
+    }
+    .cal-band-track {
+        display: flex;
+        width: 300%;
+        height: auto;
+        transform: translateX(0); /* set by JS */
+    }
+    .cal-band-slide {
+        display: flex;
+        flex-direction: column;
+        width: 33.333%;
+        flex: none;
+        min-height: 0;
+    }
+    .cal-band-slide .cal-grid {
+        flex: 1;
+        width: 100%;
     }
 
     /* ── DOW header: muted uppercase labels ── */
@@ -9966,6 +10027,9 @@ body:has(.act-sheet-mode) .topbar {
         display: none;
     }
     .floating-menu-btn {
+        display: none !important;
+    }
+    .dash-pill-nav {
         display: flex;
     }
     .stat-grid {
@@ -12587,29 +12651,75 @@ body:has(.act-sheet-mode) .topbar {
 }
 
 /* ── Weather location — settings card ── */
-.wx-location-input-row {
+.wx-add-row {
     display: flex;
     gap: 8px;
-    width: 100%;
+    padding: 12px 16px;
+    align-items: center;
 }
 .wx-city-input {
-    flex: 1;
-    height: 36px;
+    width: 100%;
+    height: 40px;
     padding: 0 12px;
-    border-radius: 8px;
-    border: 1.5px solid var(--border);
-    background: var(--bg-base);
+    border-radius: 10px;
+    border: none;
+    background: rgba(120, 120, 128, 0.2);
     color: var(--text-primary);
-    font-size: 14px;
+    font-size: 15px;
+    font-family: var(--font-ui);
     outline: none;
-    transition: border-color 0.15s;
+    transition: background 0.15s;
 }
 .wx-city-input:focus {
-    border-color: var(--accent);
+    background: rgba(120, 120, 128, 0.32);
 }
 .wx-city-input::placeholder {
     color: var(--text-muted);
-    opacity: 0.45;
+    opacity: 0.5;
+}
+/* ── City autocomplete suggestions ── */
+.wx-search-wrap {
+    position: relative;
+    width: 100%;
+}
+.wx-suggestions {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: var(--bg-elevated);
+    border-radius: 10px;
+    overflow: hidden;
+    z-index: 100;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+.wx-suggestions.active {
+    display: block;
+}
+.wx-sug-item {
+    display: block;
+    width: 100%;
+    padding: 12px 16px;
+    border: none;
+    background: none;
+    color: var(--text-primary);
+    font-size: 15px;
+    font-family: var(--font-ui);
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.1s;
+}
+.wx-sug-item + .wx-sug-item {
+    border-top: 0.5px solid var(--border);
+}
+.wx-sug-item:active {
+    background: rgba(120, 120, 128, 0.2);
+}
+.wx-sug-empty {
+    padding: 12px 16px;
+    color: var(--text-muted);
+    font-size: 14px;
 }
 
 /* ── No-location placeholder in forecast card ── */
@@ -12758,40 +12868,35 @@ body:has(.act-sheet-mode) .topbar {
 }
 
 /* Settings location list */
-.wx-loc-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 12px;
-    border-bottom: 1px solid var(--border);
-}
-.wx-loc-row:last-child {
-    border-bottom: none;
-}
-.wx-loc-row .stt-row-label {
-    flex: 1;
-    font-size: var(--text-sm);
-}
-.wx-loc-row--active .stt-row-label {
-    font-weight: 600;
-}
 .wx-loc-dot {
-    width: 8px;
-    height: 8px;
+    width: 10px;
+    height: 10px;
     border-radius: 50%;
-    background: var(--border);
+    background: var(--text-muted);
+    opacity: 0.3;
     display: inline-block;
+    flex-shrink: 0;
 }
 .wx-loc-dot--on {
     background: var(--accent);
-    box-shadow: 0 0 0 3px rgba(var(--accent-rgb, 59, 130, 246), 0.2);
+    opacity: 1;
+    box-shadow: 0 0 6px rgba(0, 229, 160, 0.4);
 }
-.wx-loc-activate {
-    padding: 4px;
-}
-.wx-loc-remove {
-    padding: 4px;
+.wx-loc-remove.btn {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    min-height: 24px;
+    padding: 0;
+    gap: 0;
+    border-radius: 50%;
+    background: rgba(120, 120, 128, 0.24);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     opacity: 0.5;
+    margin-left: auto;
+    flex-shrink: 0;
 }
 .wx-loc-remove:hover {
     opacity: 1;
@@ -18488,7 +18593,7 @@ html[data-theme="light"] {
     background: rgba(0, 0, 0, 0.08);
     border-color: rgba(0, 0, 0, 0.18);
 }
-[data-theme="light"] .map-theme-swatch {
+[data-theme="light"] .map-theme-preview {
     border-color: rgba(0, 0, 0, 0.1);
 }
 [data-theme="light"] .hm-speed-pill.active {
@@ -18553,7 +18658,7 @@ html[data-theme="light"] {
 }
 
 /* ── Map theme swatch in settings ── */
-[data-theme="light"] .map-theme-option {
+[data-theme="light"] .map-theme-card {
     border-color: var(--border);
 }
 
