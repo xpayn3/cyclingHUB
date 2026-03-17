@@ -1213,6 +1213,12 @@
                 <div class="ptr-indicator" id="ptrIndicator">
                     <svg class="ptr-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.22-8.56"/></svg>
                 </div>
+                <!-- Floating top row: profile + date range pill -->
+                <div class="floating-top-row" id="floatingTopRow">
+                    <button class="floating-profile-btn" onclick="navigate('settings')" aria-label="Profile">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>
+                    </button>
+                </div>
                 <!-- Floating date range pills (moved from topbar) -->
                 <div class="floating-range-pill date-range-pill" id="dateRangePill">
                     <button onclick="setRange(7)" id="range7">7d</button>

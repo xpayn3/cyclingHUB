@@ -6,7 +6,7 @@
    3. Navigation Preload: fetch starts while SW boots
 ============================================================ */
 
-const APP_CACHE    = 'icu-app-shell-v137';
+const APP_CACHE    = 'icu-app-shell-v138';
 const TILE_CACHE   = 'icu-map-tiles-v1';
 const MAX_TILES    = 2000; // rough cap to avoid unbounded disk use
 const TILE_ORIGINS = ['server.arcgisonline.com', 'tile.openstreetmap.de', 'tile-cyclosm.openstreetmap.fr', 'api.maptiler.com'];

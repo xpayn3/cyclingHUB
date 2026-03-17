@@ -2318,6 +2318,12 @@ function navigate(page) {
     pc.classList.toggle('page-content--has-pill', page === 'dashboard' || page === 'zones' || page === 'power' || page === 'fitness');
   }
 
+  // Floating top row (profile icon) — show on dashboard only (mobile)
+  const floatingTopRow = document.getElementById('floatingTopRow');
+  if (floatingTopRow) {
+    floatingTopRow.style.display = (page === 'dashboard') ? 'flex' : 'none';
+  }
+
   // Floating range pill visibility
   const pill = document.getElementById('dateRangePill');
   if (pill) {

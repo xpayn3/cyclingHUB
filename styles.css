@@ -712,12 +712,46 @@ code {
     transform: translateY(-6px) rotate(-45deg);
 }
 
+/* ── Floating top row: profile + pill ── */
+.floating-top-row {
+    position: fixed;
+    top: max(12px, env(safe-area-inset-top));
+    left: 16px;
+    z-index: 15;
+    display: none;
+}
+.floating-profile-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(30, 30, 32, 0.72);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 1px 6px rgba(0,0,0,0.3);
+    color: rgba(255, 255, 255, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.2s;
+}
+.floating-profile-btn svg {
+    width: 20px;
+    height: 20px;
+}
+.floating-profile-btn:active {
+    background: rgba(60, 60, 64, 0.8);
+}
+
 /* ── Floating range pills — liquid glass, horizontally scrollable ─ */
 .floating-range-pill {
     position: fixed;
     top: max(12px, env(safe-area-inset-top));
-    left: 50%;
-    transform: translateX(-50%);
+    right: 16px;
+    left: auto;
+    transform: none;
     z-index: 15;
     /* Liquid glass */
     background: rgba(40, 42, 48, 0.42);
@@ -4108,7 +4142,11 @@ code {
     }
     .floating-range-pill {
         left: calc(var(--sidebar-w) + (100% - var(--sidebar-w)) / 2);
+        right: auto;
         transform: translateX(-50%);
+    }
+    .floating-top-row {
+        display: none !important;
     }
 }
 
