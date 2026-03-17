@@ -9584,20 +9584,15 @@ body:has(.act-sheet-mode) .topbar {
         gap: 8px;
         min-height: 44px;
     }
+    .cal-header {
+        justify-content: flex-start;
+    }
     .cal-header-nav {
-        gap: 2px;
+        flex: 1;
+        gap: 0;
     }
-    .cal-header-nav .btn-icon {
-        width: 36px;
-        height: 36px;
-        min-height: 36px;
-        color: var(--accent);
-    }
-    .cal-header-nav .btn-sm {
-        font-size: var(--text-sm);
-        padding: 6px 14px;
-    }
-    /* Hide plan button & panel toggle on mobile */
+    /* Hide nav arrows, plan button & panel toggle on mobile */
+    .cal-header-nav .btn-icon,
     .cal-plan-btn,
     .cal-panel-toggle {
         display: none !important;
@@ -9605,14 +9600,15 @@ body:has(.act-sheet-mode) .topbar {
     .cal-today-btn {
         font-size: 11px;
         padding: 4px 12px;
+        margin-left: auto;
     }
 
-    /* ── Month title (centered label between nav arrows) ── */
+    /* ── Month title: large, left-aligned ── */
     .cal-month-title {
         min-width: auto;
-        font-size: 15px;
-        font-weight: 600;
-        letter-spacing: -0.2px;
+        font-size: 20px;
+        font-weight: 700;
+        letter-spacing: -0.4px;
     }
 
     /* ── Stats strip: horizontal scroll band ── */
