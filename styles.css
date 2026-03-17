@@ -6221,7 +6221,7 @@ code {
 #calFab,
 #dashRouteFab {
     position: fixed;
-    bottom: 4px;
+    bottom: 12px;
     right: 16px;
     width: 64px;
     height: 64px;
@@ -6260,7 +6260,7 @@ code {
 .dash-pill-nav {
     display: none;
     position: fixed;
-    bottom: 4px;
+    bottom: 12px;
     left: 16px;
     z-index: 1100;
     /* Liquid glass: translucent, high blur, slight tint */
