@@ -6242,6 +6242,10 @@ code {
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     transition: background 0.2s ease;
+    /* GPU: keep compositing layer alive */
+    will-change: transform;
+    transform: translateZ(0);
+    contain: layout style;
 }
 #actSearchFab svg,
 #calFab svg,
@@ -6279,6 +6283,10 @@ code {
         0 -0.5px 0 0 rgba(0, 0, 0, 0.15) inset,
         0 12px 40px rgba(0, 0, 0, 0.50),
         0 4px 12px rgba(0, 0, 0, 0.30);
+    /* GPU: keep compositing layer alive to prevent backdrop-filter flicker */
+    will-change: transform;
+    transform: translateZ(0);
+    contain: layout style;
 }
 .dash-pill-btn {
     display: flex;
