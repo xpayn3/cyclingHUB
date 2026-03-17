@@ -11510,7 +11510,10 @@ function initModalSwipeDismiss(dialog) {
         const atTop = !scrollEl || scrollEl.scrollTop <= 0;
         if (atTop) {
           gesture = 'dragging';
-          inner.classList.add('dragging'); // kills CSS transition for instant feedback
+          // Set inline transform BEFORE adding .dragging so when the
+          // animation fill is killed, the inline value is already there
+          inner.style.transform = 'translateY(0)';
+          inner.classList.add('dragging');
           startY = y; // reset origin
           currentDy = 0;
           if (!startedOnHeader && scrollEl) {
