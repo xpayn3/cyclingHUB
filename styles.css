@@ -6239,10 +6239,10 @@ code {
     width: 64px;
     height: 64px;
     z-index: 1100;
-    /* Liquid glass — same as dash-pill-nav */
-    background: rgba(40, 42, 48, 0.42);
-    backdrop-filter: blur(48px) saturate(220%) brightness(1.1);
-    -webkit-backdrop-filter: blur(48px) saturate(220%) brightness(1.1);
+    /* Liquid glass — lightweight for iOS perf */
+    background: rgba(28, 28, 30, 0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     border-radius: 100px;
     border: none;
     color: rgba(255, 255, 255, 0.55);
@@ -6280,10 +6280,10 @@ code {
     bottom: 12px;
     left: 16px;
     z-index: 1100;
-    /* Liquid glass: translucent, high blur, slight tint */
-    background: rgba(40, 42, 48, 0.42);
-    backdrop-filter: blur(48px) saturate(220%) brightness(1.1);
-    -webkit-backdrop-filter: blur(48px) saturate(220%) brightness(1.1);
+    /* Liquid glass — lightweight for iOS perf */
+    background: rgba(28, 28, 30, 0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     border-radius: 100px;
     padding: 5px 5px;
     flex-direction: row;
