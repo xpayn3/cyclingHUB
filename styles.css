@@ -964,11 +964,6 @@ code {
     width: 100%;
     max-width: 480px;
     overflow: hidden;
-    animation: modalSlideIn 0.25s ease-out;
-}
-/* ── Close animation (JS adds .modal--closing) ── */
-.modal--closing .modal {
-    animation: modalSlideOut 0.2s cubic-bezier(0.32, 0.72, 0, 1) forwards;
 }
 .modal-drag-indicator {
     width: 36px;
@@ -976,14 +971,6 @@ code {
     border-radius: 2.5px;
     background: rgba(235, 235, 245, 0.3);
     margin: 8px auto 0;
-}
-@keyframes modalSlideIn {
-    from { opacity: 0; transform: translateY(12px); }
-    to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes modalSlideOut {
-    from { opacity: 1; transform: translateY(0); }
-    to   { opacity: 0; transform: translateY(12px); }
 }
 .modal-header {
     padding: 16px 20px 0;
@@ -14118,27 +14105,19 @@ body:has(.act-sheet-mode) .topbar {
         max-width: 100vw;
         max-height: 100vh;
         overflow: hidden;
-        /* Kill browser UA fade on <dialog> */
+        /* Kill browser UA fade/transition on <dialog> */
         opacity: 1 !important;
+        animation: none !important;
         transition: none !important;
     }
     @starting-style {
-        .modal-dialog[open] {
-            opacity: 1 !important;
-        }
+        .modal-dialog[open] { opacity: 1 !important; }
     }
     .modal-dialog[open] {
         align-items: flex-end;
     }
     .modal-dialog::backdrop {
         background: rgba(0, 0, 0, 0.6);
-    }
-    .modal-dialog.modal--closing::backdrop {
-        animation: backdropFadeOut 0.3s ease forwards;
-    }
-    @keyframes backdropFadeOut {
-        from { background: rgba(0, 0, 0, 0.6); }
-        to   { background: rgba(0, 0, 0, 0); }
     }
     .modal {
         max-width: 100% !important;
@@ -14148,26 +14127,19 @@ body:has(.act-sheet-mode) .topbar {
         display: flex;
         flex-direction: column;
         overflow: visible;
-        /* Kill desktop fade — mobile sheets are always fully opaque */
         opacity: 1 !important;
-        /* GPU-composited slide-up with iOS spring curve */
-        animation: modalSlideUp 0.5s ease-out !important;
+        animation: none !important;
+        /* ── Same approach as activity bottom sheet ── */
+        transform: translate3d(0, 100%, 0);
+        transition: transform 0.35s cubic-bezier(0.2, 0, 0, 1);
         will-change: transform;
         -webkit-backface-visibility: hidden;
         backface-visibility: hidden;
-        /* Extend background below so no gap visible during slide */
         box-shadow: 0 200px 0 200px #2C2C2E;
     }
-    .modal--closing .modal {
-        animation: modalSlideDown 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
-    }
-    @keyframes modalSlideUp {
-        from { transform: translate3d(0, 100%, 0); opacity: 1; }
-        to   { transform: translate3d(0, 0, 0); opacity: 1; }
-    }
-    @keyframes modalSlideDown {
-        from { transform: translate3d(0, 0, 0); opacity: 1; }
-        to   { transform: translate3d(0, 100%, 0); opacity: 1; }
+    /* During swipe drag — instant feedback, no transition */
+    .modal.dragging {
+        transition: none !important;
     }
     .modal-header {
         padding: 18px 18px 0;

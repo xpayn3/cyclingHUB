@@ -11402,7 +11402,7 @@ function initModalSwipeDismiss(dialog) {
         const atTop = !scrollEl || scrollEl.scrollTop <= 0;
         if (atTop) {
           gesture = 'dragging';
-          inner.style.transition = 'none';
+          inner.classList.add('dragging'); // kills CSS transition for instant feedback
           startY = y; // reset origin
           currentDy = 0;
           if (!startedOnHeader && scrollEl) {
@@ -11436,14 +11436,13 @@ function initModalSwipeDismiss(dialog) {
     if (scrollEl) scrollEl.style.overflowY = '';
 
     if (gesture === 'dragging') {
-      inner.style.transition = '';
+      inner.classList.remove('dragging'); // re-enable CSS transition
       if (currentDy > 120) {
-        inner.style.transform = '';
+        // Dismiss — slide to 100% via CSS transition
         closeModalAnimated(dialog);
       } else {
-        inner.style.transition = 'transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1)';
-        inner.style.transform = '';
-        inner.addEventListener('transitionend', () => { inner.style.transition = ''; }, { once: true });
+        // Snap back — CSS transition animates to 0
+        inner.style.transform = 'translate3d(0, 0, 0)';
       }
     }
     gesture = 'idle';
@@ -11457,40 +11456,66 @@ function initModalSwipeDismiss(dialog) {
 
 // Auto-init swipe dismiss on all modal dialogs
 document.querySelectorAll('.modal-dialog').forEach(initModalSwipeDismiss);
-// Also init on any dynamically shown modal
+
+/* ── Transition-based modal open/close (same approach as activity sheet) ── */
 const _origShowModal = HTMLDialogElement.prototype.showModal;
 HTMLDialogElement.prototype.showModal = function() {
+  const inner = this.querySelector('.modal');
+  const isMobile = window.innerWidth <= 600;
+
+  if (inner && isMobile) {
+    // Set starting position OFF SCREEN with no transition
+    inner.style.transition = 'none';
+    inner.style.transform = 'translate3d(0, 100%, 0)';
+  }
+
   _origShowModal.call(this);
+
+  // Init swipe dismiss once
   if (this.classList.contains('modal-dialog') && !this._swipeInited) {
     initModalSwipeDismiss(this);
     this._swipeInited = true;
   }
+
+  if (inner && isMobile) {
+    // Double rAF: first ensures the off-screen state is painted,
+    // second enables the CSS transition and moves to final position
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        inner.style.transition = '';  // re-enable CSS transition
+        inner.style.transform = 'translate3d(0, 0, 0)'; // slide into view
+      });
+    });
+  }
 };
 
-/* ── Smooth modal close (slide-down animation before dialog.close()) ── */
 function closeModalAnimated(dialog) {
   if (!dialog || !dialog.open) return;
-  // If no animation support or not mobile-width, just close immediately
-  if (!dialog.animate && !('getAnimations' in dialog)) {
-    dialog.close(); return;
-  }
-  dialog.classList.add('modal--closing');
   const inner = dialog.querySelector('.modal');
-  if (!inner) { dialog.classList.remove('modal--closing'); dialog.close(); return; }
+  const isMobile = window.innerWidth <= 600;
+
+  if (!inner || !isMobile) { dialog.close(); return; }
+
+  // Slide down — CSS transition handles the animation
+  inner.style.transform = 'translate3d(0, 100%, 0)';
+
   function onDone() {
-    inner.removeEventListener('animationend', onDone);
-    dialog.classList.remove('modal--closing');
+    inner.removeEventListener('transitionend', onDone);
+    inner.style.transform = '';
+    inner.style.transition = '';
     dialog.close();
   }
-  inner.addEventListener('animationend', onDone, { once: true });
-  // Fallback: if animation doesn't fire (e.g. desktop where there's no .modal--closing override)
+  inner.addEventListener('transitionend', onDone, { once: true });
+
+  // Fallback if transitionend doesn't fire
   setTimeout(() => {
     if (dialog.open) {
-      inner.removeEventListener('animationend', onDone);
-      dialog.classList.remove('modal--closing');
+      inner.removeEventListener('transitionend', onDone);
+      inner.style.transform = '';
+      inner.style.transition = '';
       dialog.close();
     }
-  }, 800);
+  }, 500);
 }
 
 function showToast(msg, type = 'success') {
