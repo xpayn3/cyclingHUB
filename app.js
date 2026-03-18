@@ -15123,6 +15123,14 @@ function renderActivityBasic(a) {
   tssEl.textContent   = tss > 0 ? `${tss} TSS` : '';
   tssEl.style.display = tss > 0 ? 'flex' : 'none';
 
+  // XP badge
+  const xpBadge = document.getElementById('detailXPBadge');
+  if (xpBadge && !isEmptyActivity(a)) {
+    const xp = computeXP(a);
+    xpBadge.textContent = xp + ' XP';
+    xpBadge.style.display = xp > 0 ? 'inline-flex' : 'none';
+  }
+
   // ── Effort type classification ─────────────────────────────────────────────
   const effortTag = document.getElementById('detailEffortTag');
   if (effortTag) {
@@ -21957,11 +21965,94 @@ function openProfileModal() {
   const stickyLvl = document.getElementById('profStickyLvl');
   if (stickyLvl) stickyLvl.textContent = stats.level;
 
-  // Always show sticky header when sheet is open
+  // Find best XP ride
+  const bestRideSection = document.getElementById('profBestRide');
+  const bestRideCard = document.getElementById('profBestRideCard');
+  if (bestRideSection && bestRideCard) {
+    const startDate = localStorage.getItem('icu_xp_start_date') || '2000-01-01';
+    const allActs = getAllActivities().filter(a => !isEmptyActivity(a) && (a.start_date_local || a.start_date || '') >= startDate);
+    let bestAct = null, bestXP = 0;
+    allActs.forEach(a => {
+      const xp = computeXP(a);
+      if (xp > bestXP) { bestXP = xp; bestAct = a; }
+    });
+    if (bestAct && bestXP > 0) {
+      const name = bestAct.name || 'Untitled';
+      const date = (bestAct.start_date_local || bestAct.start_date || '').slice(0, 10);
+      const dist = (actVal(bestAct, 'distance', 'icu_distance') / 1000).toFixed(1);
+      const elev = Math.round(actVal(bestAct, 'total_elevation_gain', 'icu_total_elevation_gain'));
+      bestRideCard.innerHTML = `
+        <div class="prof-best-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" width="22" height="22"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+        <div class="prof-best-info">
+          <div class="prof-best-name">${name}</div>
+          <div class="prof-best-meta">${date} · ${dist} km · ${elev} m</div>
+        </div>
+        <div style="text-align:right">
+          <div class="prof-best-xp">${bestXP}</div>
+          <div class="prof-best-xp-label">XP</div>
+        </div>`;
+      bestRideCard.onclick = () => { closeProfileModal(); setTimeout(() => navigateToActivity(bestAct), 350); };
+      bestRideSection.style.display = '';
+    } else {
+      bestRideSection.style.display = 'none';
+    }
+  }
+
+  // Swipe-down to dismiss
+  const sheet = document.getElementById('profileSheet');
+  if (sheet && !sheet._swipeBound) {
+    sheet._swipeBound = true;
+    let startY = 0, currentDy = 0, dragging = false;
+    const profScrollEl = document.getElementById('profScroll');
+
+    sheet.addEventListener('touchstart', e => {
+      // Only start drag if scroll is at top
+      if (profScrollEl && profScrollEl.scrollTop > 5) return;
+      startY = e.touches[0].clientY;
+      currentDy = 0;
+      dragging = false;
+    }, { passive: true });
+
+    sheet.addEventListener('touchmove', e => {
+      if (!startY) return;
+      const dy = e.touches[0].clientY - startY;
+      if (!dragging && dy > 10) dragging = true;
+      if (dragging && dy > 0) {
+        currentDy = dy;
+        sheet.style.transform = `translateY(${dy}px)`;
+        sheet.style.transition = 'none';
+        // Fade backdrop
+        const backdrop = sheet.previousElementSibling;
+        if (backdrop) backdrop.style.opacity = Math.max(0, 1 - dy / 300);
+      }
+    }, { passive: true });
+
+    sheet.addEventListener('touchend', () => {
+      if (dragging && currentDy > 100) {
+        closeProfileModal();
+      } else if (dragging) {
+        sheet.style.transition = 'transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1)';
+        sheet.style.transform = '';
+        const backdrop = sheet.previousElementSibling;
+        if (backdrop) backdrop.style.opacity = '';
+      }
+      startY = 0;
+      currentDy = 0;
+      dragging = false;
+    }, { passive: true });
+  }
+
+  // Show sticky header only when scrolled past the big profile pic
   const profScroll = document.getElementById('profScroll');
   const stickyHdr = document.getElementById('profStickyHdr');
-  if (profScroll) profScroll.scrollTop = 0;
-  if (stickyHdr) stickyHdr.classList.add('prof-sticky--visible');
+  if (profScroll) {
+    profScroll.scrollTop = 0;
+    if (stickyHdr) stickyHdr.classList.remove('prof-sticky--visible');
+    profScroll.onscroll = function() {
+      const show = profScroll.scrollTop > 140;
+      stickyHdr.classList.toggle('prof-sticky--visible', show);
+    };
+  }
 
   // Render rider profile radar chart
   _renderProfileRadar();
@@ -21980,8 +22071,14 @@ function closeProfileModal() {
   if (!overlay) return;
   overlay.classList.remove('prof-open');
   overlay.classList.add('prof-closing');
-  const stickyHdr = document.getElementById('profStickyHdr');
-  if (stickyHdr) stickyHdr.classList.remove('prof-sticky--visible');
+  const stickyHdr2 = document.getElementById('profStickyHdr');
+  if (stickyHdr2) stickyHdr2.classList.remove('prof-sticky--visible');
+  const profScroll2 = document.getElementById('profScroll');
+  if (profScroll2) profScroll2.onscroll = null;
+  const sheet = document.getElementById('profileSheet');
+  if (sheet) { sheet.style.transform = ''; sheet.style.transition = ''; }
+  const backdrop = overlay.querySelector('.prof-overlay-backdrop');
+  if (backdrop) backdrop.style.opacity = '';
   setTimeout(() => {
     overlay.classList.remove('prof-closing');
     overlay.style.display = 'none';
