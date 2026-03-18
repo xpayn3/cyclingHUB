@@ -3027,6 +3027,17 @@ code {
     z-index: 9;
     background: var(--bg-base);
 }
+/* Fill the safe area / notch zone above the sticky divider */
+.act-month-divider::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: calc(-1 * var(--pad-page, 16px));
+    right: calc(-1 * var(--pad-page, 16px));
+    height: env(safe-area-inset-top, 0px);
+    background: var(--bg-base);
+    pointer-events: none;
+}
 .act-month-divider:first-child {
     padding-top: 8px;
 }
@@ -5793,12 +5804,17 @@ code {
 .cal-day-card--planned * { pointer-events: none; -webkit-user-drag: none; }
 /* Drag-and-drop states */
 .cal-day-card--planned.cal-card--dragging {
-    opacity: 0.3;
+    opacity: 0.35;
+    transform: scale(1.05) rotate(-1deg);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
     cursor: grabbing;
+    z-index: 100;
+    transition: opacity 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 .cal-day.cal-day--drag-over {
     background: rgba(0, 229, 160, 0.08) !important;
     box-shadow: inset 0 0 0 2px rgba(0, 229, 160, 0.3);
+    transition: background 0.1s, box-shadow 0.1s;
 }
 .cal-day-card--planned:hover {
     transform: none !important;
@@ -5888,9 +5904,15 @@ code {
     gap: 3px;
     width: 100%;
     min-width: 0;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
     flex: 1;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.1) transparent;
 }
+.cal-day-cards::-webkit-scrollbar { width: 3px; }
+.cal-day-cards::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+.cal-day-cards::-webkit-scrollbar-track { background: transparent; }
 .cal-day-card {
     display: flex;
     flex-direction: column;
@@ -10156,7 +10178,23 @@ body:has(.act-sheet-mode) .topbar {
         display: flex;
     }
     .stat-grid {
-        grid-template-columns: repeat(2, 1fr);
+        display: flex;
+        gap: 10px;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        margin-left: calc(-1 * var(--pad-page));
+        margin-right: calc(-1 * var(--pad-page));
+        padding-left: var(--pad-page);
+        padding-right: var(--pad-page);
+        scroll-padding-inline: var(--pad-page);
+    }
+    .stat-grid::-webkit-scrollbar { display: none; }
+    .stat-card {
+        min-width: 150px;
+        flex-shrink: 0;
+        scroll-snap-align: start;
     }
 }
 

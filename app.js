@@ -2299,7 +2299,7 @@ function navigate(page) {
 
   // ── Prepare page-specific UI BEFORE the swap so nothing flashes ──
   const info = {
-    dashboard:  ['Summary', `Overview · Last ${state.rangeDays} days`],
+    dashboard:  ['Summary', ''],
     activities: ['Activities',     ''],
     calendar:   ['Calendar',       'Planned workouts & events'],
     fitness:    ['Fitness',        'CTL · ATL · TSB history'],
@@ -13021,10 +13021,8 @@ function renderCalendar() {
     ].filter(Boolean).join(' ');
 
     // ── Desktop: mini activity cards (hidden on mobile via CSS) ──
-    const maxCards = 2;
     const combined = [...events, ...realActs]; // events first, then completed activities
-    const shownItems = combined.slice(0, maxCards);
-    const extraItems = combined.length - maxCards;
+    const shownItems = combined;
 
     const cardsHtml = shownItems.map(({ a, stateIdx, isEvent: isEv }) => {
       if (isEv) {
@@ -13065,8 +13063,7 @@ function renderCalendar() {
         </div>
       </div>`;
     }).join('');
-    const moreHtml = extraItems > 0 ? `<div class="cal-day-more">+${extraItems} more</div>` : '';
-    const desktopHtml = `<div class="cal-day-cards">${cardsHtml}${moreHtml}</div>`;
+    const desktopHtml = `<div class="cal-day-cards">${cardsHtml}</div>`;
 
     // ── Mobile: dot indicators (hidden on desktop via CSS) ──
     const seenTypes = new Set();
@@ -13151,6 +13148,7 @@ function _calInitDrag() {
     _calDragCard = card;
     e.dataTransfer.effectAllowed = 'move';
     try { e.dataTransfer.setData('text/plain', _calDragId); } catch(_){}
+
     setTimeout(function() { card.classList.add('cal-card--dragging'); }, 0);
   });
 
