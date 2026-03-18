@@ -6922,6 +6922,7 @@ code {
 .profile-modal {
     background: #000 !important;
     max-width: 420px;
+    width: 100%;
     padding: 0 !important;
     overflow: hidden;
 }

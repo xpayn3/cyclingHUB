@@ -21613,8 +21613,22 @@ function openProfileModal() {
   setTxt('profTotalDist', stats.totalDist.toLocaleString());
   setTxt('profTotalElev', stats.totalElev.toLocaleString());
 
-  _initModalControls();
-  modal.showModal();
+  // Always use the scroll-safe sheet approach (not native showModal which jumps)
+  const inner = modal.querySelector('.modal');
+  _lockSheetScroll();
+  _cleanSheet(inner);
+  const backdrop = _getBackdrop();
+  backdrop.classList.add('active');
+  modal.show();
+  modal.classList.add('sheet-open');
+  if (!modal._swipeInited) {
+    initModalSwipeDismiss(modal);
+    modal._swipeInited = true;
+  }
+  if (inner) {
+    inner.classList.add('sheet-enter');
+    _startViewportTracking(modal);
+  }
 }
 
 function closeProfileModal() {
