@@ -21947,6 +21947,13 @@ function getLevel(totalXP) {
 function getXPStats() {
   const startDate = localStorage.getItem('icu_xp_start_date') || '2000-01-01';
   const acts = getAllActivities().filter(a => !isEmptyActivity(a) && (a.start_date_local || a.start_date || '') >= startDate);
+  // If no activities loaded, return cached stats as fallback
+  if (acts.length === 0) {
+    try {
+      const cached = JSON.parse(localStorage.getItem('iq_xp_cache') || '');
+      if (cached && cached.level > 0) return cached;
+    } catch(e) {}
+  }
   let totalXP = 0, totalDist = 0, totalElev = 0, totalRides = acts.length;
   acts.forEach(a => {
     totalXP += computeXP(a);
@@ -21954,7 +21961,10 @@ function getXPStats() {
     totalElev += actVal(a, 'total_elevation_gain', 'icu_total_elevation_gain');
   });
   const lvl = getLevel(totalXP);
-  return { ...lvl, totalRides, totalDist: Math.round(totalDist), totalElev: Math.round(totalElev) };
+  const result = { ...lvl, totalRides, totalDist: Math.round(totalDist), totalElev: Math.round(totalElev) };
+  // Cache for crash recovery
+  try { localStorage.setItem('iq_xp_cache', JSON.stringify(result)); } catch(e) {}
+  return result;
 }
 
 /* ── Profile Modal ── */
