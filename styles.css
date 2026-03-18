@@ -17609,26 +17609,30 @@ body.hm-map-dragging html,
 }
 /* Re-scan section stays in card */
 .hm-panel-rescan {
-    padding-top: 8px;
+    padding-top: 12px;
+    padding-bottom: 20px;
     display: flex;
-    justify-content: flex-end;
 }
 .hm-panel-rescan button {
-    padding: 8px 20px;
-    min-height: 36px;
-    border-radius: 20px;
-    border: 1px solid var(--accent);
-    background: transparent;
-    color: var(--accent);
-    font-size: 13px;
+    width: 100%;
+    padding: 12px 20px;
+    min-height: 44px;
+    border-radius: 12px;
+    border: none;
+    background: rgba(120, 120, 128, 0.12);
+    color: var(--text-primary);
+    font-size: 15px;
     font-weight: 600;
     cursor: pointer;
     transition: background 0.15s ease, color 0.15s ease;
     font-family: inherit;
+    opacity: 1 !important;
 }
 .hm-panel-rescan button:hover {
-    background: var(--accent);
-    color: var(--bg-base);
+    background: rgba(120, 120, 128, 0.2);
+}
+.hm-panel-rescan button:active {
+    background: rgba(120, 120, 128, 0.3);
 }
 
 /* Panel inside sheet: reset glass background, use transparent card style */
