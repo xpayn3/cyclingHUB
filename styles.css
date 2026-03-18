@@ -20026,7 +20026,7 @@ html[data-theme="light"] {
     .rb-wrapper { left: 0; top: 0; height: 100vh; height: 100dvh; }
     .rb-poi-filter { left: 8px; top: auto; bottom: 8px; max-width: calc(100% - 16px); flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .rb-poi-filter::-webkit-scrollbar { display: none; }
-    .rb-search-float { left: 10px; top: 10px; }
+    .rb-search-float { left: 10px; top: calc(env(safe-area-inset-top, 10px) + 10px); }
     .rb-search-input { width: 140px; padding: 0 10px 0 32px; font-size: 15px; height: 36px; }
     .rb-router-trigger span { display: none; }
     .rb-router-trigger { padding: 6px 8px; gap: 4px; }
