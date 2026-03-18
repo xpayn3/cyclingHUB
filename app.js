@@ -3883,13 +3883,26 @@ async function renderRecentActCardMap(a, idx, idPrefix = 'recentActCard', mapSto
   const cacheKey = `${actId}_${loadMapTheme()}`;
   const cached = await _cardMapCacheLoad(cacheKey);
   if (cached) {
-    const img = document.createElement('img');
-    img.src = cached;
-    img.className = 'ra-card-map-img';
-    img.alt = '';
-    mapEl.innerHTML = '';
-    mapEl.appendChild(img);
-    return;
+    // Verify resolution — discard low-res snapshots
+    const _checkImg = new Image();
+    const _useCache = await new Promise(r => {
+      _checkImg.onload = () => r(_checkImg.naturalWidth >= 200);
+      _checkImg.onerror = () => r(false);
+      _checkImg.src = cached;
+      setTimeout(() => r(true), 200); // fallback: use cache if check takes too long
+    });
+    if (_useCache) {
+      const img = document.createElement('img');
+      img.src = cached;
+      img.className = 'ra-card-map-img';
+      img.alt = '';
+      mapEl.innerHTML = '';
+      mapEl.appendChild(img);
+      return;
+    }
+    // Low-res — purge and re-render
+    try { const c = await caches.open(_CARD_MAP_CACHE_NAME); c.delete(`/_snap/${cacheKey}`); } catch(_){}
+    _cardMapImgCache.delete(cacheKey);
   }
 
   // GPS points cached — skip the API call entirely on refresh
