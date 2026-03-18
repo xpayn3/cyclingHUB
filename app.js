@@ -13150,6 +13150,7 @@ function renderCalendar() {
 let _calDragId = null;
 let _calDragCard = null;
 let _calDragGhost = null;
+let _calDragMove = null;
 
 function _calInitDrag() {
   const grid = document.getElementById('calGrid');
@@ -13164,12 +13165,24 @@ function _calInitDrag() {
     e.dataTransfer.effectAllowed = 'move';
     try { e.dataTransfer.setData('text/plain', _calDragId); } catch(_){}
 
-    // Create opaque drag ghost
+    // Hide native drag image (1x1 transparent pixel)
+    var blank = document.createElement('canvas');
+    blank.width = 1; blank.height = 1;
+    e.dataTransfer.setDragImage(blank, 0, 0);
+
+    // Create opaque mouse-following clone
     var ghost = card.cloneNode(true);
-    ghost.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:' + card.offsetWidth + 'px;opacity:1;pointer-events:none;z-index:99999;transform:scale(1.08) rotate(-1.5deg);box-shadow:0 8px 32px rgba(0,229,160,0.25),0 2px 8px rgba(0,0,0,0.6);border:1px solid rgba(0,229,160,0.35);border-radius:8px;background:#1a1a1a;padding:4px 6px;';
+    var w = card.offsetWidth;
+    ghost.style.cssText = 'position:fixed;pointer-events:none;z-index:99999;width:' + w + 'px;opacity:1;transform:scale(1.08) rotate(-1.5deg);box-shadow:0 8px 32px rgba(0,229,160,0.3),0 4px 12px rgba(0,0,0,0.6);border:1px solid rgba(0,229,160,0.4);border-radius:8px;background:#1a1a1a;padding:4px 6px;transition:none;left:' + (e.clientX - w/2) + 'px;top:' + (e.clientY - 20) + 'px;';
     document.body.appendChild(ghost);
-    e.dataTransfer.setDragImage(ghost, card.offsetWidth / 2, card.offsetHeight / 2);
     _calDragGhost = ghost;
+
+    // Follow mouse during drag
+    _calDragMove = function(ev) {
+      ghost.style.left = (ev.clientX - w/2) + 'px';
+      ghost.style.top = (ev.clientY - 20) + 'px';
+    };
+    document.addEventListener('dragover', _calDragMove);
 
     setTimeout(function() { card.classList.add('cal-card--dragging'); }, 0);
   });
@@ -13177,6 +13190,7 @@ function _calInitDrag() {
   grid.addEventListener('dragend', function() {
     if (_calDragCard) _calDragCard.classList.remove('cal-card--dragging');
     if (_calDragGhost) { _calDragGhost.remove(); _calDragGhost = null; }
+    if (_calDragMove) { document.removeEventListener('dragover', _calDragMove); _calDragMove = null; }
     grid.querySelectorAll('.cal-day--drag-over').forEach(function(el) { el.classList.remove('cal-day--drag-over'); });
     _calDragId = null;
     _calDragCard = null;
