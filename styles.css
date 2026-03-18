@@ -725,7 +725,7 @@ code {
     height: 40px;
     border-radius: 50%;
     border: 1.5px solid rgba(255, 255, 255, 0.12);
-    overflow: hidden;
+    overflow: visible;
     background: rgba(30, 30, 32, 0.92);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
@@ -744,6 +744,28 @@ code {
 }
 .floating-profile-btn:active {
     background: rgba(60, 60, 64, 0.8);
+}
+.floating-profile-lvl {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    background: var(--accent);
+    color: #000;
+    font-size: 10px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-num);
+    border: 2px solid #000;
+    padding: 0 3px;
+    line-height: 1;
+}
+.floating-profile-btn {
+    position: relative;
 }
 
 /* ── Floating range pills — liquid glass, horizontally scrollable ─ */
@@ -2030,7 +2052,7 @@ code {
         transition: background 0.2s, transform 0.2s;
     }
     .recent-act-dot.active {
-        background: var(--accent);
+        background: rgba(255, 255, 255, 0.5);
         transform: scale(1.25);
     }
 }
@@ -6892,6 +6914,165 @@ code {
 }
 [data-theme="light"] .cev-section--danger {
     background: #fff;
+}
+
+/* ============================================================
+   PROFILE / LEVELING MODAL — Game Center Style
+============================================================ */
+.profile-modal {
+    background: #000 !important;
+    max-width: 420px;
+    padding: 0 !important;
+    overflow: hidden;
+}
+/* Hero banner with gradient */
+.prof-hero {
+    position: relative;
+    background: linear-gradient(135deg, rgba(0, 229, 160, 0.15) 0%, rgba(0, 120, 200, 0.1) 50%, rgba(100, 0, 200, 0.08) 100%);
+    padding: 16px 20px 28px;
+    text-align: center;
+}
+.prof-hero::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 40px;
+    background: linear-gradient(to bottom, transparent, #000);
+}
+.prof-close {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 2;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.prof-close:active { background: rgba(255, 255, 255, 0.2); }
+.prof-hero-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+.prof-avatar-wrap {
+    position: relative;
+    width: 88px;
+    height: 88px;
+}
+.prof-avatar {
+    width: 88px;
+    height: 88px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid rgba(0, 229, 160, 0.4);
+    box-shadow: 0 0 24px rgba(0, 229, 160, 0.2), 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+.prof-lvl-ring {
+    position: absolute;
+    bottom: -4px;
+    right: -4px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #000;
+    font-size: 13px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-num);
+    border: 3px solid #000;
+    box-shadow: 0 2px 8px rgba(0, 229, 160, 0.4);
+}
+.prof-name {
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+    margin-top: 4px;
+}
+.prof-title {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.5);
+    font-weight: 500;
+}
+/* XP Progress */
+.prof-xp-section {
+    padding: 0 24px 20px;
+}
+.prof-xp-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+.prof-xp-next {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+}
+.prof-xp-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: var(--font-num);
+}
+.prof-xp-track {
+    width: 100%;
+    height: 8px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.06);
+    overflow: hidden;
+}
+.prof-xp-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--accent), #5ac8fa);
+    transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+    box-shadow: 0 0 8px rgba(0, 229, 160, 0.3);
+}
+/* Stats grid */
+.prof-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    padding: 0 24px 28px;
+}
+.prof-stat-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 16px 8px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.prof-stat-num {
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+    font-family: var(--font-num);
+    letter-spacing: -0.5px;
+}
+.prof-stat-lbl {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
 }
 
 /* ============================================================
@@ -16933,7 +17114,7 @@ body:has(.act-sheet-mode) .topbar {
 .goal-dash-card {
     flex: 0 0 calc(50% - 6px);
     aspect-ratio: 1;
-    scroll-snap-align: start;
+    scroll-snap-align: none;
     padding: 14px;
     cursor: pointer;
     position: relative;
@@ -16941,6 +17122,28 @@ body:has(.act-sheet-mode) .topbar {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+}
+/* Snap only on every other card (pairs of 2) */
+.goal-dash-card:nth-child(odd) {
+    scroll-snap-align: start;
+}
+/* Pagination dots for goal cards */
+.goal-dash-dots {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    padding-top: 10px;
+}
+.goal-dash-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+.goal-dash-dot.active {
+    background: rgba(255, 255, 255, 0.5);
+    transform: scale(1.15);
 }
 .goal-dash-card::before {
     content: "";

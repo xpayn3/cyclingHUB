@@ -1236,7 +1236,7 @@ function applyAvatar(src) {
     if (sidebarAv) { sidebarAv.innerHTML = img; sidebarAv.style.background = 'none'; }
     if (previewAv) { previewAv.innerHTML = img; previewAv.style.background = 'none'; }
     if (connAv)    { connAv.innerHTML = img; connAv.style.background = 'none'; }
-    if (floatAv)   { floatAv.innerHTML = img; floatAv.style.background = 'none'; }
+    if (floatAv)   { floatAv.innerHTML = img + '<span class="floating-profile-lvl" id="floatingProfileLvl"></span>'; floatAv.style.background = 'none'; }
     if (removeBtn) removeBtn.style.display = hasCustom ? 'inline-flex' : 'none';
   } else {
     // Revert to initials
@@ -1245,7 +1245,7 @@ function applyAvatar(src) {
     if (sidebarAv) { sidebarAv.textContent = initial; sidebarAv.style.background = ''; }
     if (previewAv) { previewAv.textContent = initial; previewAv.style.background = ''; }
     if (connAv)    { connAv.textContent = initial; connAv.style.background = ''; }
-    if (floatAv)   { floatAv.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>'; floatAv.style.background = ''; }
+    if (floatAv)   { floatAv.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/></svg><span class="floating-profile-lvl" id="floatingProfileLvl"></span>'; floatAv.style.background = ''; }
     if (removeBtn) removeBtn.style.display = 'none';
   }
 }
@@ -1394,7 +1394,7 @@ const _iosSubpageNames = {
   dashsections: 'Dashboard Sections', actsections: 'Activity Sections',
   backup: 'Backup & Restore', routebuilder: 'Route Builder',
   share: 'Share CycleIQ', donate: 'Support CycleIQ',
-  defaultrange: 'Default Range'
+  defaultrange: 'Default Range', leveling: 'Leveling'
 };
 
 function openSettingsSubpage(id) {
@@ -1440,6 +1440,12 @@ function openSettingsSubpage(id) {
   }, 180);
 
   window.scrollTo(0, 0);
+
+  // Subpage-specific init
+  if (id === 'leveling') {
+    const dateInput = document.getElementById('xpStartDate');
+    if (dateInput) dateInput.value = localStorage.getItem('icu_xp_start_date') || '';
+  }
 }
 
 function closeSettingsSubpage() {
@@ -1590,6 +1596,13 @@ function updateConnectionUI(connected) {
     av.textContent   = '?';
     const iosName = document.getElementById('iosProfileName');
     if (iosName) iosName.textContent = 'Not Connected';
+  }
+
+  // Update floating profile level badge
+  const floatingLvl = document.getElementById('floatingProfileLvl');
+  if (floatingLvl && state.activities?.length) {
+    const lvlInfo = getLevel(getTotalXP());
+    floatingLvl.textContent = lvlInfo.level;
   }
 
   // Update Import → ICU tab if panel exists
@@ -4100,11 +4113,14 @@ function _initRecentActDots(rail, count) {
       scrollTick = false;
       const cards = rail.querySelectorAll('.hero-act-wrap, .hero-act-card, .recent-act-card');
       if (!cards.length) return;
+      const railRect = rail.getBoundingClientRect();
+      const railCenter = railRect.left + railRect.width * 0.5;
       let closest = 0;
       let minDist = Infinity;
       cards.forEach((c, i) => {
-        const center = c.offsetLeft + c.offsetWidth * 0.5;
-        const dist = Math.abs(center - rail.scrollLeft - rail.offsetWidth * 0.5);
+        const rect = c.getBoundingClientRect();
+        const center = rect.left + rect.width * 0.5;
+        const dist = Math.abs(center - railCenter);
         if (dist < minDist) { minDist = dist; closest = i; }
       });
       dotsWrap.querySelectorAll('.recent-act-dot').forEach((d, i) =>
@@ -12361,6 +12377,8 @@ document.addEventListener('click', e => {
   if (e.target === modal) closeModalAnimated(modal);
   const tpModal = document.getElementById('trainingPlanModal');
   if (e.target === tpModal) closeModalAnimated(tpModal);
+  const profModal = document.getElementById('profileModal');
+  if (e.target === profModal) closeModalAnimated(profModal);
 });
 
 /* ── Custom Form Controls (iOS-style select & date picker) ──────── */
@@ -13777,6 +13795,9 @@ document.addEventListener('keydown', (e) => {
 
   // R → refresh / sync
   if (e.key === 'r') { e.preventDefault(); syncData(true); return; }
+
+  // O → toggle sidebar menu
+  if (e.key === 'o') { e.preventDefault(); toggleSidebar(); return; }
 
   // ? → toggle keyboard shortcut help
   if (e.key === '?') { e.preventDefault(); toggleKbOverlay(); return; }
@@ -21497,6 +21518,117 @@ function getGoalPeriodRange(period) {
   return { start, end, totalDays, elapsed, remaining };
 }
 
+/* ====================================================
+   XP & LEVELING SYSTEM
+==================================================== */
+function computeXP(a) {
+  const dist = actVal(a, 'distance', 'icu_distance') / 1000;
+  const elev = actVal(a, 'total_elevation_gain', 'icu_total_elevation_gain');
+  const mins = actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time') / 60;
+  const tss  = actVal(a, 'icu_training_load', 'tss');
+  return Math.floor(dist) + Math.floor(elev / 50) + Math.floor(mins / 10) + Math.floor(tss / 10) + 5;
+}
+
+function xpForLevel(n) { return Math.floor(100 * Math.pow(n, 1.5)); }
+
+function getTotalXP() {
+  const startDate = localStorage.getItem('icu_xp_start_date') || '2000-01-01';
+  return (state.activities || [])
+    .filter(a => !isEmptyActivity(a) && (a.start_date_local || a.start_date || '') >= startDate)
+    .reduce((sum, a) => sum + computeXP(a), 0);
+}
+
+function getLevel(totalXP) {
+  let lvl = 0, cumulative = 0;
+  while (cumulative + xpForLevel(lvl + 1) <= totalXP) {
+    lvl++;
+    cumulative += xpForLevel(lvl);
+  }
+  return { level: lvl, currentXP: totalXP - cumulative, nextLevelXP: xpForLevel(lvl + 1), totalXP };
+}
+
+function getXPStats() {
+  const startDate = localStorage.getItem('icu_xp_start_date') || '2000-01-01';
+  const acts = (state.activities || []).filter(a => !isEmptyActivity(a) && (a.start_date_local || a.start_date || '') >= startDate);
+  let totalXP = 0, totalDist = 0, totalElev = 0, totalRides = acts.length;
+  acts.forEach(a => {
+    totalXP += computeXP(a);
+    totalDist += actVal(a, 'distance', 'icu_distance') / 1000;
+    totalElev += actVal(a, 'total_elevation_gain', 'icu_total_elevation_gain');
+  });
+  const lvl = getLevel(totalXP);
+  return { ...lvl, totalRides, totalDist: Math.round(totalDist), totalElev: Math.round(totalElev) };
+}
+
+/* ── Profile Modal ── */
+function openProfileModal() {
+  const modal = document.getElementById('profileModal');
+  if (!modal) return;
+
+  const stats = getXPStats();
+
+  // Avatar
+  const avatarEl = document.getElementById('profileAvatar');
+  const existingAvatar = document.querySelector('.floating-profile-btn img');
+  if (avatarEl && existingAvatar) {
+    avatarEl.src = existingAvatar.src;
+  }
+
+  // Name
+  const nameEl = document.getElementById('profileName');
+  if (nameEl) nameEl.textContent = state.athleteName || 'Cyclist';
+
+  // Level badge (number in ring)
+  const badgeEl = document.getElementById('profileLvlBadge');
+  if (badgeEl) badgeEl.textContent = stats.level;
+
+  // Level text
+  const lvlTextEl = document.getElementById('profLevelText');
+  if (lvlTextEl) lvlTextEl.textContent = stats.level;
+
+  // Next level label
+  const nextLvlEl = document.getElementById('profNextLevel');
+  if (nextLvlEl) nextLvlEl.textContent = stats.level + 1;
+
+  // XP bar
+  const barEl = document.getElementById('profileXpBar');
+  const pct = stats.nextLevelXP > 0 ? Math.min((stats.currentXP / stats.nextLevelXP) * 100, 100) : 100;
+  if (barEl) {
+    barEl.style.width = '0%';
+    requestAnimationFrame(() => { barEl.style.width = pct.toFixed(1) + '%'; });
+  }
+
+  // XP label
+  const labelEl = document.getElementById('profileXpLabel');
+  if (labelEl) labelEl.textContent = stats.currentXP.toLocaleString() + ' / ' + stats.nextLevelXP.toLocaleString() + ' XP';
+
+  // Stats
+  // Update floating profile badge too
+  const floatingLvl = document.getElementById('floatingProfileLvl');
+  if (floatingLvl) floatingLvl.textContent = stats.level;
+
+  const setTxt = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  setTxt('profTotalXP', stats.totalXP.toLocaleString());
+  setTxt('profTotalRides', stats.totalRides.toLocaleString());
+  setTxt('profTotalDist', stats.totalDist.toLocaleString());
+  setTxt('profTotalElev', stats.totalElev.toLocaleString());
+
+  _initModalControls();
+  modal.showModal();
+}
+
+function closeProfileModal() {
+  const modal = document.getElementById('profileModal');
+  if (modal) closeModalAnimated(modal);
+}
+
+/* ── XP Settings ── */
+function setXpStartDate(val) {
+  localStorage.setItem('icu_xp_start_date', val);
+  const stats = getXPStats();
+  showToast('Level ' + stats.level + ' — ' + stats.totalXP.toLocaleString() + ' XP from ' + (val || 'all time'), 'success');
+}
+
 function computeGoalProgress(goal) {
   const { start, end, totalDays, elapsed, remaining } = getGoalPeriodRange(goal.period);
   const startStr = toDateStr(start);
@@ -21750,7 +21882,7 @@ function renderGoalsDashWidget() {
       <div class="goal-dash-header">
         <div class="goal-dash-title">${m.label}</div>
         <div class="goal-dash-ring">
-          <svg viewBox="0 0 88 88" width="44" height="44">
+          <svg viewBox="0 0 88 88" width="56" height="56">
             <circle cx="44" cy="44" r="36" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8"/>
             <circle cx="44" cy="44" r="36" fill="none" stroke="${ringColor}" stroke-width="8"
               stroke-linecap="round" stroke-dasharray="${2 * Math.PI * 36}" stroke-dashoffset="${2 * Math.PI * 36 - (pctClamped / 100) * 2 * Math.PI * 36}"
@@ -21768,6 +21900,36 @@ function renderGoalsDashWidget() {
   });
 
   container.innerHTML = html;
+
+  // Add pagination dots if more than 2 goals
+  const totalPages = Math.ceil(goals.length / 2);
+  if (totalPages > 1) {
+    let dotsEl = document.getElementById('goalsDashDots');
+    if (!dotsEl) {
+      dotsEl = document.createElement('div');
+      dotsEl.className = 'goal-dash-dots';
+      dotsEl.id = 'goalsDashDots';
+      container.parentNode.appendChild(dotsEl);
+    }
+    let dotsHtml = '';
+    for (let i = 0; i < totalPages; i++) {
+      dotsHtml += `<div class="goal-dash-dot${i === 0 ? ' active' : ''}"></div>`;
+    }
+    dotsEl.innerHTML = dotsHtml;
+
+    // Update dots on scroll — use first card width × 2 + gap as page size
+    container.addEventListener('scroll', function() {
+      const cards = container.querySelectorAll('.goal-dash-card');
+      if (!cards.length) return;
+      const cardWidth = cards[0].offsetWidth;
+      const gap = 12; // matches CSS gap
+      const pairWidth = cardWidth * 2 + gap;
+      const activePage = Math.round(container.scrollLeft / pairWidth);
+      dotsEl.querySelectorAll('.goal-dash-dot').forEach((d, i) => {
+        d.classList.toggle('active', i === activePage);
+      });
+    }, { passive: true });
+  }
 }
 
 // ========================== COMPARE PAGE FUNCTIONS ==========================
@@ -23307,6 +23469,7 @@ Object.assign(window, {
   renderVitality, toggleDashFab,
   // Calendar create/edit event
   icuPost, icuPut, icuDelete, openCalEventModal, closeCalEventModal, saveCalEvent, deleteCalEvent,
+  openProfileModal, closeProfileModal, setXpStartDate,
   // Head-to-head compare
   setCompareTab, h2hSearch, h2hAddActivity, h2hRemoveActivity,
   // Similar rides & radar

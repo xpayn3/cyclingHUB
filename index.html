@@ -736,6 +736,60 @@
         </dialog>
 
         <!-- ============================================================  SIDEBAR  ============================================================ -->
+        <!-- Profile / Leveling Modal -->
+        <dialog class="modal-dialog" id="profileModal">
+            <div class="modal profile-modal">
+                <div class="modal-drag-indicator"></div>
+                <!-- Hero banner with gradient -->
+                <div class="prof-hero">
+                    <button class="prof-close" onclick="closeProfileModal()" aria-label="Close">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                    <div class="prof-hero-content">
+                        <div class="prof-avatar-wrap">
+                            <img id="profileAvatar" class="prof-avatar" alt="avatar">
+                            <div class="prof-lvl-ring" id="profileLvlBadge">8</div>
+                        </div>
+                        <div class="prof-name" id="profileName">Cyclist</div>
+                        <div class="prof-title">Level <span id="profLevelText">8</span> Cyclist</div>
+                    </div>
+                </div>
+                <!-- XP Progress -->
+                <div class="prof-xp-section">
+                    <div class="prof-xp-header">
+                        <span class="prof-xp-next">Level <span id="profNextLevel">9</span></span>
+                        <span class="prof-xp-label" id="profileXpLabel">988 / 2,700 XP</span>
+                    </div>
+                    <div class="prof-xp-track">
+                        <div class="prof-xp-fill" id="profileXpBar" style="width:0%"></div>
+                    </div>
+                </div>
+                <!-- Stats -->
+                <div class="prof-stats">
+                    <div class="prof-stat-card">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" width="18" height="18"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                        <span class="prof-stat-num" id="profTotalXP">0</span>
+                        <span class="prof-stat-lbl">Total XP</span>
+                    </div>
+                    <div class="prof-stat-card">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#5ac8fa" stroke-width="2" width="18" height="18"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                        <span class="prof-stat-num" id="profTotalRides">0</span>
+                        <span class="prof-stat-lbl">Rides</span>
+                    </div>
+                    <div class="prof-stat-card">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#ff9f0a" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                        <span class="prof-stat-num" id="profTotalDist">0</span>
+                        <span class="prof-stat-lbl">km</span>
+                    </div>
+                    <div class="prof-stat-card">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#bf5af2" stroke-width="2" width="18" height="18"><path d="M3 20l5-10 4 6 3-4 6 8"/></svg>
+                        <span class="prof-stat-num" id="profTotalElev">0</span>
+                        <span class="prof-stat-lbl">m climbed</span>
+                    </div>
+                </div>
+            </div>
+        </dialog>
+
         <div
             class="sidebar-backdrop"
             id="sidebarBackdrop"
@@ -1234,8 +1288,9 @@
                 </div>
                 <!-- Floating top row: profile + date range pill -->
                 <div class="floating-top-row" id="floatingTopRow">
-                    <button class="floating-profile-btn" onclick="toggleSidebar()" aria-label="Profile">
+                    <button class="floating-profile-btn" onclick="openProfileModal()" aria-label="Profile">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>
+                        <span class="floating-profile-lvl" id="floatingProfileLvl"></span>
                     </button>
                 </div>
                 <!-- Floating date range pills (moved from topbar) -->
@@ -4561,6 +4616,11 @@
                             <!-- ABOUT -->
                             <div class="ios-group-label">About</div>
                             <div class="ios-group">
+                                <div class="ios-row" data-nav onclick="openSettingsSubpage('leveling')">
+                                    <div class="ios-row-icon" style="background:#af52de"><svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+                                    <span class="ios-row-label">Leveling</span>
+                                    <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                </div>
                                 <div class="ios-row" data-nav onclick="openSettingsSubpage('share')">
                                     <div class="ios-row-icon" style="background:#007aff"><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></div>
                                     <span class="ios-row-label">Share CycleIQ</span>
@@ -5249,6 +5309,28 @@
                                 </div>
                             </div>
 
+                        </div>
+
+                        <!-- Leveling subpage -->
+                        <div class="ios-subpage" id="iosSubpage-leveling">
+                            <div class="ios-group">
+                                <div class="ios-group-header">XP History</div>
+                                <div class="ios-row">
+                                    <span class="ios-row-label">Count rides from</span>
+                                    <input type="date" id="xpStartDate" class="cev-date" onchange="setXpStartDate(this.value)" style="text-align:right">
+                                </div>
+                            </div>
+                            <div class="ios-group-footer">Only rides after this date count towards your XP and level. Leave empty to count all rides.</div>
+
+                            <div class="ios-group">
+                                <div class="ios-group-header">XP Formula</div>
+                                <div class="ios-row"><span class="ios-row-label">Distance</span><span class="ios-row-value">1 XP / km</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Elevation</span><span class="ios-row-value">1 XP / 50m</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Duration</span><span class="ios-row-value">1 XP / 10 min</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Training Load</span><span class="ios-row-value">1 XP / 10 TSS</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Ride bonus</span><span class="ios-row-value">+5 XP</span></div>
+                            </div>
+                            <div class="ios-group-footer">Level N requires floor(100 × N^1.5) XP. Leveling is infinite.</div>
                         </div>
 
                         <!-- Donate subpage -->
