@@ -2867,6 +2867,9 @@ function setUnits(units) {
   document.querySelectorAll('[data-units]').forEach(btn =>
     btn.classList.toggle('active', btn.dataset.units === units)
   );
+  // Slide toggle pill
+  const unitsPill = document.getElementById('unitsPills');
+  if (unitsPill) unitsPill.dataset.active = units === 'imperial' ? 'light' : 'dark';
   const elevEl = document.getElementById('settingsElevUnit');
   if (elevEl) elevEl.textContent = units === 'imperial' ? 'feet' : 'metres';
   if (state.synced) {
@@ -2910,6 +2913,9 @@ function setWeekStartDay(day) {
   document.querySelectorAll('[data-weekstart]').forEach(btn => {
     btn.classList.toggle('active', parseInt(btn.dataset.weekstart) === day);
   });
+  // Slide toggle pill
+  const weekPill = document.getElementById('weekStartPills');
+  if (weekPill) weekPill.dataset.active = day === 0 ? 'light' : 'dark';
   // Re-render all week-dependent views
   if (state.synced) {
     renderWeekProgress();
@@ -21955,12 +21961,18 @@ function openProfileModal() {
   const lvlLabelEl = document.getElementById('profLevelLabel');
   if (lvlLabelEl) lvlLabelEl.textContent = 'Level ' + stats.level;
 
-  // XP bar
+  // XP bar — use scaleX for GPU acceleration, delay until sheet is open
   const barEl = document.getElementById('profileXpBar');
   const pct = stats.nextLevelXP > 0 ? Math.min((stats.currentXP / stats.nextLevelXP) * 100, 100) : 100;
   if (barEl) {
-    barEl.style.width = '0%';
-    requestAnimationFrame(() => { barEl.style.width = pct.toFixed(1) + '%'; });
+    barEl.classList.remove('prof-xp-animate');
+    barEl.style.width = '100%';
+    barEl.style.transform = 'scaleX(0)';
+    // Delay animation until sheet slide-in completes (~400ms)
+    setTimeout(() => {
+      barEl.classList.add('prof-xp-animate');
+      barEl.style.transform = `scaleX(${(pct / 100).toFixed(4)})`;
+    }, 400);
   }
 
   // XP label

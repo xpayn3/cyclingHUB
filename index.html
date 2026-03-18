@@ -116,7 +116,7 @@
                             <span class="prof-xp-label" id="profileXpLabel">0 / 100 XP</span>
                         </div>
                         <div class="prof-xp-track">
-                            <div class="prof-xp-fill" id="profileXpBar" style="width:0%"></div>
+                            <div class="prof-xp-fill" id="profileXpBar"></div>
                         </div>
                     </div>
                     <!-- Rider Profile Radar -->
@@ -1196,7 +1196,7 @@
                 </button>
                 <div
                     class="athlete-chip"
-                    onclick="openModal()"
+                    onclick="closeSidebar();openModal()"
                     title="Manage connection"
                 >
                     <div class="athlete-avatar" id="athleteAvatar">?</div>
@@ -4525,17 +4525,19 @@
                                 <div class="ios-row">
                                     <div class="ios-row-icon" style="background:#30d158"><svg viewBox="0 0 24 24"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
                                     <span class="ios-row-label">Units</span>
-                                    <div class="date-range-pill" style="transform:scale(0.85);transform-origin:right center">
-                                        <button data-units="metric" onclick="setUnits('metric')">km</button>
-                                        <button data-units="imperial" onclick="setUnits('imperial')">mi</button>
+                                    <div class="theme-toggle" id="unitsPills" style="transform:scale(0.85);transform-origin:right center">
+                                        <div class="theme-toggle-slider"></div>
+                                        <button class="theme-toggle-btn active" data-units="metric" onclick="setUnits('metric')">km</button>
+                                        <button class="theme-toggle-btn" data-units="imperial" onclick="setUnits('imperial')">mi</button>
                                     </div>
                                 </div>
                                 <div class="ios-row">
                                     <div class="ios-row-icon" style="background:#5ac8fa"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
                                     <span class="ios-row-label">Week starts</span>
-                                    <div class="date-range-pill" style="transform:scale(0.85);transform-origin:right center">
-                                        <button data-weekstart="1" onclick="setWeekStartDay(1)" class="active">Mon</button>
-                                        <button data-weekstart="0" onclick="setWeekStartDay(0)">Sun</button>
+                                    <div class="theme-toggle" id="weekStartPills" style="transform:scale(0.85);transform-origin:right center">
+                                        <div class="theme-toggle-slider"></div>
+                                        <button class="theme-toggle-btn active" data-weekstart="1" onclick="setWeekStartDay(1)">Mon</button>
+                                        <button class="theme-toggle-btn" data-weekstart="0" onclick="setWeekStartDay(0)">Sun</button>
                                     </div>
                                 </div>
                                 <div class="ios-row ios-row--nav" onclick="openSettingsSubpage('defaultrange')">
@@ -5347,25 +5349,92 @@
 
                         <!-- Leveling subpage -->
                         <div class="ios-subpage" id="iosSubpage-leveling">
+                            <!-- Hero card -->
+                            <div class="lvl-hero-card">
+                                <div class="lvl-hero-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" width="28" height="28"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                                </div>
+                                <div class="lvl-hero-text">
+                                    <div class="lvl-hero-title">Earn XP. Level Up.</div>
+                                    <div class="lvl-hero-desc">Every ride earns XP based on distance, climbing, duration, intensity, and speed. Longer, harder rides earn exponentially more.</div>
+                                </div>
+                            </div>
+
+                            <!-- XP Per Ride -->
+                            <div class="ios-group-label">XP Per Ride</div>
                             <div class="ios-group">
-                                <div class="ios-group-header">XP History</div>
+                                <div class="ios-row"><span class="ios-row-label">Distance</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">1 XP/km &rarr; 3 XP/km at 150+ km</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Climbing</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">1 XP/40m &rarr; 1 XP/20m at 1500+ m</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Duration</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">1 XP/10min &rarr; 1 XP/6min at 3+ h</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Training Load</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">1 XP/10 TSS &rarr; 1 XP/5 at 250+</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Speed Bonus</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">+3 at 20 &rarr; +25 at 35+ km/h</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Ride Bonus</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">+5 XP per completed ride</span></div>
+                            </div>
+                            <div class="ios-group-footer">Longer, harder, faster rides earn exponentially more XP. A casual 30 km ride earns ~40 XP. An epic 150 km mountain ride earns 350+ XP.</div>
+
+                            <!-- Example Rides -->
+                            <div class="ios-group-label">Example Rides</div>
+                            <div class="ios-group">
+                                <div class="ios-row">
+                                    <div class="ios-row-icon" style="background:#30d158"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></div>
+                                    <span class="ios-row-label">Easy 20 km flat</span><span class="ios-row-value" style="color:var(--accent);font-weight:700">~30 XP</span>
+                                </div>
+                                <div class="ios-row">
+                                    <div class="ios-row-icon" style="background:#5ac8fa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+                                    <span class="ios-row-label">60 km / 500m / 2h</span><span class="ios-row-value" style="color:var(--accent);font-weight:700">~110 XP</span>
+                                </div>
+                                <div class="ios-row">
+                                    <div class="ios-row-icon" style="background:#ff9f0a"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 20l5-10 4 6 3-4 6 8"/></svg></div>
+                                    <span class="ios-row-label">100 km / 1500m / 4h</span><span class="ios-row-value" style="color:var(--accent);font-weight:700">~220 XP</span>
+                                </div>
+                                <div class="ios-row">
+                                    <div class="ios-row-icon" style="background:#ff453a"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+                                    <span class="ios-row-label">200 km / 3000m / 8h</span><span class="ios-row-value" style="color:var(--accent);font-weight:700">~500 XP</span>
+                                </div>
+                            </div>
+
+                            <!-- Leveling Curve -->
+                            <div class="ios-group-label">Leveling Curve</div>
+                            <div class="ios-group">
+                                <div class="ios-row"><span class="ios-row-label">Level 1</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">100 XP (~1 ride)</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Level 5</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">1,118 XP (~10 rides)</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Level 10</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">3,162 XP (~30 rides)</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Level 25</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">12,500 XP (~110 rides)</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Level 50</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">35,355 XP (~315 rides)</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Level 100</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">100,000 XP (~900 rides)</span></div>
+                            </div>
+                            <div class="ios-group-footer">Level N requires floor(100 &times; N^1.5) XP. Leveling is infinite — there is no cap.</div>
+
+                            <!-- Rank Titles -->
+                            <div class="ios-group-label">Rank Titles</div>
+                            <div class="ios-group">
+                                <div class="ios-row"><span class="ios-row-label">LVL 0</span><span class="ios-row-value" style="font-size:13px">Newbie</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 2</span><span class="ios-row-value" style="font-size:13px">Pedal Pusher</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 4</span><span class="ios-row-value" style="font-size:13px">Road Rookie</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 6</span><span class="ios-row-value" style="font-size:13px">Chain Breaker</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 8</span><span class="ios-row-value" style="font-size:13px">Hill Hunter</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 10</span><span class="ios-row-value" style="font-size:13px">Saddle Veteran</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 13</span><span class="ios-row-value" style="font-size:13px">Peloton Force</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 16</span><span class="ios-row-value" style="font-size:13px">Breakaway Artist</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 20</span><span class="ios-row-value" style="font-size:13px">Summit Chaser</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 25</span><span class="ios-row-value" style="font-size:13px">Iron Legs</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 30</span><span class="ios-row-value" style="font-size:13px">Domestique Elite</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 40</span><span class="ios-row-value" style="font-size:13px">Grand Tour Rider</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 50</span><span class="ios-row-value" style="font-size:13px">Mountain King</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 65</span><span class="ios-row-value" style="font-size:13px">Yellow Jersey</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 80</span><span class="ios-row-value" style="font-size:13px">Living Legend</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 100</span><span class="ios-row-value" style="font-size:13px">Cycling God</span></div>
+                            </div>
+
+                            <!-- Settings -->
+                            <div class="ios-group-label">Settings</div>
+                            <div class="ios-group">
                                 <div class="ios-row">
                                     <span class="ios-row-label">Count rides from</span>
                                     <input type="date" id="xpStartDate" class="cev-date" onchange="setXpStartDate(this.value)" style="text-align:right">
                                 </div>
                             </div>
                             <div class="ios-group-footer">Only rides after this date count towards your XP and level. Leave empty to count all rides.</div>
-
-                            <div class="ios-group">
-                                <div class="ios-group-header">XP Formula (Tiered)</div>
-                                <div class="ios-row"><span class="ios-row-label">Distance</span><span class="ios-row-value">1→3 XP/km</span></div>
-                                <div class="ios-row"><span class="ios-row-label">Elevation</span><span class="ios-row-value">1/40→1/20m</span></div>
-                                <div class="ios-row"><span class="ios-row-label">Duration</span><span class="ios-row-value">1/10→1/6 min</span></div>
-                                <div class="ios-row"><span class="ios-row-label">Training Load</span><span class="ios-row-value">1/10→1/5 TSS</span></div>
-                                <div class="ios-row"><span class="ios-row-label">Speed bonus</span><span class="ios-row-value">3→25 XP</span></div>
-                                <div class="ios-row"><span class="ios-row-label">Ride bonus</span><span class="ios-row-value">+5 XP</span></div>
-                            </div>
-                            <div class="ios-group-footer">Longer, harder, faster rides earn exponentially more XP. Level N requires floor(100 × N^1.5) XP.</div>
                         </div>
 
                         <!-- Donate subpage -->
