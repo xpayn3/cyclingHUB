@@ -20035,7 +20035,9 @@ html[data-theme="light"] {
     .rb-poi-filter { left: 8px; top: auto; bottom: 8px; max-width: calc(100% - 16px); flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .rb-poi-filter::-webkit-scrollbar { display: none; }
     .rb-search-float { left: 10px; top: calc(env(safe-area-inset-top, 10px) + 10px); }
-    .rb-search-input { width: 160px; padding: 0 10px 0 36px; font-size: 16px; height: 44px; }
+    .rb-search-input { width: 100%; padding: 0 10px 0 36px; font-size: 16px; height: 44px; }
+    .rb-search-float { right: 10px; }
+    .rb-search-wrap { flex: 1; min-width: 0; }
     .rb-router-trigger span { display: none; }
     .rb-router-trigger { padding: 6px 8px; gap: 4px; }
     .rb-router-chevron { display: none; }
