@@ -631,6 +631,15 @@ export function _rbInitMap() {
         _rbToggleTerrain);
       terrBtn.id = 'rbTerrainBtn';
 
+      // ── Map info / attribution button ──
+      const infoBtn = mkBtn('', 'Map information',
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
+        () => {
+          const attr = _rb.map?.getContainer()?.querySelector('.maplibregl-ctrl-attrib');
+          if (attr) { attr.classList.toggle('maplibregl-compact-show'); }
+        });
+      infoBtn.id = 'rbInfoBtn';
+
       // Separator before fullscreen
       const sep2 = document.createElement('div');
       sep2.className = 'rb-map-tool-sep';
