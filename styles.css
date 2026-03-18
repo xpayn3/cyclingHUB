@@ -17029,10 +17029,17 @@ body:has(.act-sheet-mode) .topbar {
     justify-content: space-between;
     gap: 6px;
 }
+.goal-dash-pct {
+    font-size: 13px;
+    font-weight: 700;
+    color: #ffffff;
+    font-family: var(--font-num);
+}
 .goal-dash-days {
     font-size: 11px;
     color: var(--text-muted);
     font-family: var(--font-num);
+    margin-left: auto;
 }
 
 /* Responsive */

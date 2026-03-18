@@ -21745,17 +21745,17 @@ function renderGoalsDashWidget() {
           <div class="goal-dash-value">${m.fmt(p.current)}<span class="goal-dash-unit"> / ${m.fmt(p.target)} ${m.unit}</span></div>
         </div>
         <div class="goal-dash-ring">
-          <svg viewBox="0 0 88 88" width="56" height="56">
-            <circle cx="44" cy="44" r="38" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="5"/>
-            <circle cx="44" cy="44" r="38" fill="none" stroke="${ringColor}" stroke-width="5"
-              stroke-linecap="round" stroke-dasharray="${circumference}" stroke-dashoffset="${dashOffset}"
+          <svg viewBox="0 0 88 88" width="48" height="48">
+            <circle cx="44" cy="44" r="36" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8"/>
+            <circle cx="44" cy="44" r="36" fill="none" stroke="${ringColor}" stroke-width="8"
+              stroke-linecap="round" stroke-dasharray="${2 * Math.PI * 36}" stroke-dashoffset="${2 * Math.PI * 36 - (pctClamped / 100) * 2 * Math.PI * 36}"
               transform="rotate(-90 44 44)" style="transition:stroke-dashoffset 0.6s ease"/>
-            <text x="44" y="48" text-anchor="middle" fill="#fff" font-size="16" font-weight="700" font-family="var(--font-num)">${Math.round(pctClamped)}%</text>
           </svg>
         </div>
       </div>
       <div class="goal-dash-footer">
         <span class="goal-progress-badge goal-progress-badge--${statusCls[p.status]}">${statusLabel[p.status]}</span>
+        <span class="goal-dash-pct">${Math.round(pctClamped)}%</span>
         <span class="goal-dash-days">${p.remaining}d left</span>
       </div>
     </div>`;
