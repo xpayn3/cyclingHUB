@@ -14049,9 +14049,16 @@ function createSheetController(config) {
     if (!s.directionLocked) {
       if (absDy < 8) return;
       s.directionLocked = true;
-      if (s.state === 'expanded' && !s.touchOnHandle) {
-        if (dy > 0 && s.scroll.scrollTop <= 1) { s.tracking = true; }
-        else { s.tracking = false; return; }
+      if (!s.touchOnHandle) {
+        const scrollable = s.scroll.scrollHeight > s.scroll.clientHeight + 1;
+        if (s.state === 'expanded') {
+          // Expanded: only drag if scrolled to top and pulling down
+          if (dy > 0 && s.scroll.scrollTop <= 1) { s.tracking = true; }
+          else { s.tracking = false; return; }
+        } else if (s.state === 'peek' && scrollable && dy < 0) {
+          // Peek with scrollable content + swiping up: let content scroll
+          s.tracking = false; return;
+        } else { s.tracking = true; }
       } else { s.tracking = true; }
       s.el.classList.add('dragging');
     }

@@ -8878,8 +8878,8 @@ body:has(.act-sheet-mode) .topbar {
                 border-color 0.3s ease;
 }
 .act-sheet-mode #flythroughBar .ft-play-btn {
-    width: 48px;
-    height: 48px;
+    width: 64px;
+    height: 64px;
     flex-shrink: 0;
 }
 .act-sheet-mode #flythroughBar.ft-expanded {
