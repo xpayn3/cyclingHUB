@@ -11973,8 +11973,10 @@ function closeModalAnimated(dialog) {
 
   // Get current drag position for smooth dismiss continuation
   const ct = inner.style.transform;
-  const match = ct && ct.match(/translateY\((\d+)/);
-  inner.style.setProperty('--sheet-dy', match ? `${match[1]}px` : '0px');
+  const matchTY = ct && ct.match(/translateY\((\d+)/);
+  const match3D = ct && ct.match(/translate3d\(\s*[^,]+,\s*(\d+)/);
+  const dyVal = (matchTY && matchTY[1]) || (match3D && match3D[1]) || '0';
+  inner.style.setProperty('--sheet-dy', dyVal + 'px');
 
   // Atomic class swap: set the dismiss animation in one className write
   // to prevent any frame where sheet-enter could replay
