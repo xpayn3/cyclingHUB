@@ -16987,30 +16987,21 @@ body:has(.act-sheet-mode) .topbar {
     opacity: 1;
 }
 
-.goal-dash-row {
+.goal-dash-header {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
     gap: 8px;
 }
-.goal-dash-text {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    align-self: stretch;
-}
 .goal-dash-title {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
-    color: var(--text-secondary);
+    color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.3px;
-    margin-bottom: 6px;
 }
 .goal-dash-value {
-    font-size: 20px;
+    font-size: 24px;
     font-weight: 700;
     color: #ffffff;
     font-family: var(--font-num);

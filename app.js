@@ -21747,13 +21747,10 @@ function renderGoalsDashWidget() {
 
     html += `
     <div class="goal-dash-card card" onclick="navigate('goals')">
-      <div class="goal-dash-row">
-        <div class="goal-dash-text">
-          <div class="goal-dash-title">${m.label}</div>
-          <div class="goal-dash-value">${m.fmt(p.current)}<span class="goal-dash-unit"> / ${m.fmt(p.target)} ${m.unit}</span></div>
-        </div>
+      <div class="goal-dash-header">
+        <div class="goal-dash-title">${m.label}</div>
         <div class="goal-dash-ring">
-          <svg viewBox="0 0 88 88" width="48" height="48">
+          <svg viewBox="0 0 88 88" width="44" height="44">
             <circle cx="44" cy="44" r="36" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8"/>
             <circle cx="44" cy="44" r="36" fill="none" stroke="${ringColor}" stroke-width="8"
               stroke-linecap="round" stroke-dasharray="${2 * Math.PI * 36}" stroke-dashoffset="${2 * Math.PI * 36 - (pctClamped / 100) * 2 * Math.PI * 36}"
@@ -21762,6 +21759,7 @@ function renderGoalsDashWidget() {
           </svg>
         </div>
       </div>
+      <div class="goal-dash-value">${m.fmt(p.current)}<span class="goal-dash-unit"> / ${m.fmt(p.target)} ${m.unit}</span></div>
       <div class="goal-dash-footer">
         <span class="goal-progress-badge goal-progress-badge--${statusCls[p.status]}">${statusLabel[p.status]}</span>
         <span class="goal-dash-days">${p.remaining}d left</span>
