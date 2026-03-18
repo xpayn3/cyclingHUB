@@ -2302,9 +2302,11 @@ function navigate(page) {
   const _calFab = document.getElementById('calFab');
   const _actFab = document.getElementById('actSearchFab');
   const _dashFab = document.getElementById('dashRouteFab');
+  const _saveRouteFab = document.getElementById('actSaveRouteFab');
   if (_calFab)  { _calFab.style.visibility  = page === 'calendar'   ? '' : 'hidden'; _calFab.style.pointerEvents  = page === 'calendar'   ? '' : 'none'; }
   if (_actFab)  { _actFab.style.visibility  = page === 'activities' ? '' : 'hidden'; _actFab.style.pointerEvents  = page === 'activities' ? '' : 'none'; }
   if (_dashFab) { _dashFab.style.visibility = page === 'dashboard'  ? '' : 'hidden'; _dashFab.style.pointerEvents = page === 'dashboard'  ? '' : 'none'; }
+  if (_saveRouteFab) { _saveRouteFab.style.visibility = 'hidden'; _saveRouteFab.style.pointerEvents = 'none'; }
   document.querySelectorAll('.dash-pill-btn').forEach(btn => {
     const lbl = btn.querySelector('span')?.textContent?.toLowerCase() || '';
     const match = lbl === page || (lbl === 'home' && page === 'dashboard');
@@ -13478,6 +13480,12 @@ async function navigateToActivity(actKey, fromStep = false) {
   document.querySelector('.page-headline')?.classList.add('page-headline--hidden');
   if (pageContent) pageContent.classList.remove('page-content--calendar');
 
+  // Hide search FAB, show save-route FAB on activity view
+  const _actFabDet = document.getElementById('actSearchFab');
+  if (_actFabDet) { _actFabDet.style.visibility = 'hidden'; _actFabDet.style.pointerEvents = 'none'; }
+  const _saveRouteFabDet = document.getElementById('actSaveRouteFab');
+  if (_saveRouteFabDet) { _saveRouteFabDet.style.visibility = ''; _saveRouteFabDet.style.pointerEvents = ''; }
+
   // Show the activity page
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -15589,6 +15597,54 @@ function renderDetailExport(a) {
 
   buttonsEl.innerHTML = buttons.join('');
   buttonsEl.style.display = '';
+}
+
+// ── Save activity route to library ─────────────────────────────────────────
+function saveActivityRoute() {
+  const act = state.currentActivity;
+  if (!act) { showToast('No activity loaded', 'error'); return; }
+  const actId = act.id;
+  const name = act.name || 'Unnamed Route';
+
+  // Download GPX and save to route library
+  const url = ICU_BASE + `/activity/${actId}/file.gpx`;
+  fetch(url, { headers: { Authorization: 'Basic ' + btoa('API_KEY:' + state.apiKey) } })
+    .then(r => { if (!r.ok) throw new Error('Failed'); return r.blob(); })
+    .then(blob => {
+      // Save to localStorage route library
+      const reader = new FileReader();
+      reader.onload = function() {
+        const routes = JSON.parse(localStorage.getItem('icu_saved_routes') || '[]');
+        routes.push({
+          id: actId,
+          name: name,
+          date: new Date().toISOString(),
+          distance: act.distance || 0,
+          elevation: act.total_elevation_gain || 0,
+          gpx: reader.result
+        });
+        localStorage.setItem('icu_saved_routes', JSON.stringify(routes));
+        showToast('Route "' + name + '" saved to library', 'success');
+      };
+      reader.readAsDataURL(blob);
+    })
+    .catch(() => {
+      // Fallback: save metadata only (no GPX)
+      const routes = JSON.parse(localStorage.getItem('icu_saved_routes') || '[]');
+      if (routes.some(r => r.id === actId)) {
+        showToast('Route already saved', 'info');
+        return;
+      }
+      routes.push({
+        id: actId,
+        name: name,
+        date: new Date().toISOString(),
+        distance: act.distance || 0,
+        elevation: act.total_elevation_gain || 0
+      });
+      localStorage.setItem('icu_saved_routes', JSON.stringify(routes));
+      showToast('Route "' + name + '" saved to library', 'success');
+    });
 }
 
 // ── Download functions ─────────────────────────────────────────────────────
@@ -23290,7 +23346,7 @@ Object.assign(window, {
   chargeBattery, reactivateBattery, deleteBatteryPermanent, retireBattery,
   editServiceShop, deleteServiceShop, openServiceHistory, deleteServiceFromHistory,
   // Activity detail
-  selectCalDay, downloadActivityFile, downloadFITFile, downloadGPXFile,
+  selectCalDay, downloadActivityFile, downloadFITFile, downloadGPXFile, saveActivityRoute,
   toggleStreamLayer,
   // Goals
   goalNumStep, hideGoalForm, submitGoalForm, showGoalForm, deleteGoal,
