@@ -1961,6 +1961,20 @@ document.addEventListener('DOMContentLoaded', () => {
   if (bd) {
     bd.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
   }
+  // Pill nav bounce on button tap
+  const pillNav = document.getElementById('dashPillNav');
+  if (pillNav) {
+    pillNav.addEventListener('click', function(e) {
+      if (e.target.closest('.dash-pill-btn')) {
+        pillNav.classList.remove('pill-bounce');
+        void pillNav.offsetWidth; // force reflow to restart animation
+        pillNav.classList.add('pill-bounce');
+      }
+    });
+    pillNav.addEventListener('animationend', function() {
+      pillNav.classList.remove('pill-bounce');
+    });
+  }
 });
 
 /* ====================================================
