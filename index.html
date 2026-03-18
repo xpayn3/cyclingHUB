@@ -90,50 +90,69 @@
         <div class="prof-overlay" id="profileOverlay" style="display:none">
             <div class="prof-overlay-backdrop" onclick="closeProfileModal()"></div>
             <div class="prof-sheet" id="profileSheet">
-                <div class="prof-hero">
-                    <div class="prof-grabber"></div>
+                <div class="prof-grabber"></div>
+                <!-- Sticky compact header (shown on scroll) -->
+                <div class="prof-sticky-hdr" id="profStickyHdr">
                     <button class="prof-close" onclick="closeProfileModal()" aria-label="Close">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                     </button>
-                    <div class="prof-hero-content">
-                        <div class="prof-avatar-wrap">
-                            <img id="profileAvatar" class="prof-avatar" alt="avatar">
-                            <div class="prof-lvl-ring" id="profileLvlBadge">8</div>
+                    <img class="prof-sticky-avatar" id="profStickyAvatar" alt="">
+                    <span class="prof-sticky-name" id="profStickyName">Cyclist</span>
+                    <span class="prof-sticky-lvl" id="profStickyLvl">11</span>
+                </div>
+                <!-- Scrollable content -->
+                <div class="prof-scroll" id="profScroll">
+                    <div class="prof-hero">
+                        <button class="prof-close prof-close--hero" onclick="closeProfileModal()" aria-label="Close" id="profHeroClose">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
+                        <div class="prof-hero-content">
+                            <div class="prof-avatar-wrap">
+                                <img id="profileAvatar" class="prof-avatar" alt="avatar">
+                                <div class="prof-lvl-ring" id="profileLvlBadge">8</div>
+                            </div>
+                            <div class="prof-name" id="profileName">Cyclist</div>
                         </div>
-                        <div class="prof-name" id="profileName">Cyclist</div>
-                        <div class="prof-title">Level <span id="profLevelText">8</span> Cyclist</div>
                     </div>
-                </div>
-                <div class="prof-xp-section">
-                    <div class="prof-xp-header">
-                        <span class="prof-xp-next">Level <span id="profNextLevel">9</span></span>
-                        <span class="prof-xp-label" id="profileXpLabel">0 / 100 XP</span>
+                    <div class="prof-xp-section">
+                        <div class="prof-xp-header">
+                            <span class="prof-xp-next" id="profLevelLabel">Level 0</span>
+                            <span class="prof-xp-label" id="profileXpLabel">0 / 100 XP</span>
+                        </div>
+                        <div class="prof-xp-track">
+                            <div class="prof-xp-fill" id="profileXpBar" style="width:0%"></div>
+                        </div>
                     </div>
-                    <div class="prof-xp-track">
-                        <div class="prof-xp-fill" id="profileXpBar" style="width:0%"></div>
+                    <!-- Rider Profile Radar -->
+                    <div class="prof-radar-section">
+                        <div class="prof-radar-title">Rider Profile</div>
+                        <div class="prof-radar-wrap">
+                            <canvas id="profRadarChart" width="280" height="280"></canvas>
+                        </div>
                     </div>
-                </div>
-                <div class="prof-stats">
-                    <div class="prof-stat-card">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" width="18" height="18"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                        <span class="prof-stat-num" id="profTotalXP">0</span>
-                        <span class="prof-stat-lbl">Total XP</span>
+                    <div class="prof-stats">
+                        <div class="prof-stat-card">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" width="18" height="18"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                            <span class="prof-stat-num" id="profTotalXP">0</span>
+                            <span class="prof-stat-lbl">Total XP</span>
+                        </div>
+                        <div class="prof-stat-card">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#5ac8fa" stroke-width="2" width="18" height="18"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                            <span class="prof-stat-num" id="profTotalRides">0</span>
+                            <span class="prof-stat-lbl">Rides</span>
+                        </div>
+                        <div class="prof-stat-card">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#ff9f0a" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                            <span class="prof-stat-num" id="profTotalDist">0</span>
+                            <span class="prof-stat-lbl">km</span>
+                        </div>
+                        <div class="prof-stat-card">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#bf5af2" stroke-width="2" width="18" height="18"><path d="M3 20l5-10 4 6 3-4 6 8"/></svg>
+                            <span class="prof-stat-num" id="profTotalElev">0</span>
+                            <span class="prof-stat-lbl">m climbed</span>
+                        </div>
                     </div>
-                    <div class="prof-stat-card">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="#5ac8fa" stroke-width="2" width="18" height="18"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                        <span class="prof-stat-num" id="profTotalRides">0</span>
-                        <span class="prof-stat-lbl">Rides</span>
-                    </div>
-                    <div class="prof-stat-card">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="#ff9f0a" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-                        <span class="prof-stat-num" id="profTotalDist">0</span>
-                        <span class="prof-stat-lbl">km</span>
-                    </div>
-                    <div class="prof-stat-card">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="#bf5af2" stroke-width="2" width="18" height="18"><path d="M3 20l5-10 4 6 3-4 6 8"/></svg>
-                        <span class="prof-stat-num" id="profTotalElev">0</span>
-                        <span class="prof-stat-lbl">m climbed</span>
-                    </div>
+                    <div style="height:20px"></div>
                 </div>
             </div>
         </div>
@@ -2931,6 +2950,19 @@
                         </div>
                         <div class="chart-wrap" style="height: 220px">
                             <canvas id="detailGradientChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- 3D Elevation Profile -->
+                    <div class="card" id="detail3DElevCard" style="display: none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20l5-10 4 6 3-4 6 8H3z"/><circle cx="17" cy="5" r="3"/></svg>3D Elevation</div>
+                                <div class="card-subtitle" id="detail3DElevSubtitle">Perspective elevation profile · gradient colour-coded</div>
+                            </div>
+                        </div>
+                        <div class="elevation-3d-wrap">
+                            <canvas id="detail3DElevCanvas"></canvas>
                         </div>
                     </div>
 

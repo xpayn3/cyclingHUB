@@ -13722,6 +13722,7 @@ async function navigateToActivity(actKey, fromStep = false) {
     renderDetailHistogram(richActivity, normStreams);
     renderDetailTempChart(normStreams, richActivity);
     renderDetailGradientProfile(normStreams, richActivity);
+    render3DElevation(normStreams, richActivity);
     renderClimbDetection(normStreams, richActivity);
     renderDetailCadenceHist(normStreams, richActivity);
     renderDetailCurve(actId, normStreams);   // async — shows/hides its own card
@@ -14304,7 +14305,7 @@ const _DETAIL_CARD_IDS = [
   'detailMapCard', 'detailStreamsCard', 'detailChartsRow', 'detailZonesCard', 'detailHRZonesCard',
   'detailHistogramCard', 'detailCurveCard', 'detailHRCurveCard', 'detailPerfCard',
   'detailWeatherCard', 'detailTempCard', 'detailDecoupleCard', 'detailLRBalanceCard',
-  'detailGradientCard', 'detailClimbsCard', 'detailCadenceCard', 'detailCompareCard',
+  'detailGradientCard', 'detail3DElevCard', 'detailClimbsCard', 'detailCadenceCard', 'detailCompareCard',
   'detailZonesCarouselCard', 'detailCurvesRow', 'detailIntervalsCard', 'detailLapSplitsCard', 'detailNotesCard'];
 
 function skeletonCards(show) {
@@ -18457,6 +18458,311 @@ function renderDetailGradientProfile(streams, activity) {
   );
 }
 
+// ── 3D Elevation Profile ────────────────────────────────────────────────────
+function render3DElevation(streams, activity) {
+  const card   = document.getElementById('detail3DElevCard');
+  const canvas = document.getElementById('detail3DElevCanvas');
+  if (!card || !canvas) return;
+
+  const alt    = streams?.altitude;
+  const dist   = streams?.distance;
+  const latlng = streams?.latlng;
+  if (!Array.isArray(alt) || !Array.isArray(dist) || alt.length < 10) {
+    card.style.display = 'none'; return;
+  }
+
+  // Subtitle
+  const sub = document.getElementById('detail3DElevSubtitle');
+  if (sub) {
+    const totalElev = activity?.total_elevation_gain || activity?.icu_total_elevation_gain;
+    const totalKm   = (dist[dist.length - 1] / 1000).toFixed(1);
+    sub.textContent = `${totalKm} km${totalElev ? ` \u00b7 +${Math.round(totalElev)}m` : ''} \u00b7 gradient colour-coded`;
+  }
+
+  card.style.display = '';
+  unskeletonCard('detail3DElevCard');
+
+  // Defer rendering to next frame so the card has layout dimensions
+  requestAnimationFrame(() => _draw3DElev(canvas, alt, dist, activity, latlng));
+}
+
+function _draw3DElev(canvas, alt, dist, activity, latlng) {
+  if (!canvas.parentElement) return;
+  // Retry if container has no width yet (card not visible)
+  const parentW = canvas.parentElement.getBoundingClientRect().width;
+  if (parentW < 10) {
+    setTimeout(() => _draw3DElev(canvas, alt, dist, activity, latlng), 100);
+    return;
+  }
+
+  // ── Downsample to ~800 points max ──
+  const N    = alt.length;
+  const step = Math.max(1, Math.floor(N / 800));
+  const aDS  = [], dDS = [], llDS = [];
+  const hasLL = Array.isArray(latlng) && latlng.length === N;
+  for (let i = 0; i < N; i += step) {
+    aDS.push(alt[i]);
+    dDS.push(dist[i]);
+    if (hasLL) llDS.push(latlng[i]);
+  }
+  if (dDS[dDS.length - 1] !== dist[N - 1]) {
+    aDS.push(alt[N - 1]);
+    dDS.push(dist[N - 1]);
+    if (hasLL) llDS.push(latlng[N - 1]);
+  }
+  const len = aDS.length;
+
+  // If no latlng data, fall back to a straight left-to-right line
+  // by synthesising fake XY coords from distance
+  let routeX, routeY;
+  // Filter out null/undefined latlng entries
+  const validLL = hasLL && llDS.length === len && llDS.every(p => p && p[0] != null && p[1] != null);
+  if (validLL) {
+    const midLat = llDS[Math.floor(len / 2)][0];
+    const cosLat = Math.cos(midLat * Math.PI / 180);
+    routeX = llDS.map(p => (p[1] - llDS[0][1]) * cosLat * 111320); // convert to meters
+    routeY = llDS.map(p => (p[0] - llDS[0][0]) * 111320);
+  } else {
+    // Fallback: straight line from distance
+    routeX = dDS.map(d => d - dDS[0]);
+    routeY = new Array(len).fill(0);
+  }
+
+  // ── Canvas setup (high-DPI) ──
+  const dpr  = window.devicePixelRatio || 1;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const cW   = rect.width;
+  const cH   = rect.height || 280;
+  canvas.width  = cW * dpr;
+  canvas.height = cH * dpr;
+  canvas.style.width  = cW + 'px';
+  canvas.style.height = cH + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, cW, cH);
+
+  // ── Data ranges ──
+  const minAlt   = Math.min(...aDS);
+  const maxAlt   = Math.max(...aDS);
+  const altRange = Math.max(maxAlt - minAlt, 1);
+
+  // ── Auto-rotate to best viewing angle ──
+  // Find the principal axis of the route and rotate so it stretches left-right
+  let sumX = 0, sumY = 0;
+  for (let i = 0; i < len; i++) { sumX += routeX[i]; sumY += routeY[i]; }
+  const cxR = sumX / len, cyR = sumY / len;
+  // PCA-lite: find angle of max variance
+  let sxx = 0, sxy = 0, syy = 0;
+  for (let i = 0; i < len; i++) {
+    const dx = routeX[i] - cxR, dy = routeY[i] - cyR;
+    sxx += dx * dx; sxy += dx * dy; syy += dy * dy;
+  }
+  let autoAngle = 0.5 * Math.atan2(2 * sxy, sxx - syy);
+  // Rotate so principal axis is horizontal
+  const cosA = Math.cos(-autoAngle), sinA = Math.sin(-autoAngle);
+  const rxArr = [], ryArr = [];
+  for (let i = 0; i < len; i++) {
+    const dx = routeX[i] - cxR, dy = routeY[i] - cyR;
+    rxArr.push(dx * cosA - dy * sinA);
+    ryArr.push(dx * sinA + dy * cosA);
+  }
+  // Ensure route generally goes left-to-right (flip if needed)
+  if (rxArr[len - 1] < rxArr[0]) {
+    for (let i = 0; i < len; i++) { rxArr[i] = -rxArr[i]; ryArr[i] = -ryArr[i]; }
+  }
+
+  // ── Bounding box of rotated route ──
+  let minRX = Infinity, maxRX = -Infinity, minRY = Infinity, maxRY = -Infinity;
+  for (let i = 0; i < len; i++) {
+    if (rxArr[i] < minRX) minRX = rxArr[i];
+    if (rxArr[i] > maxRX) maxRX = rxArr[i];
+    if (ryArr[i] < minRY) minRY = ryArr[i];
+    if (ryArr[i] > maxRY) maxRY = ryArr[i];
+  }
+  const rangeRX = maxRX - minRX || 1;
+  const rangeRY = maxRY - minRY || 1;
+
+  // ── 3D projection parameters ──
+  const pad    = 40;
+  const plotW  = cW - pad * 2;
+  const plotH  = cH - pad * 2;
+  const elevH  = plotH * 0.35;                // max height of extrusion in screen px
+  const elevScale = elevH / altRange * 2.5;   // exaggeration ~2.5x
+
+  // Tilt angle (60° from horizontal = looking down at 30°)
+  const tiltDeg  = 60;
+  const tiltRad  = tiltDeg * Math.PI / 180;
+  const cosTilt  = Math.cos(tiltRad);
+  const sinTilt  = Math.sin(tiltRad);
+
+  // Scale route to fit in view, accounting for tilt compressing Y axis
+  const effectiveYRange = rangeRY * cosTilt + (altRange * elevScale / plotH) * sinTilt;
+  const scaleX = plotW / rangeRX;
+  const scaleY = plotW / (effectiveYRange || 1); // use same proportional scaling
+  const scale  = Math.min(scaleX, scaleY) * 0.75;
+
+  // Project 3D point (routeX, routeY, elevation) to 2D screen
+  function project(rx, ry, elev) {
+    const nx = (rx - minRX - rangeRX / 2) * scale;
+    const ny = (ry - minRY - rangeRY / 2) * scale;
+    const nz = (elev - minAlt) * elevScale * scale / plotW;
+    // Apply tilt: rotate around X axis
+    const py = ny * cosTilt - nz * sinTilt * plotW;
+    const pz = ny * sinTilt + nz * cosTilt * plotW;
+    // Screen coords (centred)
+    const sx = cW / 2 + nx;
+    const sy = cH / 2 - py * 0.8 + plotH * 0.15;
+    return { x: sx, y: sy, depth: pz };
+  }
+
+  // ── Build segment data with depth for painter's algorithm ──
+  function gradeColor(grade) {
+    if (grade < -7)  return '#0a84ff';
+    if (grade < -3)  return '#30d158';
+    if (grade < 3)   return '#30d158';
+    if (grade < 7)   return '#ffd60a';
+    if (grade < 12)  return '#ff9f0a';
+    return '#ff453a';
+  }
+
+  function darkenColor(hex, factor) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgb(${Math.round(r * factor)},${Math.round(g * factor)},${Math.round(b * factor)})`;
+  }
+
+  const segments = [];
+  for (let i = 0; i < len - 1; i++) {
+    const dDist = dDS[i + 1] - dDS[i];
+    const grade = dDist > 0 ? ((aDS[i + 1] - aDS[i]) / dDist) * 100 : 0;
+    const col   = gradeColor(grade);
+
+    const topA   = project(rxArr[i],     ryArr[i],     aDS[i]);
+    const topB   = project(rxArr[i + 1], ryArr[i + 1], aDS[i + 1]);
+    const botA   = project(rxArr[i],     ryArr[i],     minAlt);
+    const botB   = project(rxArr[i + 1], ryArr[i + 1], minAlt);
+
+    // Average depth for sorting (farther = higher depth = draw first)
+    const avgDepth = (topA.depth + topB.depth + botA.depth + botB.depth) / 4;
+
+    segments.push({
+      topA, topB, botA, botB,
+      col, grade, avgDepth, idx: i
+    });
+  }
+
+  // Painter's algorithm: sort back to front (lower depth = farther = draw first)
+  segments.sort((a, b) => a.avgDepth - b.avgDepth);
+
+  // ── Draw wall segments ──
+  for (const seg of segments) {
+    const { topA, topB, botA, botB, col } = seg;
+
+    // Determine which side faces the viewer for shading
+    // Cross product of wall normal to decide front vs back face
+    const edgeX = topB.x - topA.x;
+    const edgeY = topB.y - topA.y;
+    const wallX = botA.x - topA.x;
+    const wallY = botA.y - topA.y;
+    const cross = edgeX * wallY - edgeY * wallX;
+    const shadeFactor = cross > 0 ? 0.5 : 0.75;
+
+    // Draw filled wall quad
+    ctx.beginPath();
+    ctx.moveTo(topA.x, topA.y);
+    ctx.lineTo(topB.x, topB.y);
+    ctx.lineTo(botB.x, botB.y);
+    ctx.lineTo(botA.x, botA.y);
+    ctx.closePath();
+
+    // Vertical gradient: full colour at top, darker towards ground
+    const minY = Math.min(topA.y, topB.y);
+    const maxY = Math.max(botA.y, botB.y);
+    const wallGrad = ctx.createLinearGradient(0, minY, 0, maxY);
+    wallGrad.addColorStop(0, darkenColor(col, shadeFactor + 0.25));
+    wallGrad.addColorStop(1, darkenColor(col, shadeFactor * 0.35));
+    ctx.fillStyle = wallGrad;
+    ctx.fill();
+
+    // Subtle edge line between segments for definition
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+  }
+
+  // ── Draw top ridge line (elevation profile edge) ──
+  // Re-project in original order for the ridge line
+  ctx.beginPath();
+  const firstTop = project(rxArr[0], ryArr[0], aDS[0]);
+  ctx.moveTo(firstTop.x, firstTop.y);
+  for (let i = 1; i < len; i++) {
+    const p = project(rxArr[i], ryArr[i], aDS[i]);
+    ctx.lineTo(p.x, p.y);
+  }
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+  ctx.lineWidth   = 1.2;
+  ctx.stroke();
+
+  // ── Ground outline (base of walls) ──
+  ctx.beginPath();
+  const firstBot = project(rxArr[0], ryArr[0], minAlt);
+  ctx.moveTo(firstBot.x, firstBot.y);
+  for (let i = 1; i < len; i++) {
+    const p = project(rxArr[i], ryArr[i], minAlt);
+    ctx.lineTo(p.x, p.y);
+  }
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.lineWidth   = 0.8;
+  ctx.stroke();
+
+  // ── Distance markers along the route ──
+  const totalDist = dDS[len - 1] - dDS[0];
+  const totalKm   = totalDist / 1000;
+  const kmInterval = totalKm > 100 ? 20 : totalKm > 50 ? 10 : totalKm > 20 ? 5 : 2;
+  ctx.font      = '9px Inter, system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  let nextKm = kmInterval;
+  for (let i = 1; i < len; i++) {
+    const km = (dDS[i] - dDS[0]) / 1000;
+    if (km >= nextKm) {
+      const p = project(rxArr[i], ryArr[i], minAlt);
+      // Small tick mark
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      ctx.lineTo(p.x, p.y + 8);
+      ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+      ctx.fillText(Math.round(nextKm) + 'km', p.x, p.y + 18);
+      nextKm += kmInterval;
+    }
+  }
+
+  // ── Gradient legend at bottom ──
+  const legendItems = [
+    { label: '< -7%', color: '#0a84ff' },
+    { label: 'Flat',   color: '#30d158' },
+    { label: '3-7%',   color: '#ffd60a' },
+    { label: '7-12%',  color: '#ff9f0a' },
+    { label: '> 12%',  color: '#ff453a' },
+  ];
+  const legY   = cH - 10;
+  const legW   = 8;
+  const legGap = 6;
+  ctx.font      = '9px Inter, system-ui, sans-serif';
+  ctx.textAlign = 'left';
+  let legX = pad;
+  legendItems.forEach(({ label, color }) => {
+    ctx.fillStyle = color;
+    ctx.fillRect(legX, legY - 8, legW, legW);
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    ctx.fillText(label, legX + legW + 3, legY - 1);
+    legX += legW + ctx.measureText(label).width + legGap + 6;
+  });
+}
+
 // ── Climb Detection ─────────────────────────────────────────────────────────
 function renderClimbDetection(streams, activity) {
   const card = document.getElementById('detailClimbsCard');
@@ -21569,7 +21875,7 @@ function xpForLevel(n) { return Math.floor(100 * Math.pow(n, 1.5)); }
 
 function getTotalXP() {
   const startDate = localStorage.getItem('icu_xp_start_date') || '2000-01-01';
-  return (state.activities || [])
+  return getAllActivities()
     .filter(a => !isEmptyActivity(a) && (a.start_date_local || a.start_date || '') >= startDate)
     .reduce((sum, a) => sum + computeXP(a), 0);
 }
@@ -21585,7 +21891,7 @@ function getLevel(totalXP) {
 
 function getXPStats() {
   const startDate = localStorage.getItem('icu_xp_start_date') || '2000-01-01';
-  const acts = (state.activities || []).filter(a => !isEmptyActivity(a) && (a.start_date_local || a.start_date || '') >= startDate);
+  const acts = getAllActivities().filter(a => !isEmptyActivity(a) && (a.start_date_local || a.start_date || '') >= startDate);
   let totalXP = 0, totalDist = 0, totalElev = 0, totalRides = acts.length;
   acts.forEach(a => {
     totalXP += computeXP(a);
@@ -21615,13 +21921,9 @@ function openProfileModal() {
   const badgeEl = document.getElementById('profileLvlBadge');
   if (badgeEl) badgeEl.textContent = stats.level;
 
-  // Level text
-  const lvlTextEl = document.getElementById('profLevelText');
-  if (lvlTextEl) lvlTextEl.textContent = stats.level;
-
-  // Next level label
-  const nextLvlEl = document.getElementById('profNextLevel');
-  if (nextLvlEl) nextLvlEl.textContent = stats.level + 1;
+  // Level label above XP bar
+  const lvlLabelEl = document.getElementById('profLevelLabel');
+  if (lvlLabelEl) lvlLabelEl.textContent = 'Level ' + stats.level;
 
   // XP bar
   const barEl = document.getElementById('profileXpBar');
@@ -21646,6 +21948,31 @@ function openProfileModal() {
   setTxt('profTotalDist', stats.totalDist.toLocaleString());
   setTxt('profTotalElev', stats.totalElev.toLocaleString());
 
+  // Populate sticky header
+  const stickyAvatar = document.getElementById('profStickyAvatar');
+  const existingAvatar2 = document.querySelector('.floating-profile-btn img');
+  if (stickyAvatar && existingAvatar2) stickyAvatar.src = existingAvatar2.src;
+  const stickyName = document.getElementById('profStickyName');
+  if (stickyName) stickyName.textContent = state.athlete ? (state.athlete.name || state.athlete.firstname || 'Cyclist') : 'Cyclist';
+  const stickyLvl = document.getElementById('profStickyLvl');
+  if (stickyLvl) stickyLvl.textContent = stats.level;
+
+  // Scroll listener for sticky header
+  const profScroll = document.getElementById('profScroll');
+  const stickyHdr = document.getElementById('profStickyHdr');
+  const heroClose = document.getElementById('profHeroClose');
+  if (profScroll && stickyHdr) {
+    profScroll.scrollTop = 0;
+    profScroll.onscroll = function() {
+      const show = profScroll.scrollTop > 120;
+      stickyHdr.classList.toggle('prof-sticky--visible', show);
+      if (heroClose) heroClose.style.opacity = show ? '0' : '1';
+    };
+  }
+
+  // Render rider profile radar chart
+  _renderProfileRadar();
+
   const overlay = document.getElementById('profileOverlay');
   if (!overlay) return;
   overlay.style.display = '';
@@ -21664,6 +21991,160 @@ function closeProfileModal() {
     overlay.classList.remove('prof-closing');
     overlay.style.display = 'none';
   }, 300);
+}
+
+/* ── Profile Ring Chart (Power Profile style) ── */
+function _renderProfileRadar() {
+  const canvas = document.getElementById('profRadarChart');
+  if (!canvas) return;
+
+  const allActs = getAllActivities().filter(a => !isEmptyActivity(a));
+  if (allActs.length < 3) return;
+
+  // Compute rider dimensions
+  const speeds = [], dists = [], elevs = [], powers = [], durations = [];
+  allActs.forEach(a => {
+    const spd = actVal(a, 'average_speed', 'icu_average_speed');
+    if (spd > 0) speeds.push(spd * 3.6);
+    const d = actVal(a, 'distance', 'icu_distance') / 1000;
+    if (d > 0) dists.push(d);
+    const e = actVal(a, 'total_elevation_gain', 'icu_total_elevation_gain');
+    if (e > 0) elevs.push(e);
+    const p = actVal(a, 'icu_weighted_avg_watts', 'average_watts');
+    if (p > 0) powers.push(p);
+    const t = actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time') / 3600;
+    if (t > 0) durations.push(t);
+  });
+
+  const avg = arr => arr.length ? arr.reduce((s,v) => s+v, 0) / arr.length : 0;
+  const max = arr => arr.length ? Math.max(...arr) : 0;
+  const clamp = v => Math.min(100, Math.max(5, v));
+
+  const segments = [
+    { label: 'Speed',       value: clamp((avg(speeds) / 38) * 100),         raw: Math.round(avg(speeds)) + ' km/h', color: '#ff453a' },
+    { label: 'Endurance',   value: clamp((max(dists) / 200) * 100),         raw: Math.round(max(dists)) + ' km',    color: '#ff9f0a' },
+    { label: 'Climbing',    value: clamp((max(elevs) / 3000) * 100),        raw: Math.round(max(elevs)) + ' m',     color: '#ffd60a' },
+    { label: 'Power',       value: clamp((avg(powers) / 300) * 100),        raw: Math.round(avg(powers)) + ' w',    color: '#30d158' },
+    { label: 'Consistency', value: clamp((allActs.length / 300) * 100),     raw: allActs.length + ' rides',          color: '#5ac8fa' },
+    { label: 'Volume',      value: clamp((dists.reduce((s,v)=>s+v,0) / 15000) * 100), raw: Math.round(dists.reduce((s,v)=>s+v,0)).toLocaleString() + ' km', color: '#bf5af2' },
+  ];
+
+  const dpr = window.devicePixelRatio || 1;
+  const size = 300;
+  canvas.width = size * dpr;
+  canvas.height = size * dpr;
+  canvas.style.width = size + 'px';
+  canvas.style.height = size + 'px';
+
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, size, size);
+
+  const cx = size / 2, cy = size / 2;
+  const outerR = 110, innerR = 65, ringW = outerR - innerR;
+  const gap = 0.03; // radians gap between segments
+  const segAngle = (Math.PI * 2) / segments.length;
+  const startOffset = -Math.PI / 2; // start from top
+
+  // Draw segments
+  segments.forEach((seg, i) => {
+    const startA = startOffset + i * segAngle + gap / 2;
+    const endA = startOffset + (i + 1) * segAngle - gap / 2;
+
+    // Helper: point on hexagonal polygon edge at given angle and radius
+    const n = segments.length;
+    const ptAt = (a, r) => {
+      // Map angle to polygon edge
+      const sector = Math.floor(((a - startOffset + Math.PI * 2) % (Math.PI * 2)) / segAngle);
+      const cornerA1 = startOffset + sector * segAngle;
+      const cornerA2 = startOffset + (sector + 1) * segAngle;
+      const p1 = [cx + Math.cos(cornerA1) * r, cy + Math.sin(cornerA1) * r];
+      const p2 = [cx + Math.cos(cornerA2) * r, cy + Math.sin(cornerA2) * r];
+      const t = ((a - cornerA1 + Math.PI * 2) % (Math.PI * 2)) / segAngle;
+      return [p1[0] + (p2[0] - p1[0]) * t, p1[1] + (p2[1] - p1[1]) * t];
+    };
+    const steps = 12;
+
+    // Background segment (dim)
+    ctx.beginPath();
+    for (let s = 0; s <= steps; s++) {
+      const a = startA + (endA - startA) * (s / steps);
+      const [x, y] = ptAt(a, outerR);
+      s === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    for (let s = steps; s >= 0; s--) {
+      const a = startA + (endA - startA) * (s / steps);
+      const [x, y] = ptAt(a, innerR);
+      ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(255,255,255,0.04)';
+    ctx.fill();
+
+    // Filled portion based on value
+    const fillAngle = startA + (endA - startA) * (seg.value / 100);
+    const fillSteps = Math.round(steps * (seg.value / 100));
+    ctx.beginPath();
+    for (let s = 0; s <= fillSteps; s++) {
+      const a = startA + (fillAngle - startA) * (s / Math.max(1, fillSteps));
+      const [x, y] = ptAt(a, outerR);
+      s === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    for (let s = fillSteps; s >= 0; s--) {
+      const a = startA + (fillAngle - startA) * (s / Math.max(1, fillSteps));
+      const [x, y] = ptAt(a, innerR);
+      ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = seg.color;
+    ctx.globalAlpha = 0.85;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Label inside ring
+    const midA = (startA + endA) / 2;
+    const labelR = (outerR + innerR) / 2;
+    const lx = cx + Math.cos(midA) * labelR;
+    const ly = cy + Math.sin(midA) * labelR;
+    ctx.save();
+    ctx.translate(lx, ly);
+    const rot = midA + Math.PI / 2;
+    const normRot = ((rot % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    const flipped = normRot > Math.PI / 2 && normRot < Math.PI * 1.5;
+    ctx.rotate(flipped ? rot + Math.PI : rot);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = 'bold 11px Inter, system-ui, sans-serif';
+    ctx.fillStyle = '#fff';
+    ctx.fillText(seg.label, 0, 0);
+    ctx.restore();
+
+    // Value outside ring
+    const valR = outerR + 18;
+    const vx = cx + Math.cos(midA) * valR;
+    const vy = cy + Math.sin(midA) * valR;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '600 9px Inter, system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.fillText(seg.raw, vx, vy);
+  });
+
+  // Center hexagon
+  const centerR = innerR - 8;
+  ctx.beginPath();
+  for (let i = 0; i < segments.length; i++) {
+    const a = startOffset + i * segAngle;
+    const x = cx + Math.cos(a) * centerR;
+    const y = cy + Math.sin(a) * centerR;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(255,255,255,0.03)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
 }
 
 /* ── XP Settings ── */
@@ -21928,9 +22409,10 @@ function renderGoalsDashWidget() {
         <div class="goal-dash-ring">
           <svg viewBox="0 0 88 88" width="56" height="56">
             <circle cx="44" cy="44" r="36" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8"/>
-            <circle cx="44" cy="44" r="36" fill="none" stroke="${ringColor}" stroke-width="8"
-              stroke-linecap="round" stroke-dasharray="${2 * Math.PI * 36}" stroke-dashoffset="${2 * Math.PI * 36 - (pctClamped / 100) * 2 * Math.PI * 36}"
-              transform="rotate(-90 44 44)" style="transition:stroke-dashoffset 0.6s ease"/>
+            <circle class="goal-ring-fill" cx="44" cy="44" r="36" fill="none" stroke="${ringColor}" stroke-width="8"
+              stroke-linecap="round" stroke-dasharray="${2 * Math.PI * 36}" stroke-dashoffset="${2 * Math.PI * 36}"
+              data-target-offset="${2 * Math.PI * 36 - (pctClamped / 100) * 2 * Math.PI * 36}"
+              transform="rotate(-90 44 44)" style="transition:stroke-dashoffset 0.8s cubic-bezier(0.22, 1, 0.36, 1)"/>
             <text x="44" y="49" text-anchor="middle" fill="#fff" font-size="17" font-weight="700" font-family="var(--font-num)">${Math.round(pctClamped)}</text>
           </svg>
         </div>
@@ -21944,6 +22426,13 @@ function renderGoalsDashWidget() {
   });
 
   container.innerHTML = html;
+
+  // Animate ring fills from empty to target
+  requestAnimationFrame(() => {
+    container.querySelectorAll('.goal-ring-fill').forEach(circle => {
+      circle.setAttribute('stroke-dashoffset', circle.dataset.targetOffset);
+    });
+  });
 
   // Add pagination dots if more than 2 goals
   const totalPages = Math.ceil(goals.length / 2);
