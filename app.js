@@ -18741,7 +18741,7 @@ function renderStreaksPage() {
 
   // Subtitle: is the current streak the all-time best?
   if (weekStreaks.current > 0 && weekStreaks.current === weekStreaks.best) {
-    setText('stkBestWeekSub', '🏆 that\'s your best ever!');
+    setText('stkBestWeekSub', 'that\'s your best ever!');
   } else {
     setText('stkBestWeekSub', 'all time');
   }
@@ -18847,19 +18847,34 @@ function renderStreaksPage() {
   }
 
   // ── Achievements / badges ─────────────────────────────────────────────────
+  const svgIcon = (d, size=24) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+  const BADGE_SVGS = {
+    flame:     '<path d="M12 12c2-2.96 0-7-1-8 0 3.038-1.773 4.741-3 6-1.226 1.26-2 3.24-2 5a6 6 0 1 0 12 0c0-1.532-1.056-3.94-2-5-1.786 3-2.791 3-4 2z"/>',
+    shield:    '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
+    diamond:   '<path d="M2.7 10.3a2.41 2.41 0 0 0 0 3.41l7.59 7.59a2.41 2.41 0 0 0 3.41 0l7.59-7.59a2.41 2.41 0 0 0 0-3.41l-7.59-7.59a2.41 2.41 0 0 0-3.41 0Z"/>',
+    crown:     '<path d="m2 4 3 12h14l3-12-5 4-5-6-5 6Z"/><path d="M5 16h14v3H5z"/>',
+    bolt:      '<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>',
+    moon:      '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+    trophy:    '<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>',
+    cycling:   '<circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/>',
+    calendar:  '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+    star:      '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+    snowflake: '<line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/><path d="m20 16-4-4 4-4"/><path d="m4 8 4 4-4 4"/><path d="m16 4-4 4-4-4"/><path d="m8 20 4-4 4 4"/>',
+    sun:       '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
+  };
   const BADGES = [
-    { id:'b1',  icon:'🔥', name:'On Fire',          desc:'3+ week streak',      earned: weekStreaks.current  >= 3  },
-    { id:'b2',  icon:'🚀', name:'Week Warrior',      desc:'5+ week streak',      earned: weekStreaks.current  >= 5  },
-    { id:'b3',  icon:'💎', name:'Diamond Streak',    desc:'10+ week streak',     earned: weekStreaks.current  >= 10 },
-    { id:'b4',  icon:'👑', name:'Streak King',       desc:'20+ week streak',     earned: weekStreaks.current  >= 20 },
-    { id:'b5',  icon:'⚡', name:'Daily Grinder',     desc:'7+ day streak',       earned: dayStreaks.current   >= 7  },
-    { id:'b6',  icon:'🌙', name:'Month Maker',       desc:'3+ month streak',     earned: monthStreaks.current >= 3  },
-    { id:'b7',  icon:'🏆', name:'Best Week Ever',    desc:'Matched all-time best week streak', earned: weekStreaks.current > 0 && weekStreaks.current === weekStreaks.best },
-    { id:'b8',  icon:'🚴', name:'Century Club',      desc:'100+ active weeks',   earned: totalActiveWeeks    >= 100 },
-    { id:'b9',  icon:'📅', name:'Half Year',         desc:'26+ active weeks',    earned: totalActiveWeeks    >= 26  },
-    { id:'b10', icon:'🌟', name:'Consistent',        desc:'50+ active weeks',    earned: totalActiveWeeks    >= 50  },
-    { id:'b11', icon:'❄️', name:'Winter Warrior',    desc:'Rode in Jan or Feb',  earned: acts.some(a => { const m = +(a.start_date_local||a.start_date||'').slice(5,7); return m===1||m===2; }) },
-    { id:'b12', icon:'☀️', name:'Summer Beast',      desc:'Rode in Jul or Aug',  earned: acts.some(a => { const m = +(a.start_date_local||a.start_date||'').slice(5,7); return m===7||m===8; }) },
+    { id:'b1',  icon: svgIcon(BADGE_SVGS.flame),    name:'On Fire',          desc:'3+ week streak',      earned: weekStreaks.current  >= 3  },
+    { id:'b2',  icon: svgIcon(BADGE_SVGS.shield),    name:'Week Warrior',      desc:'5+ week streak',      earned: weekStreaks.current  >= 5  },
+    { id:'b3',  icon: svgIcon(BADGE_SVGS.diamond),   name:'Diamond Streak',    desc:'10+ week streak',     earned: weekStreaks.current  >= 10 },
+    { id:'b4',  icon: svgIcon(BADGE_SVGS.crown),     name:'Streak King',       desc:'20+ week streak',     earned: weekStreaks.current  >= 20 },
+    { id:'b5',  icon: svgIcon(BADGE_SVGS.bolt),      name:'Daily Grinder',     desc:'7+ day streak',       earned: dayStreaks.current   >= 7  },
+    { id:'b6',  icon: svgIcon(BADGE_SVGS.moon),      name:'Month Maker',       desc:'3+ month streak',     earned: monthStreaks.current >= 3  },
+    { id:'b7',  icon: svgIcon(BADGE_SVGS.trophy),    name:'Best Week Ever',    desc:'Matched all-time best week streak', earned: weekStreaks.current > 0 && weekStreaks.current === weekStreaks.best },
+    { id:'b8',  icon: svgIcon(BADGE_SVGS.cycling),   name:'Century Club',      desc:'100+ active weeks',   earned: totalActiveWeeks    >= 100 },
+    { id:'b9',  icon: svgIcon(BADGE_SVGS.calendar),  name:'Half Year',         desc:'26+ active weeks',    earned: totalActiveWeeks    >= 26  },
+    { id:'b10', icon: svgIcon(BADGE_SVGS.star),      name:'Consistent',        desc:'50+ active weeks',    earned: totalActiveWeeks    >= 50  },
+    { id:'b11', icon: svgIcon(BADGE_SVGS.snowflake), name:'Winter Warrior',    desc:'Rode in Jan or Feb',  earned: acts.some(a => { const m = +(a.start_date_local||a.start_date||'').slice(5,7); return m===1||m===2; }) },
+    { id:'b12', icon: svgIcon(BADGE_SVGS.sun),       name:'Summer Beast',      desc:'Rode in Jul or Aug',  earned: acts.some(a => { const m = +(a.start_date_local||a.start_date||'').slice(5,7); return m===7||m===8; }) },
   ];
 
   const badgesGrid = document.getElementById('stkBadgesGrid');
@@ -18869,7 +18884,7 @@ function renderStreaksPage() {
         <div class="stk-badge-icon">${b.icon}</div>
         <div class="stk-badge-name">${b.name}</div>
         <div class="stk-badge-desc">${b.desc}</div>
-        ${b.earned ? '<div class="stk-badge-check">✓</div>' : ''}
+        ${b.earned ? '<div class="stk-badge-check"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>' : ''}
       </div>`).join('');
   }
 
@@ -18972,22 +18987,40 @@ function renderStreaksPage() {
     const fmtHrs  = v => v >= 1000 ? `${(v/1000).toFixed(1)}k hrs` : `${Math.round(v)} hrs`;
     const fmtNum  = v => v >= 1000000 ? `${(v/1000000).toFixed(1)}M` : v >= 1000 ? `${(v/1000).toFixed(1)}k` : `${Math.round(v)}`;
 
+    const STAT_SVGS = {
+      bike:      '<circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/>',
+      mapPin:    '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
+      mountain:  '<path d="m8 3 4 8 5-5 2 4 3 9H2L8 3z"/>',
+      clock:     '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+      flame:     '<path d="M12 12c2-2.96 0-7-1-8 0 3.038-1.773 4.741-3 6-1.226 1.26-2 3.24-2 5a6 6 0 1 0 12 0c0-1.532-1.056-3.94-2-5-1.786 3-2.791 3-4 2z"/>',
+      barChart:  '<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>',
+      ruler:     '<path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0Z"/><path d="m14.5 12.5 2-2"/><path d="m11.5 9.5 2-2"/><path d="m8.5 6.5 2-2"/><path d="m17.5 15.5 2-2"/>',
+      trophy:    '<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>',
+      calendar:  '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+      star:      '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+      flower:    '<path d="M12 7.5a4.5 4.5 0 1 1 4.5 4.5M12 7.5A4.5 4.5 0 1 0 7.5 12M12 7.5V9m-4.5 3a4.5 4.5 0 1 0 4.5 4.5M7.5 12H9m7.5 0a4.5 4.5 0 1 1-4.5 4.5m4.5-4.5H15m-3 4.5V15"/><circle cx="12" cy="12" r="3"/><path d="m8 16 1.5-1.5"/><path d="M14.5 9.5 16 8"/><path d="m8 8 1.5 1.5"/><path d="M14.5 14.5 16 16"/>',
+      sunrise:   '<path d="M12 2v8"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m8 6 4-4 4 4"/><path d="M16 18a4 4 0 0 0-8 0"/>',
+      thermH:    '<path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/><line x1="12" y1="16" x2="12" y2="16.01"/>',
+      thermC:    '<path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/><path d="M10 4h4"/>',
+      mtnPeak:   '<path d="m8 3 4 8 5-5 2 4 3 9H2L8 3z"/><path d="m5 19 4-4"/>',
+    };
+    const statSvg = d => svgIcon(d, 20);
     const STATS = [
-      { icon:'🚴', label:'Total Rides',        value: fmtNum(totalRides),          fun: `That's ${Math.round(totalRides / Math.max(1, (new Date() - new Date(ltActs[ltActs.length-1]?.start_date_local||ltActs[ltActs.length-1]?.start_date||new Date())) / (86400000*365)))} rides/year on avg` },
-      { icon:'📍', label:'Total Distance',     value: fmtKm(totalDistKm),          fun: `${earthLaps}× around the Earth 🌍` },
-      { icon:'⛰️', label:'Total Elevation',    value: fmtKm(totalElevM / 1000),     fun: `${(totalElevM / 8848).toFixed(1)}× the height of Everest 🏔️` },
-      { icon:'⏱️', label:'Total Time',         value: fmtHrs(totalTimeHrs),        fun: `${(totalTimeHrs / 24).toFixed(1)} full days on the bike` },
-      { icon:'🔥', label:'Total Calories',     value: totalCals > 0 ? fmtNum(totalCals) + ' kcal' : '—', fun: totalCals > 0 ? `≈ ${Math.round(totalCals / 250)} pizzas burned 🍕` : 'Sync calorie data in intervals.icu' },
-      { icon:'📊', label:'Total TSS',          value: totalTSS > 0 ? fmtNum(Math.round(totalTSS)) : '—', fun: totalTSS > 0 ? 'Cumulative training stress score' : 'Log power data to track TSS' },
-      { icon:'📏', label:'Avg Ride Distance',  value: `${avgDistKm.toFixed(1)} km`, fun: `Per ride, across all ${totalRides} activities` },
-      { icon:'🏆', label:'Longest Ride',       value: `${longestKm} km`,           fun: longestName },
-      { icon:'📅', label:'Best Week',          value: `${bestWeekCount} rides`,     fun: 'Most rides packed into one week' },
-      { icon:'⭐', label:'Fav Day',            value: favDay,                       fun: `You ride most on ${favDay}s` },
-      { icon:'🌸', label:'Fav Month',          value: favMonth,                     fun: `${monthCounts[favMonthIdx]} rides on average in ${favMonth}` },
-      { icon:'🌅', label:'Early Bird Rides',   value: fmtNum(earlyBird),            fun: `Rides started before 8 am` },
-      { icon:'🌡️', label:'Hottest Ride',       value: hottestAct ? fmtT(getTemp(hottestAct)) : '—', fun: hottestAct ? (hottestAct.name || 'Unknown ride') : 'No sensor data yet', act: hottestAct || null },
-      { icon:'🥶', label:'Coldest Ride',       value: coldestAct ? fmtT(getTemp(coldestAct)) : '—', fun: coldestAct ? (coldestAct.name || 'Unknown ride') : 'No sensor data yet', act: coldestAct || null },
-      { icon:'🏔️', label:'Biggest Climb',      value: biggestClimbM > 0 ? `${biggestClimbM.toLocaleString()} m` : '—', fun: biggestClimbM > 0 ? (biggestClimbAct.name || 'Unknown ride') : 'No elevation data yet', act: biggestClimbM > 0 ? biggestClimbAct : null },
+      { icon: statSvg(STAT_SVGS.bike),     label:'Total Rides',        value: fmtNum(totalRides),          fun: `That's ${Math.round(totalRides / Math.max(1, (new Date() - new Date(ltActs[ltActs.length-1]?.start_date_local||ltActs[ltActs.length-1]?.start_date||new Date())) / (86400000*365)))} rides/year on avg` },
+      { icon: statSvg(STAT_SVGS.mapPin),    label:'Total Distance',     value: fmtKm(totalDistKm),          fun: `${earthLaps}x around the Earth` },
+      { icon: statSvg(STAT_SVGS.mountain),  label:'Total Elevation',    value: fmtKm(totalElevM / 1000),     fun: `${(totalElevM / 8848).toFixed(1)}x the height of Everest` },
+      { icon: statSvg(STAT_SVGS.clock),     label:'Total Time',         value: fmtHrs(totalTimeHrs),        fun: `${(totalTimeHrs / 24).toFixed(1)} full days on the bike` },
+      { icon: statSvg(STAT_SVGS.flame),     label:'Total Calories',     value: totalCals > 0 ? fmtNum(totalCals) + ' kcal' : '—', fun: totalCals > 0 ? `≈ ${Math.round(totalCals / 250)} pizzas burned` : 'Sync calorie data in intervals.icu' },
+      { icon: statSvg(STAT_SVGS.barChart),  label:'Total TSS',          value: totalTSS > 0 ? fmtNum(Math.round(totalTSS)) : '—', fun: totalTSS > 0 ? 'Cumulative training stress score' : 'Log power data to track TSS' },
+      { icon: statSvg(STAT_SVGS.ruler),     label:'Avg Ride Distance',  value: `${avgDistKm.toFixed(1)} km`, fun: `Per ride, across all ${totalRides} activities` },
+      { icon: statSvg(STAT_SVGS.trophy),    label:'Longest Ride',       value: `${longestKm} km`,           fun: longestName },
+      { icon: statSvg(STAT_SVGS.calendar),  label:'Best Week',          value: `${bestWeekCount} rides`,     fun: 'Most rides packed into one week' },
+      { icon: statSvg(STAT_SVGS.star),      label:'Fav Day',            value: favDay,                       fun: `You ride most on ${favDay}s` },
+      { icon: statSvg(STAT_SVGS.flower),    label:'Fav Month',          value: favMonth,                     fun: `${monthCounts[favMonthIdx]} rides on average in ${favMonth}` },
+      { icon: statSvg(STAT_SVGS.sunrise),   label:'Early Bird Rides',   value: fmtNum(earlyBird),            fun: `Rides started before 8 am` },
+      { icon: statSvg(STAT_SVGS.thermH),    label:'Hottest Ride',       value: hottestAct ? fmtT(getTemp(hottestAct)) : '—', fun: hottestAct ? (hottestAct.name || 'Unknown ride') : 'No sensor data yet', act: hottestAct || null },
+      { icon: statSvg(STAT_SVGS.thermC),    label:'Coldest Ride',       value: coldestAct ? fmtT(getTemp(coldestAct)) : '—', fun: coldestAct ? (coldestAct.name || 'Unknown ride') : 'No sensor data yet', act: coldestAct || null },
+      { icon: statSvg(STAT_SVGS.mtnPeak),   label:'Biggest Climb',      value: biggestClimbM > 0 ? `${biggestClimbM.toLocaleString()} m` : '—', fun: biggestClimbM > 0 ? (biggestClimbAct.name || 'Unknown ride') : 'No elevation data yet', act: biggestClimbM > 0 ? biggestClimbAct : null },
     ];
 
     // Also wire longest ride click

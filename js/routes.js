@@ -200,7 +200,6 @@ export function renderRouteBuilderPage() {
             </div>
           </div>
         </div>
-        <div class="rb-poi-filter" id="rbPoiFilter" style="display:none"></div>
         <button class="rb-panel-toggle" onclick="rbToggleSidePanel()" title="Toggle stats panel">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
         </button>
@@ -282,6 +281,7 @@ export function renderRouteBuilderPage() {
         </div>
       </div>
       <div id="rbBottomSheet" class="rb-bottom-sheet">
+        <div class="rb-poi-filter" id="rbPoiFilter" style="display:none"></div>
         <div class="rb-routing-status" id="rbRoutingStatus"><div class="rb-routing-spinner"></div><span>Routing…</span></div>
         <div class="rb-wx-pill" id="rbWxPill" style="display:none">
           <span class="rb-wx-pill-icon" id="rbWxPillIcon"></span>
