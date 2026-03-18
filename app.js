@@ -13149,6 +13149,7 @@ function renderCalendar() {
 /* ── Calendar Drag & Drop (desktop only) ── */
 let _calDragId = null;
 let _calDragCard = null;
+let _calDragGhost = null;
 
 function _calInitDrag() {
   const grid = document.getElementById('calGrid');
@@ -13163,11 +13164,19 @@ function _calInitDrag() {
     e.dataTransfer.effectAllowed = 'move';
     try { e.dataTransfer.setData('text/plain', _calDragId); } catch(_){}
 
+    // Create opaque drag ghost
+    var ghost = card.cloneNode(true);
+    ghost.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:' + card.offsetWidth + 'px;opacity:1;pointer-events:none;z-index:99999;transform:scale(1.08) rotate(-1.5deg);box-shadow:0 8px 32px rgba(0,229,160,0.25),0 2px 8px rgba(0,0,0,0.6);border:1px solid rgba(0,229,160,0.35);border-radius:8px;background:#1a1a1a;padding:4px 6px;';
+    document.body.appendChild(ghost);
+    e.dataTransfer.setDragImage(ghost, card.offsetWidth / 2, card.offsetHeight / 2);
+    _calDragGhost = ghost;
+
     setTimeout(function() { card.classList.add('cal-card--dragging'); }, 0);
   });
 
   grid.addEventListener('dragend', function() {
     if (_calDragCard) _calDragCard.classList.remove('cal-card--dragging');
+    if (_calDragGhost) { _calDragGhost.remove(); _calDragGhost = null; }
     grid.querySelectorAll('.cal-day--drag-over').forEach(function(el) { el.classList.remove('cal-day--drag-over'); });
     _calDragId = null;
     _calDragCard = null;
@@ -22377,6 +22386,18 @@ let _hashSetupPending = false;
   stravaExchangeCode(code);
 })();
 
+/* ── Splash screen dismissal ── */
+function _dismissSplash() {
+  const el = document.getElementById('splashScreen');
+  if (!el || el.classList.contains('splash-hidden')) return;
+  el.classList.add('splash-hidden');
+  el.addEventListener('transitionend', () => el.remove(), { once: true });
+  // Fallback removal if transitionend doesn't fire (reduced-motion, etc.)
+  setTimeout(() => { if (el.parentNode) el.remove(); }, 600);
+}
+// Max timeout — never block longer than 2 seconds
+const _splashTimer = setTimeout(_dismissSplash, 2000);
+
 const hasCredentials = loadCredentials();
 if (hasCredentials) {
   // Pre-load cached activities so pages render instantly,
@@ -22389,6 +22410,9 @@ if (hasCredentials) {
     state.synced = true;
     updateConnectionUI(true);
     updateLastSyncLabel(cached.lastSync);
+    // Cache loaded — dismiss splash immediately
+    clearTimeout(_splashTimer);
+    requestAnimationFrame(_dismissSplash);
   } else {
     updateConnectionUI(false);
   }
@@ -22401,6 +22425,9 @@ if (hasCredentials) {
   // navigate(_startPage) is deferred to end of file so all declarations (e.g. _hm) are ready
   syncData();
 } else {
+  // No credentials — dismiss splash and show connect modal
+  clearTimeout(_splashTimer);
+  requestAnimationFrame(_dismissSplash);
   openModal();
 }
 
