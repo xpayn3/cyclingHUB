@@ -2353,7 +2353,7 @@ function navigate(page) {
   // Floating top row (profile icon) — show on dashboard only (mobile)
   const floatingTopRow = document.getElementById('floatingTopRow');
   if (floatingTopRow) {
-    floatingTopRow.style.display = (page === 'dashboard' || page === 'power' || page === 'zones') ? 'flex' : 'none';
+    floatingTopRow.style.display = (page === 'dashboard' || page === 'power' || page === 'zones' || page === 'fitness') ? 'flex' : 'none';
   }
 
   // Floating range pill visibility
