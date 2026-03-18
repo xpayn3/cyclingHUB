@@ -15599,54 +15599,6 @@ function renderDetailExport(a) {
   buttonsEl.style.display = '';
 }
 
-// ── Save activity route to library ─────────────────────────────────────────
-function saveActivityRoute() {
-  const act = state.currentActivity;
-  if (!act) { showToast('No activity loaded', 'error'); return; }
-  const actId = act.id;
-  const name = act.name || 'Unnamed Route';
-
-  // Download GPX and save to route library
-  const url = ICU_BASE + `/activity/${actId}/file.gpx`;
-  fetch(url, { headers: { Authorization: 'Basic ' + btoa('API_KEY:' + state.apiKey) } })
-    .then(r => { if (!r.ok) throw new Error('Failed'); return r.blob(); })
-    .then(blob => {
-      // Save to localStorage route library
-      const reader = new FileReader();
-      reader.onload = function() {
-        const routes = JSON.parse(localStorage.getItem('icu_saved_routes') || '[]');
-        routes.push({
-          id: actId,
-          name: name,
-          date: new Date().toISOString(),
-          distance: act.distance || 0,
-          elevation: act.total_elevation_gain || 0,
-          gpx: reader.result
-        });
-        localStorage.setItem('icu_saved_routes', JSON.stringify(routes));
-        showToast('Route "' + name + '" saved to library', 'success');
-      };
-      reader.readAsDataURL(blob);
-    })
-    .catch(() => {
-      // Fallback: save metadata only (no GPX)
-      const routes = JSON.parse(localStorage.getItem('icu_saved_routes') || '[]');
-      if (routes.some(r => r.id === actId)) {
-        showToast('Route already saved', 'info');
-        return;
-      }
-      routes.push({
-        id: actId,
-        name: name,
-        date: new Date().toISOString(),
-        distance: act.distance || 0,
-        elevation: act.total_elevation_gain || 0
-      });
-      localStorage.setItem('icu_saved_routes', JSON.stringify(routes));
-      showToast('Route "' + name + '" saved to library', 'success');
-    });
-}
-
 // ── Download functions ─────────────────────────────────────────────────────
 async function downloadActivityFile(actId) {
   try {
@@ -23346,7 +23298,7 @@ Object.assign(window, {
   chargeBattery, reactivateBattery, deleteBatteryPermanent, retireBattery,
   editServiceShop, deleteServiceShop, openServiceHistory, deleteServiceFromHistory,
   // Activity detail
-  selectCalDay, downloadActivityFile, downloadFITFile, downloadGPXFile, saveActivityRoute,
+  selectCalDay, downloadActivityFile, downloadFITFile, downloadGPXFile,
   toggleStreamLayer,
   // Goals
   goalNumStep, hideGoalForm, submitGoalForm, showGoalForm, deleteGoal,
