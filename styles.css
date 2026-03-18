@@ -16998,6 +16998,10 @@ body:has(.act-sheet-mode) .topbar {
 .goal-dash-text {
     flex: 1;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-self: stretch;
 }
 .goal-dash-title {
     font-size: 13px;
@@ -17013,6 +17017,7 @@ body:has(.act-sheet-mode) .topbar {
     color: #ffffff;
     font-family: var(--font-num);
     line-height: 1.2;
+    margin-top: auto;
 }
 .goal-dash-unit {
     font-size: 12px;
