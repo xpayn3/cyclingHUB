@@ -6325,7 +6325,7 @@ code {
     align-items: center;
     gap: 0;
     /* Horizontal scroll — show ~4 buttons, scroll for more */
-    max-width: calc(100vw - 100px);
+    max-width: 272px;
     overflow-x: auto;
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
