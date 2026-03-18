@@ -17049,12 +17049,10 @@ body:has(.act-sheet-mode) .topbar {
     align-items: center;
     gap: 10px 16px;
     padding: 14px 16px;
-    background: rgba(11, 14, 22, 0.82);
-    -webkit-backdrop-filter: blur(14px);
-    backdrop-filter: blur(14px);
-    border: 1px solid rgba(255, 255, 255, 0.07);
+    background: #101010;
+    border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: var(--radius);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
 /* Desktop: unwrap section divs so children flow in the wrapping row */
@@ -17069,25 +17067,25 @@ body:has(.act-sheet-mode) .topbar {
 }
 .hm-stats {
     display: flex;
-    gap: 6px;
+    gap: 8px;
     flex-shrink: 0;
 }
 .hm-stat {
-    padding: 6px 12px;
+    padding: 8px 12px;
     display: flex;
     flex-direction: column;
-    gap: 1px;
+    gap: 2px;
     border-radius: var(--radius);
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--bg-card);
 }
 .hm-stat-val {
-    font-size: 22px;
+    font-size: 18px;
     font-weight: 700;
     color: var(--accent);
-    letter-spacing: -0.5px;
+    letter-spacing: -0.3px;
 }
 .hm-stat-label {
-    font-size: 9px;
+    font-size: 10px;
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -17111,7 +17109,7 @@ body:has(.act-sheet-mode) .topbar {
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.8px;
-    color: var(--text-muted);
+    color: var(--text-secondary);
     font-weight: 600;
     white-space: nowrap;
 }
@@ -17121,12 +17119,16 @@ body:has(.act-sheet-mode) .topbar {
     flex-wrap: wrap;
 }
 .hm-pill {
-    padding: 4px 10px;
+    padding: 6px 12px;
+    min-height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     border-radius: 20px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     background: transparent;
     color: var(--text-secondary);
-    font-size: 11px;
+    font-size: 12px;
     cursor: pointer;
     transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
     font-family: inherit;
@@ -17158,11 +17160,9 @@ body:has(.act-sheet-mode) .topbar {
     color: var(--text-secondary);
     padding: 6px 14px;
     border-radius: 20px;
-    background: rgba(11, 14, 22, 0.82);
-    -webkit-backdrop-filter: blur(14px);
-    backdrop-filter: blur(14px);
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+    background: #101010;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
     white-space: nowrap;
 }
 .hm-legend:empty {
@@ -17325,17 +17325,16 @@ body.hm-map-dragging html,
     }
     .hm-panel-filters,
     .hm-panel-animate {
-        padding-top: 14px;
-        border-top: 1px solid rgba(255, 255, 255, 0.06);
+        padding-top: 8px;
     }
     .hm-stats {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 4px;
+        gap: 8px;
         width: 100%;
     }
     .hm-stat-val {
-        font-size: 18px;
+        font-size: 16px;
     }
     .hm-controls {
         justify-content: flex-start;
@@ -17539,10 +17538,26 @@ body.hm-map-dragging html,
 }
 /* Re-scan section stays in card */
 .hm-panel-rescan {
-    padding-top: 14px;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    padding-top: 8px;
     display: flex;
     justify-content: flex-end;
+}
+.hm-panel-rescan button {
+    padding: 8px 20px;
+    min-height: 36px;
+    border-radius: 20px;
+    border: 1px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+    font-family: inherit;
+}
+.hm-panel-rescan button:hover {
+    background: var(--accent);
+    color: var(--bg-base);
 }
 
 /* Panel inside sheet: reset glass background, use transparent card style */
