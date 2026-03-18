@@ -14009,14 +14009,12 @@ function createSheetController(config) {
     s.el.classList.toggle('sheet-expanded', newState === 'expanded');
     if (newState === 'hidden') {
       s.el.classList.add('sheet-peek');
-      s.scroll.style.overflowY = 'hidden';
+      // Hidden: no scroll
+      s.scroll.style.setProperty('overflow-y', 'hidden', 'important');
     } else {
       s.el.classList.remove('sheet-peek');
-      s.scroll.style.overflowY = 'auto';
-    }
-    // Always allow scroll in peek state
-    if (newState === 'peek') {
-      s.scroll.style.overflowY = 'auto';
+      // Peek & expanded: allow scroll
+      s.scroll.style.setProperty('overflow-y', 'auto', 'important');
     }
     if (config.onStateChange) config.onStateChange(newState, s);
   }
