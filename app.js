@@ -15899,11 +15899,29 @@ function _mlGetStyle(key) {
   const entry = MAP_STYLES[key];
   if (!entry) return MAP_STYLES.liberty.style;          // fallback to Liberty
   if (entry.style) return entry.style;                  // vector style URL
-  // Raster tile wrapper
+  // Raster tile wrapper — satellite with label overlay
   return {
     version: 8,
-    sources: { 'raster-tiles': { type: 'raster', tiles: [entry.tiles], tileSize: 256, attribution: '&copy; Esri' } },
-    layers: [{ id: 'raster-layer', type: 'raster', source: 'raster-tiles' }],
+    glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
+    sources: {
+      'raster-tiles': { type: 'raster', tiles: [entry.tiles], tileSize: 256, attribution: '&copy; Esri' },
+      'openmaptiles': { type: 'vector', url: 'https://tiles.openfreemap.org/planet' },
+    },
+    layers: [
+      { id: 'raster-layer', type: 'raster', source: 'raster-tiles' },
+      { id: 'place-country', type: 'symbol', source: 'openmaptiles', 'source-layer': 'place', filter: ['==', 'class', 'country'],
+        layout: { 'text-field': '{name}', 'text-font': ['Noto Sans Regular'], 'text-size': 14, 'text-transform': 'uppercase', 'text-letter-spacing': 0.1 },
+        paint: { 'text-color': '#fff', 'text-halo-color': 'rgba(0,0,0,0.7)', 'text-halo-width': 1.5 } },
+      { id: 'place-city', type: 'symbol', source: 'openmaptiles', 'source-layer': 'place', filter: ['in', 'class', 'city', 'town'],
+        layout: { 'text-field': '{name}', 'text-font': ['Noto Sans Regular'], 'text-size': ['interpolate', ['linear'], ['zoom'], 4, 10, 10, 14], 'text-max-width': 8 },
+        paint: { 'text-color': '#fff', 'text-halo-color': 'rgba(0,0,0,0.7)', 'text-halo-width': 1.2 } },
+      { id: 'place-village', type: 'symbol', source: 'openmaptiles', 'source-layer': 'place', filter: ['in', 'class', 'village', 'suburb', 'hamlet'],
+        layout: { 'text-field': '{name}', 'text-font': ['Noto Sans Regular'], 'text-size': 11, 'text-max-width': 7 },
+        paint: { 'text-color': 'rgba(255,255,255,0.85)', 'text-halo-color': 'rgba(0,0,0,0.6)', 'text-halo-width': 1 } },
+      { id: 'road-label', type: 'symbol', source: 'openmaptiles', 'source-layer': 'transportation_name', minzoom: 13,
+        layout: { 'text-field': '{name}', 'text-font': ['Noto Sans Regular'], 'text-size': 10, 'symbol-placement': 'line', 'text-max-angle': 30 },
+        paint: { 'text-color': 'rgba(255,255,255,0.75)', 'text-halo-color': 'rgba(0,0,0,0.6)', 'text-halo-width': 1 } },
+    ],
   };
 }
 
