@@ -4064,7 +4064,7 @@ async function renderRecentActivity() {
     return;
   }
 
-  const recent = pool.slice(0, 3);
+  const recent = pool.slice(0, 4);
   const totalCount = pool.length;
   let html = recent.map((a, i) => buildHeroActCardHTML(a, i)).join('');
   rail.innerHTML = html;
@@ -4078,7 +4078,7 @@ async function renderRecentActivity() {
   if (window.refreshGlow) refreshGlow(rail);
 
   // ── Mobile pagination dots ──
-  _initRecentActDots(rail, recent.length + 1);
+  _initRecentActDots(rail, recent.length);
 }
 
 function _initRecentActDots(rail, count) {
@@ -4108,7 +4108,7 @@ function _initRecentActDots(rail, count) {
     scrollTick = true;
     requestAnimationFrame(() => {
       scrollTick = false;
-      const cards = rail.querySelectorAll('.hero-act-wrap, .hero-act-card, .recent-act-card');
+      const cards = rail.querySelectorAll(':scope > .hero-act-wrap, :scope > .hero-act-card, :scope > .recent-act-card');
       if (!cards.length) return;
       const railRect = rail.getBoundingClientRect();
       const railCenter = railRect.left + railRect.width * 0.5;

@@ -7135,7 +7135,7 @@ body.show-save-fab #actSaveRouteFab {
 .prof-hero {
     position: relative;
     background: linear-gradient(135deg, rgba(0, 229, 160, 0.15) 0%, rgba(0, 120, 200, 0.1) 50%, rgba(100, 0, 200, 0.08) 100%);
-    padding: 32px 20px 28px;
+    padding: 8px 20px 28px;
     text-align: center;
 }
 .prof-hero::after {
