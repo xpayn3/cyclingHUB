@@ -19047,9 +19047,7 @@ html[data-theme="light"] {
 .rb-tool-btn--danger { color: var(--text-muted); }
 .rb-tool-btn--danger:hover { color: #ff4757; }
 .rb-search-input {
-    background: rgba(30, 30, 35, 0.85);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background: rgba(30, 30, 35, 0.95);
     border: none;
     border-radius: 12px;
     padding: 0 12px 0 38px;
