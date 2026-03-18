@@ -18830,7 +18830,7 @@ html[data-theme="light"] {
 /* ── Floating Search ── */
 .rb-search-float {
     position: absolute;
-    top: 10px;
+    top: calc(env(safe-area-inset-top, 10px) + 10px);
     left: 10px;
     z-index: 1000;
     display: flex;
