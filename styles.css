@@ -6427,8 +6427,8 @@ code {
     border-radius: 100px;
     border: none;
     background: transparent;
-    /* Inactive: muted white like iOS system grey */
-    color: rgba(255, 255, 255, 0.45);
+    /* Inactive: solid white */
+    color: rgba(255, 255, 255, 0.85);
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     transition: background 0.18s cubic-bezier(0.25, 1, 0.5, 1),
@@ -6987,24 +6987,23 @@ code {
 }
 /* Sticky compact header — hidden by default, shown on scroll */
 .prof-sticky-hdr {
-    position: sticky;
+    position: fixed;
     top: 0;
-    z-index: 4;
+    left: 0;
+    right: 0;
+    z-index: 1201;
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 8px 16px;
-    background: #000;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 10px 16px;
+    padding-top: calc(env(safe-area-inset-top, 10px) + 10px);
+    background: none;
     opacity: 0;
-    transform: translateY(-100%);
-    transition: opacity 0.2s ease, transform 0.2s ease;
     pointer-events: none;
-    flex-shrink: 0;
+    transition: opacity 0.2s ease;
 }
 .prof-sticky-hdr.prof-sticky--visible {
     opacity: 1;
-    transform: translateY(0);
     pointer-events: auto;
 }
 .prof-sticky-avatar {
@@ -9104,13 +9103,7 @@ body:has(.act-sheet-mode) .topbar {
 
 /* ── Primary stat comparison chips ─────────────────────────────────────── */
 .act-pstat-cmp {
-    font-size: var(--text-2xs);
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    display: flex;
-    align-items: center;
-    gap: 3px;
-    margin-top: 3px;
+    display: none;
 }
 .act-pstat-cmp.cmp-up {
     color: #22c55e;

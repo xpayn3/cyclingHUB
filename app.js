@@ -21957,18 +21957,11 @@ function openProfileModal() {
   const stickyLvl = document.getElementById('profStickyLvl');
   if (stickyLvl) stickyLvl.textContent = stats.level;
 
-  // Scroll listener for sticky header
+  // Always show sticky header when sheet is open
   const profScroll = document.getElementById('profScroll');
   const stickyHdr = document.getElementById('profStickyHdr');
-  const heroClose = document.getElementById('profHeroClose');
-  if (profScroll && stickyHdr) {
-    profScroll.scrollTop = 0;
-    profScroll.onscroll = function() {
-      const show = profScroll.scrollTop > 120;
-      stickyHdr.classList.toggle('prof-sticky--visible', show);
-      if (heroClose) heroClose.style.opacity = show ? '0' : '1';
-    };
-  }
+  if (profScroll) profScroll.scrollTop = 0;
+  if (stickyHdr) stickyHdr.classList.add('prof-sticky--visible');
 
   // Render rider profile radar chart
   _renderProfileRadar();
@@ -21987,6 +21980,8 @@ function closeProfileModal() {
   if (!overlay) return;
   overlay.classList.remove('prof-open');
   overlay.classList.add('prof-closing');
+  const stickyHdr = document.getElementById('profStickyHdr');
+  if (stickyHdr) stickyHdr.classList.remove('prof-sticky--visible');
   setTimeout(() => {
     overlay.classList.remove('prof-closing');
     overlay.style.display = 'none';
@@ -22046,62 +22041,31 @@ function _renderProfileRadar() {
   const segAngle = (Math.PI * 2) / segments.length;
   const startOffset = -Math.PI / 2; // start from top
 
-  // Draw segments
+  // Draw segments as circular arcs
   segments.forEach((seg, i) => {
     const startA = startOffset + i * segAngle + gap / 2;
     const endA = startOffset + (i + 1) * segAngle - gap / 2;
 
-    // Helper: point on hexagonal polygon edge at given angle and radius
-    const n = segments.length;
-    const ptAt = (a, r) => {
-      // Map angle to polygon edge
-      const sector = Math.floor(((a - startOffset + Math.PI * 2) % (Math.PI * 2)) / segAngle);
-      const cornerA1 = startOffset + sector * segAngle;
-      const cornerA2 = startOffset + (sector + 1) * segAngle;
-      const p1 = [cx + Math.cos(cornerA1) * r, cy + Math.sin(cornerA1) * r];
-      const p2 = [cx + Math.cos(cornerA2) * r, cy + Math.sin(cornerA2) * r];
-      const t = ((a - cornerA1 + Math.PI * 2) % (Math.PI * 2)) / segAngle;
-      return [p1[0] + (p2[0] - p1[0]) * t, p1[1] + (p2[1] - p1[1]) * t];
-    };
-    const steps = 12;
-
-    // Background segment (dim)
+    // Background arc (dim)
     ctx.beginPath();
-    for (let s = 0; s <= steps; s++) {
-      const a = startA + (endA - startA) * (s / steps);
-      const [x, y] = ptAt(a, outerR);
-      s === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-    }
-    for (let s = steps; s >= 0; s--) {
-      const a = startA + (endA - startA) * (s / steps);
-      const [x, y] = ptAt(a, innerR);
-      ctx.lineTo(x, y);
-    }
+    ctx.arc(cx, cy, outerR, startA, endA);
+    ctx.arc(cx, cy, innerR, endA, startA, true);
     ctx.closePath();
     ctx.fillStyle = 'rgba(255,255,255,0.04)';
     ctx.fill();
 
-    // Filled portion based on value
+    // Filled arc based on value
     const fillAngle = startA + (endA - startA) * (seg.value / 100);
-    const fillSteps = Math.round(steps * (seg.value / 100));
     ctx.beginPath();
-    for (let s = 0; s <= fillSteps; s++) {
-      const a = startA + (fillAngle - startA) * (s / Math.max(1, fillSteps));
-      const [x, y] = ptAt(a, outerR);
-      s === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-    }
-    for (let s = fillSteps; s >= 0; s--) {
-      const a = startA + (fillAngle - startA) * (s / Math.max(1, fillSteps));
-      const [x, y] = ptAt(a, innerR);
-      ctx.lineTo(x, y);
-    }
+    ctx.arc(cx, cy, outerR, startA, fillAngle);
+    ctx.arc(cx, cy, innerR, fillAngle, startA, true);
     ctx.closePath();
     ctx.fillStyle = seg.color;
     ctx.globalAlpha = 0.85;
     ctx.fill();
     ctx.globalAlpha = 1;
 
-    // Label inside ring
+    // Label inside ring — rotated along arc
     const midA = (startA + endA) / 2;
     const labelR = (outerR + innerR) / 2;
     const lx = cx + Math.cos(midA) * labelR;
@@ -22120,26 +22084,19 @@ function _renderProfileRadar() {
     ctx.restore();
 
     // Value outside ring
-    const valR = outerR + 18;
+    const valR = outerR + 20;
     const vx = cx + Math.cos(midA) * valR;
     const vy = cy + Math.sin(midA) * valR;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = '600 9px Inter, system-ui, sans-serif';
+    ctx.font = '600 10px Inter, system-ui, sans-serif';
     ctx.fillStyle = 'rgba(255,255,255,0.5)';
     ctx.fillText(seg.raw, vx, vy);
   });
 
-  // Center hexagon
-  const centerR = innerR - 8;
+  // Center circle
   ctx.beginPath();
-  for (let i = 0; i < segments.length; i++) {
-    const a = startOffset + i * segAngle;
-    const x = cx + Math.cos(a) * centerR;
-    const y = cy + Math.sin(a) * centerR;
-    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-  }
-  ctx.closePath();
+  ctx.arc(cx, cy, innerR - 6, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(255,255,255,0.03)';
   ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,0.06)';
