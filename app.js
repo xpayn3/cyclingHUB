@@ -2288,6 +2288,7 @@ function navigate(page) {
     const lbl = btn.querySelector('span')?.textContent?.toLowerCase() || '';
     const match = lbl === page || (lbl === 'home' && page === 'dashboard');
     btn.classList.toggle('active', match);
+    if (match && _pillNav) requestAnimationFrame(() => btn.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' }));
   });
 
   // ── Prepare page-specific UI BEFORE the swap so nothing flashes ──

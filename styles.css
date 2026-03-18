@@ -6324,6 +6324,13 @@ code {
     flex-direction: row;
     align-items: center;
     gap: 0;
+    /* Horizontal scroll — show ~4 buttons, scroll for more */
+    max-width: calc(100vw - 100px);
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    scroll-snap-type: x mandatory;
     box-shadow:
         0 0.5px 0 0 rgba(255, 255, 255, 0.15) inset,
         0 0 0 0.5px rgba(255, 255, 255, 0.08) inset,
@@ -6333,6 +6340,9 @@ code {
     will-change: transform;
     transform: translateZ(0);
     contain: layout style;
+}
+.dash-pill-nav::-webkit-scrollbar {
+    display: none;
 }
 .dash-pill-btn {
     display: flex;
@@ -6351,10 +6361,12 @@ code {
     color: rgba(255, 255, 255, 0.45);
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
+    flex-shrink: 0;
+    scroll-snap-align: center;
     transition: background 0.18s cubic-bezier(0.25, 1, 0.5, 1),
                 color 0.18s cubic-bezier(0.25, 1, 0.5, 1),
                 transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
-    touch-action: manipulation;
+    touch-action: pan-x;
 }
 .dash-pill-btn svg {
     width: 22px;
