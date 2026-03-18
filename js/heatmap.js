@@ -116,8 +116,8 @@ export function renderHeatmapPage() {
           </div>
           <!-- Re-scan stays in card, not in floating playbar -->
           <div class="hm-panel-rescan">
-            <button class="hm-animate-btn" style="font-size:.75rem;padding:4px 10px;opacity:.7" onclick="hmRescanGPS()" title="Clear GPS cache and re-fetch all routes">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.08-8.58"/></svg>
+            <button onclick="hmRescanGPS()" title="Clear GPS cache and re-fetch all routes">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.08-8.58"/></svg>
               Re-scan
             </button>
           </div>
