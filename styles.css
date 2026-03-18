@@ -19158,8 +19158,9 @@ html[data-theme="light"] {
     align-items: center;
     justify-content: space-between;
     gap: 10px;
-    padding: 6px 8px;
-    border-radius: 6px;
+    padding: 10px 12px;
+    min-height: 44px;
+    border-radius: 8px;
     cursor: pointer;
     font-size: var(--text-sm);
     color: var(--text-secondary);
@@ -19171,30 +19172,33 @@ html[data-theme="light"] {
 }
 .rb-options-toggle input { display: none; }
 .rb-toggle-track {
-    width: 32px;
-    height: 18px;
-    border-radius: 9px;
-    background: rgba(255,255,255,0.12);
+    width: 51px;
+    height: 31px;
+    border-radius: 31px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
     position: relative;
     flex-shrink: 0;
-    transition: background 0.2s;
+    transition: background 0.25s ease, border-color 0.25s ease;
 }
 .rb-toggle-thumb {
-    width: 14px;
-    height: 14px;
+    width: 27px;
+    height: 27px;
     border-radius: 50%;
     background: var(--text-muted);
     position: absolute;
-    top: 2px;
-    left: 2px;
-    transition: transform 0.2s, background 0.2s;
+    top: 1px;
+    left: 1px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+    transition: transform 0.25s ease, background 0.25s ease;
 }
 .rb-options-toggle input:checked + .rb-toggle-track {
-    background: rgba(0,229,160,0.3);
+    background: var(--accent);
+    border-color: var(--accent);
 }
 .rb-options-toggle input:checked + .rb-toggle-track .rb-toggle-thumb {
-    transform: translateX(14px);
-    background: var(--accent);
+    transform: translateX(20px);
+    background: #fff;
 }
 
 /* Wind overlay marker */
