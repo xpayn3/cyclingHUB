@@ -14014,6 +14014,10 @@ function createSheetController(config) {
       s.el.classList.remove('sheet-peek');
       s.scroll.style.overflowY = 'auto';
     }
+    // Always allow scroll in peek state
+    if (newState === 'peek') {
+      s.scroll.style.overflowY = 'auto';
+    }
     if (config.onStateChange) config.onStateChange(newState, s);
   }
 
