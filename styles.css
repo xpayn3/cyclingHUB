@@ -2896,9 +2896,19 @@ code {
         display: none;
     }
     .acts-toolbar-top {
-        display: flex;
+        display: flex !important;
         align-items: center;
         gap: 8px;
+        min-height: 44px;
+    }
+    .acts-toolbar-top .cdd-wrap--sm,
+    .acts-toolbar-top .cdd-wrap--sm .cdd-trigger {
+        height: 44px !important;
+        min-height: 44px !important;
+    }
+    .acts-toolbar-top .acts-view-toggle {
+        height: 44px !important;
+        min-height: 44px !important;
     }
     .acts-sort-scroll {
         margin-left: calc(-1 * var(--pad-page));
@@ -10246,7 +10256,7 @@ body:has(.act-sheet-mode) .topbar {
         font-size: 12px;
         font-weight: 600;
         padding: 5px 14px;
-        margin-left: 0;
+        margin-left: auto;
         flex-shrink: 0;
     }
 
