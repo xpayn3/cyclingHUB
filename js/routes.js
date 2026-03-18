@@ -4152,8 +4152,8 @@ export function _rbUpdateWaypointList() {
         <span class="rb-wp-name">${w._placeName || 'Loading...'}</span>
         <span class="rb-wp-coords">${w.lat.toFixed(4)}, ${w.lng.toFixed(4)}</span>
       </div>
-      <button class="btn btn-icon btn-sm btn-ghost rb-wp-remove" data-idx="${i}" title="Remove" style="margin-left:auto;width:24px;height:24px">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      <button class="rb-wp-remove" data-idx="${i}" title="Remove">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
   `).join('');
