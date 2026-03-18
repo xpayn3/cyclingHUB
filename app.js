@@ -2277,7 +2277,7 @@ function navigate(page) {
 
   // Update pill nav active state + visibility (use visibility to keep backdrop-filter warm)
   const _pillNav = document.getElementById('dashPillNav');
-  const _pillHidePages = new Set(['settings', 'routes', 'workout', 'activity']);
+  const _pillHidePages = new Set(['settings', 'routes', 'workout', 'activity', 'heatmap']);
   if (_pillNav) {
     const hide = _pillHidePages.has(page);
     _pillNav.style.visibility = hide ? 'hidden' : '';
