@@ -18838,6 +18838,8 @@ html[data-theme="light"] {
     align-items: flex-start;
 }
 #rbMap .maplibregl-ctrl-top-left { top: 50px; left: 0; }
+#rbMap .maplibregl-ctrl-zoom-in,
+#rbMap .maplibregl-ctrl-zoom-out { display: none; }
 .rb-search-wrap { position: relative; }
 
 /* ── Import / Export bar ── */
