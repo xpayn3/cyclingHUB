@@ -63,6 +63,13 @@ if ('serviceWorker' in navigator) {
     _swRefreshing = true;
     window.location.reload();
   });
+  // Also listen for SW_UPDATED message as fallback
+  navigator.serviceWorker.addEventListener('message', e => {
+    if (e.data?.type === 'SW_UPDATED' && !_swRefreshing) {
+      _swRefreshing = true;
+      window.location.reload();
+    }
+  });
 
   navigator.serviceWorker.register('./sw.js')
     .then(reg => {
