@@ -21520,11 +21520,49 @@ function getGoalPeriodRange(period) {
    XP & LEVELING SYSTEM
 ==================================================== */
 function computeXP(a) {
-  const dist = actVal(a, 'distance', 'icu_distance') / 1000;
-  const elev = actVal(a, 'total_elevation_gain', 'icu_total_elevation_gain');
-  const mins = actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time') / 60;
-  const tss  = actVal(a, 'icu_training_load', 'tss');
-  return Math.floor(dist) + Math.floor(elev / 50) + Math.floor(mins / 10) + Math.floor(tss / 10) + 5;
+  const dist  = actVal(a, 'distance', 'icu_distance') / 1000;       // km
+  const elev  = actVal(a, 'total_elevation_gain', 'icu_total_elevation_gain'); // m
+  const mins  = actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time') / 60;
+  const tss   = actVal(a, 'icu_training_load', 'tss');
+  const speed = actVal(a, 'average_speed', 'icu_average_speed');     // m/s
+  const avgKmh = speed > 0 ? speed * 3.6 : (mins > 0 ? dist / (mins / 60) : 0);
+
+  // ── Distance XP: tiered — longer rides earn proportionally more ──
+  let distXP = 0;
+  if (dist <= 30)       distXP = Math.floor(dist * 1);       // 1 XP/km for short rides
+  else if (dist <= 80)  distXP = 30 + Math.floor((dist - 30) * 1.5); // 1.5 XP/km 30-80
+  else if (dist <= 150) distXP = 30 + 75 + Math.floor((dist - 80) * 2); // 2 XP/km 80-150
+  else                  distXP = 30 + 75 + 140 + Math.floor((dist - 150) * 3); // 3 XP/km 150+
+
+  // ── Elevation XP: climbing is hard — reward it well ──
+  let elevXP = 0;
+  if (elev <= 500)       elevXP = Math.floor(elev / 40);      // 1 XP per 40m
+  else if (elev <= 1500) elevXP = 12 + Math.floor((elev - 500) / 30);  // 1 XP per 30m
+  else                   elevXP = 12 + 33 + Math.floor((elev - 1500) / 20); // 1 XP per 20m
+
+  // ── Duration XP: endurance rewards ──
+  let timeXP = 0;
+  if (mins <= 60)        timeXP = Math.floor(mins / 10);      // 1 XP per 10 min
+  else if (mins <= 180)  timeXP = 6 + Math.floor((mins - 60) / 8);   // 1 XP per 8 min
+  else                   timeXP = 6 + 15 + Math.floor((mins - 180) / 6); // 1 XP per 6 min
+
+  // ── TSS XP: training intensity ──
+  let tssXP = 0;
+  if (tss <= 100)        tssXP = Math.floor(tss / 10);        // 1 XP per 10 TSS
+  else if (tss <= 250)   tssXP = 10 + Math.floor((tss - 100) / 8);   // 1 XP per 8 TSS
+  else                   tssXP = 10 + 19 + Math.floor((tss - 250) / 5); // 1 XP per 5 TSS
+
+  // ── Speed bonus: faster avg = more XP ──
+  let speedBonus = 0;
+  if (avgKmh >= 35)      speedBonus = 25;   // elite pace
+  else if (avgKmh >= 30) speedBonus = 15;   // fast
+  else if (avgKmh >= 25) speedBonus = 8;    // solid
+  else if (avgKmh >= 20) speedBonus = 3;    // moderate
+
+  // ── Ride completion bonus ──
+  const completionBonus = 5;
+
+  return distXP + elevXP + timeXP + tssXP + speedBonus + completionBonus;
 }
 
 function xpForLevel(n) { return Math.floor(100 * Math.pow(n, 1.5)); }
