@@ -11682,7 +11682,7 @@ function initModalSwipeDismiss(dialog) {
           gesture = 'dragging';
           // Set inline transform BEFORE adding .dragging so when the
           // animation fill is killed, the inline value is already there
-          inner.style.transform = 'translateY(0)';
+          inner.style.transform = 'translate3d(0,0,0)';
           inner.classList.add('dragging');
           startY = y; // reset origin
           currentDy = 0;
@@ -11703,10 +11703,10 @@ function initModalSwipeDismiss(dialog) {
 
     // gesture === 'dragging'
     const dragDy = y - startY;
-    if (dragDy < 0) { currentDy = 0; inner.style.transform = 'translateY(0)'; lastY = y; return; }
+    if (dragDy < 0) { currentDy = 0; inner.style.transform = 'translate3d(0,0,0)'; lastY = y; return; }
     currentDy = dragDy;
     const visual = dragDy < 100 ? dragDy : 100 + (dragDy - 100) * 0.3;
-    inner.style.transform = `translateY(${visual}px)`;
+    inner.style.transform = `translate3d(0,${visual}px,0)`;
     if (dragDy > 10) e.preventDefault();
     lastY = y;
   }
@@ -11725,7 +11725,7 @@ function initModalSwipeDismiss(dialog) {
         // Snap back: keep .dragging on (kills animation), use inline transition
         // to smoothly return to 0, then clean up ONLY the transition (keep transform)
         inner.style.transition = 'transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1)';
-        inner.style.transform = 'translateY(0)';
+        inner.style.transform = 'translate3d(0,0,0)';
         inner.addEventListener('transitionend', () => {
           inner.style.transition = '';
           // Remove sheet-enter BEFORE removing dragging so the animation
@@ -22061,8 +22061,9 @@ function openProfileModal() {
       if (!dragging && dy > 10) dragging = true;
       if (dragging && dy > 0) {
         currentDy = dy;
-        sheet.style.transform = `translateY(${dy}px)`;
+        sheet.style.transform = `translate3d(0,${dy}px,0)`;
         sheet.style.transition = 'none';
+        sheet.style.willChange = 'transform';
         // Fade backdrop
         const backdrop = sheet.previousElementSibling;
         if (backdrop) backdrop.style.opacity = Math.max(0, 1 - dy / 300);

@@ -15080,6 +15080,9 @@ body:has(.act-sheet-mode) .topbar {
     .modal.dragging {
         animation: none !important;
         transition: none !important;
+        will-change: transform;
+        backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
     }
     @keyframes sheetSlideIn {
         from { transform: translateY(100%); }
