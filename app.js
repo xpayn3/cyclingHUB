@@ -13110,7 +13110,7 @@ function renderCalendar() {
       ? `<div class="cal-day-hr${!thisMonth ? ' cal-day-hr--muted' : ''}"><svg viewBox="0 0 16 14" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M8 13.1L1.4 6.6C0.5 5.7 0 4.5 0 3.3 0 1.5 1.5 0 3.3 0c1 0 2 .5 2.7 1.2L8 3.5l2-2.3C10.7.5 11.7 0 12.7 0 14.5 0 16 1.5 16 3.3c0 1.2-.5 2.4-1.4 3.3L8 13.1z"/></svg>${avgHR}</div>`
       : '';
 
-    return `<div class="${cls}" data-date="${dateStr}" onclick="selectCalDay('${dateStr}')">
+    return `<div class="${cls}" data-date="${dateStr}" onclick="selectCalDay('${dateStr}',event)">
       <div class="cal-day-num">${date.getDate()}</div>
       ${desktopHtml}
       ${mobileHtml}
@@ -13301,7 +13301,10 @@ function _calInitDrag() {
 }
 
 // Select a day in the calendar and update the bottom panel
-function selectCalDay(dateStr) {
+function selectCalDay(dateStr, e) {
+  // If clicked on an activity card inside an other-month cell, ignore month navigation
+  if (e && e.target && e.target.closest('.cal-day-card')) return;
+
   state.calSelectedDate = dateStr;
 
   // If the clicked date belongs to a different month, navigate there first
