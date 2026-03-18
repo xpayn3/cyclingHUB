@@ -817,8 +817,7 @@ code {
 
 /* ── Page headline ── */
 .page-headline {
-    padding: 8px 0 12px;
-    padding-top: calc(env(safe-area-inset-top, 0px) + 8px);
+    padding: 4px 0 8px;
 }
 .page-headline--hidden {
     display: none;
@@ -2652,8 +2651,8 @@ code {
 /* ── Activities page sort bar ─────────────────────────────────────── */
 /* ---- Activities toolbar ---- */
 .acts-toolbar {
-    padding: 12px 0;
-    padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
+    padding: 8px 0;
+    padding-top: calc(env(safe-area-inset-top, 0px) + 8px);
     margin-bottom: 4px;
     display: flex;
     flex-direction: column;
@@ -3024,7 +3023,7 @@ code {
     align-items: center;
     padding: 24px 0 6px;
     position: sticky;
-    top: var(--act-sticky-top, 0px);
+    top: var(--act-sticky-top, env(safe-area-inset-top, 0px));
     z-index: 9;
     background: var(--bg-base);
 }
