@@ -6415,10 +6415,20 @@ code {
     width: 24px;
     height: 24px;
 }
+/* Save route FAB: hidden by default, shown via body class */
+#actSaveRouteFab {
+    visibility: hidden;
+    pointer-events: none;
+}
+body.show-save-fab #actSaveRouteFab {
+    visibility: visible !important;
+    pointer-events: auto !important;
+}
 /* ── FABs: liquid glass pill style, matching dash-pill-nav height ── */
 #actSearchFab,
 #calFab,
-#dashRouteFab {
+#dashRouteFab,
+#actSaveRouteFab {
     position: fixed;
     bottom: 20px;
     right: 16px;
@@ -7036,13 +7046,13 @@ code {
 }
 .prof-grabber {
     width: 36px;
-    height: 5px;
-    border-radius: 2.5px;
-    background: rgba(255, 255, 255, 0.3);
-    margin: 8px auto 4px;
+    height: 3px;
+    border-radius: 1.5px;
+    background: rgba(255, 255, 255, 0.25);
+    margin: 0 auto 20px;
+    padding-top: 4px;
     position: relative;
     z-index: 5;
-    flex-shrink: 0;
 }
 /* Scrollable content area */
 .prof-scroll {
@@ -8868,8 +8878,8 @@ body:has(.act-sheet-mode) .topbar {
                 border-color 0.3s ease;
 }
 .act-sheet-mode #flythroughBar .ft-play-btn {
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
     flex-shrink: 0;
 }
 .act-sheet-mode #flythroughBar.ft-expanded {
@@ -10182,14 +10192,12 @@ body:has(.act-sheet-mode) .topbar {
 .sim-rides-list { display: flex; flex-direction: column; gap: 8px; max-height: 60vh; overflow-y: auto; contain: layout style paint; }
 .sim-ride-card { padding: 12px 16px !important; cursor: pointer; transition: border-color 0.15s; overflow: visible !important; }
 .sim-ride-card:hover { border-color: var(--accent-glow); }
-.sim-ride-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+.sim-ride-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
 .sim-ride-info { min-width: 0; flex: 1; }
 .sim-ride-name { font-size: var(--text-sm); font-weight: 700; color: var(--text-primary); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sim-ride-date { font-size: var(--text-xs); color: var(--text-muted); margin-top: 2px; }
-.sim-ride-score {
-    flex-shrink: 0; background: var(--accent-dim); border: 1px solid var(--accent-glow);
-    color: var(--accent); border-radius: 20px; padding: 2px 10px;
-    font-size: var(--text-xs); font-weight: 700; font-family: var(--font-num); white-space: nowrap;
+.sim-ride-ring {
+    flex-shrink: 0;
 }
 .sim-ride-stats { display: flex; gap: 12px; font-size: var(--text-xs); color: var(--text-secondary); font-family: var(--font-num); }
 .sim-ride-stats span::after { content: '\00b7'; margin-left: 12px; color: var(--text-muted); }

@@ -90,7 +90,6 @@
         <div class="prof-overlay" id="profileOverlay" style="display:none">
             <div class="prof-overlay-backdrop" onclick="closeProfileModal()"></div>
             <div class="prof-sheet" id="profileSheet">
-                <div class="prof-grabber"></div>
                 <!-- Sticky compact header -->
                 <div class="prof-sticky-hdr" id="profStickyHdr">
                     <div class="prof-sticky-pill">
@@ -102,6 +101,7 @@
                 <!-- Scrollable content -->
                 <div class="prof-scroll" id="profScroll">
                     <div class="prof-hero">
+                        <div class="prof-grabber"></div>
                         <div class="prof-hero-content">
                             <div class="prof-avatar-wrap">
                                 <img id="profileAvatar" class="prof-avatar" alt="avatar">
@@ -1358,12 +1358,9 @@
                 <div class="page" id="page-dashboard">
                     <!-- ── Recent Activities ── -->
                     <div data-dash-section="recentCarousel">
-                        <div
-                            class="section-label"
-                            id="recentActSectionLabel"
-                            style="display: none"
-                        >
-                            Recent activities
+                        <div class="dash-section-header" id="recentActSectionLabel" style="display: none">
+                            <div class="dash-section-title">Recent Activities</div>
+                            <a href="#" onclick="navigate('activities');return false" class="dash-section-link">View all</a>
                         </div>
                         <div
                             class="recent-act-scroll-rail"
@@ -6028,7 +6025,7 @@
                 <circle cx="8.5" cy="8.5" r="5.5"/><line x1="13" y1="13" x2="18" y2="18"/>
             </svg>
         </button>
-        <button class="cal-fab" id="actSaveRouteFab" onclick="saveActivityRoute()" aria-label="Save route" style="visibility:hidden;pointer-events:none">
+        <button class="cal-fab" id="actSaveRouteFab" onclick="saveActivityRoute()" aria-label="Save route">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
             </svg>

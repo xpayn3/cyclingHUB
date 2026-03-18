@@ -2302,6 +2302,9 @@ function navigate(page) {
   state.currentPage  = page;
   try { sessionStorage.setItem('icu_route', JSON.stringify({ type: 'page', page })); } catch {}
 
+  // Hide save-route FAB when leaving activity page
+  document.body.classList.remove('show-save-fab');
+
   // Update pill nav active state + visibility (use visibility to keep backdrop-filter warm)
   const _pillNav = document.getElementById('dashPillNav');
   const _pillHidePages = new Set(['settings', 'routes', 'workout', 'activity', 'heatmap']);
@@ -2319,7 +2322,6 @@ function navigate(page) {
   if (_calFab)  { _calFab.style.visibility  = page === 'calendar'   ? '' : 'hidden'; _calFab.style.pointerEvents  = page === 'calendar'   ? '' : 'none'; }
   if (_actFab)  { _actFab.style.visibility  = page === 'activities' ? '' : 'hidden'; _actFab.style.pointerEvents  = page === 'activities' ? '' : 'none'; }
   if (_dashFab) { _dashFab.style.visibility = page === 'dashboard'  ? '' : 'hidden'; _dashFab.style.pointerEvents = page === 'dashboard'  ? '' : 'none'; }
-  if (_saveRouteFab) { _saveRouteFab.style.visibility = 'hidden'; _saveRouteFab.style.pointerEvents = 'none'; }
   document.querySelectorAll('.dash-pill-btn').forEach(btn => {
     const lbl = btn.querySelector('span')?.textContent?.toLowerCase() || '';
     const match = lbl === page || (lbl === 'home' && page === 'dashboard');
@@ -4065,17 +4067,6 @@ async function renderRecentActivity() {
   const recent = pool.slice(0, 3);
   const totalCount = pool.length;
   let html = recent.map((a, i) => buildHeroActCardHTML(a, i)).join('');
-  // "View All" link card
-  html += `<div class="hero-act-card hero-act-card--viewall" onclick="navigate('activities')">
-    <div class="hero-viewall-inner">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="32" height="32">
-        <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/>
-        <rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>
-      </svg>
-      <span class="hero-viewall-label">View All</span>
-      <span class="hero-viewall-count">${totalCount} activities</span>
-    </div>
-  </div>`;
   rail.innerHTML = html;
   if (sectionLabel) sectionLabel.style.display = '';
 
@@ -11646,15 +11637,29 @@ function initModalSwipeDismiss(dialog) {
   let gesture = 'idle';
   let startedOnHeader = false;
   let scrollWasAtTop = false;
+  let lastTouchTarget = null;
 
   function onTouchStart(e) {
     if (e.touches.length !== 1) return;
     startY = e.touches[0].clientY;
     lastY = startY;
     currentDy = 0;
-    startedOnHeader = !!e.target.closest('.modal-drag-indicator, .modal-header');
+    lastTouchTarget = e.target;
+    startedOnHeader = !!e.target.closest('.modal-drag-indicator, .modal-header, .cev-header');
+    // Check all scrollable ancestors from touch target
     const scrollEl = inner.querySelector('.modal-body');
-    scrollWasAtTop = !scrollEl || scrollEl.scrollTop <= 0;
+    let atTop = !scrollEl || scrollEl.scrollTop <= 0;
+    if (atTop) {
+      let el = e.target;
+      while (el && el !== inner) {
+        if (el.scrollHeight > el.clientHeight + 1 && el.scrollTop > 0) {
+          atTop = false;
+          break;
+        }
+        el = el.parentElement;
+      }
+    }
+    scrollWasAtTop = atTop;
 
     if (startedOnHeader) {
       gesture = 'pending';
@@ -11675,9 +11680,22 @@ function initModalSwipeDismiss(dialog) {
       if (Math.abs(dy) < 8) { lastY = y; return; } // dead zone
 
       if (dy > 0) {
-        // Pulling down — check scroll position RIGHT NOW
-        const scrollEl = inner.querySelector('.modal-body');
-        const atTop = !scrollEl || scrollEl.scrollTop <= 0;
+        // Pulling down — check scroll position of ALL scrollable ancestors
+        // from the touch target up to the modal body
+        let scrollEl = inner.querySelector('.modal-body');
+        let atTop = !scrollEl || scrollEl.scrollTop <= 0;
+        // Also check any inner scrollable element (e.g. sim-rides-list)
+        if (atTop && lastTouchTarget) {
+          let el = lastTouchTarget;
+          while (el && el !== inner) {
+            if (el.scrollHeight > el.clientHeight + 1 && el.scrollTop > 0) {
+              atTop = false;
+              scrollEl = el;
+              break;
+            }
+            el = el.parentElement;
+          }
+        }
         if (atTop) {
           gesture = 'dragging';
           // Set inline transform BEFORE adding .dragging so when the
@@ -13504,11 +13522,12 @@ async function navigateToActivity(actKey, fromStep = false) {
   document.querySelector('.page-headline')?.classList.add('page-headline--hidden');
   if (pageContent) pageContent.classList.remove('page-content--calendar');
 
-  // Hide search FAB, show save-route FAB on activity view
-  const _actFabDet = document.getElementById('actSearchFab');
-  if (_actFabDet) { _actFabDet.style.visibility = 'hidden'; _actFabDet.style.pointerEvents = 'none'; }
-  const _saveRouteFabDet = document.getElementById('actSaveRouteFab');
-  if (_saveRouteFabDet) { _saveRouteFabDet.style.visibility = ''; _saveRouteFabDet.style.pointerEvents = ''; }
+  // Show save-route FAB, hide all others
+  document.body.classList.add('show-save-fab');
+  ['calFab', 'actSearchFab', 'dashRouteFab'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.style.visibility = 'hidden'; el.style.pointerEvents = 'none'; }
+  });
 
   // Show the activity page
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -15092,7 +15111,17 @@ function openSimilarRidesModal() {
             <div class="sim-ride-name">${_escHtml(name)}</div>
             <div class="sim-ride-date">${date}</div>
           </div>
-          <div class="sim-ride-score">${score}%</div>
+          <div class="sim-ride-ring">
+            <svg viewBox="0 0 48 48" width="48" height="48">
+              <circle cx="24" cy="24" r="20" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="4"/>
+              <circle cx="24" cy="24" r="20" fill="none" stroke="var(--accent)" stroke-width="4"
+                stroke-linecap="round" stroke-dasharray="${2 * Math.PI * 20}"
+                stroke-dashoffset="${2 * Math.PI * 20 - (score / 100) * 2 * Math.PI * 20}"
+                transform="rotate(-90 24 24)"/>
+              <text x="24" y="25" text-anchor="middle" dominant-baseline="central"
+                fill="#fff" font-size="11" font-weight="700" font-family="var(--font-num)">${score}%</text>
+            </svg>
+          </div>
         </div>
         <div class="sim-ride-stats">
           ${dFmt ? `<span>${dFmt.val} ${dFmt.unit}</span>` : ''}
@@ -15366,6 +15395,7 @@ function renderActivityBasic(a) {
 
   // Store computed avgs for comparison card
   a._avgs = { avgDistM, avgSecsV, avgPowV, avgHrV, avgSpdMs, peerCount: peers.length };
+
 
   // ── Secondary stats: icon tiles ──────────────────────────────────────────
   const SICONS = {
