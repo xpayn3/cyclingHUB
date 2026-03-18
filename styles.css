@@ -17007,6 +17007,7 @@ body:has(.act-sheet-mode) .topbar {
     font-family: var(--font-num);
     line-height: 1.2;
     margin-top: auto;
+    padding-bottom: 6px;
 }
 .goal-dash-unit {
     font-size: 12px;
