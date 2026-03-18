@@ -13151,6 +13151,7 @@ let _calDragId = null;
 let _calDragCard = null;
 let _calDragGhost = null;
 let _calDragMove = null;
+let _calDropIdx = -1;
 
 function _calInitDrag() {
   const grid = document.getElementById('calGrid');
@@ -13192,8 +13193,11 @@ function _calInitDrag() {
     if (_calDragGhost) { _calDragGhost.remove(); _calDragGhost = null; }
     if (_calDragMove) { document.removeEventListener('dragover', _calDragMove); _calDragMove = null; }
     grid.querySelectorAll('.cal-day--drag-over').forEach(function(el) { el.classList.remove('cal-day--drag-over'); });
+    // Remove any drop indicators
+    grid.querySelectorAll('.cal-drop-indicator').forEach(function(el) { el.remove(); });
     _calDragId = null;
     _calDragCard = null;
+    _calDropIdx = -1;
   });
 
   grid.addEventListener('dragover', function(e) {
@@ -13204,11 +13208,42 @@ function _calInitDrag() {
     e.dataTransfer.dropEffect = 'move';
     grid.querySelectorAll('.cal-day--drag-over').forEach(function(el) { if (el !== day) el.classList.remove('cal-day--drag-over'); });
     day.classList.add('cal-day--drag-over');
+
+    // Show drop indicator between cards in the cell
+    var cardsContainer = day.querySelector('.cal-day-cards');
+    if (!cardsContainer) return;
+    var cards = Array.from(cardsContainer.querySelectorAll('.cal-day-card--planned'));
+    // Remove old indicators from other cells
+    grid.querySelectorAll('.cal-drop-indicator').forEach(function(el) { el.remove(); });
+
+    if (cards.length === 0) { _calDropIdx = 0; return; }
+
+    var mouseY = e.clientY;
+    var insertIdx = cards.length; // default: end
+    for (var i = 0; i < cards.length; i++) {
+      var rect = cards[i].getBoundingClientRect();
+      var mid = rect.top + rect.height / 2;
+      if (mouseY < mid) { insertIdx = i; break; }
+    }
+    _calDropIdx = insertIdx;
+
+    // Create indicator line
+    var indicator = document.createElement('div');
+    indicator.className = 'cal-drop-indicator';
+    indicator.style.cssText = 'height:2px;background:var(--accent);border-radius:1px;margin:1px 0;pointer-events:none;';
+    if (insertIdx < cards.length) {
+      cardsContainer.insertBefore(indicator, cards[insertIdx]);
+    } else {
+      cardsContainer.appendChild(indicator);
+    }
   });
 
   grid.addEventListener('dragleave', function(e) {
     const day = e.target.closest('.cal-day[data-date]');
-    if (day && !day.contains(e.relatedTarget)) day.classList.remove('cal-day--drag-over');
+    if (day && !day.contains(e.relatedTarget)) {
+      day.classList.remove('cal-day--drag-over');
+      day.querySelectorAll('.cal-drop-indicator').forEach(function(el) { el.remove(); });
+    }
   });
 
   grid.addEventListener('drop', function(e) {
@@ -13217,10 +13252,13 @@ function _calInitDrag() {
     if (!day) return;
     e.preventDefault();
     day.classList.remove('cal-day--drag-over');
+    grid.querySelectorAll('.cal-drop-indicator').forEach(function(el) { el.remove(); });
 
     const newDate = day.dataset.date;
     const evId = _calDragId;
+    var dropIdx = _calDropIdx;
     _calDragId = null;
+    _calDropIdx = -1;
     if (_calDragCard) _calDragCard.classList.remove('cal-card--dragging');
     _calDragCard = null;
 
@@ -13228,8 +13266,28 @@ function _calInitDrag() {
     if (!ev) return;
 
     const oldDate = (ev.start_date_local || ev.start_date || '').slice(0, 10);
-    if (oldDate === newDate) return;
 
+    // Same cell reorder: move card DOM position immediately
+    if (oldDate === newDate) {
+      var cardsContainer = day.querySelector('.cal-day-cards');
+      if (!cardsContainer) return;
+      var cardEl = cardsContainer.querySelector('[data-event-id="' + evId + '"]');
+      if (!cardEl) return;
+      var allCards = Array.from(cardsContainer.querySelectorAll('.cal-day-card--planned'));
+      var currentIdx = allCards.indexOf(cardEl);
+      if (currentIdx === dropIdx || (dropIdx > currentIdx && dropIdx === currentIdx + 1)) return; // no change
+      if (dropIdx >= allCards.length) {
+        cardsContainer.appendChild(cardEl);
+      } else {
+        var target = allCards[dropIdx];
+        if (currentIdx < dropIdx) target = allCards[dropIdx]; // after removal, indices shift
+        cardsContainer.insertBefore(cardEl, target);
+      }
+      showToast('Reordered "' + (ev.name || 'Event') + '"', 'success');
+      return;
+    }
+
+    // Different cell: move to new date
     icuPut('/athlete/' + state.athleteId + '/events/' + evId, {
       start_date_local: newDate + 'T00:00:00',
     }).then(function() {
