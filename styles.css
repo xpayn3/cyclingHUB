@@ -2735,7 +2735,7 @@ code {
     right: 0;
     height: env(safe-area-inset-top, 0px);
     background: var(--bg-base);
-    z-index: 1;
+    z-index: -1;
     pointer-events: none;
 }
 .acts-toolbar--hidden {
@@ -2929,30 +2929,13 @@ code {
         display: none;
     }
     .acts-toolbar-top {
-        display: flex !important;
-        flex-wrap: nowrap !important;
+        display: flex;
+        flex-wrap: nowrap;
         align-items: center;
         gap: 8px;
-        min-height: 48px;
-        overflow: visible !important;
-    }
-    .acts-toolbar-top > .cdd-wrap--sm {
-        display: inline-flex !important;
-        flex: 0 0 auto !important;
-        width: auto !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-    }
-    .acts-toolbar-top > .cdd-wrap--sm > .cdd-trigger {
-        display: flex !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        min-width: 120px;
-    }
-    .acts-toolbar-top > .acts-view-toggle {
-        display: flex !important;
-        visibility: visible !important;
-        opacity: 1 !important;
+        min-height: 44px;
+        position: relative;
+        z-index: 2;
     }
     .acts-sort-scroll {
         margin-left: calc(-1 * var(--pad-page));
