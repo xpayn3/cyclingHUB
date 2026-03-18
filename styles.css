@@ -19325,8 +19325,8 @@ html[data-theme="light"] {
     display: flex !important;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     background: rgba(20, 23, 32, 0.82);
     -webkit-backdrop-filter: blur(8px);
@@ -19344,7 +19344,7 @@ html[data-theme="light"] {
 [data-theme="light"] .rb-map-tool-btn:hover { background: rgba(255,255,255,0.92); color: var(--text-primary); }
 [data-theme="light"] .rb-map-tool-btn.active { color: var(--accent); background: rgba(0,229,160,0.1); border-color: rgba(0,229,160,0.15); }
 [data-theme="light"] .rb-map-tool-btn.active:hover { background: rgba(0,229,160,0.18); }
-.rb-map-tool-btn svg { flex-shrink: 0; width: 18px; height: 18px; }
+.rb-map-tool-btn svg { flex-shrink: 0; width: 20px; height: 20px; }
 .rb-tool-disabled { opacity: 0.35; pointer-events: none; cursor: default; }
 
 /* ── Fancy Compass (bottom-left, above elev panel) ── */
