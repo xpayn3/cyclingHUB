@@ -13303,6 +13303,21 @@ function _calInitDrag() {
 // Select a day in the calendar and update the bottom panel
 function selectCalDay(dateStr) {
   state.calSelectedDate = dateStr;
+
+  // If the clicked date belongs to a different month, navigate there first
+  var parts = dateStr.split('-');
+  var clickedYear = parseInt(parts[0], 10);
+  var clickedMonth = parseInt(parts[1], 10) - 1; // 0-indexed
+  var cur = getCalMonth();
+  if (clickedYear !== cur.getFullYear() || clickedMonth !== cur.getMonth()) {
+    var dir = (clickedYear * 12 + clickedMonth) > (cur.getFullYear() * 12 + cur.getMonth()) ? 'left' : 'right';
+    state.calMonth = new Date(clickedYear, clickedMonth, 1);
+    renderCalendar();
+    if (window.innerWidth > 600) _calSwipeAnim(dir);
+    refreshCalendarEvents();
+    return;
+  }
+
   // Update visual selection on grid cells without full re-render
   document.querySelectorAll('#calGrid .cal-day').forEach(el => {
     el.classList.toggle('cal-day--selected', el.dataset.date === dateStr);
