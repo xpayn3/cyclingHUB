@@ -17148,7 +17148,7 @@ body:has(.act-sheet-mode) .topbar {
 .hm-stat-val {
     font-size: 18px;
     font-weight: 700;
-    color: var(--accent);
+    color: #ffffff;
     letter-spacing: -0.3px;
 }
 .hm-stat-label {
@@ -17158,58 +17158,63 @@ body:has(.act-sheet-mode) .topbar {
     letter-spacing: 0.5px;
 }
 
-/* Controls sit to the right of stats */
+/* Controls — vertical stack */
 .hm-controls {
     display: flex;
-    gap: 14px;
-    flex-wrap: wrap;
-    flex: 1;
-    justify-content: flex-end;
-    align-items: center;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
 }
 .hm-control-group {
     display: flex;
-    align-items: center;
+    flex-direction: column;
     gap: 6px;
+    width: 100%;
 }
 .hm-label {
-    font-size: 10px;
+    font-size: 11px;
     text-transform: uppercase;
-    letter-spacing: 0.8px;
-    color: var(--text-secondary);
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
     font-weight: 600;
     white-space: nowrap;
+    padding-left: 2px;
 }
 .hm-pills {
     display: flex;
-    gap: 3px;
-    flex-wrap: wrap;
+    gap: 0;
+    flex-wrap: nowrap;
+    background: rgba(120, 120, 128, 0.12);
+    border-radius: 10px;
+    padding: 2px;
+    position: relative;
 }
 .hm-pill {
-    padding: 6px 12px;
-    min-height: 34px;
+    padding: 7px 0;
+    min-height: 36px;
+    flex: 1;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    border: none;
     background: transparent;
     color: var(--text-secondary);
-    font-size: 12px;
+    font-size: 13px;
+    font-weight: 500;
     cursor: pointer;
-    transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+    transition: color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
     font-family: inherit;
     white-space: nowrap;
 }
 .hm-pill:hover {
-    border-color: var(--accent);
     color: var(--text-primary);
 }
 .hm-pill.active {
-    background: var(--accent);
-    color: var(--bg-base);
-    border-color: var(--accent);
+    background: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
     font-weight: 600;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
 }
 
 /* ── Legend pill: top-center floating ── */
@@ -17404,8 +17409,7 @@ body.hm-map-dragging html,
         font-size: 16px;
     }
     .hm-controls {
-        justify-content: flex-start;
-        gap: 8px;
+        gap: 14px;
     }
     .hm-animate-count {
         display: none;
@@ -18841,8 +18845,10 @@ html[data-theme="light"] {
 [data-theme="light"] .hm-grabber-pill {
     background: rgba(0, 0, 0, 0.2);
 }
-[data-theme="light"] .hm-pill {
-    border-color: rgba(0, 0, 0, 0.12);
+[data-theme="light"] .hm-pill.active {
+    background: rgba(0, 0, 0, 0.08);
+    color: #000;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 [data-theme="light"] .hm-animate-progress {
     background: rgba(0, 0, 0, 0.08);
