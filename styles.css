@@ -19051,12 +19051,12 @@ html[data-theme="light"] {
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     border: none;
-    border-radius: 10px;
-    padding: 0 12px 0 34px;
+    border-radius: 12px;
+    padding: 0 12px 0 38px;
     color: var(--text-primary);
     font-size: 17px;
     width: 220px;
-    height: 36px;
+    height: 44px;
     outline: none;
     transition: background var(--transition);
     box-sizing: border-box;
@@ -19064,7 +19064,7 @@ html[data-theme="light"] {
 }
 .rb-search-input::placeholder { color: rgba(235,235,245,0.3); }
 .rb-search-input:focus { background: rgba(40, 40, 48, 0.9); }
-.rb-search-wrap > svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: rgba(235,235,245,0.3); pointer-events: none; z-index: 1; }
+.rb-search-wrap > svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: rgba(235,235,245,0.3); pointer-events: none; z-index: 1; }
 
 /* Routing status */
 .rb-routing-status {
@@ -20027,7 +20027,7 @@ html[data-theme="light"] {
     .rb-poi-filter { left: 8px; top: auto; bottom: 8px; max-width: calc(100% - 16px); flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .rb-poi-filter::-webkit-scrollbar { display: none; }
     .rb-search-float { left: 10px; top: calc(env(safe-area-inset-top, 10px) + 10px); }
-    .rb-search-input { width: 140px; padding: 0 10px 0 32px; font-size: 15px; height: 36px; }
+    .rb-search-input { width: 160px; padding: 0 10px 0 36px; font-size: 16px; height: 44px; }
     .rb-router-trigger span { display: none; }
     .rb-router-trigger { padding: 6px 8px; gap: 4px; }
     .rb-router-chevron { display: none; }
