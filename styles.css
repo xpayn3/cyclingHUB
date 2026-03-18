@@ -18899,7 +18899,7 @@ html[data-theme="light"] {
     gap: 6px;
     align-items: flex-start;
 }
-#rbMap .maplibregl-ctrl-top-left { top: 50px; left: 0; }
+#rbMap .maplibregl-ctrl-top-left { top: calc(env(safe-area-inset-top, 0px) + 56px); left: 0; }
 #rbMap .maplibregl-ctrl-zoom-in,
 #rbMap .maplibregl-ctrl-zoom-out { display: none; }
 .rb-search-wrap { position: relative; }
@@ -19779,18 +19779,17 @@ html[data-theme="light"] {
 /* ── Surface Legend ── */
 .rb-surface-legend {
     position: absolute;
-    bottom: 40px;
-    left: 10px;
-    z-index: 1000;
+    bottom: 100%;
+    left: 12px;
+    margin-bottom: 8px;
+    z-index: 5;
     display: flex;
     flex-direction: column;
     gap: 4px;
-    padding: 8px 12px;
-    border-radius: 8px;
-    background: rgba(20, 23, 32, 0.88);
-    -webkit-backdrop-filter: blur(8px);
-    backdrop-filter: blur(8px);
-    border: 1px solid rgba(255,255,255,0.08);
+    padding: 6px 12px;
+    border-radius: 10px;
+    background: rgba(20, 20, 24, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     pointer-events: none;
     font-size: 11px;
     color: var(--text-secondary);
@@ -20086,9 +20085,7 @@ html[data-theme="light"] {
     gap: var(--space-sm);
 }
 .rb-side-panel .card {
-    background: rgba(23, 26, 33, 0.88);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background: var(--bg-card);
     border: 1px solid rgba(255,255,255,0.06);
 }
 
@@ -20319,7 +20316,7 @@ html[data-theme="light"] {
     .rb-export-trigger span { display: none; }
     .rb-export-trigger { padding: 6px 8px; gap: 4px; }
     .rb-export-chevron { display: none; }
-    .rb-surface-legend { bottom: 36px; left: 8px; }
+    .rb-surface-legend { bottom: 100%; left: 12px; margin-bottom: 8px; }
     .rb-map-container { flex: 1; min-height: 0; }
 
     /* Side panel: hidden off-screen, toggled via .rb-panel-open (NOT in sheet mode) */
@@ -20380,7 +20377,7 @@ html[data-theme="light"] {
     transform: translateY(50%);
     will-change: transform;
     transition: transform 0.35s cubic-bezier(0.2, 0, 0, 1);
-    background: var(--bg-base);
+    background: #101010;
     border-radius: 16px 16px 0 0;
     box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.5);
     overflow: visible;
@@ -20495,9 +20492,7 @@ html[data-theme="light"] {
     position: static;
     border-top: none;
     border-radius: var(--radius);
-    background: rgba(23, 26, 33, 0.88);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background: var(--bg-card);
     border: 1px solid rgba(255,255,255,0.06);
     transform: none !important;
     overflow: hidden;
@@ -20543,14 +20538,12 @@ html[data-theme="light"] {
     gap: 6px;
     padding: 14px 8px;
     border-radius: var(--radius);
-    background: rgba(23, 26, 33, 0.88);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background: var(--bg-card);
     border: 1px solid rgba(255,255,255,0.06);
     font-size: var(--text-xs);
 }
 .rb-sheet-mode .rb-export-option svg { width: 18px; height: 18px; color: var(--accent); }
-.rb-sheet-mode .rb-export-option:hover { background: rgba(30, 34, 44, 0.95); }
+.rb-sheet-mode .rb-export-option:hover { background: var(--bg-elevated); }
 
 /* Search float stays above sheet */
 .rb-sheet-mode .rb-search-float { z-index: 20; }
@@ -20732,7 +20725,7 @@ html[data-theme="light"] {
 }
 
 /* MapLibre control groups — dark themed (beats unlayered MapLibre defaults) */
-#rbMap .maplibregl-ctrl-top-left { top: 50px; left: 0; }
+#rbMap .maplibregl-ctrl-top-left { top: calc(env(safe-area-inset-top, 0px) + 56px); left: 0; }
 #detailMapCard .maplibregl-ctrl-top-left { top: 58px; }
 
 /* ============================================================

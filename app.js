@@ -13773,6 +13773,12 @@ function createSheetController(config) {
 
   function _touchStart(e) {
     if (e.touches.length !== 1) return;
+    // Skip if touch is inside a horizontally scrollable element
+    if (e.target.closest('.rb-actions-row, .rb-poi-filter, [data-sheet-ignore]')) {
+      s.tracking = false;
+      s.directionLocked = true; // lock out sheet drag for this gesture
+      return;
+    }
     const touch = e.touches[0];
     s.startY = touch.clientY;
     s.prevY = touch.clientY;

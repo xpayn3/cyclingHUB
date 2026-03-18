@@ -532,7 +532,7 @@ export function _rbInitMap() {
     renderWorldCopies: false,
     antialias: false,
     collectResourceTiming: false,
-    maxTileCacheSize: 150,
+    maxTileCacheSize: 400,
     pixelRatio: Math.min(devicePixelRatio, 2),
   });
   _rb.map.on('load', () => {
@@ -2500,41 +2500,36 @@ export function _rbRedrawRoute() {
     });
   }
 
-  // Direction arrows along route
+  // Direction arrows along route — Apple Maps style: subtle filled triangles
   if (_rb.map.getSource('rb-route') && routedPoints.length > 1) {
-    if (!_rb.map.hasImage('rb-arrow')) {
-      const sz = 32, canvas = document.createElement('canvas');
+    if (!_rb.map.hasImage('rb-arrow-v2')) {
+      const sz = 24, canvas = document.createElement('canvas');
       canvas.width = sz; canvas.height = sz;
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, sz, sz);
       const cx = sz / 2, cy = sz / 2;
-      // Clean minimal chevron — Apple style open stroke, no fill
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      // Subtle shadow for depth
-      ctx.shadowColor = 'rgba(0,0,0,0.25)';
-      ctx.shadowBlur = 2;
-      ctx.strokeStyle = 'rgba(255,255,255,0.95)';
-      ctx.lineWidth = 2.5;
+      // Small filled triangle — clean, minimal, like Apple Maps
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
       ctx.beginPath();
-      ctx.moveTo(cx - 4, cy - 6);
-      ctx.lineTo(cx + 4, cy);
-      ctx.lineTo(cx - 4, cy + 6);
-      ctx.stroke();
-      _rb.map.addImage('rb-arrow', { width: sz, height: sz, data: ctx.getImageData(0, 0, sz, sz).data });
+      ctx.moveTo(cx + 5, cy);      // tip (pointing right)
+      ctx.lineTo(cx - 3, cy - 4);  // top-left
+      ctx.lineTo(cx - 3, cy + 4);  // bottom-left
+      ctx.closePath();
+      ctx.fill();
+      _rb.map.addImage('rb-arrow-v2', { width: sz, height: sz, data: ctx.getImageData(0, 0, sz, sz).data });
     }
     _rb.map.addLayer({
       id: 'rb-route-arrows', type: 'symbol', source: 'rb-route',
       layout: {
         'symbol-placement': 'line',
-        'symbol-spacing': 45,
-        'icon-image': 'rb-arrow',
-        'icon-size': ['interpolate', ['linear'], ['zoom'], 8, 0.6, 11, 0.8, 14, 1.0, 18, 1.2],
+        'symbol-spacing': 80,
+        'icon-image': 'rb-arrow-v2',
+        'icon-size': ['interpolate', ['linear'], ['zoom'], 8, 0.5, 11, 0.7, 14, 0.85, 18, 1.0],
         'icon-allow-overlap': true,
         'icon-ignore-placement': true,
         'icon-rotation-alignment': 'map',
       },
-      paint: { 'icon-opacity': 0.9 },
+      paint: { 'icon-opacity': ['interpolate', ['linear'], ['zoom'], 8, 0.4, 12, 0.6, 16, 0.7] },
     });
   }
 
@@ -3848,8 +3843,8 @@ export function _rbUpdateSurfaceLegend() {
     legend = document.createElement('div');
     legend.id = 'rbSurfaceLegend';
     legend.className = 'rb-surface-legend';
-    const mc = document.querySelector('.rb-map-container');
-    if (mc) mc.appendChild(legend);
+    const sheet = document.getElementById('rbBottomSheet');
+    if (sheet) sheet.appendChild(legend);
   }
   legend.style.display = '';
   legend.innerHTML =
