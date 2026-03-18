@@ -16932,8 +16932,9 @@ body:has(.act-sheet-mode) .topbar {
 }
 
 .goal-dash-card {
-    min-width: 160px;
     flex: 1 1 0;
+    min-width: 140px;
+    aspect-ratio: 1;
     scroll-snap-align: start;
     padding: 14px;
     cursor: pointer;
@@ -16942,7 +16943,6 @@ body:has(.act-sheet-mode) .topbar {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    gap: 12px;
 }
 .goal-dash-card::before {
     content: "";
