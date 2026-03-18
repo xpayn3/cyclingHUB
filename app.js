@@ -22074,7 +22074,29 @@ function openProfileModal() {
 
     sheet.addEventListener('touchend', () => {
       if (dragging && currentDy > 100) {
-        closeProfileModal();
+        // Dismiss from current position — slide out smoothly
+        sheet.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 1, 1)';
+        sheet.style.transform = 'translate3d(0,100%,0)';
+        sheet.style.willChange = '';
+        const backdrop = sheet.previousElementSibling;
+        if (backdrop) {
+          backdrop.style.transition = 'opacity 0.3s ease';
+          backdrop.style.opacity = '0';
+        }
+        setTimeout(() => {
+          const overlay = document.getElementById('profileOverlay');
+          if (overlay) {
+            overlay.classList.remove('prof-open', 'prof-closing');
+            overlay.style.display = 'none';
+          }
+          sheet.style.transform = '';
+          sheet.style.transition = '';
+          if (backdrop) { backdrop.style.transition = ''; backdrop.style.opacity = ''; }
+          const stickyHdr = document.getElementById('profStickyHdr');
+          if (stickyHdr) stickyHdr.classList.remove('prof-sticky--visible');
+          const profScroll = document.getElementById('profScroll');
+          if (profScroll) profScroll.onscroll = null;
+        }, 300);
       } else if (dragging) {
         sheet.style.transition = 'transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1)';
         sheet.style.transform = '';
