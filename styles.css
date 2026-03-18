@@ -5326,6 +5326,13 @@ code {
     content-visibility: auto;
     contain-intrinsic-size: auto 400px;
 }
+/* Sections with horizontal scroll rails must not clip overflow */
+[data-dash-section="goalsTargets"],
+[data-dash-section="weeklyStats"],
+[data-dash-section="recentActivities"] {
+    content-visibility: visible;
+    contain: style;
+}
 /* Recent carousel needs visible overflow for edge-to-edge mobile scroll */
 @media (max-width: 600px) {
     [data-dash-section="recentCarousel"] {
