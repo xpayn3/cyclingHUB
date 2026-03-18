@@ -16932,8 +16932,7 @@ body:has(.act-sheet-mode) .topbar {
 }
 
 .goal-dash-card {
-    flex: 1 1 0;
-    min-width: 140px;
+    flex: 0 0 calc(50% - 6px);
     aspect-ratio: 1;
     scroll-snap-align: start;
     padding: 14px;
