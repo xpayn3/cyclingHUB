@@ -1,5 +1,6 @@
 /* Route Builder module — extracted from app.js */
 import { state } from './state.js';
+import { wmoIcon, wmoLabel, windDir } from './weather.js';
 
 /* ── Lazy proxies for functions defined in other modules ── */
 const _app = (fn) => (...a) => window[fn](...a);
@@ -56,6 +57,9 @@ const _rb = {
   _windOverlay: false,
   _windData: null,
   _windMarker: null,
+  _wxDebounce: null,
+  _wxData: null,
+  _wxCacheKey: '',
   _elevShading: false,
   router: { engine: 'brouter', profile: 'fastbike', label: 'Road' },
   orsApiKey: localStorage.getItem('icu_ors_api_key') || '',
@@ -111,7 +115,7 @@ export function renderRouteBuilderPage() {
           </div>
           <div class="rb-router-wrap" id="rbRouterWrap">
             <button class="rb-router-trigger" id="rbRouterTrigger" title="Routing profile">
-              ${RB_ROUTERS[0].icon}
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M12 2v20"/><path d="M2 5h14l4 4-4 4H2"/><path d="M22 15H8l-4 4 4 4h14"/></svg>
               <span id="rbRouterLabel">${RB_ROUTERS[0].label} <span class="rb-router-engine">(${RB_ROUTERS[0].engine.toUpperCase()})</span></span>
               <svg class="rb-router-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="10" height="10"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
@@ -195,7 +199,6 @@ export function renderRouteBuilderPage() {
               </div>
             </div>
           </div>
-          <div class="rb-routing-status" id="rbRoutingStatus"><div class="rb-routing-spinner"></div><span>Routing…</span></div>
         </div>
         <div class="rb-poi-filter" id="rbPoiFilter" style="display:none"></div>
         <button class="rb-panel-toggle" onclick="rbToggleSidePanel()" title="Toggle stats panel">
@@ -220,24 +223,29 @@ export function renderRouteBuilderPage() {
             </div>
             <div class="rb-actions-card card">
               <div class="rb-actions-row">
-                <button class="btn btn-ghost btn-icon btn-sm" id="rbUndoBtn" onclick="rbUndo()" title="Undo (Ctrl+Z)" disabled>
+                <button class="rb-action-pill" id="rbUndoBtn" onclick="rbUndo()" title="Undo" disabled>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                  <span>Undo</span>
                 </button>
-                <button class="btn btn-ghost btn-icon btn-sm" id="rbRedoBtn" onclick="rbRedo()" title="Redo (Ctrl+Y)" disabled>
+                <button class="rb-action-pill" id="rbRedoBtn" onclick="rbRedo()" title="Redo" disabled>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"/></svg>
+                  <span>Redo</span>
                 </button>
-                <span class="rb-actions-sep"></span>
-                <button class="btn btn-ghost btn-icon btn-sm" onclick="rbReverse()" title="Reverse route">
+                <button class="rb-action-pill" onclick="rbReverse()" title="Reverse">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                  <span>Reverse</span>
                 </button>
-                <button class="btn btn-ghost btn-icon btn-sm" onclick="rbOutAndBack()" title="Out & Back">
+                <button class="rb-action-pill" onclick="rbOutAndBack()" title="Out & Back">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+                  <span>Out & Back</span>
                 </button>
-                <button class="btn btn-ghost btn-icon btn-sm" onclick="rbLoopBack()" title="Loop back to start">
+                <button class="rb-action-pill" onclick="rbLoopBack()" title="Loop">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><polyline points="22 2 22 12 12 12"/></svg>
+                  <span>Loop</span>
                 </button>
-                <button class="btn btn-ghost btn-icon btn-sm rb-tool-btn--danger" onclick="rbClear()" title="Clear route">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                <button class="rb-action-pill rb-action-pill--danger" id="rbClearExitBtn" onclick="rbClearOrExit()" title="Exit to dashboard">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                  <span>Exit</span>
                 </button>
               </div>
             </div>
@@ -257,6 +265,13 @@ export function renderRouteBuilderPage() {
                 <div class="rb-saved-empty">Click the map to add waypoints</div>
               </div>
             </div>
+            <div class="rb-weather-card card" id="rbWeatherCard" style="display:none">
+              <div class="card-header">
+                <div class="card-title">Route Weather</div>
+                <div class="card-subtitle" id="rbWxTime">Now</div>
+              </div>
+              <div class="rb-wx-points" id="rbWxPoints"></div>
+            </div>
             <div class="rb-saved-card card">
               <div class="card-header"><div class="card-title">Saved Routes</div></div>
               <div class="rb-saved-list" id="rbSavedList">
@@ -267,6 +282,11 @@ export function renderRouteBuilderPage() {
         </div>
       </div>
       <div id="rbBottomSheet" class="rb-bottom-sheet">
+        <div class="rb-routing-status" id="rbRoutingStatus"><div class="rb-routing-spinner"></div><span>Routing…</span></div>
+        <div class="rb-wx-pill" id="rbWxPill" style="display:none">
+          <span class="rb-wx-pill-icon" id="rbWxPillIcon"></span>
+          <span class="rb-wx-pill-temp" id="rbWxPillTemp"></span>
+        </div>
         <div class="rb-sheet-handle"><span></span></div>
         <div class="rb-sheet-scroll" id="rbSheetScroll"></div>
       </div>
@@ -371,6 +391,9 @@ export function rbActivateSheetMode() {
       // Hide floating menu button unless sheet is fully expanded
       const menuBtn = document.getElementById('floatingMenuBtn');
       if (menuBtn) menuBtn.style.display = (newState === 'expanded') ? '' : 'none';
+      // Hide search bar when sheet is fully expanded
+      const searchFloat = document.querySelector('.rb-search-float');
+      if (searchFloat) searchFloat.style.display = (newState === 'expanded') ? 'none' : '';
       // Resize map after transition
       setTimeout(() => { if (_rb.map) _rb.map.resize(); }, 400);
     },
@@ -527,8 +550,10 @@ export function _rbInitMap() {
       'fog-ground-blend': 0.9,
       'atmosphere-blend': 0.6,
     });
+    // Fetch current weather at map center immediately
+    _rbFetchCurrentWeather();
   });
-  _rb.map.addControl(new maplibregl.AttributionControl({ compact: true }), 'top-right');
+  _rb.map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
   _rb.map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: 'metric' }), 'bottom-left');
 
   // Custom rotation + pitch handler (right-click drag or Alt+left-click drag)
@@ -633,10 +658,19 @@ export function _rbInitMap() {
 
       // ── Map info / attribution button ──
       const infoBtn = mkBtn('', 'Map information',
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="8"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
         () => {
-          const attr = _rb.map?.getContainer()?.querySelector('.maplibregl-ctrl-attrib');
-          if (attr) { attr.classList.toggle('maplibregl-compact-show'); }
+          let overlay = document.getElementById('rbAttrOverlay');
+          if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'rbAttrOverlay';
+            overlay.className = 'rb-attr-overlay';
+            const attrEl = _rb.map?.getContainer()?.querySelector('.maplibregl-ctrl-attrib-inner');
+            overlay.innerHTML = attrEl ? attrEl.innerHTML : 'Map data © OpenStreetMap contributors';
+            _rb.map?.getContainer()?.appendChild(overlay);
+          }
+          overlay.classList.toggle('visible');
+          infoBtn.classList.toggle('active', overlay.classList.contains('visible'));
         });
       infoBtn.id = 'rbInfoBtn';
 
@@ -906,6 +940,126 @@ function _rbRenderWindMarker() {
 
 function _rbRemoveWindMarker() {
   if (_rb._windMarker) { _rb._windMarker.remove(); _rb._windMarker = null; }
+}
+
+/* ── Route Weather Analysis ── */
+async function _rbFetchRouteWeather() {
+  const ed = _rb.elevationData;
+  if (!ed || ed.length < 2) {
+    // Hide the sheet card but keep the floating pill (shows current weather)
+    const card = document.getElementById('rbWeatherCard');
+    if (card) card.style.display = 'none';
+    return;
+  }
+
+  const totalDist = ed[ed.length - 1].dist;
+  const count = totalDist < 10000 ? 2 : totalDist < 30000 ? 3 : 5;
+  const samplePts = [];
+  for (let i = 0; i < count; i++) {
+    const targetDist = (totalDist * i) / (count - 1);
+    const pt = ed.reduce((best, p) =>
+      Math.abs(p.dist - targetDist) < Math.abs(best.dist - targetDist) ? p : best
+    );
+    samplePts.push({ lat: pt.lat, lng: pt.lng, dist: pt.dist });
+  }
+
+  const key = samplePts.map(p => `${p.lat.toFixed(2)},${p.lng.toFixed(2)}`).join('|');
+  if (key === _rb._wxCacheKey && _rb._wxData) { _rbRenderRouteWeather(); return; }
+
+  try {
+    const results = await Promise.all(samplePts.map(async (p) => {
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${p.lat.toFixed(4)}&longitude=${p.lng.toFixed(4)}&hourly=temperature_2m,weathercode,windspeed_10m,winddirection_10m,precipitation_probability&wind_speed_unit=ms&timezone=auto&forecast_days=1`;
+      const resp = await fetch(url);
+      return resp.json();
+    }));
+
+    const now = new Date();
+    const curHour = now.getHours();
+
+    _rb._wxData = results.map((data, i) => {
+      const h = data.hourly;
+      if (!h) return null;
+      // Find closest hour index
+      let idx = curHour;
+      if (idx >= h.time.length) idx = h.time.length - 1;
+      return {
+        dist: samplePts[i].dist,
+        lat: samplePts[i].lat,
+        lng: samplePts[i].lng,
+        temp: h.temperature_2m[idx],
+        code: h.weathercode[idx],
+        wind: h.windspeed_10m[idx],
+        windDir: h.winddirection_10m[idx],
+        precip: h.precipitation_probability[idx],
+      };
+    }).filter(Boolean);
+
+    _rb._wxCacheKey = key;
+    _rbRenderRouteWeather();
+  } catch (e) {
+    console.warn('Route weather fetch failed:', e);
+  }
+}
+
+function _rbRenderRouteWeather() {
+  const card = document.getElementById('rbWeatherCard');
+  const container = document.getElementById('rbWxPoints');
+  if (!card || !container || !_rb._wxData?.length) { _rbHideRouteWeather(); return; }
+
+  card.style.display = '';
+
+  // Update floating weather pill (midpoint weather)
+  const midIdx = Math.floor(_rb._wxData.length / 2);
+  const mid = _rb._wxData[midIdx];
+  const pill = document.getElementById('rbWxPill');
+  const pillIcon = document.getElementById('rbWxPillIcon');
+  const pillTemp = document.getElementById('rbWxPillTemp');
+  if (pill && pillIcon && pillTemp && mid) {
+    pill.style.display = '';
+    pillIcon.innerHTML = wmoIcon(mid.code);
+    pillTemp.textContent = `${Math.round(mid.temp)}°`;
+  }
+
+  const labels = _rb._wxData.length <= 3
+    ? ['Start', 'Mid', 'End'].slice(0, _rb._wxData.length)
+    : _rb._wxData.map(p => `${(p.dist / 1000).toFixed(0)} km`);
+
+  container.innerHTML = _rb._wxData.map((p, i) => `
+    <div class="rb-wx-point">
+      <div class="rb-wx-point-label">${labels[i]}</div>
+      <div class="rb-wx-point-icon">${wmoIcon(p.code)}</div>
+      <div class="rb-wx-point-temp">${Math.round(p.temp)}°</div>
+      <div class="rb-wx-point-wind">${p.wind.toFixed(1)} m/s ${windDir(p.windDir)}</div>
+      <div class="rb-wx-point-precip${p.precip > 50 ? ' rb-wx-precip-high' : ''}">${p.precip}%</div>
+    </div>
+  `).join('');
+}
+
+async function _rbFetchCurrentWeather() {
+  try {
+    const center = _rb.map.getCenter();
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${center.lat.toFixed(4)}&longitude=${center.lng.toFixed(4)}&current=temperature_2m,weathercode&wind_speed_unit=ms&timezone=auto`;
+    const resp = await fetch(url);
+    const data = await resp.json();
+    if (!data.current) return;
+    const pill = document.getElementById('rbWxPill');
+    const pillIcon = document.getElementById('rbWxPillIcon');
+    const pillTemp = document.getElementById('rbWxPillTemp');
+    if (pill && pillIcon && pillTemp) {
+      pill.style.display = '';
+      pillIcon.innerHTML = wmoIcon(data.current.weathercode);
+      pillTemp.textContent = `${Math.round(data.current.temperature_2m)}°`;
+    }
+  } catch (e) {
+    console.warn('Current weather fetch failed:', e);
+  }
+}
+
+function _rbHideRouteWeather() {
+  const card = document.getElementById('rbWeatherCard');
+  if (card) card.style.display = 'none';
+  const pill = document.getElementById('rbWxPill');
+  if (pill) pill.style.display = 'none';
 }
 
 /* ── Gradient / Elevation Shading Legend ── */
@@ -2797,6 +2951,15 @@ export function _rbUpdateUndoRedoBtns() {
   const redo = document.getElementById('rbRedoBtn');
   if (undo) undo.disabled = _rb.historyIdx <= 0;
   if (redo) redo.disabled = _rb.historyIdx >= _rb.history.length - 1;
+  // Update clear/exit button icon
+  const btn = document.getElementById('rbClearExitBtn');
+  if (btn) {
+    const hasRoute = _rb.waypoints.length > 0;
+    btn.title = hasRoute ? 'Clear route' : 'Exit to dashboard';
+    btn.innerHTML = hasRoute
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>';
+  }
 }
 
 /* ── Keyboard Shortcuts ── */
@@ -3308,6 +3471,9 @@ export function _rbUpdateStats() {
   if (el('rbWpCount'))     el('rbWpCount').textContent = `${_rb.waypoints.length} points`;
   _rbUpdateTimeLabel(estTimeSec);
   _rbUpdateClimbs();
+  // Debounced route weather fetch
+  clearTimeout(_rb._wxDebounce);
+  _rb._wxDebounce = setTimeout(_rbFetchRouteWeather, 2000);
 }
 
 /* ── Climb Detection ── */
@@ -4059,6 +4225,15 @@ export function _rbConfirmLeave(targetPage) {
   );
 }
 
+/* ── Clear or Exit ── */
+export function rbClearOrExit() {
+  if (_rb.waypoints.length === 0) {
+    navigate('dashboard');
+    return;
+  }
+  rbClear();
+}
+
 /* ── Clear ── */
 export function rbClear() {
   _rbCloseWpPopup();
@@ -4102,6 +4277,10 @@ export function rbClear() {
   _rbRemoveWindMarker();
   _rb._windOverlay = false;
   _rb._windData = null;
+  _rb._wxData = null;
+  _rb._wxCacheKey = '';
+  clearTimeout(_rb._wxDebounce);
+  _rbHideRouteWeather();
   _rb._gradientMode = null;
   _rb._elevShading = false;
   _rb._surfaceMode = false;

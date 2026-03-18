@@ -18938,7 +18938,7 @@ html[data-theme="light"] {
     outline: none;
     white-space: nowrap;
     transition: background var(--transition);
-    height: 36px;
+    height: 44px;
     font-family: inherit;
 }
 .rb-router-trigger:hover { background: rgba(40, 40, 48, 0.9); }
@@ -19038,12 +19038,55 @@ html[data-theme="light"] {
 .rb-edit-save:hover { filter: brightness(1.1); }
 
 /* ── Actions Card (side panel) ── */
-.rb-actions-card { padding: 8px !important; }
-.rb-actions-row { display: flex; gap: 4px; align-items: center; }
+.rb-actions-card { padding: 8px 0 !important; background: transparent !important; border: none !important; box-shadow: none !important; }
+.rb-actions-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+}
+.rb-actions-row::-webkit-scrollbar { display: none; }
 .rb-actions-row + .rb-actions-row { margin-top: 4px; }
-.rb-actions-row .btn-sm { padding: 5px 8px; font-size: var(--text-xs); }
-.rb-actions-row .btn-icon { padding: 5px; }
-.rb-actions-sep { width: 1px; height: 18px; background: var(--border); margin: 0 2px; flex-shrink: 0; }
+.rb-actions-sep { display: none; }
+
+/* ── Action pill buttons ── */
+.rb-action-pill {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 10px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--accent);
+    font-size: 10px;
+    font-weight: 600;
+    font-family: inherit;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    flex-shrink: 0;
+    min-height: 56px;
+    min-width: 56px;
+}
+.rb-action-pill svg { width: 20px; height: 20px; flex-shrink: 0; }
+.rb-action-pill span { color: var(--text-secondary); }
+.rb-action-pill:hover { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.2); }
+.rb-action-pill:active { background: rgba(255, 255, 255, 0.14); }
+.rb-action-pill:disabled { opacity: 0.35; cursor: default; }
+.rb-action-pill:disabled:hover { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.12); }
+.rb-action-pill--danger { color: var(--text-muted); border-color: rgba(255, 255, 255, 0.08); }
+.rb-action-pill--danger:hover { color: #ff5050; border-color: rgba(255, 80, 80, 0.3); }
+[data-theme="light"] .rb-action-pill {
+    background: rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.1);
+}
+[data-theme="light"] .rb-action-pill:hover { background: rgba(0, 0, 0, 0.08); }
 .rb-tool-btn--danger { color: var(--text-muted); }
 .rb-tool-btn--danger:hover { color: #ff4757; }
 .rb-search-input {
@@ -19064,21 +19107,27 @@ html[data-theme="light"] {
 .rb-search-input:focus { background: rgba(40, 40, 48, 0.9); }
 .rb-search-wrap > svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: rgba(235,235,245,0.3); pointer-events: none; z-index: 1; }
 
-/* Routing status */
+/* Routing status — positioned above bottom sheet, centered */
 .rb-routing-status {
     display: none;
     align-items: center;
+    justify-content: center;
     gap: 6px;
     height: 32px;
-    padding: 0 10px;
+    padding: 0 14px;
     background: var(--bg-elevated);
     border: 1px solid var(--accent);
-    border-radius: 8px;
+    border-radius: 16px;
     font-size: var(--text-sm);
     color: var(--accent);
     font-weight: 500;
     white-space: nowrap;
     box-shadow: 0 0 8px rgba(0,229,160,0.1);
+    position: absolute;
+    top: -44px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
 }
 .rb-routing-status--active { display: flex; }
 .rb-routing-spinner {
@@ -19345,6 +19394,39 @@ html[data-theme="light"] {
 .rb-map-tool-btn svg { flex-shrink: 0; width: 20px; height: 20px; }
 .rb-tool-disabled { opacity: 0.35; pointer-events: none; cursor: default; }
 
+/* ── Route builder map attribution — hidden default, custom overlay ── */
+.rb-map .maplibregl-ctrl-attrib {
+    display: none !important;
+}
+.rb-attr-overlay {
+    position: absolute;
+    bottom: 196px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(10, 12, 18, 0.8);
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 10px;
+    line-height: 1.4;
+    padding: 6px 12px;
+    border-radius: 8px;
+    z-index: 820;
+    max-width: 90%;
+    text-align: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+}
+.rb-attr-overlay.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+.rb-attr-overlay a {
+    color: rgba(255, 255, 255, 0.6);
+}
+.rb-wrapper:has(.rb-elev-panel.collapsed) .rb-attr-overlay {
+    bottom: 36px;
+}
+
 /* ── Fancy Compass (bottom-left, above elev panel) ── */
 .rb-compass {
   position: absolute;
@@ -19524,6 +19606,56 @@ html[data-theme="light"] {
     display: inline;
 }
 
+/* ── All MapLibre Popups in Route Builder — dark fallback ── */
+#rbMap .maplibregl-popup-content,
+.rb-wp-popup-wrap .maplibregl-popup-content {
+    background: rgba(20, 23, 32, 0.94) !important;
+    border: 1px solid rgba(255,255,255,0.1) !important;
+    border-radius: 10px !important;
+    color: var(--text-primary) !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4) !important;
+}
+#rbMap .maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+.rb-wp-popup-wrap.maplibregl-popup-anchor-bottom .maplibregl-popup-tip {
+    border-top-color: rgba(20, 23, 32, 0.94) !important;
+}
+#rbMap .maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.rb-wp-popup-wrap.maplibregl-popup-anchor-top .maplibregl-popup-tip {
+    border-bottom-color: rgba(20, 23, 32, 0.94) !important;
+}
+#rbMap .maplibregl-popup-anchor-left .maplibregl-popup-tip,
+.rb-wp-popup-wrap.maplibregl-popup-anchor-left .maplibregl-popup-tip {
+    border-right-color: rgba(20, 23, 32, 0.94) !important;
+}
+#rbMap .maplibregl-popup-anchor-right .maplibregl-popup-tip,
+.rb-wp-popup-wrap.maplibregl-popup-anchor-right .maplibregl-popup-tip {
+    border-left-color: rgba(20, 23, 32, 0.94) !important;
+}
+#rbMap .maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+#rbMap .maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip {
+    border-top-color: rgba(20, 23, 32, 0.94) !important;
+}
+#rbMap .maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+#rbMap .maplibregl-popup-anchor-top-right .maplibregl-popup-tip {
+    border-bottom-color: rgba(20, 23, 32, 0.94) !important;
+}
+#rbMap .maplibregl-popup-close-button { color: var(--text-muted); font-size: 18px; }
+[data-theme="light"] #rbMap .maplibregl-popup-content,
+[data-theme="light"] .rb-wp-popup-wrap .maplibregl-popup-content {
+    background: rgba(255,255,255,0.96) !important;
+    border-color: var(--border) !important;
+    color: var(--text-primary) !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1) !important;
+}
+[data-theme="light"] #rbMap .maplibregl-popup-anchor-bottom .maplibregl-popup-tip { border-top-color: rgba(255,255,255,0.96) !important; }
+[data-theme="light"] #rbMap .maplibregl-popup-anchor-top .maplibregl-popup-tip { border-bottom-color: rgba(255,255,255,0.96) !important; }
+[data-theme="light"] #rbMap .maplibregl-popup-anchor-left .maplibregl-popup-tip { border-right-color: rgba(255,255,255,0.96) !important; }
+[data-theme="light"] #rbMap .maplibregl-popup-anchor-right .maplibregl-popup-tip { border-left-color: rgba(255,255,255,0.96) !important; }
+[data-theme="light"] #rbMap .maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+[data-theme="light"] #rbMap .maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip { border-top-color: rgba(255,255,255,0.96) !important; }
+[data-theme="light"] #rbMap .maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+[data-theme="light"] #rbMap .maplibregl-popup-anchor-top-right .maplibregl-popup-tip { border-bottom-color: rgba(255,255,255,0.96) !important; }
+
 /* ── POI Popup (MapLibre) ── */
 .rb-poi-popup-wrap .maplibregl-popup-content {
     background: rgba(20, 23, 32, 0.92);
@@ -19694,6 +19826,7 @@ html[data-theme="light"] {
     transition: color 0.15s;
 }
 .rb-wp-popup-close:hover { color: var(--text-primary); }
+.rb-wp-popup-close:focus { outline: none; }
 .rb-wp-popup-name {
     font-weight: 600;
     font-size: 13px;
@@ -19964,6 +20097,85 @@ html[data-theme="light"] {
     white-space: nowrap;
 }
 
+/* ── Route Weather Card ── */
+.rb-wx-points {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 0 var(--space-sm) var(--space-sm);
+}
+.rb-wx-point {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 10px;
+}
+.rb-wx-point-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    min-width: 36px;
+    flex-shrink: 0;
+}
+.rb-wx-point-icon { width: 28px; height: 28px; flex-shrink: 0; }
+.rb-wx-point-icon svg { width: 28px; height: 28px; }
+.rb-wx-point-temp {
+    font-family: var(--font-num);
+    font-size: var(--text-md);
+    font-weight: 700;
+    color: var(--text-primary);
+    min-width: 34px;
+}
+.rb-wx-point-wind {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.rb-wx-point-precip {
+    font-size: var(--text-sm);
+    color: var(--accent);
+    font-weight: 600;
+    flex-shrink: 0;
+}
+.rb-wx-precip-high { color: #60A5FA; }
+[data-theme="light"] .rb-wx-point { background: rgba(0,0,0,0.04); }
+
+/* ── Floating Weather Pill (above bottom sheet) ── */
+.rb-wx-pill {
+    position: absolute;
+    top: -44px;
+    right: 12px;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px 6px 8px;
+    background: rgba(20, 20, 24, 0.8);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    pointer-events: auto;
+}
+.rb-wx-pill-icon { width: 22px; height: 22px; flex-shrink: 0; }
+.rb-wx-pill-icon svg { width: 22px; height: 22px; }
+.rb-wx-pill-temp {
+    font-family: var(--font-num);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+[data-theme="light"] .rb-wx-pill {
+    background: rgba(255, 255, 255, 0.75);
+    border-color: rgba(0, 0, 0, 0.08);
+}
+
 /* ── Waypoint List ── */
 .rb-waypoint-list { max-height: 180px; overflow-y: auto; padding: 0 var(--space-sm) var(--space-sm); }
 .rb-wp-item {
@@ -20037,8 +20249,9 @@ html[data-theme="light"] {
     .rb-search-float { right: 10px; }
     .rb-search-wrap { flex: 1; min-width: 0; }
     .rb-router-trigger span { display: none; }
-    .rb-router-trigger { padding: 6px 8px; gap: 4px; }
+    .rb-router-trigger { padding: 0; width: 44px; height: 44px; justify-content: center; gap: 0; }
     .rb-router-chevron { display: none; }
+    .rb-router-menu { left: auto; right: 0; min-width: 220px; }
     .rb-export-trigger span { display: none; }
     .rb-export-trigger { padding: 6px 8px; gap: 4px; }
     .rb-export-chevron { display: none; }

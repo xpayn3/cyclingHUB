@@ -13,7 +13,7 @@ import { openShareModal, closeShareModal, shareUpdateSetting, shareRender,
          shareImageDownload, shareImageCopy } from './js/share.js';
 
 import { renderRouteBuilderPage, rbUndo, rbRedo, rbReverse, rbOutAndBack,
-         rbLoopBack, rbClear, rbSave, rbSaveEdit, rbCancelEdit, rbLoadRoute, rbDeleteSavedRoute,
+         rbLoopBack, rbClear, rbClearOrExit, rbSave, rbSaveEdit, rbCancelEdit, rbLoadRoute, rbDeleteSavedRoute,
          rbExportGPX, rbExportFIT, rbImportGPX, rbToggleElevPanel,
          rbToggleSidePanel, closeExportHelper,
          _rbSetPoiMode, _rbTogglePoiCat, _rbSwitchExportTab,
@@ -22956,7 +22956,7 @@ Object.assign(window, { openShareModal, closeShareModal, shareUpdateSetting,
 
 // ── From routes.js ──
 Object.assign(window, { renderRouteBuilderPage, rbUndo, rbRedo, rbReverse,
-  rbOutAndBack, rbLoopBack, rbClear, rbSave, rbSaveEdit, rbCancelEdit, rbLoadRoute, rbDeleteSavedRoute,
+  rbOutAndBack, rbLoopBack, rbClear, rbClearOrExit, rbSave, rbSaveEdit, rbCancelEdit, rbLoadRoute, rbDeleteSavedRoute,
   rbExportGPX, rbExportFIT, rbImportGPX, rbToggleElevPanel, rbToggleSidePanel,
   closeExportHelper, _rbSetPoiMode, _rbTogglePoiCat, _rbSwitchExportTab,
   _rbToggleFullscreen, _rbToggleSurfaceMode, _rbToggleRoadSafety,
