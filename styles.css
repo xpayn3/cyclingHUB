@@ -18031,7 +18031,7 @@ body.hm-map-dragging html,
 }
 .hm-bottom-sheet.dragging { transition: none !important; }
 /* Keep handle and border-radius even in expanded (50/50) */
-.hm-bottom-sheet.sheet-peek .hm-sheet-scroll { overflow-y: hidden; }
+.hm-bottom-sheet.sheet-peek .hm-sheet-scroll { overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
 .hm-sheet-handle {
     display: flex;
