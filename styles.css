@@ -8865,11 +8865,11 @@ body:has(.act-sheet-mode) .topbar {
     margin: 0;
     gap: 0;
     overflow: hidden;
-    width: 44px;
-    height: 44px;
+    width: 64px;
+    height: 64px;
     background: none;
     backdrop-filter: none;
-    border-radius: 22px;
+    border-radius: 32px;
     box-shadow: none;
     transition: width 0.3s cubic-bezier(0.2, 0, 0, 1),
                 padding 0.3s cubic-bezier(0.2, 0, 0, 1),
@@ -8881,6 +8881,11 @@ body:has(.act-sheet-mode) .topbar {
     width: 64px;
     height: 64px;
     flex-shrink: 0;
+}
+.act-sheet-mode #flythroughBar .ft-play-btn svg {
+    width: 18px;
+    height: 20px;
+    margin-left: 3px;
 }
 .act-sheet-mode #flythroughBar.ft-expanded {
     width: calc(100vw - 32px);
@@ -18076,12 +18081,12 @@ body.hm-map-dragging html,
     padding: 0;
     gap: 0;
     overflow: hidden;
-    width: 44px;
-    height: 44px;
+    width: 64px;
+    height: 64px;
     background: none;
     backdrop-filter: none;
     border: none;
-    border-radius: 22px;
+    border-radius: 32px;
     box-shadow: none;
     transition: width 0.3s cubic-bezier(0.2, 0, 0, 1),
                 padding 0.3s cubic-bezier(0.2, 0, 0, 1),
@@ -18112,10 +18117,10 @@ body.hm-map-dragging html,
 .hm-playbar .hm-animate-bar {
     gap: 6px;
 }
-/* Play button — collapsed: 44px accent circle */
+/* Play button — collapsed: 64px accent circle (matches activity page) */
 .hm-playbar .hm-animate-btn:first-child {
-    width: 44px;
-    height: 44px;
+    width: 64px;
+    height: 64px;
     padding: 0;
     border-radius: 50%;
     background: var(--accent);
@@ -18123,6 +18128,11 @@ body.hm-map-dragging html,
     border: none;
     flex-shrink: 0;
     justify-content: center;
+}
+.hm-playbar .hm-animate-btn:first-child svg {
+    width: 18px;
+    height: 20px;
+    margin-left: 3px;
 }
 .hm-playbar .hm-animate-btn:first-child span { display: none; }
 .hm-playbar .hm-animate-btn:first-child:hover {

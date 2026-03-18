@@ -104,7 +104,7 @@ export function renderHeatmapPage() {
           <div class="hm-panel-animate">
             <div class="hm-animate-bar">
               <button class="hm-animate-btn" id="hmAnimateBtn" onclick="hmToggleAnimate()">
-                <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><polygon points="5,3 19,12 5,21"/></svg>
+                <svg viewBox="0 0 13 13" fill="currentColor" width="16" height="16"><path d="M1.5 1.3a1 1 0 0 1 1.5-.86l7 5.2a1 1 0 0 1 0 1.72l-7 5.2a1 1 0 0 1-1.5-.86V1.3z"/></svg>
                 <span id="hmAnimateLabel">Replay Rides</span>
               </button>
               <div class="hm-animate-progress" id="hmAnimateProgress">
