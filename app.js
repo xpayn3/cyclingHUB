@@ -12377,8 +12377,6 @@ document.addEventListener('click', e => {
   if (e.target === modal) closeModalAnimated(modal);
   const tpModal = document.getElementById('trainingPlanModal');
   if (e.target === tpModal) closeModalAnimated(tpModal);
-  const profModal = document.getElementById('profileModal');
-  if (e.target === profModal) closeModalAnimated(profModal);
 });
 
 /* ── Custom Form Controls (iOS-style select & date picker) ──────── */
@@ -21562,9 +21560,6 @@ function getXPStats() {
 
 /* ── Profile Modal ── */
 function openProfileModal() {
-  const modal = document.getElementById('profileModal');
-  if (!modal) return;
-
   const stats = getXPStats();
 
   // Avatar
@@ -21613,27 +21608,24 @@ function openProfileModal() {
   setTxt('profTotalDist', stats.totalDist.toLocaleString());
   setTxt('profTotalElev', stats.totalElev.toLocaleString());
 
-  // Always use the scroll-safe sheet approach (not native showModal which jumps)
-  const inner = modal.querySelector('.modal');
-  _lockSheetScroll();
-  _cleanSheet(inner);
-  const backdrop = _getBackdrop();
-  backdrop.classList.add('active');
-  modal.show();
-  modal.classList.add('sheet-open');
-  if (!modal._swipeInited) {
-    initModalSwipeDismiss(modal);
-    modal._swipeInited = true;
-  }
-  if (inner) {
-    inner.classList.add('sheet-enter');
-    _startViewportTracking(modal);
-  }
+  const overlay = document.getElementById('profileOverlay');
+  if (!overlay) return;
+  overlay.style.display = '';
+  // Force reflow then add open class for animation
+  overlay.offsetHeight;
+  overlay.classList.add('prof-open');
+  overlay.classList.remove('prof-closing');
 }
 
 function closeProfileModal() {
-  const modal = document.getElementById('profileModal');
-  if (modal) closeModalAnimated(modal);
+  const overlay = document.getElementById('profileOverlay');
+  if (!overlay) return;
+  overlay.classList.remove('prof-open');
+  overlay.classList.add('prof-closing');
+  setTimeout(() => {
+    overlay.classList.remove('prof-closing');
+    overlay.style.display = 'none';
+  }, 300);
 }
 
 /* ── XP Settings ── */

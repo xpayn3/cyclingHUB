@@ -86,11 +86,12 @@
         <!-- Failsafe: dismiss splash after 3s even if app.js errors -->
         <script>setTimeout(function(){var s=document.getElementById('splashScreen');if(s){s.style.opacity='0';s.style.visibility='hidden';setTimeout(function(){if(s.parentNode)s.remove()},500)}},3000)</script>
 
-        <!-- ============================================================  PROFILE MODAL  ============================================================ -->
-        <dialog class="modal-dialog" id="profileModal">
-            <div class="modal profile-modal">
+        <!-- ============================================================  PROFILE MODAL (plain div, no <dialog>) ============================================================ -->
+        <div class="prof-overlay" id="profileOverlay" style="display:none">
+            <div class="prof-overlay-backdrop" onclick="closeProfileModal()"></div>
+            <div class="prof-sheet" id="profileSheet">
                 <div class="prof-hero">
-                    <div class="modal-drag-indicator" style="position:absolute;top:8px;left:50%;transform:translateX(-50%);z-index:3;margin:0;"></div>
+                    <div class="prof-grabber"></div>
                     <button class="prof-close" onclick="closeProfileModal()" aria-label="Close">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                     </button>
@@ -135,7 +136,7 @@
                     </div>
                 </div>
             </div>
-        </dialog>
+        </div>
 
         <!-- ============================================================  CONNECT MODAL  ============================================================ -->
         <dialog class="modal-dialog" id="connectModal" aria-labelledby="connectModalTitle">
