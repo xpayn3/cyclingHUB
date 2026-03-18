@@ -21731,29 +21731,32 @@ function renderGoalsDashWidget() {
     if (!m) return;
     const p = computeGoalProgress(goal);
 
+    const pctClamped = Math.min(p.pct, 100);
+    const circumference = 2 * Math.PI * 38;
+    const dashOffset = circumference - (pctClamped / 100) * circumference;
+    const statusColor = { green: 'var(--accent)', yellow: '#ffcc00', red: '#ff453a' };
+    const ringColor = statusColor[statusCls[p.status]] || 'var(--accent)';
+
     html += `
     <div class="goal-dash-card card" onclick="navigate('goals')">
-      <div class="goal-dash-top">
-        <div class="goal-metric-icon ${m.icon}">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-            <circle cx="12" cy="12" r="10"/><path d="M12 8v4l2 2"/>
+      <div class="goal-dash-row">
+        <div class="goal-dash-text">
+          <div class="goal-dash-title">${m.label}</div>
+          <div class="goal-dash-value">${m.fmt(p.current)}<span class="goal-dash-unit"> / ${m.fmt(p.target)} ${m.unit}</span></div>
+        </div>
+        <div class="goal-dash-ring">
+          <svg viewBox="0 0 88 88" width="56" height="56">
+            <circle cx="44" cy="44" r="38" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="5"/>
+            <circle cx="44" cy="44" r="38" fill="none" stroke="${ringColor}" stroke-width="5"
+              stroke-linecap="round" stroke-dasharray="${circumference}" stroke-dashoffset="${dashOffset}"
+              transform="rotate(-90 44 44)" style="transition:stroke-dashoffset 0.6s ease"/>
+            <text x="44" y="48" text-anchor="middle" fill="#fff" font-size="16" font-weight="700" font-family="var(--font-num)">${Math.round(pctClamped)}%</text>
           </svg>
         </div>
-        <div class="goal-dash-info">
-          <div class="goal-dash-title">${m.label}</div>
-          <div class="goal-dash-period">${periodLabel[goal.period]} · ${p.remaining}d left</div>
-        </div>
       </div>
-      <div class="goal-dash-progress">
-        <div class="goal-progress-bar-wrap">
-          <div class="goal-progress-bar goal-progress-bar--${statusCls[p.status]}" style="width:${p.pct.toFixed(1)}%"></div>
-          <div class="goal-progress-expected" style="left:${Math.min(p.elapsed / p.totalDays * 100, 100).toFixed(1)}%"></div>
-        </div>
-        <div class="goal-dash-stats">
-          <span class="goal-dash-value">${m.fmt(p.current)} / ${m.fmt(p.target)} ${m.unit}</span>
-          <span class="goal-progress-badge goal-progress-badge--${statusCls[p.status]}">${statusLabel[p.status]}</span>
-        </div>
-        <div class="goal-dash-pct">${Math.round(p.pct)}% complete</div>
+      <div class="goal-dash-footer">
+        <span class="goal-progress-badge goal-progress-badge--${statusCls[p.status]}">${statusLabel[p.status]}</span>
+        <span class="goal-dash-days">${p.remaining}d left</span>
       </div>
     </div>`;
   });

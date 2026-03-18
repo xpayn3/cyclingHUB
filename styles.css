@@ -16932,14 +16932,18 @@ body:has(.act-sheet-mode) .topbar {
 }
 
 .goal-dash-card {
-    min-width: 260px;
-    max-width: 320px;
+    min-width: 160px;
+    max-width: 180px;
+    aspect-ratio: 1;
     flex: 0 0 auto;
     scroll-snap-align: start;
-    padding: 16px;
+    padding: 14px;
     cursor: pointer;
     position: relative;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
 }
 .goal-dash-card::before {
     content: "";
@@ -16986,49 +16990,49 @@ body:has(.act-sheet-mode) .topbar {
     opacity: 1;
 }
 
-.goal-dash-top {
+.goal-dash-row {
     display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 14px;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
 }
-.goal-dash-info {
+.goal-dash-text {
     flex: 1;
     min-width: 0;
 }
 .goal-dash-title {
-    font-size: var(--text-sm);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 6px;
+}
+.goal-dash-value {
+    font-size: 20px;
     font-weight: 700;
-    color: var(--text-primary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    color: #ffffff;
+    font-family: var(--font-num);
+    line-height: 1.2;
 }
-.goal-dash-period {
-    font-size: var(--text-xs);
+.goal-dash-unit {
+    font-size: 12px;
+    font-weight: 500;
     color: var(--text-muted);
-    margin-top: 2px;
 }
-
-.goal-dash-progress {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+.goal-dash-ring {
+    flex-shrink: 0;
 }
-.goal-dash-stats {
+.goal-dash-footer {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
+    gap: 6px;
 }
-.goal-dash-value {
-    font-size: var(--text-xs);
-    color: var(--text-secondary);
-    font-family: var(--font-num);
-}
-.goal-dash-pct {
+.goal-dash-days {
     font-size: 11px;
     color: var(--text-muted);
+    font-family: var(--font-num);
 }
 
 /* Responsive */
