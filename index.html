@@ -93,8 +93,10 @@
                 <div class="prof-grabber"></div>
                 <!-- Sticky compact header -->
                 <div class="prof-sticky-hdr" id="profStickyHdr">
-                    <img class="prof-sticky-avatar" id="profStickyAvatar" alt="">
-                    <span class="prof-sticky-name" id="profStickyName">Cyclist</span>
+                    <div class="prof-sticky-pill">
+                        <img class="prof-sticky-avatar" id="profStickyAvatar" alt="">
+                        <span class="prof-sticky-name" id="profStickyName">Cyclist</span>
+                    </div>
                     <span class="prof-sticky-lvl" id="profStickyLvl">11</span>
                 </div>
                 <!-- Scrollable content -->
@@ -146,10 +148,10 @@
                             <span class="prof-stat-lbl">m climbed</span>
                         </div>
                     </div>
-                    <!-- Best XP Ride -->
+                    <!-- Top XP Rides -->
                     <div class="prof-best-ride" id="profBestRide" style="display:none">
-                        <div class="prof-radar-title">Best Ride</div>
-                        <div class="prof-best-card" id="profBestRideCard" onclick=""></div>
+                        <div class="prof-radar-title">Top Rides</div>
+                        <div class="prof-best-list" id="profBestRideList"></div>
                     </div>
                     <div style="height:20px"></div>
                 </div>
@@ -2176,6 +2178,7 @@
                             </div>
                         </div>
                     </div>
+                    <div class="page-version">CycleIQ</div>
                 </div>
 
                 <!-- ==================== ACTIVITIES PAGE ==================== -->

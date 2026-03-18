@@ -21921,9 +21921,31 @@ function openProfileModal() {
     avatarEl.src = existingAvatar.src;
   }
 
-  // Name
+  // Name + level title
+  const levelTitles = [
+    [0, 'Newbie'],
+    [2, 'Pedal Pusher'],
+    [4, 'Road Rookie'],
+    [6, 'Chain Breaker'],
+    [8, 'Hill Hunter'],
+    [10, 'Saddle Veteran'],
+    [13, 'Peloton Force'],
+    [16, 'Breakaway Artist'],
+    [20, 'Summit Chaser'],
+    [25, 'Iron Legs'],
+    [30, 'Domestique Elite'],
+    [40, 'Grand Tour Rider'],
+    [50, 'Mountain King'],
+    [65, 'Yellow Jersey'],
+    [80, 'Living Legend'],
+    [100, 'Cycling God'],
+  ];
+  let levelTitle = 'Newbie';
+  for (const [minLvl, title] of levelTitles) {
+    if (stats.level >= minLvl) levelTitle = title;
+  }
   const nameEl = document.getElementById('profileName');
-  if (nameEl) nameEl.textContent = state.athleteName || 'Cyclist';
+  if (nameEl) nameEl.textContent = levelTitle;
 
   // Level badge (number in ring)
   const badgeEl = document.getElementById('profileLvlBadge');
@@ -21965,33 +21987,41 @@ function openProfileModal() {
   const stickyLvl = document.getElementById('profStickyLvl');
   if (stickyLvl) stickyLvl.textContent = stats.level;
 
-  // Find best XP ride
+  // Find top 3 XP rides
   const bestRideSection = document.getElementById('profBestRide');
-  const bestRideCard = document.getElementById('profBestRideCard');
-  if (bestRideSection && bestRideCard) {
+  const bestRideList = document.getElementById('profBestRideList');
+  if (bestRideSection && bestRideList) {
     const startDate = localStorage.getItem('icu_xp_start_date') || '2000-01-01';
     const allActs = getAllActivities().filter(a => !isEmptyActivity(a) && (a.start_date_local || a.start_date || '') >= startDate);
-    let bestAct = null, bestXP = 0;
-    allActs.forEach(a => {
-      const xp = computeXP(a);
-      if (xp > bestXP) { bestXP = xp; bestAct = a; }
-    });
-    if (bestAct && bestXP > 0) {
-      const name = bestAct.name || 'Untitled';
-      const date = (bestAct.start_date_local || bestAct.start_date || '').slice(0, 10);
-      const dist = (actVal(bestAct, 'distance', 'icu_distance') / 1000).toFixed(1);
-      const elev = Math.round(actVal(bestAct, 'total_elevation_gain', 'icu_total_elevation_gain'));
-      bestRideCard.innerHTML = `
-        <div class="prof-best-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" width="22" height="22"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
-        <div class="prof-best-info">
-          <div class="prof-best-name">${name}</div>
-          <div class="prof-best-meta">${date} · ${dist} km · ${elev} m</div>
-        </div>
-        <div style="text-align:right">
-          <div class="prof-best-xp">${bestXP}</div>
-          <div class="prof-best-xp-label">XP</div>
+    const scored = allActs.map(a => ({ a, xp: computeXP(a) })).filter(x => x.xp > 0);
+    scored.sort((a, b) => b.xp - a.xp);
+    const top3 = scored.slice(0, 3);
+    if (top3.length > 0) {
+      const medals = ['🥇', '🥈', '🥉'];
+      bestRideList.innerHTML = top3.map((item, idx) => {
+        const a = item.a;
+        const name = a.name || 'Untitled';
+        const date = (a.start_date_local || a.start_date || '').slice(0, 10);
+        const dist = (actVal(a, 'distance', 'icu_distance') / 1000).toFixed(1);
+        const elev = Math.round(actVal(a, 'total_elevation_gain', 'icu_total_elevation_gain'));
+        return `<div class="prof-best-card" data-best-idx="${idx}">
+          <div class="prof-best-rank">${idx + 1}</div>
+          <div class="prof-best-info">
+            <div class="prof-best-name">${name}</div>
+            <div class="prof-best-meta">${date} · ${dist} km · ${elev} m</div>
+          </div>
+          <div style="text-align:right">
+            <div class="prof-best-xp">${item.xp}</div>
+            <div class="prof-best-xp-label">XP</div>
+          </div>
         </div>`;
-      bestRideCard.onclick = () => { closeProfileModal(); setTimeout(() => navigateToActivity(bestAct), 350); };
+      }).join('');
+      // Wire click handlers
+      bestRideList.querySelectorAll('.prof-best-card').forEach(card => {
+        const idx = +card.dataset.bestIdx;
+        const act = top3[idx]?.a;
+        if (act) card.onclick = () => { closeProfileModal(); setTimeout(() => navigateToActivity(act), 350); };
+      });
       bestRideSection.style.display = '';
     } else {
       bestRideSection.style.display = 'none';
@@ -22085,7 +22115,7 @@ function closeProfileModal() {
   }, 300);
 }
 
-/* ── Profile Ring Chart (Power Profile style) ── */
+/* ── Profile Hexagonal Radar Chart ── */
 function _renderProfileRadar() {
   const canvas = document.getElementById('profRadarChart');
   if (!canvas) return;
@@ -22093,7 +22123,6 @@ function _renderProfileRadar() {
   const allActs = getAllActivities().filter(a => !isEmptyActivity(a));
   if (allActs.length < 3) return;
 
-  // Compute rider dimensions
   const speeds = [], dists = [], elevs = [], powers = [], durations = [];
   allActs.forEach(a => {
     const spd = actVal(a, 'average_speed', 'icu_average_speed');
@@ -22109,17 +22138,18 @@ function _renderProfileRadar() {
   });
 
   const avg = arr => arr.length ? arr.reduce((s,v) => s+v, 0) / arr.length : 0;
-  const max = arr => arr.length ? Math.max(...arr) : 0;
-  const clamp = v => Math.min(100, Math.max(5, v));
+  const mx = arr => arr.length ? Math.max(...arr) : 0;
+  const clamp = v => Math.min(100, Math.max(8, v));
 
-  const segments = [
-    { label: 'Speed',       value: clamp((avg(speeds) / 38) * 100),         raw: Math.round(avg(speeds)) + ' km/h', color: '#ff453a' },
-    { label: 'Endurance',   value: clamp((max(dists) / 200) * 100),         raw: Math.round(max(dists)) + ' km',    color: '#ff9f0a' },
-    { label: 'Climbing',    value: clamp((max(elevs) / 3000) * 100),        raw: Math.round(max(elevs)) + ' m',     color: '#ffd60a' },
-    { label: 'Power',       value: clamp((avg(powers) / 300) * 100),        raw: Math.round(avg(powers)) + ' w',    color: '#30d158' },
-    { label: 'Consistency', value: clamp((allActs.length / 300) * 100),     raw: allActs.length + ' rides',          color: '#5ac8fa' },
-    { label: 'Volume',      value: clamp((dists.reduce((s,v)=>s+v,0) / 15000) * 100), raw: Math.round(dists.reduce((s,v)=>s+v,0)).toLocaleString() + ' km', color: '#bf5af2' },
+  const dims = [
+    { label: 'Speed',       value: clamp((avg(speeds) / 38) * 100),         raw: Math.round(avg(speeds)) + ' km/h' },
+    { label: 'Endurance',   value: clamp((mx(dists) / 200) * 100),          raw: Math.round(mx(dists)) + ' km' },
+    { label: 'Climbing',    value: clamp((mx(elevs) / 3000) * 100),         raw: Math.round(mx(elevs)) + ' m' },
+    { label: 'Power',       value: clamp((avg(powers) / 300) * 100),        raw: Math.round(avg(powers)) + ' w' },
+    { label: 'Consistency', value: clamp((allActs.length / 300) * 100),     raw: allActs.length + ' rides' },
+    { label: 'Volume',      value: clamp((dists.reduce((s,v)=>s+v,0) / 15000) * 100), raw: Math.round(dists.reduce((s,v)=>s+v,0)).toLocaleString() + ' km' },
   ];
+  const n = dims.length;
 
   const dpr = window.devicePixelRatio || 1;
   const size = 300;
@@ -22127,78 +22157,93 @@ function _renderProfileRadar() {
   canvas.height = size * dpr;
   canvas.style.width = size + 'px';
   canvas.style.height = size + 'px';
-
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
   ctx.clearRect(0, 0, size, size);
 
   const cx = size / 2, cy = size / 2;
-  const outerR = 110, innerR = 65, ringW = outerR - innerR;
-  const gap = 0.03; // radians gap between segments
-  const segAngle = (Math.PI * 2) / segments.length;
-  const startOffset = -Math.PI / 2; // start from top
+  const maxR = 105;
+  const angleStep = (Math.PI * 2) / n;
+  const startA = -Math.PI / 2;
 
-  // Draw segments as circular arcs
-  segments.forEach((seg, i) => {
-    const startA = startOffset + i * segAngle + gap / 2;
-    const endA = startOffset + (i + 1) * segAngle - gap / 2;
-
-    // Background arc (dim)
-    ctx.beginPath();
-    ctx.arc(cx, cy, outerR, startA, endA);
-    ctx.arc(cx, cy, innerR, endA, startA, true);
-    ctx.closePath();
-    ctx.fillStyle = 'rgba(255,255,255,0.04)';
-    ctx.fill();
-
-    // Filled arc based on value
-    const fillAngle = startA + (endA - startA) * (seg.value / 100);
-    ctx.beginPath();
-    ctx.arc(cx, cy, outerR, startA, fillAngle);
-    ctx.arc(cx, cy, innerR, fillAngle, startA, true);
-    ctx.closePath();
-    ctx.fillStyle = seg.color;
-    ctx.globalAlpha = 0.85;
-    ctx.fill();
-    ctx.globalAlpha = 1;
-
-    // Label inside ring — rotated along arc
-    const midA = (startA + endA) / 2;
-    const labelR = (outerR + innerR) / 2;
-    const lx = cx + Math.cos(midA) * labelR;
-    const ly = cy + Math.sin(midA) * labelR;
-    ctx.save();
-    ctx.translate(lx, ly);
-    const rot = midA + Math.PI / 2;
-    const normRot = ((rot % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-    const flipped = normRot > Math.PI / 2 && normRot < Math.PI * 1.5;
-    ctx.rotate(flipped ? rot + Math.PI : rot);
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font = 'bold 11px Inter, system-ui, sans-serif';
-    ctx.fillStyle = '#fff';
-    ctx.fillText(seg.label, 0, 0);
-    ctx.restore();
-
-    // Value outside ring
-    const valR = outerR + 20;
-    const vx = cx + Math.cos(midA) * valR;
-    const vy = cy + Math.sin(midA) * valR;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font = '600 10px Inter, system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.fillText(seg.raw, vx, vy);
+  // Helper: hex vertex at index i, radius r
+  const hexPt = (i, r) => ({
+    x: cx + Math.cos(startA + i * angleStep) * r,
+    y: cy + Math.sin(startA + i * angleStep) * r,
   });
 
-  // Center circle
+  // Draw nested hexagonal grid (5 levels)
+  const levels = 5;
+  for (let lv = 1; lv <= levels; lv++) {
+    const r = maxR * (lv / levels);
+    ctx.beginPath();
+    for (let i = 0; i <= n; i++) {
+      const p = hexPt(i % n, r);
+      i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+    }
+    ctx.closePath();
+    ctx.strokeStyle = lv === levels ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = lv === levels ? 1.5 : 0.8;
+    ctx.stroke();
+  }
+
+  // Draw axis lines from center to each vertex
+  for (let i = 0; i < n; i++) {
+    const p = hexPt(i, maxR);
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(p.x, p.y);
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+  }
+
+  // Draw data polygon — filled
   ctx.beginPath();
-  ctx.arc(cx, cy, innerR - 6, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(255,255,255,0.03)';
+  for (let i = 0; i < n; i++) {
+    const r = maxR * (dims[i].value / 100);
+    const p = hexPt(i, r);
+    i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+  }
+  ctx.closePath();
+  // Gradient fill
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxR);
+  grad.addColorStop(0, 'rgba(0, 229, 160, 0.05)');
+  grad.addColorStop(1, 'rgba(0, 229, 160, 0.25)');
+  ctx.fillStyle = grad;
   ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-  ctx.lineWidth = 1;
+  // Border
+  ctx.strokeStyle = 'rgba(0, 229, 160, 0.7)';
+  ctx.lineWidth = 2;
   ctx.stroke();
+
+  // Draw data points
+  for (let i = 0; i < n; i++) {
+    const r = maxR * (dims[i].value / 100);
+    const p = hexPt(i, r);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = '#00e5a0';
+    ctx.fill();
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  // Labels + values outside
+  for (let i = 0; i < n; i++) {
+    const p = hexPt(i, maxR + 22);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    // Label
+    ctx.font = '600 13px Inter, system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    ctx.fillText(dims[i].label, p.x, p.y - 7);
+    // Value
+    ctx.font = '500 11px Inter, system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.fillText(dims[i].raw, p.x, p.y + 8);
+  }
 }
 
 /* ── XP Settings ── */
