@@ -2886,6 +2886,13 @@ code {
     .acts-search-wrap {
         display: none;
     }
+    .acts-toolbar-top {
+        flex-wrap: nowrap;
+    }
+    .acts-toolbar-top .cdd-wrap--sm {
+        flex: 1;
+        min-width: 0;
+    }
     .acts-sort-scroll {
         margin-left: calc(-1 * var(--pad-page));
         margin-right: calc(-1 * var(--pad-page));
