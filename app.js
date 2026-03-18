@@ -13034,7 +13034,7 @@ function renderCalendar() {
         const catLabel = cat === 'WORKOUT' ? 'Workout' : cat === 'RACE' ? 'Race' : cat === 'GOAL' ? 'Goal' : 'Note';
         const catCls = 'cal-ev-cat--' + catLabel.toLowerCase();
         window._calEvLookup[a.id] = a;
-        return `<div class="cal-day-card cal-day-card--planned ${catCls}" onclick="event.stopPropagation();openCalEventModal(window._calEvLookup[${a.id}])">
+        return `<div class="cal-day-card cal-day-card--planned ${catCls}" draggable="true" data-event-id="${a.id}" onclick="event.stopPropagation();openCalEventModal(window._calEvLookup[${a.id}])">
           <div class="cal-day-card-top">
             <span class="cal-ev-badge ${catCls}">${catLabel}</span>
           </div>
@@ -13125,6 +13125,86 @@ function renderCalendar() {
       track.style.transform = `translateX(${-wrapper.offsetWidth}px)`;
     }
   }
+  // Init drag-and-drop on desktop
+  if (window.innerWidth > 820) {
+    _calInitDrag();
+    // Ensure draggable cards have -webkit-user-drag
+    document.querySelectorAll('.cal-day-card--planned[draggable="true"]').forEach(function(card) {
+      card.style.webkitUserDrag = 'element';
+    });
+  }
+}
+
+/* ── Calendar Drag & Drop (desktop only) ── */
+let _calDragId = null;
+let _calDragCard = null;
+
+function _calInitDrag() {
+  const grid = document.getElementById('calGrid');
+  if (!grid || grid._calDragBound) return;
+  grid._calDragBound = true;
+
+  grid.addEventListener('dragstart', function(e) {
+    const card = e.target.closest('.cal-day-card--planned[draggable="true"]');
+    if (!card) { e.preventDefault(); return; }
+    _calDragId = card.dataset.eventId;
+    _calDragCard = card;
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', _calDragId); } catch(_){}
+    setTimeout(function() { card.classList.add('cal-card--dragging'); }, 0);
+  });
+
+  grid.addEventListener('dragend', function() {
+    if (_calDragCard) _calDragCard.classList.remove('cal-card--dragging');
+    grid.querySelectorAll('.cal-day--drag-over').forEach(function(el) { el.classList.remove('cal-day--drag-over'); });
+    _calDragId = null;
+    _calDragCard = null;
+  });
+
+  grid.addEventListener('dragover', function(e) {
+    if (!_calDragId) return;
+    const day = e.target.closest('.cal-day[data-date]');
+    if (!day) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    grid.querySelectorAll('.cal-day--drag-over').forEach(function(el) { if (el !== day) el.classList.remove('cal-day--drag-over'); });
+    day.classList.add('cal-day--drag-over');
+  });
+
+  grid.addEventListener('dragleave', function(e) {
+    const day = e.target.closest('.cal-day[data-date]');
+    if (day && !day.contains(e.relatedTarget)) day.classList.remove('cal-day--drag-over');
+  });
+
+  grid.addEventListener('drop', function(e) {
+    if (!_calDragId) return;
+    const day = e.target.closest('.cal-day[data-date]');
+    if (!day) return;
+    e.preventDefault();
+    day.classList.remove('cal-day--drag-over');
+
+    const newDate = day.dataset.date;
+    const evId = _calDragId;
+    _calDragId = null;
+    if (_calDragCard) _calDragCard.classList.remove('cal-card--dragging');
+    _calDragCard = null;
+
+    const ev = window._calEvLookup ? window._calEvLookup[evId] : null;
+    if (!ev) return;
+
+    const oldDate = (ev.start_date_local || ev.start_date || '').slice(0, 10);
+    if (oldDate === newDate) return;
+
+    icuPut('/athlete/' + state.athleteId + '/events/' + evId, {
+      start_date_local: newDate + 'T00:00:00',
+    }).then(function() {
+      showToast('Moved "' + (ev.name || 'Event') + '" to ' + newDate, 'success');
+      refreshCalendarEvents();
+    }).catch(function(err) {
+      showToast('Failed to move event', 'error');
+      console.error('Calendar drag-drop error:', err);
+    });
+  });
 }
 
 // Select a day in the calendar and update the bottom panel

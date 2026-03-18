@@ -5786,7 +5786,19 @@ code {
     border-style: dashed;
     border-color: var(--border-active);
     background: rgba(0, 229, 160, 0.04);
-    cursor: pointer;
+    cursor: grab;
+    -webkit-user-drag: element;
+    user-select: none;
+}
+.cal-day-card--planned * { pointer-events: none; -webkit-user-drag: none; }
+/* Drag-and-drop states */
+.cal-day-card--planned.cal-card--dragging {
+    opacity: 0.3;
+    cursor: grabbing;
+}
+.cal-day.cal-day--drag-over {
+    background: rgba(0, 229, 160, 0.08) !important;
+    box-shadow: inset 0 0 0 2px rgba(0, 229, 160, 0.3);
 }
 .cal-day-card--planned:hover {
     transform: none !important;
