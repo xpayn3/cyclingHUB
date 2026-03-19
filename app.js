@@ -1793,9 +1793,12 @@ function updateConnectionUI(connected) {
   _nt('notifStreaksToggle', 'streaks');
   _nt('notifGoalsToggle', 'goals');
 
-  // Logo.dev key
+  // Logo.dev key (both inputs — subpage + main)
+  const lk = localStorage.getItem('icu_logodev_key') || '';
   const logodevInput = document.getElementById('logodevKeyInput');
-  if (logodevInput) logodevInput.value = localStorage.getItem('icu_logodev_key') || '';
+  if (logodevInput) logodevInput.value = lk;
+  const logodevMain = document.getElementById('logodevKeyMain');
+  if (logodevMain) logodevMain.value = lk;
 }
 
 function updateLifetimeCacheUI() {
