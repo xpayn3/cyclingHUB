@@ -5048,8 +5048,8 @@
                                 </div>
                             </div>
 
-                            <div class="card" id="icuSyncCard" style="display:none">
-                                <div class="stt-connection-header" id="icuConnectionHeader">
+                            <div id="icuSyncCard" style="display:none">
+                                <div class="stt-connection-header" id="icuConnectionHeader" style="background:var(--bg-card);border-radius:var(--radius);padding:16px;margin-bottom:12px">
                                     <div class="stt-conn-avatar" id="icuConnAvatar">?</div>
                                     <div class="stt-conn-info">
                                         <div class="stt-section-title" id="icuAthleteTitle">Connected to intervals.icu</div>
@@ -5059,67 +5059,72 @@
                                         <span id="icuConnectionText">Connected</span>
                                     </div>
                                 </div>
-                                <div class="stt-rows">
-                                    <div class="stt-row"><span class="stt-row-label">Athlete ID</span><span class="stt-row-value" id="icuAthleteId">—</span></div>
-                                    <div class="stt-row"><span class="stt-row-label">FTP</span><span class="stt-row-value" id="icuFTP">—</span></div>
-                                    <div class="stt-row"><span class="stt-row-label">LTHR</span><span class="stt-row-value" id="icuLTHR">—</span></div>
-                                    <div class="stt-row"><span class="stt-row-label">Weight</span><span class="stt-row-value" id="icuWeight">—</span></div>
+
+                                <div class="ios-group-label">Athlete</div>
+                                <div class="ios-group">
+                                    <div class="ios-row"><span class="ios-row-label">Athlete ID</span><span class="ios-row-value" id="icuAthleteId">—</span></div>
+                                    <div class="ios-row"><span class="ios-row-label">FTP</span><span class="ios-row-value" id="icuFTP">—</span></div>
+                                    <div class="ios-row"><span class="ios-row-label">LTHR</span><span class="ios-row-value" id="icuLTHR">—</span></div>
+                                    <div class="ios-row"><span class="ios-row-label">Weight</span><span class="ios-row-value" id="icuWeight">—</span></div>
                                 </div>
-                                <div class="stt-actions" style="gap:8px">
-                                    <button class="btn btn-primary" onclick="confirmSyncData()">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.08-8.58"/></svg>
-                                        Sync Now
-                                    </button>
-                                    <button class="btn btn-ghost" onclick="confirmFullResync()">Full Re-sync</button>
-                                    <button class="btn btn-ghost" onclick="openModal()">Change Credentials</button>
-                                    <button class="btn btn-danger" onclick="disconnect()">Disconnect</button>
+
+                                <div class="ios-group-label">Sync</div>
+                                <div class="ios-group">
+                                    <div class="ios-row" onclick="confirmSyncData()">
+                                        <div class="ios-row-icon" style="background:#30d158"><svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.08-8.58"/></svg></div>
+                                        <span class="ios-row-label">Sync Now</span>
+                                        <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                    </div>
+                                    <div class="ios-row" onclick="confirmFullResync()">
+                                        <div class="ios-row-icon" style="background:#007aff"><svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.08-8.58"/></svg></div>
+                                        <span class="ios-row-label">Full Re-sync</span>
+                                        <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                    </div>
+                                    <div class="ios-row" onclick="openModal()">
+                                        <div class="ios-row-icon" style="background:#ff9500"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+                                        <span class="ios-row-label">Change Credentials</span>
+                                        <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                    </div>
+                                    <div class="ios-row" onclick="disconnect()" style="color:var(--red)">
+                                        <div class="ios-row-icon" style="background:var(--red)"><svg viewBox="0 0 24 24"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg></div>
+                                        <span class="ios-row-label" style="color:var(--red)">Disconnect</span>
+                                    </div>
                                 </div>
-                                <div class="stt-subsection-divider"></div>
-                                <div class="stt-subsection-header">
-                                    <svg class="stt-section-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
-                                        <line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>
-                                    </svg>
-                                    <span class="stt-subsection-title">Data &amp; Storage</span>
-                                </div>
-                                <div class="stt-rows">
-                                    <div class="stt-row"><span class="stt-row-label">Last synced</span><span class="stt-row-value" id="icuSettingsLastSync">—</span></div>
-                                    <div class="stt-row"><span class="stt-row-label">Cached activities</span><span class="stt-row-value" id="icuActivityCount">—</span></div>
-                                    <div class="stt-row"><span class="stt-row-label">Cache size</span><span class="stt-row-value" id="icuCacheSize">—</span></div>
+                                <div class="ios-group-label">Data &amp; Storage</div>
+                                <div class="ios-group">
+                                    <div class="ios-row"><span class="ios-row-label">Last synced</span><span class="ios-row-value" id="icuSettingsLastSync">—</span></div>
+                                    <div class="ios-row"><span class="ios-row-label">Cached activities</span><span class="ios-row-value" id="icuActivityCount">—</span></div>
+                                    <div class="ios-row"><span class="ios-row-label">Cache size</span><span class="ios-row-value" id="icuCacheSize">—</span></div>
                                 </div>
                                 <div class="stg-bar-wrap">
                                     <div class="stg-bar-track" id="storageBarTrack"></div>
                                     <div class="stg-bar-label" id="storageBarLabel">—</div>
                                     <div class="stg-bar-legend" id="storageBarLegend"></div>
                                 </div>
-                                <div class="stt-subsection-divider"></div>
-                                <div class="stt-subsection-header">
-                                    <svg class="stt-section-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
-                                    </svg>
-                                    <span class="stt-subsection-title">Lifetime Data</span>
+                                <div class="ios-group-label">Lifetime Data</div>
+                                <div class="ios-group">
+                                    <div class="ios-row"><span class="ios-row-label">Stored activities</span><span class="ios-row-value" id="icuLifetimeCount">—</span></div>
+                                    <div class="ios-row" id="icuStravaOnlyRow" style="display:none"><span class="ios-row-label">Strava-only</span><span class="ios-row-value" id="icuStravaOnlyCount">—</span></div>
+                                    <div class="ios-row"><span class="ios-row-label">Cache size</span><span class="ios-row-value" id="icuLifetimeSize">—</span></div>
+                                    <div class="ios-row"><span class="ios-row-label">Last synced</span><span class="ios-row-value" id="icuLifetimeSync">—</span></div>
                                 </div>
-                                <div class="stt-rows">
-                                    <div class="stt-row"><span class="stt-row-label">Stored activities</span><span class="stt-row-value" id="icuLifetimeCount">—</span></div>
-                                    <div class="stt-row" id="icuStravaOnlyRow" style="display:none"><span class="stt-row-label">Strava-only activities</span><span class="stt-row-value" id="icuStravaOnlyCount">—</span></div>
-                                    <div class="stt-row"><span class="stt-row-label">Cache size</span><span class="stt-row-value" id="icuLifetimeSize">—</span></div>
-                                    <div class="stt-row"><span class="stt-row-label">Last synced</span><span class="stt-row-value" id="icuLifetimeSync">—</span></div>
+                                <div class="ios-group" style="margin-top:8px">
+                                    <div class="ios-row" onclick="resyncLifetimeData()">
+                                        <div class="ios-row-icon" style="background:#5856d6"><svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.08-8.58"/></svg></div>
+                                        <span class="ios-row-label">Re-sync All Activities</span>
+                                        <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                    </div>
+                                    <div class="ios-row" onclick="showConfirmDialog('Clear Lifetime Cache','This will remove your cached lifetime activity data. It will be re-downloaded on next sync.',()=>{clearLifetimeCache();icuRenderSyncUI();updateStorageBar();showToast('Lifetime cache cleared','success')})">
+                                        <div class="ios-row-icon" style="background:#8e8e93"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></div>
+                                        <span class="ios-row-label">Clear Lifetime Cache</span>
+                                    </div>
+                                    <div class="ios-row" onclick="clearAllCaches()" style="color:var(--red)">
+                                        <div class="ios-row-icon" style="background:var(--red)"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></div>
+                                        <span class="ios-row-label" style="color:var(--red)">Clear All Caches</span>
+                                    </div>
                                 </div>
-                                <div class="stt-actions">
-                                    <button class="btn btn-primary" onclick="resyncLifetimeData()">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.08-8.58"/></svg>
-                                        Re-sync All
-                                    </button>
-                                    <button class="btn btn-ghost" onclick="showConfirmDialog('Clear Lifetime Cache','This will remove your cached lifetime activity data. It will be re-downloaded on next sync.',()=>{clearLifetimeCache();icuRenderSyncUI();updateStorageBar();showToast('Lifetime cache cleared','success')})">Clear Cache</button>
-                                    <button class="btn btn-ghost" onclick="clearAllCaches()">Clear All Caches</button>
-                                </div>
-                                <div class="stt-subsection-divider"></div>
-                                <div class="stt-subsection-header">
-                                    <svg class="stt-section-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-                                    </svg>
-                                    <span class="stt-subsection-title">Offline Storage</span>
-                                </div>
+
+                                <div class="ios-group-label">Offline Storage</div>
                                 <div class="stt-rows">
                                     <div class="stt-row stt-row--toggle">
                                         <div class="stt-row-info">
