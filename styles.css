@@ -15576,6 +15576,19 @@ body:has(.act-sheet-mode) .topbar {
     height: 100%;
     object-fit: contain;
 }
+.comp-detail-name {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary);
+    text-align: center;
+    letter-spacing: -0.02em;
+}
+.comp-detail-brand {
+    font-size: 14px;
+    color: var(--text-secondary);
+    text-align: center;
+    margin-bottom: 16px;
+}
 .comp-detail-rows {
     background: var(--bg-elevated);
     border-radius: var(--radius);

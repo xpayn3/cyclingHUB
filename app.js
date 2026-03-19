@@ -20842,7 +20842,7 @@ function openCompDetail(compId) {
   const body = document.getElementById('compDetailBody');
   if (!sheet || !body) return;
 
-  title.textContent = c.name || 'Component';
+  title.textContent = '';
 
   const color = GEAR_CATEGORY_COLORS[c.category] || '#94a3b8';
   const bike = _gearBikeCache.find(b => b.id === c.bikeId);
@@ -20878,6 +20878,8 @@ function openCompDetail(compId) {
 
   body.innerHTML = `
     ${imgHtml}
+    <div class="comp-detail-name">${c.name || 'Component'}</div>
+    ${c.brand ? `<div class="comp-detail-brand">${[c.brand, c.model].filter(Boolean).join(' ')}</div>` : ''}
     <div class="comp-detail-rows">
       ${rows.map(([label, val]) => `<div class="comp-detail-row"><span class="comp-detail-label">${label}</span><span class="comp-detail-val">${val}</span></div>`).join('')}
     </div>
