@@ -956,6 +956,11 @@ function _applyResolvedTheme(resolved) {
   const tc = document.querySelector('meta[name="theme-color"]');
   if (tc) tc.setAttribute('content', resolved === 'light' ? '#f2f3f5' : '#090b0e');
   _updateChartColors();
+  // Switch map theme to match: light → liberty, dark → strava
+  if (window.MAP_STYLES) {
+    const targetMap = resolved === 'light' ? 'liberty' : 'strava';
+    if (loadMapTheme() !== targetMap) setMapTheme(targetMap);
+  }
 }
 
 export function setTheme(mode) {

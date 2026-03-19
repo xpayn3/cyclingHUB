@@ -7176,13 +7176,13 @@ function renderPwrHrScatter(activities) {
         x: {
           type: 'linear',
           position: 'bottom',
-          title: { display: true, text: 'Avg Power (w)', color: C_CLR_MUTED, font: { size: 10 } },
+          title: { display: true, text: 'Avg Power (w)', color: _chartTick(), font: { size: 10 } },
           ticks: { ...C_TICK, maxTicksLimit: 6 },
           grid: C_GRID,
           border: { display: false },
         },
         y: {
-          title: { display: true, text: 'Avg HR (bpm)', color: C_CLR_MUTED, font: { size: 10 } },
+          title: { display: true, text: 'Avg HR (bpm)', color: _chartTick(), font: { size: 10 } },
           ticks: { ...C_TICK, maxTicksLimit: 5 },
           grid: C_GRID,
           border: { display: false },
@@ -13836,12 +13836,8 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowRight') { e.preventDefault(); stepActivity(1);  return; }
   }
 
-  // S → open activity search modal on activities page
-  if (e.key === 's' && state.currentPage === 'activities') {
-    e.preventDefault();
-    openActivitySearch();
-    return;
-  }
+  // S → settings page
+  if (e.key === 's') { e.preventDefault(); navigate('settings'); return; }
 
   // R → refresh / sync
   if (e.key === 'r') { e.preventDefault(); syncData(true); return; }
@@ -15146,13 +15142,13 @@ function openSimilarRidesModal() {
           </div>
           <div class="sim-ride-ring">
             <svg viewBox="0 0 48 48" width="48" height="48">
-              <circle cx="24" cy="24" r="20" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="4"/>
+              <circle cx="24" cy="24" r="20" fill="none" stroke="${_isDark() ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)'}" stroke-width="4"/>
               <circle cx="24" cy="24" r="20" fill="none" stroke="var(--accent)" stroke-width="4"
                 stroke-linecap="round" stroke-dasharray="${2 * Math.PI * 20}"
                 stroke-dashoffset="${2 * Math.PI * 20 - (score / 100) * 2 * Math.PI * 20}"
                 transform="rotate(-90 24 24)"/>
               <text x="24" y="25" text-anchor="middle" dominant-baseline="central"
-                fill="#fff" font-size="11" font-weight="700" font-family="var(--font-num)">${score}%</text>
+                fill="${_isDark() ? '#fff' : '#111'}" font-size="11" font-weight="700" font-family="var(--font-num)">${score}%</text>
             </svg>
           </div>
         </div>
@@ -22622,12 +22618,12 @@ function renderGoalsDashWidget() {
         <div class="goal-dash-title">${m.label}</div>
         <div class="goal-dash-ring">
           <svg viewBox="0 0 88 88" width="56" height="56">
-            <circle cx="44" cy="44" r="36" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8"/>
+            <circle cx="44" cy="44" r="36" fill="none" stroke="${_isDark() ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)'}" stroke-width="8"/>
             <circle class="goal-ring-fill" cx="44" cy="44" r="36" fill="none" stroke="${ringColor}" stroke-width="8"
               stroke-linecap="round" stroke-dasharray="${2 * Math.PI * 36}" stroke-dashoffset="${2 * Math.PI * 36}"
               data-target-offset="${2 * Math.PI * 36 - (pctClamped / 100) * 2 * Math.PI * 36}"
               transform="rotate(-90 44 44)" style="transition:stroke-dashoffset 0.8s cubic-bezier(0.22, 1, 0.36, 1)"/>
-            <text x="44" y="49" text-anchor="middle" fill="#fff" font-size="17" font-weight="700" font-family="var(--font-num)">${Math.round(pctClamped)}</text>
+            <text x="44" y="49" text-anchor="middle" fill="var(--text-primary)" font-size="17" font-weight="700" font-family="var(--font-num)">${Math.round(pctClamped)}</text>
           </svg>
         </div>
       </div>
@@ -22914,7 +22910,7 @@ function generateCompareChartForCard(cardId, currentPeriods, previousPeriods, me
       animation: animate ? undefined : false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { labels: { color: C_CLR_MUTED, font: { size: 12 } } },
+        legend: { labels: { color: _chartTick(), font: { size: 12 } } },
         tooltip: { ...C_TOOLTIP }
       },
       scales: cScales({ xGrid: false, yExtra: { maxTicksLimit: 6 } })

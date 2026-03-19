@@ -915,7 +915,8 @@ code {
 .page-version {
     text-align: center;
     font-size: 11px;
-    color: rgba(255, 255, 255, 0.12);
+    color: var(--text-muted);
+    opacity: 0.4;
     font-weight: 500;
     padding: 8px 0;
     letter-spacing: 0.5px;
@@ -1097,7 +1098,7 @@ code {
     justify-content: center;
 }
 .modal {
-    background: #2C2C2E;
+    background: var(--bg-surface);
     border: none;
     border-radius: 14px;
     width: 100%;
@@ -2110,7 +2111,7 @@ code {
         transition: background 0.2s, transform 0.2s;
     }
     .recent-act-dot.active {
-        background: rgba(255, 255, 255, 0.5);
+        background: var(--text-muted);
         transform: scale(1.25);
     }
 }
@@ -8707,20 +8708,20 @@ body.show-save-fab #actSaveRouteFab {
     width: 44px;
     height: 44px;
     border-radius: 50%;
-    background: rgba(28, 28, 30, 0.92);
+    background: var(--glass-bg);
     border: none;
     box-shadow:
-        0 0.5px 0 0 rgba(255, 255, 255, 0.15) inset,
-        0 0 0 0.5px rgba(255, 255, 255, 0.08) inset,
-        0 4px 12px rgba(0, 0, 0, 0.30);
+        0 0.5px 0 0 var(--glass-border) inset,
+        0 0 0 0.5px var(--glass-border) inset,
+        0 4px 12px var(--shadow-overlay);
     align-items: center;
     justify-content: center;
-    color: rgba(255, 255, 255, 0.85);
+    color: var(--text-primary);
     cursor: pointer;
     transition: background 0.2s;
 }
 .act-sheet-mode .act-sheet-map-back:hover {
-    background: rgba(44, 44, 46, 0.95);
+    background: var(--hover-overlay-strong);
 }
 
 /* Prev/Next nav pill */
@@ -8731,12 +8732,12 @@ body.show-save-fab #actSaveRouteFab {
     display: flex;
     align-items: center;
     gap: 0;
-    background: rgba(28, 28, 30, 0.92);
+    background: var(--glass-bg);
     border: none;
     box-shadow:
-        0 0.5px 0 0 rgba(255, 255, 255, 0.15) inset,
-        0 0 0 0.5px rgba(255, 255, 255, 0.08) inset,
-        0 4px 12px rgba(0, 0, 0, 0.30);
+        0 0.5px 0 0 var(--glass-border) inset,
+        0 0 0 0.5px var(--glass-border) inset,
+        0 4px 12px var(--shadow-overlay);
     border-radius: 100px;
     padding: 4px;
 }
@@ -8755,7 +8756,7 @@ body.show-save-fab #actSaveRouteFab {
     transition: background 0.2s;
 }
 .act-sheet-nav-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--hover-overlay);
 }
 .act-sheet-nav-btn:disabled {
     opacity: 0.25;
@@ -9021,13 +9022,13 @@ body:has(.act-sheet-mode) .topbar {
     width: 44px !important;
     height: 44px !important;
     border-radius: 50% !important;
-    background: rgba(28, 28, 30, 0.92) !important;
+    background: var(--glass-bg) !important;
     border: none !important;
     border-bottom: none !important;
-    box-shadow: 0 0.5px 0 0 rgba(255, 255, 255, 0.15) inset,
-        0 0 0 0.5px rgba(255, 255, 255, 0.08) inset,
-        0 4px 12px rgba(0, 0, 0, 0.30) !important;
-    color: rgba(255, 255, 255, 0.85) !important;
+    box-shadow: 0 0.5px 0 0 var(--glass-border) inset,
+        0 0 0 0.5px var(--glass-border) inset,
+        0 4px 12px var(--shadow-overlay) !important;
+    color: var(--text-primary) !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -9035,12 +9036,15 @@ body:has(.act-sheet-mode) .topbar {
     transition: background 0.2s;
 }
 .act-sheet-mode .maplibregl-ctrl-group button:hover {
-    background: rgba(30, 34, 46, 0.92) !important;
+    background: var(--hover-overlay-strong) !important;
 }
 .act-sheet-mode .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
     width: 20px !important;
     height: 20px !important;
     background-size: contain !important;
+}
+[data-theme="dark"] .act-sheet-mode .maplibregl-ctrl-group button .maplibregl-ctrl-icon,
+:root:not([data-theme="light"]) .act-sheet-mode .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
     filter: invert(0.9) !important;
 }
 .act-sheet-mode .act-map-tool-btn,
@@ -10314,14 +10318,14 @@ body:has(.act-sheet-mode) .topbar {
     /* ── Shell: full-screen, no sidebar offset ── */
     .cal-shell {
         left: 0;
-        background: #101010;
+        background: var(--bg-base);
     }
 
     /* ── Header: iOS-style big headline row ── */
     .cal-header {
         padding: 12px 20px 10px;
         border-bottom: none;
-        background: #101010;
+        background: var(--bg-base);
         gap: 0;
         min-height: 44px;
         align-items: center;
@@ -10371,7 +10375,7 @@ body:has(.act-sheet-mode) .topbar {
         -webkit-overflow-scrolling: touch;
         scrollbar-width: none;
         border-bottom: none;
-        background: #101010;
+        background: var(--bg-base);
         flex-shrink: 0;
         gap: 0;
         padding: 0 4px;
@@ -10426,7 +10430,7 @@ body:has(.act-sheet-mode) .topbar {
         overflow: hidden;
         flex: none;
         width: 100%;
-        background: #101010;
+        background: var(--bg-base);
     }
     .cal-band-track {
         display: flex;
@@ -17523,11 +17527,11 @@ body:has(.act-sheet-mode) .topbar {
     width: 7px;
     height: 7px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.15);
+    background: var(--border);
     transition: background 0.2s ease, transform 0.2s ease;
 }
 .goal-dash-dot.active {
-    background: rgba(255, 255, 255, 0.5);
+    background: var(--text-muted);
     transform: scale(1.15);
 }
 .goal-dash-card::before {
@@ -17591,7 +17595,7 @@ body:has(.act-sheet-mode) .topbar {
 .goal-dash-value {
     font-size: 24px;
     font-weight: 700;
-    color: #ffffff;
+    color: var(--text-primary);
     font-family: var(--font-num);
     line-height: 1.2;
     margin-top: auto;
@@ -17709,7 +17713,7 @@ body:has(.act-sheet-mode) .topbar {
     align-items: center;
     gap: 10px 16px;
     padding: 14px 16px;
-    background: #101010;
+    background: var(--bg-base);
     border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: var(--radius);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
@@ -17741,7 +17745,7 @@ body:has(.act-sheet-mode) .topbar {
 .hm-stat-val {
     font-size: 18px;
     font-weight: 700;
-    color: #ffffff;
+    color: var(--text-primary);
     letter-spacing: -0.3px;
 }
 .hm-stat-label {
@@ -17825,7 +17829,7 @@ body:has(.act-sheet-mode) .topbar {
     color: var(--text-secondary);
     padding: 6px 14px;
     border-radius: 20px;
-    background: #101010;
+    background: var(--bg-base);
     border: 1px solid rgba(255, 255, 255, 0.06);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
     white-space: nowrap;
@@ -19385,6 +19389,9 @@ html[data-theme="light"] {
     border-color: var(--accent);
 }
 
+/* ── Flythrough play button ── */
+[data-theme="light"] .ft-play-btn { color: #fff; }
+
 /* ── Compare page ── */
 [data-theme="light"] .compare-metric-card {
     border-color: var(--border);
@@ -19412,9 +19419,6 @@ html[data-theme="light"] {
 }
 
 /* ── Heatmap sheet ── */
-[data-theme="light"] .hm-bottom-panel {
-    background: var(--bg-base);
-}
 [data-theme="light"] .hm-stat {
     border-color: var(--border);
 }
@@ -19617,6 +19621,11 @@ html[data-theme="light"] {
     border: 1px solid rgba(0, 0, 0, 0.1);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 1px 0 rgba(255, 255, 255, 0.6) inset;
 }
+[data-theme="light"] .hm-sheet-mode .hm-bottom-panel {
+    background: none;
+    border: none;
+    box-shadow: none;
+}
 [data-theme="light"] .hm-legend {
     background: rgba(255, 255, 255, 0.92);
     border: 1px solid rgba(0, 0, 0, 0.1);
@@ -19793,7 +19802,7 @@ html[data-theme="light"] {
     white-space: nowrap;
     font-family: inherit;
     box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-    height: 32px;
+    height: 44px;
 }
 .rb-export-trigger:hover { border-color: var(--border-active); }
 .rb-export-wrap--open .rb-export-trigger {
@@ -19816,7 +19825,7 @@ html[data-theme="light"] {
     border: 1px solid var(--border-active);
     border-radius: 8px;
     padding: 4px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    box-shadow: 0 8px 24px var(--shadow-overlay);
     z-index: 50;
     opacity: 0;
     transform: translateY(-4px);
@@ -19858,9 +19867,9 @@ html[data-theme="light"] {
     display: flex;
     align-items: center;
     gap: 6px;
-    background: rgba(30, 30, 35, 0.85);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
     border: none;
     border-radius: 10px;
     padding: 0 10px;
@@ -19874,9 +19883,9 @@ html[data-theme="light"] {
     height: 44px;
     font-family: inherit;
 }
-.rb-router-trigger:hover { background: rgba(40, 40, 48, 0.9); }
+.rb-router-trigger:hover { background: var(--hover-overlay-strong); }
 .rb-router-wrap--open .rb-router-trigger {
-    background: rgba(40, 40, 48, 0.9);
+    background: var(--hover-overlay-strong);
     box-shadow: 0 0 0 3px var(--accent-dim);
 }
 .rb-router-trigger svg:first-child { color: var(--accent); flex-shrink: 0; }
@@ -20024,7 +20033,7 @@ html[data-theme="light"] {
 .rb-tool-btn--danger { color: var(--text-muted); }
 .rb-tool-btn--danger:hover { color: #ff4757; }
 .rb-search-input {
-    background: rgba(30, 30, 35, 0.95);
+    background: var(--glass-bg);
     border: none;
     border-radius: 12px;
     padding: 0 12px 0 38px;
@@ -20037,9 +20046,9 @@ html[data-theme="light"] {
     box-sizing: border-box;
     font-family: inherit;
 }
-.rb-search-input::placeholder { color: rgba(235,235,245,0.3); }
-.rb-search-input:focus { background: rgba(40, 40, 48, 0.9); }
-.rb-search-wrap > svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: rgba(235,235,245,0.3); pointer-events: none; z-index: 1; }
+.rb-search-input::placeholder { color: var(--text-muted); }
+.rb-search-input:focus { background: var(--glass-bg); outline: 1.5px solid var(--accent); outline-offset: 0; }
+.rb-search-wrap > svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: var(--text-muted); pointer-events: none; z-index: 1; }
 
 /* Routing status — positioned above bottom sheet, centered */
 .rb-routing-status {
@@ -20080,7 +20089,7 @@ html[data-theme="light"] {
     display: flex;
     align-items: center;
     gap: 6px;
-    background: rgba(30, 30, 35, 0.85);
+    background: var(--glass-bg);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     border: none;
@@ -20092,12 +20101,12 @@ html[data-theme="light"] {
     cursor: pointer;
     white-space: nowrap;
     font-family: inherit;
-    height: 36px;
+    height: 44px;
     transition: background var(--transition);
 }
-.rb-options-trigger:hover { background: rgba(40, 40, 48, 0.9); }
+.rb-options-trigger:hover { background: var(--hover-overlay-strong); }
 .rb-options-wrap--open .rb-options-trigger {
-    background: rgba(40, 40, 48, 0.9);
+    background: var(--hover-overlay-strong);
 }
 .rb-options-trigger svg:first-child { color: var(--accent); flex-shrink: 0; }
 .rb-options-chevron { color: var(--text-muted); flex-shrink: 0; transition: transform 0.2s ease; }
@@ -20107,11 +20116,11 @@ html[data-theme="light"] {
     top: calc(100% + 4px);
     left: 0;
     min-width: 200px;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border-active);
-    border-radius: 8px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
     padding: 6px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    box-shadow: 0 8px 24px var(--shadow-overlay);
     z-index: 50;
     opacity: 0;
     transform: translateY(-4px);
@@ -20145,12 +20154,12 @@ html[data-theme="light"] {
     min-height: 44px;
     border-radius: 8px;
     cursor: pointer;
-    font-size: var(--text-sm);
-    color: var(--text-secondary);
+    font-size: var(--text-base);
+    color: var(--text-primary);
     transition: background 0.1s, color 0.1s;
 }
 .rb-options-toggle:hover {
-    background: rgba(255,255,255,0.06);
+    background: var(--hover-overlay);
     color: var(--text-primary);
 }
 .rb-options-toggle input { display: none; }
@@ -20309,18 +20318,18 @@ html[data-theme="light"] {
     width: 44px;
     height: 44px;
     border-radius: 50%;
-    background: rgba(28, 28, 30, 0.92);
+    background: var(--glass-bg);
     border: none;
     box-shadow:
-        0 0.5px 0 0 rgba(255, 255, 255, 0.15) inset,
-        0 0 0 0.5px rgba(255, 255, 255, 0.08) inset,
-        0 4px 12px rgba(0, 0, 0, 0.30);
-    color: rgba(255, 255, 255, 0.85);
+        0 0.5px 0 0 var(--glass-border) inset,
+        0 0 0 0.5px var(--glass-border) inset,
+        0 4px 12px var(--shadow-overlay);
+    color: var(--text-primary);
     cursor: pointer;
     transition: background 0.2s;
     text-decoration: none;
 }
-.rb-map-tool-btn:hover { background: rgba(30, 34, 46, 0.92); color: var(--text-primary); }
+.rb-map-tool-btn:hover { background: var(--hover-overlay-strong); color: var(--text-primary); }
 .rb-map-tool-btn.active { color: var(--accent); background: rgba(0,229,160,0.12); border-color: rgba(0,229,160,0.2); }
 .rb-map-tool-btn.active:hover { background: rgba(0,229,160,0.2); }
 [data-theme="light"] .rb-map-tool-btn { background: rgba(255,255,255,0.82); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); border-color: rgba(0,0,0,0.1); color: var(--text-secondary); }
@@ -21250,7 +21259,7 @@ html[data-theme="light"] {
     transform: translateY(50%);
     will-change: transform;
     transition: transform 0.35s cubic-bezier(0.2, 0, 0, 1);
-    background: #101010;
+    background: var(--bg-base);
     border-radius: 16px 16px 0 0;
     box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.5);
     overflow: visible;
@@ -21339,10 +21348,8 @@ html[data-theme="light"] {
 
 /* Options as inline card inside sheet */
 .rb-sheet-mode .rb-options-wrap {
-    background: rgba(23, 26, 33, 0.88);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border: 1px solid rgba(255,255,255,0.06);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 6px;
 }
