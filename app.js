@@ -2089,6 +2089,62 @@ function importFullBackup() {
   input.click();
 }
 
+/* ── Gear & Settings Export/Import (lightweight) ── */
+function exportGearData() {
+  const keys = [
+    'icu_gear_components', 'icu_gear_batteries', 'icu_gear_services',
+    'icu_gear_service_shops', 'icu_bike_photos', 'icu_fav_routes',
+    'icu_units', 'icu_theme', 'icu_map_theme', 'icu_app_font',
+    'icu_range_days', 'icu_week_start_day', 'icu_goals',
+    'icu_dash_sections', 'icu_avatar', 'icu_hide_empty_cards',
+  ];
+  const data = { version: 2, type: 'gear_settings', exported: new Date().toISOString() };
+  for (const k of keys) {
+    const v = localStorage.getItem(k);
+    if (v != null && v !== '') data[k] = v;
+  }
+  const json = JSON.stringify(data);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `cycleiq-gear-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  const sizeKB = (blob.size / 1024).toFixed(0);
+  showToast(`Gear & settings exported (${sizeKB} KB)`, 'success');
+}
+
+function importGearData() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        if (!data.type && !data.version) { showToast('Invalid file', 'error'); return; }
+        let count = 0;
+        for (const [k, v] of Object.entries(data)) {
+          if (k.startsWith('icu_') && typeof v === 'string') {
+            localStorage.setItem(k, v);
+            count++;
+          }
+        }
+        showToast(`Imported ${count} settings — reloading…`, 'success');
+        setTimeout(() => location.reload(), 1200);
+      } catch (err) {
+        showToast('Import failed: ' + (err.message || 'invalid file'), 'error');
+      }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
 /* ====================================================
    NAVIGATION
 ==================================================== */
@@ -20218,8 +20274,6 @@ function _collectTransferableSettings() {
     'icu_wx_locations', 'icu_wx_model', 'icu_wx_coords',
     'icu_goals', 'icu_dash_sections', 'icu_ors_api_key',
     'icu_avatar', 'icu_cal_panel_hidden',
-    'icu_gear_components', 'icu_gear_batteries', 'icu_gear_services',
-    'icu_gear_service_shops', 'icu_bike_photos', 'icu_fav_routes',
   ];
   const cfg = {};
   for (const k of keys) {
@@ -25490,7 +25544,7 @@ Object.assign(window, {
   setHideEmptyCards, setFtpAlert,
   gearSwitchTab, gearSelectBike, gearTriggerPhotoUpload, gearUploadPhoto, gearCompPhotoUpload, renderBikeDetailPage,
   addCompareCard, setComparePeriod, updateComparePage,
-  clearAllCaches, clearLifetimeCache, exportFullBackup, importFullBackup,
+  clearAllCaches, clearLifetimeCache, exportFullBackup, importFullBackup, exportGearData, importGearData,
   exportLifetimeJSON, importLifetimeJSON, resyncLifetimeData,
   updateStorageBar, setUnits, copySetupLink, applySetupLink, handleAvatarUpload, removeAvatar,
   setWeatherCity, useMyLocation, clearWeatherLocation, setWeekStartDay,
