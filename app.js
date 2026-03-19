@@ -7696,7 +7696,7 @@ function renderCyclingTrends(activities, days) {
 
   // Update subtitle and range label
   const sub = document.getElementById('cyclingTrendsSub');
-  if (sub) sub.textContent = `Energy system load · Last ${days} days`;
+  if (sub) sub.textContent = `Energy system load`;
 
   const rlbl = document.getElementById('cyclingTrendsRangeLabel');
   if (rlbl) rlbl.textContent = rangeLabel(days);
