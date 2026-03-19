@@ -19040,8 +19040,19 @@ textarea:focus-visible {
     transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 0;
 }
+/* 2-button toggle: 50% width, slide to 100% */
 .theme-toggle[data-active="light"] .theme-toggle-slider {
     transform: translateX(100%);
+}
+/* 3-button toggle: 33.33% width, slide to 100%/200% */
+.theme-toggle:has(.theme-toggle-btn:nth-child(4)) .theme-toggle-slider {
+    width: calc(33.333% - 2px);
+}
+.theme-toggle:has(.theme-toggle-btn:nth-child(4))[data-active="light"] .theme-toggle-slider {
+    transform: translateX(100%);
+}
+.theme-toggle:has(.theme-toggle-btn:nth-child(4))[data-active="auto"] .theme-toggle-slider {
+    transform: translateX(200%);
 }
 .theme-toggle-btn {
     position: relative;
