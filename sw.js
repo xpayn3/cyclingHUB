@@ -6,7 +6,7 @@
    3. Navigation Preload: fetch starts while SW boots
 ============================================================ */
 
-const APP_CACHE    = 'icu-app-shell-v323';
+const APP_CACHE    = 'icu-app-shell-v324';
 const TILE_CACHE   = 'icu-map-tiles-v1';
 const MAX_TILES    = 3000; // rough cap to avoid unbounded disk use
 const TILE_ORIGINS = ['server.arcgisonline.com', 'tile.openstreetmap.de', 'tile-cyclosm.openstreetmap.fr', 'api.maptiler.com', 'tiles.openfreemap.org', 's3.amazonaws.com'];
@@ -57,6 +57,17 @@ self.addEventListener('activate', e => {
       .then(() => self.clients.matchAll().then(clients =>
         clients.forEach(c => c.postMessage({ type: 'SW_UPDATED', version: APP_CACHE }))
       ))
+  );
+});
+
+// ── Notification click handler ───────────────────────────────
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window' }).then(clients => {
+      if (clients.length) { clients[0].focus(); return; }
+      return self.clients.openWindow('./');
+    })
   );
 });
 

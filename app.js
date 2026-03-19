@@ -1768,6 +1768,14 @@ function updateConnectionUI(connected) {
 
   // Update Import → ICU tab if panel exists
   icuRenderSyncUI();
+
+  // Notification toggles
+  const _nt = (id, key) => { const el = document.getElementById(id); if (el) el.checked = _notifSetting(key); };
+  _nt('notifPushToggle', 'push');
+  _nt('notifGearToggle', 'gear');
+  _nt('notifTrainingToggle', 'training');
+  _nt('notifStreaksToggle', 'streaks');
+  _nt('notifGoalsToggle', 'goals');
 }
 
 function updateLifetimeCacheUI() {
@@ -2623,10 +2631,17 @@ function navigate(page) {
     floatingTopRow.style.display = (page === 'dashboard' || page === 'power' || page === 'zones' || page === 'fitness') ? 'flex' : 'none';
   }
 
-  // Floating range pill visibility
+  // Notification bell (dashboard only)
+  const notifBell = document.getElementById('notifBell');
+  if (notifBell) {
+    notifBell.style.display = (page === 'dashboard') ? 'flex' : 'none';
+    if (page === 'dashboard') _notifRefreshBell();
+  }
+
+  // Floating range pill visibility — NOT on dashboard (bell replaces it)
   const pill = document.getElementById('dateRangePill');
   if (pill) {
-    pill.style.display = (page === 'dashboard') ? 'flex' : 'none';
+    pill.style.display = 'none'; // range selection moved into dashboard content
     if (page === 'dashboard') {
       const activeBtn = pill.querySelector('button.active');
       if (activeBtn) requestAnimationFrame(() => activeBtn.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'instant' }));
@@ -2681,6 +2696,8 @@ function navigate(page) {
     const rail = document.getElementById('recentActScrollRail');
     if (rail) rail.scrollLeft = 0;
     renderDashboard();
+    // Fire push notification for critical alerts (max 1 per session)
+    setTimeout(_notifFirePush, 2000);
   }
   if (page === 'calendar') { renderCalendar(); refreshCalendarEvents(); }
   if (page === 'fitness')  renderFitnessPage();
@@ -12306,6 +12323,199 @@ function showToast(msg, type = 'success') {
     t.style.transform = 'translateY(6px) scale(0.95)';
     setTimeout(() => t.remove(), 220);
   }, 3500);
+}
+
+/* ====================================================
+   NOTIFICATION SYSTEM
+==================================================== */
+function _notifSetting(key) {
+  const v = localStorage.getItem('icu_notif_' + key);
+  return v === null ? true : v === 'true'; // default ON
+}
+
+function _collectAllNotifications() {
+  const notifs = [];
+  const dismissed = _notifGetDismissed();
+
+  // 1. Gear alerts (reuse existing)
+  if (_notifSetting('gear')) {
+    try {
+      const gearAlerts = _gearCheckNotifications();
+      gearAlerts.forEach((a, i) => {
+        notifs.push({
+          id: 'gear_' + i,
+          type: 'gear',
+          severity: a.severity === 'red' ? 'critical' : 'warning',
+          title: a.severity === 'red' ? 'Overdue' : 'Attention',
+          message: a.message,
+          action: () => navigate('gear'),
+        });
+      });
+    } catch {}
+  }
+
+  // 2. Training alerts
+  if (_notifSetting('training')) {
+    const ctl = state.fitness?.ctl || 0;
+    const atl = state.fitness?.atl || 0;
+    const tsb = state.fitness?.tsb ?? (ctl - atl);
+    const rr = state.fitness?.rampRate || 0;
+    if (tsb < -20) {
+      notifs.push({ id: 'train_tsb', type: 'training', severity: 'critical', title: 'Recovery needed',
+        message: `Your form (TSB) is ${Math.round(tsb)} — consider a rest day or easy spin.`,
+        action: () => navigate('fitness') });
+    } else if (tsb < -10) {
+      notifs.push({ id: 'train_tsb_warn', type: 'training', severity: 'warning', title: 'Accumulating fatigue',
+        message: `TSB at ${Math.round(tsb)}. Monitor how you feel.`,
+        action: () => navigate('fitness') });
+    }
+    if (rr > 8) {
+      notifs.push({ id: 'train_ramp', type: 'training', severity: 'warning', title: 'High ramp rate',
+        message: `Fitness ramp rate is ${rr.toFixed(1)}/wk — risk of overtraining.`,
+        action: () => navigate('fitness') });
+    }
+  }
+
+  // 3. Streak alerts
+  if (_notifSetting('streaks')) {
+    const acts = getAllActivities().filter(a => a.start_date_local || a.start_date);
+    if (acts.length > 0) {
+      const latest = new Date(acts[0].start_date_local || acts[0].start_date);
+      const daysSince = Math.floor((Date.now() - latest.getTime()) / 86400000);
+      if (daysSince >= 3) {
+        notifs.push({ id: 'streak_break', type: 'streaks', severity: 'info', title: 'Streak at risk',
+          message: `No ride in ${daysSince} days. Get out there!`,
+          action: () => navigate('goals') });
+      }
+    }
+  }
+
+  // 4. Goal alerts
+  if (_notifSetting('goals')) {
+    try {
+      const goals = JSON.parse(localStorage.getItem('icu_goals') || '[]');
+      const now = Date.now();
+      goals.forEach((g, i) => {
+        if (!g.deadline) return;
+        const dl = new Date(g.deadline).getTime();
+        const daysLeft = Math.floor((dl - now) / 86400000);
+        if (daysLeft >= 0 && daysLeft <= 7) {
+          notifs.push({ id: 'goal_' + i, type: 'goals', severity: daysLeft <= 2 ? 'warning' : 'info',
+            title: 'Goal deadline',
+            message: `"${g.name || 'Goal'}" due in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}.`,
+            action: () => navigate('goals') });
+        }
+      });
+    } catch {}
+  }
+
+  // Filter dismissed
+  return notifs.filter(n => !dismissed.includes(n.id));
+}
+
+function _notifGetDismissed() {
+  try { return JSON.parse(localStorage.getItem('icu_notif_dismissed') || '[]'); } catch { return []; }
+}
+function _notifDismiss(id) {
+  const d = _notifGetDismissed();
+  if (!d.includes(id)) { d.push(id); localStorage.setItem('icu_notif_dismissed', JSON.stringify(d)); }
+  _notifRefreshBell();
+  renderNotifSheet();
+}
+function _notifClearAll() {
+  const all = _collectAllNotifications();
+  const d = _notifGetDismissed();
+  all.forEach(n => { if (!d.includes(n.id)) d.push(n.id); });
+  localStorage.setItem('icu_notif_dismissed', JSON.stringify(d));
+  _notifRefreshBell();
+  renderNotifSheet();
+}
+
+function _notifRefreshBell() {
+  const bell = document.getElementById('notifBell');
+  const badge = document.getElementById('notifBadge');
+  if (!bell) return;
+  const notifs = _collectAllNotifications();
+  const count = notifs.length;
+  if (badge) {
+    badge.textContent = count > 99 ? '99+' : count;
+    badge.style.display = count > 0 ? '' : 'none';
+  }
+}
+
+function openNotifSheet() {
+  const sheet = document.getElementById('notifSheet');
+  if (!sheet) return;
+  renderNotifSheet();
+  sheet.showModal();
+}
+
+function renderNotifSheet() {
+  const body = document.getElementById('notifSheetBody');
+  if (!body) return;
+  const notifs = _collectAllNotifications();
+
+  if (!notifs.length) {
+    body.innerHTML = `<div class="notif-empty">
+      <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      <div>All clear — no notifications</div>
+    </div>`;
+    return;
+  }
+
+  // Group by type
+  const groups = {};
+  const groupLabels = { gear: 'Gear & Maintenance', training: 'Training', streaks: 'Streaks', goals: 'Goals' };
+  notifs.forEach(n => {
+    if (!groups[n.type]) groups[n.type] = [];
+    groups[n.type].push(n);
+  });
+
+  let html = '';
+  for (const [type, items] of Object.entries(groups)) {
+    html += `<div class="notif-group-title">${groupLabels[type] || type}</div><div class="notif-list">`;
+    html += items.map(n => `<div class="notif-row" onclick="if(window._notifActions?.['${n.id}'])window._notifActions['${n.id}']();document.getElementById('notifSheet')?.close()">
+      <span class="notif-dot notif-dot--${n.severity}"></span>
+      <div class="notif-content">
+        <div class="notif-title">${n.title}</div>
+        <div class="notif-msg">${n.message}</div>
+      </div>
+      <button class="notif-dismiss" onclick="event.stopPropagation();_notifDismiss('${n.id}')" title="Dismiss">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>`).join('');
+    html += '</div>';
+  }
+
+  html += `<button class="notif-clear-btn" onclick="_notifClearAll()">Clear All</button>`;
+
+  // Store action callbacks
+  window._notifActions = {};
+  notifs.forEach(n => { if (n.action) window._notifActions[n.id] = n.action; });
+
+  body.innerHTML = html;
+}
+
+// Push notification support (local, client-side)
+function _notifFirePush() {
+  if (!_notifSetting('push')) return;
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  // Max 1 push per session
+  if (window._notifPushFired) return;
+  const notifs = _collectAllNotifications().filter(n => n.severity === 'critical');
+  if (!notifs.length) return;
+  window._notifPushFired = true;
+  const n = notifs[0];
+  try {
+    new Notification('CycleIQ', { body: n.message, icon: './icons/icon-192.png', tag: 'cycleiq-alert' });
+  } catch {}
+}
+
+async function _notifRequestPush(enabled) {
+  localStorage.setItem('icu_notif_push', enabled ? 'true' : 'false');
+  if (enabled && 'Notification' in window && Notification.permission === 'default') {
+    await Notification.requestPermission();
+  }
 }
 
 function showConfirmDialog(title, message, onConfirm) {
@@ -25606,6 +25816,7 @@ Object.assign(window, {
   gearSwitchTab, gearSelectBike, gearTriggerPhotoUpload, gearUploadPhoto, gearCompPhotoUpload, openCompDetail, renderBikeDetailPage,
   addCompareCard, setComparePeriod, updateComparePage,
   clearAllCaches, clearLifetimeCache, exportFullBackup, importFullBackup, exportGearData, importGearData,
+  openNotifSheet, _notifDismiss, _notifClearAll, _notifRefreshBell, _notifRequestPush,
   exportLifetimeJSON, importLifetimeJSON, resyncLifetimeData,
   updateStorageBar, setUnits, copySetupLink, applySetupLink, handleAvatarUpload, removeAvatar,
   setWeatherCity, useMyLocation, clearWeatherLocation, setWeekStartDay,

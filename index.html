@@ -315,6 +315,20 @@
             </div>
         </dialog>
 
+        <!-- ============================================================  NOTIFICATION SHEET  ============================================================ -->
+        <dialog class="modal-dialog" id="notifSheet">
+            <div class="modal" style="max-width:480px">
+                <div class="modal-drag-indicator"></div>
+                <div class="modal-header">
+                    <div class="modal-title">Notifications</div>
+                    <button class="modal-close" onclick="document.getElementById('notifSheet').close()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+                <div class="modal-body" id="notifSheetBody"></div>
+            </div>
+        </dialog>
+
         <!-- ============================================================  COMPONENT DETAIL SHEET  ============================================================ -->
         <dialog class="modal-dialog" id="compDetailSheet">
             <div class="modal" style="max-width:480px">
@@ -1380,6 +1394,11 @@
                         <span class="floating-profile-lvl" id="floatingProfileLvl"></span>
                     </button>
                 </div>
+                <!-- Notification bell (dashboard only) -->
+                <button class="notif-bell" id="notifBell" onclick="openNotifSheet()" aria-label="Notifications" style="display:none">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                    <span class="notif-badge" id="notifBadge" style="display:none">0</span>
+                </button>
                 <!-- Floating date range pills (moved from topbar) -->
                 <div class="floating-range-pill date-range-pill" id="dateRangePill">
                     <button onclick="setRange(7)" id="range7">7d</button>
@@ -4487,6 +4506,51 @@
                                     <span class="ios-row-label">Default range</span>
                                     <span class="ios-row-value" id="iosDefRangeVal">30 days</span>
                                     <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                </div>
+                            </div>
+
+                            <!-- NOTIFICATIONS -->
+                            <div class="ios-group-label">Notifications</div>
+                            <div class="ios-group">
+                                <div class="ios-row">
+                                    <div class="ios-row-icon" style="background:#ff3b30"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
+                                    <span class="ios-row-label">Push notifications</span>
+                                    <label class="settings-ios-toggle">
+                                        <input type="checkbox" id="notifPushToggle" onchange="_notifRequestPush(this.checked)"/>
+                                        <span class="settings-ios-slider"></span>
+                                    </label>
+                                </div>
+                                <div class="ios-row">
+                                    <div class="ios-row-icon" style="background:#ff9500"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg></div>
+                                    <span class="ios-row-label">Gear alerts</span>
+                                    <label class="settings-ios-toggle">
+                                        <input type="checkbox" id="notifGearToggle" checked onchange="localStorage.setItem('icu_notif_gear',this.checked);_notifRefreshBell()"/>
+                                        <span class="settings-ios-slider"></span>
+                                    </label>
+                                </div>
+                                <div class="ios-row">
+                                    <div class="ios-row-icon" style="background:#30d158"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+                                    <span class="ios-row-label">Training alerts</span>
+                                    <label class="settings-ios-toggle">
+                                        <input type="checkbox" id="notifTrainingToggle" checked onchange="localStorage.setItem('icu_notif_training',this.checked);_notifRefreshBell()"/>
+                                        <span class="settings-ios-slider"></span>
+                                    </label>
+                                </div>
+                                <div class="ios-row">
+                                    <div class="ios-row-icon" style="background:#5856d6"><svg viewBox="0 0 24 24"><path d="M12 12c2-2.96 0-7-1-8 0 3.038-1.773 4.741-3 6-1.226 1.26-2 3.24-2 5a6 6 0 1 0 12 0c0-1.532-1.056-3.94-2-5-1.786 3-2.791 3-4 2z"/></svg></div>
+                                    <span class="ios-row-label">Streak reminders</span>
+                                    <label class="settings-ios-toggle">
+                                        <input type="checkbox" id="notifStreaksToggle" checked onchange="localStorage.setItem('icu_notif_streaks',this.checked);_notifRefreshBell()"/>
+                                        <span class="settings-ios-slider"></span>
+                                    </label>
+                                </div>
+                                <div class="ios-row">
+                                    <div class="ios-row-icon" style="background:#007aff"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+                                    <span class="ios-row-label">Goal reminders</span>
+                                    <label class="settings-ios-toggle">
+                                        <input type="checkbox" id="notifGoalsToggle" checked onchange="localStorage.setItem('icu_notif_goals',this.checked);_notifRefreshBell()"/>
+                                        <span class="settings-ios-slider"></span>
+                                    </label>
                                 </div>
                             </div>
 
