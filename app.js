@@ -144,7 +144,16 @@ if ('serviceWorker' in navigator) {
 // Populate version footer
 (function() {
   const el = document.getElementById('appVersionFooter');
-  if (el) el.textContent = 'CycleIQ v0.60';
+  if (el) {
+    // Pull version from SW cache name
+    if (navigator.serviceWorker?.controller) {
+      const mc = new MessageChannel();
+      mc.port1.onmessage = e => { if (e.data?.version) el.textContent = 'CycleIQ ' + e.data.version.replace('icu-app-shell-', ''); };
+      navigator.serviceWorker.controller.postMessage({ type: 'GET_VERSION' }, [mc.port2]);
+    } else {
+      el.textContent = 'CycleIQ';
+    }
+  }
 })();
 
 let _pwaInstallPrompt = null;
