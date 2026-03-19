@@ -1556,6 +1556,7 @@ function openSettingsSubpage(id) {
       headline.classList.add('ios-nav-in');
       headline.offsetHeight;
       headline.classList.remove('ios-nav-in');
+      if (hasHero) headline.style.display = 'none';
     }
   }, 180);
 
@@ -1611,6 +1612,7 @@ function closeSettingsSubpage() {
     const backBtn = document.getElementById('settingsBackBtn');
     if (backBtn) backBtn.style.display = 'none';
     if (headline) {
+      headline.style.display = '';
       headline.classList.remove('page-headline--subpage', 'ios-nav-out-right');
       headline.classList.add('ios-nav-in-left');
       headline.offsetHeight;
