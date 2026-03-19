@@ -20218,6 +20218,8 @@ function _collectTransferableSettings() {
     'icu_wx_locations', 'icu_wx_model', 'icu_wx_coords',
     'icu_goals', 'icu_dash_sections', 'icu_ors_api_key',
     'icu_avatar', 'icu_cal_panel_hidden',
+    'icu_gear_components', 'icu_gear_batteries', 'icu_gear_services',
+    'icu_gear_service_shops', 'icu_bike_photos', 'icu_fav_routes',
   ];
   const cfg = {};
   for (const k of keys) {
