@@ -7120,7 +7120,7 @@ body.show-save-fab #actSaveRouteFab {
 .prof-sticky-name {
     font-size: 15px;
     font-weight: 600;
-    color: #fff;
+    color: var(--text-primary);
     flex: 1;
 }
 .prof-sticky-lvl {
@@ -7217,13 +7217,13 @@ body.show-save-fab #actSaveRouteFab {
     align-items: center;
     justify-content: center;
     font-family: var(--font-num);
-    border: 3px solid #000;
+    border: 3px solid var(--bg-base);
     box-shadow: 0 2px 8px rgba(0, 229, 160, 0.4);
 }
 .prof-name {
     font-size: 22px;
     font-weight: 700;
-    color: #fff;
+    color: var(--text-primary);
     margin-top: 4px;
 }
 .prof-title {
@@ -7370,7 +7370,7 @@ body.show-save-fab #actSaveRouteFab {
 .prof-best-name {
     font-size: 15px;
     font-weight: 600;
-    color: #fff;
+    color: var(--text-primary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -7408,12 +7408,12 @@ body.show-save-fab #actSaveRouteFab {
     padding: 16px 8px;
     background: rgba(255, 255, 255, 0.04);
     border-radius: 14px;
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--border);
 }
 .prof-stat-num {
     font-size: 22px;
     font-weight: 700;
-    color: #fff;
+    color: var(--text-primary);
     font-family: var(--font-num);
     letter-spacing: -0.5px;
 }
@@ -19456,6 +19456,15 @@ html[data-theme="light"] {
 [data-theme="light"] .prof-best-card {
     background: var(--bg-card);
     border: 1px solid var(--border);
+}
+[data-theme="light"] .prof-sticky-pill {
+    background: var(--glass-bg);
+    border-color: var(--glass-border);
+    box-shadow: 0 2px 8px var(--shadow-overlay);
+}
+[data-theme="light"] .prof-best-rank {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
 }
 
 /* ── Route builder sheet ── */
