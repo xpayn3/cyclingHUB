@@ -21155,13 +21155,34 @@ function openGearPicker(selectEl) {
   if (titleEl) titleEl.textContent = label;
 
   const checkSvg = '<svg class="gear-picker-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+  const defaultIcon = '<svg class="gp-opt-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>';
+
+  // Determine context for image lookup
+  const isModel = selectEl.id === 'gearFormModel';
+  const isBrand = selectEl.id === 'gearFormBrand';
+  const currentBrand = document.getElementById('gearFormBrand')?.value || '';
 
   listEl.innerHTML = Array.from(selectEl.options).map((opt, i) => {
     const selected = i === selectEl.selectedIndex;
     const text = opt.textContent.trim() || opt.value;
     if (!text) return '';
+
+    // Try to find an image
+    let imgHtml = '';
+    if (isModel && currentBrand && opt.value) {
+      const img = _gearGetDefaultImage(currentBrand, opt.value);
+      imgHtml = img ? `<img class="gp-opt-img" src="${img}" alt="">` : defaultIcon;
+    } else if (isBrand && opt.value) {
+      // Try brand-only image
+      const img = _gearGetDefaultImage(opt.value, '');
+      imgHtml = img ? `<img class="gp-opt-img" src="${img}" alt="">` : defaultIcon;
+    } else if (i > 0) {
+      imgHtml = defaultIcon;
+    }
+
     return `<div class="gear-picker-option${selected ? ' gear-picker-option--selected' : ''}" data-index="${i}">
-      <span>${text}</span>
+      ${imgHtml ? `<div class="gp-opt-icon">${imgHtml}</div>` : ''}
+      <span class="gp-opt-text">${text}</span>
       ${selected ? checkSvg : ''}
     </div>`;
   }).join('');

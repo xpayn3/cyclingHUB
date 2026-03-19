@@ -942,6 +942,38 @@ code {
     color: var(--accent);
     font-weight: 600;
 }
+/* Picker option with image */
+.gp-opt-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    overflow: hidden;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-card);
+}
+.gp-opt-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+.gp-opt-icon-svg {
+    width: 20px;
+    height: 20px;
+    color: var(--text-muted);
+    opacity: 0.4;
+}
+.gp-opt-text {
+    flex: 1;
+    min-width: 0;
+}
+.gear-picker-option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
 .gear-picker-check {
     width: 20px;
     height: 20px;
