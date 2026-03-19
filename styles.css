@@ -15473,25 +15473,34 @@ body:has(.act-sheet-mode) .topbar {
 .gar-comp-row {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
+    gap: 14px;
+    padding: 10px 16px;
     transition: background 0.2s;
     cursor: pointer;
-    min-height: 56px;
+    min-height: 72px;
 }
 .gar-comp-row:hover { background: var(--hover-overlay); }
 .gar-comp-row + .gar-comp-row { border-top: 1px solid var(--border); }
 .gar-comp-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 700;
     color: #fff;
+    overflow: hidden;
+    position: relative;
+}
+.gar-comp-icon img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 .gar-comp-info {
     flex: 1;
@@ -15728,12 +15737,12 @@ body:has(.act-sheet-mode) .topbar {
 
 /* ---- Bike detail hero ---- */
 .bkd-hero {
-    margin: 0 calc(-1 * var(--pad-page)) 16px;
+    margin: calc(-1 * (env(safe-area-inset-top) + 96px + var(--gap-layout))) calc(-1 * var(--pad-page)) 16px;
     overflow: hidden;
 }
 .bkd-hero-photo {
     width: 100%;
-    aspect-ratio: 16 / 9;
+    min-height: 420px;
     background: var(--bg-card);
     display: flex;
     align-items: center;
@@ -15742,6 +15751,8 @@ body:has(.act-sheet-mode) .topbar {
     overflow: hidden;
 }
 .bkd-hero-photo img {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;

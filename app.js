@@ -2524,7 +2524,7 @@ function navigate(page) {
     routes:     ['Route Builder',  'Plan & build cycling routes'],
     myroutes:   ['Library',       'Routes, rides & workouts'],
     suggestion: ['Suggested Workout', ''],
-    bikedetail: ['Bike', ''],
+    bikedetail: ['', ''],
   };
   const [title, sub] = info[page] || ['CycleIQ', ''];
   document.getElementById('pageTitle').textContent    = title;
@@ -20750,8 +20750,12 @@ function gearComponentCard(c) {
   const pctCls = overdue ? 'gar-comp-pct--over' : warn ? 'gar-comp-pct--warn' : 'gar-comp-pct--ok';
   const barColor = overdue ? 'var(--red)' : warn ? '#ff9500' : color;
 
+  const imgHtml = c.image
+    ? `<img src="${c.image}" alt="${c.name || ''}">`
+    : (c.category || 'O')[0];
+
   return `<div class="gar-comp-row">
-    <div class="gar-comp-icon" style="background:${color}">${(c.category || 'O')[0]}</div>
+    <div class="gar-comp-icon" style="background:${color}">${imgHtml}</div>
     <div class="gar-comp-info">
       <div class="gar-comp-name">${c.name || 'Component'}</div>
       <div class="gar-comp-sub">${sub}${ridden > 0 ? ` · ${Math.round(ridden).toLocaleString()} km` : ''}</div>
@@ -20784,6 +20788,7 @@ function openGearModal(editId) {
   document.getElementById('gearFormPrice').value      = '';
   document.getElementById('gearFormKmAtInstall').value= '';
   document.getElementById('gearFormReminderKm').value = '';
+  if (document.getElementById('gearFormImage')) document.getElementById('gearFormImage').value = '';
   document.getElementById('gearFormBike').value       = _gearSelectedBike || '';
   document.getElementById('gearFormCategory').value   = 'Drivetrain';
 
@@ -20800,6 +20805,7 @@ function openGearModal(editId) {
       document.getElementById('gearFormReminderKm').value  = comp.reminderKm  || '';
       document.getElementById('gearFormBike').value        = comp.bikeId      || '';
       document.getElementById('gearFormCategory').value    = comp.category    || 'Drivetrain';
+      if (document.getElementById('gearFormImage')) document.getElementById('gearFormImage').value = comp.image || '';
     }
   } else {
     titleEl.textContent = 'Add Component';
@@ -20834,10 +20840,14 @@ function submitGearForm() {
     price:        parseFloat(document.getElementById('gearFormPrice').value)        || 0,
     kmAtInstall:  parseFloat(document.getElementById('gearFormKmAtInstall').value)  || 0,
     reminderKm:   parseFloat(document.getElementById('gearFormReminderKm').value)   || 0,
+    image:        document.getElementById('gearFormImage')?.value.trim() || '',
   };
 
   let all = loadGearComponents();
   if (editId) {
+    // Preserve image from existing component if not changed
+    const existing = all.find(c => c.id === editId);
+    if (existing && !comp.image && existing.image) comp.image = existing.image;
     all = all.map(c => c.id === editId ? comp : c);
   } else {
     all.push(comp);
