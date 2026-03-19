@@ -15213,10 +15213,9 @@ body:has(.act-sheet-mode) .topbar {
 .gar-alert-dot--orange { background: #ff9500; }
 .gar-alert-dot--yellow { background: #ffcc00; }
 
-/* Bike carousel */
+/* Bike carousel — break out of page padding, pad scroll so cards aren't clipped */
 .gar-carousel {
     margin: 0 calc(-1 * var(--pad-page)) 16px;
-    padding: 0 var(--pad-page);
 }
 .gar-carousel-scroll {
     display: flex;
@@ -15225,7 +15224,8 @@ body:has(.act-sheet-mode) .topbar {
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     scroll-snap-type: x mandatory;
-    padding: 4px 0 8px;
+    /* Padding inside scroll creates breathing room at start/end */
+    padding: 4px var(--pad-page) 8px var(--pad-page);
 }
 .gar-carousel-scroll::-webkit-scrollbar { display: none; }
 
@@ -15259,8 +15259,9 @@ body:has(.act-sheet-mode) .topbar {
 
 .gar-bike-photo {
     width: 100%;
-    aspect-ratio: 16 / 10;
+    min-height: 360px;
     background: var(--bg-elevated);
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -15268,6 +15269,8 @@ body:has(.act-sheet-mode) .topbar {
     position: relative;
 }
 .gar-bike-photo img {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
@@ -15298,7 +15301,14 @@ body:has(.act-sheet-mode) .topbar {
 .gar-bike-photo-upload:hover { background: rgba(0,0,0,0.7); }
 
 .gar-bike-info {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
     padding: 12px 14px;
+    background: linear-gradient(to top, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.25) 70%, transparent 100%);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
 }
 .gar-bike-name {
     font-size: 17px;
