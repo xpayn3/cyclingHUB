@@ -995,6 +995,13 @@ code {
     justify-content: center;
     margin-bottom: 12px;
 }
+.stt-hero-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+    margin-bottom: 4px;
+}
 .stt-hero-desc {
     font-size: 13px;
     color: var(--text-secondary);

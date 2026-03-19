@@ -1531,7 +1531,8 @@ function openSettingsSubpage(id) {
     const h = _STT_HERO_DATA[id];
     const hero = document.createElement('div');
     hero.className = 'stt-hero';
-    hero.innerHTML = `<div class="stt-hero-icon" style="background:${h.bg}">${h.icon}</div><div class="stt-hero-desc">${h.desc}</div>`;
+    const title = _iosSubpageNames[id] || id;
+    hero.innerHTML = `<div class="stt-hero-icon" style="background:${h.bg}">${h.icon}</div><div class="stt-hero-title">${title}</div><div class="stt-hero-desc">${h.desc}</div>`;
     sub.insertBefore(hero, sub.firstChild);
   }
 
@@ -1542,10 +1543,11 @@ function openSettingsSubpage(id) {
   setTimeout(() => {
     const title = document.getElementById('pageTitle');
     const subtitle = document.getElementById('pageSubtitle');
-    if (title) title.textContent = _iosSubpageNames[id] || id;
+    const hasHero = !!_STT_HERO_DATA[id];
+    if (title) title.textContent = hasHero ? '' : (_iosSubpageNames[id] || id);
     if (subtitle) subtitle.textContent = '';
     const _st = document.getElementById('stickyPageTitleText');
-    if (_st) _st.textContent = _iosSubpageNames[id] || id;
+    if (_st) _st.textContent = hasHero ? '' : (_iosSubpageNames[id] || id);
     const backBtn = document.getElementById('settingsBackBtn');
     if (backBtn) backBtn.style.display = '';
     if (headline) {
