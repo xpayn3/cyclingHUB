@@ -1542,6 +1542,8 @@ code {
 .field select,
 .field textarea {
     width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     background: var(--separator-active);
     border: none;
     border-radius: 12px;
