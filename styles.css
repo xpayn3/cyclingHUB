@@ -1012,9 +1012,9 @@ code {
 .floating-range-pill {
     position: fixed;
     top: max(12px, env(safe-area-inset-top));
-    right: 16px;
-    left: auto;
-    transform: none;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
     z-index: 15;
     background: var(--glass-bg);
     backdrop-filter: var(--glass-blur);
