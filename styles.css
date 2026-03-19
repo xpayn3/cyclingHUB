@@ -919,8 +919,8 @@ code {
     border-radius: 19px;
     border: none;
     min-height: 34px;
-    min-width: 52px;
-    padding: 7px 16px;
+    flex: 1;
+    padding: 7px 8px;
     background: none;
     color: rgba(255, 255, 255, 0.55);
     font-weight: 600;
@@ -928,8 +928,8 @@ code {
     transition: background 0.25s, color 0.25s;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
-    flex-shrink: 0;
     scroll-snap-align: center;
+    text-align: center;
 }
 .floating-range-pill button:hover {
     background: var(--glass-border);
