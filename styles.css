@@ -1133,10 +1133,9 @@ code {
     background: var(--hover-overlay);
 }
 .dash-range-pills {
-    display: flex;
+    display: inline-flex;
     gap: 2px;
     flex-shrink: 0;
-    margin-left: auto;
     align-self: flex-start;
 }
 
