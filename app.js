@@ -21203,6 +21203,13 @@ function openCompDetail(compId) {
 /* ── Gear picker sheet — replaces dropdowns inside gear modals only ── */
 let _gearPickerCallback = null;
 
+function _gpImgFail(img) {
+  const parent = img.parentNode;
+  if (parent) {
+    parent.innerHTML = '<svg class="gp-opt-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>';
+  }
+}
+
 function openGearPicker(selectEl) {
   const overlay = document.getElementById('gearPickerOverlay');
   const titleEl = document.getElementById('gearPickerTitle');
@@ -21230,10 +21237,10 @@ function openGearPicker(selectEl) {
     let imgHtml = '';
     if (isModel && currentBrand && opt.value) {
       const img = _gearGetDefaultImage(currentBrand, opt.value);
-      imgHtml = img ? `<img class="gp-opt-img" src="${img}" alt="" onerror="this.parentNode.innerHTML='${defaultIcon.replace(/'/g, "\\'")}'">` : defaultIcon;
+      imgHtml = img ? `<img class="gp-opt-img" src="${img}" alt="" onerror="_gpImgFail(this)">` : defaultIcon;
     } else if (isBrand && opt.value) {
       const img = _gearGetDefaultImage(opt.value, '') || _gearBrandLogoUrl(opt.value);
-      imgHtml = img ? `<img class="gp-opt-img" src="${img}" alt="" onerror="this.parentNode.innerHTML='${defaultIcon.replace(/'/g, "\\'")}'">` : defaultIcon;
+      imgHtml = img ? `<img class="gp-opt-img" src="${img}" alt="" onerror="_gpImgFail(this)">` : defaultIcon;
     } else if (i > 0) {
       imgHtml = defaultIcon;
     }
@@ -26236,7 +26243,7 @@ Object.assign(window, {
   showTpSlotForm, hideTpSlotForm, addTpSlot, removeTpSlot,
   setHideEmptyCards, setFtpAlert,
   gearSwitchTab, gearSelectBike, gearTriggerPhotoUpload, gearUploadPhoto, gearCompPhotoUpload, openCompDetail, renderBikeDetailPage,
-  openGearPicker, closeGearPicker, openGearDate, closeGearDate, _gdNav, _gdPick, _gdSelectToday, _gdClear, saveLogodevKey,
+  openGearPicker, closeGearPicker, openGearDate, closeGearDate, _gdNav, _gdPick, _gdSelectToday, _gdClear, saveLogodevKey, _gpImgFail,
   addCompareCard, setComparePeriod, updateComparePage,
   clearAllCaches, clearLifetimeCache, exportFullBackup, importFullBackup, exportGearData, importGearData,
   openNotifSheet, _notifDismiss, _notifClearAll, _notifRefreshBell, _notifRequestPush,
