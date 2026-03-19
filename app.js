@@ -2473,7 +2473,7 @@ function navigate(page) {
 
   // Update pill nav active state + visibility (use visibility to keep backdrop-filter warm)
   const _pillNav = document.getElementById('dashPillNav');
-  const _pillHidePages = new Set(['settings', 'routes', 'workout', 'activity', 'heatmap', 'suggestion']);
+  const _pillHidePages = new Set(['settings', 'routes', 'workout', 'activity', 'heatmap', 'suggestion', 'bikedetail']);
   if (_pillNav) {
     const hide = _pillHidePages.has(page);
     _pillNav.style.visibility = hide ? 'hidden' : '';
@@ -2490,6 +2490,8 @@ function navigate(page) {
   if (_dashFab) { _dashFab.style.visibility = page === 'dashboard'  ? '' : 'hidden'; _dashFab.style.pointerEvents = page === 'dashboard'  ? '' : 'none'; }
   const _sgnFab = document.getElementById('sgnBackFab');
   if (_sgnFab) { _sgnFab.style.visibility = page === 'suggestion' ? '' : 'hidden'; _sgnFab.style.pointerEvents = page === 'suggestion' ? '' : 'none'; }
+  const _bikeFab = document.getElementById('bikeBackFab');
+  if (_bikeFab) { _bikeFab.style.visibility = page === 'bikedetail' ? '' : 'hidden'; _bikeFab.style.pointerEvents = page === 'bikedetail' ? '' : 'none'; }
   const _settFab = document.getElementById('settingsBackFab');
   if (_settFab) { _settFab.style.visibility = page === 'settings' ? '' : 'hidden'; _settFab.style.pointerEvents = page === 'settings' ? '' : 'none'; }
   const _settSearch = document.getElementById('settingsSearchFab');
@@ -2522,6 +2524,7 @@ function navigate(page) {
     routes:     ['Route Builder',  'Plan & build cycling routes'],
     myroutes:   ['Library',       'Routes, rides & workouts'],
     suggestion: ['Suggested Workout', ''],
+    bikedetail: ['Bike', ''],
   };
   const [title, sub] = info[page] || ['CycleIQ', ''];
   document.getElementById('pageTitle').textContent    = title;
@@ -2627,6 +2630,7 @@ function navigate(page) {
   if (page === 'workout')  { wrkRefreshStats(); wrkRender(); }
   if (page === 'myroutes') renderMyRoutesPage();
   if (page === 'suggestion') renderSuggestionPage();
+  if (page === 'bikedetail') renderBikeDetailPage();
   if (page === 'settings') {
     iosSettingsInit();
     initWeatherLocationUI();
@@ -20478,6 +20482,110 @@ function _gearBatPct(b) {
   return Math.max(0, Math.min(100, (1 - usedHours / rated) * 100));
 }
 
+function renderBikeDetailPage() {
+  const el = document.getElementById('bikeDetailContent');
+  const bikeId = window._garActiveBike;
+  if (!el || !bikeId) return;
+
+  const bike = _gearBikeCache.find(b => b.id === bikeId);
+  if (!bike) { el.innerHTML = '<div class="gar-empty">Bike not found</div>'; return; }
+
+  _gearSelectedBike = bikeId;
+  const photos = _gearLoadPhotos();
+  const photo = photos[bikeId];
+  const kmFmt = bike.km >= 1000 ? (bike.km / 1000).toFixed(1) + 'k' : bike.km;
+  const comps = loadGearComponents().filter(c => c.bikeId === bikeId);
+  const bats = loadGearBatteries().filter(b => b.bikeId === bikeId && !b.obsolete);
+  const svcs = loadGearServices().filter(s => s.bikeId === bikeId);
+  const avgBat = bats.length ? Math.round(bats.reduce((s, b) => s + (_gearBatPct(b) || 0), 0) / bats.length) : null;
+
+  const bikeSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" width="64" height="64" style="opacity:0.2"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5L9 11l-3.5 3.5M15 6l-4 5.5H5.5M15 6l3 5.5"/></svg>`;
+
+  el.innerHTML = `
+    <!-- Hero -->
+    <div class="bkd-hero">
+      <div class="bkd-hero-photo">
+        ${photo ? `<img src="${photo}" alt="${bike.name}">` : bikeSvg}
+        <button class="gar-bike-photo-upload" onclick="gearTriggerPhotoUpload('${bikeId}',event)" title="Upload photo">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        </button>
+      </div>
+      <div class="bkd-hero-info">
+        <h1 class="bkd-hero-name">${bike.name}</h1>
+        <div class="bkd-hero-meta">
+          <span class="gar-bike-km">${kmFmt} km</span>
+          <span class="gar-bike-type">${bike.type}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="gar-stats">
+      <div class="gar-stat-pill"><span class="gar-stat-val">${kmFmt}</span><span class="gar-stat-lbl">km</span></div>
+      <div class="gar-stat-pill"><span class="gar-stat-val">${comps.length}</span><span class="gar-stat-lbl">Parts</span></div>
+      <div class="gar-stat-pill"><span class="gar-stat-val">${avgBat !== null ? avgBat + '%' : '—'}</span><span class="gar-stat-lbl">Battery</span></div>
+      <div class="gar-stat-pill"><span class="gar-stat-val">${svcs.length}</span><span class="gar-stat-lbl">Services</span></div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="gar-tabs" id="garTabs">
+      <button class="gar-tab active" data-gear="components" onclick="gearSwitchTab('components')">Components</button>
+      <button class="gar-tab" data-gear="batteries" onclick="gearSwitchTab('batteries')">Batteries</button>
+      <button class="gar-tab" data-gear="service" onclick="gearSwitchTab('service')">Service</button>
+      <div class="gar-tab-indicator"></div>
+    </div>
+
+    <!-- Components panel -->
+    <div class="gar-panel" id="gearPanelComponents">
+      <div class="gar-panel-header">
+        <span class="gar-panel-title">Components</span>
+        <button class="gar-add-btn" onclick="openGearModal()">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </div>
+      <div id="gearComponentsGrid" class="gar-list"></div>
+    </div>
+
+    <!-- Batteries panel -->
+    <div class="gar-panel" id="gearPanelBatteries" style="display:none">
+      <div class="gar-panel-header">
+        <span class="gar-panel-title">Batteries</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <label class="gar-toggle-label" id="batteryObsoleteToggle" style="display:none">
+            <input type="checkbox" id="batteryShowObsolete" onchange="renderGearBatteries()">
+            <span>Retired</span>
+          </label>
+          <button class="gar-add-btn" onclick="openBatteryModal()">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+        </div>
+      </div>
+      <div id="gearBatteriesGrid" class="gar-list"></div>
+    </div>
+
+    <!-- Service panel -->
+    <div class="gar-panel" id="gearPanelService" style="display:none">
+      <div class="gar-panel-header">
+        <span class="gar-panel-title">Service History</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="gar-ghost-btn" onclick="openServiceShopModal()">Shops</button>
+          <button class="gar-add-btn" onclick="openServiceModal()">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+        </div>
+      </div>
+      <div id="gearServiceGrid" class="gar-list"></div>
+    </div>
+  `;
+
+  // Reset tab state and render content
+  _gearActiveTab = 'components';
+  gearSwitchTab('components');
+  renderGearComponents();
+  renderGearBatteries();
+  renderGearServices();
+}
+
 async function renderGearPage() {
   const carousel = document.getElementById('garCarouselScroll');
   if (!carousel) return;
@@ -20513,13 +20621,8 @@ async function renderGearPage() {
 
   // Bike carousel
   const bikeSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" width="48" height="48" class="gar-bike-photo-placeholder"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5L9 11l-3.5 3.5M15 6l-4 5.5H5.5M15 6l3 5.5"/></svg>`;
-  const allCard = `<div class="gar-bike-card gar-bike-card--all${!_gearSelectedBike ? ' gar-bike-card--active' : ''}" onclick="gearSelectBike(null)">
-    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-    <span>All</span>
-  </div>`;
-
   const bikeCards = bikes.map(b => {
-    const sel = _gearSelectedBike === b.id ? ' gar-bike-card--active' : '';
+    const sel = '';
     const photo = photos[b.id];
     const kmFmt = b.km >= 1000 ? (b.km / 1000).toFixed(1) + 'k' : b.km;
     return `<div class="gar-bike-card${sel}" onclick="gearSelectBike('${b.id}')">
@@ -20539,7 +20642,7 @@ async function renderGearPage() {
     </div>`;
   }).join('');
 
-  carousel.innerHTML = allCard + bikeCards;
+  carousel.innerHTML = bikeCards;
 
   // Populate bike selects in modals
   const selects = ['gearFormBike', 'batteryFormBike', 'serviceFormBike'];
@@ -20551,15 +20654,12 @@ async function renderGearPage() {
     }
   });
 
-  // Quick stats
+  // Quick stats (all bikes)
+  _gearSelectedBike = null;
   _gearRenderStats();
 
   // Notifications
   _gearRenderAlerts();
-
-  renderGearComponents();
-  renderGearBatteries();
-  renderGearServices();
 }
 
 function _gearRenderStats() {
@@ -20602,17 +20702,10 @@ function _gearRenderAlerts() {
 }
 
 function gearSelectBike(id) {
-  _gearSelectedBike = (_gearSelectedBike === id) ? null : id;
-  document.querySelectorAll('.gar-bike-card').forEach(el => {
-    const isAll = el.classList.contains('gar-bike-card--all');
-    if (isAll) { el.classList.toggle('gar-bike-card--active', !_gearSelectedBike); return; }
-    const elId = el.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
-    el.classList.toggle('gar-bike-card--active', elId === _gearSelectedBike);
-  });
-  _gearRenderStats();
-  renderGearComponents();
-  renderGearBatteries();
-  renderGearServices();
+  if (!id) return; // "All" card stays on garage page
+  window._garActiveBike = id;
+  _gearSelectedBike = id;
+  navigate('bikedetail');
 }
 
 function renderGearComponents() {
@@ -25143,7 +25236,7 @@ Object.assign(window, {
   openTrainingPlanModal, closeTrainingPlanModal, applyTrainingPlan,
   showTpSlotForm, hideTpSlotForm, addTpSlot, removeTpSlot,
   setHideEmptyCards, setFtpAlert,
-  gearSwitchTab, gearSelectBike, gearTriggerPhotoUpload, gearUploadPhoto,
+  gearSwitchTab, gearSelectBike, gearTriggerPhotoUpload, gearUploadPhoto, renderBikeDetailPage,
   addCompareCard, setComparePeriod, updateComparePage,
   clearAllCaches, clearLifetimeCache, exportFullBackup, importFullBackup,
   exportLifetimeJSON, importLifetimeJSON, resyncLifetimeData,
