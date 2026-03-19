@@ -5371,7 +5371,7 @@ function renderWeekProgress(metric) {
   const wkStartName = allDayNames[state.weekStartDay];
   const wkEndName   = allDayNames[(state.weekStartDay + 6) % 7];
   const subtitleEl  = document.getElementById('wpSubtitle');
-  if (subtitleEl) subtitleEl.textContent = `${m.label} · ${wkStartName} → ${wkEndName}`;
+  if (subtitleEl) subtitleEl.textContent = m.label;
   const unitEl = document.getElementById('wpUnit');
   if (unitEl) unitEl.textContent = m.unit || '—';
 
