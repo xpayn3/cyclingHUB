@@ -15563,12 +15563,13 @@ body:has(.act-sheet-mode) .topbar {
 
 /* Component detail sheet */
 .comp-detail-img {
-    width: 100%;
-    aspect-ratio: 16 / 10;
-    border-radius: var(--radius);
+    width: 80px;
+    height: 80px;
+    border-radius: 16px;
     overflow: hidden;
-    margin-bottom: 16px;
+    margin: 0 auto 16px;
     background: var(--bg-elevated);
+    flex-shrink: 0;
 }
 .comp-detail-img img {
     width: 100%;
