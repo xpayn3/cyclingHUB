@@ -1656,6 +1656,13 @@ function settingsBack() {
   }
 }
 
+function saveLogodevKey() {
+  const input = document.getElementById('logodevKeyInput');
+  const key = input?.value.trim();
+  if (key) { localStorage.setItem('icu_logodev_key', key); showToast('Logo.dev key saved', 'success'); }
+  else { localStorage.removeItem('icu_logodev_key'); showToast('Logo.dev key removed', 'info'); }
+}
+
 function iosSettingsInit() {
   // Close any open subpage when entering settings
   closeSettingsSubpage();
@@ -1785,6 +1792,10 @@ function updateConnectionUI(connected) {
   _nt('notifTrainingToggle', 'training');
   _nt('notifStreaksToggle', 'streaks');
   _nt('notifGoalsToggle', 'goals');
+
+  // Logo.dev key
+  const logodevInput = document.getElementById('logodevKeyInput');
+  if (logodevInput) logodevInput.value = localStorage.getItem('icu_logodev_key') || '';
 }
 
 function updateLifetimeCacheUI() {
@@ -21032,7 +21043,7 @@ function gearComponentCard(c) {
   const pctCls = overdue ? 'gar-comp-pct--over' : warn ? 'gar-comp-pct--warn' : 'gar-comp-pct--ok';
   const barColor = overdue ? 'var(--red)' : warn ? '#ff9500' : color;
 
-  const resolvedImg = c.image || _gearGetDefaultImage(c.brand, c.model);
+  const resolvedImg = c.image || _gearGetDefaultImage(c.brand, c.model) || _gearBrandLogoUrl(c.brand);
   const hasImg = !!resolvedImg;
   const imgHtml = hasImg
     ? `<img src="${resolvedImg}" alt="${c.name || ''}">`
@@ -21073,7 +21084,7 @@ function openCompDetail(compId) {
   const ridden = Math.max(0, bikeKm - (parseFloat(c.kmAtInstall) || 0));
   const remind = parseFloat(c.reminderKm) || 0;
   const pct = remind > 0 ? Math.min(100, Math.round(ridden / remind * 100)) : null;
-  const resolvedImg = c.image || _gearGetDefaultImage(c.brand, c.model);
+  const resolvedImg = c.image || _gearGetDefaultImage(c.brand, c.model) || _gearBrandLogoUrl(c.brand);
 
   const imgHtml = resolvedImg
     ? `<div class="comp-detail-img"><img src="${resolvedImg}" alt="${c.name}"></div>`
@@ -21173,7 +21184,7 @@ function openGearPicker(selectEl) {
       const img = _gearGetDefaultImage(currentBrand, opt.value);
       imgHtml = img ? `<img class="gp-opt-img" src="${img}" alt="" onerror="this.parentNode.innerHTML='${defaultIcon.replace(/'/g, "\\'")}'">` : defaultIcon;
     } else if (isBrand && opt.value) {
-      const img = _gearGetDefaultImage(opt.value, '');
+      const img = _gearGetDefaultImage(opt.value, '') || _gearBrandLogoUrl(opt.value);
       imgHtml = img ? `<img class="gp-opt-img" src="${img}" alt="" onerror="this.parentNode.innerHTML='${defaultIcon.replace(/'/g, "\\'")}'">` : defaultIcon;
     } else if (i > 0) {
       imgHtml = defaultIcon;
@@ -21582,6 +21593,105 @@ const _GEAR_DEFAULT_IMAGES = {
   'rotor|aldhu':               'img/components/rotor/aldhu.webp',
   'rotor|vegast':              'img/components/rotor/vegast.webp',
 };
+
+// Brand → domain mapping for logo.dev
+const _GEAR_BRAND_DOMAINS = {
+  'Shimano':       'shimano.com',
+  'SRAM':          'sram.com',
+  'Campagnolo':    'campagnolo.com',
+  'Continental':   'continental-tires.com',
+  'Vittoria':      'vittoria.com',
+  'Schwalbe':      'schwalbe.com',
+  'Pirelli':       'pirelli.com',
+  'Michelin':      'michelin.com',
+  'Maxxis':        'maxxis.com',
+  'Zipp':          'zipp.com',
+  'Enve':          'enve.com',
+  'DT Swiss':      'dtswiss.com',
+  'Mavic':         'mavic.com',
+  'Fulcrum':       'fulcrumwheels.com',
+  'Roval':         'rfroval.com',
+  'Hunt':          'huntwheels.com',
+  'FSA':           'fullspeedahead.com',
+  '3T':            '3t.bike',
+  'Deda Elementi': 'dedaelementi.com',
+  'Ritchey':       'ritcheylogic.com',
+  'PRO':           'pro-bikegear.com',
+  'Thomson':       'bikethomson.com',
+  'Easton':        'eastoncycling.com',
+  'Look':          'lookcycle.com',
+  'Speedplay':     'wahoo.com',
+  'Wahoo':         'wahoo.com',
+  'Garmin':        'garmin.com',
+  'Time':          'timesport.com',
+  'Crankbrothers': 'crankbrothers.com',
+  "fi'zi:k":       'fizik.com',
+  'Selle Italia':  'selleitalia.com',
+  'Brooks':        'brooksengland.com',
+  'Prologo':       'prologo.it',
+  'ISM':           'ismseat.com',
+  'SQlab':         'sqlab.com',
+  'WTB':           'wtb.com',
+  'KMC':           'kmcchain.com',
+  'Chris King':    'chrisking.com',
+  'CeramicSpeed':  'ceramicspeed.com',
+  'Hope':          'hopetech.com',
+  'Cane Creek':    'canecreek.com',
+  'Token':         'tokenproducts.com',
+  'Magura':        'magura.com',
+  'TRP':           'trpcycling.com',
+  'SwissStop':     'swissstop.ch',
+  'Jagwire':       'jagwire.com',
+  'Giant':         'giant-bicycles.com',
+  'Trek':          'trekbikes.com',
+  'Cannondale':    'cannondale.com',
+  'Specialized':   'specialized.com',
+  'Pinarello':     'pinarello.com',
+  'Cervelo':       'cervelo.com',
+  'Bianchi':       'bianchi.com',
+  'Colnago':       'colnago.com',
+  'BMC':           'bmc-switzerland.com',
+  'Scott':         'scott-sports.com',
+  'Canyon':        'canyon.com',
+  'Orbea':         'orbea.com',
+  'Ridley':        'ridley-bikes.com',
+  'Factor':        'factorbikes.com',
+  'Cinelli':       'cinelli.it',
+  'De Rosa':       'derosanews.com',
+  'Wilier':        'wilier.com',
+  'Merida':        'merida-bikes.com',
+  'Cube':          'cube.eu',
+  'Quarq':         'quarq.com',
+  'Stages':        'stagescycling.com',
+  '4iiii':         '4iiii.com',
+  'Favero':        'faveroelectronics.com',
+  'SRM':           'srm.de',
+  'Power2Max':     'power2max.com',
+  'Rotor':         'rotorbike.com',
+  'Elite':         'elite-it.com',
+  'Tacx':          'garmin.com',
+  'Lezyne':        'lezyne.com',
+  'Topeak':        'topeak.com',
+  'Silca':         'silca.cc',
+  'Muc-Off':       'muc-off.com',
+  'Oakley':        'oakley.com',
+  'POC':           'pocsports.com',
+  'Kask':          'kfrask.com',
+  'Giro':          'giro.com',
+  'Abus':          'abus.com',
+  'MET':           'met-helmets.com',
+  'Lazer':         'lazersport.com',
+  'Bontrager':     'trekbikes.com',
+  '100%':          'ride100percent.com',
+};
+
+function _gearBrandLogoUrl(brand) {
+  const key = localStorage.getItem('icu_logodev_key');
+  if (!key || !brand) return null;
+  const domain = _GEAR_BRAND_DOMAINS[brand];
+  if (!domain) return null;
+  return `https://img.logo.dev/${domain}?token=${key}&size=64&format=png`;
+}
 
 function _gearGetDefaultImage(brand, model) {
   if (!brand) return null;
@@ -26078,7 +26188,7 @@ Object.assign(window, {
   showTpSlotForm, hideTpSlotForm, addTpSlot, removeTpSlot,
   setHideEmptyCards, setFtpAlert,
   gearSwitchTab, gearSelectBike, gearTriggerPhotoUpload, gearUploadPhoto, gearCompPhotoUpload, openCompDetail, renderBikeDetailPage,
-  openGearPicker, closeGearPicker, openGearDate, closeGearDate, _gdNav, _gdPick, _gdSelectToday, _gdClear,
+  openGearPicker, closeGearPicker, openGearDate, closeGearDate, _gdNav, _gdPick, _gdSelectToday, _gdClear, saveLogodevKey,
   addCompareCard, setComparePeriod, updateComparePage,
   clearAllCaches, clearLifetimeCache, exportFullBackup, importFullBackup, exportGearData, importGearData,
   openNotifSheet, _notifDismiss, _notifClearAll, _notifRefreshBell, _notifRequestPush,
