@@ -8647,11 +8647,11 @@ const _pprRingPlugin = {
   }
 };
 
-function renderPowerProfileRadar() {
-  const card = document.getElementById('powerProfileCard');
+function renderPowerProfileRadar(cardId, canvasId, subId) {
+  const card = document.getElementById(cardId || 'powerProfileCard');
   if (!card) return;
 
-  const pc = state.powerCurve;
+  const pc = state.powerPageCurve || state.powerCurve;
   const weight = state.athlete?.weight;
   if (!pc || !weight || weight <= 0) { card.style.display = 'none'; return; }
 
@@ -8685,9 +8685,10 @@ function renderPowerProfileRadar() {
 
   // Classify & display rider type badge
   const riderType = classifyRiderProfile(normalized);
-  document.getElementById('pprRiderTypeBadge').textContent = riderType;
-  document.getElementById('powerProfileSubtitle').textContent =
-    `${rawWkg.filter(v => v > 0).length}/${durations.length} durations · Last ${state.rangeDays} days`;
+  const _badge = document.getElementById('pprRiderTypeBadge');
+  if (_badge) _badge.textContent = riderType;
+  const _sub = document.getElementById(subId || 'powerProfileSubtitle');
+  if (_sub) _sub.textContent = `${rawWkg.filter(v => v > 0).length}/${durations.length} durations`;
 
   // Zone category cards
   const cardsEl = document.getElementById('pprZoneCards');
@@ -8710,10 +8711,13 @@ function renderPowerProfileRadar() {
   }
 
   // Render radar chart — direct render (no grow animation to avoid stuck bugs on re-entry)
-  state.powerProfileRadarChart = destroyChart(state.powerProfileRadarChart);
-  const ctx = document.getElementById('powerProfileRadarChart').getContext('2d');
+  const _chartKey = canvasId ? '_pwrPageProfileChart' : 'powerProfileRadarChart';
+  state[_chartKey] = destroyChart(state[_chartKey]);
+  const _canvasEl = document.getElementById(canvasId || 'powerProfileRadarChart');
+  if (!_canvasEl) return;
+  const ctx = _canvasEl.getContext('2d');
 
-  state.powerProfileRadarChart = new Chart(ctx, {
+  state[_chartKey] = new Chart(ctx, {
     type: 'radar',
     plugins: [_pprRingPlugin],
     data: {
@@ -8965,7 +8969,8 @@ async function renderPowerPage() {
   try {
     const cutoff = daysAgo(days);
     const recent = state.activities.filter(a => new Date(a.start_date_local || a.start_date) >= cutoff && !isEmptyActivity(a));
-    _renderPwrPageProfile(days, ftp, weight);
+    // Render Power Profile using the original function targeting Power page elements
+    renderPowerProfileRadar('pwrPageProfileCard', 'pwrPageProfileRadar', 'pwrPageProfileSub');
     _renderPwrPageAvgPower(recent);
   } catch(e) { console.warn('Power page extras:', e); }
 }
