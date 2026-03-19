@@ -2641,7 +2641,7 @@ function navigate(page) {
     dashboard:  ['Summary', ''],
     activities: ['Activities',     ''],
     calendar:   ['Calendar',       'Planned workouts & events'],
-    fitness:    ['Fitness',        'CTL · ATL · TSB history'],
+    fitness:    ['Fitness',        'Training load, history & guide'],
     power:      ['Power Curve',    'Best efforts across durations'],
     zones:      ['Training Zones', 'Time in zone breakdown'],
     compare:    ['Compare',        'Compare metrics across time periods'],
@@ -2762,7 +2762,7 @@ function navigate(page) {
     setTimeout(_notifFirePush, 2000);
   }
   if (page === 'calendar') { renderCalendar(); refreshCalendarEvents(); }
-  if (page === 'fitness')  renderFitnessPage();
+  if (page === 'fitness')  { renderFitnessPage(); _renderGuideInline(); }
   if (page === 'power')    renderPowerPage();
   if (page === 'zones')    renderZonesPage();
   if (page === 'compare')  { ensureLifetimeLoaded(); renderComparePage(); }
@@ -2798,7 +2798,7 @@ function navigate(page) {
   }
   if (page === 'weather')  renderWeatherPage();
   if (page === 'gear')     renderGearPage();
-  if (page === 'guide')    renderGuidePage();
+  if (page === 'guide')    { navigate('fitness'); return; } // merged into fitness
   if (page === 'import')   { initImportPage(); }
   if (page === 'routes')   renderRouteBuilderPage();
   // Legacy: redirect old streaks/wellness routes to merged goals page
@@ -22779,9 +22779,20 @@ function deleteServiceFromHistory(id, bikeId) {
 // TRAINING GUIDE PAGE
 // ─────────────────────────────────────────────────────────────────────────────
 
+function _renderGuideInline() {
+  const wrap = document.getElementById('guidePageContentInline');
+  if (!wrap) return;
+  // Reuse renderGuidePage logic but target inline container
+  _renderGuideInto(wrap);
+}
+
 function renderGuidePage() {
   const wrap = document.getElementById('guidePageContent');
   if (!wrap) return;
+  _renderGuideInto(wrap);
+}
+
+function _renderGuideInto(wrap) {
 
   const f      = state.fitness || {};
   const ctl    = f.ctl    != null ? Math.round(f.ctl)    : null;
