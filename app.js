@@ -24346,8 +24346,9 @@ function _mrRideCard(act, type) {
   const badge = type === 'route' ? 'ROUTE' : 'RIDE';
   const badgeCls = type === 'route' ? 'mr-badge--route' : 'mr-badge--ride';
 
+  const mapIdx = window._mrMapIdx = (window._mrMapIdx || 0) + 1;
   return `<div class="mr-card" data-id="${id}" data-type="${type}" onclick="${type === 'route' ? `navigate('routes');setTimeout(()=>rbLoadRoute('${id}'),400)` : `navigateToActivity(window._mrActLookup['${id}'])`}">
-    <div class="mr-card-map"><canvas class="mr-canvas" data-act-id="${id}" data-type="${type}"></canvas></div>
+    <div class="mr-card-map" id="mrMap_${mapIdx}" data-act-id="${id}"></div>
     <div class="mr-card-body">
       <div class="mr-card-top">
         <span class="mr-card-name">${name}</span>
@@ -24372,8 +24373,9 @@ function _mrRouteCard(route) {
   const id = route.id;
   const isFav = _mrIsFav(id);
 
+  const mapIdx = window._mrMapIdx = (window._mrMapIdx || 0) + 1;
   return `<div class="mr-card" data-id="${id}" data-type="route" onclick="navigate('routes');setTimeout(()=>rbLoadRoute('${id}'),400)">
-    <div class="mr-card-map"><canvas class="mr-canvas" data-route-id="${id}"></canvas></div>
+    <div class="mr-card-map" id="mrMap_${mapIdx}" data-route-id="${id}"></div>
     <div class="mr-card-body">
       <div class="mr-card-top">
         <span class="mr-card-name">${name}</span>
@@ -24418,24 +24420,53 @@ function _mrRenderSection(containerId, html) {
   const el = document.getElementById(containerId);
   if (!el) return;
   el.innerHTML = html;
-  requestAnimationFrame(() => {
-    el.querySelectorAll('.mr-canvas').forEach(canvas => {
-      const actId = canvas.dataset.actId;
-      const routeId = canvas.dataset.routeId;
-      if (routeId && window._mrRouteLookup?.[routeId]) {
+  // Lazy-load maps using IntersectionObserver (same as dashboard cards)
+  const mapEls = el.querySelectorAll('.mr-card-map[data-act-id]');
+  if (!mapEls.length) return;
+  let _mrMapActive = 0;
+  const _mrMapQueue = [];
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      observer.unobserve(entry.target);
+      const mapDiv = entry.target;
+      const actId = mapDiv.dataset.actId;
+      const routeId = mapDiv.dataset.routeId;
+      const act = actId ? window._mrActLookup?.[actId] : null;
+      if (act) {
+        // Use the same map rendering as dashboard activity cards
+        const idx = mapDiv.id.replace('mrMap_', '');
+        const job = () => {
+          _mrMapActive++;
+          renderRecentActCardMap(act, idx, 'mrMap', window._mrMaps).finally(() => {
+            _mrMapActive--;
+            if (_mrMapQueue.length) _mrMapQueue.shift()();
+          });
+        };
+        if (_mrMapActive < 3) job(); else _mrMapQueue.push(job);
+      } else if (routeId && window._mrRouteLookup?.[routeId]) {
+        // For saved routes: draw polyline on canvas (no activity to fetch GPS from)
         const route = window._mrRouteLookup[routeId];
         const pts = route.routePoints || (route.waypoints || []).map(w => [w.lat, w.lng]);
-        _mrDrawPolyline(canvas, pts);
-      } else if (actId) {
-        try {
-          const cached = localStorage.getItem('icu_gps_pts_' + actId);
-          if (cached) {
-            const pts = JSON.parse(cached);
-            if (pts.length > 1) _mrDrawPolyline(canvas, pts);
-          }
-        } catch {}
+        if (pts.length > 1) {
+          const canvas = document.createElement('canvas');
+          canvas.className = 'mr-canvas';
+          canvas.style.width = '100%';
+          canvas.style.height = '100%';
+          canvas.style.display = 'block';
+          mapDiv.appendChild(canvas);
+          _mrDrawPolyline(canvas, pts);
+        }
       }
     });
+  }, { rootMargin: '200px' });
+  mapEls.forEach(m => observer.observe(m));
+  // Store for cleanup
+  if (!window._mrMaps) window._mrMaps = [];
+  _pageCleanupFns.push(() => {
+    observer.disconnect();
+    (window._mrMaps || []).forEach(m => { try { m.remove(); } catch {} });
+    window._mrMaps = [];
   });
 }
 
