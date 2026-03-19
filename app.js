@@ -20816,6 +20816,7 @@ function openGearModal(editId) {
   initCustomDropdowns(modal);
   document.getElementById('gearFormBike')?._cddRefresh?.();
   document.getElementById('gearFormCategory')?._cddRefresh?.();
+  document.getElementById('gearFormBrand')?._cddRefresh?.();
 
   // Brand → Model suggestions
   const brandSel = document.getElementById('gearFormBrand');
