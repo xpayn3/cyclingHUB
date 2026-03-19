@@ -15560,6 +15560,55 @@ body:has(.act-sheet-mode) .topbar {
     opacity: 0.4;
     flex-shrink: 0;
 }
+
+/* Component detail sheet */
+.comp-detail-img {
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-bottom: 16px;
+    background: var(--bg-elevated);
+}
+.comp-detail-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.comp-detail-rows {
+    background: var(--bg-elevated);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+.comp-detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+}
+.comp-detail-row + .comp-detail-row {
+    border-top: 1px solid var(--border);
+}
+.comp-detail-label {
+    font-size: 15px;
+    color: var(--text-secondary);
+}
+.comp-detail-val {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-primary);
+    text-align: right;
+}
+.comp-detail-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+    padding-bottom: 8px;
+}
+.comp-detail-actions .btn {
+    flex: 1;
+    justify-content: center;
+}
 .gar-comp-actions {
     display: flex;
     gap: 2px;

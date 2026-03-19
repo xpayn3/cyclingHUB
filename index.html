@@ -315,6 +315,20 @@
             </div>
         </dialog>
 
+        <!-- ============================================================  COMPONENT DETAIL SHEET  ============================================================ -->
+        <dialog class="modal-dialog" id="compDetailSheet">
+            <div class="modal" style="max-width:480px">
+                <div class="modal-drag-indicator"></div>
+                <div class="modal-header">
+                    <div class="modal-title" id="compDetailTitle">Component</div>
+                    <button class="modal-close" onclick="document.getElementById('compDetailSheet').close()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+                <div class="modal-body" id="compDetailBody"></div>
+            </div>
+        </dialog>
+
         <!-- ============================================================  GEAR MODAL  ============================================================ -->
         <dialog class="modal-dialog" id="gearModal" aria-labelledby="gearModalTitle">
             <div class="modal" style="max-width: 520px">

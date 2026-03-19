@@ -20819,7 +20819,7 @@ function gearComponentCard(c) {
       <span class="gar-comp-pct ${pctCls}">${pct}%</span>
     </div>` : '';
 
-  return `<div class="gar-comp-row">
+  return `<div class="gar-comp-row" onclick="openCompDetail('${c.id}')">
     <div class="gar-comp-icon" style="${hasImg ? 'background:transparent' : 'background:' + color}">${imgHtml}</div>
     <div class="gar-comp-body">
       <div class="gar-comp-top-row">
@@ -20827,18 +20827,74 @@ function gearComponentCard(c) {
           <div class="gar-comp-name">${c.name || 'Component'}</div>
           <div class="gar-comp-sub">${[sub, kmStr].filter(Boolean).join(' · ')}</div>
         </div>
-        <div class="gar-comp-actions">
-          <button class="gar-comp-action-btn" title="Edit" onclick="openGearModal('${c.id}')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
-          </button>
-          <button class="gar-comp-action-btn gar-comp-action-btn--del" title="Delete" onclick="deleteGearComponent('${c.id}')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-          </button>
-        </div>
+        <svg viewBox="0 0 7 12" width="7" height="12" class="gar-comp-chevron"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </div>
       ${progressHtml}
     </div>
   </div>`;
+}
+
+function openCompDetail(compId) {
+  const c = loadGearComponents().find(x => x.id === compId);
+  if (!c) return;
+  const sheet = document.getElementById('compDetailSheet');
+  const title = document.getElementById('compDetailTitle');
+  const body = document.getElementById('compDetailBody');
+  if (!sheet || !body) return;
+
+  title.textContent = c.name || 'Component';
+
+  const color = GEAR_CATEGORY_COLORS[c.category] || '#94a3b8';
+  const bike = _gearBikeCache.find(b => b.id === c.bikeId);
+  const bikeKm = bike ? bike.km : 0;
+  const ridden = Math.max(0, bikeKm - (parseFloat(c.kmAtInstall) || 0));
+  const remind = parseFloat(c.reminderKm) || 0;
+  const pct = remind > 0 ? Math.min(100, Math.round(ridden / remind * 100)) : null;
+  const resolvedImg = c.image || _gearGetDefaultImage(c.brand, c.model);
+
+  const imgHtml = resolvedImg
+    ? `<div class="comp-detail-img"><img src="${resolvedImg}" alt="${c.name}"></div>`
+    : `<div class="comp-detail-img" style="background:${color};display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;color:#fff">${(c.category || 'O')[0]}</div>`;
+
+  const rows = [];
+  if (c.category) rows.push(['Category', `<span style="color:${color}">${c.category}</span>`]);
+  if (c.brand) rows.push(['Brand', c.brand]);
+  if (c.model) rows.push(['Model', c.model]);
+  if (bike) rows.push(['Bike', bike.name]);
+  if (ridden > 0) rows.push(['Distance ridden', `${Math.round(ridden).toLocaleString()} km`]);
+  if (remind > 0) rows.push(['Reminder at', `${remind.toLocaleString()} km`]);
+  if (pct !== null) {
+    const pctColor = pct >= 100 ? 'var(--red)' : pct >= 90 ? '#ff9500' : 'var(--accent)';
+    rows.push(['Wear', `<span style="color:${pctColor};font-weight:700">${pct}%</span>`]);
+  }
+  if (c.purchaseDate) rows.push(['Purchased', new Date(c.purchaseDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })]);
+  if (c.price) rows.push(['Price', `€${parseFloat(c.price).toFixed(0)}`]);
+  if (c.kmAtInstall) rows.push(['Bike km at install', `${parseFloat(c.kmAtInstall).toLocaleString()} km`]);
+
+  const progressHtml = pct !== null ? `
+    <div style="margin-top:12px">
+      <div class="gar-comp-bar" style="height:6px;border-radius:3px;flex:1"><div class="gar-comp-bar-fill" style="width:${pct}%;background:${pct >= 100 ? 'var(--red)' : pct >= 90 ? '#ff9500' : color};border-radius:3px"></div></div>
+    </div>` : '';
+
+  body.innerHTML = `
+    ${imgHtml}
+    <div class="comp-detail-rows">
+      ${rows.map(([label, val]) => `<div class="comp-detail-row"><span class="comp-detail-label">${label}</span><span class="comp-detail-val">${val}</span></div>`).join('')}
+    </div>
+    ${progressHtml}
+    <div class="comp-detail-actions">
+      <button class="btn btn-ghost" onclick="document.getElementById('compDetailSheet').close();openGearModal('${c.id}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
+        Edit
+      </button>
+      <button class="btn btn-ghost" style="color:var(--red)" onclick="document.getElementById('compDetailSheet').close();deleteGearComponent('${c.id}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        Delete
+      </button>
+    </div>
+  `;
+
+  sheet.showModal();
 }
 
 function openGearModal(editId) {
@@ -25542,7 +25598,7 @@ Object.assign(window, {
   openTrainingPlanModal, closeTrainingPlanModal, applyTrainingPlan,
   showTpSlotForm, hideTpSlotForm, addTpSlot, removeTpSlot,
   setHideEmptyCards, setFtpAlert,
-  gearSwitchTab, gearSelectBike, gearTriggerPhotoUpload, gearUploadPhoto, gearCompPhotoUpload, renderBikeDetailPage,
+  gearSwitchTab, gearSelectBike, gearTriggerPhotoUpload, gearUploadPhoto, gearCompPhotoUpload, openCompDetail, renderBikeDetailPage,
   addCompareCard, setComparePeriod, updateComparePage,
   clearAllCaches, clearLifetimeCache, exportFullBackup, importFullBackup, exportGearData, importGearData,
   exportLifetimeJSON, importLifetimeJSON, resyncLifetimeData,
