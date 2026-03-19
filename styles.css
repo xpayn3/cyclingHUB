@@ -15917,12 +15917,8 @@ body:has(.act-sheet-mode) .topbar {
 .comp-detail-img::after {
     content: '';
     position: absolute;
-    bottom: -10px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 80px;
-    height: 30px;
-    background: radial-gradient(ellipse, rgba(255,255,255,0.08) 0%, transparent 70%);
+    inset: -30px;
+    background: radial-gradient(circle at center, rgba(255,255,255,0.06) 0%, transparent 60%);
     pointer-events: none;
 }
 .comp-detail-img img {
