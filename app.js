@@ -298,7 +298,7 @@ function initCustomDropdowns(root = document) {
       const sheet = document.getElementById('cddPickerSheet');
       const titleEl = document.getElementById('cddSheetTitle');
       const listEl = document.getElementById('cddSheetList');
-      if (!sheet || !listEl) return;
+      if (!sheet || !listEl) { console.warn('cddPickerSheet not found'); return; }
 
       // Get field label
       const fieldLabel = wrap.closest('.field')?.querySelector('label')?.textContent || 'Select';
@@ -12357,6 +12357,10 @@ function _notifSetting(key) {
 
 function _collectAllNotifications() {
   const notifs = [];
+  try { return _collectAllNotificationsInner(); } catch(e) { console.warn('Notif error:', e); return []; }
+}
+function _collectAllNotificationsInner() {
+  const notifs = [];
   const dismissed = _notifGetDismissed();
 
   // 1. Gear alerts (reuse existing)
@@ -12457,7 +12461,8 @@ function _notifRefreshBell() {
   const bell = document.getElementById('notifBell');
   const badge = document.getElementById('notifBadge');
   if (!bell) return;
-  const notifs = _collectAllNotifications();
+  let notifs = [];
+  try { notifs = _collectAllNotifications(); } catch(e) { console.warn('Notif collect error', e); }
   const count = notifs.length;
   if (badge) {
     badge.textContent = count > 99 ? '99+' : count;
