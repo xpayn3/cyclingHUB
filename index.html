@@ -1936,6 +1936,34 @@
                         </div>
                     </div>
 
+                    <!-- Streak + Next Workout compact row -->
+                    <div data-dash-section="streakNextWorkout">
+                        <div class="card-row">
+                            <div class="card" id="dashStreakCard">
+                                <div style="display:flex;align-items:center;gap:12px;padding:4px 0">
+                                    <div style="width:44px;height:44px;border-radius:50%;background:var(--accent-dim);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12c2-2.96 0-7-1-8 0 3.038-1.773 4.741-3 6-1.226 1.26-2 3.24-2 5a6 6 0 1 0 12 0c0-1.532-1.056-3.94-2-5-1.786 3-2.791 3-4 2z"/></svg>
+                                    </div>
+                                    <div>
+                                        <div style="font-size:22px;font-weight:700;font-family:var(--font-num);color:var(--text-primary)" id="dashStreakNum">—</div>
+                                        <div style="font-size:12px;color:var(--text-muted)">Day Streak</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card" id="dashNextWorkoutCard" style="display:none">
+                                <div style="display:flex;align-items:center;gap:12px;padding:4px 0">
+                                    <div style="width:44px;height:44px;border-radius:50%;background:rgba(90,200,250,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#5ac8fa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                    </div>
+                                    <div style="flex:1;min-width:0">
+                                        <div style="font-size:14px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="dashNextWorkoutTitle">—</div>
+                                        <div style="font-size:12px;color:var(--text-muted)" id="dashNextWorkoutSub">No planned workout</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Training Load chart -->
                     <div data-dash-section="trainingLoad">
                         <div class="card">
@@ -1960,7 +1988,7 @@
                     </div>
 
                     <!-- Cycling Trends — energy system TSS breakdown -->
-                    <div data-dash-section="cyclingTrends">
+                    <div data-dash-section="cyclingTrends" style="display:none">
                         <div class="card" id="cyclingTrendsCard" style="display:none">
                             <div class="card-header">
                                 <div>
@@ -2139,7 +2167,7 @@
                     </div>
 
                     <!-- Weekly TSS bar chart -->
-                    <div data-dash-section="weeklyTss">
+                    <div data-dash-section="weeklyTss" style="display:none">
                         <div class="card">
                             <div class="card-header">
                                 <div>
@@ -2155,7 +2183,7 @@
                     </div>
 
                     <!-- Power vs Heart Rate Scatter (colored by temperature) -->
-                    <div data-dash-section="pwrHrScatter">
+                    <div data-dash-section="pwrHrScatter" style="display:none">
                         <div class="card" id="pwrHrScatterCard" style="display:none">
                             <div class="card-header">
                                 <div>
@@ -3922,6 +3950,34 @@
                             <div class="chart-wrap" style="height:140px"><canvas id="healthWeightChart"></canvas></div>
                         </div>
                     </div>
+                    <!-- Cycling Trends (moved from dashboard) -->
+                    <div class="card" id="fitCyclingTrendsCard" style="display:none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>Cycling Trends</div>
+                                <div class="card-subtitle" id="fitCyclingTrendsSub">Energy system load</div>
+                            </div>
+                            <div class="dash-range-pills" id="fitDashRangePill_trends"></div>
+                        </div>
+                        <div class="chart-wrap chart-wrap--fitness">
+                            <canvas id="fitCyclingTrendsChart"></canvas>
+                        </div>
+                        <div class="cycling-trends-legend" id="fitCyclingTrendsLegend"></div>
+                    </div>
+
+                    <!-- Weekly TSS (moved from dashboard) -->
+                    <div class="card" id="fitWeeklyTssCard" style="display:none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Weekly Load</div>
+                                <div class="card-subtitle">TSS per week</div>
+                            </div>
+                        </div>
+                        <div class="chart-wrap">
+                            <canvas id="fitWeeklyTssChart"></canvas>
+                        </div>
+                    </div>
+
                     <!-- Training Insights (moved from dashboard) -->
                     <div class="card-row">
                         <div class="card" id="fitMonotonyCard" style="display:none">
@@ -4212,6 +4268,19 @@
                         </div>
                         <div class="chart-wrap" style="height:300px">
                             <canvas id="pwrPageProfileRadar"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Power vs HR Scatter (moved from dashboard) -->
+                    <div class="card" id="pwrPageScatterCard" style="display:none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="16" r="2"/><circle cx="16" cy="8" r="2"/><circle cx="6" cy="9" r="1.5"/><circle cx="18" cy="15" r="1.5"/><circle cx="12" cy="12" r="1.5"/></svg>Power vs Heart Rate</div>
+                                <div class="card-subtitle">Colored by temperature</div>
+                            </div>
+                        </div>
+                        <div class="chart-wrap chart-wrap--lg">
+                            <canvas id="pwrPageScatterChart"></canvas>
                         </div>
                     </div>
 

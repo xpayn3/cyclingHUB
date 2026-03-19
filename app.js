@@ -4684,7 +4684,45 @@ function renderDashboard() {
   renderRecentActivity();    // async — fetches GPS for map preview
   renderWeatherForecast();   // async — fetches Open-Meteo 7-day forecast
   renderGoalsDashWidget();   // goals & targets compact summary
+  _renderDashStreak();
+  _renderDashNextWorkout();
   _rIC(() => { if (window.refreshGlow) refreshGlow(); });
+}
+
+function _renderDashStreak() {
+  const el = document.getElementById('dashStreakNum');
+  if (!el) return;
+  const acts = getAllActivities().filter(a => a.start_date_local || a.start_date);
+  if (!acts.length) { el.textContent = '0'; return; }
+  // Count consecutive days with activities from today backwards
+  let streak = 0;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const actDates = new Set(acts.map(a => new Date(a.start_date_local || a.start_date).toISOString().slice(0, 10)));
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(today); d.setDate(d.getDate() - i);
+    if (actDates.has(d.toISOString().slice(0, 10))) streak++;
+    else if (i > 0) break; // allow today to be missing (day not over yet)
+    else continue;
+  }
+  el.textContent = streak;
+}
+
+function _renderDashNextWorkout() {
+  const card = document.getElementById('dashNextWorkoutCard');
+  const titleEl = document.getElementById('dashNextWorkoutTitle');
+  const subEl = document.getElementById('dashNextWorkoutSub');
+  if (!card) return;
+  // Check saved workouts for most recent, or calendar events
+  const workouts = window._mrSavedWorkouts || [];
+  if (workouts.length > 0) {
+    const latest = workouts[0];
+    card.style.display = '';
+    if (titleEl) titleEl.textContent = latest.name || 'Saved Workout';
+    if (subEl) subEl.textContent = latest.totalDuration ? _fmtDuration(latest.totalDuration) + ' · ' + (latest.tssEstimate || 0) + ' TSS' : 'Tap to load';
+    card.onclick = () => { wrkLoadWorkout(latest); navigate('workout'); };
+  } else {
+    card.style.display = 'none';
+  }
 }
 
 function resetDashboard() {
@@ -8974,7 +9012,38 @@ async function renderPowerPage() {
     // Render Power Profile using the original function targeting Power page elements
     renderPowerProfileRadar('pwrPageProfileCard', 'pwrPageProfileRadar', 'pwrPageProfileSub');
     _renderPwrPageAvgPower(recent);
+    _renderPwrPageScatter(recent);
   } catch(e) { console.warn('Power page extras:', e); }
+}
+
+function _renderPwrPageScatter(activities) {
+  const card = document.getElementById('pwrPageScatterCard');
+  const canvas = document.getElementById('pwrPageScatterChart');
+  if (!card || !canvas) return;
+  const data = activities.filter(a => (a.icu_weighted_avg_watts || a.average_watts) && a.average_heartrate);
+  if (data.length < 3) { card.style.display = 'none'; return; }
+  card.style.display = '';
+  const points = data.map(a => ({
+    x: a.average_heartrate,
+    y: a.icu_weighted_avg_watts || a.average_watts || 0,
+    temp: a.icu_average_temp ?? null,
+  }));
+  const temps = points.map(p => p.temp).filter(t => t != null);
+  const minT = Math.min(...temps, 0), maxT = Math.max(...temps, 35);
+  const colors = points.map(p => {
+    if (p.temp == null) return 'rgba(0,229,160,0.6)';
+    const t = (p.temp - minT) / (maxT - minT || 1);
+    return t < 0.33 ? 'rgba(74,158,255,0.7)' : t < 0.66 ? 'rgba(0,229,160,0.7)' : 'rgba(255,107,53,0.7)';
+  });
+  const ctx = canvas.getContext('2d');
+  if (state._pwrPageScatterChart) state._pwrPageScatterChart.destroy();
+  state._pwrPageScatterChart = new Chart(ctx, {
+    type: 'scatter',
+    data: { datasets: [{ data: points, backgroundColor: colors, pointRadius: 5, pointHoverRadius: 8 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP, callbacks: { label: ctx => `${Math.round(ctx.raw.y)}W @ ${Math.round(ctx.raw.x)}bpm${ctx.raw.temp != null ? ' · ' + Math.round(ctx.raw.temp) + '°C' : ''}` } } },
+      scales: { x: { ...cScales({}).x, title: { display: true, text: 'Heart Rate (bpm)', color: _chartLabel(), font: { size: 11 } } }, y: { ...cScales({}).y, title: { display: true, text: 'Power (W)', color: _chartLabel(), font: { size: 11 } } } }
+    }
+  });
 }
 
 function _renderPwrPageProfile(days, ftp, weight) {
@@ -10584,8 +10653,76 @@ function renderFitnessPage() {
   renderFitnessZoneDist(fd);
   renderHealthMetrics(fd);
   renderWellnessInsights(fd);
+  _renderFitCyclingTrends(fd);
+  _renderFitWeeklyTss(fd);
   _renderFitInsights(fd);
   _rIC(() => { if (window.refreshGlow) refreshGlow(); });
+}
+
+function _renderFitCyclingTrends(days) {
+  const card = document.getElementById('fitCyclingTrendsCard');
+  const canvas = document.getElementById('fitCyclingTrendsChart');
+  if (!card || !canvas) return;
+  const cutoff = daysAgo(days);
+  const acts = (state.activities || []).filter(a => new Date(a.start_date_local || a.start_date) >= cutoff && !isEmptyActivity(a));
+  if (acts.length < 3) { card.style.display = 'none'; return; }
+  card.style.display = '';
+  // Simple weekly TSS by energy system
+  const ftp = state.athlete?.ftp || 200;
+  const weeks = Math.ceil(days / 7);
+  const endure = Array(weeks).fill(0), breakaway = Array(weeks).fill(0), attack = Array(weeks).fill(0);
+  acts.forEach(a => {
+    const d = new Date(a.start_date_local || a.start_date);
+    const wi = weeks - 1 - Math.floor((Date.now() - d.getTime()) / (7 * 86400000));
+    if (wi < 0 || wi >= weeks) return;
+    const tss = a.icu_training_load || 0;
+    const avgP = a.icu_weighted_avg_watts || a.average_watts || 0;
+    const ratio = ftp > 0 ? avgP / ftp : 0;
+    if (ratio < 0.85) endure[wi] += tss;
+    else if (ratio < 1.05) breakaway[wi] += tss;
+    else attack[wi] += tss;
+  });
+  const labels = Array.from({ length: weeks }, (_, i) => 'W' + (i + 1));
+  const ctx = canvas.getContext('2d');
+  if (state._fitCTChart) state._fitCTChart.destroy();
+  state._fitCTChart = new Chart(ctx, {
+    type: 'line', data: { labels, datasets: [
+      { label: 'Endure', data: endure, borderColor: ACCENT, backgroundColor: 'rgba(0,229,160,0.1)', borderWidth: 2, pointRadius: 0, tension: 0.3, fill: true },
+      { label: 'Breakaway', data: breakaway, borderColor: C_ORANGE, backgroundColor: 'rgba(255,107,53,0.08)', borderWidth: 2, pointRadius: 0, tension: 0.3, fill: true },
+      { label: 'Attack', data: attack, borderColor: C_RED, backgroundColor: 'rgba(255,82,82,0.06)', borderWidth: 2, pointRadius: 0, tension: 0.3, fill: true },
+    ]},
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP } }, scales: { ...cScales({ xExtra: { maxTicksLimit: 8 } }), y: { ...cScales({}).y, stacked: true } } }
+  });
+  const legend = document.getElementById('fitCyclingTrendsLegend');
+  if (legend) legend.innerHTML = `<div class="chart-legend" style="padding:8px 0 0;justify-content:center">
+    <span class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--accent)"></span>Endure</span>
+    <span class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--orange)"></span>Breakaway</span>
+    <span class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--red)"></span>Attack</span>
+  </div>`;
+}
+
+function _renderFitWeeklyTss(days) {
+  const card = document.getElementById('fitWeeklyTssCard');
+  const canvas = document.getElementById('fitWeeklyTssChart');
+  if (!card || !canvas) return;
+  const cutoff = daysAgo(days);
+  const acts = (state.activities || []).filter(a => new Date(a.start_date_local || a.start_date) >= cutoff && !isEmptyActivity(a));
+  const weeks = Math.ceil(days / 7);
+  const weekTSS = Array(weeks).fill(0);
+  acts.forEach(a => {
+    const d = new Date(a.start_date_local || a.start_date);
+    const wi = weeks - 1 - Math.floor((Date.now() - d.getTime()) / (7 * 86400000));
+    if (wi >= 0 && wi < weeks) weekTSS[wi] += (a.icu_training_load || 0);
+  });
+  if (weekTSS.every(v => v === 0)) { card.style.display = 'none'; return; }
+  card.style.display = '';
+  const labels = weekTSS.map((_, i) => 'W' + (i + 1));
+  const ctx = canvas.getContext('2d');
+  if (state._fitWTChart) state._fitWTChart.destroy();
+  state._fitWTChart = new Chart(ctx, {
+    type: 'bar', data: { labels, datasets: [{ data: weekTSS.map(Math.round), backgroundColor: 'rgba(0,229,160,0.5)', borderRadius: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP } }, scales: { ...cScales({ xExtra: { maxTicksLimit: 8 } }) } }
+  });
 }
 
 function _renderFitInsights(days) {
