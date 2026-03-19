@@ -1111,6 +1111,33 @@ code {
 .gd-clear-btn { color: var(--text-secondary); }
 .gd-today-btn:hover, .gd-clear-btn:hover { background: var(--hover-overlay); }
 
+/* ── Dashboard inline range pills ─ */
+.dash-range-btn {
+    padding: 4px 10px;
+    border-radius: 100px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+    min-height: 28px;
+}
+.dash-range-btn.active {
+    background: var(--accent-dim);
+    color: var(--accent);
+}
+.dash-range-btn:hover:not(.active) {
+    background: var(--hover-overlay);
+}
+.dash-range-pills {
+    display: flex;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
 /* ── Notification bell — fixed top-right on dashboard ─ */
 .notif-bell {
     position: fixed;

@@ -3262,10 +3262,30 @@ function rangeLabel(days) {
   return days === 365 ? 'Last year' : `Last ${days} days`;
 }
 
+// Inline range pill HTML for dashboard card headers
+function _inlineRangePill() {
+  const days = state.rangeDays || 30;
+  return [14, 30, 90].map(d =>
+    `<button class="dash-range-btn${d === days ? ' active' : ''}" onclick="event.stopPropagation();setRange(${d})">${d}d</button>`
+  ).join('');
+}
+
+function _refreshDashRangePills() {
+  const ids = ['dashRangePillTraining'];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = _inlineRangePill();
+  });
+}
+
 function setRange(days) {
   state.rangeDays = days;
   try { localStorage.setItem('icu_range_days', days); } catch (e) { console.warn('localStorage.setItem failed:', e); }
-  // Sync topbar pill
+  // Sync all inline range pills
+  document.querySelectorAll('.dash-range-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent === days + 'd');
+  });
+  // Sync topbar pill (legacy)
   document.querySelectorAll('#dateRangePill button').forEach(b => b.classList.remove('active'));
   const _rangeBtn = document.getElementById('range' + days);
   if (_rangeBtn) {
@@ -3279,9 +3299,8 @@ function setRange(days) {
   // Update main settings row value label
   const defLabel = document.getElementById('iosDefRangeVal');
   if (defLabel) defLabel.textContent = days + ' days';
-  // Update Training Load card range label
-  const lbl = document.getElementById('fitnessRangeLabel');
-  if (lbl) lbl.textContent = rangeLabel(days);
+  // Update inline range pills on dashboard cards
+  _refreshDashRangePills();
   if (state.synced) noChartAnim(() => renderDashboard());
 }
 
@@ -20663,8 +20682,7 @@ if ([7, 14, 30, 60, 90, 365].includes(savedRange)) {
   document.getElementById('range' + savedRange)?.classList.add('active');
 }
 // Init Training Load range label
-const initRangeLabel = document.getElementById('fitnessRangeLabel');
-if (initRangeLabel) initRangeLabel.textContent = rangeLabel(state.rangeDays);
+_refreshDashRangePills();
 // Sync settings default-range buttons
 document.querySelectorAll('[data-defrange]').forEach(b =>
   b.classList.toggle('active', parseInt(b.dataset.defrange) === state.rangeDays)
