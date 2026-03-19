@@ -8974,24 +8974,36 @@ function _renderPwrPageProfile(days, ftp, weight) {
   const card = document.getElementById('pwrPageProfileCard');
   const canvas = document.getElementById('pwrPageProfileRadar');
   if (!card || !canvas) return;
-  // Reuse the dashboard power profile radar logic
+
+  const pc = state.powerCurve;
+  if (!pc || !pc.secs || !weight || weight <= 0) { card.style.display = 'none'; return; }
+
+  // Build secs→watts lookup (same as dashboard renderPowerProfileRadar)
+  const lookup = {};
+  pc.secs.forEach((s, i) => { if (pc.watts[i]) lookup[s] = pc.watts[i]; });
+  function peakW(target) {
+    if (lookup[target]) return lookup[target];
+    let best = null, minD = Infinity;
+    pc.secs.forEach(s => { const d = Math.abs(s - target); if (d < minD && lookup[s]) { minD = d; best = lookup[s]; } });
+    return best;
+  }
+
   const durations = [5, 60, 300, 1200];
   const labels = ['5s Sprint', '1min', '5min', '20min'];
-  const curve = state.powerCurve;
-  if (!curve || !ftp) { card.style.display = 'none'; return; }
-  const vals = durations.map(d => {
-    const pt = curve.find(p => p[0] === d);
-    return pt ? pt[1] : 0;
-  });
-  if (vals.every(v => v === 0)) { card.style.display = 'none'; return; }
+  const rawWatts = durations.map(d => peakW(d) || 0);
+  if (rawWatts.every(v => v === 0)) { card.style.display = 'none'; return; }
+
   card.style.display = '';
-  const wkg = weight > 0 ? vals.map(v => +(v / weight).toFixed(2)) : vals;
+  const wkg = rawWatts.map(v => +(v / weight).toFixed(2));
+  const sub = document.getElementById('pwrPageProfileSub');
+  if (sub) sub.textContent = `${wkg.filter(v => v > 0).length}/4 durations`;
+
   const ctx = canvas.getContext('2d');
   if (state._pwrPageProfileChart) { state._pwrPageProfileChart.destroy(); }
   state._pwrPageProfileChart = new Chart(ctx, {
     type: 'radar',
-    data: { labels, datasets: [{ data: wkg, borderColor: ACCENT, backgroundColor: 'rgba(0,229,160,0.1)', borderWidth: 2, pointRadius: 4, pointBackgroundColor: ACCENT }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { r: { ticks: { display: false }, grid: { color: _chartSubgrid() }, pointLabels: { color: _chartLabel(), font: { size: 11 } } } } }
+    data: { labels, datasets: [{ data: wkg, borderColor: ACCENT, backgroundColor: 'rgba(0,229,160,0.1)', borderWidth: 2, pointRadius: 5, pointBackgroundColor: ACCENT, pointBorderColor: cssVar('--bg-card'), pointBorderWidth: 2 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { r: { ticks: { display: false }, grid: { color: _chartSubgrid() }, pointLabels: { color: _chartLabel(), font: { size: 12, weight: 600 } } } } }
   });
 }
 
