@@ -20750,9 +20750,10 @@ function gearComponentCard(c) {
   const pctCls = overdue ? 'gar-comp-pct--over' : warn ? 'gar-comp-pct--warn' : 'gar-comp-pct--ok';
   const barColor = overdue ? 'var(--red)' : warn ? '#ff9500' : color;
 
-  const hasImg = !!c.image;
+  const resolvedImg = c.image || _gearGetDefaultImage(c.brand, c.model);
+  const hasImg = !!resolvedImg;
   const imgHtml = hasImg
-    ? `<img src="${c.image}" alt="${c.name || ''}">`
+    ? `<img src="${resolvedImg}" alt="${c.name || ''}">`
     : (c.category || 'O')[0];
 
   const kmStr = ridden > 0 ? `${Math.round(ridden).toLocaleString()} km` : '';
@@ -20889,6 +20890,121 @@ function gearCompPhotoUpload(compId) {
     reader.readAsDataURL(file);
   };
   inp.click();
+}
+
+// Default component images — keyed by "brand|model" (lowercased)
+// Falls back to "brand|" if no model match. Add entries as images are added to img/components/
+const _GEAR_DEFAULT_IMAGES = {
+  // Shimano Drivetrain
+  'shimano|dura-ace r9200':    'img/components/shimano/dura-ace-r9200.webp',
+  'shimano|dura-ace r9100':    'img/components/shimano/dura-ace-r9100.webp',
+  'shimano|ultegra r8100':     'img/components/shimano/ultegra-r8100.webp',
+  'shimano|ultegra r8000':     'img/components/shimano/ultegra-r8000.webp',
+  'shimano|105 r7100':         'img/components/shimano/105-r7100.webp',
+  'shimano|105 r7000':         'img/components/shimano/105-r7000.webp',
+  'shimano|grx rx820':         'img/components/shimano/grx-rx820.webp',
+  'shimano|grx rx810':         'img/components/shimano/grx-rx810.webp',
+  'shimano|tiagra 4700':       'img/components/shimano/tiagra-4700.webp',
+  'shimano|sora r3000':        'img/components/shimano/sora-r3000.webp',
+  'shimano|claris r2000':      'img/components/shimano/claris-r2000.webp',
+  'shimano|deore xt m8100':    'img/components/shimano/deore-xt-m8100.webp',
+  'shimano|xtr m9100':         'img/components/shimano/xtr-m9100.webp',
+  // SRAM Drivetrain
+  'sram|red axs':              'img/components/sram/red-axs.webp',
+  'sram|red etap':             'img/components/sram/red-etap.webp',
+  'sram|force axs':            'img/components/sram/force-axs.webp',
+  'sram|force etap':           'img/components/sram/force-etap.webp',
+  'sram|rival axs':            'img/components/sram/rival-axs.webp',
+  'sram|rival etap':           'img/components/sram/rival-etap.webp',
+  'sram|apex axs':             'img/components/sram/apex-axs.webp',
+  'sram|red xplr axs':         'img/components/sram/red-xplr-axs.webp',
+  'sram|xx sl axs':            'img/components/sram/xx-sl-axs.webp',
+  'sram|xx axs':               'img/components/sram/xx-axs.webp',
+  'sram|x0 axs':               'img/components/sram/x0-axs.webp',
+  'sram|gx axs':               'img/components/sram/gx-axs.webp',
+  // Campagnolo
+  'campagnolo|super record eps':'img/components/campagnolo/super-record-eps.webp',
+  'campagnolo|super record':   'img/components/campagnolo/super-record.webp',
+  'campagnolo|record eps':     'img/components/campagnolo/record-eps.webp',
+  'campagnolo|record':         'img/components/campagnolo/record.webp',
+  'campagnolo|chorus':         'img/components/campagnolo/chorus.webp',
+  'campagnolo|ekar':           'img/components/campagnolo/ekar.webp',
+  // Tyres
+  'continental|gp 5000 s tr':  'img/components/continental/gp5000-s-tr.webp',
+  'continental|gp 5000':       'img/components/continental/gp5000.webp',
+  'continental|gp 5000 tt':    'img/components/continental/gp5000-tt.webp',
+  'continental|gatorskin':     'img/components/continental/gatorskin.webp',
+  'vittoria|corsa pro':        'img/components/vittoria/corsa-pro.webp',
+  'vittoria|corsa':            'img/components/vittoria/corsa.webp',
+  'vittoria|corsa n.ext':      'img/components/vittoria/corsa-next.webp',
+  'schwalbe|pro one tt':       'img/components/schwalbe/pro-one-tt.webp',
+  'schwalbe|pro one':          'img/components/schwalbe/pro-one.webp',
+  'pirelli|p zero race tlr':   'img/components/pirelli/p-zero-race-tlr.webp',
+  'pirelli|p zero race':       'img/components/pirelli/p-zero-race.webp',
+  'michelin|power cup':        'img/components/michelin/power-cup.webp',
+  'maxxis|receptor':           'img/components/maxxis/receptor.webp',
+  // Wheels
+  'zipp|303 firecrest':        'img/components/zipp/303-firecrest.webp',
+  'zipp|303 s':                'img/components/zipp/303-s.webp',
+  'zipp|404 firecrest':        'img/components/zipp/404-firecrest.webp',
+  'zipp|808 firecrest':        'img/components/zipp/808-firecrest.webp',
+  'enve|ses 3.4':              'img/components/enve/ses-3-4.webp',
+  'enve|ses 4.5':              'img/components/enve/ses-4-5.webp',
+  'dt swiss|arc 1100':         'img/components/dt-swiss/arc-1100.webp',
+  'dt swiss|erc 1100':         'img/components/dt-swiss/erc-1100.webp',
+  'mavic|cosmic slr 45':       'img/components/mavic/cosmic-slr-45.webp',
+  'fulcrum|speed 40':          'img/components/fulcrum/speed-40.webp',
+  'roval|rapide clx':          'img/components/roval/rapide-clx.webp',
+  'hunt|50 aero':              'img/components/hunt/50-aero.webp',
+  // Saddles
+  "fi'zi:k|antares versus evo":'img/components/fizik/antares-versus-evo.webp',
+  "fi'zi:k|arione r3":        'img/components/fizik/arione-r3.webp',
+  'selle italia|slr boost':    'img/components/selle-italia/slr-boost.webp',
+  'brooks|cambium c13':        'img/components/brooks/cambium-c13.webp',
+  'brooks|cambium c17':        'img/components/brooks/cambium-c17.webp',
+  // Pedals
+  'look|keo blade carbon':     'img/components/look/keo-blade-carbon.webp',
+  'wahoo|speedplay zero':      'img/components/wahoo/speedplay-zero.webp',
+  'crankbrothers|eggbeater':   'img/components/crankbrothers/eggbeater.webp',
+  // Power Meters
+  'quarq|dzero dub':           'img/components/quarq/dzero-dub.webp',
+  'stages|lr (dual)':          'img/components/stages/lr-dual.webp',
+  'stages|l (left only)':      'img/components/stages/l-left.webp',
+  '4iiii|precision 3+':        'img/components/4iiii/precision-3-plus.webp',
+  '4iiii|precision 3':         'img/components/4iiii/precision-3.webp',
+  'favero|assioma duo':        'img/components/favero/assioma-duo.webp',
+  'favero|assioma duo-shi':    'img/components/favero/assioma-duo-shi.webp',
+  'srm|pm9':                   'img/components/srm/pm9.webp',
+  // Chains
+  'kmc|x12 gold':              'img/components/kmc/x12-gold.webp',
+  'kmc|x11 gold':              'img/components/kmc/x11-gold.webp',
+  // Brakes
+  'swissstop|flashpro original black':'img/components/swissstop/flashpro-black.webp',
+  'magura|mt7':                'img/components/magura/mt7.webp',
+  'trp|spyre':                 'img/components/trp/spyre.webp',
+  'hope|rx4+':                 'img/components/hope/rx4-plus.webp',
+  // Helmets
+  'kask|protone icon':         'img/components/kask/protone-icon.webp',
+  'kask|utopia y':             'img/components/kask/utopia-y.webp',
+  'giro|aether mips':          'img/components/giro/aether-mips.webp',
+  'poc|ventral mips':          'img/components/poc/ventral-mips.webp',
+  // Bearings
+  'chris king|r45d':           'img/components/chris-king/r45d.webp',
+  'ceramicspeed|ospw':         'img/components/ceramicspeed/ospw.webp',
+  // Cockpit
+  'rotor|aldhu':               'img/components/rotor/aldhu.webp',
+  'rotor|vegast':              'img/components/rotor/vegast.webp',
+};
+
+function _gearGetDefaultImage(brand, model) {
+  if (!brand) return null;
+  const b = brand.toLowerCase();
+  const m = (model || '').toLowerCase();
+  // Try exact brand|model match
+  if (m && _GEAR_DEFAULT_IMAGES[b + '|' + m]) return _GEAR_DEFAULT_IMAGES[b + '|' + m];
+  // Try brand-only fallback
+  if (_GEAR_DEFAULT_IMAGES[b + '|']) return _GEAR_DEFAULT_IMAGES[b + '|'];
+  return null;
 }
 
 function _gearUpdateModels() {
