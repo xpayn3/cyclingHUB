@@ -981,6 +981,28 @@ code {
     flex-shrink: 0;
 }
 
+/* ── Settings subpage hero ─ */
+.stt-hero {
+    text-align: center;
+    padding: 20px 0 8px;
+}
+.stt-hero-icon {
+    width: 72px;
+    height: 72px;
+    border-radius: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+}
+.stt-hero-desc {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    max-width: 280px;
+    margin: 0 auto;
+}
+
 /* ── Gear date picker sheet ─ */
 .gear-date-sheet {
     max-height: 70vh;

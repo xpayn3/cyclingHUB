@@ -1465,6 +1465,28 @@ const _iosSubpageNames = {
 
 let _iosSourceRow = null;
 let _iosNavLocked = false;
+const _STT_HERO_DATA = {
+  account:      { bg: 'linear-gradient(135deg,rgba(0,122,255,0.15),rgba(0,229,160,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>', desc: 'Your profile, avatar, and account connections.' },
+  apptheme:     { bg: 'linear-gradient(135deg,rgba(88,86,214,0.15),rgba(0,229,160,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>', desc: 'Choose between dark, light, or system theme.' },
+  font:         { bg: 'linear-gradient(135deg,rgba(255,149,0,0.15),rgba(0,229,160,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>', desc: 'Pick the typeface that feels right for you.' },
+  maptheme:     { bg: 'linear-gradient(135deg,rgba(52,211,153,0.15),rgba(0,229,160,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>', desc: 'Map style for activity views and route builder.' },
+  weather:      { bg: 'linear-gradient(135deg,rgba(90,200,250,0.15),rgba(0,229,160,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M17 18a5 5 0 0 0 0-10H6a4 4 0 1 0 0 8"/><line x1="12" y1="9" x2="12" y2="2"/><path d="M4.22 10.22l1.42 1.42M1 18h2M20 18h2M18.36 11.64l1.42-1.42"/></svg>', desc: 'Weather forecast source and location settings.' },
+  icu:          { bg: 'linear-gradient(135deg,rgba(0,229,160,0.15),rgba(0,122,255,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>', desc: 'Intervals.icu sync, credentials, and data range.' },
+  strava:       { bg: 'linear-gradient(135deg,rgba(252,82,0,0.15),rgba(255,149,0,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="#fc5200" stroke-width="1.5"><polyline points="15 18 18 12 21 18"/><polyline points="6 18 12 6 18 18"/></svg>', desc: 'Strava connection and activity import.' },
+  dashsections: { bg: 'linear-gradient(135deg,rgba(175,82,222,0.15),rgba(0,229,160,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>', desc: 'Show or hide dashboard cards and sections.' },
+  actsections:  { bg: 'linear-gradient(135deg,rgba(255,204,0,0.15),rgba(0,229,160,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>', desc: 'Customize which sections appear on activity pages.' },
+  backup:       { bg: 'linear-gradient(135deg,rgba(48,209,88,0.15),rgba(0,229,160,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>', desc: 'Export, import, and transfer your data.' },
+  routebuilder: { bg: 'linear-gradient(135deg,rgba(0,229,160,0.15),rgba(52,211,153,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M3 17l6-6 4 4 8-8"/><path d="M17 7h4v4"/></svg>', desc: 'Route builder preferences and API keys.' },
+  share:        { bg: 'linear-gradient(135deg,rgba(0,122,255,0.15),rgba(88,86,214,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>', desc: 'Share cards, social links, and export options.' },
+  leveling:     { bg: 'linear-gradient(135deg,rgba(255,204,0,0.15),rgba(255,149,0,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="#ffcc00" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>', desc: 'Your cycling level, XP, and progression.' },
+  defaultrange: { bg: 'linear-gradient(135deg,rgba(175,82,222,0.15),rgba(0,229,160,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>', desc: 'Default time range for dashboard and charts.' },
+  changelog:    { bg: 'linear-gradient(135deg,rgba(94,92,230,0.15),rgba(0,229,160,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>', desc: 'What\'s new in the latest version.' },
+  feedback:     { bg: 'linear-gradient(135deg,rgba(255,59,48,0.15),rgba(255,149,0,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>', desc: 'Send feedback, report bugs, or suggest features.' },
+  licenses:     { bg: 'linear-gradient(135deg,rgba(142,142,147,0.15),rgba(0,229,160,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>', desc: 'Open-source licenses and attributions.' },
+  donate:       { bg: 'linear-gradient(135deg,rgba(255,45,85,0.15),rgba(255,149,0,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="#ff2d55" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>', desc: 'Support development and keep CycleIQ free.' },
+  mygarage:     { bg: 'linear-gradient(135deg,rgba(139,92,246,0.15),rgba(0,229,160,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5L9 11l-3.5 3.5M15 6l-4 5.5H5.5M15 6l3 5.5"/></svg>', desc: 'Manage your bike fleet, track components, and enable brand logos.' },
+};
+
 function openSettingsSubpage(id) {
   if (_iosNavLocked) return;
   const main = document.getElementById('iosSettingsMain');
@@ -1503,6 +1525,15 @@ function openSettingsSubpage(id) {
   sub.style.display = 'block';
   sub.offsetHeight; // force reflow
   sub.classList.add('active');
+
+  // Inject hero intro if not already present
+  if (!sub.querySelector('.stt-hero') && _STT_HERO_DATA[id]) {
+    const h = _STT_HERO_DATA[id];
+    const hero = document.createElement('div');
+    hero.className = 'stt-hero';
+    hero.innerHTML = `<div class="stt-hero-icon" style="background:${h.bg}">${h.icon}</div><div class="stt-hero-desc">${h.desc}</div>`;
+    sub.insertBefore(hero, sub.firstChild);
+  }
 
   // Hide main after transition
   setTimeout(() => { main.style.display = 'none'; }, 380);
