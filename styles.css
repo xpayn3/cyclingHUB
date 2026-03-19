@@ -6558,7 +6558,7 @@ body.show-save-fab #actSaveRouteFab {
 }
 /* Active: filled rounded rect behind icon+label, accent colour */
 .dash-pill-btn.active {
-    color: #b3ffe5;
+    color: rgba(255, 255, 255, 0.9);
     background: var(--accent);
 }
 .dash-pill-btn.active svg {
@@ -19152,10 +19152,11 @@ html[data-theme="light"] {
     opacity: 1;
 }
 [data-theme="light"] .dash-pill-btn.active {
-    color: var(--accent);
+    color: rgba(255, 255, 255, 0.9);
+    background: var(--accent);
 }
 [data-theme="light"] .dash-pill-btn.active svg {
-    stroke: var(--accent);
+    stroke: rgba(255, 255, 255, 0.9);
 }
 [data-theme="light"] .floating-range-pill {
     background: var(--glass-bg);
