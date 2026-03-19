@@ -20838,11 +20838,8 @@ function openCompDetail(compId) {
   const c = loadGearComponents().find(x => x.id === compId);
   if (!c) return;
   const sheet = document.getElementById('compDetailSheet');
-  const title = document.getElementById('compDetailTitle');
   const body = document.getElementById('compDetailBody');
   if (!sheet || !body) return;
-
-  title.textContent = '';
 
   const color = GEAR_CATEGORY_COLORS[c.category] || '#94a3b8';
   const bike = _gearBikeCache.find(b => b.id === c.bikeId);
