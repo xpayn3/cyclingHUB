@@ -142,7 +142,7 @@ if ('serviceWorker' in navigator) {
 // Populate version footer
 (function() {
   const el = document.getElementById('appVersionFooter');
-  if (el) el.textContent = 'CycleIQ v0.46';
+  if (el) el.textContent = 'CycleIQ v0.47';
 })();
 
 let _pwaInstallPrompt = null;
