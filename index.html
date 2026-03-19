@@ -4657,7 +4657,7 @@
                             </div>
 
                             <div style="text-align:center;padding:24px 0 8px;color:var(--text-secondary);font-size:12px;opacity:0.5;">
-                                CycleIQ v0.50
+                                CycleIQ v0.51
                             </div>
                         </div>
 
@@ -5725,8 +5725,7 @@
                     <div class="mr-tab-content" id="mrCollection" style="display:none">
                         <div class="mr-filters" id="mrFilters">
                             <button class="mr-pill active" data-filter="all" onclick="mrFilter('all')">All</button>
-                            <button class="mr-pill" data-filter="saved" onclick="mrFilter('saved')">Routes</button>
-                            <button class="mr-pill" data-filter="rides" onclick="mrFilter('rides')">Rides</button>
+                            <button class="mr-pill" data-filter="saved" onclick="mrFilter('saved')">Saved Routes</button>
                             <button class="mr-pill" data-filter="favorites" onclick="mrFilter('favorites')">Favorites</button>
                         </div>
                         <div class="mr-list" id="mrList"></div>
@@ -6295,6 +6294,11 @@
         <button class="cal-fab settings-search-fab" id="settingsSearchFab" onclick="focusSettingsSearch()" aria-label="Search settings" style="visibility:hidden;pointer-events:none">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+        </button>
+        <button class="cal-fab mr-add-fab" id="mrAddFab" onclick="navigate('routes')" aria-label="Create route" style="visibility:hidden;pointer-events:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
         </button>
 

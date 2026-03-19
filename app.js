@@ -142,7 +142,7 @@ if ('serviceWorker' in navigator) {
 // Populate version footer
 (function() {
   const el = document.getElementById('appVersionFooter');
-  if (el) el.textContent = 'CycleIQ v0.50';
+  if (el) el.textContent = 'CycleIQ v0.51';
 })();
 
 let _pwaInstallPrompt = null;
@@ -2490,6 +2490,8 @@ function navigate(page) {
   if (_settFab) { _settFab.style.visibility = page === 'settings' ? '' : 'hidden'; _settFab.style.pointerEvents = page === 'settings' ? '' : 'none'; }
   const _settSearch = document.getElementById('settingsSearchFab');
   if (_settSearch) { _settSearch.style.visibility = page === 'settings' ? '' : 'hidden'; _settSearch.style.pointerEvents = page === 'settings' ? '' : 'none'; }
+  const _mrAddFab = document.getElementById('mrAddFab');
+  if (_mrAddFab) { _mrAddFab.style.visibility = page === 'myroutes' ? '' : 'hidden'; _mrAddFab.style.pointerEvents = page === 'myroutes' ? '' : 'none'; }
   document.querySelectorAll('.dash-pill-btn').forEach(btn => {
     const lbl = btn.querySelector('span')?.textContent?.toLowerCase() || '';
     const match = lbl === page || (lbl === 'home' && page === 'dashboard');
@@ -2532,7 +2534,7 @@ function navigate(page) {
   // Headline — hidden for calendar & routes
   const headline = document.querySelector('.page-headline');
   if (headline) {
-    if (page === 'calendar' || page === 'routes' || page === 'myroutes') headline.classList.add('page-headline--hidden');
+    if (page === 'calendar' || page === 'routes') headline.classList.add('page-headline--hidden');
     else headline.classList.remove('page-headline--hidden');
   }
 
@@ -24279,9 +24281,12 @@ function mrToggleFav(id) {
   try { favs = JSON.parse(localStorage.getItem('icu_fav_routes') || '[]'); } catch {}
   const idx = favs.indexOf(id);
   if (idx >= 0) favs.splice(idx, 1); else favs.push(id);
+  const isFav = favs.includes(id);
   try { localStorage.setItem('icu_fav_routes', JSON.stringify(favs)); } catch {}
   document.querySelectorAll(`.mr-fav[data-id="${id}"]`).forEach(el => {
-    el.classList.toggle('mr-fav--active', favs.includes(id));
+    el.classList.toggle('mr-fav--active', isFav);
+    const svg = el.querySelector('svg');
+    if (svg) svg.setAttribute('fill', isFav ? 'currentColor' : 'none');
   });
 }
 
@@ -24421,7 +24426,7 @@ function _mrRenderSection(containerId, html) {
   if (!el) return;
   el.innerHTML = html;
   // Lazy-load maps using IntersectionObserver (same as dashboard cards)
-  const mapEls = el.querySelectorAll('.mr-card-map[data-act-id]');
+  const mapEls = el.querySelectorAll('.mr-card-map[data-act-id], .mr-card-map[data-route-id]');
   if (!mapEls.length) return;
   let _mrMapActive = 0;
   const _mrMapQueue = [];
@@ -24438,24 +24443,44 @@ function _mrRenderSection(containerId, html) {
         const idx = mapDiv.id.replace('mrMap_', '');
         const job = () => {
           _mrMapActive++;
-          renderRecentActCardMap(act, idx, 'mrMap', window._mrMaps).finally(() => {
+          renderRecentActCardMap(act, idx, 'mr', window._mrMaps).finally(() => {
             _mrMapActive--;
             if (_mrMapQueue.length) _mrMapQueue.shift()();
           });
         };
         if (_mrMapActive < 3) job(); else _mrMapQueue.push(job);
       } else if (routeId && window._mrRouteLookup?.[routeId]) {
-        // For saved routes: draw polyline on canvas (no activity to fetch GPS from)
+        // Saved route: render MapLibre map with routePoints polyline
         const route = window._mrRouteLookup[routeId];
         const pts = route.routePoints || (route.waypoints || []).map(w => [w.lat, w.lng]);
         if (pts.length > 1) {
-          const canvas = document.createElement('canvas');
-          canvas.className = 'mr-canvas';
-          canvas.style.width = '100%';
-          canvas.style.height = '100%';
-          canvas.style.display = 'block';
-          mapDiv.appendChild(canvas);
-          _mrDrawPolyline(canvas, pts);
+          const job = () => {
+            _mrMapActive++;
+            const coords = pts.map(p => [p[1], p[0]]); // [lng, lat]
+            let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
+            for (const [lng, lat] of coords) {
+              if (lng < minLng) minLng = lng; if (lng > maxLng) maxLng = lng;
+              if (lat < minLat) minLat = lat; if (lat > maxLat) maxLat = lat;
+            }
+            const map = new maplibregl.Map({
+              container: mapDiv,
+              style: _mlGetStyle(loadMapTheme()),
+              bounds: [[minLng, minLat], [maxLng, maxLat]],
+              fitBoundsOptions: { padding: 20 },
+              interactive: false,
+              attributionControl: false,
+            });
+            window._mrMaps.push(map);
+            map.on('load', () => {
+              if (_isStravaTheme()) _applyStravaOverrides(map);
+              map.addSource('route', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } } });
+              map.addLayer({ id: 'route-line', type: 'line', source: 'route', paint: { 'line-color': cssVar('--accent'), 'line-width': 3, 'line-opacity': 0.9 } });
+              _mrMapActive--;
+              if (_mrMapQueue.length) _mrMapQueue.shift()();
+            });
+            map.on('error', () => { _mrMapActive--; if (_mrMapQueue.length) _mrMapQueue.shift()(); });
+          };
+          if (_mrMapActive < 3) job(); else _mrMapQueue.push(job);
         }
       }
     });
@@ -24483,18 +24508,8 @@ function _mrRenderCollection() {
   if (_mrActiveFilter === 'all' || _mrActiveFilter === 'saved') {
     routes.forEach(r => items.push({ type: 'route', data: r, ts: r.ts || 0, id: r.id }));
   }
-  if (_mrActiveFilter === 'all' || _mrActiveFilter === 'rides') {
-    rides.forEach(a => {
-      const id = a.id || a.icu_id;
-      items.push({ type: 'ride', data: a, ts: new Date(a.start_date_local || 0).getTime(), id });
-    });
-  }
   if (_mrActiveFilter === 'favorites') {
     routes.filter(r => favs.includes(r.id)).forEach(r => items.push({ type: 'route', data: r, ts: r.ts || 0, id: r.id }));
-    rides.filter(a => favs.includes(a.id || a.icu_id)).forEach(a => {
-      const id = a.id || a.icu_id;
-      items.push({ type: 'ride', data: a, ts: new Date(a.start_date_local || 0).getTime(), id });
-    });
   }
 
   items.sort((a, b) => b.ts - a.ts);
@@ -24536,25 +24551,26 @@ async function renderMyRoutesPage() {
   const heroEl = document.getElementById('mrHero');
   if (heroEl) {
     heroEl.innerHTML = `
-      <div class="mr-hero-stat"><span class="mr-hero-val">${totalRoutes}</span><span class="mr-hero-label">Routes</span></div>
+      <div class="mr-hero-stat"><span class="mr-hero-val">${totalRoutes}</span><span class="mr-hero-label">Saved Routes</span></div>
       <div class="mr-hero-stat"><span class="mr-hero-val">${totalKm.toLocaleString()}</span><span class="mr-hero-label">km Ridden</span></div>
       <div class="mr-hero-stat"><span class="mr-hero-val">${totalElev.toLocaleString()}</span><span class="mr-hero-label">m Climbed</span></div>
       <div class="mr-hero-stat"><span class="mr-hero-val">${gpsActivities.length}</span><span class="mr-hero-label">Rides</span></div>
     `;
   }
 
-  const recent = gpsActivities.slice(0, 10);
+  const MR_MAX = 15;
+  const recent = gpsActivities.slice(0, MR_MAX);
   _mrRenderSection('mrRecentScroll', recent.map(a => _mrRideCard(a, 'ride')).join(''));
 
   const savedSection = document.getElementById('mrSavedSection');
   if (savedRoutes.length === 0 && savedSection) savedSection.style.display = 'none';
   else if (savedSection) savedSection.style.display = '';
-  _mrRenderSection('mrSavedScroll', savedRoutes.map(r => _mrRouteCard(r)).join(''));
+  _mrRenderSection('mrSavedScroll', savedRoutes.slice(0, MR_MAX).map(r => _mrRouteCard(r)).join(''));
 
-  const longest = [...gpsActivities].sort((a, b) => (b.distance || 0) - (a.distance || 0)).slice(0, 10);
+  const longest = [...gpsActivities].sort((a, b) => (b.distance || 0) - (a.distance || 0)).slice(0, MR_MAX);
   _mrRenderSection('mrLongestScroll', longest.map(a => _mrRideCard(a, 'ride')).join(''));
 
-  const climbers = [...gpsActivities].sort((a, b) => (b.total_elevation_gain || 0) - (a.total_elevation_gain || 0)).slice(0, 10);
+  const climbers = [...gpsActivities].sort((a, b) => (b.total_elevation_gain || 0) - (a.total_elevation_gain || 0)).slice(0, MR_MAX);
   _mrRenderSection('mrClimbScroll', climbers.map(a => _mrRideCard(a, 'ride')).join(''));
 
   _mrRenderCollection();

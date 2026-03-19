@@ -6699,6 +6699,22 @@ code {
     width: 22px;
     height: 22px;
 }
+/* My Routes add FAB: bottom-right, glass */
+.mr-add-fab {
+    position: fixed !important;
+    left: auto !important;
+    right: 24px;
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 4px 16px var(--shadow-md);
+    color: var(--text-primary);
+}
+.mr-add-fab svg {
+    width: 22px;
+    height: 22px;
+}
 /* Save route FAB: hidden by default, shown via body class */
 #actSaveRouteFab {
     visibility: hidden;
@@ -19304,9 +19320,13 @@ textarea:focus-visible {
 .mr-tabs {
     display: flex;
     gap: 0;
-    position: relative;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--bg-base);
     border-bottom: 1px solid var(--border);
-    margin-bottom: 20px;
+    margin: 0 calc(-1 * var(--pad-page)) 20px;
+    padding: 0 var(--pad-page);
 }
 .mr-tab {
     flex: 1;
@@ -19336,33 +19356,30 @@ textarea:focus-visible {
 
 /* Hero stats */
 .mr-hero {
-    display: flex;
-    gap: 4px;
-    padding: 0 0 20px;
-    overflow-x: auto;
-    scrollbar-width: none;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding: 0 0 24px;
 }
-.mr-hero::-webkit-scrollbar { display: none; }
 .mr-hero-stat {
-    flex: 1;
-    min-width: 0;
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 14px 12px;
+    padding: 20px 16px;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 2px;
+    align-items: flex-start;
+    gap: 4px;
 }
 .mr-hero-val {
-    font-size: 22px;
+    font-size: 28px;
     font-weight: 700;
     color: var(--text-primary);
     font-family: var(--font-num);
+    line-height: 1.1;
 }
 .mr-hero-label {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     color: var(--text-muted);
     text-transform: uppercase;
