@@ -885,7 +885,6 @@ code {
     right: 16px;
     left: auto;
     transform: none;
-    max-width: calc(52px * 3 + 6px); /* 3 buttons + padding */
     z-index: 15;
     background: var(--glass-bg);
     backdrop-filter: var(--glass-blur);
@@ -901,20 +900,17 @@ code {
         0 4px 12px rgba(0, 0, 0, 0.30);
     /* Horizontal scroll — show ~3 buttons, scroll for more */
     display: flex;
-    gap: 2px;
-    max-width: 180px;
+    gap: 0;
+    max-width: calc(52px * 3 + 6px + 2px); /* 3 buttons + padding + border */
     overflow-x: auto;
     overflow-y: hidden;
     scroll-snap-type: x mandatory;
+    scroll-padding-inline: 3px;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
 }
 .floating-range-pill::-webkit-scrollbar {
     display: none;
-}
-.floating-range-pill.date-range-pill {
-    overflow-x: auto;
-    overflow-y: hidden;
 }
 .floating-range-pill button {
     border-radius: 19px;
