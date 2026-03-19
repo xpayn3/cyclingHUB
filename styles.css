@@ -6558,7 +6558,7 @@ body.show-save-fab #actSaveRouteFab {
 }
 /* Active: filled rounded rect behind icon+label, accent colour */
 .dash-pill-btn.active {
-    color: #003d2b;
+    color: rgba(255, 255, 255, 0.75);
     background: var(--accent);
 }
 .dash-pill-btn.active svg {
