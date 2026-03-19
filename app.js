@@ -20771,9 +20771,6 @@ function gearComponentCard(c) {
           <div class="gar-comp-sub">${[sub, kmStr].filter(Boolean).join(' · ')}</div>
         </div>
         <div class="gar-comp-actions">
-          <button class="gar-comp-action-btn" title="Add photo" onclick="event.stopPropagation();gearCompPhotoUpload('${c.id}')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-          </button>
           <button class="gar-comp-action-btn" title="Edit" onclick="openGearModal('${c.id}')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
           </button>
@@ -20820,9 +20817,16 @@ function openGearModal(editId) {
       document.getElementById('gearFormBike').value        = comp.bikeId      || '';
       document.getElementById('gearFormCategory').value    = comp.category    || 'Drivetrain';
       if (document.getElementById('gearFormImage')) document.getElementById('gearFormImage').value = comp.image || '';
+      const preview = document.getElementById('gearFormImagePreview');
+      if (preview && comp.image) {
+        preview.innerHTML = `<img src="${comp.image}" alt="preview">`;
+        preview.style.background = 'transparent';
+      }
     }
   } else {
     titleEl.textContent = 'Add Component';
+    const preview = document.getElementById('gearFormImagePreview');
+    if (preview) { preview.innerHTML = ''; preview.style.background = 'var(--bg-elevated)'; }
   }
 
   modal.showModal();
@@ -20864,11 +20868,20 @@ function gearCompPhotoUpload(compId) {
         canvas.width = w; canvas.height = h;
         canvas.getContext('2d').drawImage(img, 0, 0, w, h);
         const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-        // Save to component
-        let all = loadGearComponents();
-        all = all.map(c => c.id === _gearCompPhotoTarget ? { ...c, image: dataUrl } : c);
-        saveGearComponents(all);
-        renderGearComponents();
+        // If modal is open, update preview + hidden field
+        const preview = document.getElementById('gearFormImagePreview');
+        const hiddenInput = document.getElementById('gearFormImage');
+        if (preview && document.getElementById('gearModal')?.open) {
+          preview.innerHTML = `<img src="${dataUrl}" alt="preview">`;
+          preview.style.background = 'transparent';
+          if (hiddenInput) hiddenInput.value = dataUrl;
+        } else {
+          // Direct save to component
+          let all = loadGearComponents();
+          all = all.map(c => c.id === _gearCompPhotoTarget ? { ...c, image: dataUrl } : c);
+          saveGearComponents(all);
+          renderGearComponents();
+        }
         _gearCompPhotoTarget = null;
       };
       img.src = reader.result;
