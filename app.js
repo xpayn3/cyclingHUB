@@ -8229,7 +8229,8 @@ function renderZoneDist(activities) {
   });
 
   const totalSecs = totals.reduce((s, t) => s + t, 0);
-  card.style.display = '';
+  // Hidden on dashboard — moved to Power page
+  // card.style.display = '';
   if (!hasData || totalSecs === 0) {
     const _zl = document.getElementById('zoneList');
     if (_zl) _zl.innerHTML = '<div style="text-align:center;padding:24px 0;color:var(--text-muted);font-size:14px">Not enough data for this range</div>';
