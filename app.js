@@ -2660,10 +2660,10 @@ function navigate(page) {
     if (page === 'dashboard') _notifRefreshBell();
   }
 
-  // Floating range pill visibility — NOT on dashboard (bell replaces it)
+  // Floating range pill visibility
   const pill = document.getElementById('dateRangePill');
   if (pill) {
-    pill.style.display = 'none'; // range selection moved into dashboard content
+    pill.style.display = (page === 'dashboard') ? 'flex' : 'none';
     if (page === 'dashboard') {
       const activeBtn = pill.querySelector('button.active');
       if (activeBtn) requestAnimationFrame(() => activeBtn.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'instant' }));
