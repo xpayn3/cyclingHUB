@@ -20764,6 +20764,9 @@ function gearComponentCard(c) {
     <div class="gar-comp-right">
       ${pct !== null ? `<span class="gar-comp-pct ${pctCls}">${pct}%</span><div class="gar-comp-bar"><div class="gar-comp-bar-fill" style="width:${pct}%;background:${barColor}"></div></div>` : ''}
       <div class="gar-comp-actions">
+        <button class="gar-comp-action-btn" title="Add photo" onclick="event.stopPropagation();gearCompPhotoUpload('${c.id}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        </button>
         <button class="gar-comp-action-btn" title="Edit" onclick="openGearModal('${c.id}')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
         </button>
@@ -20827,6 +20830,43 @@ function openGearModal(editId) {
     brandSel.addEventListener('change', _gearUpdateModels);
     _gearUpdateModels();
   }
+}
+
+// Component photo upload — reuses the same hidden file input
+let _gearCompPhotoTarget = null;
+function gearCompPhotoUpload(compId) {
+  _gearCompPhotoTarget = compId;
+  // Create a temporary file input
+  const inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = 'image/*';
+  inp.onchange = () => {
+    const file = inp.files?.[0];
+    if (!file || !_gearCompPhotoTarget) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX = 200;
+        let w = img.width, h = img.height;
+        if (w > MAX) { h *= MAX / w; w = MAX; }
+        if (h > MAX) { w *= MAX / h; h = MAX; }
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        // Save to component
+        let all = loadGearComponents();
+        all = all.map(c => c.id === _gearCompPhotoTarget ? { ...c, image: dataUrl } : c);
+        saveGearComponents(all);
+        renderGearComponents();
+        _gearCompPhotoTarget = null;
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  };
+  inp.click();
 }
 
 function _gearUpdateModels() {
@@ -25308,7 +25348,7 @@ Object.assign(window, {
   openTrainingPlanModal, closeTrainingPlanModal, applyTrainingPlan,
   showTpSlotForm, hideTpSlotForm, addTpSlot, removeTpSlot,
   setHideEmptyCards, setFtpAlert,
-  gearSwitchTab, gearSelectBike, gearTriggerPhotoUpload, gearUploadPhoto, renderBikeDetailPage,
+  gearSwitchTab, gearSelectBike, gearTriggerPhotoUpload, gearUploadPhoto, gearCompPhotoUpload, renderBikeDetailPage,
   addCompareCard, setComparePeriod, updateComparePage,
   clearAllCaches, clearLifetimeCache, exportFullBackup, importFullBackup,
   exportLifetimeJSON, importLifetimeJSON, resyncLifetimeData,
