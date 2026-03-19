@@ -15213,20 +15213,28 @@ body:has(.act-sheet-mode) .topbar {
 .gar-alert-dot--orange { background: #ff9500; }
 .gar-alert-dot--yellow { background: #ffcc00; }
 
-/* Bike carousel */
+/* Bike carousel — mirrors dashboard .recent-act-scroll-rail mobile pattern */
 .gar-carousel-scroll {
     display: flex;
-    align-items: stretch;
-    gap: 12px;
+    gap: 0;
     overflow-x: auto;
-    overflow-y: visible;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     scroll-snap-type: x mandatory;
-    padding: 8px 2px;
-    margin: -8px -2px;
+    padding: 12px 0;
+    margin: -12px 0;
+    margin-left: calc(-1 * var(--pad-page));
+    margin-right: calc(-1 * var(--pad-page));
 }
 .gar-carousel-scroll::-webkit-scrollbar { display: none; }
+.gar-carousel-scroll > .gar-bike-card {
+    margin-left: var(--pad-page);
+    scroll-snap-align: start;
+    scroll-margin-inline-start: var(--pad-page);
+}
+.gar-carousel-scroll > .gar-bike-card:last-child {
+    margin-right: var(--pad-page);
+}
 
 .gar-bike-card {
     flex: 0 0 280px;
