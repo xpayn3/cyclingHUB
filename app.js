@@ -8143,7 +8143,8 @@ function renderAvgPowerChart(activities) {
     document.getElementById('avgPowerCard').style.display = 'none';
     return;
   }
-  document.getElementById('avgPowerCard').style.display = '';
+  // Hidden on dashboard — moved to Power page
+  // document.getElementById('avgPowerCard').style.display = '';
 
   const labels = powered.map(a => fmtDate(a.start_date_local || a.start_date));
   const watts   = powered.map(a => Math.round(a.icu_weighted_avg_watts || a.average_watts || 0));
