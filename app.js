@@ -20929,7 +20929,7 @@ async function renderGearPage() {
     const sel = document.getElementById(sid);
     if (sel) {
       const opts = bikes.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
-      sel.innerHTML = '<option value="">— Select bike —</option>' + opts;
+      sel.innerHTML = '<option value="">Select bike</option>' + opts;
     }
   });
 
@@ -21557,7 +21557,7 @@ function _gearUpdateModels() {
   const sel = document.getElementById('gearFormModel');
   if (!sel) return;
   const models = _GEAR_BRAND_MODELS[brand] || [];
-  sel.innerHTML = '<option value="">— Select model —</option>' + models.map(m => `<option value="${m}">${m}</option>`).join('');
+  sel.innerHTML = '<option value="">Select model</option>' + models.map(m => `<option value="${m}">${m}</option>`).join('');
   sel._cddRefresh?.();
 }
 
@@ -21845,16 +21845,16 @@ function openBatteryModal(editId) {
 
   // Populate system dropdown
   const sysSel = document.getElementById('batteryFormSystem');
-  sysSel.innerHTML = '<option value="">— Select system —</option>' +
+  sysSel.innerHTML = '<option value="">Select system</option>' +
     Object.entries(BATTERY_SYSTEMS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
 
   // Populate bike dropdown from cache
   const bikeSel = document.getElementById('batteryFormBike');
-  bikeSel.innerHTML = '<option value="">— Select bike —</option>' +
+  bikeSel.innerHTML = '<option value="">Select bike</option>' +
     _gearBikeCache.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
 
   // Reset component dropdown
-  document.getElementById('batteryFormComponent').innerHTML = '<option value="">— Select component —</option>';
+  document.getElementById('batteryFormComponent').innerHTML = '<option value="">Select component</option>';
 
   if (editId) {
     titleEl.textContent = 'Edit Battery';
@@ -21907,11 +21907,11 @@ function onBatterySystemChange() {
   const sys = BATTERY_SYSTEMS[sysKey];
 
   if (!sys) {
-    compSel.innerHTML = '<option value="">— Select component —</option>';
+    compSel.innerHTML = '<option value="">Select component</option>';
     return;
   }
 
-  compSel.innerHTML = '<option value="">— Select component —</option>' +
+  compSel.innerHTML = '<option value="">Select component</option>' +
     Object.entries(sys.components).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
 }
 
@@ -22202,13 +22202,13 @@ function openServiceModal(editId, presetBikeId) {
 
   // Populate bike select
   const bikeSelect = document.getElementById('serviceFormBike');
-  bikeSelect.innerHTML = '<option value="">— Select bike —</option>' +
+  bikeSelect.innerHTML = '<option value="">Select bike</option>' +
     _gearBikeCache.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
 
   // Populate shop select
   const shops = loadServiceShops();
   const shopSelect = document.getElementById('serviceFormShop');
-  shopSelect.innerHTML = '<option value="">— Select or enter below —</option>' +
+  shopSelect.innerHTML = '<option value="">Select or enter below</option>' +
     shops.map(s => `<option value="${s.id}">${s.name}</option>`).join('') +
     '<option value="__new__">+ Add New Shop…</option>';
 
