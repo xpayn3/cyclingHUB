@@ -7162,7 +7162,7 @@ body.show-save-fab #actSaveRouteFab {
     left: 0;
     right: 0;
     height: 40px;
-    background: linear-gradient(to bottom, transparent, #000);
+    background: linear-gradient(to bottom, transparent, var(--bg-base));
 }
 .prof-close {
     position: absolute;
