@@ -142,7 +142,7 @@ if ('serviceWorker' in navigator) {
 // Populate version footer
 (function() {
   const el = document.getElementById('appVersionFooter');
-  if (el) el.textContent = 'CycleIQ v0.48';
+  if (el) el.textContent = 'CycleIQ v0.49';
 })();
 
 let _pwaInstallPrompt = null;
@@ -1440,20 +1440,32 @@ function confirmFullResync() {
 ==================================================== */
 let _iosActiveSubpage = null;
 let _iosSettingsScrollY = 0;
+let _iosSubpageStack = [];
 const _iosSubpageNames = {
   account: 'Account', font: 'Font', maptheme: 'Map Theme',
   weather: 'Weather', icu: 'intervals.icu', strava: 'Strava',
   dashsections: 'Dashboard Sections', actsections: 'Activity Sections',
   backup: 'Backup & Restore', routebuilder: 'Route Builder',
   share: 'Share CycleIQ', donate: 'Support CycleIQ',
-  defaultrange: 'Default Range', leveling: 'Leveling'
+  defaultrange: 'Default Range', leveling: 'Leveling',
+  apptheme: 'Theme', changelog: 'Changelog', feedback: 'Feedback',
+  licenses: 'Licenses'
 };
 
 let _iosSourceRow = null;
+let _iosNavLocked = false;
 function openSettingsSubpage(id) {
+  if (_iosNavLocked) return;
   const main = document.getElementById('iosSettingsMain');
   const sub  = document.getElementById('iosSubpage-' + id);
   if (!main || !sub) return;
+  _iosNavLocked = true;
+  setTimeout(() => { _iosNavLocked = false; }, 400);
+
+  // Push current subpage onto stack so back returns here
+  if (_iosActiveSubpage) {
+    _iosSubpageStack.push(_iosActiveSubpage);
+  }
   _iosActiveSubpage = id;
   const headline = document.querySelector('.page-headline');
 
@@ -1514,8 +1526,11 @@ function openSettingsSubpage(id) {
 }
 
 function closeSettingsSubpage() {
+  if (_iosNavLocked) return;
   const main = document.getElementById('iosSettingsMain');
   if (!main) return;
+  _iosNavLocked = true;
+  setTimeout(() => { _iosNavLocked = false; }, 400);
   const activeSub = document.querySelector('.ios-subpage.active, .ios-subpage.ios-nav-back');
   const headline = document.querySelector('.page-headline');
 
@@ -1560,17 +1575,41 @@ function closeSettingsSubpage() {
   }, 180);
 
   _iosActiveSubpage = null;
+  _iosSubpageStack = [];
   window.scrollTo({ top: _iosSettingsScrollY, behavior: 'instant' });
 
-  // Fade out the source row highlight
-  if (_iosSourceRow) {
-    const r = _iosSourceRow;
-    setTimeout(() => {
-      r.style.transition = 'background 0.45s ease';
-      r.style.background = '';
-    }, 300);
-    _iosSourceRow = null;
-  }
+  // Fade out ALL source row highlights (covers deep navigation)
+  setTimeout(() => {
+    document.querySelectorAll('.ios-row, .ios-profile-card').forEach(r => {
+      if (r.style.background) {
+        r.style.transition = 'background 0.45s ease';
+        r.style.background = '';
+      }
+    });
+  }, 300);
+  _iosSourceRow = null;
+}
+
+function setHrZoneSource(val) {
+  try { localStorage.setItem('icu_hr_zone_source', val); } catch {}
+  document.querySelectorAll('#hrZoneSourcePills .theme-toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.val === val));
+  const slider = document.querySelector('#hrZoneSourcePills .theme-toggle-slider');
+  if (slider) slider.style.transform = val === 'manual' ? 'translateX(100%)' : '';
+  document.getElementById('hrZoneSourcePills')?.setAttribute('data-active', val);
+}
+function setPwrZoneSource(val) {
+  try { localStorage.setItem('icu_pwr_zone_source', val); } catch {}
+  document.querySelectorAll('#pwrZoneSourcePills .theme-toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.val === val));
+  const slider = document.querySelector('#pwrZoneSourcePills .theme-toggle-slider');
+  if (slider) slider.style.transform = val === 'custom' ? 'translateX(100%)' : '';
+  document.getElementById('pwrZoneSourcePills')?.setAttribute('data-active', val);
+}
+function setTssModel(val) {
+  try { localStorage.setItem('icu_tss_model', val); } catch {}
+  document.querySelectorAll('#tssModelPills .theme-toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.val === val));
+  const slider = document.querySelector('#tssModelPills .theme-toggle-slider');
+  if (slider) slider.style.transform = val === 'hr' ? 'translateX(100%)' : '';
+  document.getElementById('tssModelPills')?.setAttribute('data-active', val);
 }
 
 function focusSettingsSearch() {
@@ -1579,7 +1618,27 @@ function focusSettingsSearch() {
 }
 
 function settingsBack() {
-  if (_iosActiveSubpage) {
+  if (_iosNavLocked) return;
+  if (_iosActiveSubpage && _iosSubpageStack.length > 0) {
+    // Go back to parent subpage
+    const parent = _iosSubpageStack.pop();
+    _iosActiveSubpage = null;
+    // Clear any lingering source row highlight
+    if (_iosSourceRow) {
+      _iosSourceRow.style.transition = 'background 0.45s ease';
+      _iosSourceRow.style.background = '';
+      _iosSourceRow = null;
+    }
+    // Close current subpage
+    document.querySelectorAll('.ios-subpage.active').forEach(s => {
+      s.classList.remove('active');
+      s.style.display = 'none';
+    });
+    // Open parent subpage (suppress highlight by temporarily blocking event)
+    const savedEvent = window.event;
+    openSettingsSubpage(parent);
+    _iosSourceRow = null; // don't highlight on back navigation
+  } else if (_iosActiveSubpage) {
     closeSettingsSubpage();
   } else {
     navigate(state.previousPage || 'dashboard');
@@ -1652,6 +1711,16 @@ function iosSettingsInit() {
   document.querySelectorAll('.ios-row--check[data-defrange]').forEach(r =>
     r.classList.toggle('active', parseInt(r.dataset.defrange) === (state.rangeDays || 30))
   );
+  // Training toggles
+  setHrZoneSource(localStorage.getItem('icu_hr_zone_source') || 'auto');
+  setPwrZoneSource(localStorage.getItem('icu_pwr_zone_source') || 'auto');
+  setTssModel(localStorage.getItem('icu_tss_model') || 'power');
+  // Theme label
+  const themeEl = document.getElementById('iosCurrentTheme');
+  if (themeEl) {
+    const labels = { dark: 'Dark', light: 'Light', tdf: 'Tour de France', auto: 'Auto' };
+    themeEl.textContent = labels[localStorage.getItem('icu_theme') || 'dark'] || 'Dark';
+  }
 }
 
 /* ====================================================
@@ -24293,7 +24362,8 @@ Object.assign(window, {
   goalNumStep, hideGoalForm, submitGoalForm, showGoalForm, deleteGoal,
   // Settings / data
   setWeatherModel, renderDashSectionToggles,
-  openSettingsSubpage, closeSettingsSubpage, settingsBack, focusSettingsSearch, iosSettingsInit,
+  openSettingsSubpage, closeSettingsSubpage, settingsBack, focusSettingsSearch,
+  setHrZoneSource, setPwrZoneSource, setTssModel, iosSettingsInit,
   // Vitality shader + Dashboard FAB gooey expand
   renderVitality,
   // Calendar create/edit event
