@@ -301,10 +301,30 @@ function initCustomDropdowns(root = document) {
           w.querySelector('.cdd-trigger')?.setAttribute('aria-expanded', 'false');
         }
       });
-      // Flip if near bottom of viewport
-      const rect = wrap.getBoundingClientRect();
+      // If inside a modal/dialog, use fixed positioning to escape overflow
+      const inModal = wrap.closest('.modal-dialog, dialog');
+      const rect = trigger.getBoundingClientRect();
       const spaceBelow = window.innerHeight - rect.bottom;
-      wrap.classList.toggle('cdd-wrap--flip', spaceBelow < 280);
+      const flip = spaceBelow < 280;
+      if (inModal) {
+        dropdown.style.position = 'fixed';
+        dropdown.style.left = rect.left + 'px';
+        dropdown.style.width = rect.width + 'px';
+        if (flip) {
+          dropdown.style.bottom = (window.innerHeight - rect.top + 5) + 'px';
+          dropdown.style.top = 'auto';
+        } else {
+          dropdown.style.top = (rect.bottom + 5) + 'px';
+          dropdown.style.bottom = 'auto';
+        }
+      } else {
+        dropdown.style.position = '';
+        dropdown.style.left = '';
+        dropdown.style.width = '';
+        dropdown.style.top = '';
+        dropdown.style.bottom = '';
+      }
+      wrap.classList.toggle('cdd-wrap--flip', flip);
       wrap.classList.add('cdd-wrap--open');
       trigger.setAttribute('aria-expanded', 'true');
       focusIdx = sel.selectedIndex;
@@ -314,6 +334,11 @@ function initCustomDropdowns(root = document) {
     function closeDrop() {
       wrap.classList.remove('cdd-wrap--open', 'cdd-wrap--flip');
       trigger.setAttribute('aria-expanded', 'false');
+      dropdown.style.position = '';
+      dropdown.style.left = '';
+      dropdown.style.width = '';
+      dropdown.style.top = '';
+      dropdown.style.bottom = '';
       focusIdx = -1;
     }
 
