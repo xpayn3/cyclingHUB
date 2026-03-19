@@ -90,12 +90,11 @@ if ('serviceWorker' in navigator) {
     .catch(err => console.warn('SW registration failed:', err));
 }
 
-// Populate version footer from SW cache name
-caches.keys().then(k => {
-  const v = k.find(n => n.startsWith('icu-app-shell-'));
+// Populate version footer
+(function() {
   const el = document.getElementById('appVersionFooter');
-  if (el && v) el.textContent = 'CycleIQ ' + v.replace('icu-app-shell-', '');
-}).catch(() => {});
+  if (el) el.textContent = 'CycleIQ v0.44';
+})();
 
 let _pwaInstallPrompt = null;
 window.addEventListener('beforeinstallprompt', e => {
