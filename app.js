@@ -3262,19 +3262,47 @@ function rangeLabel(days) {
   return days === 365 ? 'Last year' : `Last ${days} days`;
 }
 
-// Inline range pill HTML for dashboard card headers
-function _inlineRangePill() {
-  const days = state.rangeDays || 30;
+// Per-card independent range state
+const _cardRanges = {};
+function _getCardRange(cardKey) {
+  return _cardRanges[cardKey] || state.rangeDays || 30;
+}
+
+function _inlineRangePill(cardKey) {
+  const days = _getCardRange(cardKey);
   return [14, 30, 90].map(d =>
-    `<button class="dash-range-btn${d === days ? ' active' : ''}" onclick="event.stopPropagation();setRange(${d})">${d}d</button>`
+    `<button class="dash-range-btn${d === days ? ' active' : ''}" onclick="event.stopPropagation();setCardRange('${cardKey}',${d})">${d}d</button>`
   ).join('');
 }
 
+function setCardRange(cardKey, days) {
+  _cardRanges[cardKey] = days;
+  // Re-render just this card's pills
+  const pillEl = document.getElementById('dashRangePill_' + cardKey);
+  if (pillEl) pillEl.innerHTML = _inlineRangePill(cardKey);
+  // Re-render the specific card
+  const acts = state.activities || [];
+  const cutoff = daysAgo(days);
+  const recent = acts.filter(a => new Date(a.start_date_local || a.start_date) >= cutoff && !isEmptyActivity(a));
+  const ftp = state.athlete?.ftp || state.athlete?.icu_ftp || 200;
+  const weight = state.athlete?.weight || 70;
+  try {
+    if (cardKey === 'training') { renderFitnessChart(recent, days); }
+    if (cardKey === 'zones') { _renderDashZoneDistribution(recent, days, ftp); }
+    if (cardKey === 'power') { noChartAnim(() => renderPwrCurveChart(days, ftp, weight)); }
+    if (cardKey === 'trends') { _renderCyclingTrends(recent, days); }
+    if (cardKey === 'tss') { _renderWeeklyTssChart(recent, days); }
+    if (cardKey === 'scatter') { _renderPwrHrScatter(recent, days); }
+    if (cardKey === 'avgpower') { renderAvgPowerChart(recent); }
+    if (cardKey === 'profile') { noChartAnim(() => renderPwrCurveChart(days, ftp, weight)); }
+  } catch(e) { console.warn('setCardRange error:', cardKey, e); }
+}
+
 function _refreshDashRangePills() {
-  const ids = ['dashRangePillTraining'];
-  ids.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.innerHTML = _inlineRangePill();
+  const cards = ['training', 'zones', 'power', 'trends', 'tss', 'scatter', 'avgpower'];
+  cards.forEach(key => {
+    const el = document.getElementById('dashRangePill_' + key);
+    if (el) el.innerHTML = _inlineRangePill(key);
   });
 }
 
@@ -26247,7 +26275,7 @@ Object.assign(window, {
   showToast, showConfirmDialog, handleConnect, syncData, disconnect,
   confirmSyncData, confirmFullResync, closeModal, openModal,
   toggleApiKeyVisibility, toggleSidebar, closeSidebar,
-  setRange, setFitnessRange, setPwrRange, setZnpRange,
+  setRange, setCardRange, setFitnessRange, setPwrRange, setZnpRange,
   setActivitiesSort, setActivitiesSport, setActivitiesYear, setActivitiesSearch, setActivitiesView,
   stepActivity, streamsZoomIn, streamsZoomOut, streamsResetZoom,
   toggleMapFullscreen, toggleMapStats, saveActivityRoute,

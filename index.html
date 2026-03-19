@@ -1963,7 +1963,7 @@
                                 <div>
                                     <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Training Load</div>
                                 </div>
-                                <div class="dash-range-pills" id="dashRangePillTraining"></div>
+                                <div class="dash-range-pills" id="dashRangePill_training"></div>
                             </div>
                             <div class="chart-wrap chart-wrap--fitness">
                                 <canvas id="fitnessChart"></canvas>
@@ -2032,7 +2032,7 @@
                                     <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>Cycling Trends</div>
                                     <div class="card-subtitle" id="cyclingTrendsSub">Energy system load distribution</div>
                                 </div>
-                                <span class="fitness-range-label" id="cyclingTrendsRangeLabel"></span>
+                                <div class="dash-range-pills" id="dashRangePill_trends"></div>
                             </div>
                             <div class="chart-wrap chart-wrap--fitness">
                                 <canvas id="cyclingTrendsChart"></canvas>
@@ -2140,17 +2140,9 @@
                                         <div class="card-title">
                                             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>Zone Distribution
                                         </div>
-                                        <div
-                                            class="card-subtitle"
-                                            id="zoneDistSubtitle"
-                                        >
-                                            Time in power zone
-                                        </div>
+                                        <div class="card-subtitle" id="zoneDistSubtitle">Time in power zone</div>
                                     </div>
-                                    <div
-                                        class="zone-total-badge"
-                                        id="zoneTotalBadge"
-                                    ></div>
+                                    <div class="dash-range-pills" id="dashRangePill_zones"></div>
                                 </div>
                                 <div class="zone-list" id="zoneList"></div>
                                 <div
@@ -2172,16 +2164,14 @@
                             <div class="card-header">
                                 <div>
                                     <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"/><path d="M3 20C3 8 8 4 12 4s9 4 9 16"/></svg>Power Curve</div>
-                                    <div
-                                        class="card-subtitle"
-                                        id="powerCurveSubtitle"
-                                    >
-                                        Best power efforts
-                                    </div>
+                                    <div class="card-subtitle" id="powerCurveSubtitle">Best power efforts</div>
                                 </div>
-                                <div class="wkp-toggles" id="pcUnitToggles">
+                                <div style="display:flex;align-items:center;gap:8px">
+                                    <div class="dash-range-pills" id="dashRangePill_power"></div>
+                                    <div class="wkp-toggles" id="pcUnitToggles">
                                     <button class="wkp-toggle-btn wkp-toggle-btn--active" data-pc-unit="watts" onclick="switchPowerCurveUnit('watts')">Watts</button>
                                     <button class="wkp-toggle-btn" data-pc-unit="wkg" onclick="switchPowerCurveUnit('wkg')">W/kg</button>
+                                </div>
                                 </div>
                             </div>
                             <div class="curve-peaks" id="curvePeaks"></div>
@@ -2216,10 +2206,9 @@
                             <div class="card-header">
                                 <div>
                                     <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Weekly Load</div>
-                                    <div class="card-subtitle">
-                                        TSS per week
-                                    </div>
+                                    <div class="card-subtitle">TSS per week</div>
                                 </div>
+                                <div class="dash-range-pills" id="dashRangePill_tss"></div>
                             </div>
                             <div class="chart-wrap">
                                 <canvas id="weeklyTssChart"></canvas>
@@ -2237,6 +2226,7 @@
                                     </div>
                                     <div class="card-subtitle" id="pwrHrSubtitle">Colored by temperature</div>
                                 </div>
+                                <div class="dash-range-pills" id="dashRangePill_scatter"></div>
                             </div>
                             <div class="chart-wrap chart-wrap--lg">
                                 <canvas id="pwrHrScatterChart"></canvas>
