@@ -8975,7 +8975,7 @@ function _renderPwrPageProfile(days, ftp, weight) {
   const canvas = document.getElementById('pwrPageProfileRadar');
   if (!card || !canvas) return;
 
-  const pc = state.powerCurve;
+  const pc = state.powerPageCurve || state.powerCurve;
   const w = state.athlete?.weight;
   if (!pc || !pc.secs || !w || w <= 0) { card.style.display = 'none'; return; }
 
