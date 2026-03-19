@@ -1557,6 +1557,22 @@ code {
         box-shadow var(--transition),
         outline-color var(--transition);
 }
+input[type="date"],
+input[type="number"] {
+    max-width: 100%;
+    box-sizing: border-box;
+    min-width: 0;
+    -webkit-appearance: none;
+    appearance: none;
+}
+/* iOS PWA: date inputs have large intrinsic width */
+@supports (-webkit-touch-callout: none) {
+    input[type="date"] {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+    }
+}
 .field select {
     appearance: none;
     -webkit-appearance: none;
@@ -16073,9 +16089,13 @@ body:has(.act-sheet-mode) .topbar {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 0 16px;
+    overflow: hidden;
+    min-width: 0;
 }
 .gear-form-grid .field {
     margin-bottom: 14px;
+    min-width: 0;
+    overflow: hidden;
 }
 
 /* ── Manual backdrop for mobile sheets (replaces ::backdrop) ── */
