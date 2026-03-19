@@ -142,7 +142,7 @@ if ('serviceWorker' in navigator) {
 // Populate version footer
 (function() {
   const el = document.getElementById('appVersionFooter');
-  if (el) el.textContent = 'CycleIQ v0.47';
+  if (el) el.textContent = 'CycleIQ v0.48';
 })();
 
 let _pwaInstallPrompt = null;
@@ -2046,15 +2046,17 @@ function toggleSidebar() {
   const open     = sidebar.classList.toggle('open');
   backdrop.classList.toggle('open', open);
   fab?.classList.toggle('is-open', open);
-  if (open) { const nav = sidebar.querySelector('.sidebar-nav'); if (nav) nav.scrollTop = 0; }
   _lockBodyScroll(open);
 }
 
 function closeSidebar() {
-  document.getElementById('sidebar')?.classList.remove('open');
+  const sb = document.getElementById('sidebar');
+  sb?.classList.remove('open');
   document.getElementById('sidebarBackdrop')?.classList.remove('open');
   document.getElementById('floatingMenuBtn')?.classList.remove('is-open');
   _lockBodyScroll(false);
+  // Reset scroll after close transition so it's ready for next open
+  if (sb) { const nav = sb.querySelector('.sidebar-nav'); if (nav) setTimeout(() => { nav.scrollTop = 0; }, 350); }
 }
 
 // Prevent touchmove on the backdrop — stops iOS from starting a scroll
