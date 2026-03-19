@@ -5492,33 +5492,54 @@
 
                         <!-- My Garage subpage -->
                         <div class="ios-subpage" id="iosSubpage-mygarage">
-                            <div class="card">
-                                <div class="stt-section-header">
-                                    <svg class="stt-section-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/>
-                                        <path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5L9 11l-3.5 3.5M15 6l-4 5.5H5.5M15 6l3 5.5"/>
-                                    </svg>
-                                    <div>
-                                        <div class="stt-section-title">My Garage</div>
-                                        <div class="stt-section-sub">Bike fleet, components &amp; brand logos</div>
-                                    </div>
+                            <!-- Hero illustration -->
+                            <div style="text-align:center;padding:20px 0 8px">
+                                <div style="width:72px;height:72px;border-radius:20px;background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(0,229,160,0.1));display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px">
+                                    <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5L9 11l-3.5 3.5M15 6l-4 5.5H5.5M15 6l3 5.5"/></svg>
                                 </div>
-                                <div class="stt-rows">
-                                    <div class="stt-row">
-                                        <span class="stt-row-label">Logo.dev API Key</span>
-                                        <div style="display:flex;align-items:center;gap:6px;flex:1;justify-content:flex-end">
-                                            <input type="password" class="stt-input" id="logodevKeyMain" placeholder="Paste your key" style="max-width:180px">
-                                            <button class="btn btn-ghost btn-sm" onclick="(() => { const i=document.getElementById('logodevKeyMain'); i.type = i.type==='password'?'text':'password'; })()" title="Show/hide">
-                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                                            </button>
-                                        </div>
+                                <div style="font-size:13px;color:var(--text-secondary);line-height:1.5;max-width:280px;margin:0 auto">Manage your bike fleet, track components, and enable brand logos in the gear picker.</div>
+                            </div>
+
+                            <!-- Brand Logos section -->
+                            <div class="ios-group-label">Brand Logos</div>
+                            <div class="ios-group">
+                                <div class="ios-row">
+                                    <div class="ios-row-icon" style="background:#8b5cf6"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>
+                                    <span class="ios-row-label">Logo.dev API Key</span>
+                                    <span class="ios-row-value" id="logodevKeyStatus" style="font-size:12px"></span>
+                                    <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                </div>
+                            </div>
+                            <div style="padding:0 4px 12px">
+                                <div style="background:var(--bg-card);border-radius:var(--radius);padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+                                    <div style="display:flex;align-items:center;gap:8px">
+                                        <input type="password" class="stt-input" id="logodevKeyMain" placeholder="Paste your logo.dev API key" style="flex:1;min-width:0">
+                                        <button style="width:36px;height:36px;border-radius:8px;background:transparent;border:none;color:var(--text-muted);display:flex;align-items:center;justify-content:center;cursor:pointer" onclick="(() => { const i=document.getElementById('logodevKeyMain'); i.type = i.type==='password'?'text':'password'; })()" title="Show/hide">
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                        </button>
                                     </div>
-                                    <div class="stt-row" style="justify-content:flex-end">
-                                        <button class="btn btn-accent btn-sm" onclick="saveLogodevKey()">Save</button>
-                                    </div>
-                                    <div class="stt-row">
-                                        <small style="opacity:0.5">Free key at <a href="https://www.logo.dev" target="_blank" style="color:var(--accent)">logo.dev</a> — shows brand logos in gear picker</small>
-                                    </div>
+                                    <button class="wrk-save-btn" style="margin:0;padding:12px;font-size:15px;min-height:44px" onclick="saveLogodevKey()">Save Key</button>
+                                    <div style="font-size:12px;color:var(--text-muted);text-align:center;line-height:1.5">Free API key from <a href="https://www.logo.dev" target="_blank" style="color:var(--accent);text-decoration:none">logo.dev</a> — enables brand logos for 80+ cycling brands</div>
+                                </div>
+                            </div>
+
+                            <!-- Quick actions -->
+                            <div class="ios-group-label">Quick Actions</div>
+                            <div class="ios-group">
+                                <div class="ios-row" onclick="navigate('gear');settingsBack()">
+                                    <div class="ios-row-icon" style="background:#ff9500"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg></div>
+                                    <span class="ios-row-label">Open My Garage</span>
+                                    <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                </div>
+                                <div class="ios-row" onclick="exportGearData()">
+                                    <div class="ios-row-icon" style="background:#30d158"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
+                                    <span class="ios-row-label">Export Gear Data</span>
+                                    <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                </div>
+                                <div class="ios-row" onclick="importGearData()">
+                                    <div class="ios-row-icon" style="background:#007aff"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+                                    <span class="ios-row-label">Import Gear Data</span>
+                                    <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                 </div>
                             </div>
                         </div>

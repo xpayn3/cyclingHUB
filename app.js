@@ -1657,10 +1657,19 @@ function settingsBack() {
 }
 
 function saveLogodevKey() {
-  const input = document.getElementById('logodevKeyInput');
+  const input = document.getElementById('logodevKeyMain') || document.getElementById('logodevKeyInput');
   const key = input?.value.trim();
   if (key) { localStorage.setItem('icu_logodev_key', key); showToast('Logo.dev key saved', 'success'); }
   else { localStorage.removeItem('icu_logodev_key'); showToast('Logo.dev key removed', 'info'); }
+  _updateLogodevStatus();
+}
+function _updateLogodevStatus() {
+  const el = document.getElementById('logodevKeyStatus');
+  if (el) {
+    const hasKey = !!localStorage.getItem('icu_logodev_key');
+    el.textContent = hasKey ? 'Connected' : 'Not set';
+    el.style.color = hasKey ? 'var(--accent)' : 'var(--text-muted)';
+  }
 }
 
 function iosSettingsInit() {
@@ -1799,6 +1808,7 @@ function updateConnectionUI(connected) {
   if (logodevInput) logodevInput.value = lk;
   const logodevMain = document.getElementById('logodevKeyMain');
   if (logodevMain) logodevMain.value = lk;
+  _updateLogodevStatus();
 }
 
 function updateLifetimeCacheUI() {
