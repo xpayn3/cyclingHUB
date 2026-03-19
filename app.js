@@ -20,7 +20,8 @@ import { renderRouteBuilderPage, rbUndo, rbRedo, rbReverse, rbOutAndBack,
          _rbToggleFullscreen, _rbToggleSurfaceMode, _rbToggleRoadSafety,
          _rbToggleCyclOSM, _rbToggleTerrain, _rbConfirmLeave,
          rbToggleSnap, rbToggleAvoidUnpaved, rbToggleAvoidHighways,
-         rbSetGradient, rbToggleElevShading, rbToggleWind } from './js/routes.js';
+         rbSetGradient, rbToggleElevShading, rbToggleWind,
+         _rbOpenDB } from './js/routes.js';
 
 import { renderHeatmapPage, hmLoadAllRoutes, hmApplyFilters, hmRedraw,
          hmToggleAnimate, hmRescanGPS, _hmOpenDB } from './js/heatmap.js';
@@ -41,7 +42,7 @@ import { saveStravaCredentials, loadStravaCredentials, clearStravaCredentials,
          icuRenderSyncUI, stravaRenderSyncUI, stravaSaveAndAuth,
          stravaClearActivities, icuSaveAndConnect, saveOrsApiKey,
          stravaFetch, stravaMapType, stravaSaveStreamsToIDB,
-         stravaLoadStreamsFromIDB } from './js/strava.js';
+         stravaLoadStreamsFromIDB, _stravaOpenDB } from './js/strava.js';
 
 import { initImportPage, impSwitchTab, impAddFiles, impRemoveFromQueue,
          impClearQueue, impProcessAll, impToggleSettings, impToggleStream,
@@ -51,6 +52,8 @@ import { initImportPage, impSwitchTab, impAddFiles, impRemoveFromQueue,
    DESIGN TOKENS — single source of truth for JS colors
 ==================================================== */
 const ACCENT = '#00e5a0';
+const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTH_LONG  = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 /* ====================================================
    PWA — Service Worker Registration + Install Prompt
@@ -87,13 +90,6 @@ if ('serviceWorker' in navigator) {
     .catch(err => console.warn('SW registration failed:', err));
 }
 
-// Temporary version check toast — remove after confirming
-setTimeout(() => {
-  caches.keys().then(k => {
-    const v = k.find(n => n.startsWith('icu-app-shell-'));
-    showToast('CycleIQ ' + (v ? v.replace('icu-app-shell-', '') : '?'), 'success');
-  }).catch(() => showToast('CycleIQ v?', 'success'));
-}, 1500);
 
 let _pwaInstallPrompt = null;
 window.addEventListener('beforeinstallprompt', e => {
@@ -636,7 +632,8 @@ function getAppStorageUsage() {
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
     if (!key.startsWith(prefix)) continue;
-    const size = new Blob([localStorage.getItem(key)]).size;
+    const val = localStorage.getItem(key);
+    const size = val ? val.length * 2 : 0; // UTF-16 approximation
     total += size;
     // bucket into categories
     if (key === 'icu_activities_cache' || key === 'icu_last_sync')
@@ -657,8 +654,8 @@ function getAppStorageUsage() {
 async function getHeatmapIDBSize() {
   try {
     const db = await _hmOpenDB();
-    const tx = db.transaction(HM_STORE, 'readonly');
-    const store = tx.objectStore(HM_STORE);
+    const tx = db.transaction('routes', 'readonly');
+    const store = tx.objectStore('routes');
     const all = await new Promise((res, rej) => {
       const req = store.getAll();
       req.onsuccess = () => res(req.result);
@@ -1861,10 +1858,10 @@ async function exportFullBackup() {
     // 2. IndexedDB stores
     const [actcache, hmRoutes, hmMeta, strava, routes] = await Promise.all([
       _idbReadAll(_actCacheDB, 'items'),
-      _idbReadAll(_hmOpenDB,   HM_STORE),
-      _idbReadAll(_hmOpenDB,   HM_META_STORE),
+      _idbReadAll(_hmOpenDB,   'routes'),
+      _idbReadAll(_hmOpenDB,   'meta'),
       _idbReadAll(_stravaOpenDB, 'streams'),
-      _idbReadAll(_rbOpenDB,   RB_STORE),
+      _idbReadAll(_rbOpenDB,   'routes'),
     ]);
     const backup = {
       version: 1,
@@ -1911,10 +1908,10 @@ function importFullBackup() {
         const idb = backup.indexedDB || {};
         await Promise.all([
           idb.actcache       ? _idbWriteAll(_actCacheDB,   'items',        idb.actcache)        : null,
-          idb.heatmap_routes ? _idbWriteAll(_hmOpenDB,     HM_STORE,       idb.heatmap_routes)  : null,
-          idb.heatmap_meta   ? _idbWriteAll(_hmOpenDB,     HM_META_STORE,  idb.heatmap_meta)    : null,
+          idb.heatmap_routes ? _idbWriteAll(_hmOpenDB,     'routes',       idb.heatmap_routes)  : null,
+          idb.heatmap_meta   ? _idbWriteAll(_hmOpenDB,     'meta',         idb.heatmap_meta)    : null,
           idb.strava         ? _idbWriteAll(_stravaOpenDB, 'streams',      idb.strava, true)    : null,
-          idb.routes         ? _idbWriteAll(_rbOpenDB,     RB_STORE,       idb.routes)          : null,
+          idb.routes         ? _idbWriteAll(_rbOpenDB,     'routes',       idb.routes)          : null,
         ]);
         showToast('Backup restored — reloading…', 'success');
         setTimeout(() => location.reload(), 1200);
@@ -2234,22 +2231,18 @@ window.addEventListener('touchmove', function(e) {
   }, { passive: false, capture: true });
 });
 
-// 3) Strip inline touch-action styles that Hammer.js / chart-zoom may inject
-//    (these override CSS !important because they're inline)
+// 3) Strip inline touch-action on canvas elements (Chart.js sets these)
 (function() {
   const mo = new MutationObserver(function(mutations) {
-    mutations.forEach(function(m) {
-      if (m.type === 'attributes' && m.attributeName === 'style') {
-        const el = m.target;
-        if (el.closest && el.closest('.leaflet-container')) return;
-        const ta = el.style.touchAction;
-        if (ta && ta !== 'pan-x pan-y') {
-          el.style.touchAction = 'pan-x pan-y';
-        }
-      }
-    });
+    for (const m of mutations) {
+      if (m.type !== 'attributes' || m.attributeName !== 'style') continue;
+      const el = m.target;
+      if (el.tagName !== 'CANVAS') continue;
+      const ta = el.style.touchAction;
+      if (ta && ta !== 'pan-x pan-y') el.style.touchAction = 'pan-x pan-y';
+    }
   });
-  mo.observe(document.documentElement, { attributes: true, attributeFilter: ['style'], subtree: true });
+  mo.observe(document.getElementById('pageContent') || document.body, { attributes: true, attributeFilter: ['style'], subtree: true });
 })();
 
 // 4) Last resort: if iOS Safari still zooms, snap viewport scale back to 1
@@ -2266,18 +2259,13 @@ if (window.visualViewport) {
 
 function navigate(page) {
   // Route Builder: confirm before leaving if there's an unsaved route
-  if (state.currentPage === 'routes' && page !== 'routes' && _rb.waypoints.length > 0) {
+  if (state.currentPage === 'routes' && page !== 'routes' && window._rb && window._rb.waypoints && window._rb.waypoints.length > 0) {
     _rbConfirmLeave(page);
     return;
   }
 
   // Exit fullscreen mode if leaving route builder
   document.body.classList.remove('rb-fullscreen');
-
-  // Close dashboard FAB menu if open
-  if (window._dashFabExpanded && typeof _closeDashFab === 'function') {
-    _closeDashFab();
-  }
 
   // Abort any in-flight API requests from the previous page
   _navAbort?.abort();
@@ -2876,7 +2864,7 @@ function setUnits(units) {
   if (elevEl) elevEl.textContent = units === 'imperial' ? 'feet' : 'metres';
   if (state.synced) {
     renderDashboard();
-    if (state.currentPage === 'activities') renderActivityList();
+    if (state.currentPage === 'activities') renderAllActivitiesList();
   }
 }
 
@@ -3109,7 +3097,7 @@ function _runActivitySearch(q) {
     return;
   }
 
-  const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const MONTH_NAMES = MONTH_SHORT;
   let html = `<div class="act-search-count">${matches.length} result${matches.length !== 1 ? 's' : ''}</div>`;
   const limit = Math.min(matches.length, 50);
   for (let i = 0; i < limit; i++) {
@@ -3290,6 +3278,11 @@ const _CARD_MAP_MAX = 120; // max snapshots to keep on disk
 
 async function _cardMapCacheSave(key, dataUrl) {
   _cardMapImgCache.set(key, dataUrl);
+  // Evict oldest in-memory entries if over limit
+  if (_cardMapImgCache.size > _CARD_MAP_MAX) {
+    const it = _cardMapImgCache.keys();
+    for (let i = _cardMapImgCache.size - _CARD_MAP_MAX; i > 0; i--) _cardMapImgCache.delete(it.next().value);
+  }
   try {
     const c = await caches.open(_CARD_MAP_CACHE_NAME);
     await c.put(`/_snap/${key}`, new Response(dataUrl));
@@ -3347,8 +3340,7 @@ function _actCardGridLoadMore(containerId) {
   const ls = window._actCardGridState[containerId];
   if (!ls || ls.cursor >= ls.filtered.length) return;
 
-  const MONTH_NAMES = ['January','February','March','April','May','June',
-    'July','August','September','October','November','December'];
+  const MONTH_NAMES = MONTH_LONG;
 
   const end = Math.min(ls.cursor + ACT_CARD_GRID_BATCH, ls.filtered.length);
   let html = '';
@@ -3556,8 +3548,7 @@ function _actZonesLoadMore(containerId) {
   const ls = window._actZonesState[containerId];
   if (!ls || ls.cursor >= ls.filtered.length) return;
 
-  const MONTH_NAMES = ['January','February','March','April','May','June',
-    'July','August','September','October','November','December'];
+  const MONTH_NAMES = MONTH_LONG;
 
   const end = Math.min(ls.cursor + ACT_ZONES_BATCH, ls.filtered.length);
   let html = '';
@@ -4094,7 +4085,11 @@ async function renderRecentActivity() {
   _initRecentActDots(rail, recent.length);
 }
 
+let _recentActDotsAC = null;
 function _initRecentActDots(rail, count) {
+  // Abort previous scroll listener
+  if (_recentActDotsAC) _recentActDotsAC.abort();
+  _recentActDotsAC = new AbortController();
   // Remove any existing dots
   const prev = rail.parentElement.querySelector('.recent-act-dots');
   if (prev) prev.remove();
@@ -4136,7 +4131,7 @@ function _initRecentActDots(rail, count) {
       dotsWrap.querySelectorAll('.recent-act-dot').forEach((d, i) =>
         d.classList.toggle('active', i === closest));
     });
-  }, { passive: true });
+  }, { passive: true, signal: _recentActDotsAC.signal });
 }
 
 
@@ -4515,8 +4510,7 @@ function _actListLoadMore(containerId) {
   const ls = window._actListState[containerId];
   if (!ls || ls.cursor >= ls.filtered.length) return;
 
-  const MONTH_NAMES = ['January','February','March','April','May','June',
-    'July','August','September','October','November','December'];
+  const MONTH_NAMES = MONTH_LONG;
 
   const end = Math.min(ls.cursor + ACT_LIST_BATCH, ls.filtered.length);
   let html = '';
@@ -24197,7 +24191,7 @@ Object.assign(window, {
   setWeatherModel, renderDashSectionToggles,
   openSettingsSubpage, closeSettingsSubpage, iosSettingsInit,
   // Vitality shader + Dashboard FAB gooey expand
-  renderVitality, toggleDashFab,
+  renderVitality,
   // Calendar create/edit event
   icuPost, icuPut, icuDelete, openCalEventModal, closeCalEventModal, saveCalEvent, deleteCalEvent,
   openProfileModal, closeProfileModal, setXpStartDate,
@@ -24216,197 +24210,9 @@ Object.assign(window, {
 window.COGGAN_ZONES = COGGAN_ZONES;
 window.ZONE_HEX = ZONE_HEX;
 
-// ── Dashboard FAB gooey expand/collapse (legacy stub — pill nav replaces this) ──
-function toggleDashFab(e) { /* replaced by dash-pill-nav */ }
-function _closeDashFab() { /* replaced by dash-pill-nav */ }
+// (legacy toggleDashFab / _closeDashFab stubs removed — pill nav replaces)
 
-// ── Pill nav active state ──
-(function initPillNav() {
-  const pillBtns = document.querySelectorAll('.dash-pill-btn');
-  if (!pillBtns.length) return;
-  // Highlight active tab based on current page
-  function updatePillActive() {
-    const cur = window._currentPage || 'dashboard';
-    pillBtns.forEach(btn => {
-      const lbl = btn.querySelector('span')?.textContent?.toLowerCase() || '';
-      const pageMap = { home: 'dashboard' };
-      const mappedPage = pageMap[lbl] || lbl;
-      btn.classList.toggle('active', cur === mappedPage);
-    });
-  }
-  window.addEventListener('pagechange', updatePillActive);
-  updatePillActive();
-})();
-
-// ── Bubble FAB physics ──
-// bubbleFabs removed — FABs are static
-if (false) (function bubbleFabs() {
-  const fabIds = ['actSearchFab', 'calFab'];
-  const fabs = fabIds.map(id => document.getElementById(id)).filter(Boolean);
-  if (!fabs.length) return;
-
-  const CFG = {
-    attractRadius: 200, pullStrength: 0.08, maxDisplace: 20,
-    returnSpring: 0.04, friction: 0.82, scaleFriction: 0.7,
-    scaleSpring: 0.12, wobbleAmount: 0.18,
-  };
-
-  let globalMouseX = -9999, globalMouseY = -9999;
-
-  const phys = fabs.map(() => ({
-    posX: 0, posY: 0, velX: 0, velY: 0,
-    scaleX: 1, scaleY: 1, sVelX: 0, sVelY: 0,
-    restX: 0, restY: 0, restDirty: true, running: false,
-  }));
-
-  function isActive() { return true; }
-
-  function calcRest(fab, s) {
-    const r = fab.getBoundingClientRect();
-    if (r.width === 0) return false;
-    s.restX = r.left + r.width / 2 - s.posX;
-    s.restY = r.top + r.height / 2 - s.posY;
-    s.restDirty = false;
-    return true;
-  }
-
-  function resetState(fab, s) {
-    fab.style.removeProperty('transform');
-    s.posX = s.posY = s.velX = s.velY = 0;
-    s.scaleX = s.scaleY = 1; s.sVelX = s.sVelY = 0;
-    s.running = false;
-  }
-
-  function makeTick(fab, s, idx) {
-    return function tick() {
-      // If this fab became inactive mid-animation, settle immediately
-      if (!isActive()) { resetState(fab, s); return; }
-      if (s.restDirty && !calcRest(fab, s)) { s.running = false; return; }
-
-      const dx = globalMouseX - (s.restX + s.posX);
-      const dy = globalMouseY - (s.restY + s.posY);
-      const dist = Math.sqrt(dx * dx + dy * dy);
-
-      if (dist < CFG.attractRadius && dist > 1) {
-        const t = 1 - dist / CFG.attractRadius;
-        const centerFade = Math.min(1, dist / 40);
-        const strength = t * t * centerFade * CFG.pullStrength;
-        s.velX += (dx / dist) * strength * CFG.maxDisplace;
-        s.velY += (dy / dist) * strength * CFG.maxDisplace;
-
-        const ang = Math.atan2(dy, dx);
-        const wobble = t * centerFade * CFG.wobbleAmount;
-        const stretchDir = 1 + wobble, squishDir = 1 - wobble * 0.5;
-        const cx = Math.abs(Math.cos(ang)), cy = Math.abs(Math.sin(ang));
-        s.sVelX += ((cx * stretchDir + (1 - cx) * squishDir) - s.scaleX) * CFG.scaleSpring;
-        s.sVelY += ((cy * stretchDir + (1 - cy) * squishDir) - s.scaleY) * CFG.scaleSpring;
-      }
-
-      s.velX -= s.posX * CFG.returnSpring;
-      s.velY -= s.posY * CFG.returnSpring;
-      s.velX *= CFG.friction; s.velY *= CFG.friction;
-      s.posX += s.velX; s.posY += s.velY;
-
-      const len = Math.sqrt(s.posX * s.posX + s.posY * s.posY);
-      if (len > CFG.maxDisplace) { s.posX *= CFG.maxDisplace / len; s.posY *= CFG.maxDisplace / len; }
-
-      s.sVelX += (1 - s.scaleX) * CFG.scaleSpring;
-      s.sVelY += (1 - s.scaleY) * CFG.scaleSpring;
-      s.sVelX *= CFG.scaleFriction; s.sVelY *= CFG.scaleFriction;
-      s.scaleX += s.sVelX; s.scaleY += s.sVelY;
-
-      fab.style.setProperty('transform',
-        `translate(${s.posX.toFixed(1)}px,${s.posY.toFixed(1)}px) scale(${s.scaleX.toFixed(3)},${s.scaleY.toFixed(3)})`,
-        'important');
-
-      const motion = Math.abs(s.velX) + Math.abs(s.velY) + Math.abs(s.posX) + Math.abs(s.posY) +
-                     Math.abs(s.sVelX) + Math.abs(s.sVelY) + Math.abs(1 - s.scaleX) + Math.abs(1 - s.scaleY);
-      if (motion > 0.05) {
-        requestAnimationFrame(tick);
-      } else {
-        resetState(fab, s);
-      }
-    };
-  }
-
-  const tickers = fabs.map((fab, i) => makeTick(fab, phys[i], i));
-
-  function startFab(i) {
-    if (!isActive()) return;
-    const s = phys[i];
-    if (!s.running) { s.restDirty = true; s.running = true; requestAnimationFrame(tickers[i]); }
-  }
-
-  let _fabResizeT = 0;
-  window.addEventListener('resize', () => {
-    clearTimeout(_fabResizeT);
-    _fabResizeT = setTimeout(() => phys.forEach(s => { s.restDirty = true; }), 120);
-  }, { passive: true });
-
-  // Desktop: mousemove drives all visible FABs (throttled to RAF)
-  let _fabMoveRAF = 0;
-  // Cache which FABs are visible — recompute on resize, not per mousemove
-  let _fabVisible = fabs.map(() => true);
-  function _refreshFabVis() { fabs.forEach((fab, i) => { _fabVisible[i] = fab.offsetWidth > 0; }); }
-  _refreshFabVis();
-  window.addEventListener('resize', _refreshFabVis, { passive: true });
-
-  document.addEventListener('mousemove', e => {
-    globalMouseX = e.clientX; globalMouseY = e.clientY;
-    if (_fabMoveRAF) return;
-    _fabMoveRAF = requestAnimationFrame(() => {
-      _fabMoveRAF = 0;
-      for (let i = 0; i < fabs.length; i++) { if (_fabVisible[i]) startFab(i); }
-    });
-  }, { passive: true });
-
-  // Per-FAB events
-  fabs.forEach((fab, i) => {
-    fab.addEventListener('mouseleave', () => {
-      if (!isActive()) return;
-      const s = phys[i];
-      s.velX += (Math.random() - 0.5) * 4; s.velY -= 3;
-      s.sVelX += 0.12; s.sVelY -= 0.12;
-      startFab(i);
-    });
-    fab.addEventListener('pointerdown', () => {
-      if (!isActive()) return;
-      const s = phys[i]; s.sVelX -= 0.2; s.sVelY -= 0.2; startFab(i);
-    });
-    fab.addEventListener('pointerup', () => {
-      if (!isActive()) return;
-      const s = phys[i]; s.sVelX += 0.25; s.sVelY += 0.25; s.velY -= 2; startFab(i);
-    });
-  });
-
-  // ── Mobile idle breathing ──
-  const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-  if (isTouchDevice) {
-    const breathStates = fabs.map(() => ({ phase: Math.random() * Math.PI * 2, breathing: false, timer: null }));
-
-    function breathe(fabEl, bs, idx) {
-      if (!bs.breathing || !isActive()) return;
-      if (fabEl.offsetWidth === 0) { requestAnimationFrame(() => breathe(fabEl, bs, idx)); return; }
-      bs.phase += 0.035;
-      const s1 = Math.sin(bs.phase), s2 = Math.sin(bs.phase * 1.7 + 0.5);
-      const bx = 1 + s1 * 0.03 + s2 * 0.015, by = 1 - s1 * 0.025 + s2 * 0.012;
-      const fx = Math.sin(bs.phase * 0.6) * 2.5, fy = Math.cos(bs.phase * 0.8) * 2;
-      fabEl.style.setProperty('transform',
-        `translate(${fx.toFixed(1)}px,${fy.toFixed(1)}px) scale(${bx.toFixed(3)},${by.toFixed(3)})`, 'important');
-      requestAnimationFrame(() => breathe(fabEl, bs, idx));
-    }
-
-    fabs.forEach((fab, i) => {
-      const bs = breathStates[i];
-      const startB = () => { if (!bs.breathing && isActive()) { bs.breathing = true; requestAnimationFrame(() => breathe(fab, bs, i)); } };
-      const stopB = () => { bs.breathing = false; clearTimeout(bs.timer); bs.timer = setTimeout(startB, 2000); };
-      fab.addEventListener('pointerdown', stopB);
-      fab.addEventListener('pointerup', () => { clearTimeout(bs.timer); bs.timer = setTimeout(startB, 2000); });
-      bs.timer = setTimeout(startB, 1500 + i * 300);
-    });
-  }
-})();
-
+// (initPillNav removed — navigate() already handles pill active state)
 /* ====================================================
    LOCAL FOLDER BACKUP  (File System Access API)
    Lets users pick a folder on their PC, save all data
