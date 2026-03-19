@@ -15563,8 +15563,8 @@ body:has(.act-sheet-mode) .topbar {
 
 /* Component detail sheet */
 .comp-detail-img {
-    width: 80px;
-    height: 80px;
+    width: 120px;
+    height: 120px;
     border-radius: 16px;
     overflow: hidden;
     margin: 0 auto 16px;
