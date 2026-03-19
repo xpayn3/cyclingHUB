@@ -23440,16 +23440,17 @@ function _renderGuideInto(wrap) {
 
 // ── Dashboard section visibility toggles ─────────────────────────────────────
 const DASH_SECTIONS = [
-  { key: 'recentCarousel', label: 'Recent Activity Carousel', defaultOn: true },
-  { key: 'weather',        label: 'Weather Forecast',         defaultOn: true },
-  { key: 'weeklyStats',    label: 'Weekly Stats',             defaultOn: true },
-  { key: 'weekProgress',   label: 'Week Progress & Training Status', defaultOn: true },
-  { key: 'trainingLoad',   label: 'Training Load Chart',      defaultOn: true },
-  { key: 'powerZones',     label: 'Average Power & Zones',    defaultOn: true },
-  { key: 'powerCurve',     label: 'Power Curve',              defaultOn: true },
-  { key: 'weeklyTss',      label: 'Weekly Load Chart',        defaultOn: true },
-  { key: 'goalsTargets',   label: 'Goals & Targets',          defaultOn: true },
-  { key: 'recentTable',    label: 'Recent Activities Table',  defaultOn: true },
+  { key: 'recentCarousel',    label: 'Recent Activities',            defaultOn: true },
+  { key: 'goalsTargets',      label: 'Goals & Targets',              defaultOn: true },
+  { key: 'vitality',          label: 'Vitality & Level',             defaultOn: true },
+  { key: 'weekProgress',      label: 'Week Progress',                defaultOn: true },
+  { key: 'yearToDate',        label: 'Year to Date',                 defaultOn: true },
+  { key: 'weeklyStats',       label: 'Weekly Stats',                 defaultOn: true },
+  { key: 'weather',           label: 'Weather Forecast',             defaultOn: true },
+  { key: 'todaySuggestion',   label: 'Today\'s Suggestion',          defaultOn: true },
+  { key: 'streakNextWorkout', label: 'Streak & Next Workout',        defaultOn: true },
+  { key: 'trainingLoad',      label: 'Training Load Chart',          defaultOn: true },
+  { key: 'recentTable',       label: 'Recent Activities Table',      defaultOn: true },
 ];
 
 function loadDashSectionPrefs() {
@@ -23486,11 +23487,9 @@ function renderDashSectionToggles() {
   for (const sec of DASH_SECTIONS) {
     const on = isDashSectionVisible(sec.key);
     const row = document.createElement('div');
-    row.className = 'stt-row stt-row--toggle';
+    row.className = 'ios-row';
     row.innerHTML = `
-      <div class="stt-row-info">
-        <div class="stt-row-label">${sec.label}</div>
-      </div>
+      <span class="ios-row-label">${sec.label}</span>
       <label class="settings-ios-toggle">
         <input type="checkbox" ${on ? 'checked' : ''} data-dash-toggle="${sec.key}">
         <span class="settings-ios-slider"></span>
