@@ -21189,6 +21189,9 @@ function _gearHookPickerSheets(modalEl) {
     if (!trigger || !selectEl) return;
     // Clone trigger to remove old event listeners
     const newTrigger = trigger.cloneNode(true);
+    // Replace dropdown chevron with a right-pointing chevron (iOS row style)
+    const chev = newTrigger.querySelector('.cdd-chevron');
+    if (chev) chev.outerHTML = '<svg class="cdd-chevron" viewBox="0 0 7 12" width="10" height="14" style="opacity:0.4"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     trigger.parentNode.replaceChild(newTrigger, trigger);
     newTrigger.addEventListener('click', e => {
       e.stopPropagation();
