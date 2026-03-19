@@ -19161,8 +19161,13 @@ html[data-theme="light"] {
 [data-theme="light"] .floating-range-pill button {
     color: var(--text-secondary);
 }
+[data-theme="light"] .floating-range-pill button:hover {
+    background: rgba(0, 0, 0, 0.06);
+}
+[data-theme="light"] .floating-range-pill.date-range-pill button.active,
 [data-theme="light"] .floating-range-pill button.active {
-    color: #fff;
+    background: var(--accent) !important;
+    color: #fff !important;
 }
 [data-theme="light"] .cal-fab,
 [data-theme="light"] #actSaveRouteFab,
