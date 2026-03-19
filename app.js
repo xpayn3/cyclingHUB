@@ -20750,12 +20750,13 @@ function gearComponentCard(c) {
   const pctCls = overdue ? 'gar-comp-pct--over' : warn ? 'gar-comp-pct--warn' : 'gar-comp-pct--ok';
   const barColor = overdue ? 'var(--red)' : warn ? '#ff9500' : color;
 
-  const imgHtml = c.image
+  const hasImg = !!c.image;
+  const imgHtml = hasImg
     ? `<img src="${c.image}" alt="${c.name || ''}">`
     : (c.category || 'O')[0];
 
   return `<div class="gar-comp-row">
-    <div class="gar-comp-icon" style="background:${color}">${imgHtml}</div>
+    <div class="gar-comp-icon" style="${hasImg ? 'background:transparent' : 'background:' + color}">${imgHtml}</div>
     <div class="gar-comp-info">
       <div class="gar-comp-name">${c.name || 'Component'}</div>
       <div class="gar-comp-sub">${sub}${ridden > 0 ? ` · ${Math.round(ridden).toLocaleString()} km` : ''}</div>
@@ -20815,6 +20816,63 @@ function openGearModal(editId) {
   initCustomDropdowns(modal);
   document.getElementById('gearFormBike')?._cddRefresh?.();
   document.getElementById('gearFormCategory')?._cddRefresh?.();
+
+  // Brand → Model suggestions
+  const brandSel = document.getElementById('gearFormBrand');
+  if (brandSel) {
+    brandSel.removeEventListener('change', _gearUpdateModels);
+    brandSel.addEventListener('change', _gearUpdateModels);
+    _gearUpdateModels();
+  }
+}
+
+function _gearUpdateModels() {
+  const brand = document.getElementById('gearFormBrand')?.value || '';
+  const dl = document.getElementById('gearModelList');
+  if (!dl) return;
+  const models = _GEAR_BRAND_MODELS[brand] || [];
+  dl.innerHTML = models.map(m => `<option value="${m}">`).join('');
+}
+
+const _GEAR_BRAND_MODELS = {
+  'Shimano':       ['Dura-Ace R9200','Dura-Ace R9100','Ultegra R8100','Ultegra R8000','105 R7100','105 R7000','GRX RX820','GRX RX810','GRX RX400','Tiagra 4700','Sora R3000','Claris R2000','Deore XT M8100','XTR M9100','SLX M7100','Deore M6100','XT M8120 (4-pot)','Saint M820'],
+  'SRAM':          ['Red AXS','Red eTap','Force AXS','Force eTap','Rival AXS','Rival eTap','Apex AXS','RED XPLR AXS','Force XPLR AXS','Rival XPLR AXS','XX SL AXS','XX AXS','X0 AXS','GX AXS','Eagle AXS'],
+  'Campagnolo':    ['Super Record EPS','Super Record','Record EPS','Record','Chorus','Centaur','Potenza','Ekar'],
+  'Continental':   ['GP 5000 S TR','GP 5000','GP 5000 TT','GP 5000 AS','GP Urban','Gatorskin','Ultra Sport III','Grand Prix','Terra Speed','Terra Trail','Contact Speed'],
+  'Vittoria':      ['Corsa Pro','Corsa','Corsa N.EXT','Corsa Control','Rubino Pro','Zaffiro Pro','Terreno Dry','Terreno Wet','Terreno Mix','Mezcal','Barzo'],
+  'Schwalbe':      ['Pro One TT','Pro One','One','Durano','Marathon','G-One Speed','G-One Allround','G-One Bite','Nobby Nic','Racing Ralph','Thunder Burt'],
+  'Pirelli':       ['P Zero Race TLR','P Zero Race','P Zero Velo','Cinturato Velo TLR','Cinturato Gravel H','Cinturato Gravel M','Cinturato Gravel S','Scorpion XC'],
+  'Michelin':      ['Power Cup','Power Road','Power Time Trial','Power Gravel','Power All Season','Lithion 3','Dynamic Sport'],
+  'Maxxis':        ['Receptor','Re-Fuse','Pursuer','Ravager','Rambler','Ikon','Aspen','Minion DHF','Minion DHR II','Dissector','Rekon'],
+  'Zipp':          ['303 Firecrest','303 S','353 NSW','404 Firecrest','454 NSW','808 Firecrest','858 NSW','Super-9'],
+  'Enve':          ['SES 2.3','SES 3.4','SES 4.5','SES 7.8','Foundation 45','Foundation 65','M525','M630','M730','M930'],
+  'DT Swiss':      ['ARC 1100','ARC 1400','ERC 1100','ERC 1400','PRC 1100','PRC 1400','PR 1600','ER 1600','GR 1600','XRC 1200','XMC 1200'],
+  'Mavic':         ['Cosmic SLR 45','Cosmic SL 45','Ksyrium SL','Ksyrium Pro','Aksium','Allroad Pro','Crossmax XL'],
+  'FSA':           ['K-Force','SL-K','Energy','Vero','Gossamer','Omega'],
+  '3T':            ['Aeronova','Superergo','Ergonova','Tornova','Aeroghiaia'],
+  'Look':          ['Keo Blade Carbon','Keo 2 Max','Keo Classic 3','X-Track En-Rage','X-Track Race'],
+  'Wahoo':         ['Speedplay Zero','Speedplay Comp','Speedplay Nano','Speedplay Aero'],
+  "fi'zi:k":       ['Antares Versus Evo','Antares R3','Arione R3','Arione Versus Evo','Aliante R3','Vento Argo R3','Terra Argo X3'],
+  'Selle Italia':  ['SLR Boost','SP-01 Boost','Flite Boost','Novus Boost Evo','X-LR'],
+  'Brooks':        ['Cambium C13','Cambium C15','Cambium C17','B17','Swift'],
+  'KMC':           ['X12 Gold','X12 Silver','X11 Gold','X11SL','X10SL','e12 EPT','e11 EPT'],
+  'Chris King':    ['InSet 7','InSet 8','NoThreadSet','R45','R45D','ISO LD','T47'],
+  'CeramicSpeed':  ['OSPW','UFO Drip Chain','SLT Bearings','BB86','BB30','PF30'],
+  'Quarq':         ['DZero DUB','DFour DUB','Prime'],
+  'Stages':        ['L (Left Only)','LR (Dual)','Dash L50','Dash M50'],
+  '4iiii':         ['Precision 3','Precision 3+','Podium'],
+  'Favero':        ['Assioma Duo','Assioma Duo-Shi','Assioma Uno'],
+  'SRM':           ['PM9','PM8','Origin','X-Power'],
+  'Power2Max':     ['NG','NGeco'],
+  'Magura':        ['MT Trail Sport','MT7','MT8','MT8 SL'],
+  'TRP':           ['Spyre','HY/RD','G-Spec DH','Slate T4'],
+  'SwissStop':     ['FlashPro Original Black','FlashPro GHP2','Disc 34 RS','Disc 35 RS'],
+  'Hope':          ['RX4+','V4','E4','Tech 3'],
+  'Kask':          ['Protone Icon','Utopia Y','Elemento','Valegro','Mojito 3','Wasabi'],
+  'Giro':          ['Aether MIPS','Aries','Helios','Synthe','Agilis','Isode'],
+  'POC':           ['Ventral MIPS','Ventral Lite','Omne Air MIPS','Procen','Kortal Race MIPS'],
+  'Oakley':        ['Sutro','Sutro Lite','Radar EV','Jawbreaker','Encoder','Flight Jacket'],
+  'Rotor':         ['Aldhu','Vegast','INspider','2INpower'],
 }
 
 function closeGearModal() {

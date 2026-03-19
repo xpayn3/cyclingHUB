@@ -390,19 +390,50 @@
                         </div>
                         <div class="field">
                             <label for="gearFormBrand">Brand</label>
-                            <input
-                                type="text"
-                                id="gearFormBrand"
-                                placeholder="e.g. Shimano, Continental…"
-                            />
+                            <select id="gearFormBrand" class="app-select">
+                                <option value="">— Select brand —</option>
+                                <optgroup label="Drivetrain">
+                                    <option>Shimano</option><option>SRAM</option><option>Campagnolo</option><option>KMC</option><option>Wippermann</option><option>YBN</option><option>Rotor</option><option>FSA</option>
+                                </optgroup>
+                                <optgroup label="Wheels">
+                                    <option>Zipp</option><option>Enve</option><option>DT Swiss</option><option>Mavic</option><option>Fulcrum</option><option>Roval</option><option>Hunt</option><option>Reynolds</option><option>Lightweight</option><option>Corima</option><option>Bontrager</option>
+                                </optgroup>
+                                <optgroup label="Tyres">
+                                    <option>Continental</option><option>Vittoria</option><option>Schwalbe</option><option>Pirelli</option><option>Michelin</option><option>Maxxis</option><option>Challenge</option><option>Panaracer</option><option>Specialized</option>
+                                </optgroup>
+                                <optgroup label="Cockpit &amp; Bars">
+                                    <option>3T</option><option>Deda Elementi</option><option>Ritchey</option><option>PRO</option><option>Thomson</option><option>Easton</option>
+                                </optgroup>
+                                <optgroup label="Brakes">
+                                    <option>Magura</option><option>TRP</option><option>SwissStop</option><option>Jagwire</option><option>Hope</option>
+                                </optgroup>
+                                <optgroup label="Pedals">
+                                    <option>Look</option><option>Speedplay</option><option>Wahoo</option><option>Time</option><option>Crankbrothers</option><option>Garmin</option>
+                                </optgroup>
+                                <optgroup label="Saddles">
+                                    <option>fi'zi:k</option><option>Selle Italia</option><option>Brooks</option><option>Prologo</option><option>ISM</option><option>SQlab</option><option>WTB</option>
+                                </optgroup>
+                                <optgroup label="Bearings &amp; Headset">
+                                    <option>Chris King</option><option>CeramicSpeed</option><option>Cane Creek</option><option>Token</option>
+                                </optgroup>
+                                <optgroup label="Power Meters">
+                                    <option>Quarq</option><option>Stages</option><option>4iiii</option><option>Favero</option><option>SRM</option><option>Power2Max</option>
+                                </optgroup>
+                                <optgroup label="Frames">
+                                    <option>Giant</option><option>Trek</option><option>Cannondale</option><option>Specialized</option><option>Pinarello</option><option>Cervelo</option><option>Bianchi</option><option>Colnago</option><option>BMC</option><option>Scott</option><option>Canyon</option><option>Orbea</option><option>Ridley</option><option>Factor</option><option>Cinelli</option><option>De Rosa</option><option>Wilier</option><option>Merida</option><option>Cube</option>
+                                </optgroup>
+                                <optgroup label="Accessories">
+                                    <option>Elite</option><option>Tacx</option><option>Lezyne</option><option>Topeak</option><option>Silca</option><option>Muc-Off</option>
+                                </optgroup>
+                                <optgroup label="Helmets &amp; Eyewear">
+                                    <option>Oakley</option><option>POC</option><option>Kask</option><option>Giro</option><option>Abus</option><option>MET</option><option>Lazer</option><option>100%</option>
+                                </optgroup>
+                            </select>
                         </div>
                         <div class="field">
                             <label for="gearFormModel">Model</label>
-                            <input
-                                type="text"
-                                id="gearFormModel"
-                                placeholder="e.g. Dura-Ace CN-HG901"
-                            />
+                            <input type="text" id="gearFormModel" list="gearModelList" placeholder="e.g. Dura-Ace, Red AXS…"/>
+                            <datalist id="gearModelList"></datalist>
                         </div>
                         <div class="field">
                             <label for="gearFormDate">Purchase Date</label>
