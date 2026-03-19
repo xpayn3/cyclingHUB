@@ -276,6 +276,7 @@ export function renderRouteBuilderPage() {
               <div class="rb-saved-list" id="rbSavedList">
                 <div class="rb-saved-empty">No saved routes yet</div>
               </div>
+              <button class="btn btn-ghost" onclick="navigate('myroutes')" style="width:100%;justify-content:center;margin-top:4px;color:var(--accent)">View Library →</button>
             </div>
           </div>
         </div>
@@ -689,6 +690,7 @@ export function _rbInitMap() {
     onRemove() { this._container.remove(); }
   }
   _rb.map.addControl(new RbMapTools(), 'top-left');
+
 
   // ── Fancy Apple Maps-style compass (bottom-left, above elev panel) ──
   {

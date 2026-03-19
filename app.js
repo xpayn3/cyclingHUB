@@ -34,7 +34,9 @@ import { wrkRender, wrkRefreshStats, wrkSetName, wrkAddSegment, wrkRemove, wrkMo
          _isDark, _updateChartColors, setTheme,
          loadPhysicsScroll, setPhysicsScroll,
          loadSmoothFlyover, toggleSmoothFlyover, toggleTerrain3d,
-         initMapThemePicker } from './js/workout.js';
+         initMapThemePicker,
+         wrkSave, wrkLoadAll, wrkDeleteSaved, wrkLoadWorkout, wrkZoneColor,
+         wrkSegDuration, wrkFmtTime } from './js/workout.js';
 
 import { saveStravaCredentials, loadStravaCredentials, clearStravaCredentials,
          isStravaConnected, stravaStartAuth, stravaExchangeCode,
@@ -2471,7 +2473,7 @@ function navigate(page) {
 
   // Update pill nav active state + visibility (use visibility to keep backdrop-filter warm)
   const _pillNav = document.getElementById('dashPillNav');
-  const _pillHidePages = new Set(['settings', 'routes', 'workout', 'activity', 'heatmap']);
+  const _pillHidePages = new Set(['settings', 'routes', 'workout', 'activity', 'heatmap', 'suggestion']);
   if (_pillNav) {
     const hide = _pillHidePages.has(page);
     _pillNav.style.visibility = hide ? 'hidden' : '';
@@ -2512,11 +2514,12 @@ function navigate(page) {
     goals:      ['Goals & Streaks', 'Training targets, streaks & lifetime stats'],
     weather:    ['Weather',        'Weekly forecast & riding conditions'],
     settings:   ['Settings',       'Account & connection'],
-    workout:    ['Create Workout', 'Build & export custom cycling workouts'],
+    workout:    ['Workout Builder', 'Build & export custom cycling workouts'],
     guide:      ['Training Guide', 'Understanding CTL · ATL · TSB & training load'],
     gear:       ['Gear & Service', 'Bikes, components, batteries & service tracking'],
     routes:     ['Route Builder',  'Plan & build cycling routes'],
-    myroutes:   ['My Routes',    'Route library & ride diary'],
+    myroutes:   ['Library',       'Routes, rides & workouts'],
+    suggestion: ['Suggested Workout', ''],
   };
   const [title, sub] = info[page] || ['CycleIQ', ''];
   document.getElementById('pageTitle').textContent    = title;
@@ -2621,6 +2624,7 @@ function navigate(page) {
   if (page === 'goals')    { renderStreaksPage(); renderGoalsPage(); }
   if (page === 'workout')  { wrkRefreshStats(); wrkRender(); }
   if (page === 'myroutes') renderMyRoutesPage();
+  if (page === 'suggestion') renderSuggestionPage();
   if (page === 'settings') {
     iosSettingsInit();
     initWeatherLocationUI();
@@ -24348,7 +24352,8 @@ function _mrRideCard(act, type) {
   const time = act.moving_time ? _fmtDuration(act.moving_time) : '';
   const date = act.start_date_local ? new Date(act.start_date_local).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
   const isFav = _mrIsFav(id);
-  const badge = type === 'route' ? 'ROUTE' : 'RIDE';
+  const actType = act.type || 'Ride';
+  const badge = type === 'route' ? 'ROUTE' : actType.replace(/([a-z])([A-Z])/g, '$1 $2').toUpperCase();
   const badgeCls = type === 'route' ? 'mr-badge--route' : 'mr-badge--ride';
 
   const mapIdx = window._mrMapIdx = (window._mrMapIdx || 0) + 1;
@@ -24392,6 +24397,47 @@ function _mrRouteCard(route) {
       <div class="mr-card-meta">
         <span class="mr-card-date">${date}</span>
         <span class="mr-badge mr-badge--route">ROUTE</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+function _mrWorkoutCard(workout) {
+  const id = workout.id;
+  const name = workout.name || 'Untitled Workout';
+  const dur = workout.totalDuration ? _fmtDuration(workout.totalDuration) : '';
+  const tss = workout.tssEstimate ? workout.tssEstimate + ' TSS' : '';
+  const segCount = (workout.segments || []).length + ' segments';
+  const date = workout.ts ? new Date(workout.ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
+  const isFav = _mrIsFav(id);
+
+  // Build mini zone-color preview bar
+  const segs = workout.segments || [];
+  const totalSecs = segs.reduce((s, seg) => s + wrkSegDuration(seg), 0) || 1;
+  const bars = segs.map(seg => {
+    const pct = (wrkSegDuration(seg) / totalSecs * 100).toFixed(1);
+    const power = seg.type === 'steady' ? seg.power
+                : seg.type === 'warmup' || seg.type === 'cooldown' ? Math.round((seg.powerLow + seg.powerHigh) / 2)
+                : seg.type === 'interval' ? seg.onPower
+                : 55;
+    return `<span style="flex:${pct};background:${wrkZoneColor(power)};height:100%;border-radius:2px"></span>`;
+  }).join('');
+
+  return `<div class="mr-card mr-card--workout" data-id="${id}" data-type="workout" onclick="navigate('workout');setTimeout(()=>wrkLoadWorkout(window._mrWorkoutLookup['${id}']),200)">
+    <div class="mr-card-workout-preview">
+      <div class="mr-card-workout-bars">${bars}</div>
+    </div>
+    <div class="mr-card-body">
+      <div class="mr-card-top">
+        <span class="mr-card-name">${name}</span>
+        <button class="mr-fav${isFav ? ' mr-fav--active' : ''}" data-id="${id}" onclick="event.stopPropagation();mrToggleFav('${id}')" aria-label="Favorite">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="${isFav ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        </button>
+      </div>
+      <div class="mr-card-stats">${[dur, tss, segCount].filter(Boolean).join(' \u00b7 ')}</div>
+      <div class="mr-card-meta">
+        <span class="mr-card-date">${date}</span>
+        <span class="mr-badge mr-badge--workout">WORKOUT</span>
       </div>
     </div>
   </div>`;
@@ -24503,13 +24549,23 @@ function _mrRenderCollection() {
   let items = [];
   const routes = window._mrSavedRoutes || [];
   const rides = window._mrGpsActivities || [];
+  const workouts = window._mrSavedWorkouts || [];
   const favs = (() => { try { return JSON.parse(localStorage.getItem('icu_fav_routes') || '[]'); } catch { return []; } })();
 
-  if (_mrActiveFilter === 'all' || _mrActiveFilter === 'saved') {
+  if (_mrActiveFilter === 'all') {
     routes.forEach(r => items.push({ type: 'route', data: r, ts: r.ts || 0, id: r.id }));
+    workouts.forEach(w => items.push({ type: 'workout', data: w, ts: w.ts || 0, id: w.id }));
+  }
+  if (_mrActiveFilter === 'saved') {
+    routes.forEach(r => items.push({ type: 'route', data: r, ts: r.ts || 0, id: r.id }));
+  }
+  if (_mrActiveFilter === 'workouts') {
+    workouts.forEach(w => items.push({ type: 'workout', data: w, ts: w.ts || 0, id: w.id }));
   }
   if (_mrActiveFilter === 'favorites') {
     routes.filter(r => favs.includes(r.id)).forEach(r => items.push({ type: 'route', data: r, ts: r.ts || 0, id: r.id }));
+    rides.filter(a => favs.includes(a.id || a.icu_id)).forEach(a => items.push({ type: 'ride', data: a, ts: new Date(a.start_date_local || 0).getTime(), id: a.id || a.icu_id }));
+    workouts.filter(w => favs.includes(w.id)).forEach(w => items.push({ type: 'workout', data: w, ts: w.ts || 0, id: w.id }));
   }
 
   items.sort((a, b) => b.ts - a.ts);
@@ -24523,10 +24579,348 @@ function _mrRenderCollection() {
 
   list.innerHTML = items.map(item => {
     if (item.type === 'route') return _mrRouteCard(item.data);
+    if (item.type === 'workout') return _mrWorkoutCard(item.data);
     return _mrRideCard(item.data, 'ride');
   }).join('');
 
   _mrRenderSection('mrList', list.innerHTML);
+}
+
+/* ── Suggestion Engine ─────────────────────────────────────── */
+const _SGN_WORKOUT_TEMPLATES = {
+  recovery: {
+    title: 'Recovery Spin', subtitle: 'Easy pedaling to promote blood flow',
+    intensity: 'recovery', tags: ['Recovery', 'Indoor'],
+    segments: [
+      { type: 'warmup', duration: 300, powerLow: 30, powerHigh: 45 },
+      { type: 'steady', duration: 1200, power: 50 },
+      { type: 'cooldown', duration: 300, powerLow: 50, powerHigh: 30 },
+    ]
+  },
+  endurance: {
+    title: 'Endurance Base', subtitle: 'Build aerobic fitness with steady effort',
+    intensity: 'easy', tags: ['Endurance', 'Z2'],
+    segments: [
+      { type: 'warmup', duration: 600, powerLow: 40, powerHigh: 65 },
+      { type: 'steady', duration: 3600, power: 68 },
+      { type: 'cooldown', duration: 600, powerLow: 65, powerHigh: 40 },
+    ]
+  },
+  sweetspot: {
+    title: 'Sweet Spot Intervals', subtitle: 'Maximize fitness gains with manageable fatigue',
+    intensity: 'moderate', tags: ['Sweet Spot', 'Z3–Z4'],
+    segments: [
+      { type: 'warmup', duration: 600, powerLow: 45, powerHigh: 75 },
+      { type: 'steady', duration: 1200, power: 90 },
+      { type: 'steady', duration: 300, power: 55 },
+      { type: 'steady', duration: 1200, power: 90 },
+      { type: 'cooldown', duration: 600, powerLow: 70, powerHigh: 40 },
+    ]
+  },
+  threshold: {
+    title: 'Threshold Builder', subtitle: 'Push your FTP ceiling higher',
+    intensity: 'hard', tags: ['Threshold', 'Z4'],
+    segments: [
+      { type: 'warmup', duration: 600, powerLow: 45, powerHigh: 80 },
+      { type: 'steady', duration: 900, power: 100 },
+      { type: 'steady', duration: 300, power: 55 },
+      { type: 'steady', duration: 900, power: 100 },
+      { type: 'cooldown', duration: 600, powerLow: 70, powerHigh: 40 },
+    ]
+  },
+  vo2max: {
+    title: 'VO2 Max Intervals', subtitle: 'Short, sharp efforts to boost max aerobic power',
+    intensity: 'hard', tags: ['VO2 Max', 'Z5'],
+    segments: [
+      { type: 'warmup', duration: 600, powerLow: 45, powerHigh: 80 },
+      { type: 'interval', reps: 5, onDuration: 180, onPower: 118, offDuration: 180, offPower: 50 },
+      { type: 'cooldown', duration: 600, powerLow: 65, powerHigh: 35 },
+    ]
+  },
+  tempo: {
+    title: 'Tempo Ride', subtitle: 'Steady moderate effort to build endurance',
+    intensity: 'moderate', tags: ['Tempo', 'Z3'],
+    segments: [
+      { type: 'warmup', duration: 600, powerLow: 45, powerHigh: 75 },
+      { type: 'steady', duration: 2400, power: 82 },
+      { type: 'cooldown', duration: 600, powerLow: 70, powerHigh: 40 },
+    ]
+  },
+};
+
+function _sgnEstimateTSS(segments) {
+  const ftp = state.athlete?.ftp || 250;
+  let work = 0, totalS = 0;
+  segments.forEach(seg => {
+    const dur = seg.type === 'interval' ? seg.reps * (seg.onDuration + seg.offDuration) : seg.duration;
+    totalS += dur;
+    if (seg.type === 'warmup' || seg.type === 'cooldown') work += ftp * ((seg.powerLow + seg.powerHigh) / 200) * dur;
+    else if (seg.type === 'steady') work += ftp * (seg.power / 100) * dur;
+    else if (seg.type === 'interval') {
+      const repD = seg.onDuration + seg.offDuration;
+      const avg = (seg.onPower * seg.onDuration + seg.offPower * seg.offDuration) / repD / 100;
+      work += ftp * avg * dur;
+    } else work += ftp * 0.55 * dur;
+  });
+  if (!totalS) return 0;
+  const np = work / totalS;
+  const IF = np / ftp;
+  return Math.round((totalS * np * IF) / (ftp * 3600) * 100);
+}
+
+function _sgnTotalDuration(segments) {
+  return segments.reduce((s, seg) => s + (seg.type === 'interval' ? seg.reps * (seg.onDuration + seg.offDuration) : seg.duration), 0);
+}
+
+function _mrBuildSuggestions() {
+  const ctl = state.fitness?.ctl || 0;
+  const atl = state.fitness?.atl || 0;
+  const tsb = state.fitness?.tsb ?? (ctl - atl);
+  const rampRate = state.fitness?.rampRate || 0;
+
+  // Today's wellness
+  const today = new Date().toISOString().slice(0, 10);
+  const w = (state.wellnessHistory || {})[today] || {};
+  const fatigue = w.fatigue || 3;
+  const soreness = w.soreness || 3;
+
+  // Recent load: last 3 days avg TSS
+  const acts = getAllActivities().filter(a => a.type === 'Ride' || a.icu_sport_type === 'Ride');
+  const now = Date.now();
+  const recent3d = acts.filter(a => {
+    const d = new Date(a.start_date_local || a.start_date).getTime();
+    return (now - d) < 3 * 86400000;
+  });
+  const recent3dTSS = recent3d.reduce((s, a) => s + (a.icu_training_load || 0), 0);
+  const avgRecentTSS = recent3d.length ? recent3dTSS / recent3d.length : 0;
+
+  const suggestions = [];
+  let _sgnId = 0;
+
+  const addWorkout = (key, reason) => {
+    const t = _SGN_WORKOUT_TEMPLATES[key];
+    if (!t) return;
+    suggestions.push({
+      id: 'sgn_' + (_sgnId++),
+      type: 'workout',
+      ...t,
+      reason,
+      segments: JSON.parse(JSON.stringify(t.segments)),
+      estimatedTSS: _sgnEstimateTSS(t.segments),
+      estimatedDuration: _sgnTotalDuration(t.segments),
+    });
+  };
+
+  // Decision tree
+  if (tsb < -20 || fatigue >= 4 || soreness >= 4) {
+    // Exhausted / very fatigued
+    addWorkout('recovery', `Your form is at ${Math.round(tsb)} TSB${fatigue >= 4 ? ' and you reported high fatigue' : ''}. A recovery spin promotes blood flow and helps your body adapt to recent training without adding stress.`);
+    addWorkout('endurance', `If you feel up to it, an easy endurance ride keeps the legs moving. Keep it strictly in Zone 2 — no pushing today.`);
+  } else if (tsb < -5) {
+    // Moderate fatigue — normal training
+    addWorkout('sweetspot', `Your TSB is ${Math.round(tsb)}, indicating moderate training load. Sweet spot work is the most efficient way to build fitness — high stimulus with manageable recovery cost.`);
+    addWorkout('tempo', `A tempo ride builds muscular endurance at a sustainable pace. Good option when carrying some fatigue but wanting to maintain training consistency.`);
+    if (avgRecentTSS < 50) {
+      addWorkout('threshold', `Your recent load has been light (avg ${Math.round(avgRecentTSS)} TSS/day). Your body can handle a threshold session to maintain your FTP.`);
+    }
+  } else if (tsb >= -5 && tsb <= 5) {
+    // Fresh — can push
+    addWorkout('threshold', `You're fresh with a TSB of ${Math.round(tsb)}. This is a great time to push your threshold — the key limiter for cycling performance.`);
+    addWorkout('sweetspot', `With good form, sweet spot intervals offer excellent training stimulus. Two 20-minute blocks at 88–94% FTP build sustainable power.`);
+    addWorkout('vo2max', `Your body is recovered enough for high-intensity work. VO2 max intervals develop your aerobic ceiling — the biggest gains per minute of hard effort.`);
+  } else {
+    // Very fresh / peaked
+    addWorkout('vo2max', `Your TSB is ${Math.round(tsb)} — you're peaked and ready. VO2 max intervals will capitalize on your freshness for maximum training response.`);
+    addWorkout('threshold', `With excellent form, a threshold session pushes your FTP boundary. Perfect timing when you have the energy to sustain hard efforts.`);
+    if (rampRate < 0) {
+      addWorkout('endurance', `Your fitness trend is declining (ramp rate: ${rampRate.toFixed(1)}/wk). A solid endurance ride rebuilds your aerobic base and reverses the downward trend.`);
+    }
+  }
+
+  // Add route suggestions — pick 2 past rides that match target intensity
+  const targetTSS = suggestions[0]?.estimatedTSS || 50;
+  const favs = (() => { try { return JSON.parse(localStorage.getItem('icu_fav_routes') || '[]'); } catch { return []; } })();
+  const ridePool = acts.filter(a => a.distance && a.distance > 5000 && !a.trainer);
+  // Prefer fav'd rides, then sort by TSS proximity to target
+  const scoredRides = ridePool.map(a => ({
+    act: a,
+    score: (favs.includes(a.id || a.icu_id) ? -500 : 0) + Math.abs((a.icu_training_load || 60) - targetTSS)
+  })).sort((a, b) => a.score - b.score);
+
+  const seenNames = new Set();
+  scoredRides.slice(0, 20).forEach(({ act }) => {
+    if (suggestions.filter(s => s.type === 'route').length >= 2) return;
+    const name = act.name || '';
+    if (seenNames.has(name)) return;
+    seenNames.add(name);
+    const dist = act.distance ? (act.distance / 1000).toFixed(0) + ' km' : '';
+    const elev = act.total_elevation_gain ? '+' + Math.round(act.total_elevation_gain) + 'm' : '';
+    suggestions.push({
+      id: 'sgn_' + (_sgnId++),
+      type: 'route',
+      title: name || 'Outdoor Ride',
+      subtitle: [dist, elev].filter(Boolean).join(' · '),
+      intensity: (act.icu_training_load || 0) > targetTSS * 1.3 ? 'hard' : (act.icu_training_load || 0) < targetTSS * 0.7 ? 'easy' : 'moderate',
+      reason: `This ${dist} route ${favs.includes(act.id || act.icu_id) ? 'is one of your favorites and ' : ''}matches your current training needs. With ~${act.icu_training_load || '?'} TSS, it aligns with today's recommended load.`,
+      activityRef: act,
+      estimatedTSS: act.icu_training_load || 0,
+      estimatedDuration: act.moving_time || 0,
+      tags: ['Outdoor', dist].filter(Boolean),
+    });
+  });
+
+  return suggestions;
+}
+
+const _SGN_INTENSITY = {
+  recovery: { color: '#4a9eff', icon: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>', label: 'Recovery' },
+  easy:     { color: '#00e5a0', icon: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>', label: 'Easy' },
+  moderate: { color: '#ffcc00', icon: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>', label: 'Moderate' },
+  hard:     { color: '#ff6b35', icon: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12c2-2.96 0-7-1-8 0 3.038-1.773 4.741-3 6-1.226 1.26-2 3.24-2 5a6 6 0 1 0 12 0c0-1.532-1.056-3.94-2-5-1.786 3-2.791 3-4 2z"/></svg>', label: 'High Intensity' },
+};
+
+function _mrSuggestionCard(s) {
+  const int = _SGN_INTENSITY[s.intensity] || _SGN_INTENSITY.easy;
+  const dur = s.estimatedDuration ? _fmtDuration(s.estimatedDuration) : '';
+  const tss = s.estimatedTSS ? s.estimatedTSS + ' TSS' : '';
+  const isRoute = s.type === 'route';
+
+  // Mini zone bars for workouts
+  let preview = '';
+  if (!isRoute && s.segments) {
+    const totalS = _sgnTotalDuration(s.segments) || 1;
+    const bars = s.segments.map(seg => {
+      const pct = ((seg.type === 'interval' ? seg.reps * (seg.onDuration + seg.offDuration) : seg.duration) / totalS * 100).toFixed(1);
+      const power = seg.type === 'steady' ? seg.power : seg.type === 'warmup' || seg.type === 'cooldown' ? Math.round((seg.powerLow + seg.powerHigh) / 2) : seg.type === 'interval' ? seg.onPower : 55;
+      return `<span style="flex:${pct};background:${wrkZoneColor(power)};height:100%;border-radius:2px"></span>`;
+    }).join('');
+    preview = `<div class="sgn-card-bars">${bars}</div>`;
+  } else {
+    preview = `<div class="sgn-card-route-icon"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M17 7h4v4"/></svg></div>`;
+  }
+
+  return `<div class="sgn-card" onclick="_mrOpenSuggestion('${s.id}')" style="--sgn-color:${int.color}">
+    <div class="sgn-card-preview">${preview}</div>
+    <div class="sgn-card-body">
+      <div class="sgn-card-intensity">${int.icon}<span>${int.label}</span></div>
+      <div class="sgn-card-title">${s.title}</div>
+      <div class="sgn-card-stats">${[dur, tss].filter(Boolean).join(' · ')}</div>
+      <div class="sgn-card-tags">${s.tags.map(t => `<span class="sgn-tag">${t}</span>`).join('')}</div>
+    </div>
+  </div>`;
+}
+
+window._mrSuggestions = [];
+function _mrOpenSuggestion(id) {
+  const s = window._mrSuggestions.find(x => x.id === id);
+  if (!s) return;
+  window._mrActiveSuggestion = s;
+  navigate('suggestion');
+}
+
+function renderSuggestionPage() {
+  const s = window._mrActiveSuggestion;
+  const el = document.getElementById('suggestionPageContent');
+  if (!el || !s) return;
+
+  const int = _SGN_INTENSITY[s.intensity] || _SGN_INTENSITY.easy;
+  const ctl = state.fitness?.ctl || 0;
+  const atl = state.fitness?.atl || 0;
+  const tsb = state.fitness?.tsb ?? (ctl - atl);
+  const today = new Date().toISOString().slice(0, 10);
+  const w = (state.wellnessHistory || {})[today] || {};
+
+  const dur = s.estimatedDuration ? _fmtDuration(s.estimatedDuration) : '—';
+  const tss = s.estimatedTSS || '—';
+
+  // Segment breakdown for workouts
+  let segmentHTML = '';
+  if (s.type === 'workout' && s.segments) {
+    const TYPE_LABELS = { warmup: 'Warmup', steady: 'Steady State', interval: 'Intervals', cooldown: 'Cooldown', free: 'Free Ride' };
+    segmentHTML = `<div class="sgn-detail-section">
+      <div class="sgn-detail-section-title">Workout Structure</div>
+      <div class="sgn-detail-segments">${s.segments.map(seg => {
+        const power = seg.type === 'steady' ? seg.power : seg.type === 'warmup' || seg.type === 'cooldown' ? Math.round((seg.powerLow + seg.powerHigh) / 2) : seg.type === 'interval' ? seg.onPower : 55;
+        const segDur = seg.type === 'interval' ? seg.reps * (seg.onDuration + seg.offDuration) : seg.duration;
+        let detail = '';
+        if (seg.type === 'warmup' || seg.type === 'cooldown') detail = `${seg.powerLow}→${seg.powerHigh}% FTP`;
+        else if (seg.type === 'steady') detail = `${seg.power}% FTP`;
+        else if (seg.type === 'interval') detail = `${seg.reps}× ${Math.floor(seg.onDuration/60)}min @ ${seg.onPower}%`;
+        else detail = 'No target';
+        return `<div class="sgn-seg-row">
+          <span class="sgn-seg-swatch" style="background:${wrkZoneColor(power)}"></span>
+          <div class="sgn-seg-info"><span class="sgn-seg-name">${TYPE_LABELS[seg.type] || seg.type}</span><span class="sgn-seg-detail">${wrkFmtTime(segDur)} · ${detail}</span></div>
+        </div>`;
+      }).join('')}</div>
+    </div>`;
+  }
+
+  // Route info for route suggestions
+  let routeHTML = '';
+  if (s.type === 'route' && s.activityRef) {
+    const a = s.activityRef;
+    const dist = a.distance ? (a.distance / 1000).toFixed(1) + ' km' : '';
+    const elev = a.total_elevation_gain ? '+' + Math.round(a.total_elevation_gain) + 'm' : '';
+    const time = a.moving_time ? _fmtDuration(a.moving_time) : '';
+    routeHTML = `<div class="sgn-detail-section">
+      <div class="sgn-detail-section-title">Route Details</div>
+      <div class="sgn-route-stats">
+        ${dist ? `<div class="sgn-route-stat"><span class="sgn-route-stat-val">${dist}</span><span class="sgn-route-stat-lbl">Distance</span></div>` : ''}
+        ${elev ? `<div class="sgn-route-stat"><span class="sgn-route-stat-val">${elev}</span><span class="sgn-route-stat-lbl">Elevation</span></div>` : ''}
+        ${time ? `<div class="sgn-route-stat"><span class="sgn-route-stat-val">${time}</span><span class="sgn-route-stat-lbl">Est. Time</span></div>` : ''}
+      </div>
+    </div>`;
+  }
+
+  // Action buttons
+  const actionHTML = s.type === 'workout'
+    ? `<button class="wrk-save-btn" onclick="wrkLoadWorkout({id:null,name:'${s.title.replace(/'/g,"\\'")}',segments:window._mrActiveSuggestion.segments,ftpOverride:null});navigate('workout')">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3l14 9-14 9V3z"/></svg>
+        Load in Workout Builder
+      </button>`
+    : `<button class="wrk-save-btn" onclick="navigateToActivity(window._mrActiveSuggestion.activityRef)">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M17 7h4v4"/></svg>
+        View Ride Details
+      </button>`;
+
+  el.innerHTML = `
+    <button class="sgn-back-btn" onclick="navigate('myroutes')">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      Library
+    </button>
+
+    <div class="sgn-detail-hero" style="--sgn-color:${int.color}">
+      <div class="sgn-detail-intensity">${int.icon}<span>${int.label}</span></div>
+      <h1 class="sgn-detail-title">${s.title}</h1>
+      <p class="sgn-detail-subtitle">${s.subtitle || ''}</p>
+      <div class="sgn-detail-quick-stats">
+        <div class="sgn-quick-stat"><span class="sgn-quick-val">${dur}</span><span class="sgn-quick-lbl">Duration</span></div>
+        <div class="sgn-quick-stat"><span class="sgn-quick-val">${tss}</span><span class="sgn-quick-lbl">Est. TSS</span></div>
+      </div>
+    </div>
+
+    <div class="sgn-detail-section">
+      <div class="sgn-detail-section-title">Why This Workout</div>
+      <div class="sgn-reason-card">
+        <p>${s.reason}</p>
+      </div>
+    </div>
+
+    <div class="sgn-detail-section">
+      <div class="sgn-detail-section-title">Your Current Status</div>
+      <div class="sgn-status-row">
+        <div class="sgn-status-pill"><span class="sgn-status-val">${Math.round(ctl)}</span><span class="sgn-status-lbl">Fitness</span></div>
+        <div class="sgn-status-pill"><span class="sgn-status-val">${Math.round(atl)}</span><span class="sgn-status-lbl">Fatigue</span></div>
+        <div class="sgn-status-pill"><span class="sgn-status-val">${Math.round(tsb)}</span><span class="sgn-status-lbl">Form</span></div>
+        ${w.fatigue ? `<div class="sgn-status-pill"><span class="sgn-status-val">${w.fatigue}/5</span><span class="sgn-status-lbl">Tiredness</span></div>` : ''}
+      </div>
+    </div>
+
+    ${segmentHTML}
+    ${routeHTML}
+
+    <div style="padding:0 0 30px">${actionHTML}</div>
+  `;
 }
 
 async function renderMyRoutesPage() {
@@ -24545,17 +24939,35 @@ async function renderMyRoutesPage() {
   window._mrActLookup = {};
   gpsActivities.forEach(a => { window._mrActLookup[a.id || a.icu_id] = a; });
 
+  // Load saved workouts
+  const savedWorkouts = await wrkLoadAll();
+  window._mrSavedWorkouts = savedWorkouts;
+  window._mrWorkoutLookup = {};
+  savedWorkouts.forEach(w => { window._mrWorkoutLookup[w.id] = w; });
+
   const totalRoutes = savedRoutes.length;
   const totalKm = Math.round(gpsActivities.reduce((s, a) => s + (a.distance || 0), 0) / 1000);
   const totalElev = Math.round(gpsActivities.reduce((s, a) => s + (a.total_elevation_gain || 0), 0));
   const heroEl = document.getElementById('mrHero');
   if (heroEl) {
     heroEl.innerHTML = `
-      <div class="mr-hero-stat"><span class="mr-hero-val">${totalRoutes}</span><span class="mr-hero-label">Saved Routes</span></div>
+      <div class="mr-hero-stat"><span class="mr-hero-val">${totalRoutes}</span><span class="mr-hero-label">Routes</span></div>
+      <div class="mr-hero-stat"><span class="mr-hero-val">${savedWorkouts.length}</span><span class="mr-hero-label">Workouts</span></div>
       <div class="mr-hero-stat"><span class="mr-hero-val">${totalKm.toLocaleString()}</span><span class="mr-hero-label">km Ridden</span></div>
       <div class="mr-hero-stat"><span class="mr-hero-val">${totalElev.toLocaleString()}</span><span class="mr-hero-label">m Climbed</span></div>
-      <div class="mr-hero-stat"><span class="mr-hero-val">${gpsActivities.length}</span><span class="mr-hero-label">Rides</span></div>
     `;
+  }
+
+  // Suggestions
+  const suggestions = _mrBuildSuggestions();
+  window._mrSuggestions = suggestions;
+  const sgnScroll = document.getElementById('mrSuggestedScroll');
+  const sgnSection = document.getElementById('mrSuggestedSection');
+  if (suggestions.length && sgnScroll) {
+    sgnScroll.innerHTML = suggestions.map(s => _mrSuggestionCard(s)).join('');
+    if (sgnSection) sgnSection.style.display = '';
+  } else if (sgnSection) {
+    sgnSection.style.display = 'none';
   }
 
   const MR_MAX = 15;
@@ -24566,6 +24978,12 @@ async function renderMyRoutesPage() {
   if (savedRoutes.length === 0 && savedSection) savedSection.style.display = 'none';
   else if (savedSection) savedSection.style.display = '';
   _mrRenderSection('mrSavedScroll', savedRoutes.slice(0, MR_MAX).map(r => _mrRouteCard(r)).join(''));
+
+  // Workout section
+  const workoutSection = document.getElementById('mrWorkoutSection');
+  if (savedWorkouts.length === 0 && workoutSection) workoutSection.style.display = 'none';
+  else if (workoutSection) workoutSection.style.display = '';
+  _mrRenderSection('mrWorkoutScroll', savedWorkouts.slice(0, MR_MAX).map(w => _mrWorkoutCard(w)).join(''));
 
   const longest = [...gpsActivities].sort((a, b) => (b.distance || 0) - (a.distance || 0)).slice(0, MR_MAX);
   _mrRenderSection('mrLongestScroll', longest.map(a => _mrRideCard(a, 'ride')).join(''));
@@ -24612,6 +25030,7 @@ Object.assign(window, { renderHeatmapPage, hmLoadAllRoutes, hmApplyFilters,
 // ── From workout.js (includes settings/theme functions) ──
 Object.assign(window, { wrkRender, wrkRefreshStats, wrkSetName, wrkAddSegment, wrkRemove, wrkMove,
   wrkToggleEdit, wrkSet, wrkClear, wrkExportZwo, wrkExportFit, wrkDownload,
+  wrkSave, wrkLoadAll, wrkDeleteSaved, wrkLoadWorkout,
   wrkSetFtp, buildFitWorkout, loadMapTheme, setMapTheme, loadAppFont, setAppFont,
   copyShareLink, shareToTwitter, shareToWhatsApp, shareToReddit,
   _isDark, _updateChartColors, setTheme, loadPhysicsScroll, setPhysicsScroll,
@@ -24703,7 +25122,7 @@ Object.assign(window, {
   actVal, fmtDate, fmtDist, fmtSpeed,
   C_TOOLTIP, C_TICK, C_GRID,
   // My Routes
-  mrSwitchTab, mrFilter, mrToggleFav, renderMyRoutesPage,
+  mrSwitchTab, mrFilter, mrToggleFav, renderMyRoutesPage, _mrOpenSuggestion, renderSuggestionPage,
 });
 
 // ── Also expose constants ──

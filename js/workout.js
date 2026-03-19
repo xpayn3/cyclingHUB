@@ -28,6 +28,7 @@ const wrkState = {
   segments: [],
   editIdx: null,
   ftpOverride: null,
+  saveId: null,
 };
 
 // Segment type defaults
@@ -197,17 +198,23 @@ export function wrkDrawChart() {
       wrkDrawFree(ctx, x, segW, MAX_PCT, PAD_T, cH);
     }
 
-    // Selection highlight
+    // Selection highlight — subtle top glow line
     if (isSelected) {
       const topPct = seg.type === 'interval' ? Math.max(seg.onPower, seg.offPower)
                    : seg.type === 'warmup' || seg.type === 'cooldown' ? Math.max(seg.powerLow, seg.powerHigh)
                    : seg.type === 'steady' ? seg.power : 55;
       const selY = PAD_T + cH * (1 - topPct / MAX_PCT);
-      ctx.strokeStyle = _isDark() ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.5)';
+      // Glow overlay
+      const glow = ctx.createLinearGradient(0, selY, 0, selY + 20);
+      glow.addColorStop(0, 'rgba(0,229,160,0.25)');
+      glow.addColorStop(1, 'rgba(0,229,160,0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(x, selY, segW, 20);
+      // Top accent line
+      ctx.strokeStyle = 'rgba(0,229,160,0.6)';
       ctx.lineWidth = 2;
-      ctx.setLineDash([3, 3]);
-      ctx.strokeRect(x + 1, selY, segW - 2, cH + PAD_T - selY - 1);
       ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(x, selY); ctx.lineTo(x + segW, selY); ctx.stroke();
     }
 
     // Time label at segment start (skip first and very narrow ones)
@@ -272,7 +279,7 @@ export function wrkRender() {
   const segs = wrkState.segments;
 
   if (!segs.length) {
-    list.innerHTML = '<div class="wrk-list-empty">No segments yet — add one below</div>';
+    list.innerHTML = '<div class="wrk-list-empty">No segments yet — add one above</div>';
     return;
   }
 
@@ -465,6 +472,7 @@ export function wrkClear() {
   wrkState.segments = [];
   wrkState.editIdx  = null;
   wrkState.name     = 'New Workout';
+  wrkState.saveId   = null;
   const inp = document.getElementById('wrkNameInput');
   if (inp) inp.value = 'New Workout';
   wrkRender();
@@ -517,6 +525,85 @@ export function wrkExportFit() {
   } catch(e) {
     showToast('FIT export failed: ' + e.message, 'error');
   }
+}
+
+/* ── Workout persistence (IndexedDB) ──────────── */
+const WRK_DB = 'cycleiq_workouts';
+const WRK_STORE = 'workouts';
+
+async function _wrkOpenDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(WRK_DB, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(WRK_STORE))
+        db.createObjectStore(WRK_STORE, { keyPath: 'id' });
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+export async function wrkSave() {
+  if (!wrkState.segments.length) { showToast('Add segments first', 'error'); return; }
+  try {
+    const db = await _wrkOpenDB();
+    const workout = {
+      id: wrkState.saveId || crypto.randomUUID(),
+      name: wrkState.name || 'Untitled Workout',
+      ts: Date.now(),
+      segments: JSON.parse(JSON.stringify(wrkState.segments)),
+      tssEstimate: wrkEstimateTSS(),
+      totalDuration: wrkTotalSecs(),
+      ftpOverride: wrkState.ftpOverride,
+    };
+    const tx = db.transaction(WRK_STORE, 'readwrite');
+    tx.objectStore(WRK_STORE).put(workout);
+    await new Promise((r, j) => { tx.oncomplete = r; tx.onerror = j; });
+    db.close();
+    wrkState.saveId = workout.id;
+    showToast('Workout saved', 'success');
+  } catch (e) {
+    console.error('wrkSave', e);
+    showToast('Failed to save workout', 'error');
+  }
+}
+
+export async function wrkLoadAll() {
+  try {
+    const db = await _wrkOpenDB();
+    const tx = db.transaction(WRK_STORE, 'readonly');
+    const all = await new Promise((r, j) => {
+      const req = tx.objectStore(WRK_STORE).getAll();
+      req.onsuccess = () => r(req.result || []);
+      req.onerror = j;
+    });
+    db.close();
+    return all.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  } catch { return []; }
+}
+
+export async function wrkDeleteSaved(id) {
+  try {
+    const db = await _wrkOpenDB();
+    const tx = db.transaction(WRK_STORE, 'readwrite');
+    tx.objectStore(WRK_STORE).delete(id);
+    await new Promise((r, j) => { tx.oncomplete = r; tx.onerror = j; });
+    db.close();
+  } catch {}
+}
+
+export function wrkLoadWorkout(workout) {
+  wrkState.name = workout.name || 'Untitled Workout';
+  wrkState.segments = JSON.parse(JSON.stringify(workout.segments || []));
+  wrkState.editIdx = null;
+  wrkState.ftpOverride = workout.ftpOverride || null;
+  wrkState.saveId = workout.id;
+  const inp = document.getElementById('wrkNameInput');
+  if (inp) inp.value = wrkState.name;
+  const ftpInp = document.getElementById('wrkFtpInput');
+  if (ftpInp) ftpInp.value = wrkState.ftpOverride || '';
+  wrkRender();
 }
 
 export function wrkDownload(filename, content, mime) {

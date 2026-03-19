@@ -1159,7 +1159,13 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
                     </svg>
-                    My Routes
+                    Library
+                </div>
+                <div class="nav-item" data-page="workout" onclick="navigate('workout');closeSidebar();">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="7" width="20" height="10" rx="2"/><line x1="7" y1="7" x2="7" y2="17"/><line x1="17" y1="7" x2="17" y2="17"/>
+                    </svg>
+                    Workout Builder
                 </div>
                 <span class="nav-section-label">Account</span>
                 <div
@@ -4231,160 +4237,106 @@
 
                 <!-- ==================== WORKOUT BUILDER ==================== -->
                 <div class="page" id="page-workout">
-                    <!-- Top bar: name + stats -->
-                    <div class="wrk-topbar">
-                        <input
-                            class="wrk-name-input"
-                            id="wrkNameInput"
-                            placeholder="Workout name"
-                            value="New Workout"
-                            oninput="wrkSetName(this.value)"
-                        />
-                        <div class="wrk-topbar-stats">
-                            <span class="wrk-stat"
-                                ><span class="wrk-stat-val" id="wrkTotalTime"
-                                    >0:00</span
-                                ><span class="wrk-stat-lbl"
-                                    >duration</span
-                                ></span
-                            >
-                            <span class="wrk-stat-sep">·</span>
-                            <span class="wrk-stat"
-                                ><span class="wrk-stat-val" id="wrkTotalTSS"
-                                    >0</span
-                                ><span class="wrk-stat-lbl">TSS</span></span
-                            >
-                            <span class="wrk-stat-sep">·</span>
-                            <span class="wrk-stat"
-                                ><span class="wrk-stat-val" id="wrkFtpDisp"
-                                    >—</span
-                                ><span class="wrk-stat-lbl">FTP w</span></span
-                            >
+                    <!-- Hero header -->
+                    <div class="wrk-hero">
+                        <div class="wrk-hero-top">
+                            <input class="wrk-name-input" id="wrkNameInput" placeholder="Workout name" value="New Workout" oninput="wrkSetName(this.value)"/>
+                            <button class="wrk-new-btn" onclick="wrkClear()" title="New workout">
+                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            </button>
                         </div>
-                        <button
-                            class="btn btn-ghost wrk-clear-btn"
-                            onclick="wrkClear()"
-                        >
-                            New
-                        </button>
+                        <div class="wrk-hero-stats">
+                            <div class="wrk-hero-pill">
+                                <span class="wrk-hero-pill-val" id="wrkTotalTime">0:00</span>
+                                <span class="wrk-hero-pill-lbl">Duration</span>
+                            </div>
+                            <div class="wrk-hero-pill">
+                                <span class="wrk-hero-pill-val" id="wrkTotalTSS">0</span>
+                                <span class="wrk-hero-pill-lbl">TSS</span>
+                            </div>
+                            <div class="wrk-hero-pill">
+                                <span class="wrk-hero-pill-val" id="wrkFtpDisp">—</span>
+                                <span class="wrk-hero-pill-lbl">FTP</span>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Visual chart -->
-                    <div class="card wrk-chart-card">
+                    <div class="wrk-chart-card">
                         <canvas id="wrkCanvas" class="wrk-canvas"></canvas>
                         <div class="wrk-chart-empty" id="wrkChartEmpty">
-                            Add segments below to preview your workout
+                            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.3;margin-bottom:8px"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 15l4-4 4 4 4-6 6 6"/></svg>
+                            Add segments to preview your workout
                         </div>
                     </div>
 
-                    <!-- Segment list -->
-                    <div class="card">
-                        <div class="card-header">
-                            <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Segments</div>
+                    <!-- Add segment bar -->
+                    <div class="wrk-add-bar">
+                        <button class="wrk-add-chip" onclick="wrkAddSegment('warmup')">
+                            <span class="wrk-add-dot" style="background:#4a9eff"></span>Warmup
+                        </button>
+                        <button class="wrk-add-chip" onclick="wrkAddSegment('steady')">
+                            <span class="wrk-add-dot" style="background:#00e5a0"></span>Steady
+                        </button>
+                        <button class="wrk-add-chip" onclick="wrkAddSegment('interval')">
+                            <span class="wrk-add-dot" style="background:#ff6b35"></span>Interval
+                        </button>
+                        <button class="wrk-add-chip" onclick="wrkAddSegment('cooldown')">
+                            <span class="wrk-add-dot" style="background:#8888bb"></span>Cooldown
+                        </button>
+                        <button class="wrk-add-chip" onclick="wrkAddSegment('free')">
+                            <span class="wrk-add-dot" style="background:#777"></span>Free Ride
+                        </button>
+                    </div>
+
+                    <!-- Segment list (iOS grouped) -->
+                    <div class="wrk-seg-section">
+                        <div class="wrk-seg-section-header">
+                            <span class="wrk-seg-section-title">Segments</span>
                             <div class="wrk-ftp-row">
-                                <label class="wrk-ftp-label"
-                                    >FTP override</label
-                                >
-                                <input
-                                    class="wrk-ftp-input"
-                                    id="wrkFtpInput"
-                                    type="number"
-                                    min="50"
-                                    max="600"
-                                    placeholder="auto"
-                                    oninput="wrkSetFtp(this.value)"
-                                />
-                                <span class="wrk-ftp-unit">w</span>
+                                <label class="wrk-ftp-label">FTP</label>
+                                <input class="wrk-ftp-input" id="wrkFtpInput" type="number" min="50" max="600" placeholder="auto" oninput="wrkSetFtp(this.value)"/>
+                                <span class="wrk-ftp-unit">W</span>
                             </div>
                         </div>
                         <div class="wrk-segment-list" id="wrkSegmentList">
-                            <div class="wrk-list-empty">
-                                No segments yet — add one below
-                            </div>
+                            <div class="wrk-list-empty">No segments yet — add one above</div>
                         </div>
-                        <div class="wrk-add-bar">
-                            <button
-                                class="btn btn-ghost wrk-add-btn"
-                                onclick="wrkAddSegment('warmup')"
-                            >
-                                + Warmup
+                    </div>
+
+                    <!-- Export section (iOS grouped) -->
+                    <div class="wrk-export-section">
+                        <span class="wrk-seg-section-title">Export</span>
+                        <div class="wrk-export-card">
+                            <button class="wrk-export-row" onclick="wrkExportZwo()">
+                                <div class="wrk-export-icon wrk-export-icon--zwift">
+                                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                </div>
+                                <div class="wrk-export-row-info">
+                                    <span class="wrk-export-row-title">Zwift Workout</span>
+                                    <span class="wrk-export-row-sub">.zwo file for Documents/Zwift/Workouts</span>
+                                </div>
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="wrk-export-chevron"><polyline points="9 18 15 12 9 6"/></svg>
                             </button>
-                            <button
-                                class="btn btn-ghost wrk-add-btn"
-                                onclick="wrkAddSegment('steady')"
-                            >
-                                + Steady
-                            </button>
-                            <button
-                                class="btn btn-ghost wrk-add-btn"
-                                onclick="wrkAddSegment('interval')"
-                            >
-                                + Interval
-                            </button>
-                            <button
-                                class="btn btn-ghost wrk-add-btn"
-                                onclick="wrkAddSegment('cooldown')"
-                            >
-                                + Cooldown
-                            </button>
-                            <button
-                                class="btn btn-ghost wrk-add-btn"
-                                onclick="wrkAddSegment('free')"
-                            >
-                                + Free Ride
+                            <div class="wrk-export-divider"></div>
+                            <button class="wrk-export-row" onclick="wrkExportFit()">
+                                <div class="wrk-export-icon wrk-export-icon--garmin">
+                                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                </div>
+                                <div class="wrk-export-row-info">
+                                    <span class="wrk-export-row-title">Garmin Workout</span>
+                                    <span class="wrk-export-row-sub">.fit file for Garmin Connect</span>
+                                </div>
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="wrk-export-chevron"><polyline points="9 18 15 12 9 6"/></svg>
                             </button>
                         </div>
                     </div>
 
-                    <!-- Export bar -->
-                    <div class="card wrk-export-card">
-                        <div class="wrk-export-info">
-                            <div class="wrk-export-title">Export workout</div>
-                            <div class="wrk-export-sub">
-                                Zwift: load the .zwo file from
-                                Documents/Zwift/Workouts · Garmin: sideload the
-                                .fit to your device or import via Garmin Connect
-                            </div>
-                        </div>
-                        <div class="wrk-export-btns">
-                            <button
-                                class="btn btn-primary"
-                                onclick="wrkExportZwo()"
-                            >
-                                <svg
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                >
-                                    <path
-                                        d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
-                                    />
-                                    <polyline points="7 10 12 15 17 10" />
-                                    <line x1="12" y1="15" x2="12" y2="3" />
-                                </svg>
-                                Zwift (.zwo)
-                            </button>
-                            <button
-                                class="btn btn-ghost"
-                                onclick="wrkExportFit()"
-                            >
-                                <svg
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                >
-                                    <path
-                                        d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
-                                    />
-                                    <polyline points="7 10 12 15 17 10" />
-                                    <line x1="12" y1="15" x2="12" y2="3" />
-                                </svg>
-                                Garmin (.fit)
-                            </button>
-                        </div>
-                    </div>
+                    <!-- Save button -->
+                    <button class="wrk-save-btn" onclick="wrkSave()">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                        Save to Library
+                    </button>
                 </div>
 
                 <!-- ==================== TRAINING GUIDE PAGE ==================== -->
@@ -5704,6 +5656,10 @@
 
                     <div class="mr-tab-content active" id="mrExplore">
                         <div class="mr-hero" id="mrHero"></div>
+                        <div class="mr-section" id="mrSuggestedSection">
+                            <div class="mr-section-header"><span class="mr-section-title">Suggested For You</span></div>
+                            <div class="mr-scroll" id="mrSuggestedScroll"></div>
+                        </div>
                         <div class="mr-section" id="mrRecentSection">
                             <div class="mr-section-header"><span class="mr-section-title">Recent Rides</span><svg viewBox="0 0 7 12" width="10" height="14"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
                             <div class="mr-scroll" id="mrRecentScroll"></div>
@@ -5711,6 +5667,10 @@
                         <div class="mr-section" id="mrSavedSection">
                             <div class="mr-section-header"><span class="mr-section-title">Saved Routes</span><svg viewBox="0 0 7 12" width="10" height="14"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
                             <div class="mr-scroll" id="mrSavedScroll"></div>
+                        </div>
+                        <div class="mr-section" id="mrWorkoutSection" style="display:none">
+                            <div class="mr-section-header"><span class="mr-section-title">Saved Workouts</span><svg viewBox="0 0 7 12" width="10" height="14"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                            <div class="mr-scroll" id="mrWorkoutScroll"></div>
                         </div>
                         <div class="mr-section" id="mrLongestSection">
                             <div class="mr-section-header"><span class="mr-section-title">Longest Rides</span><svg viewBox="0 0 7 12" width="10" height="14"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
@@ -5725,16 +5685,22 @@
                     <div class="mr-tab-content" id="mrCollection" style="display:none">
                         <div class="mr-filters" id="mrFilters">
                             <button class="mr-pill active" data-filter="all" onclick="mrFilter('all')">All</button>
-                            <button class="mr-pill" data-filter="saved" onclick="mrFilter('saved')">Saved Routes</button>
+                            <button class="mr-pill" data-filter="saved" onclick="mrFilter('saved')">Routes</button>
+                            <button class="mr-pill" data-filter="workouts" onclick="mrFilter('workouts')">Workouts</button>
                             <button class="mr-pill" data-filter="favorites" onclick="mrFilter('favorites')">Favorites</button>
                         </div>
                         <div class="mr-list" id="mrList"></div>
                         <div class="mr-empty" id="mrEmpty" style="display:none">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                            <p>No routes yet</p>
-                            <button class="btn btn-primary" onclick="navigate('routes')">Create your first route</button>
+                            <p>Nothing here yet</p>
+                            <button class="btn btn-primary" onclick="navigate('routes')">Create a route</button>
                         </div>
                     </div>
+                </div>
+
+                <!-- ==================== SUGGESTION DETAIL PAGE ==================== -->
+                <div class="page" id="page-suggestion">
+                    <div id="suggestionPageContent"></div>
                 </div>
 
                 <!-- ==================== GOALS & STREAKS PAGE ==================== -->
