@@ -2244,7 +2244,12 @@ input[type="number"] {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
+    gap: 8px;
     margin-bottom: 12px;
+}
+.card-header > div:first-child {
+    min-width: 0;
+    flex-shrink: 1;
 }
 .card-title {
     font-size: var(--text-md);
