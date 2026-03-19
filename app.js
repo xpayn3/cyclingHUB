@@ -24489,7 +24489,7 @@ function _h2hCalcDiffs(values, higherIsBetter) {
 
 // Capture any saved route before navigate() overwrites sessionStorage
 const _initRoute = (() => { try { return JSON.parse(sessionStorage.getItem('icu_route')); } catch { return null; } })();
-const _validInitPages = ['dashboard','activities','calendar','fitness','power','zones','weather','settings','workout','guide','compare','heatmap','goals','import'];
+const _validInitPages = ['dashboard','activities','calendar','fitness','power','zones','weather','settings','workout','guide','compare','heatmap','goals','import','gear','myroutes','routes'];
 const _startPage = (_initRoute && _initRoute.type === 'page' && _validInitPages.includes(_initRoute.page)) ? _initRoute.page : 'dashboard';
 
 // navigate(_startPage) is called after cache loading below
