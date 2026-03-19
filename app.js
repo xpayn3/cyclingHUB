@@ -8242,7 +8242,7 @@ function renderZoneDist(activities) {
   const _ztb = document.getElementById('zoneTotalBadge');
   if (_ztb) _ztb.textContent = fmtDur(totalSecs) + ' total';
   const _zds = document.getElementById('zoneDistSubtitle');
-  if (_zds) _zds.textContent = `Time in power zone · Last ${state.rangeDays} days`;
+  if (_zds) _zds.textContent = `Time in power zone`;
 
   // Zone rows
   document.getElementById('zoneList').innerHTML = ZONE_TAGS.map((tag, i) => {
