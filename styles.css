@@ -19140,10 +19140,29 @@ html[data-theme="light"] {
     border-color: var(--glass-border);
     box-shadow: 0 2px 12px var(--shadow-overlay);
 }
+[data-theme="light"] .dash-pill-btn {
+    color: var(--text-secondary);
+}
+[data-theme="light"] .dash-pill-btn svg {
+    stroke: var(--text-secondary);
+    opacity: 1;
+}
+[data-theme="light"] .dash-pill-btn.active {
+    color: var(--accent);
+}
+[data-theme="light"] .dash-pill-btn.active svg {
+    stroke: var(--accent);
+}
 [data-theme="light"] .floating-range-pill {
     background: var(--glass-bg);
     border-color: var(--glass-border);
     box-shadow: 0 2px 8px var(--shadow-overlay);
+}
+[data-theme="light"] .floating-range-pill button {
+    color: var(--text-secondary);
+}
+[data-theme="light"] .floating-range-pill button.active {
+    color: #fff;
 }
 [data-theme="light"] .cal-fab,
 [data-theme="light"] #actSaveRouteFab,
