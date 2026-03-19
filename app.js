@@ -20799,6 +20799,7 @@ function openGearModal(editId) {
       titleEl.textContent = 'Edit Component';
       document.getElementById('gearFormName').value        = comp.name        || '';
       document.getElementById('gearFormBrand').value       = comp.brand       || '';
+      _gearUpdateModels(); // populate model options for this brand
       document.getElementById('gearFormModel').value       = comp.model       || '';
       document.getElementById('gearFormDate').value        = comp.purchaseDate|| '';
       document.getElementById('gearFormPrice').value       = comp.price       || '';
@@ -20817,6 +20818,7 @@ function openGearModal(editId) {
   document.getElementById('gearFormBike')?._cddRefresh?.();
   document.getElementById('gearFormCategory')?._cddRefresh?.();
   document.getElementById('gearFormBrand')?._cddRefresh?.();
+  document.getElementById('gearFormModel')?._cddRefresh?.();
 
   // Brand → Model suggestions
   const brandSel = document.getElementById('gearFormBrand');
@@ -20829,10 +20831,11 @@ function openGearModal(editId) {
 
 function _gearUpdateModels() {
   const brand = document.getElementById('gearFormBrand')?.value || '';
-  const dl = document.getElementById('gearModelList');
-  if (!dl) return;
+  const sel = document.getElementById('gearFormModel');
+  if (!sel) return;
   const models = _GEAR_BRAND_MODELS[brand] || [];
-  dl.innerHTML = models.map(m => `<option value="${m}">`).join('');
+  sel.innerHTML = '<option value="">— Select model —</option>' + models.map(m => `<option value="${m}">${m}</option>`).join('');
+  sel._cddRefresh?.();
 }
 
 const _GEAR_BRAND_MODELS = {
