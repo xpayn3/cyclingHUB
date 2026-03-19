@@ -8960,6 +8960,57 @@ async function renderPowerPage() {
   renderKjElevationChart(days);
   renderKjMetabolicChart(days);
   renderKjFuelingChart(days);
+
+  // Power Profile + Avg Power (moved from dashboard)
+  try {
+    const cutoff = daysAgo(days);
+    const recent = state.activities.filter(a => new Date(a.start_date_local || a.start_date) >= cutoff && !isEmptyActivity(a));
+    _renderPwrPageProfile(days, ftp, weight);
+    _renderPwrPageAvgPower(recent);
+  } catch(e) { console.warn('Power page extras:', e); }
+}
+
+function _renderPwrPageProfile(days, ftp, weight) {
+  const card = document.getElementById('pwrPageProfileCard');
+  const canvas = document.getElementById('pwrPageProfileRadar');
+  if (!card || !canvas) return;
+  // Reuse the dashboard power profile radar logic
+  const durations = [5, 60, 300, 1200];
+  const labels = ['5s Sprint', '1min', '5min', '20min'];
+  const curve = state.powerCurve;
+  if (!curve || !ftp) { card.style.display = 'none'; return; }
+  const vals = durations.map(d => {
+    const pt = curve.find(p => p[0] === d);
+    return pt ? pt[1] : 0;
+  });
+  if (vals.every(v => v === 0)) { card.style.display = 'none'; return; }
+  card.style.display = '';
+  const wkg = weight > 0 ? vals.map(v => +(v / weight).toFixed(2)) : vals;
+  const ctx = canvas.getContext('2d');
+  if (state._pwrPageProfileChart) { state._pwrPageProfileChart.destroy(); }
+  state._pwrPageProfileChart = new Chart(ctx, {
+    type: 'radar',
+    data: { labels, datasets: [{ data: wkg, borderColor: ACCENT, backgroundColor: 'rgba(0,229,160,0.1)', borderWidth: 2, pointRadius: 4, pointBackgroundColor: ACCENT }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { r: { ticks: { display: false }, grid: { color: _chartSubgrid() }, pointLabels: { color: _chartLabel(), font: { size: 11 } } } } }
+  });
+}
+
+function _renderPwrPageAvgPower(activities) {
+  const card = document.getElementById('pwrPageAvgPowerCard');
+  const canvas = document.getElementById('pwrPageAvgPowerChart');
+  if (!card || !canvas) return;
+  const data = activities.filter(a => a.avg_power || a.icu_weighted_avg_watts).slice(0, 30).reverse();
+  if (data.length < 3) { card.style.display = 'none'; return; }
+  card.style.display = '';
+  const labels = data.map(a => new Date(a.start_date_local || a.start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }));
+  const vals = data.map(a => a.avg_power || a.icu_weighted_avg_watts || 0);
+  const ctx = canvas.getContext('2d');
+  if (state._pwrPageAvgChart) { state._pwrPageAvgChart.destroy(); }
+  state._pwrPageAvgChart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ data: vals, backgroundColor: 'rgba(0,229,160,0.5)', borderRadius: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP } }, scales: { ...cScales({ xExtra: { maxTicksLimit: 8 } }) } }
+  });
 }
 
 // ── Hero stat cards ─────────────────────────────────────────────────────────

@@ -2038,7 +2038,7 @@
                     <!-- Average Power + Zone Distribution side by side -->
                     <div data-dash-section="powerZones">
                         <div class="card-row">
-                            <div class="card" id="avgPowerCard">
+                            <div class="card" id="avgPowerCard" style="display:none">
                                 <div class="card-header">
                                     <div>
                                         <div class="card-title" style="color:#00e5a0">
@@ -2120,7 +2120,7 @@
                     </div>
 
                     <!-- Power Profile Radar -->
-                    <div data-dash-section="powerProfile">
+                    <div data-dash-section="powerProfile" style="display:none">
                         <div class="card" id="powerProfileCard" style="display: none">
                             <div class="card-header">
                                 <div>
@@ -4160,6 +4160,31 @@
                         </div>
                         <div class="chart-wrap" style="height:200px">
                             <canvas id="kjFuelingChart"></canvas>
+                        </div>
+                    </div>
+                    <!-- Power Profile Radar (moved from dashboard) -->
+                    <div class="card" id="pwrPageProfileCard" style="display:none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>Power Profile</div>
+                                <div class="card-subtitle" id="pwrPageProfileSub">Rider type analysis</div>
+                            </div>
+                        </div>
+                        <div class="chart-wrap chart-wrap--lg">
+                            <canvas id="pwrPageProfileRadar"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Average Power Trend (moved from dashboard) -->
+                    <div class="card" id="pwrPageAvgPowerCard" style="display:none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#00e5a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Average Power</div>
+                                <div class="card-subtitle">Per ride trend</div>
+                            </div>
+                        </div>
+                        <div class="chart-wrap">
+                            <canvas id="pwrPageAvgPowerChart"></canvas>
                         </div>
                     </div>
                 </div>
