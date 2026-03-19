@@ -21,26 +21,26 @@
         <meta property="og:description" content="Cycling training dashboard. Track CTL/ATL/TSB fitness, power curves, race predictions, and more." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="icon-512.png" />
-        <link rel="apple-touch-icon" href="icon-180.png" />
+        <link rel="apple-touch-icon" href="apple-touch-icon.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
         <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com" />
         <link rel="dns-prefetch" href="https://unpkg.com" />
-        <link rel="modulepreload" href="js/state.js" />
-        <link rel="modulepreload" href="js/weather.js" />
-        <link rel="modulepreload" href="js/share.js" />
-        <link rel="modulepreload" href="js/routes.js" />
-        <link rel="modulepreload" href="js/heatmap.js" />
-        <link rel="modulepreload" href="js/workout.js" />
-        <link rel="modulepreload" href="js/strava.js" />
-        <link rel="modulepreload" href="js/import.js" />
+        <link rel="modulepreload" href="js/state.min.js" />
+        <link rel="modulepreload" href="js/weather.min.js" />
+        <link rel="modulepreload" href="js/share.min.js" />
+        <link rel="modulepreload" href="js/routes.min.js" />
+        <link rel="modulepreload" href="js/heatmap.min.js" />
+        <link rel="modulepreload" href="js/workout.min.js" />
+        <link rel="modulepreload" href="js/strava.min.js" />
+        <link rel="modulepreload" href="js/import.min.js" />
         <link
             href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap"
             rel="stylesheet"
             media="print" onload="this.media='all'"
         />
-        <link rel="stylesheet" href="styles.css?v=4" />
+        <link rel="stylesheet" href="styles.min.css" />
         <script>
             // Apply saved theme immediately to avoid flash of dark theme
             (function(){var t=localStorage.getItem('icu_theme');if(t)document.documentElement.setAttribute('data-theme',t)})();
@@ -64,9 +64,100 @@
         <script defer src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" integrity="sha384-NElt3Op+9NBMCYaef5HxeJmU4Xeard/Lku8ek6hoPTvYkQPh3zLIrJP7KiRocsxO" crossorigin="anonymous"></script>
         <script defer src="https://unpkg.com/maplibre-gl@5.1.0/dist/maplibre-gl.js" crossorigin="anonymous"></script>
         <!-- FIT parser loaded on-demand in app.js (not needed at startup) -->
-        <script type="module" src="app.js?v=7"></script>
+        <script type="module" src="app.min.js"></script>
     </head>
     <body>
+        <!-- ============================================================  SPLASH SCREEN  ============================================================ -->
+        <div id="splashScreen" class="splash-screen" aria-hidden="true">
+            <div class="splash-content">
+                <div class="splash-logo">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#00e5a0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="9"/>
+                        <circle cx="12" cy="12" r="2"/>
+                        <line x1="12" y1="3" x2="12" y2="10"/>
+                        <line x1="12" y1="14" x2="12" y2="21"/>
+                        <line x1="3" y1="12" x2="10" y2="12"/>
+                        <line x1="14" y1="12" x2="21" y2="12"/>
+                    </svg>
+                </div>
+                <div class="splash-name">Cycle<span>IQ</span></div>
+            </div>
+        </div>
+        <!-- Failsafe: dismiss splash after 3s even if app.js errors -->
+        <script>setTimeout(function(){var s=document.getElementById('splashScreen');if(s){s.style.opacity='0';s.style.visibility='hidden';setTimeout(function(){if(s.parentNode)s.remove()},500)}},3000)</script>
+
+        <!-- ============================================================  PROFILE MODAL (plain div, no <dialog>) ============================================================ -->
+        <div class="prof-overlay" id="profileOverlay" style="display:none">
+            <div class="prof-overlay-backdrop" onclick="closeProfileModal()"></div>
+            <div class="prof-sheet" id="profileSheet">
+                <!-- Sticky compact header -->
+                <div class="prof-sticky-hdr" id="profStickyHdr">
+                    <div class="prof-sticky-pill">
+                        <img class="prof-sticky-avatar" id="profStickyAvatar" alt="">
+                        <span class="prof-sticky-name" id="profStickyName">Cyclist</span>
+                    </div>
+                    <span class="prof-sticky-lvl" id="profStickyLvl">11</span>
+                </div>
+                <!-- Scrollable content -->
+                <div class="prof-scroll" id="profScroll">
+                    <div class="prof-hero">
+                        <div class="prof-grabber"></div>
+                        <div class="prof-hero-content">
+                            <div class="prof-avatar-wrap">
+                                <img id="profileAvatar" class="prof-avatar" alt="avatar">
+                                <div class="prof-lvl-ring" id="profileLvlBadge">8</div>
+                            </div>
+                            <div class="prof-name" id="profileName">Cyclist</div>
+                        </div>
+                    </div>
+                    <div class="prof-xp-section">
+                        <div class="prof-xp-header">
+                            <span class="prof-xp-next" id="profLevelLabel">Level 0</span>
+                            <span class="prof-xp-label" id="profileXpLabel">0 / 100 XP</span>
+                        </div>
+                        <div class="prof-xp-track">
+                            <div class="prof-xp-fill" id="profileXpBar"></div>
+                        </div>
+                    </div>
+                    <!-- Rider Profile Radar -->
+                    <div class="prof-radar-section">
+                        <div class="prof-radar-title">Rider Profile</div>
+                        <div class="prof-radar-wrap">
+                            <canvas id="profRadarChart" width="280" height="280"></canvas>
+                        </div>
+                    </div>
+                    <div class="prof-stats">
+                        <div class="prof-stat-card">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" width="18" height="18"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                            <span class="prof-stat-num" id="profTotalXP">0</span>
+                            <span class="prof-stat-lbl">Total XP</span>
+                        </div>
+                        <div class="prof-stat-card">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#5ac8fa" stroke-width="2" width="18" height="18"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                            <span class="prof-stat-num" id="profTotalRides">0</span>
+                            <span class="prof-stat-lbl">Rides</span>
+                        </div>
+                        <div class="prof-stat-card">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#ff9f0a" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                            <span class="prof-stat-num" id="profTotalDist">0</span>
+                            <span class="prof-stat-lbl">km</span>
+                        </div>
+                        <div class="prof-stat-card">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#bf5af2" stroke-width="2" width="18" height="18"><path d="M3 20l5-10 4 6 3-4 6 8"/></svg>
+                            <span class="prof-stat-num" id="profTotalElev">0</span>
+                            <span class="prof-stat-lbl">m climbed</span>
+                        </div>
+                    </div>
+                    <!-- Top XP Rides -->
+                    <div class="prof-best-ride" id="profBestRide" style="display:none">
+                        <div class="prof-radar-title">Top Rides</div>
+                        <div class="prof-best-list" id="profBestRideList"></div>
+                    </div>
+                    <div style="height:20px"></div>
+                </div>
+            </div>
+        </div>
+
         <!-- ============================================================  CONNECT MODAL  ============================================================ -->
         <dialog class="modal-dialog" id="connectModal" aria-labelledby="connectModalTitle">
             <div class="modal">
@@ -717,6 +808,7 @@
         </dialog>
 
         <!-- ============================================================  SIDEBAR  ============================================================ -->
+
         <div
             class="sidebar-backdrop"
             id="sidebarBackdrop"
@@ -1104,7 +1196,7 @@
                 </button>
                 <div
                     class="athlete-chip"
-                    onclick="openModal()"
+                    onclick="closeSidebar();openModal()"
                     title="Manage connection"
                 >
                     <div class="athlete-avatar" id="athleteAvatar">?</div>
@@ -1213,6 +1305,13 @@
                 <div class="ptr-indicator" id="ptrIndicator">
                     <svg class="ptr-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.22-8.56"/></svg>
                 </div>
+                <!-- Floating top row: profile + date range pill -->
+                <div class="floating-top-row" id="floatingTopRow">
+                    <button class="floating-profile-btn" onclick="openProfileModal()" aria-label="Profile">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>
+                        <span class="floating-profile-lvl" id="floatingProfileLvl"></span>
+                    </button>
+                </div>
                 <!-- Floating date range pills (moved from topbar) -->
                 <div class="floating-range-pill date-range-pill" id="dateRangePill">
                     <button onclick="setRange(7)" id="range7">7d</button>
@@ -1223,21 +1322,28 @@
                 </div>
                 <div class="floating-range-pill date-range-pill" id="zoneRangePill" style="display:none">
                     <button data-zdays="7" onclick="setZnpRange(7)">7d</button>
+                    <button data-zdays="14" onclick="setZnpRange(14)">14d</button>
                     <button class="active" data-zdays="30" onclick="setZnpRange(30)">30d</button>
                     <button data-zdays="90" onclick="setZnpRange(90)">90d</button>
                     <button data-zdays="365" onclick="setZnpRange(365)">1y</button>
                 </div>
                 <div class="floating-range-pill date-range-pill" id="pwrRangePillTopbar" style="display:none">
+                    <button data-days="7" onclick="setPwrRange(7)">7d</button>
+                    <button data-days="14" onclick="setPwrRange(14)">14d</button>
                     <button data-days="30" onclick="setPwrRange(30)">30d</button>
                     <button data-days="90" onclick="setPwrRange(90)" class="active">90d</button>
-                    <button data-days="180" onclick="setPwrRange(180)">6mo</button>
                     <button data-days="365" onclick="setPwrRange(365)">1y</button>
                 </div>
                 <div class="floating-range-pill date-range-pill" id="fitRangePillFloat" style="display:none">
+                    <button onclick="setFitnessRange(7)">7d</button>
+                    <button onclick="setFitnessRange(14)">14d</button>
                     <button onclick="setFitnessRange(30)">30d</button>
                     <button onclick="setFitnessRange(90)" class="active">90d</button>
-                    <button onclick="setFitnessRange(180)">6m</button>
                     <button onclick="setFitnessRange(365)">1y</button>
+                </div>
+                <!-- ── iOS-style sticky title (appears when page headline scrolls out) ── -->
+                <div class="sticky-page-title" id="stickyPageTitle" aria-hidden="true">
+                    <span class="sticky-page-title-text" id="stickyPageTitleText"></span>
                 </div>
                 <!-- ── Page headline ── -->
                 <div class="page-headline">
@@ -1256,17 +1362,22 @@
                 <div class="page" id="page-dashboard">
                     <!-- ── Recent Activities ── -->
                     <div data-dash-section="recentCarousel">
-                        <div
-                            class="section-label"
-                            id="recentActSectionLabel"
-                            style="display: none"
-                        >
-                            Recent activities
+                        <div class="dash-section-header" id="recentActSectionLabel" style="display: none">
+                            <div class="dash-section-title">Recent Activities</div>
+                            <a href="#" onclick="navigate('activities');return false" class="dash-section-link">View all</a>
                         </div>
                         <div
                             class="recent-act-scroll-rail"
                             id="recentActScrollRail"
                         ></div>
+                    </div>
+
+                    <div data-dash-section="goalsTargets" id="goalsDashSection" style="display:none">
+                        <div class="dash-section-header">
+                            <div class="dash-section-title">Goals</div>
+                            <a href="#" onclick="navigate('goals');return false" class="dash-section-link">View all</a>
+                        </div>
+                        <div class="goals-dash-scroll" id="goalsDashContent"></div>
                     </div>
 
                     <!-- ── Vitality Metaball Visualization ── -->
@@ -2021,14 +2132,6 @@
                         </div>
                     </div>
 
-                    <div data-dash-section="goalsTargets" id="goalsDashSection" style="display:none">
-                        <div class="dash-section-header">
-                            <div class="dash-section-title">Goals</div>
-                            <a href="#" onclick="navigate('goals');return false" class="dash-section-link">View all</a>
-                        </div>
-                        <div class="goals-dash-scroll" id="goalsDashContent"></div>
-                    </div>
-
                     <div data-dash-section="recentTable">
                         <div class="card">
                             <div class="card-header">
@@ -2076,6 +2179,7 @@
                             </div>
                         </div>
                     </div>
+                    <div class="page-version" id="appVersionFooter">CycleIQ</div>
                 </div>
 
                 <!-- ==================== ACTIVITIES PAGE ==================== -->
@@ -2094,10 +2198,10 @@
                                     <option value="all">All years</option>
                                 </select>
                                 <div class="acts-view-toggle">
-                                    <button class="acts-view-btn active" data-view="list" onclick="setActivitiesView('list')" aria-label="List view">
+                                    <button class="acts-view-btn" data-view="list" onclick="setActivitiesView('list')" aria-label="List view">
                                         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="4" y1="5" x2="16" y2="5"/><line x1="4" y1="10" x2="16" y2="10"/><line x1="4" y1="15" x2="16" y2="15"/></svg>
                                     </button>
-                                    <button class="acts-view-btn" data-view="card" onclick="setActivitiesView('card')" aria-label="Card view">
+                                    <button class="acts-view-btn active" data-view="card" onclick="setActivitiesView('card')" aria-label="Card view">
                                         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="6" height="6" rx="1.5"/><rect x="11" y="3" width="6" height="6" rx="1.5"/><rect x="3" y="11" width="6" height="6" rx="1.5"/><rect x="11" y="11" width="6" height="6" rx="1.5"/></svg>
                                     </button>
                                     <button class="acts-view-btn" data-view="zones" onclick="setActivitiesView('zones')" aria-label="Zones view">
@@ -2122,7 +2226,7 @@
                                 <button class="acts-chip" data-sort="bpm" onclick="setActivitiesSort('bpm')">BPM<span class="sort-arrow"></span></button>
                             </div>
                         </div>
-                        <div class="activity-list" id="allActivityList">
+                        <div class="activity-list" id="allActivityList" style="display:none">
                             <div class="empty-state">
                                 <svg
                                     viewBox="0 0 24 24"
@@ -2137,14 +2241,8 @@
                                 <p>Sync data to view all activities.</p>
                             </div>
                         </div>
-                        <div class="acts-card-grid" id="allActivityCardGrid" style="display:none"></div>
+                        <div class="acts-card-grid" id="allActivityCardGrid"></div>
                         <div class="acts-zones-grid" id="allActivityZonesGrid" style="display:none"></div>
-                        <!-- Floating Search Button -->
-                        <button class="cal-fab" id="actSearchFab" onclick="openActivitySearch()" aria-label="Search activities">
-                            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                                <circle cx="8.5" cy="8.5" r="5.5"/><line x1="13" y1="13" x2="18" y2="18"/>
-                            </svg>
-                        </button>
                         <!-- Apple-style Search Modal -->
                         <dialog class="modal-dialog" id="actSearchModal">
                             <div class="modal act-search-modal">
@@ -2227,6 +2325,7 @@
                                         id="detailOfflineTag"
                                         style="display: none"
                                     >SAVED</span>
+                                    <span class="act-xp-badge" id="detailXPBadge" style="display:none"></span>
                                 </div>
                             </div>
                         </div>
@@ -2344,7 +2443,7 @@
                                     viewBox="0 0 11 13"
                                     fill="currentColor"
                                 >
-                                    <polygon points="0,0 11,6.5 0,13" />
+                                    <path d="M1.5 1.3a1 1 0 0 1 1.5-.86l7 5.2a1 1 0 0 1 0 1.72l-7 5.2a1 1 0 0 1-1.5-.86V1.3z"/>
                                 </svg>
                             </button>
                             <div class="ft-scrubber-track" id="ftScrubberTrack">
@@ -2858,6 +2957,19 @@
                         </div>
                     </div>
 
+                    <!-- 3D Elevation Profile -->
+                    <div class="card" id="detail3DElevCard" style="display: none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20l5-10 4 6 3-4 6 8H3z"/><circle cx="17" cy="5" r="3"/></svg>3D Elevation</div>
+                                <div class="card-subtitle" id="detail3DElevSubtitle">Perspective elevation profile · gradient colour-coded</div>
+                            </div>
+                        </div>
+                        <div class="elevation-3d-wrap">
+                            <canvas id="detail3DElevCanvas"></canvas>
+                        </div>
+                    </div>
+
                     <!-- Climbs -->
                     <div class="card" id="detailClimbsCard" style="display: none">
                         <div class="card-header">
@@ -3034,7 +3146,7 @@
                                 <span class="cal-hstat-val" id="calStatActivities">—</span>
                                 <span class="cal-hstat-label">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                                    Activities
+                                    Act
                                 </span>
                             </div>
                             <div class="cal-hstat-div"></div>
@@ -3090,12 +3202,6 @@
                             </div>
                         </div>
 
-                        <!-- Floating Action Button -->
-                        <button class="cal-fab" id="calFab" onclick="openCalEventModal()">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                            </svg>
-                        </button>
                     </div>
 
                     <!-- Create Event Dialog -->
@@ -4402,14 +4508,11 @@
                             <!-- GENERAL -->
                             <div class="ios-group-label">General</div>
                             <div class="ios-group">
-                                <div class="ios-row stt-row--toggle">
+                                <div class="ios-row" data-nav onclick="openSettingsSubpage('apptheme')">
                                     <div class="ios-row-icon" style="background:#5856d6"><svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></div>
                                     <span class="ios-row-label">Theme</span>
-                                    <div class="theme-toggle" id="themePills" style="transform:scale(0.85);transform-origin:right center">
-                                        <div class="theme-toggle-slider"></div>
-                                        <button class="theme-toggle-btn active" data-theme-val="dark" onclick="setTheme('dark')">Dark</button>
-                                        <button class="theme-toggle-btn" data-theme-val="light" onclick="setTheme('light')">Light</button>
-                                    </div>
+                                    <span class="ios-row-value" id="iosCurrentTheme">Dark</span>
+                                    <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                 </div>
                                 <div class="ios-row" data-nav onclick="openSettingsSubpage('font')">
                                     <div class="ios-row-icon" style="background:#ff9500"><svg viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg></div>
@@ -4420,17 +4523,19 @@
                                 <div class="ios-row">
                                     <div class="ios-row-icon" style="background:#30d158"><svg viewBox="0 0 24 24"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
                                     <span class="ios-row-label">Units</span>
-                                    <div class="date-range-pill" style="transform:scale(0.85);transform-origin:right center">
-                                        <button data-units="metric" onclick="setUnits('metric')">km</button>
-                                        <button data-units="imperial" onclick="setUnits('imperial')">mi</button>
+                                    <div class="theme-toggle" id="unitsPills" style="transform:scale(0.85);transform-origin:right center">
+                                        <div class="theme-toggle-slider"></div>
+                                        <button class="theme-toggle-btn active" data-units="metric" onclick="setUnits('metric')">km</button>
+                                        <button class="theme-toggle-btn" data-units="imperial" onclick="setUnits('imperial')">mi</button>
                                     </div>
                                 </div>
                                 <div class="ios-row">
                                     <div class="ios-row-icon" style="background:#5ac8fa"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
                                     <span class="ios-row-label">Week starts</span>
-                                    <div class="date-range-pill" style="transform:scale(0.85);transform-origin:right center">
-                                        <button data-weekstart="1" onclick="setWeekStartDay(1)" class="active">Mon</button>
-                                        <button data-weekstart="0" onclick="setWeekStartDay(0)">Sun</button>
+                                    <div class="theme-toggle" id="weekStartPills" style="transform:scale(0.85);transform-origin:right center">
+                                        <div class="theme-toggle-slider"></div>
+                                        <button class="theme-toggle-btn active" data-weekstart="1" onclick="setWeekStartDay(1)">Mon</button>
+                                        <button class="theme-toggle-btn" data-weekstart="0" onclick="setWeekStartDay(0)">Sun</button>
                                     </div>
                                 </div>
                                 <div class="ios-row ios-row--nav" onclick="openSettingsSubpage('defaultrange')">
@@ -4545,6 +4650,11 @@
                             <!-- ABOUT -->
                             <div class="ios-group-label">About</div>
                             <div class="ios-group">
+                                <div class="ios-row" data-nav onclick="openSettingsSubpage('leveling')">
+                                    <div class="ios-row-icon" style="background:#af52de"><svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+                                    <span class="ios-row-label">Leveling</span>
+                                    <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                </div>
                                 <div class="ios-row" data-nav onclick="openSettingsSubpage('share')">
                                     <div class="ios-row-icon" style="background:#007aff"><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></div>
                                     <span class="ios-row-label">Share CycleIQ</span>
@@ -4558,7 +4668,7 @@
                             </div>
 
                             <div style="text-align:center;padding:24px 0 8px;color:var(--text-secondary);font-size:12px;opacity:0.5;">
-                                CycleIQ v0.43
+                                CycleIQ v0.46
                             </div>
                         </div>
 
@@ -4670,46 +4780,90 @@
 
                         <!-- Map Theme subpage -->
                         <div class="ios-subpage" id="iosSubpage-maptheme">
-                            <div class="ios-group-label">Choose Theme</div>
+                            <div class="ios-group-label">Map Theme</div>
                             <div class="ios-group">
-                                <div class="map-theme-grid" id="mapThemePicker">
-                                    <button class="map-theme-card" data-theme="liberty" onclick="setMapTheme('liberty')">
-                                        <span class="map-theme-preview" style="background:linear-gradient(135deg,#f0ede4 0%,#d9d4c5 50%,#b8cca0 100%)"></span>
-                                        <span class="map-theme-info">
-                                            <span class="map-theme-name">Liberty</span>
-                                            <span class="map-theme-desc">Classic, warm tones</span>
+                                <div class="app-theme-grid" id="mapThemePicker">
+                                    <button class="app-theme-card" data-theme="liberty" onclick="setMapTheme('liberty')">
+                                        <span class="app-theme-preview">
+                                            <span class="app-theme-bg" style="background:linear-gradient(145deg,#f0ede4 0%,#d9d4c5 50%,#b8cca0 100%)"></span>
                                         </span>
-                                        <svg class="map-theme-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                        <span class="app-theme-name">Liberty</span>
+                                        <span class="app-theme-desc">Classic, warm tones</span>
+                                        <svg class="app-theme-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                                     </button>
-                                    <button class="map-theme-card" data-theme="positron" onclick="setMapTheme('positron')">
-                                        <span class="map-theme-preview" style="background:linear-gradient(135deg,#f8f8f5 0%,#ebebea 50%,#d4d4cc 100%)"></span>
-                                        <span class="map-theme-info">
-                                            <span class="map-theme-name">Positron</span>
-                                            <span class="map-theme-desc">Clean, minimal light</span>
+                                    <button class="app-theme-card" data-theme="positron" onclick="setMapTheme('positron')">
+                                        <span class="app-theme-preview">
+                                            <span class="app-theme-bg" style="background:linear-gradient(145deg,#f8f8f5 0%,#ebebea 50%,#d4d4cc 100%)"></span>
                                         </span>
-                                        <svg class="map-theme-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                        <span class="app-theme-name">Positron</span>
+                                        <span class="app-theme-desc">Clean, minimal light</span>
+                                        <svg class="app-theme-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                                     </button>
-                                    <button class="map-theme-card" data-theme="dark" onclick="setMapTheme('dark')">
-                                        <span class="map-theme-preview" style="background:linear-gradient(135deg,#2a2d35 0%,#1e2028 50%,#14151a 100%)"></span>
-                                        <span class="map-theme-info">
-                                            <span class="map-theme-name">Dark</span>
-                                            <span class="map-theme-desc">Dark neutral tones</span>
+                                    <button class="app-theme-card" data-theme="dark" onclick="setMapTheme('dark')">
+                                        <span class="app-theme-preview">
+                                            <span class="app-theme-bg" style="background:linear-gradient(145deg,#2a2d35 0%,#1e2028 50%,#14151a 100%)"></span>
                                         </span>
-                                        <svg class="map-theme-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                        <span class="app-theme-name">Dark</span>
+                                        <span class="app-theme-desc">Dark neutral tones</span>
+                                        <svg class="app-theme-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                                     </button>
-                                    <button class="map-theme-card" data-theme="strava" onclick="setMapTheme('strava')">
-                                        <span class="map-theme-preview" style="background:linear-gradient(135deg,#1a3028 0%,#1a1e24 50%,#1a2a36 100%)"></span>
-                                        <span class="map-theme-info">
-                                            <span class="map-theme-name">Strava</span>
-                                            <span class="map-theme-desc">Dark with green hues</span>
+                                    <button class="app-theme-card" data-theme="strava" onclick="setMapTheme('strava')">
+                                        <span class="app-theme-preview">
+                                            <span class="app-theme-bg" style="background:linear-gradient(145deg,#1a3028 0%,#1a1e24 50%,#1a2a36 100%)"></span>
                                         </span>
-                                        <svg class="map-theme-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                        <span class="app-theme-name">Strava</span>
+                                        <span class="app-theme-desc">Dark with green hues</span>
+                                        <svg class="app-theme-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                                     </button>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Weather subpage -->
+                        <div class="ios-subpage" id="iosSubpage-apptheme">
+                            <div class="ios-group-label">App Theme</div>
+                            <div class="ios-group">
+                                <div class="app-theme-grid" id="appThemePicker">
+                                    <button class="app-theme-card active" data-theme-val="dark" onclick="setTheme('dark')">
+                                        <span class="app-theme-preview">
+                                            <span class="app-theme-bg" style="background:linear-gradient(145deg,#000 0%,#1C1C1E 60%,#2C2C2E 100%)"></span>
+                                            <span class="app-theme-accent" style="background:#00e5a0"></span>
+                                        </span>
+                                        <span class="app-theme-name">Dark</span>
+                                        <span class="app-theme-desc">Pure black, green accent</span>
+                                        <svg class="app-theme-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                    </button>
+                                    <button class="app-theme-card" data-theme-val="light" onclick="setTheme('light')">
+                                        <span class="app-theme-preview">
+                                            <span class="app-theme-bg" style="background:linear-gradient(145deg,#f2f3f5 0%,#fff 60%,#edeef2 100%)"></span>
+                                            <span class="app-theme-accent" style="background:#00e5a0"></span>
+                                        </span>
+                                        <span class="app-theme-name">Light</span>
+                                        <span class="app-theme-desc">Clean, bright surfaces</span>
+                                        <svg class="app-theme-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                    </button>
+                                    <button class="app-theme-card" data-theme-val="tdf" onclick="setTheme('tdf')">
+                                        <span class="app-theme-preview">
+                                            <span class="app-theme-bg" style="background:linear-gradient(145deg,#000 0%,#0C0C0C 40%,#FFD700 100%)"></span>
+                                            <span class="app-theme-accent" style="background:#FFD700"></span>
+                                        </span>
+                                        <span class="app-theme-name">Tour de France</span>
+                                        <span class="app-theme-desc">Maillot jaune, gold on black</span>
+                                        <svg class="app-theme-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                    </button>
+                                    <button class="app-theme-card" data-theme-val="auto" onclick="setTheme('auto')">
+                                        <span class="app-theme-preview">
+                                            <span class="app-theme-bg" style="background:linear-gradient(145deg,#000 0%,#666 50%,#f2f3f5 100%)"></span>
+                                            <span class="app-theme-accent" style="background:#00e5a0"></span>
+                                        </span>
+                                        <span class="app-theme-name">Auto</span>
+                                        <span class="app-theme-desc">Follow system setting</span>
+                                        <svg class="app-theme-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="ios-subpage" id="iosSubpage-weather">
                             <!-- LOCATIONS group -->
                             <div class="ios-group-label" style="display:flex;justify-content:space-between;align-items:baseline">Locations <span id="wxCurrentLocation" style="font-weight:400;text-transform:none">Up to 5 locations</span></div>
@@ -5235,6 +5389,96 @@
 
                         </div>
 
+                        <!-- Leveling subpage -->
+                        <div class="ios-subpage" id="iosSubpage-leveling">
+                            <!-- Hero card -->
+                            <div class="lvl-hero-card">
+                                <div class="lvl-hero-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" width="28" height="28"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                                </div>
+                                <div class="lvl-hero-text">
+                                    <div class="lvl-hero-title">Earn XP. Level Up.</div>
+                                    <div class="lvl-hero-desc">Every ride earns XP based on distance, climbing, duration, intensity, and speed. Longer, harder rides earn exponentially more.</div>
+                                </div>
+                            </div>
+
+                            <!-- XP Per Ride -->
+                            <div class="ios-group-label">XP Per Ride</div>
+                            <div class="ios-group">
+                                <div class="ios-row"><span class="ios-row-label">Distance</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">1 XP/km &rarr; 3 XP/km at 150+ km</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Climbing</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">1 XP/40m &rarr; 1 XP/20m at 1500+ m</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Duration</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">1 XP/10min &rarr; 1 XP/6min at 3+ h</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Training Load</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">1 XP/10 TSS &rarr; 1 XP/5 at 250+</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Speed Bonus</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">+3 at 20 &rarr; +25 at 35+ km/h</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Ride Bonus</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">+5 XP per completed ride</span></div>
+                            </div>
+                            <div class="ios-group-footer">Longer, harder, faster rides earn exponentially more XP. A casual 30 km ride earns ~40 XP. An epic 150 km mountain ride earns 350+ XP.</div>
+
+                            <!-- Example Rides -->
+                            <div class="ios-group-label">Example Rides</div>
+                            <div class="ios-group">
+                                <div class="ios-row">
+                                    <div class="ios-row-icon" style="background:#30d158"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></div>
+                                    <span class="ios-row-label">Easy 20 km flat</span><span class="ios-row-value" style="color:var(--accent);font-weight:700">~30 XP</span>
+                                </div>
+                                <div class="ios-row">
+                                    <div class="ios-row-icon" style="background:#5ac8fa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+                                    <span class="ios-row-label">60 km / 500m / 2h</span><span class="ios-row-value" style="color:var(--accent);font-weight:700">~110 XP</span>
+                                </div>
+                                <div class="ios-row">
+                                    <div class="ios-row-icon" style="background:#ff9f0a"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 20l5-10 4 6 3-4 6 8"/></svg></div>
+                                    <span class="ios-row-label">100 km / 1500m / 4h</span><span class="ios-row-value" style="color:var(--accent);font-weight:700">~220 XP</span>
+                                </div>
+                                <div class="ios-row">
+                                    <div class="ios-row-icon" style="background:#ff453a"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+                                    <span class="ios-row-label">200 km / 3000m / 8h</span><span class="ios-row-value" style="color:var(--accent);font-weight:700">~500 XP</span>
+                                </div>
+                            </div>
+
+                            <!-- Leveling Curve -->
+                            <div class="ios-group-label">Leveling Curve</div>
+                            <div class="ios-group">
+                                <div class="ios-row"><span class="ios-row-label">Level 1</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">100 XP (~1 ride)</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Level 5</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">1,118 XP (~10 rides)</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Level 10</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">3,162 XP (~30 rides)</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Level 25</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">12,500 XP (~110 rides)</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Level 50</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">35,355 XP (~315 rides)</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Level 100</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">100,000 XP (~900 rides)</span></div>
+                            </div>
+                            <div class="ios-group-footer">Level N requires floor(100 &times; N^1.5) XP. Leveling is infinite — there is no cap.</div>
+
+                            <!-- Rank Titles -->
+                            <div class="ios-group-label">Rank Titles</div>
+                            <div class="ios-group">
+                                <div class="ios-row"><span class="ios-row-label">LVL 0</span><span class="ios-row-value" style="font-size:13px">Newbie</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 2</span><span class="ios-row-value" style="font-size:13px">Pedal Pusher</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 4</span><span class="ios-row-value" style="font-size:13px">Road Rookie</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 6</span><span class="ios-row-value" style="font-size:13px">Chain Breaker</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 8</span><span class="ios-row-value" style="font-size:13px">Hill Hunter</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 10</span><span class="ios-row-value" style="font-size:13px">Saddle Veteran</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 13</span><span class="ios-row-value" style="font-size:13px">Peloton Force</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 16</span><span class="ios-row-value" style="font-size:13px">Breakaway Artist</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 20</span><span class="ios-row-value" style="font-size:13px">Summit Chaser</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 25</span><span class="ios-row-value" style="font-size:13px">Iron Legs</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 30</span><span class="ios-row-value" style="font-size:13px">Domestique Elite</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 40</span><span class="ios-row-value" style="font-size:13px">Grand Tour Rider</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 50</span><span class="ios-row-value" style="font-size:13px">Mountain King</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 65</span><span class="ios-row-value" style="font-size:13px">Yellow Jersey</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 80</span><span class="ios-row-value" style="font-size:13px">Living Legend</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 100</span><span class="ios-row-value" style="font-size:13px">Cycling God</span></div>
+                            </div>
+
+                            <!-- Settings -->
+                            <div class="ios-group-label">Settings</div>
+                            <div class="ios-group">
+                                <div class="ios-row">
+                                    <span class="ios-row-label">Count rides from</span>
+                                    <input type="date" id="xpStartDate" class="cev-date" onchange="setXpStartDate(this.value)" style="text-align:right">
+                                </div>
+                            </div>
+                            <div class="ios-group-footer">Only rides after this date count towards your XP and level. Leave empty to count all rides.</div>
+                        </div>
+
                         <!-- Donate subpage -->
                         <div class="ios-subpage" id="iosSubpage-donate">                            <div class="card">
                                 <div class="stt-section-header">
@@ -5299,7 +5543,7 @@
                         <!-- Hero: current week streak -->
                         <div class="stk-hero-row">
                             <div class="stk-hero-card" id="stkWeekHero">
-                                <div class="stk-hero-flame">🔥</div>
+                                <div class="stk-hero-flame"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12c2-2.96 0-7-1-8 0 3.038-1.773 4.741-3 6-1.226 1.26-2 3.24-2 5a6 6 0 1 0 12 0c0-1.532-1.056-3.94-2-5-1.786 3-2.791 3-4 2z"/></svg></div>
                                 <div class="stk-hero-num" id="stkWeekNum">
                                     —
                                 </div>
@@ -5312,7 +5556,7 @@
                                 class="stk-hero-card stk-hero-card--day"
                                 id="stkDayHero"
                             >
-                                <div class="stk-hero-flame">⚡</div>
+                                <div class="stk-hero-flame"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
                                 <div class="stk-hero-num" id="stkDayNum">—</div>
                                 <div class="stk-hero-label">Day Streak</div>
                                 <div class="stk-hero-sub" id="stkDaySub">
@@ -5323,7 +5567,7 @@
                                 class="stk-hero-card stk-hero-card--month"
                                 id="stkMonthHero"
                             >
-                                <div class="stk-hero-flame">📅</div>
+                                <div class="stk-hero-flame"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"/></svg></div>
                                 <div class="stk-hero-num" id="stkMonthNum">
                                     —
                                 </div>
@@ -5362,7 +5606,7 @@
                         <!-- Personal bests row -->
                         <div class="stk-pb-row">
                             <div class="card stk-pb-card">
-                                <div class="stk-pb-icon">🏆</div>
+                                <div class="stk-pb-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg></div>
                                 <div class="stk-pb-val" id="stkBestWeekStreak">
                                     —
                                 </div>
@@ -5372,7 +5616,7 @@
                                 </div>
                             </div>
                             <div class="card stk-pb-card">
-                                <div class="stk-pb-icon">⚡</div>
+                                <div class="stk-pb-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
                                 <div class="stk-pb-val" id="stkBestDayStreak">
                                     —
                                 </div>
@@ -5382,7 +5626,7 @@
                                 </div>
                             </div>
                             <div class="card stk-pb-card">
-                                <div class="stk-pb-icon">📆</div>
+                                <div class="stk-pb-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
                                 <div class="stk-pb-val" id="stkBestMonthStreak">
                                     —
                                 </div>
@@ -5394,7 +5638,7 @@
                                 </div>
                             </div>
                             <div class="card stk-pb-card">
-                                <div class="stk-pb-icon">🚴</div>
+                                <div class="stk-pb-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/></svg></div>
                                 <div class="stk-pb-val" id="stkTotalWeeks">
                                     —
                                 </div>
@@ -5810,9 +6054,47 @@
                     </svg>
                     <span>Calendar</span>
                 </button>
+                <button class="dash-pill-btn" onclick="navigate('fitness')" aria-label="Fitness">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/>
+                    </svg>
+                    <span>Fitness</span>
+                </button>
             </nav>
 
         </main>
+
+        <!-- ── Global floating FABs (outside all page transforms) ── -->
+        <button class="cal-fab" id="actSearchFab" onclick="openActivitySearch()" aria-label="Search activities" style="visibility:hidden;pointer-events:none">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <circle cx="8.5" cy="8.5" r="5.5"/><line x1="13" y1="13" x2="18" y2="18"/>
+            </svg>
+        </button>
+        <button class="cal-fab" id="actSaveRouteFab" onclick="saveActivityRoute()" aria-label="Save route">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+            </svg>
+        </button>
+        <button class="cal-fab" id="calFab" onclick="openCalEventModal()" style="visibility:hidden;pointer-events:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+        </button>
+        <button class="cal-fab" id="dashRouteFab" onclick="navigate('routes')" aria-label="Route Builder" style="visibility:hidden;pointer-events:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+        </button>
+        <button class="cal-fab settings-back-fab" id="settingsBackFab" onclick="settingsBack()" aria-label="Back" style="visibility:hidden;pointer-events:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"/>
+            </svg>
+        </button>
+        <button class="cal-fab settings-search-fab" id="settingsSearchFab" onclick="focusSettingsSearch()" aria-label="Search settings" style="visibility:hidden;pointer-events:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+        </button>
 
         <!-- LOADING OVERLAY -->
         <div class="loading-overlay" id="loadingOverlay">

@@ -1341,6 +1341,10 @@
                     <button onclick="setFitnessRange(90)" class="active">90d</button>
                     <button onclick="setFitnessRange(365)">1y</button>
                 </div>
+                <!-- ── iOS-style sticky title (appears when page headline scrolls out) ── -->
+                <div class="sticky-page-title" id="stickyPageTitle" aria-hidden="true">
+                    <span class="sticky-page-title-text" id="stickyPageTitleText"></span>
+                </div>
                 <!-- ── Page headline ── -->
                 <div class="page-headline">
                     <button class="settings-back-btn" id="settingsBackBtn" onclick="closeSettingsSubpage()" style="display:none" aria-label="Back to Settings">
@@ -4504,15 +4508,11 @@
                             <!-- GENERAL -->
                             <div class="ios-group-label">General</div>
                             <div class="ios-group">
-                                <div class="ios-row stt-row--toggle">
+                                <div class="ios-row" data-nav onclick="openSettingsSubpage('apptheme')">
                                     <div class="ios-row-icon" style="background:#5856d6"><svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></div>
                                     <span class="ios-row-label">Theme</span>
-                                    <div class="theme-toggle" id="themePills" style="transform:scale(0.85);transform-origin:right center">
-                                        <div class="theme-toggle-slider"></div>
-                                        <button class="theme-toggle-btn active" data-theme-val="dark" onclick="setTheme('dark')">Dark</button>
-                                        <button class="theme-toggle-btn" data-theme-val="light" onclick="setTheme('light')">Light</button>
-                                        <button class="theme-toggle-btn" data-theme-val="auto" onclick="setTheme('auto')">Auto</button>
-                                    </div>
+                                    <span class="ios-row-value" id="iosCurrentTheme">Dark</span>
+                                    <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                 </div>
                                 <div class="ios-row" data-nav onclick="openSettingsSubpage('font')">
                                     <div class="ios-row-icon" style="background:#ff9500"><svg viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg></div>
@@ -4668,7 +4668,7 @@
                             </div>
 
                             <div style="text-align:center;padding:24px 0 8px;color:var(--text-secondary);font-size:12px;opacity:0.5;">
-                                CycleIQ v0.45
+                                CycleIQ v0.46
                             </div>
                         </div>
 
@@ -4780,46 +4780,90 @@
 
                         <!-- Map Theme subpage -->
                         <div class="ios-subpage" id="iosSubpage-maptheme">
-                            <div class="ios-group-label">Choose Theme</div>
+                            <div class="ios-group-label">Map Theme</div>
                             <div class="ios-group">
-                                <div class="map-theme-grid" id="mapThemePicker">
-                                    <button class="map-theme-card" data-theme="liberty" onclick="setMapTheme('liberty')">
-                                        <span class="map-theme-preview" style="background:linear-gradient(135deg,#f0ede4 0%,#d9d4c5 50%,#b8cca0 100%)"></span>
-                                        <span class="map-theme-info">
-                                            <span class="map-theme-name">Liberty</span>
-                                            <span class="map-theme-desc">Classic, warm tones</span>
+                                <div class="app-theme-grid" id="mapThemePicker">
+                                    <button class="app-theme-card" data-theme="liberty" onclick="setMapTheme('liberty')">
+                                        <span class="app-theme-preview">
+                                            <span class="app-theme-bg" style="background:linear-gradient(145deg,#f0ede4 0%,#d9d4c5 50%,#b8cca0 100%)"></span>
                                         </span>
-                                        <svg class="map-theme-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                        <span class="app-theme-name">Liberty</span>
+                                        <span class="app-theme-desc">Classic, warm tones</span>
+                                        <svg class="app-theme-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                                     </button>
-                                    <button class="map-theme-card" data-theme="positron" onclick="setMapTheme('positron')">
-                                        <span class="map-theme-preview" style="background:linear-gradient(135deg,#f8f8f5 0%,#ebebea 50%,#d4d4cc 100%)"></span>
-                                        <span class="map-theme-info">
-                                            <span class="map-theme-name">Positron</span>
-                                            <span class="map-theme-desc">Clean, minimal light</span>
+                                    <button class="app-theme-card" data-theme="positron" onclick="setMapTheme('positron')">
+                                        <span class="app-theme-preview">
+                                            <span class="app-theme-bg" style="background:linear-gradient(145deg,#f8f8f5 0%,#ebebea 50%,#d4d4cc 100%)"></span>
                                         </span>
-                                        <svg class="map-theme-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                        <span class="app-theme-name">Positron</span>
+                                        <span class="app-theme-desc">Clean, minimal light</span>
+                                        <svg class="app-theme-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                                     </button>
-                                    <button class="map-theme-card" data-theme="dark" onclick="setMapTheme('dark')">
-                                        <span class="map-theme-preview" style="background:linear-gradient(135deg,#2a2d35 0%,#1e2028 50%,#14151a 100%)"></span>
-                                        <span class="map-theme-info">
-                                            <span class="map-theme-name">Dark</span>
-                                            <span class="map-theme-desc">Dark neutral tones</span>
+                                    <button class="app-theme-card" data-theme="dark" onclick="setMapTheme('dark')">
+                                        <span class="app-theme-preview">
+                                            <span class="app-theme-bg" style="background:linear-gradient(145deg,#2a2d35 0%,#1e2028 50%,#14151a 100%)"></span>
                                         </span>
-                                        <svg class="map-theme-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                        <span class="app-theme-name">Dark</span>
+                                        <span class="app-theme-desc">Dark neutral tones</span>
+                                        <svg class="app-theme-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                                     </button>
-                                    <button class="map-theme-card" data-theme="strava" onclick="setMapTheme('strava')">
-                                        <span class="map-theme-preview" style="background:linear-gradient(135deg,#1a3028 0%,#1a1e24 50%,#1a2a36 100%)"></span>
-                                        <span class="map-theme-info">
-                                            <span class="map-theme-name">Strava</span>
-                                            <span class="map-theme-desc">Dark with green hues</span>
+                                    <button class="app-theme-card" data-theme="strava" onclick="setMapTheme('strava')">
+                                        <span class="app-theme-preview">
+                                            <span class="app-theme-bg" style="background:linear-gradient(145deg,#1a3028 0%,#1a1e24 50%,#1a2a36 100%)"></span>
                                         </span>
-                                        <svg class="map-theme-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                        <span class="app-theme-name">Strava</span>
+                                        <span class="app-theme-desc">Dark with green hues</span>
+                                        <svg class="app-theme-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                                     </button>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Weather subpage -->
+                        <div class="ios-subpage" id="iosSubpage-apptheme">
+                            <div class="ios-group-label">App Theme</div>
+                            <div class="ios-group">
+                                <div class="app-theme-grid" id="appThemePicker">
+                                    <button class="app-theme-card active" data-theme-val="dark" onclick="setTheme('dark')">
+                                        <span class="app-theme-preview">
+                                            <span class="app-theme-bg" style="background:linear-gradient(145deg,#000 0%,#1C1C1E 60%,#2C2C2E 100%)"></span>
+                                            <span class="app-theme-accent" style="background:#00e5a0"></span>
+                                        </span>
+                                        <span class="app-theme-name">Dark</span>
+                                        <span class="app-theme-desc">Pure black, green accent</span>
+                                        <svg class="app-theme-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                    </button>
+                                    <button class="app-theme-card" data-theme-val="light" onclick="setTheme('light')">
+                                        <span class="app-theme-preview">
+                                            <span class="app-theme-bg" style="background:linear-gradient(145deg,#f2f3f5 0%,#fff 60%,#edeef2 100%)"></span>
+                                            <span class="app-theme-accent" style="background:#00e5a0"></span>
+                                        </span>
+                                        <span class="app-theme-name">Light</span>
+                                        <span class="app-theme-desc">Clean, bright surfaces</span>
+                                        <svg class="app-theme-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                    </button>
+                                    <button class="app-theme-card" data-theme-val="tdf" onclick="setTheme('tdf')">
+                                        <span class="app-theme-preview">
+                                            <span class="app-theme-bg" style="background:linear-gradient(145deg,#000 0%,#0C0C0C 40%,#FFD700 100%)"></span>
+                                            <span class="app-theme-accent" style="background:#FFD700"></span>
+                                        </span>
+                                        <span class="app-theme-name">Tour de France</span>
+                                        <span class="app-theme-desc">Maillot jaune, gold on black</span>
+                                        <svg class="app-theme-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                    </button>
+                                    <button class="app-theme-card" data-theme-val="auto" onclick="setTheme('auto')">
+                                        <span class="app-theme-preview">
+                                            <span class="app-theme-bg" style="background:linear-gradient(145deg,#000 0%,#666 50%,#f2f3f5 100%)"></span>
+                                            <span class="app-theme-accent" style="background:#00e5a0"></span>
+                                        </span>
+                                        <span class="app-theme-name">Auto</span>
+                                        <span class="app-theme-desc">Follow system setting</span>
+                                        <svg class="app-theme-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="ios-subpage" id="iosSubpage-weather">
                             <!-- LOCATIONS group -->
                             <div class="ios-group-label" style="display:flex;justify-content:space-between;align-items:baseline">Locations <span id="wxCurrentLocation" style="font-weight:400;text-transform:none">Up to 5 locations</span></div>
@@ -6039,6 +6083,16 @@
         <button class="cal-fab" id="dashRouteFab" onclick="navigate('routes')" aria-label="Route Builder" style="visibility:hidden;pointer-events:none">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                 <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+        </button>
+        <button class="cal-fab settings-back-fab" id="settingsBackFab" onclick="settingsBack()" aria-label="Back" style="visibility:hidden;pointer-events:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"/>
+            </svg>
+        </button>
+        <button class="cal-fab settings-search-fab" id="settingsSearchFab" onclick="focusSettingsSearch()" aria-label="Search settings" style="visibility:hidden;pointer-events:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
         </button>
 

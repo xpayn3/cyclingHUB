@@ -51,7 +51,56 @@ import { initImportPage, impSwitchTab, impAddFiles, impRemoveFromQueue,
 /* ====================================================
    DESIGN TOKENS — single source of truth for JS colors
 ==================================================== */
-const ACCENT = '#00e5a0';
+/* ── Colour tokens (read from CSS custom properties) ──────── */
+const _rs = getComputedStyle(document.documentElement);
+function cssVar(name) { return _rs.getPropertyValue(name).trim(); }
+
+/* Eagerly resolve palette constants once at startup.
+   If the theme changes, call refreshPalette().           */
+let C_ACCENT, C_BLUE, C_PURPLE, C_ORANGE, C_RED, C_YELLOW,
+    C_RED_IOS, C_RED_LIGHT, C_GREEN, C_GREEN_LIGHT, C_GREEN_LIGHTER, C_GREEN_IOS,
+    C_ORANGE_LIGHT, C_AMBER, C_AMBER_LIGHT,
+    C_BLUE_LIGHT, C_BLUE_TW, C_PURPLE_LIGHT, C_VIOLET, C_PINK,
+    C_CYAN_IOS, C_GOLD, C_ACCENT_BRIGHT, C_ACCENT_NEON;
+
+function refreshPalette() {
+    const s = getComputedStyle(document.documentElement);
+    const v = n => s.getPropertyValue(n).trim();
+    C_ACCENT        = v('--accent');
+    C_BLUE          = v('--blue');
+    C_PURPLE        = v('--purple');
+    C_ORANGE        = v('--orange');
+    C_RED           = v('--red');
+    C_YELLOW        = v('--yellow');
+    C_RED_IOS       = v('--red-ios');
+    C_RED_LIGHT     = v('--red-light');
+    C_GREEN         = v('--green');
+    C_GREEN_LIGHT   = v('--green-light');
+    C_GREEN_LIGHTER = v('--green-lighter');
+    C_GREEN_IOS     = v('--green-ios');
+    C_ORANGE_LIGHT  = v('--orange-light');
+    C_AMBER         = v('--amber');
+    C_AMBER_LIGHT   = v('--amber-light');
+    C_BLUE_LIGHT    = v('--blue-light');
+    C_BLUE_TW       = v('--blue-tw');
+    C_PURPLE_LIGHT  = v('--purple-light');
+    C_VIOLET        = v('--violet');
+    C_PINK          = v('--pink');
+    C_CYAN_IOS      = v('--cyan-ios');
+    C_GOLD          = v('--gold');
+    C_ACCENT_BRIGHT = v('--accent-bright');
+    C_ACCENT_NEON   = v('--accent-neon');
+
+    // Zone colours (read from CSS for per-theme overrides)
+    window.ZONE_HEX = [v('--zone-1'), v('--zone-2'), v('--zone-3'), v('--zone-4'), v('--zone-5'), v('--zone-6')];
+    window.ZONE_CHART = [v('--zone-1-chart'), v('--zone-2-chart'), v('--zone-3-chart'), v('--zone-4-chart'), v('--zone-5-chart'), v('--zone-6-chart')];
+    window.HR_ZONE_HEX_DYN = [v('--hr-zone-1'), v('--hr-zone-2'), v('--hr-zone-3'), v('--hr-zone-4'), v('--hr-zone-5'), v('--hr-zone-6'), v('--hr-zone-7')];
+    window.HR_ZONE_HEX = window.HR_ZONE_HEX_DYN;
+}
+refreshPalette();
+window.refreshPalette = refreshPalette;
+
+const ACCENT = C_ACCENT;
 const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const MONTH_LONG  = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -93,7 +142,7 @@ if ('serviceWorker' in navigator) {
 // Populate version footer
 (function() {
   const el = document.getElementById('appVersionFooter');
-  if (el) el.textContent = 'CycleIQ v0.45';
+  if (el) el.textContent = 'CycleIQ v0.46';
 })();
 
 let _pwaInstallPrompt = null;
@@ -737,7 +786,7 @@ async function updateStorageBar() {
   const segs = [
     { key: 'activities', color: 'var(--accent)',     label: 'Activities' },
     { key: 'lifetime',   color: '#6366f1',           label: 'Lifetime' },
-    { key: 'offline',    color: '#8b5cf6',           label: 'Cached Activities' },
+    { key: 'offline',    color: C_VIOLET,           label: 'Cached Activities' },
     { key: 'fitness',    color: '#10b981',            label: 'Fitness' },
     { key: 'heatmap',    color: '#f59e0b',            label: 'Heat Map' },
     { key: 'other',      color: 'var(--text-muted)',  label: 'Other' },
@@ -1390,6 +1439,7 @@ function confirmFullResync() {
    iOS SETTINGS — SUBPAGE NAVIGATION
 ==================================================== */
 let _iosActiveSubpage = null;
+let _iosSettingsScrollY = 0;
 const _iosSubpageNames = {
   account: 'Account', font: 'Font', maptheme: 'Map Theme',
   weather: 'Weather', icu: 'intervals.icu', strava: 'Strava',
@@ -1399,12 +1449,22 @@ const _iosSubpageNames = {
   defaultrange: 'Default Range', leveling: 'Leveling'
 };
 
+let _iosSourceRow = null;
 function openSettingsSubpage(id) {
   const main = document.getElementById('iosSettingsMain');
   const sub  = document.getElementById('iosSubpage-' + id);
   if (!main || !sub) return;
   _iosActiveSubpage = id;
   const headline = document.querySelector('.page-headline');
+
+  // Highlight the source row we're navigating from
+  const evt = window.event;
+  const row = evt?.target?.closest?.('.ios-row, .ios-profile-card');
+  _iosSourceRow = row;
+  if (row) {
+    row.style.transition = 'background 0.3s ease';
+    row.style.background = 'var(--accent-dim)';
+  }
 
   // Close any other active subpage instantly
   document.querySelectorAll('.ios-subpage.active').forEach(s => {
@@ -1430,6 +1490,8 @@ function openSettingsSubpage(id) {
     const subtitle = document.getElementById('pageSubtitle');
     if (title) title.textContent = _iosSubpageNames[id] || id;
     if (subtitle) subtitle.textContent = '';
+    const _st = document.getElementById('stickyPageTitleText');
+    if (_st) _st.textContent = _iosSubpageNames[id] || id;
     const backBtn = document.getElementById('settingsBackBtn');
     if (backBtn) backBtn.style.display = '';
     if (headline) {
@@ -1441,6 +1503,7 @@ function openSettingsSubpage(id) {
     }
   }, 180);
 
+  _iosSettingsScrollY = window.scrollY;
   window.scrollTo(0, 0);
 
   // Subpage-specific init
@@ -1484,6 +1547,8 @@ function closeSettingsSubpage() {
     const subtitle = document.getElementById('pageSubtitle');
     if (title) title.textContent = 'Settings';
     if (subtitle) subtitle.textContent = 'Account & connection';
+    const _st2 = document.getElementById('stickyPageTitleText');
+    if (_st2) _st2.textContent = 'Settings';
     const backBtn = document.getElementById('settingsBackBtn');
     if (backBtn) backBtn.style.display = 'none';
     if (headline) {
@@ -1495,7 +1560,30 @@ function closeSettingsSubpage() {
   }, 180);
 
   _iosActiveSubpage = null;
-  window.scrollTo(0, 0);
+  window.scrollTo({ top: _iosSettingsScrollY, behavior: 'instant' });
+
+  // Fade out the source row highlight
+  if (_iosSourceRow) {
+    const r = _iosSourceRow;
+    setTimeout(() => {
+      r.style.transition = 'background 0.45s ease';
+      r.style.background = '';
+    }, 300);
+    _iosSourceRow = null;
+  }
+}
+
+function focusSettingsSearch() {
+  // Scroll to top — future: open search overlay
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function settingsBack() {
+  if (_iosActiveSubpage) {
+    closeSettingsSubpage();
+  } else {
+    navigate(state.previousPage || 'dashboard');
+  }
 }
 
 function iosSettingsInit() {
@@ -1972,6 +2060,18 @@ function closeSidebar() {
 // Prevent touchmove on the backdrop — stops iOS from starting a scroll
 // context on the empty area that then "steals" scroll from the sidebar.
 document.addEventListener('DOMContentLoaded', () => {
+  // ── iOS-style sticky title: show when large title scrolls out ──
+  const _pgHeadline = document.querySelector('.page-headline-title');
+  const _stickyBar = document.getElementById('stickyPageTitle');
+  if (_pgHeadline && _stickyBar) {
+    const _stickyObs = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        _stickyBar.classList.toggle('visible', !e.isIntersecting);
+      });
+    }, { threshold: 0, rootMargin: '-1px 0px 0px 0px' });
+    _stickyObs.observe(_pgHeadline);
+  }
+
   const bd = document.getElementById('sidebarBackdrop');
   if (bd) {
     bd.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
@@ -2315,6 +2415,10 @@ function navigate(page) {
   if (_calFab)  { _calFab.style.visibility  = page === 'calendar'   ? '' : 'hidden'; _calFab.style.pointerEvents  = page === 'calendar'   ? '' : 'none'; }
   if (_actFab)  { _actFab.style.visibility  = page === 'activities' ? '' : 'hidden'; _actFab.style.pointerEvents  = page === 'activities' ? '' : 'none'; }
   if (_dashFab) { _dashFab.style.visibility = page === 'dashboard'  ? '' : 'hidden'; _dashFab.style.pointerEvents = page === 'dashboard'  ? '' : 'none'; }
+  const _settFab = document.getElementById('settingsBackFab');
+  if (_settFab) { _settFab.style.visibility = page === 'settings' ? '' : 'hidden'; _settFab.style.pointerEvents = page === 'settings' ? '' : 'none'; }
+  const _settSearch = document.getElementById('settingsSearchFab');
+  if (_settSearch) { _settSearch.style.visibility = page === 'settings' ? '' : 'hidden'; _settSearch.style.pointerEvents = page === 'settings' ? '' : 'none'; }
   document.querySelectorAll('.dash-pill-btn').forEach(btn => {
     const lbl = btn.querySelector('span')?.textContent?.toLowerCase() || '';
     const match = lbl === page || (lbl === 'home' && page === 'dashboard');
@@ -2343,6 +2447,15 @@ function navigate(page) {
   const [title, sub] = info[page] || ['CycleIQ', ''];
   document.getElementById('pageTitle').textContent    = title;
   document.getElementById('pageSubtitle').textContent = sub;
+
+  // Sync sticky page title (settings only)
+  const _stickyTitle = document.getElementById('stickyPageTitleText');
+  if (_stickyTitle) _stickyTitle.textContent = title;
+  const _stickyBar = document.getElementById('stickyPageTitle');
+  if (_stickyBar) {
+    _stickyBar.classList.remove('visible');
+    _stickyBar.classList.toggle('sticky-page-title--settings', page === 'settings');
+  }
 
   // Headline — hidden for calendar & routes
   const headline = document.querySelector('.page-headline');
@@ -4288,7 +4401,11 @@ function renderDashboard() {
   lazyRenderChart('weeklyTssChart', () => renderWeeklyChart(recent));
   lazyRenderChart('avgPowerChart',  () => renderAvgPowerChart(recent));
   renderZoneDist(recent);
-  lazyRenderChart('powerCurveChart', async () => { await renderPowerCurve(); renderPowerProfileRadar(); });
+  let _pcResolve;
+  const _pcReady = new Promise(r => { _pcResolve = r; });
+  lazyRenderChart('powerCurveChart', async () => { await renderPowerCurve(); _pcResolve(); });
+  // Skip lazy render for radar — content-visibility + display:contents breaks Chart.js sizing
+  _pcReady.then(() => setTimeout(renderPowerProfileRadar, 400));
   lazyRenderChart('pwrHrScatterChart', () => renderPwrHrScatter(recent));
   lazyRenderChart('cyclingTrendsChart', () => renderCyclingTrends(recent, days));
   lazyRenderChart('monotonyChart', () => { renderIntensityDist(recent); renderMonotony(recent, days); });
@@ -4490,7 +4607,7 @@ function _actRowHTML(a, containerId, fi, powerColor) {
 }
 
 function _actPowerColor(activities) {
-  const PWR_COLORS = ['#4a9eff', ACCENT, '#ffcc00', '#ff6b35', '#ff5252'];
+  const PWR_COLORS = [C_BLUE, ACCENT, '#ffcc00', C_ORANGE, '#ff5252'];
   const allPwrs = (activities || state.activities)
     .map(a => a.icu_weighted_avg_watts || a.average_watts || 0)
     .filter(w => w > 0)
@@ -4972,9 +5089,9 @@ function renderWeekProgress(metric) {
   // Metric config
   const cfg = {
     tss:       { label: 'Training Load', unit: 'TSS',  color: ACCENT, dimColor: 'rgba(0,229,160,0.08)',    fmt: v => Math.round(v),           tooltip: v => `${Math.round(v)} TSS` },
-    distance:  { label: 'Distance',      unit: 'km',   color: '#4a9eff', dimColor: 'rgba(74,158,255,0.08)',   fmt: v => (v/1000).toFixed(1),     tooltip: v => `${(v/1000).toFixed(1)} km` },
-    time:      { label: 'Time Riding',   unit: '',     color: '#9b59ff', dimColor: 'rgba(155,89,255,0.08)',   fmt: v => fmtDur(v),               tooltip: v => fmtDur(v) },
-    elevation: { label: 'Elevation',     unit: 'm',    color: '#ff6b35', dimColor: 'rgba(255,107,53,0.08)',   fmt: v => Math.round(v).toLocaleString(), tooltip: v => `${Math.round(v)} m` },
+    distance:  { label: 'Distance',      unit: 'km',   color: C_BLUE, dimColor: 'rgba(74,158,255,0.08)',   fmt: v => (v/1000).toFixed(1),     tooltip: v => `${(v/1000).toFixed(1)} km` },
+    time:      { label: 'Time Riding',   unit: '',     color: C_PURPLE, dimColor: 'rgba(155,89,255,0.08)',   fmt: v => fmtDur(v),               tooltip: v => fmtDur(v) },
+    elevation: { label: 'Elevation',     unit: 'm',    color: C_ORANGE, dimColor: 'rgba(255,107,53,0.08)',   fmt: v => Math.round(v).toLocaleString(), tooltip: v => `${Math.round(v)} m` },
   };
   const m = cfg[metric];
 
@@ -5165,7 +5282,7 @@ function drawRampGaugeSVG(rampRate) {
     return `M${px(a1)} ${py(a1)} A${R} ${R} 0 ${large} 1 ${px(a2)} ${py(a2)}`;
   };
 
-  const color = val < 8 ? ACCENT : val < 10 ? '#f0c429' : '#ff4757';
+  const color = val < 8 ? ACCENT : val < 10 ? C_YELLOW : C_RED;
 
   // Tick marks at zone boundaries
   const tickVals = [0, 3, 8, 10, 12];
@@ -5248,7 +5365,7 @@ function drawRampGaugeSVG(rampRate) {
   // 1. Tube track — base dark fill for the empty tube
   s += `<path d="${tubePath(Math.PI * 0.999, Math.PI * 0.001, 'round')}" fill="rgba(10,12,20,0.6)"/>`;
   // 2. Zone color hints — faint tints inside the empty tube
-  const zones = [[0, 3, ACCENT], [3, 8, ACCENT], [8, 10, '#f0c429'], [10, 12, '#ff4757']];
+  const zones = [[0, 3, ACCENT], [3, 8, ACCENT], [8, 10, C_YELLOW], [10, 12, C_RED]];
   zones.forEach(([lo, hi, c]) => {
     s += `<path d="${tubePath(toA(lo), toA(hi))}" fill="${c}" opacity="0.07"/>`;
   });
@@ -5256,7 +5373,7 @@ function drawRampGaugeSVG(rampRate) {
   s += `<path d="${tubePath(Math.PI * 0.999, Math.PI * 0.001, 'round')}" fill="url(#tubeTrack)"/>`;
 
   // 4. Active fill — colored tube section
-  const fillGrad = color === ACCENT ? 'url(#tubeFillGreen)' : color === '#f0c429' ? 'url(#tubeFillYellow)' : 'url(#tubeFillRed)';
+  const fillGrad = color === ACCENT ? 'url(#tubeFillGreen)' : color === C_YELLOW ? 'url(#tubeFillYellow)' : 'url(#tubeFillRed)';
   if (val > 0.15) {
     // Glow behind fill
     s += `<path d="${arcPath(Math.PI * 0.999, toA(val))}" fill="none" stroke="${color}" stroke-width="${SW + 10}" stroke-linecap="round" opacity="0.2" filter="url(#trsGlow)"/>`;
@@ -6043,10 +6160,10 @@ function renderTrainingStatus() {
     if      (tsb > 25)  { fLabel = 'Peak Form';     fColor = ACCENT; fHint = 'Perfect for A-priority races'; }
     else if (tsb > 15)  { fLabel = 'Race Ready';    fColor = ACCENT; fHint = 'Target A-priority races now'; }
     else if (tsb > 5)   { fLabel = 'Fresh';         fColor = ACCENT; fHint = 'Good for B-priority races'; }
-    else if (tsb > -5)  { fLabel = 'Neutral';       fColor = '#f0c429'; fHint = 'Transitioning'; }
-    else if (tsb > -15) { fLabel = 'Training';      fColor = '#f0c429'; fHint = 'Building fitness load'; }
-    else if (tsb > -25) { fLabel = 'Deep Training'; fColor = '#ff6b35'; fHint = 'High load — monitor fatigue'; }
-    else                { fLabel = 'Overreaching';  fColor = '#ff4757'; fHint = 'Recovery needed soon'; }
+    else if (tsb > -5)  { fLabel = 'Neutral';       fColor = C_YELLOW; fHint = 'Transitioning'; }
+    else if (tsb > -15) { fLabel = 'Training';      fColor = C_YELLOW; fHint = 'Building fitness load'; }
+    else if (tsb > -25) { fLabel = 'Deep Training'; fColor = C_ORANGE; fHint = 'High load — monitor fatigue'; }
+    else                { fLabel = 'Overreaching';  fColor = C_RED; fHint = 'Recovery needed soon'; }
 
     formNumEl.style.color = fColor;
     if (formStat) {
@@ -6160,9 +6277,9 @@ const _sgIcons = {
 
 const _sgColorMap = {
   grey:   { bg: 'rgba(140,140,160,0.12)', fg: '#9ca3af', badge: 'Fatigued' },
-  blue:   { bg: 'rgba(74,158,255,0.12)',  fg: '#4a9eff', badge: 'Tired'    },
+  blue:   { bg: 'rgba(74,158,255,0.12)',  fg: C_BLUE, badge: 'Tired'    },
   green:  { bg: 'rgba(0,229,160,0.12)',   fg: ACCENT, badge: 'Fresh'    },
-  orange: { bg: 'rgba(255,107,53,0.12)',  fg: '#ff6b35', badge: 'Peak'     },
+  orange: { bg: 'rgba(255,107,53,0.12)',  fg: C_ORANGE, badge: 'Peak'     },
 };
 
 function renderTodaySuggestion() {
@@ -6345,7 +6462,7 @@ function renderFitnessChart(activities, days) {
     type: 'line',
     data: { labels, datasets: [
       { label: 'CTL', data: ctlD, borderColor: ACCENT, backgroundColor: 'rgba(0,229,160,0.07)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 7, tension: 0.4, fill: true },
-      { label: 'ATL', data: atlD, borderColor: '#ff6b35', backgroundColor: 'rgba(255,107,53,0.05)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 7, tension: 0.4 },
+      { label: 'ATL', data: atlD, borderColor: C_ORANGE, backgroundColor: 'rgba(255,107,53,0.05)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 7, tension: 0.4 },
     ]},
     options: {
       responsive: true, maintainAspectRatio: false,
@@ -6368,7 +6485,7 @@ function renderFitnessChart(activities, days) {
     state._dashFormChart = new Chart(formCanvas.getContext('2d'), {
       type: 'line',
       data: { labels, datasets: [{
-        label: 'Form', data: tsbD, borderColor: '#4a9eff', borderWidth: 2,
+        label: 'Form', data: tsbD, borderColor: C_BLUE, borderWidth: 2,
         pointRadius: 0, pointHoverRadius: 5, tension: 0.4, fill: true,
         backgroundColor: ctx => {
           const chart = ctx.chart;
@@ -6380,8 +6497,8 @@ function renderFitnessChart(activities, days) {
           grad.addColorStop(1, 'rgba(0,229,160,0.08)');
           return grad;
         },
-        segment: { borderColor: ctx => { const v = ctx.p1.parsed.y; return v > 5 ? '#4a9eff' : v > -10 ? '#888' : ACCENT; } },
-        pointBackgroundColor: ctx => { const v = (ctx.dataset.data[ctx.dataIndex] ?? 0); return v > 5 ? '#4a9eff' : v > -10 ? '#888' : ACCENT; }
+        segment: { borderColor: ctx => { const v = ctx.p1.parsed.y; return v > 5 ? C_BLUE : v > -10 ? '#888' : ACCENT; } },
+        pointBackgroundColor: ctx => { const v = (ctx.dataset.data[ctx.dataIndex] ?? 0); return v > 5 ? C_BLUE : v > -10 ? '#888' : ACCENT; }
       }]},
       options: {
         responsive: true, maintainAspectRatio: false,
@@ -6432,8 +6549,8 @@ function renderWeeklyChart(activities) {
 ==================================================== */
 const ENERGY_SYSTEMS = [
   { name: 'Endure FTP',    zones: [0, 1], color: ACCENT },  // Z1+Z2
-  { name: 'Breakaway MAP', zones: [2, 3], color: '#ff6b35' },  // Z3+Z4
-  { name: 'Attack AC',     zones: [4],    color: '#ff4757' },   // Z5
+  { name: 'Breakaway MAP', zones: [2, 3], color: C_ORANGE },  // Z3+Z4
+  { name: 'Attack AC',     zones: [4],    color: C_RED },   // Z5
   { name: 'Sprint NM',     zones: [5],    color: '#9b59f0' },   // Z6
 ];
 
@@ -6599,7 +6716,7 @@ function renderHealthMetrics(days) {
     buildHealthChart({
       canvasId: 'healthWeightChart', stateKey: 'healthWeightChart',
       data: vals, labels: weightData.map(e => e.id.slice(5)),
-      color: '#4a9eff', type: 'line', avgVal: null,
+      color: C_BLUE, type: 'line', avgVal: null,
     });
   } else if (weightCard) { showCardNA('healthWeightCard'); }
 }
@@ -6752,7 +6869,7 @@ function renderWellnessInsights(days) {
     if (!ctx) return;
     state.insightTssWeightChart = new Chart(ctx, {
       data: { labels, datasets: [
-        { type: 'line', label: 'Weight', data: weightVals, borderColor: '#4a9eff', backgroundColor: 'rgba(74,158,255,0.08)', borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 3, tension: 0.35, fill: true, yAxisID: 'y' },
+        { type: 'line', label: 'Weight', data: weightVals, borderColor: C_BLUE, backgroundColor: 'rgba(74,158,255,0.08)', borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 3, tension: 0.35, fill: true, yAxisID: 'y' },
         { type: 'bar', label: 'TSS', data: tssVals, backgroundColor: 'rgba(0,229,160,0.35)', borderRadius: 2, borderSkipped: false, barPercentage: 0.6, categoryPercentage: 0.9, yAxisID: 'y1' },
       ]},
       options: {
@@ -7521,7 +7638,7 @@ function renderMonotony(activities, days) {
       datasets: [{
         label: 'Monotony',
         data: monoData,
-        borderColor: '#ff6b35',
+        borderColor: C_ORANGE,
         backgroundColor: 'rgba(255,107,53,0.08)',
         borderWidth: 2,
         pointRadius: 0,
@@ -7541,7 +7658,7 @@ function renderMonotony(activities, days) {
             dangerLine: {
               type: 'line', yMin: 2.0, yMax: 2.0,
               borderColor: 'rgba(255,71,87,0.5)', borderWidth: 1, borderDash: [4, 4],
-              label: { display: true, content: 'Risk', position: 'end', font: { size: 9 }, color: '#ff4757', backgroundColor: 'transparent' }
+              label: { display: true, content: 'Risk', position: 'end', font: { size: 9 }, color: C_RED, backgroundColor: 'transparent' }
             }
           }
         }
@@ -7618,11 +7735,11 @@ function renderAerobicEfficiency(activities, days) {
       datasets: [{
         label: 'Aerobic Efficiency',
         data: efs,
-        borderColor: '#4a9eff',
+        borderColor: C_BLUE,
         backgroundColor: 'rgba(74,158,255,0.08)',
         borderWidth: 2,
         pointRadius: 0,
-        pointBackgroundColor: '#4a9eff',
+        pointBackgroundColor: C_BLUE,
         pointHoverRadius: 6,
         tension: 0.4,
         fill: true,
@@ -7676,7 +7793,7 @@ function renderRampRate(activities, days) {
     const pct = prev > 0 ? Math.round((curr - prev) / prev * 100) : 0;
     rampData.push(pct);
     labels.push(new Date(weeks[i]).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }));
-    colors.push(Math.abs(pct) <= 5 ? ACCENT : Math.abs(pct) <= 10 ? '#ff6b35' : '#ff4757');
+    colors.push(Math.abs(pct) <= 5 ? ACCENT : Math.abs(pct) <= 10 ? C_ORANGE : C_RED);
   }
 
   // Current ramp rate for badge
@@ -7691,10 +7808,10 @@ function renderRampRate(activities, days) {
     titleColor = ACCENT;
   } else if (Math.abs(currentRamp) <= 10) {
     if (badge) { badge.textContent = `${sign}${currentRamp}% · Caution`; badge.className = 'ti-status-badge warning'; }
-    titleColor = '#ff6b35';
+    titleColor = C_ORANGE;
   } else {
     if (badge) { badge.textContent = `${sign}${currentRamp}% · Risky`;   badge.className = 'ti-status-badge danger'; }
-    titleColor = '#ff4757';
+    titleColor = C_RED;
   }
   if (titleEl) titleEl.style.color = titleColor;
   if (iconEl)  iconEl.setAttribute('stroke', titleColor);
@@ -7784,7 +7901,7 @@ function renderAvgPowerChart(activities) {
           label: '7-ride trend',
           data: trend,
           type: 'line',
-          borderColor: '#ff6b35',
+          borderColor: C_ORANGE,
           backgroundColor: 'transparent',
           borderWidth: 2,
           pointRadius: 0,
@@ -7809,14 +7926,7 @@ function renderAvgPowerChart(activities) {
 /* ====================================================
    ZONE DISTRIBUTION CARD
 ==================================================== */
-const ZONE_COLORS = [
-  'var(--blue)',    // Z1 Recovery
-  'var(--accent)', // Z2 Endurance
-  'var(--yellow)', // Z3 Tempo
-  'var(--orange)', // Z4 Threshold
-  'var(--red)',     // Z5 VO₂max
-  'var(--purple)'  // Z6 Anaerobic
-];
+const ZONE_COLORS = ['var(--zone-1)', 'var(--zone-2)', 'var(--zone-3)', 'var(--zone-4)', 'var(--zone-5)', 'var(--zone-6)'];
 const ZONE_NAMES    = ['Recovery', 'Endurance', 'Tempo', 'Threshold', 'VO₂max', 'Anaerobic'];
 const HR_ZONE_NAMES = ['Active Rec.', 'Aerobic Base', 'Aerobic', 'Threshold', 'VO₂max', 'Anaerobic', 'Neuromuscular'];
 const ZONE_TAGS     = ['Z1', 'Z2', 'Z3', 'Z4', 'Z5', 'Z6'];
@@ -7930,11 +8040,11 @@ const COGGAN_POWER_PROFILE = {
   // Zone groupings for colored ring segments — 6 zones × 2 durations, short→long
   zones: [
     { name: 'Sprinting',  color: '#9b59f0', indices: [0, 1]   },   // 15s–30s  Anaerobic
-    { name: 'Anaerobic',  color: '#ff4757', indices: [2, 3]   },   // 1m–2m    VO₂max
-    { name: 'Threshold',  color: '#ff6b35', indices: [4, 5]   },   // 3m–5m    Threshold
-    { name: 'Tempo',      color: '#f0c429', indices: [6, 7]   },   // 10m–15m  Tempo
+    { name: 'Anaerobic',  color: C_RED, indices: [2, 3]   },   // 1m–2m    VO₂max
+    { name: 'Threshold',  color: C_ORANGE, indices: [4, 5]   },   // 3m–5m    Threshold
+    { name: 'Tempo',      color: C_YELLOW, indices: [6, 7]   },   // 10m–15m  Tempo
     { name: 'Endurance',  color: ACCENT, indices: [8, 9]   },   // 20m–30m  Endurance
-    { name: 'Recovery',   color: '#4a9eff', indices: [10, 11] },   // 45m–60m  Recovery
+    { name: 'Recovery',   color: C_BLUE, indices: [10, 11] },   // 45m–60m  Recovery
   ],
   categories: {
     //                  15s    30s    1m     2m     3m     5m     10m    15m    20m    30m    45m    60m
@@ -8178,7 +8288,7 @@ const _pprRingPlugin = {
     // Build index→color map from zones + detect light backgrounds needing dark text
     const colorMap = {};
     const lightBgSet = new Set();
-    const _lightColors = ['#f0c429', ACCENT, '#ffd700', '#ffeb3b', '#4caf50'];
+    const _lightColors = [C_YELLOW, ACCENT, '#ffd700', '#ffeb3b', '#4caf50'];
     zones.forEach(z => {
       const isLight = _lightColors.includes(z.color.toLowerCase());
       z.indices.forEach(i => { colorMap[i] = z.color; if (isLight) lightBgSet.add(i); });
@@ -8319,10 +8429,9 @@ function renderPowerProfileRadar() {
     }).join('');
   }
 
-  // Render radar chart with grow-from-centre animation on scroll
+  // Render radar chart — direct render (no grow animation to avoid stuck bugs on re-entry)
   state.powerProfileRadarChart = destroyChart(state.powerProfileRadarChart);
   const ctx = document.getElementById('powerProfileRadarChart').getContext('2d');
-  const zeroData = displayNorm.map(() => 0);
 
   state.powerProfileRadarChart = new Chart(ctx, {
     type: 'radar',
@@ -8331,12 +8440,12 @@ function renderPowerProfileRadar() {
       labels: COGGAN_POWER_PROFILE.labels,
       datasets: [{
         label: 'Your Profile',
-        data: [...zeroData],
+        data: [...displayNorm],
         borderColor: 'transparent',
         backgroundColor: 'rgba(155, 89, 240, 0.18)', // overridden by _pprRingPlugin gradient
         borderWidth: 0,
-        pointBackgroundColor: '#b47af5',
-        pointBorderColor: '#b47af5',
+        pointBackgroundColor: C_PURPLE_LIGHT,
+        pointBorderColor: C_PURPLE_LIGHT,
         pointBorderWidth: 0,
         pointRadius: 2,
         pointHoverRadius: 5,
@@ -8355,7 +8464,7 @@ function renderPowerProfileRadar() {
           rawWkg,
           normalized,
           labels: COGGAN_POWER_PROFILE.labels,
-          _animProgress: 0,
+          _animProgress: 1,
           _hoverIndex: -1,
         },
         tooltip: {
@@ -8384,39 +8493,23 @@ function renderPowerProfileRadar() {
     }
   });
 
-  // Ensure correct dimensions after layout settles (fixes glitch on re-entry)
-  requestAnimationFrame(() => {
-    if (state.powerProfileRadarChart) state.powerProfileRadarChart.resize();
-  });
-
-  // Grow-from-centre animation triggered by IntersectionObserver
-  const radarChart = state.powerProfileRadarChart;
-  let _pprAnimated = false;
-  const pprObs = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting && !_pprAnimated) {
-        _pprAnimated = true;
-        pprObs.disconnect();
-        radarChart.resize();
-        const duration = 800;
-        const start = performance.now();
-        const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; // easeInOutCubic
-        function tick(now) {
-          if (state.powerProfileRadarChart !== radarChart) return; // chart was replaced
-          const elapsed = now - start;
-          const t = Math.min(elapsed / duration, 1);
-          const p = ease(t);
-          radarChart.data.datasets[0].data = displayNorm.map(v => v * p);
-          radarChart.options.plugins.pprRing._animProgress = p;
-          radarChart.update('none');
-          if (t < 1) requestAnimationFrame(tick);
-        }
-        requestAnimationFrame(tick);
-      }
-    });
-  }, { threshold: 0.2 });
-  pprObs.observe(card);
-  _pageCleanupFns.push(() => pprObs.disconnect());
+  // Force resize after layout settles — content-visibility: auto can delay sizing
+  const _radarWrap = document.querySelector('.ppr-radar-wrap');
+  if (_radarWrap) {
+    const _resizeRadar = () => {
+      if (!state.powerProfileRadarChart) return;
+      state.powerProfileRadarChart.resize();
+    };
+    // Multiple resize attempts to catch content-visibility transitions
+    requestAnimationFrame(_resizeRadar);
+    setTimeout(_resizeRadar, 100);
+    setTimeout(_resizeRadar, 300);
+    setTimeout(_resizeRadar, 600);
+    // Also watch for container resize (content-visibility paint)
+    const _radarRO = new ResizeObserver(_resizeRadar);
+    _radarRO.observe(_radarWrap);
+    _pageCleanupFns.push(() => _radarRO.disconnect());
+  }
 
   // ── Ring hover: detect which segment the mouse is over ──
   const canvas = document.getElementById('powerProfileRadarChart');
@@ -9218,14 +9311,11 @@ function renderKjZoneChart(days, ftp) {
   // Round values
   weeks.forEach(w => { weekMap[w] = weekMap[w].map(v => Math.round(v)); });
 
-  const ZONE_COLORS_CHART = [
+  const ZONE_COLORS_CHART = window.ZONE_CHART || [
     'rgba(100,180,255,0.85)', 'rgba(0,229,160,0.85)', 'rgba(240,196,41,0.85)',
     'rgba(255,150,50,0.85)',  'rgba(255,71,87,0.85)',  'rgba(180,80,220,0.85)',
   ];
-  const ZONE_HOVER_CHART = [
-    'rgb(100,180,255)', 'rgb(0,229,160)', 'rgb(240,196,41)',
-    'rgb(255,150,50)',  'rgb(255,71,87)',  'rgb(180,80,220)',
-  ];
+  const ZONE_HOVER_CHART = ZONE_COLORS_CHART;
   const ZONE_LABELS = ['Z1 Recovery', 'Z2 Endurance', 'Z3 Tempo', 'Z4 Threshold', 'Z5 VO2max', 'Z6 Anaerobic'];
 
   const sub = document.getElementById('kjZoneSub');
@@ -9449,7 +9539,7 @@ function renderKjEfficiencyChart(days) {
           label: '7-ride avg',
           data: trend,
           type: 'line',
-          borderColor: '#4a9eff',
+          borderColor: C_BLUE,
           borderWidth: 2,
           pointRadius: 0,
           fill: false,
@@ -9523,7 +9613,7 @@ function renderKjTssChart(days) {
         {
           label: '7-ride avg',
           data: trend,
-          type: 'line', borderColor: '#b482ff', borderWidth: 2,
+          type: 'line', borderColor: C_PURPLE_LIGHT, borderWidth: 2,
           pointRadius: 0, fill: false, tension: 0.35, order: 1,
         },
       ],
@@ -10044,6 +10134,8 @@ function setFitnessRange(days) {
         (b.textContent.trim() === '6m' && days === 180) ||
         (b.textContent.trim() === '1y' && days === 365));
     });
+    const ab = fp.querySelector('button.active');
+    if (ab) requestAnimationFrame(() => ab.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' }));
   }
   noChartAnim(() => {
     renderFitnessHistoryChart(days);
@@ -10156,7 +10248,7 @@ function renderFitnessZoneDist(days) {
   const lbl = days === 0 ? 'all activities' : `last ${days} days`;
   document.getElementById('fitZoneSubtitle').textContent = `Time in zone · ${lbl}`;
 
-  const RAW_COLORS = ['#4a9eff',ACCENT,'#f0c429','#ff6b35','#ff4757','#9b59ff'];
+  const RAW_COLORS = [C_BLUE,ACCENT,C_YELLOW,C_ORANGE,C_RED,C_PURPLE];
 
   // ── Doughnut chart ──
   const canvas = document.getElementById('fitZonePie');
@@ -10250,10 +10342,10 @@ function renderFitnessZoneDist(days) {
   const z34r = (totals[2]+totals[3]) / totalSecs;
   const z56r = (totals[4]+totals[5]) / totalSecs;
   let style, hint, styleColor;
-  if      (z12r >= 0.65 && z56r >= 0.10) { style='Polarized';  styleColor='#4a9eff'; hint='Strong contrast between easy base and hard efforts'; }
+  if      (z12r >= 0.65 && z56r >= 0.10) { style='Polarized';  styleColor=C_BLUE; hint='Strong contrast between easy base and hard efforts'; }
   else if (z34r >= 0.40)                  { style='Sweet-spot'; styleColor=ACCENT; hint='Focused on productive threshold work'; }
-  else if (z12r >= 0.60)                  { style='Pyramidal';  styleColor='#f0c429'; hint='Broad aerobic base with moderate intensity work'; }
-  else                                    { style='Mixed';      styleColor='#ff6b35'; hint='Varied intensity across all zones'; }
+  else if (z12r >= 0.60)                  { style='Pyramidal';  styleColor=C_YELLOW; hint='Broad aerobic base with moderate intensity work'; }
+  else                                    { style='Mixed';      styleColor=C_ORANGE; hint='Varied intensity across all zones'; }
 
   const segs = totals.map((v, i) => {
     const p = v / totalSecs * 100;
@@ -10331,7 +10423,7 @@ function renderFitnessHistoryChart(days) {
     type: 'line',
     data: { labels, datasets: [
       { label: 'CTL', data: ctlD, borderColor: ACCENT, backgroundColor: 'rgba(0,229,160,0.08)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 7, tension: 0.4, fill: true },
-      { label: 'ATL', data: atlD, borderColor: '#ff6b35', backgroundColor: 'rgba(255,107,53,0.05)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 7, tension: 0.4 },
+      { label: 'ATL', data: atlD, borderColor: C_ORANGE, backgroundColor: 'rgba(255,107,53,0.05)', borderWidth: 2, pointRadius: 0, pointHoverRadius: 7, tension: 0.4 },
     ]},
     options: {
       responsive: true, maintainAspectRatio: false,
@@ -10354,7 +10446,7 @@ function renderFitnessHistoryChart(days) {
     state._fitFormChart = new Chart(formCanvas.getContext('2d'), {
       type: 'line',
       data: { labels, datasets: [{
-        label: 'Form', data: tsbD, borderColor: '#4a9eff', borderWidth: 2,
+        label: 'Form', data: tsbD, borderColor: C_BLUE, borderWidth: 2,
         pointRadius: 0, pointHoverRadius: 5, tension: 0.4, fill: true,
         backgroundColor: ctx => {
           const chart = ctx.chart;
@@ -10366,8 +10458,8 @@ function renderFitnessHistoryChart(days) {
           grad.addColorStop(1, 'rgba(0,229,160,0.08)');
           return grad;
         },
-        segment: { borderColor: ctx => { const v = ctx.p1.parsed.y; return v > 5 ? '#4a9eff' : v > -10 ? '#888' : ACCENT; } },
-        pointBackgroundColor: ctx => { const v = (ctx.dataset.data[ctx.dataIndex] ?? 0); return v > 5 ? '#4a9eff' : v > -10 ? '#888' : ACCENT; }
+        segment: { borderColor: ctx => { const v = ctx.p1.parsed.y; return v > 5 ? C_BLUE : v > -10 ? '#888' : ACCENT; } },
+        pointBackgroundColor: ctx => { const v = (ctx.dataset.data[ctx.dataIndex] ?? 0); return v > 5 ? C_BLUE : v > -10 ? '#888' : ACCENT; }
       }]},
       options: {
         responsive: true, maintainAspectRatio: false,
@@ -10442,8 +10534,8 @@ function renderFtpHistoryChart(days) {
 
   // Scatter colors: green for increases, red for decreases
   const scatterColors = filtered.map((p, i) => {
-    if (i === 0) return '#4a9eff';
-    return p.ftp >= filtered[i - 1].ftp ? ACCENT : '#ff4757';
+    if (i === 0) return C_BLUE;
+    return p.ftp >= filtered[i - 1].ftp ? ACCENT : C_RED;
   });
 
   const canvas = document.getElementById('fitFtpHistChart');
@@ -10574,14 +10666,14 @@ function renderFatiguePredChart() {
         { label: 'CTL', data: ctlD, borderColor: ACCENT, borderWidth: 2, borderDash: dashStyle,
           pointRadius: (ctx) => ctx.dataIndex === 0 ? 5 : 0, pointBackgroundColor: ACCENT,
           pointHoverRadius: 7, tension: 0.3, fill: false },
-        { label: 'ATL', data: atlD, borderColor: '#ff6b35', borderWidth: 2, borderDash: dashStyle,
-          pointRadius: (ctx) => ctx.dataIndex === 0 ? 5 : 0, pointBackgroundColor: '#ff6b35',
+        { label: 'ATL', data: atlD, borderColor: C_ORANGE, borderWidth: 2, borderDash: dashStyle,
+          pointRadius: (ctx) => ctx.dataIndex === 0 ? 5 : 0, pointBackgroundColor: C_ORANGE,
           pointHoverRadius: 7, tension: 0.3, fill: false },
-        { label: 'TSB', data: tsbD, borderColor: '#4a9eff', borderWidth: 2, borderDash: dashStyle,
+        { label: 'TSB', data: tsbD, borderColor: C_BLUE, borderWidth: 2, borderDash: dashStyle,
           backgroundColor: 'rgba(74,158,255,0.06)',
           pointRadius: (ctx) => ctx.dataIndex === 0 ? 5 : 0,
-          pointBackgroundColor: ctx => { const v = (ctx.dataset.data[ctx.dataIndex] ?? 0); return v > 5 ? '#4a9eff' : v > -10 ? '#888' : ACCENT; },
-          segment: { borderColor: ctx => { const v = ctx.p1.parsed.y; return v > 5 ? '#4a9eff' : v > -10 ? '#888' : ACCENT; } },
+          pointBackgroundColor: ctx => { const v = (ctx.dataset.data[ctx.dataIndex] ?? 0); return v > 5 ? C_BLUE : v > -10 ? '#888' : ACCENT; },
+          segment: { borderColor: ctx => { const v = ctx.p1.parsed.y; return v > 5 ? C_BLUE : v > -10 ? '#888' : ACCENT; } },
           pointHoverRadius: 7, tension: 0.3, fill: true }
       ]
     },
@@ -10599,11 +10691,11 @@ function renderFatiguePredChart() {
 
 /* ── Feature: Training Periodization ── */
 const PERIOD_PHASES = {
-  Recovery: { color: '#4a9eff', label: 'Recovery' },
+  Recovery: { color: C_BLUE, label: 'Recovery' },
   Base:     { color: ACCENT, label: 'Base' },
-  Build:    { color: '#f0c429', label: 'Build' },
-  Peak:     { color: '#ff6b35', label: 'Peak' },
-  Race:     { color: '#ff4757', label: 'Race' },
+  Build:    { color: C_YELLOW, label: 'Build' },
+  Peak:     { color: C_ORANGE, label: 'Peak' },
+  Race:     { color: C_RED, label: 'Race' },
 };
 
 function _classifyWeek({ weeklyTSS, rollingAvgTSS, rampRate, tsb }) {
@@ -10769,7 +10861,7 @@ function renderFitnessWeeklyPageChart(days) {
   // Color bars by intensity relative to avg
   const vals   = entries.map(([, v]) => Math.round(v));
   const avg    = vals.reduce((s, v) => s + v, 0) / vals.length;
-  const colors      = vals.map(v => v >= avg * 1.2 ? '#ff6b35' : v >= avg * 0.8 ? ACCENT : 'rgba(0,229,160,0.4)');
+  const colors      = vals.map(v => v >= avg * 1.2 ? C_ORANGE : v >= avg * 0.8 ? ACCENT : 'rgba(0,229,160,0.4)');
   const hoverColors = vals.map(v => v >= avg * 1.2 ? '#ff8c5a' : v >= avg * 0.8 ? '#33ffbc' : ACCENT);
 
   state.fitnessWeeklyPageChart = new Chart(canvas.getContext('2d'), {
@@ -11024,7 +11116,7 @@ function drawRecoveryGaugeSVG(score) {
          + `A${Ri} ${Ri} 0 ${large} 0 ${pxR(a1, Ri)} ${pyR(a1, Ri)}Z`;
   };
 
-  const color = val < 30 ? '#ff4757' : val < 60 ? '#f0c429' : ACCENT;
+  const color = val < 30 ? C_RED : val < 60 ? C_YELLOW : ACCENT;
 
   // Tick marks at key boundaries
   const tickVals = [0, 30, 60, 100];
@@ -11084,7 +11176,7 @@ function drawRecoveryGaugeSVG(score) {
   // Tube track base
   s += `<path d="${tubePath(Math.PI * 0.999, Math.PI * 0.001, 'round')}" fill="rgba(10,12,20,0.6)"/>`;
   // Zone color hints
-  const zones = [[0, 30, '#ff4757'], [30, 60, '#f0c429'], [60, 100, ACCENT]];
+  const zones = [[0, 30, C_RED], [30, 60, C_YELLOW], [60, 100, ACCENT]];
   zones.forEach(([lo, hi, c]) => {
     s += `<path d="${tubePath(toA(lo), toA(hi))}" fill="${c}" opacity="0.07"/>`;
   });
@@ -11092,7 +11184,7 @@ function drawRecoveryGaugeSVG(score) {
   s += `<path d="${tubePath(Math.PI * 0.999, Math.PI * 0.001, 'round')}" fill="url(#recTubeTrack)"/>`;
 
   // Active fill
-  const fillGrad = color === ACCENT ? 'url(#recTubeFillGreen)' : color === '#f0c429' ? 'url(#recTubeFillYellow)' : 'url(#recTubeFillRed)';
+  const fillGrad = color === ACCENT ? 'url(#recTubeFillGreen)' : color === C_YELLOW ? 'url(#recTubeFillYellow)' : 'url(#recTubeFillRed)';
   if (val > 1) {
     s += `<path d="${arcPath(Math.PI * 0.999, toA(val))}" fill="none" stroke="${color}" stroke-width="${SW + 10}" stroke-linecap="round" opacity="0.2" filter="url(#recGlow)"/>`;
     s += `<path d="${tubePath(Math.PI * 0.999, toA(val), 'round')}" fill="${fillGrad}"/>`;
@@ -11291,7 +11383,8 @@ function setLoading(show, text = 'Loading…') {
 /* ====================================================
    ZONES PAGE
 ==================================================== */
-const HR_ZONE_HEX  = ['#60a5fa','#34d399','#86efac','#fbbf24','#f97316','#f87171','#e879f9'];
+// HR_ZONE_HEX is now set dynamically in refreshPalette() via window.HR_ZONE_HEX_DYN
+// All usages below reference the global; do NOT redeclare as const.
 
 function setZnpRange(days) {
   state.znpRangeDays = days;
@@ -11523,7 +11616,7 @@ function renderZnpDecoupleChart() {
     return d.toLocaleDateString('en-US', { month:'short', day:'numeric' });
   });
   const values   = acts.map(a => +a.icu_aerobic_decoupling.toFixed(1));
-  const ptColors = values.map(v => Math.abs(v)<5 ? ACCENT : Math.abs(v)<8 ? '#fbbf24' : '#f87171');
+  const ptColors = values.map(v => Math.abs(v)<5 ? ACCENT : Math.abs(v)<8 ? C_AMBER : C_RED_LIGHT);
   const avg      = +(values.reduce((s,v)=>s+v,0)/values.length).toFixed(1);
 
   if (subEl)   subEl.textContent   = `HR drift vs power · last ${acts.length} rides`;
@@ -11539,7 +11632,7 @@ function renderZnpDecoupleChart() {
       labels,
       datasets: [{
         data: values,
-        borderColor: '#60a5fa',
+        borderColor: C_BLUE_LIGHT,
         borderWidth: 2,
         pointBackgroundColor: ptColors,
         pointBorderColor:     ptColors,
@@ -15235,12 +15328,12 @@ function renderActivityBasic(a) {
       const z56 = (zonePcts[4] || 0) + (zonePcts[5] || 0);
       const z6  = zonePcts[5] || 0;
       let label, color;
-      if (z6 >= 10)       { label = 'Anaerobic';   color = '#b482ff'; }
-      else if (z56 >= 15) { label = 'VO2max';      color = '#ff4757'; }
-      else if (z4 >= 20)  { label = 'Threshold';   color = '#ff6b35'; }
-      else if (z3 >= 40)  { label = 'Tempo';       color = '#f0c429'; }
-      else if (z12 >= 60) { label = 'Endurance';   color = '#00e5a0'; }
-      else                { label = 'Mixed Effort'; color = '#4a9eff'; }
+      if (z6 >= 10)       { label = 'Anaerobic';   color = C_PURPLE_LIGHT; }
+      else if (z56 >= 15) { label = 'VO2max';      color = C_RED; }
+      else if (z4 >= 20)  { label = 'Threshold';   color = C_ORANGE; }
+      else if (z3 >= 40)  { label = 'Tempo';       color = C_YELLOW; }
+      else if (z12 >= 60) { label = 'Endurance';   color = C_ACCENT; }
+      else                { label = 'Mixed Effort'; color = C_BLUE; }
       effortTag.textContent = label;
       effortTag.style.background = color + '1a';
       effortTag.style.borderColor = color + '47';
@@ -15522,7 +15615,7 @@ function renderDetailComparison(a) {
     const cls = positive ? 'cmp-up' : (up || dn ? 'cmp-down' : 'cmp-same');
     const fillColor = (!up && !dn) ? '#3d4459'   // at average → neutral grey
                     : positive     ? ACCENT   // performing better than avg → green
-                    :                '#fb923c';  // performing worse than avg → amber
+                    :                C_ORANGE_LIGHT;  // performing worse than avg → amber
     const pctAbs = Math.abs(Math.round(pct));
     const pctLabel = pctAbs < 1 ? '≈ avg' : `${up ? '+' : '-'}${pctAbs}%`;
     allPcts.push(positive ? pct : -Math.abs(pct));
@@ -15596,7 +15689,7 @@ function renderDetailComparison(a) {
     badgeEl.textContent = label;
     if (good) {
       badgeEl.style.background = '#22c55e22';
-      badgeEl.style.color = '#22c55e';
+      badgeEl.style.color = C_GREEN;
     } else if (weak) {
       badgeEl.style.background = 'var(--bg-elevated)';
       badgeEl.style.color = 'var(--text-muted)';
@@ -15817,7 +15910,7 @@ function routePointColor(mode, streams, si, maxes) {
     }
     case 'speed': {
       const spd = get('velocity_smooth');
-      if (spd == null) return '#3b82f6';
+      if (spd == null) return C_BLUE_TW;
       const q = clamp((spd * 3.6) / (maxes.maxSpdKmh || 50));
       return lerpColor('#bfdbfe', '#1e3a8a', q);   // light → dark blue
     }
@@ -15826,7 +15919,7 @@ function routePointColor(mode, streams, si, maxes) {
       if (w == null) return '#4b5563';
       const q = clamp(w / (maxes.maxWatts || 400));
       return q < 0.5
-        ? lerpColor('#fde68a', '#f97316', q * 2)   // yellow → orange
+        ? lerpColor(C_AMBER_LIGHT, '#f97316', q * 2)   // yellow → orange
         : lerpColor('#f97316', '#dc2626', (q-0.5)*2); // orange → red
     }
     case 'altitude': {
@@ -15879,10 +15972,10 @@ const MAP_ICONS = {
 function hrZoneColor(hr, maxHR) {
   const p = hr / (maxHR || 190);
   if (p < 0.60) return '#94a3b8';  // Z1 recovery — muted blue-gray
-  if (p < 0.70) return '#60a5fa';  // Z2 endurance — blue
-  if (p < 0.80) return '#4ade80';  // Z3 aerobic   — green
-  if (p < 0.90) return '#fb923c';  // Z4 threshold — orange
-  return '#f87171';                 // Z5 VO2max    — red
+  if (p < 0.70) return C_BLUE_LIGHT;  // Z2 endurance — blue
+  if (p < 0.80) return C_GREEN_LIGHT;  // Z3 aerobic   — green
+  if (p < 0.90) return C_ORANGE_LIGHT;  // Z4 threshold — orange
+  return C_RED_LIGHT;                 // Z5 VO2max    — red
 }
 
 // Compute an SVG arc path for the speed gauge.
@@ -16045,10 +16138,10 @@ function _refreshStatPanel(panel, streams, idx, maxSpdKmh, maxHR) {
   // Grade: show sign, 1 decimal, colour by slope direction/steepness
   if (grade != null) {
     const gStr  = (grade >= 0 ? '+' : '') + grade.toFixed(1);
-    const gColor = grade >  6  ? '#f87171'   // steep climb  — red
-                 : grade >  2  ? '#fb923c'   // moderate climb — orange
+    const gColor = grade >  6  ? C_RED_LIGHT   // steep climb  — red
+                 : grade >  2  ? C_ORANGE_LIGHT   // moderate climb — orange
                  : grade > -2  ? '#e2e8f0'   // flat          — white
-                 : grade > -6  ? '#60a5fa'   // moderate descent — blue
+                 : grade > -6  ? C_BLUE_LIGHT   // moderate descent — blue
                  :               '#818cf8';  // steep descent — indigo
     setVal('grade', gStr, gColor);
   }
@@ -16255,9 +16348,9 @@ function _addRoadSafetyLayer(map) {
     paint: {
       'line-color': [
         'case',
-        ['in', ['get','class'], ['literal',['motorway','trunk']]], '#ff4757',
-        ['==', ['get','class'], 'primary'], '#ff6b35',
-        ['==', ['get','class'], 'secondary'], '#f0c429',
+        ['in', ['get','class'], ['literal',['motorway','trunk']]], C_RED,
+        ['==', ['get','class'], 'primary'], C_ORANGE,
+        ['==', ['get','class'], 'secondary'], C_YELLOW,
         ['==', ['get','class'], 'tertiary'], '#b8e000',
         ['in', ['get','class'], ['literal',['minor','service']]], '#00e55a',
         ['all', ['==',['get','class'],'path'], ['any', ['==',['get','subclass'],'cycleway'], ['==',['get','bicycle'],'designated']]], '#00d4aa',
@@ -16820,18 +16913,18 @@ function renderActivityMap(latlng, streams) {
 
             // Color-mode cycle button (cycles through available route color modes)
             const colorModeIcons = { default: '◉', hr: '♥', speed: '⚡', power: '◈', altitude: '▲' };
-            const colorModeColors = { default: '#00e5a0', hr: '#f87171', speed: '#3b82f6', power: '#f97316', altitude: '#7c3aed' };
+            const colorModeColors = { default: C_ACCENT, hr: C_RED_LIGHT, speed: C_BLUE_TW, power: '#f97316', altitude: '#7c3aed' };
             const colorCycleBtn = document.createElement('button');
             colorCycleBtn.className = 'act-map-tool-btn';
             colorCycleBtn.title = 'Cycle route color';
             colorCycleBtn.innerHTML = `<span style="font-size:14px;line-height:1">${colorModeIcons[activeMode] || '◉'}</span>`;
-            colorCycleBtn.style.color = colorModeColors[activeMode] || '#00e5a0';
+            colorCycleBtn.style.color = colorModeColors[activeMode] || C_ACCENT;
             colorCycleBtn.addEventListener('click', () => {
               const idx = modes.findIndex(m => m.key === activeMode);
               const next = modes[(idx + 1) % modes.length];
               applyColorMode(next.key);
               colorCycleBtn.innerHTML = `<span style="font-size:14px;line-height:1">${colorModeIcons[next.key] || '◉'}</span>`;
-              colorCycleBtn.style.color = colorModeColors[next.key] || '#00e5a0';
+              colorCycleBtn.style.color = colorModeColors[next.key] || C_ACCENT;
               colorCycleBtn.title = `Route: ${next.label}`;
             });
             navGroup.appendChild(colorCycleBtn);
@@ -16929,11 +17022,11 @@ function initFlythrough(map, valid, streams, maxes, maxSpdKmh, maxHR, statsEl, t
   const _mc = { canvas: null, ctx: null, layers: [], layerOn: {}, cached: null, w: 0, h: 0 };
 
   const MC_METRICS = [
-    { key: 'heartrate',       alt: 'heart_rate',     label: 'HR',       color: '#ff6b35', unit: 'bpm' },
+    { key: 'heartrate',       alt: 'heart_rate',     label: 'HR',       color: C_ORANGE, unit: 'bpm' },
     { key: 'watts',           alt: 'power',          label: 'Power',    color: ACCENT, unit: 'w'   },
-    { key: 'altitude',        alt: null,             label: 'Elev',     color: '#9b59ff', unit: 'm'   },
-    { key: 'cadence',         alt: null,             label: 'Cad',      color: '#4a9eff', unit: 'rpm' },
-    { key: 'velocity_smooth', alt: null,             label: 'Speed',    color: '#f0c429', unit: 'km/h', scale: 3.6 },
+    { key: 'altitude',        alt: null,             label: 'Elev',     color: C_PURPLE, unit: 'm'   },
+    { key: 'cadence',         alt: null,             label: 'Cad',      color: C_BLUE, unit: 'rpm' },
+    { key: 'velocity_smooth', alt: null,             label: 'Speed',    color: C_YELLOW, unit: 'km/h', scale: 3.6 },
   ];
 
   function initMiniChart() {
@@ -17300,12 +17393,12 @@ function renderStreamCharts(streams, activity) {
 
   // Ordered stream definitions — altitude drawn first so it sits behind everything
   const STREAM_DEFS = [
-    { key: 'altitude',        label: 'Altitude', color: '#9b59ff', unit: 'm',    yAxis: 'yAlt',     borderWidth: 0,   fill: 'origin', alpha: 0.18 },
+    { key: 'altitude',        label: 'Altitude', color: C_PURPLE, unit: 'm',    yAxis: 'yAlt',     borderWidth: 0,   fill: 'origin', alpha: 0.18 },
     { key: 'watts',           label: 'Power',    color: ACCENT, unit: 'w',    yAxis: 'yPower',   borderWidth: 1.5, fill: false,    alpha: 0 },
-    { key: 'heartrate',       label: 'HR',       color: '#ff6b35', unit: ' bpm', yAxis: 'yHR',      borderWidth: 1.5, fill: false,    alpha: 0 },
-    { key: 'cadence',         label: 'Cadence',  color: '#4a9eff', unit: ' rpm', yAxis: 'yCadence', borderWidth: 1.5, fill: false,    alpha: 0 },
-    { key: 'velocity_smooth', label: 'Speed',    color: '#f0c429', unit: ' km/h',yAxis: 'ySpeed',   borderWidth: 1.5, fill: false,    alpha: 0 },
-    { key: 'lrbalance',       label: 'L/R Bal',  color: '#e84393', unit: '%',    yAxis: 'yLRBal',   borderWidth: 1.5, fill: false,    alpha: 0 },
+    { key: 'heartrate',       label: 'HR',       color: C_ORANGE, unit: ' bpm', yAxis: 'yHR',      borderWidth: 1.5, fill: false,    alpha: 0 },
+    { key: 'cadence',         label: 'Cadence',  color: C_BLUE, unit: ' rpm', yAxis: 'yCadence', borderWidth: 1.5, fill: false,    alpha: 0 },
+    { key: 'velocity_smooth', label: 'Speed',    color: C_YELLOW, unit: ' km/h',yAxis: 'ySpeed',   borderWidth: 1.5, fill: false,    alpha: 0 },
+    { key: 'lrbalance',       label: 'L/R Bal',  color: C_PINK, unit: '%',    yAxis: 'yLRBal',   borderWidth: 1.5, fill: false,    alpha: 0 },
   ];
 
   const datasets = [];
@@ -17381,7 +17474,7 @@ function renderStreamCharts(streams, activity) {
   document.getElementById('detailStreamsSubtitle').textContent = subtitleParts.join(' · ');
 
   // Toggle chips
-  const STREAM_META = { watts: ACCENT, heartrate: '#ff6b35', cadence: '#4a9eff', velocity_smooth: '#f0c429', altitude: '#9b59ff', lrbalance: '#e84393' };
+  const STREAM_META = { watts: ACCENT, heartrate: C_ORANGE, cadence: C_BLUE, velocity_smooth: C_YELLOW, altitude: C_PURPLE, lrbalance: C_PINK };
   const STREAM_LABEL = { watts: 'Power', heartrate: 'HR', cadence: 'Cadence', velocity_smooth: 'Speed', altitude: 'Altitude', lrbalance: 'L/R Bal' };
   const togContainer = document.getElementById('streamToggleChips');
   if (togContainer) {
@@ -17498,8 +17591,7 @@ const CYCLING_POWER_TYPES = () =>
   [dominantRideType(), 'Ride', 'VirtualRide', 'MountainBikeRide', 'EBikeRide', 'Workout']
     .filter((t, i, a) => a.indexOf(t) === i);
 
-// Hex colours that map to our zone CSS vars (used in Chart.js which needs actual colour values)
-const ZONE_HEX = ['#4a9eff', ACCENT, '#ffcc00', '#ff6b35', '#ff5252', '#b482ff'];
+// ZONE_HEX is now set dynamically in refreshPalette() as window.ZONE_HEX
 
 // Render zone bar charts when time-series streams are not available.
 // Uses icu_zone_times (power) and icu_hr_zone_times (HR) from the activity object.
@@ -17676,16 +17768,16 @@ async function renderDetailPerformance(a, actId, streams) {
        ${sub ? `<div class="perf-metric-sub">${sub}</div>` : ''}
      </div>`;
 
-  const ifColor = v => v < 0.75 ? '#60a5fa' : v < 0.85 ? '#34d399' : v < 0.95 ? '#fbbf24' : '#f87171';
-  const dcColor = v => Math.abs(v) < 5 ? '#34d399' : Math.abs(v) < 8 ? '#fbbf24' : '#f87171';
+  const ifColor = v => v < 0.75 ? C_BLUE_LIGHT : v < 0.85 ? '#34d399' : v < 0.95 ? C_AMBER : C_RED_LIGHT;
+  const dcColor = v => Math.abs(v) < 5 ? '#34d399' : Math.abs(v) < 8 ? C_AMBER : C_RED_LIGHT;
 
   const metrics = [];
   if (np > 0)           metrics.push(tile(Math.round(np) + 'w',       'Normalized Power',   'NP',               ACCENT));
   if (ifVal > 0.01)     metrics.push(tile(ifVal.toFixed(2),            'Intensity Factor',   'IF = NP / FTP',    ifColor(ifVal)));
-  if (vi !== null)      metrics.push(tile(vi.toFixed(2),               'Variability Index',  'VI = NP / avg W',  vi < 1.05 ? '#34d399' : vi < 1.10 ? '#fbbf24' : '#f87171'));
+  if (vi !== null)      metrics.push(tile(vi.toFixed(2),               'Variability Index',  'VI = NP / avg W',  vi < 1.05 ? '#34d399' : vi < 1.10 ? C_AMBER : C_RED_LIGHT));
   if (ef !== null)      metrics.push(tile(ef.toFixed(2),               'Efficiency Factor',  'EF = NP / avg HR', '#818cf8'));
   if (decouple !== null) metrics.push(tile(decouple.toFixed(1) + '%', 'Aerobic Decoupling', 'HR drift vs power', dcColor(decouple)));
-  if (trimp > 0)        metrics.push(tile(Math.round(trimp),           'TRIMP',              'Training load score','#fb923c'));
+  if (trimp > 0)        metrics.push(tile(Math.round(trimp),           'TRIMP',              'Training load score',C_ORANGE_LIGHT));
   if (maxSpd !== null)  metrics.push(tile(maxSpd.toFixed(1) + ' km/h','Max Speed',          'Peak speed this ride','#38bdf8'));
 
   if (!metrics.length) { showCardNA('detailPerfCard'); return; }
@@ -17786,7 +17878,7 @@ function renderDetailDecoupleChart(streams, activity) {
   // Colour each point by position (first half green-ish, second half by EF drop)
   const ptColors = efSeries.map((v, i) => {
     if (v == null) return 'transparent';
-    return i < mid ? '#60a5fa' : (dcDisplay != null && Math.abs(dcDisplay) >= 8 ? '#f87171' : '#fbbf24');
+    return i < mid ? C_BLUE_LIGHT : (dcDisplay != null && Math.abs(dcDisplay) >= 8 ? C_RED_LIGHT : C_AMBER);
   });
 
   state._detailDecoupleChart = destroyChart(state._detailDecoupleChart);
@@ -17801,7 +17893,7 @@ function renderDetailDecoupleChart(streams, activity) {
         {
           label: 'EF (W/bpm)',
           data: efSeries,
-          borderColor: '#60a5fa',
+          borderColor: C_BLUE_LIGHT,
           borderWidth: 2,
           pointBackgroundColor: ptColors,
           pointBorderColor:     ptColors,
@@ -17815,7 +17907,7 @@ function renderDetailDecoupleChart(streams, activity) {
             above: 'rgba(96,165,250,0.06)',
           },
           segment: {
-            borderColor: ctx => ctx.p0DataIndex >= mid ? (dcDisplay != null && Math.abs(dcDisplay) >= 8 ? '#f87171' : '#fbbf24') : '#60a5fa',
+            borderColor: ctx => ctx.p0DataIndex >= mid ? (dcDisplay != null && Math.abs(dcDisplay) >= 8 ? C_RED_LIGHT : C_AMBER) : C_BLUE_LIGHT,
           },
         },
         // Midpoint divider — invisible zero-height line rendered as annotation
@@ -17847,7 +17939,7 @@ function renderDetailDecoupleChart(streams, activity) {
               return c.dataIndex < mid ? '← First half' : '← Second half';
             },
             labelColor: c => {
-              const col = ptColors[c.dataIndex] || '#60a5fa';
+              const col = ptColors[c.dataIndex] || C_BLUE_LIGHT;
               return { backgroundColor: col, borderColor: col, borderWidth: 0, borderRadius: 3 };
             },
           }
@@ -17886,7 +17978,7 @@ function renderDetailLRBalance(streams, activity) {
 
   // Badge color: green if <2% imbalance, yellow <4%, red >4%
   const imbalance = Math.abs(avgBalance - 50);
-  const badgeColor = imbalance < 2 ? ACCENT : imbalance < 4 ? '#f0c429' : '#ff4757';
+  const badgeColor = imbalance < 2 ? ACCENT : imbalance < 4 ? C_YELLOW : C_RED;
   const badgeLabel = imbalance < 2 ? 'Balanced' : imbalance < 4 ? 'Slight imbalance' : 'Imbalanced';
 
   const badgeEl = document.getElementById('detailLRBalBadge');
@@ -17939,7 +18031,7 @@ function renderDetailLRBalance(streams, activity) {
         {
           label: 'L/R Balance',
           data: chartData,
-          borderColor: '#e84393',
+          borderColor: C_PINK,
           borderWidth: 2,
           pointRadius: 0,
           pointHoverRadius: 5,
@@ -18255,7 +18347,7 @@ function renderDetailTempChart(streams, activity) {
       datasets: [{
         label: `Temp (${deg})`,
         data: temps,
-        borderColor: '#fb923c',
+        borderColor: C_ORANGE_LIGHT,
         backgroundColor: grad,
         fill: true,
         pointRadius: 0,
@@ -18696,7 +18788,7 @@ function _draw3DElev(canvas, alt, dist, activity, latlng) {
     if (grade < 3)   return '#30d158';
     if (grade < 7)   return '#ffd60a';
     if (grade < 12)  return '#ff9f0a';
-    return '#ff453a';
+    return C_RED_IOS;
   }
 
   function darkenColor(hex, factor) {
@@ -18820,7 +18912,7 @@ function _draw3DElev(canvas, alt, dist, activity, latlng) {
     { label: 'Flat',   color: '#30d158' },
     { label: '3-7%',   color: '#ffd60a' },
     { label: '7-12%',  color: '#ff9f0a' },
-    { label: '> 12%',  color: '#ff453a' },
+    { label: '> 12%',  color: C_RED_IOS },
   ];
   const legY   = cH - 10;
   const legW   = 8;
@@ -19054,7 +19146,7 @@ function renderDetailCadenceHist(streams, activity) {
     i === maxIdx ? ACCENT : 'rgba(74,158,255,0.5)'
   );
   const hoverColors = minutes.map((_, i) =>
-    i === maxIdx ? ACCENT : '#4a9eff'
+    i === maxIdx ? ACCENT : C_BLUE
   );
 
   const sub = document.getElementById('detailCadenceSubtitle');
@@ -19146,7 +19238,7 @@ function renderZnpZoneTimeChart() {
   const weeks = Object.keys(weekMap).sort();
   if (!weeks.length) return;
 
-  const ZONE_COLORS_CHART = [
+  const ZONE_COLORS_CHART = window.ZONE_CHART || [
     'rgba(100,180,255,0.85)',  // Z1 blue
     'rgba(0,229,160,0.85)',    // Z2 green
     'rgba(240,196,41,0.85)',   // Z3 yellow
@@ -19154,14 +19246,7 @@ function renderZnpZoneTimeChart() {
     'rgba(255,71,87,0.85)',    // Z5 red
     'rgba(180,80,220,0.85)',   // Z6 purple
   ];
-  const ZONE_HOVER_CHART = [
-    'rgb(100,180,255)',  // Z1 blue
-    'rgb(0,229,160)',    // Z2 green
-    'rgb(240,196,41)',   // Z3 yellow
-    'rgb(255,150,50)',   // Z4 orange
-    'rgb(255,71,87)',    // Z5 red
-    'rgb(180,80,220)',   // Z6 purple
-  ];
+  const ZONE_HOVER_CHART = ZONE_COLORS_CHART;
   const ZONE_LABELS = ['Z1 Recovery','Z2 Endurance','Z3 Tempo','Z4 Threshold','Z5 VO2max','Z6 Anaerobic'];
 
   const datasets = ZONE_LABELS.map((label, i) => ({
@@ -19774,7 +19859,7 @@ async function renderDetailCurve(actId, streams) {
   if (legendEl) {
     const items = [
       raw     && { label: 'This ride', color: ACCENT },
-      rawYear && { label: '1 year',    color: '#fb923c' },
+      rawYear && { label: '1 year',    color: C_ORANGE_LIGHT },
     ].filter(Boolean);
     legendEl.innerHTML = items.map(l =>
       `<div class="curve-legend-item">
@@ -19822,7 +19907,7 @@ async function renderDetailCurve(actId, streams) {
   if (yearData.length)
     datasets.push({
       label: '1 year', data: yearData,
-      borderColor: '#fb923c', backgroundColor: 'rgba(251,146,60,0.04)',
+      borderColor: C_ORANGE_LIGHT, backgroundColor: 'rgba(251,146,60,0.04)',
       borderWidth: 1.5, borderDash: [4, 3], fill: false,
       tension: 0.4, pointRadius: 0, pointHoverRadius: 6,
     });
@@ -19958,8 +20043,8 @@ async function renderDetailHRCurve(streams) {
   const legendEl = document.getElementById('detailHRCurveLegend');
   if (legendEl) {
     const items = [
-      raw     && { label: 'This ride', color: '#f87171' },
-      rawYear && { label: '1 year',    color: '#fb923c' },
+      raw     && { label: 'This ride', color: C_RED_LIGHT },
+      rawYear && { label: '1 year',    color: C_ORANGE_LIGHT },
     ].filter(Boolean);
     legendEl.innerHTML = items.map(l =>
       `<div class="curve-legend-item">
@@ -19996,14 +20081,14 @@ async function renderDetailHRCurve(streams) {
   if (yearData.length)
     datasets.push({
       label: '1 year', data: yearData,
-      borderColor: '#fb923c', backgroundColor: 'rgba(251,146,60,0.04)',
+      borderColor: C_ORANGE_LIGHT, backgroundColor: 'rgba(251,146,60,0.04)',
       borderWidth: 1.5, borderDash: [4, 3], fill: false,
       tension: 0.4, pointRadius: 0, pointHoverRadius: 6,
     });
   if (rideData.length)
     datasets.push({
       label: 'This ride', data: rideData,
-      borderColor: '#f87171', backgroundColor: 'rgba(248,113,113,0.08)',
+      borderColor: C_RED_LIGHT, backgroundColor: 'rgba(248,113,113,0.08)',
       borderWidth: 2.5, fill: true,
       tension: 0.4, pointRadius: 0, pointHoverRadius: 7,
     });
@@ -20195,14 +20280,14 @@ function gearSwitchTab(tab) {
 
 const GEAR_STORE_KEY = 'icu_gear_components';
 const GEAR_CATEGORY_COLORS = {
-  Drivetrain: '#60a5fa',
+  Drivetrain: C_BLUE_LIGHT,
   Wheels:     '#34d399',
   Cockpit:    '#a78bfa',
   Frame:      '#f97316',
-  Brakes:     '#f87171',
-  Tyres:      '#fbbf24',
+  Brakes:     C_RED_LIGHT,
+  Tyres:      C_AMBER,
   Pedals:     '#e879f9',
-  Saddle:     '#fb923c',
+  Saddle:     C_ORANGE_LIGHT,
   Other:      '#94a3b8',
 };
 
@@ -20584,8 +20669,8 @@ function calcCoinCellPercent(bat) {
 
 function batteryColor(pct) {
   if (pct > 50)  return 'var(--accent)';
-  if (pct > 25)  return '#f0c429';
-  if (pct > 10)  return '#ff6b35';
+  if (pct > 25)  return C_YELLOW;
+  if (pct > 10)  return C_ORANGE;
   return 'var(--red)';
 }
 function batteryColorClass(pct) {
@@ -22333,7 +22418,7 @@ function _renderProfileRadar() {
     const p = hexPt(i, r);
     ctx.beginPath();
     ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-    ctx.fillStyle = '#00e5a0';
+    ctx.fillStyle = C_ACCENT;
     ctx.fill();
     ctx.strokeStyle = dark ? '#000' : '#fff';
     ctx.lineWidth = 2;
@@ -22608,7 +22693,7 @@ function renderGoalsDashWidget() {
     const pctClamped = Math.min(p.pct, 100);
     const circumference = 2 * Math.PI * 38;
     const dashOffset = circumference - (pctClamped / 100) * circumference;
-    const statusColor = { green: 'var(--accent)', yellow: '#ffcc00', red: '#ff453a' };
+    const statusColor = { green: 'var(--accent)', yellow: '#ffcc00', red: C_RED_IOS };
     const ringColor = statusColor[statusCls[p.status]] || 'var(--accent)';
 
     html += `
@@ -24206,7 +24291,7 @@ Object.assign(window, {
   goalNumStep, hideGoalForm, submitGoalForm, showGoalForm, deleteGoal,
   // Settings / data
   setWeatherModel, renderDashSectionToggles,
-  openSettingsSubpage, closeSettingsSubpage, iosSettingsInit,
+  openSettingsSubpage, closeSettingsSubpage, settingsBack, focusSettingsSearch, iosSettingsInit,
   // Vitality shader + Dashboard FAB gooey expand
   renderVitality,
   // Calendar create/edit event
@@ -24225,7 +24310,7 @@ Object.assign(window, {
 
 // ── Also expose constants ──
 window.COGGAN_ZONES = COGGAN_ZONES;
-window.ZONE_HEX = ZONE_HEX;
+// window.ZONE_HEX is now set by refreshPalette()
 
 // (legacy toggleDashFab / _closeDashFab stubs removed — pill nav replaces)
 

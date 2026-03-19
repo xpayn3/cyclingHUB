@@ -806,7 +806,7 @@ export function setMapTheme(key) {
   if (!(window.MAP_STYLES || {})[key] || key === 'satellite') return;
   try { localStorage.setItem('icu_map_theme', key); } catch (e) { console.warn('localStorage.setItem failed:', e); }
   // Update active state on picker buttons
-  document.querySelectorAll('.map-theme-card').forEach(b =>
+  document.querySelectorAll('#mapThemePicker .app-theme-card').forEach(b =>
     b.classList.toggle('active', b.dataset.theme === key));
 
   const style = _mlGetStyle(key);
@@ -866,7 +866,7 @@ export function setMapTheme(key) {
 }
 // Deferred — called when Settings page opens (MAP_STYLES not yet on window at module eval)
 export function initMapThemePicker() {
-  document.querySelectorAll('.map-theme-card').forEach(b =>
+  document.querySelectorAll('#mapThemePicker .app-theme-card').forEach(b =>
     b.classList.toggle('active', b.dataset.theme === loadMapTheme()));
 }
 
@@ -954,7 +954,7 @@ function _resolveTheme(mode) {
 function _applyResolvedTheme(resolved) {
   document.documentElement.setAttribute('data-theme', resolved);
   const tc = document.querySelector('meta[name="theme-color"]');
-  if (tc) tc.setAttribute('content', resolved === 'light' ? '#f2f3f5' : '#090b0e');
+  if (tc) tc.setAttribute('content', resolved === 'light' ? '#f2f3f5' : resolved === 'tdf' ? '#000000' : '#090b0e');
   _updateChartColors();
   // Switch map theme to match: light → liberty, dark → strava
   if (window.MAP_STYLES) {
@@ -969,12 +969,25 @@ export function setTheme(mode) {
   const resolved = _resolveTheme(mode);
   _applyResolvedTheme(resolved);
 
+  // Refresh colour palette so zone colours match the new theme
+  if (typeof refreshPalette === 'function') refreshPalette();
+
   // Update toggle button active states
   const toggle = document.getElementById('themePills');
   if (toggle) toggle.setAttribute('data-active', mode);
   document.querySelectorAll('#themePills .theme-toggle-btn').forEach(b =>
     b.classList.toggle('active', b.dataset.themeVal === mode)
   );
+
+  // Update theme picker active states (new UI)
+  document.querySelectorAll('#appThemePicker .app-theme-card').forEach(c => {
+    c.classList.toggle('active', c.dataset.themeVal === mode);
+  });
+  const themeLabel = document.getElementById('iosCurrentTheme');
+  if (themeLabel) {
+    const labels = { dark: 'Dark', light: 'Light', tdf: 'Tour de France', auto: 'Auto' };
+    themeLabel.textContent = labels[mode] || mode;
+  }
 
   // Re-render charts on the current page
   const pg = state.currentPage;
