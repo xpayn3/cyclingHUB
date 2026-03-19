@@ -21171,11 +21171,10 @@ function openGearPicker(selectEl) {
     let imgHtml = '';
     if (isModel && currentBrand && opt.value) {
       const img = _gearGetDefaultImage(currentBrand, opt.value);
-      imgHtml = img ? `<img class="gp-opt-img" src="${img}" alt="">` : defaultIcon;
+      imgHtml = img ? `<img class="gp-opt-img" src="${img}" alt="" onerror="this.parentNode.innerHTML='${defaultIcon.replace(/'/g, "\\'")}'">` : defaultIcon;
     } else if (isBrand && opt.value) {
-      // Try brand-only image
       const img = _gearGetDefaultImage(opt.value, '');
-      imgHtml = img ? `<img class="gp-opt-img" src="${img}" alt="">` : defaultIcon;
+      imgHtml = img ? `<img class="gp-opt-img" src="${img}" alt="" onerror="this.parentNode.innerHTML='${defaultIcon.replace(/'/g, "\\'")}'">` : defaultIcon;
     } else if (i > 0) {
       imgHtml = defaultIcon;
     }
