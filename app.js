@@ -8228,8 +8228,16 @@ function renderZoneDist(activities) {
   });
 
   const totalSecs = totals.reduce((s, t) => s + t, 0);
-  if (!hasData || totalSecs === 0) { card.style.display = 'none'; return; }
   card.style.display = '';
+  if (!hasData || totalSecs === 0) {
+    const _zl = document.getElementById('zoneList');
+    if (_zl) _zl.innerHTML = '<div style="text-align:center;padding:24px 0;color:var(--text-muted);font-size:14px">Not enough data for this range</div>';
+    const _ztb0 = document.getElementById('zoneTotalBadge');
+    if (_ztb0) _ztb0.textContent = '';
+    const _zbs = document.getElementById('zoneBalanceSection');
+    if (_zbs) _zbs.style.display = 'none';
+    return;
+  }
 
   const _ztb = document.getElementById('zoneTotalBadge');
   if (_ztb) _ztb.textContent = fmtDur(totalSecs) + ' total';
