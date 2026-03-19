@@ -4546,39 +4546,6 @@
                                 </div>
                             </div>
 
-                            <!-- TRAINING -->
-                            <div class="ios-group-label">Training</div>
-                            <div class="ios-group">
-                                <div class="ios-row">
-                                    <span class="ios-row-label">FTP change alerts</span>
-                                    <label class="settings-ios-toggle"><input type="checkbox" id="ftpAlertToggle" onchange="setFtpAlert(this.checked)"/><span class="settings-ios-slider"></span></label>
-                                </div>
-                                <div class="ios-row">
-                                    <span class="ios-row-label">HR Zones source</span>
-                                    <div class="theme-toggle" id="hrZoneSourcePills" style="transform:scale(0.85);transform-origin:right center">
-                                        <div class="theme-toggle-slider"></div>
-                                        <button class="theme-toggle-btn active" data-val="auto" onclick="setHrZoneSource('auto')">Auto</button>
-                                        <button class="theme-toggle-btn" data-val="manual" onclick="setHrZoneSource('manual')">Manual</button>
-                                    </div>
-                                </div>
-                                <div class="ios-row">
-                                    <span class="ios-row-label">Power Zones source</span>
-                                    <div class="theme-toggle" id="pwrZoneSourcePills" style="transform:scale(0.85);transform-origin:right center">
-                                        <div class="theme-toggle-slider"></div>
-                                        <button class="theme-toggle-btn active" data-val="auto" onclick="setPwrZoneSource('auto')">Auto</button>
-                                        <button class="theme-toggle-btn" data-val="custom" onclick="setPwrZoneSource('custom')">Custom</button>
-                                    </div>
-                                </div>
-                                <div class="ios-row">
-                                    <span class="ios-row-label">TSS model</span>
-                                    <div class="theme-toggle" id="tssModelPills" style="transform:scale(0.85);transform-origin:right center">
-                                        <div class="theme-toggle-slider"></div>
-                                        <button class="theme-toggle-btn active" data-val="power" onclick="setTssModel('power')">Power</button>
-                                        <button class="theme-toggle-btn" data-val="hr" onclick="setTssModel('hr')">hrTSS</button>
-                                    </div>
-                                </div>
-                            </div>
-
                             <!-- DISPLAY -->
                             <div class="ios-group-label">Display</div>
                             <div class="ios-group">
@@ -4769,6 +4736,39 @@
 
                             </div>
                             </div><!-- close ios-group -->
+
+                            <!-- TRAINING -->
+                            <div class="ios-group-label">Training</div>
+                            <div class="ios-group">
+                                <div class="ios-row">
+                                    <span class="ios-row-label">FTP change alerts</span>
+                                    <label class="settings-ios-toggle"><input type="checkbox" id="ftpAlertToggle" onchange="setFtpAlert(this.checked)"/><span class="settings-ios-slider"></span></label>
+                                </div>
+                                <div class="ios-row">
+                                    <span class="ios-row-label">HR Zones source</span>
+                                    <div class="theme-toggle" id="hrZoneSourcePills" style="transform:scale(0.85);transform-origin:right center">
+                                        <div class="theme-toggle-slider"></div>
+                                        <button class="theme-toggle-btn active" data-val="auto" onclick="setHrZoneSource('auto')">Auto</button>
+                                        <button class="theme-toggle-btn" data-val="manual" onclick="setHrZoneSource('manual')">Manual</button>
+                                    </div>
+                                </div>
+                                <div class="ios-row">
+                                    <span class="ios-row-label">Power Zones source</span>
+                                    <div class="theme-toggle" id="pwrZoneSourcePills" style="transform:scale(0.85);transform-origin:right center">
+                                        <div class="theme-toggle-slider"></div>
+                                        <button class="theme-toggle-btn active" data-val="auto" onclick="setPwrZoneSource('auto')">Auto</button>
+                                        <button class="theme-toggle-btn" data-val="custom" onclick="setPwrZoneSource('custom')">Custom</button>
+                                    </div>
+                                </div>
+                                <div class="ios-row">
+                                    <span class="ios-row-label">TSS model</span>
+                                    <div class="theme-toggle" id="tssModelPills" style="transform:scale(0.85);transform-origin:right center">
+                                        <div class="theme-toggle-slider"></div>
+                                        <button class="theme-toggle-btn active" data-val="power" onclick="setTssModel('power')">Power</button>
+                                        <button class="theme-toggle-btn" data-val="hr" onclick="setTssModel('hr')">hrTSS</button>
+                                    </div>
+                                </div>
+                            </div>
 
                             <!-- LEVELING -->
                             <div class="ios-group-label">Leveling</div>
