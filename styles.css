@@ -15213,23 +15213,20 @@ body:has(.act-sheet-mode) .topbar {
 .gar-alert-dot--orange { background: #ff9500; }
 .gar-alert-dot--yellow { background: #ffcc00; }
 
-/* Bike carousel — breaks out of page padding, real spacer divs for inset */
+/* Bike carousel */
 .gar-carousel-scroll {
     display: flex;
+    align-items: stretch;
     gap: 12px;
     overflow-x: auto;
+    overflow-y: visible;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     scroll-snap-type: x mandatory;
-    padding: 4px 0 8px;
-    margin-left: calc(-1 * var(--pad-page));
-    margin-right: calc(-1 * var(--pad-page));
+    padding: 8px 2px;
+    margin: -8px -2px;
 }
 .gar-carousel-scroll::-webkit-scrollbar { display: none; }
-.gar-scroll-spacer {
-    flex: 0 0 calc(var(--pad-page) - 12px);
-    min-height: 1px;
-}
 
 .gar-bike-card {
     flex: 0 0 280px;

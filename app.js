@@ -20642,7 +20642,7 @@ async function renderGearPage() {
     </div>`;
   }).join('');
 
-  carousel.innerHTML = '<div class="gar-scroll-spacer"></div>' + bikeCards + '<div class="gar-scroll-spacer"></div>';
+  carousel.innerHTML = bikeCards;
 
   // Populate bike selects in modals
   const selects = ['gearFormBike', 'batteryFormBike', 'serviceFormBike'];
