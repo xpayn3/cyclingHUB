@@ -2518,7 +2518,7 @@ function navigate(page) {
     settings:   ['Settings',       'Account & connection'],
     workout:    ['Workout Builder', 'Build & export custom cycling workouts'],
     guide:      ['Training Guide', 'Understanding CTL · ATL · TSB & training load'],
-    gear:       ['Gear & Service', 'Bikes, components, batteries & service tracking'],
+    gear:       ['My Garage', 'Your bicycle fleet & maintenance'],
     routes:     ['Route Builder',  'Plan & build cycling routes'],
     myroutes:   ['Library',       'Routes, rides & workouts'],
     suggestion: ['Suggested Workout', ''],
@@ -20352,8 +20352,12 @@ if (elevEl) elevEl.textContent = state.units === 'imperial' ? 'feet' : 'metres';
 let _gearActiveTab = 'components';
 function gearSwitchTab(tab) {
   _gearActiveTab = tab;
-  document.querySelectorAll('#page-gear .imp-tab').forEach(t => t.classList.toggle('imp-tab--active', t.dataset.gear === tab));
-  ['components', 'batteries', 'service'].forEach(k => {
+  const tabs = ['components', 'batteries', 'service'];
+  const idx = tabs.indexOf(tab);
+  document.querySelectorAll('#page-gear .gar-tab').forEach(t => t.classList.toggle('active', t.dataset.gear === tab));
+  const indicator = document.querySelector('.gar-tab-indicator');
+  if (indicator && idx >= 0) indicator.style.transform = `translateX(${idx * 100}%)`;
+  tabs.forEach(k => {
     const p = document.getElementById('gearPanel' + k.charAt(0).toUpperCase() + k.slice(1));
     if (p) p.style.display = k === tab ? '' : 'none';
   });
@@ -20384,24 +20388,107 @@ function saveGearComponents(arr) {
 let _gearSelectedBike = null; // null = all
 let _gearBikeCache    = [];   // [{id, name, km}]
 
-async function renderGearPage() {
-  // Fetch bikes from intervals.icu via MCP (already available in state or refetch)
-  const bikeRow = document.getElementById('gearBikesRow');
-  const compGrid = document.getElementById('gearComponentsGrid');
-  if (!bikeRow || !compGrid) return;
+// Photo upload helpers
+function _gearLoadPhotos() {
+  try { return JSON.parse(localStorage.getItem('icu_bike_photos') || '{}'); } catch { return {}; }
+}
+function _gearSavePhoto(bikeId, dataUrl) {
+  const photos = _gearLoadPhotos();
+  photos[bikeId] = dataUrl;
+  try { localStorage.setItem('icu_bike_photos', JSON.stringify(photos)); } catch {}
+}
+let _gearPhotoTargetBike = null;
+function gearTriggerPhotoUpload(bikeId, e) {
+  if (e) e.stopPropagation();
+  _gearPhotoTargetBike = bikeId;
+  document.getElementById('gearPhotoInput')?.click();
+}
+function gearUploadPhoto(input) {
+  const file = input.files?.[0];
+  if (!file || !_gearPhotoTargetBike) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const MAX_W = 600, MAX_H = 400;
+      let w = img.width, h = img.height;
+      if (w > MAX_W) { h *= MAX_W / w; w = MAX_W; }
+      if (h > MAX_H) { w *= MAX_H / h; h = MAX_H; }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      _gearSavePhoto(_gearPhotoTargetBike, canvas.toDataURL('image/jpeg', 0.8));
+      renderGearPage();
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
 
-  bikeRow.innerHTML = '<div class="gear-bikes-loading"><div class="spinner"></div> Loading bikes…</div>';
+// Notification check
+function _gearCheckNotifications() {
+  const alerts = [];
+  const comps = loadGearComponents();
+  const bats = loadGearBatteries();
+  const svcs = loadGearServices();
+  const bikes = _gearBikeCache;
+
+  comps.forEach(c => {
+    if (!c.reminderKm || !c.bikeId) return;
+    const bike = bikes.find(b => b.id === c.bikeId);
+    if (!bike) return;
+    const kmUsed = bike.km - (c.kmAtInstall || 0);
+    const pct = kmUsed / c.reminderKm;
+    if (pct >= 1) alerts.push({ severity: 'red', message: `${c.name} on ${bike.name} — overdue for replacement (${Math.round(pct * 100)}%)` });
+    else if (pct >= 0.9) alerts.push({ severity: 'orange', message: `${c.name} on ${bike.name} — replacement soon (${Math.round(pct * 100)}%)` });
+  });
+
+  bats.forEach(b => {
+    if (b.obsolete) return;
+    const pct = _gearBatPct(b);
+    if (pct !== null && pct < 20) alerts.push({ severity: 'red', message: `${b.name || b.componentType} — battery low (${Math.round(pct)}%)` });
+  });
+
+  svcs.forEach(s => {
+    if (!s.nextServiceMode || !s.bikeId) return;
+    const bike = bikes.find(b => b.id === s.bikeId);
+    if (!bike) return;
+    if (s.nextServiceMode === 'km' && s.nextServiceKm) {
+      const kmSince = bike.km - (s.bikeKmAtService || 0);
+      if (kmSince >= s.nextServiceKm) alerts.push({ severity: 'orange', message: `${bike.name} — service overdue by ${Math.round(kmSince - s.nextServiceKm)} km` });
+    } else if (s.nextServiceMode === 'months' && s.nextServiceMonths) {
+      const monthsSince = (Date.now() - new Date(s.serviceDate).getTime()) / (30.44 * 86400000);
+      if (monthsSince >= s.nextServiceMonths) alerts.push({ severity: 'orange', message: `${bike.name} — service overdue` });
+    }
+  });
+
+  return alerts;
+}
+
+function _gearBatPct(b) {
+  if (!b.lastChargeDate) return null;
+  const days = (Date.now() - new Date(b.lastChargeDate).getTime()) / 86400000;
+  if (b.batteryType === 'coin_cell') {
+    const ratedDays = (b.ratedLifeHours || 730) / 24 * 365;
+    return Math.max(0, Math.min(100, (1 - days / ratedDays) * 100));
+  }
+  const usedHours = days * 0.5;
+  const rated = b.ratedLifeHours || 60;
+  return Math.max(0, Math.min(100, (1 - usedHours / rated) * 100));
+}
+
+async function renderGearPage() {
+  const carousel = document.getElementById('garCarouselScroll');
+  if (!carousel) return;
 
   let bikes = [];
   try {
-    const raw = state.gearBikes; // cached from last fetch
+    const raw = state.gearBikes;
     if (raw && raw.length) {
       bikes = raw;
     } else {
-      // Pull via the MCP tool result already stored in state after sync
-      // Fallback: use activityData to derive bike list if no direct API
-      // We'll call the gear list endpoint through a fetch wrapper
-      const apiKey  = localStorage.getItem('icu_api_key');
+      const apiKey = localStorage.getItem('icu_api_key');
       const athlete = localStorage.getItem('icu_athlete_id');
       if (apiKey && athlete) {
         const resp = await fetch(
@@ -20411,67 +20498,125 @@ async function renderGearPage() {
         if (resp.ok) {
           const data = await resp.json();
           bikes = (data || []).map(g => ({
-            id:   g.id,
-            name: g.name || 'Unnamed bike',
-            km:   g.distance ? Math.round(g.distance / 1000) : 0,
+            id: g.id, name: g.name || 'Unnamed bike',
+            km: g.distance ? Math.round(g.distance / 1000) : 0,
             type: g.type || 'Bike',
           }));
           state.gearBikes = bikes;
         }
       }
     }
-  } catch(e) { console.warn('Gear fetch error', e); }
+  } catch (e) { console.warn('Gear fetch error', e); }
 
   _gearBikeCache = bikes;
+  const photos = _gearLoadPhotos();
 
-  // Render bike cards
-  if (bikes.length === 0) {
-    bikeRow.innerHTML = '<div class="gear-empty-state">No bikes found on intervals.icu</div>';
-  } else {
-    bikeRow.innerHTML = bikes.map(b => {
-      const sel = _gearSelectedBike === b.id ? ' gear-bike-card--active' : '';
-      const kmFmt = b.km >= 1000 ? (b.km / 1000).toFixed(1) + 'k' : b.km;
-      return `<div class="gear-bike-card${sel}" onclick="gearSelectBike('${b.id}')">
-        <div class="gear-bike-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" width="32" height="32">
-            <circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/>
-            <path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5L9 11l-3.5 3.5M15 6l-4 5.5H5.5M15 6l3 5.5"/>
-          </svg>
+  // Bike carousel
+  const bikeSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" width="48" height="48" class="gar-bike-photo-placeholder"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5L9 11l-3.5 3.5M15 6l-4 5.5H5.5M15 6l3 5.5"/></svg>`;
+  const allCard = `<div class="gar-bike-card gar-bike-card--all${!_gearSelectedBike ? ' gar-bike-card--active' : ''}" onclick="gearSelectBike(null)">
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+    <span>All</span>
+  </div>`;
+
+  const bikeCards = bikes.map(b => {
+    const sel = _gearSelectedBike === b.id ? ' gar-bike-card--active' : '';
+    const photo = photos[b.id];
+    const kmFmt = b.km >= 1000 ? (b.km / 1000).toFixed(1) + 'k' : b.km;
+    return `<div class="gar-bike-card${sel}" onclick="gearSelectBike('${b.id}')">
+      <div class="gar-bike-photo">
+        ${photo ? `<img src="${photo}" alt="${b.name}">` : bikeSvg}
+        <button class="gar-bike-photo-upload" onclick="gearTriggerPhotoUpload('${b.id}',event)" title="Upload photo">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        </button>
+      </div>
+      <div class="gar-bike-info">
+        <div class="gar-bike-name">${b.name}</div>
+        <div class="gar-bike-meta">
+          <span class="gar-bike-km">${kmFmt} km</span>
+          <span class="gar-bike-type">${b.type}</span>
         </div>
-        <div class="gear-bike-name">${b.name}</div>
-        <div class="gear-bike-km">${kmFmt} km</div>
-      </div>`;
-    }).join('');
-  }
+      </div>
+    </div>`;
+  }).join('');
 
-  // Populate bike select in modal
-  const sel = document.getElementById('gearFormBike');
-  if (sel) {
-    const opts = bikes.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
-    sel.innerHTML = '<option value="">— All bikes / General —</option>' + opts;
-  }
+  carousel.innerHTML = allCard + bikeCards;
+
+  // Populate bike selects in modals
+  const selects = ['gearFormBike', 'batteryFormBike', 'serviceFormBike'];
+  selects.forEach(sid => {
+    const sel = document.getElementById(sid);
+    if (sel) {
+      const opts = bikes.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+      sel.innerHTML = '<option value="">— Select bike —</option>' + opts;
+    }
+  });
+
+  // Quick stats
+  _gearRenderStats();
+
+  // Notifications
+  _gearRenderAlerts();
 
   renderGearComponents();
   renderGearBatteries();
   renderGearServices();
 }
 
+function _gearRenderStats() {
+  const el = document.getElementById('garStats');
+  if (!el) return;
+  const bikes = _gearBikeCache;
+  const comps = loadGearComponents();
+  const bats = loadGearBatteries().filter(b => !b.obsolete);
+  const selectedBike = _gearSelectedBike;
+
+  const filtComps = selectedBike ? comps.filter(c => c.bikeId === selectedBike) : comps;
+  const filtBats = selectedBike ? bats.filter(b => b.bikeId === selectedBike) : bats;
+
+  const totalKm = selectedBike
+    ? (bikes.find(b => b.id === selectedBike)?.km || 0)
+    : bikes.reduce((s, b) => s + b.km, 0);
+  const kmFmt = totalKm >= 1000 ? (totalKm / 1000).toFixed(1) + 'k' : totalKm;
+
+  const avgBat = filtBats.length
+    ? Math.round(filtBats.reduce((s, b) => s + (_gearBatPct(b) || 0), 0) / filtBats.length)
+    : '—';
+
+  el.innerHTML = `
+    <div class="gar-stat-pill"><span class="gar-stat-val">${kmFmt}</span><span class="gar-stat-lbl">km</span></div>
+    <div class="gar-stat-pill"><span class="gar-stat-val">${filtComps.length}</span><span class="gar-stat-lbl">Parts</span></div>
+    <div class="gar-stat-pill"><span class="gar-stat-val">${typeof avgBat === 'number' ? avgBat + '%' : avgBat}</span><span class="gar-stat-lbl">Battery</span></div>
+    <div class="gar-stat-pill"><span class="gar-stat-val">${bikes.length}</span><span class="gar-stat-lbl">Bikes</span></div>
+  `;
+}
+
+function _gearRenderAlerts() {
+  const el = document.getElementById('garAlerts');
+  if (!el) return;
+  const alerts = _gearCheckNotifications();
+  if (!alerts.length) { el.style.display = 'none'; return; }
+  el.style.display = '';
+  el.innerHTML = alerts.map(a =>
+    `<div class="gar-alert-row"><span class="gar-alert-dot gar-alert-dot--${a.severity}"></span><span>${a.message}</span></div>`
+  ).join('');
+}
+
 function gearSelectBike(id) {
-  _gearSelectedBike = (_gearSelectedBike === id) ? null : id; // toggle
-  // Re-highlight cards
-  document.querySelectorAll('.gear-bike-card').forEach(el => {
-    const elId = el.getAttribute('onclick').match(/'([^']+)'/)?.[1];
-    el.classList.toggle('gear-bike-card--active', elId === _gearSelectedBike);
+  _gearSelectedBike = (_gearSelectedBike === id) ? null : id;
+  document.querySelectorAll('.gar-bike-card').forEach(el => {
+    const isAll = el.classList.contains('gar-bike-card--all');
+    if (isAll) { el.classList.toggle('gar-bike-card--active', !_gearSelectedBike); return; }
+    const elId = el.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
+    el.classList.toggle('gar-bike-card--active', elId === _gearSelectedBike);
   });
+  _gearRenderStats();
   renderGearComponents();
   renderGearBatteries();
   renderGearServices();
 }
 
 function renderGearComponents() {
-  const grid   = document.getElementById('gearComponentsGrid');
-  const title  = document.getElementById('gearComponentsTitle');
-  const sub    = document.getElementById('gearComponentsSub');
+  const grid = document.getElementById('gearComponentsGrid');
   if (!grid) return;
 
   const allComps = loadGearComponents();
@@ -20479,19 +20624,8 @@ function renderGearComponents() {
     ? allComps.filter(c => c.bikeId === _gearSelectedBike)
     : allComps;
 
-  // Update header
-  const bike = _gearBikeCache.find(b => b.id === _gearSelectedBike);
-  if (title) title.textContent = bike ? `${bike.name} — Components` : 'All Components';
-  if (sub)   sub.textContent   = filtered.length
-    ? `${filtered.length} component${filtered.length !== 1 ? 's' : ''} tracked`
-    : 'No components yet — add your first one above';
-
   if (filtered.length === 0) {
-    grid.innerHTML = `<div class="gear-empty-state gear-empty-state--comp">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="40" height="40" style="opacity:.3"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
-      <div>No components tracked yet.</div>
-      <button class="btn btn-primary btn-sm" onclick="openGearModal()">Add your first component</button>
-    </div>`;
+    grid.innerHTML = `<div class="gar-empty">No components tracked yet</div>`;
     return;
   }
 
@@ -20503,58 +20637,43 @@ function renderGearComponents() {
     groups[cat].push(c);
   });
 
-  grid.innerHTML = Object.entries(groups).map(([cat, items]) => {
-    const color = GEAR_CATEGORY_COLORS[cat] || '#94a3b8';
-    const cards = items.map(c => gearComponentCard(c)).join('');
-    return `<div class="gear-cat-group">
-      <div class="gear-cat-label" style="color:${color}">${cat}</div>
-      <div class="gear-cat-cards">${cards}</div>
-    </div>`;
-  }).join('');
+  grid.innerHTML = Object.entries(groups).map(([cat, items]) =>
+    `<div class="gar-cat-header">${cat}</div>` + items.map(c => gearComponentCard(c)).join('')
+  ).join('');
 }
 
 function gearComponentCard(c) {
-  const color   = GEAR_CATEGORY_COLORS[c.category] || '#94a3b8';
-  const bike    = _gearBikeCache.find(b => b.id === c.bikeId);
-  const bikeKm  = bike ? bike.km : 0;
+  const color = GEAR_CATEGORY_COLORS[c.category] || '#94a3b8';
+  const bike = _gearBikeCache.find(b => b.id === c.bikeId);
+  const bikeKm = bike ? bike.km : 0;
   const kmAtInst = parseFloat(c.kmAtInstall) || 0;
-  const ridden  = Math.max(0, bikeKm - kmAtInst);
-  const remind  = parseFloat(c.reminderKm)  || 0;
-  const pct     = remind > 0 ? Math.min(100, Math.round(ridden / remind * 100)) : null;
-  const warn    = pct !== null && pct >= 90;
+  const ridden = Math.max(0, bikeKm - kmAtInst);
+  const remind = parseFloat(c.reminderKm) || 0;
+  const pct = remind > 0 ? Math.min(100, Math.round(ridden / remind * 100)) : null;
+  const warn = pct !== null && pct >= 90;
   const overdue = pct !== null && pct >= 100;
 
-  const progressHtml = pct !== null ? `
-    <div class="gear-comp-bar-wrap">
-      <div class="gear-comp-bar-track">
-        <div class="gear-comp-bar-fill" style="width:${pct}%;background:${overdue ? 'var(--red)' : warn ? '#f97316' : color}"></div>
-      </div>
-      <span class="gear-comp-bar-label ${overdue ? 'gear-comp-bar-label--red' : warn ? 'gear-comp-bar-label--warn' : ''}">
-        ${overdue ? '⚠ Replace' : warn ? '⚠ Soon' : `${pct}%`}
-      </span>
-    </div>` : '';
+  const sub = [c.brand, c.model].filter(Boolean).join(' ') || (bike ? bike.name : '');
+  const pctCls = overdue ? 'gar-comp-pct--over' : warn ? 'gar-comp-pct--warn' : 'gar-comp-pct--ok';
+  const barColor = overdue ? 'var(--red)' : warn ? '#ff9500' : color;
 
-  const meta = [];
-  if (c.brand || c.model) meta.push(`<span>${[c.brand, c.model].filter(Boolean).join(' ')}</span>`);
-  if (c.purchaseDate)     meta.push(`<span>${c.purchaseDate}</span>`);
-  if (c.price)            meta.push(`<span>€${parseFloat(c.price).toFixed(0)}</span>`);
-  if (bike)               meta.push(`<span style="color:var(--accent)">${bike.name}</span>`);
-
-  return `<div class="gear-comp-card ${overdue ? 'gear-comp-card--overdue' : warn ? 'gear-comp-card--warn' : ''}">
-    <div class="gear-comp-top">
-      <div class="gear-comp-name">${c.name || 'Component'}</div>
-      <div class="gear-comp-actions">
-        <button class="gear-icon-btn" title="Edit" onclick="openGearModal('${c.id}')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
+  return `<div class="gar-comp-row">
+    <div class="gar-comp-icon" style="background:${color}">${(c.category || 'O')[0]}</div>
+    <div class="gar-comp-info">
+      <div class="gar-comp-name">${c.name || 'Component'}</div>
+      <div class="gar-comp-sub">${sub}${ridden > 0 ? ` · ${Math.round(ridden).toLocaleString()} km` : ''}</div>
+    </div>
+    <div class="gar-comp-right">
+      ${pct !== null ? `<span class="gar-comp-pct ${pctCls}">${pct}%</span><div class="gar-comp-bar"><div class="gar-comp-bar-fill" style="width:${pct}%;background:${barColor}"></div></div>` : ''}
+      <div class="gar-comp-actions">
+        <button class="gar-comp-action-btn" title="Edit" onclick="openGearModal('${c.id}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
         </button>
-        <button class="gear-icon-btn gear-icon-btn--del" title="Delete" onclick="deleteGearComponent('${c.id}')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        <button class="gar-comp-action-btn gar-comp-action-btn--del" title="Delete" onclick="deleteGearComponent('${c.id}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
         </button>
       </div>
     </div>
-    ${meta.length ? `<div class="gear-comp-meta">${meta.join('<span class="gear-comp-dot">·</span>')}</div>` : ''}
-    ${ridden > 0 || remind > 0 ? `<div class="gear-comp-km">${Math.round(ridden).toLocaleString()} km ridden${remind > 0 ? ` / ${remind.toLocaleString()} km` : ''}</div>` : ''}
-    ${progressHtml}
   </div>`;
 }
 
@@ -20770,112 +20889,61 @@ function renderGearBatteries() {
   const all = loadGearBatteries();
   const showObsolete = document.getElementById('batteryShowObsolete')?.checked;
   const toggleEl = document.getElementById('batteryObsoleteToggle');
-
-  // Show toggle only if there are obsolete batteries
   if (toggleEl) toggleEl.style.display = all.some(b => b.obsolete) ? '' : 'none';
 
   let filtered = showObsolete ? all : all.filter(b => !b.obsolete);
-
-  // Filter by selected bike
-  if (_gearSelectedBike) {
-    filtered = filtered.filter(b => b.bikeId === _gearSelectedBike);
-  }
+  if (_gearSelectedBike) filtered = filtered.filter(b => b.bikeId === _gearSelectedBike);
 
   if (!filtered.length) {
-    grid.innerHTML = `<div class="battery-empty-state">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="36" height="36" style="opacity:.4">
-        <rect x="6" y="4" width="12" height="18" rx="2"/><line x1="10" y1="1" x2="14" y2="1" stroke-width="3" stroke-linecap="round"/>
-      </svg>
-      <span>No batteries tracked yet</span>
-    </div>`;
+    grid.innerHTML = `<div class="gar-empty">No batteries tracked yet</div>`;
     return;
   }
-
   grid.innerHTML = filtered.map(b => batteryCard(b)).join('');
 }
 
 function batteryCard(bat) {
   const calc = calcBatteryPercent(bat);
   const pct = calc ? calc.percent : 100;
-  const color = batteryColor(pct);
-  const colorCls = batteryColorClass(pct);
   const isObsolete = bat.obsolete;
+  const fillCls = pct > 60 ? 'gar-bat-fill--green' : pct > 30 ? 'gar-bat-fill--yellow' : pct > 15 ? 'gar-bat-fill--orange' : 'gar-bat-fill--red';
+  const pctColor = pct > 60 ? 'var(--accent)' : pct > 30 ? '#ffcc00' : pct > 15 ? '#ff9500' : 'var(--red)';
 
-  // Usage stats text
-  let statsText = '';
+  let sub = '';
   if (calc) {
     if (calc.isCoinCell) {
-      const monthsLeft = Math.max(0, Math.round((calc.lifeDays - calc.elapsedDays) / 30));
-      statsText = `${calc.elapsedDays} days old · ~${monthsLeft} months remaining`;
+      const mo = Math.max(0, Math.round((calc.lifeDays - calc.elapsedDays) / 30));
+      sub = `~${mo} months left`;
     } else if (calc.usedHours !== undefined) {
-      statsText = `${calc.usedHours.toFixed(1)}h used / ${calc.ratedHours}h rated`;
+      sub = `${calc.usedHours.toFixed(1)}h / ${calc.ratedHours}h`;
     } else if (calc.usedKm !== undefined) {
-      statsText = `${Math.round(calc.usedKm)} km used / ${calc.ratedKm} km rated`;
+      sub = `${Math.round(calc.usedKm)} / ${calc.ratedKm} km`;
     }
   }
-
-  // Last charged text
-  let chargeText = '';
   if (bat.lastChargeDate) {
-    const d = new Date(bat.lastChargeDate);
-    const days = Math.round((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
-    const dateStr = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-    chargeText = bat.batteryType === 'coin_cell'
-      ? `Replaced: ${dateStr} (${days}d ago)`
-      : `Last charged: ${dateStr} (${days}d ago)`;
+    const days = Math.round((Date.now() - new Date(bat.lastChargeDate).getTime()) / 86400000);
+    sub += sub ? ` · ${days}d ago` : `Charged ${days}d ago`;
   }
 
-  // System label
-  const sysLabel = BATTERY_SYSTEMS[bat.system]?.label || bat.system || '';
-
-  // Bike name
+  const sysLabel = BATTERY_SYSTEMS[bat.system]?.label || '';
   const bike = _gearBikeCache.find(b => b.id === bat.bikeId);
-  const bikeName = bike ? bike.name : '';
 
-  // Fill height — min 8% so the shape is always visible
-  const fillH = Math.max(8, pct);
-  const pctInFill = pct >= 15;
-
-  return `<div class="battery-card ${colorCls}${isObsolete ? ' battery-card--obsolete' : ''}" data-id="${bat.id}">
-    <div class="battery-shape">
-      <div class="battery-terminal"></div>
-      <div class="battery-body">
-        <div class="battery-fill${pctInFill ? '' : ' battery-fill--low'}" style="height:${fillH}%;background:${color}">
-          ${pctInFill ? `<span class="battery-pct">${pct}%</span>` : ''}
-        </div>
-      </div>
-      ${!pctInFill ? `<span class="battery-pct-outside">${pct}%</span>` : ''}
+  return `<div class="gar-bat-row${isObsolete ? ' gar-bat-row--obsolete' : ''}">
+    <div class="gar-bat-visual">
+      <div class="gar-bat-terminal"></div>
+      <div class="gar-bat-body"><div class="gar-bat-fill ${fillCls}" style="height:${Math.max(8, pct)}%"></div></div>
     </div>
-    <div class="battery-info">
-      <div class="battery-comp-top">
-        <div class="battery-name">${bat.name || 'Battery'}</div>
-        <div class="gear-comp-actions">
-          ${!isObsolete ? `<button class="gear-icon-btn gear-icon-btn--charge" title="${bat.batteryType === 'coin_cell' ? 'Mark replaced' : 'Mark charged'}" onclick="chargeBattery('${bat.id}')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13" height="13"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-          </button>` : ''}
-          <button class="gear-icon-btn" title="Edit" onclick="openBatteryModal('${bat.id}')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
-          </button>
-          ${isObsolete
-            ? `<button class="gear-icon-btn" title="Reactivate" onclick="reactivateBattery('${bat.id}')">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-              </button>
-              <button class="gear-icon-btn gear-icon-btn--del" title="Delete permanently" onclick="deleteBatteryPermanent('${bat.id}')">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-              </button>`
-            : `<button class="gear-icon-btn gear-icon-btn--del" title="Retire" onclick="retireBattery('${bat.id}')">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg>
-              </button>`
-          }
-        </div>
-      </div>
-      <div class="battery-meta">
-        ${sysLabel ? `<span class="battery-system-badge">${sysLabel}</span>` : ''}
-        ${bikeName ? `<span class="gear-comp-dot">&middot;</span><span>${bikeName}</span>` : ''}
-        ${isObsolete ? `<span class="gear-comp-dot">&middot;</span><span class="battery-retired-badge">Retired</span>` : ''}
-      </div>
-      ${statsText ? `<div class="battery-stats">${statsText}</div>` : ''}
-      ${chargeText ? `<div class="battery-charge-info">${chargeText}</div>` : ''}
+    <div class="gar-bat-info">
+      <div class="gar-bat-name">${bat.name || 'Battery'}</div>
+      <div class="gar-bat-sub">${[sysLabel, bike?.name].filter(Boolean).join(' · ')}${sub ? ' · ' + sub : ''}</div>
+    </div>
+    <div class="gar-bat-right">
+      <span class="gar-bat-pct" style="color:${pctColor}">${pct}%</span>
+      ${!isObsolete ? `<button class="gar-bat-charge-btn" title="Charge" onclick="chargeBattery('${bat.id}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      </button>` : ''}
+      <button class="gar-comp-action-btn" title="Edit" onclick="openBatteryModal('${bat.id}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+      </button>
     </div>
   </div>`;
 }
@@ -21169,46 +21237,56 @@ function serviceCard(bikeId, services) {
 
 // ── Render service section ──────────────────────────────────────────────────
 function renderGearServices() {
-  const grid  = document.getElementById('gearServiceGrid');
-  const title = document.getElementById('gearServiceTitle');
-  const sub   = document.getElementById('gearServiceSub');
+  const grid = document.getElementById('gearServiceGrid');
   if (!grid) return;
 
   const all = loadGearServices();
-  const filtered = _gearSelectedBike
-    ? all.filter(s => s.bikeId === _gearSelectedBike)
-    : all;
-
-  if (title) {
-    const bike = _gearBikeCache.find(b => b.id === _gearSelectedBike);
-    title.textContent = bike ? `${bike.name} — Service` : 'Bike Service';
-  }
-  if (sub) {
-    sub.textContent = filtered.length
-      ? `${filtered.length} service record${filtered.length > 1 ? 's' : ''}`
-      : 'Track servicing history and upcoming maintenance';
-  }
+  let filtered = _gearSelectedBike ? all.filter(s => s.bikeId === _gearSelectedBike) : all;
 
   if (!filtered.length) {
-    grid.innerHTML = `
-      <div class="service-empty-state">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="40" height="40" style="opacity:.4">
-          <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-        </svg>
-        <div>No services tracked yet</div>
-        <button class="btn btn-primary btn-sm" onclick="openServiceModal()">Add First Service</button>
-      </div>`;
+    grid.innerHTML = `<div class="gar-empty">No services tracked yet</div>`;
     return;
   }
 
-  // Group by bikeId
-  const grouped = {};
-  filtered.forEach(s => {
-    if (!grouped[s.bikeId]) grouped[s.bikeId] = [];
-    grouped[s.bikeId].push(s);
-  });
+  // Flatten all services, sort newest first
+  filtered.sort((a, b) => new Date(b.serviceDate || 0) - new Date(a.serviceDate || 0));
 
-  grid.innerHTML = Object.entries(grouped).map(([bid, svcs]) => serviceCard(bid, svcs)).join('');
+  grid.innerHTML = filtered.map(s => {
+    const bike = _gearBikeCache.find(b => b.id === s.bikeId);
+    const date = s.serviceDate ? new Date(s.serviceDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+    const shop = s.shopNameOverride || (loadGearServiceShops().find(sh => sh.id === s.shopId)?.name) || '';
+    const isOverdue = _svcIsOverdue(s, bike);
+    const dotCls = isOverdue === 'over' ? 'gar-svc-dot--over' : isOverdue === 'warn' ? 'gar-svc-dot--warn' : '';
+
+    return `<div class="gar-svc-row">
+      <div class="gar-svc-dot ${dotCls}"></div>
+      <div class="gar-svc-info">
+        <div class="gar-svc-date">${date}${bike ? ' · ' + bike.name : ''}</div>
+        <div class="gar-svc-work">${s.workDone || 'Service'}</div>
+        <div class="gar-svc-meta">${[shop, s.notes].filter(Boolean).join(' · ')}</div>
+      </div>
+      ${s.cost ? `<div class="gar-svc-cost">€${parseFloat(s.cost).toFixed(0)}</div>` : ''}
+      <div class="gar-svc-actions">
+        <button class="gar-comp-action-btn" title="Edit" onclick="openServiceModal('${s.id}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function _svcIsOverdue(s, bike) {
+  if (!s.nextServiceMode || !bike) return '';
+  if (s.nextServiceMode === 'km' && s.nextServiceKm) {
+    const km = bike.km - (s.bikeKmAtService || 0);
+    if (km >= s.nextServiceKm) return 'over';
+    if (km >= s.nextServiceKm * 0.9) return 'warn';
+  } else if (s.nextServiceMode === 'months' && s.nextServiceMonths) {
+    const mo = (Date.now() - new Date(s.serviceDate).getTime()) / (30.44 * 86400000);
+    if (mo >= s.nextServiceMonths) return 'over';
+    if (mo >= s.nextServiceMonths * 0.9) return 'warn';
+  }
+  return '';
 }
 
 // ── Service Modal ───────────────────────────────────────────────────────────
@@ -25065,7 +25143,8 @@ Object.assign(window, {
   openTrainingPlanModal, closeTrainingPlanModal, applyTrainingPlan,
   showTpSlotForm, hideTpSlotForm, addTpSlot, removeTpSlot,
   setHideEmptyCards, setFtpAlert,
-  gearSwitchTab, addCompareCard, setComparePeriod, updateComparePage,
+  gearSwitchTab, gearSelectBike, gearTriggerPhotoUpload, gearUploadPhoto,
+  addCompareCard, setComparePeriod, updateComparePage,
   clearAllCaches, clearLifetimeCache, exportFullBackup, importFullBackup,
   exportLifetimeJSON, importLifetimeJSON, resyncLifetimeData,
   updateStorageBar, setUnits, copySetupLink, applySetupLink, handleAvatarUpload, removeAvatar,
