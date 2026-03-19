@@ -3287,14 +3287,12 @@ function setCardRange(cardKey, days) {
   const ftp = state.athlete?.ftp || state.athlete?.icu_ftp || 200;
   const weight = state.athlete?.weight || 70;
   try {
-    if (cardKey === 'training') { renderFitnessChart(recent, days); }
-    if (cardKey === 'zones') { _renderDashZoneDistribution(recent, days, ftp); }
-    if (cardKey === 'power') { noChartAnim(() => renderPwrCurveChart(days, ftp, weight)); }
-    if (cardKey === 'trends') { _renderCyclingTrends(recent, days); }
-    if (cardKey === 'tss') { _renderWeeklyTssChart(recent, days); }
-    if (cardKey === 'scatter') { _renderPwrHrScatter(recent, days); }
-    if (cardKey === 'avgpower') { renderAvgPowerChart(recent); }
-    if (cardKey === 'profile') { noChartAnim(() => renderPwrCurveChart(days, ftp, weight)); }
+    if (cardKey === 'training') { noChartAnim(() => renderFitnessChart(recent, days)); }
+    if (cardKey === 'zones') { renderZoneDist(recent); }
+    if (cardKey === 'power') { const origRange = state.rangeDays; state.rangeDays = days; state.powerCurveRange = null; noChartAnim(() => renderPowerCurve()); state.rangeDays = origRange; }
+    if (cardKey === 'trends') { noChartAnim(() => renderCyclingTrends(recent, days)); }
+    if (cardKey === 'tss') { noChartAnim(() => renderWeeklyChart(recent)); }
+    if (cardKey === 'scatter') { noChartAnim(() => renderPwrHrScatter(recent)); }
   } catch(e) { console.warn('setCardRange error:', cardKey, e); }
 }
 

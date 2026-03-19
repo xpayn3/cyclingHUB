@@ -1136,6 +1136,8 @@ code {
     display: flex;
     gap: 2px;
     flex-shrink: 0;
+    margin-left: auto;
+    align-self: flex-start;
 }
 
 /* ── Notification bell — fixed top-right on dashboard ─ */
