@@ -2212,13 +2212,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (_pgHeadline && _stickyBar) {
     const _stickyObs = new IntersectionObserver(entries => {
       entries.forEach(e => {
-        const hidden = !e.isIntersecting;
-        _stickyBar.classList.toggle('visible', hidden);
-        // Show/hide floating range pills only when title scrolls out
-        document.querySelectorAll('.floating-range-pill').forEach(p => {
-          if (p.style.display === 'none') return; // not active on this page
-          p.classList.toggle('pill-visible', hidden);
-        });
+        _stickyBar.classList.toggle('visible', !e.isIntersecting);
       });
     }, { threshold: 0, rootMargin: '-1px 0px 0px 0px' });
     _stickyObs.observe(_pgHeadline);

@@ -473,8 +473,6 @@ select {
     transform: translateY(0);
     pointer-events: auto;
 }
-    pointer-events: auto;
-}
 /* Scrollbar */
 .cdd-dropdown::-webkit-scrollbar { width: 5px; }
 .cdd-dropdown::-webkit-scrollbar-track { background: transparent; }
@@ -1016,15 +1014,7 @@ code {
     top: max(12px, env(safe-area-inset-top));
     right: 16px;
     left: auto;
-    transform: translateY(-60px);
-    opacity: 0;
-    pointer-events: none;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s;
-}
-.floating-range-pill.pill-visible {
-    transform: translateY(0);
-    opacity: 1;
-    pointer-events: auto;
+    transform: none;
     z-index: 15;
     background: var(--glass-bg);
     backdrop-filter: var(--glass-blur);
@@ -1038,16 +1028,18 @@ code {
         0 -0.5px 0 0 rgba(0, 0, 0, 0.15) inset,
         0 12px 40px rgba(0, 0, 0, 0.50),
         0 4px 12px rgba(0, 0, 0, 0.30);
-    /* Horizontal scroll — show ~3 buttons, scroll for more */
     display: flex;
-    gap: 0;
-    max-width: calc(52px * 3 + 6px + 2px); /* 3 buttons + padding + border */
+    gap: 2px;
+    max-width: 180px;
     overflow-x: auto;
     overflow-y: hidden;
     scroll-snap-type: x mandatory;
-    scroll-padding-inline: 3px;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
+}
+.floating-range-pill.date-range-pill {
+    overflow-x: auto;
+    overflow-y: hidden;
 }
 .floating-range-pill::-webkit-scrollbar {
     display: none;
@@ -1057,9 +1049,7 @@ code {
     border: none;
     min-height: 34px;
     min-width: 52px;
-    width: 52px;
-    flex: 0 0 52px;
-    padding: 7px 0;
+    padding: 7px 16px;
     background: none;
     color: rgba(255, 255, 255, 0.55);
     font-weight: 600;
@@ -1067,8 +1057,8 @@ code {
     transition: background 0.25s, color 0.25s;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
+    flex-shrink: 0;
     scroll-snap-align: center;
-    text-align: center;
 }
 .floating-range-pill button:hover {
     background: var(--glass-border);
