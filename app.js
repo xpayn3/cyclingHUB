@@ -8976,9 +8976,10 @@ function _renderPwrPageProfile(days, ftp, weight) {
   if (!card || !canvas) return;
 
   const pc = state.powerCurve;
-  if (!pc || !pc.secs || !weight || weight <= 0) { card.style.display = 'none'; return; }
+  const w = state.athlete?.weight;
+  if (!pc || !pc.secs || !w || w <= 0) { card.style.display = 'none'; return; }
 
-  // Build secs→watts lookup (same as dashboard renderPowerProfileRadar)
+  // Full Coggan Power Profile radar — same logic as renderPowerProfileRadar
   const lookup = {};
   pc.secs.forEach((s, i) => { if (pc.watts[i]) lookup[s] = pc.watts[i]; });
   function peakW(target) {
@@ -8988,22 +8989,51 @@ function _renderPwrPageProfile(days, ftp, weight) {
     return best;
   }
 
-  const durations = [5, 60, 300, 1200];
-  const labels = ['5s Sprint', '1min', '5min', '20min'];
+  const durations = COGGAN_POWER_PROFILE.durations;
+  const labels = COGGAN_POWER_PROFILE.labels;
   const rawWatts = durations.map(d => peakW(d) || 0);
-  if (rawWatts.every(v => v === 0)) { card.style.display = 'none'; return; }
-
+  const rawWkg = rawWatts.map(v => v > 0 ? +(v / w).toFixed(2) : 0);
+  if (rawWkg.every(v => v === 0)) { card.style.display = 'none'; return; }
   card.style.display = '';
-  const wkg = rawWatts.map(v => +(v / weight).toFixed(2));
+
   const sub = document.getElementById('pwrPageProfileSub');
-  if (sub) sub.textContent = `${wkg.filter(v => v > 0).length}/4 durations`;
+  if (sub) sub.textContent = `${rawWkg.filter(v => v > 0).length}/${durations.length} durations`;
+
+  // Zone colored segments
+  const zones = COGGAN_POWER_PROFILE.zones;
+  const segColors = durations.map((_, i) => {
+    const z = zones.find(z => z.indices.includes(i));
+    return z ? z.color : '#888';
+  });
 
   const ctx = canvas.getContext('2d');
   if (state._pwrPageProfileChart) { state._pwrPageProfileChart.destroy(); }
   state._pwrPageProfileChart = new Chart(ctx, {
     type: 'radar',
-    data: { labels, datasets: [{ data: wkg, borderColor: ACCENT, backgroundColor: 'rgba(0,229,160,0.1)', borderWidth: 2, pointRadius: 5, pointBackgroundColor: ACCENT, pointBorderColor: cssVar('--bg-card'), pointBorderWidth: 2 }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { r: { ticks: { display: false }, grid: { color: _chartSubgrid() }, pointLabels: { color: _chartLabel(), font: { size: 12, weight: 600 } } } } }
+    data: {
+      labels,
+      datasets: [{
+        data: rawWkg,
+        borderColor: ACCENT,
+        backgroundColor: 'rgba(0,229,160,0.08)',
+        borderWidth: 2,
+        pointRadius: rawWkg.map(v => v > 0 ? 5 : 0),
+        pointBackgroundColor: segColors,
+        pointBorderColor: cssVar('--bg-card'),
+        pointBorderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP } },
+      scales: {
+        r: {
+          ticks: { display: false },
+          grid: { color: _chartSubgrid() },
+          pointLabels: { color: _chartLabel(), font: { size: 10 } }
+        }
+      }
+    }
   });
 }
 
