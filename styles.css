@@ -15213,7 +15213,7 @@ body:has(.act-sheet-mode) .topbar {
 .gar-alert-dot--orange { background: #ff9500; }
 .gar-alert-dot--yellow { background: #ffcc00; }
 
-/* Bike carousel — negative margin breaks out of page padding, inner padding adds it back */
+/* Bike carousel — breaks out of page padding, real spacer divs for inset */
 .gar-carousel-scroll {
     display: flex;
     gap: 12px;
@@ -15222,18 +15222,12 @@ body:has(.act-sheet-mode) .topbar {
     scrollbar-width: none;
     scroll-snap-type: x mandatory;
     padding: 4px 0 8px;
-    /* Break out of page padding */
     margin-left: calc(-1 * var(--pad-page));
     margin-right: calc(-1 * var(--pad-page));
-    /* Use invisible first/last children for inset instead of padding (which gets clipped in some browsers) */
 }
 .gar-carousel-scroll::-webkit-scrollbar { display: none; }
-/* Spacer pseudo-elements — reliable cross-browser inset for scroll containers */
-.gar-carousel-scroll::before,
-.gar-carousel-scroll::after {
-    content: '';
-    display: block;
-    flex: 0 0 calc(var(--pad-page) - 12px); /* minus gap */
+.gar-scroll-spacer {
+    flex: 0 0 calc(var(--pad-page) - 12px);
     min-height: 1px;
 }
 
