@@ -8231,9 +8231,10 @@ function renderZoneDist(activities) {
   if (!hasData || totalSecs === 0) { card.style.display = 'none'; return; }
   card.style.display = '';
 
-  document.getElementById('zoneTotalBadge').textContent = fmtDur(totalSecs) + ' total';
-  document.getElementById('zoneDistSubtitle').textContent =
-    `Time in power zone · Last ${state.rangeDays} days`;
+  const _ztb = document.getElementById('zoneTotalBadge');
+  if (_ztb) _ztb.textContent = fmtDur(totalSecs) + ' total';
+  const _zds = document.getElementById('zoneDistSubtitle');
+  if (_zds) _zds.textContent = `Time in power zone · Last ${state.rangeDays} days`;
 
   // Zone rows
   document.getElementById('zoneList').innerHTML = ZONE_TAGS.map((tag, i) => {
