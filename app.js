@@ -21076,40 +21076,63 @@ function openCompDetail(compId) {
     ? `<div class="comp-detail-img"><img src="${resolvedImg}" alt="${c.name}"></div>`
     : `<div class="comp-detail-img" style="background:${color};display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;color:#fff">${(c.category || 'O')[0]}</div>`;
 
+  const pctColor = pct >= 100 ? 'var(--red)' : pct >= 90 ? '#ff9500' : 'var(--accent)';
+  const pctLabel = pct >= 100 ? 'Replace now' : pct >= 90 ? 'Replace soon' : pct !== null ? 'Good condition' : '';
+  const purchaseDate = c.purchaseDate ? new Date(c.purchaseDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+
+  // Wear gauge ring (SVG donut)
+  const gaugeHtml = pct !== null ? (() => {
+    const radius = 40, circ = 2 * Math.PI * radius;
+    const offset = circ * (1 - pct / 100);
+    return `<div class="cd-gauge">
+      <svg viewBox="0 0 100 100" width="100" height="100">
+        <circle cx="50" cy="50" r="${radius}" fill="none" stroke="var(--bg-elevated)" stroke-width="8"/>
+        <circle cx="50" cy="50" r="${radius}" fill="none" stroke="${pctColor}" stroke-width="8" stroke-linecap="round"
+          stroke-dasharray="${circ}" stroke-dashoffset="${offset}" transform="rotate(-90 50 50)" style="transition:stroke-dashoffset 0.6s"/>
+      </svg>
+      <div class="cd-gauge-inner">
+        <span class="cd-gauge-pct" style="color:${pctColor}">${pct}%</span>
+        <span class="cd-gauge-label">${pctLabel}</span>
+      </div>
+    </div>`;
+  })() : '';
+
+  // Quick stats row
+  const stats = [];
+  if (ridden > 0) stats.push({ val: Math.round(ridden).toLocaleString(), unit: 'km', label: 'Ridden' });
+  if (remind > 0) stats.push({ val: remind.toLocaleString(), unit: 'km', label: 'Limit' });
+  if (c.price) stats.push({ val: '€' + parseFloat(c.price).toFixed(0), unit: '', label: 'Price' });
+
+  const statsHtml = stats.length ? `<div class="cd-stats">${stats.map(s =>
+    `<div class="cd-stat"><span class="cd-stat-val">${s.val}<span class="cd-stat-unit">${s.unit}</span></span><span class="cd-stat-label">${s.label}</span></div>`
+  ).join('')}</div>` : '';
+
+  // Info rows (only secondary info)
   const rows = [];
   if (c.category) rows.push(['Category', `<span style="color:${color}">${c.category}</span>`]);
-  if (c.brand) rows.push(['Brand', c.brand]);
-  if (c.model) rows.push(['Model', c.model]);
   if (bike) rows.push(['Bike', bike.name]);
-  if (ridden > 0) rows.push(['Distance ridden', `${Math.round(ridden).toLocaleString()} km`]);
-  if (remind > 0) rows.push(['Reminder at', `${remind.toLocaleString()} km`]);
-  if (pct !== null) {
-    const pctColor = pct >= 100 ? 'var(--red)' : pct >= 90 ? '#ff9500' : 'var(--accent)';
-    rows.push(['Wear', `<span style="color:${pctColor};font-weight:700">${pct}%</span>`]);
-  }
-  if (c.purchaseDate) rows.push(['Purchased', new Date(c.purchaseDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })]);
-  if (c.price) rows.push(['Price', `€${parseFloat(c.price).toFixed(0)}`]);
-  if (c.kmAtInstall) rows.push(['Bike km at install', `${parseFloat(c.kmAtInstall).toLocaleString()} km`]);
-
-  const progressHtml = pct !== null ? `
-    <div style="margin-top:12px">
-      <div class="gar-comp-bar" style="height:6px;border-radius:3px;flex:1"><div class="gar-comp-bar-fill" style="width:${pct}%;background:${pct >= 100 ? 'var(--red)' : pct >= 90 ? '#ff9500' : color};border-radius:3px"></div></div>
-    </div>` : '';
+  if (purchaseDate) rows.push(['Purchased', purchaseDate]);
+  if (c.kmAtInstall) rows.push(['Installed at', `${parseFloat(c.kmAtInstall).toLocaleString()} km`]);
 
   body.innerHTML = `
     ${imgHtml}
     <div class="comp-detail-name">${c.name || 'Component'}</div>
     ${c.brand ? `<div class="comp-detail-brand">${[c.brand, c.model].filter(Boolean).join(' ')}</div>` : ''}
+
+    ${gaugeHtml}
+    ${statsHtml}
+
+    ${rows.length ? `<div class="cd-section-title">Details</div>
     <div class="comp-detail-rows">
       ${rows.map(([label, val]) => `<div class="comp-detail-row"><span class="comp-detail-label">${label}</span><span class="comp-detail-val">${val}</span></div>`).join('')}
-    </div>
-    ${progressHtml}
+    </div>` : ''}
+
     <div class="comp-detail-actions">
-      <button class="btn btn-ghost" onclick="document.getElementById('compDetailSheet').close();openGearModal('${c.id}')">
+      <button class="btn btn-ghost" style="flex:1" onclick="document.getElementById('compDetailSheet').close();openGearModal('${c.id}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
         Edit
       </button>
-      <button class="btn btn-ghost" style="color:var(--red)" onclick="document.getElementById('compDetailSheet').close();deleteGearComponent('${c.id}')">
+      <button class="btn btn-ghost" style="flex:1;color:var(--red)" onclick="document.getElementById('compDetailSheet').close();deleteGearComponent('${c.id}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
         Delete
       </button>
