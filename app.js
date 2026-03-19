@@ -20755,25 +20755,34 @@ function gearComponentCard(c) {
     ? `<img src="${c.image}" alt="${c.name || ''}">`
     : (c.category || 'O')[0];
 
+  const kmStr = ridden > 0 ? `${Math.round(ridden).toLocaleString()} km` : '';
+  const progressHtml = pct !== null ? `
+    <div class="gar-comp-progress">
+      <div class="gar-comp-bar"><div class="gar-comp-bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
+      <span class="gar-comp-pct ${pctCls}">${pct}%</span>
+    </div>` : '';
+
   return `<div class="gar-comp-row">
     <div class="gar-comp-icon" style="${hasImg ? 'background:transparent' : 'background:' + color}">${imgHtml}</div>
-    <div class="gar-comp-info">
-      <div class="gar-comp-name">${c.name || 'Component'}</div>
-      <div class="gar-comp-sub">${sub}${ridden > 0 ? ` · ${Math.round(ridden).toLocaleString()} km` : ''}</div>
-    </div>
-    <div class="gar-comp-right">
-      ${pct !== null ? `<span class="gar-comp-pct ${pctCls}">${pct}%</span><div class="gar-comp-bar"><div class="gar-comp-bar-fill" style="width:${pct}%;background:${barColor}"></div></div>` : ''}
-      <div class="gar-comp-actions">
-        <button class="gar-comp-action-btn" title="Add photo" onclick="event.stopPropagation();gearCompPhotoUpload('${c.id}')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-        </button>
-        <button class="gar-comp-action-btn" title="Edit" onclick="openGearModal('${c.id}')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
-        </button>
-        <button class="gar-comp-action-btn gar-comp-action-btn--del" title="Delete" onclick="deleteGearComponent('${c.id}')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-        </button>
+    <div class="gar-comp-body">
+      <div class="gar-comp-top-row">
+        <div class="gar-comp-info">
+          <div class="gar-comp-name">${c.name || 'Component'}</div>
+          <div class="gar-comp-sub">${[sub, kmStr].filter(Boolean).join(' · ')}</div>
+        </div>
+        <div class="gar-comp-actions">
+          <button class="gar-comp-action-btn" title="Add photo" onclick="event.stopPropagation();gearCompPhotoUpload('${c.id}')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          </button>
+          <button class="gar-comp-action-btn" title="Edit" onclick="openGearModal('${c.id}')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
+          </button>
+          <button class="gar-comp-action-btn gar-comp-action-btn--del" title="Delete" onclick="deleteGearComponent('${c.id}')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+          </button>
+        </div>
       </div>
+      ${progressHtml}
     </div>
   </div>`;
 }
