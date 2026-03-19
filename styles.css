@@ -15213,10 +15213,7 @@ body:has(.act-sheet-mode) .topbar {
 .gar-alert-dot--orange { background: #ff9500; }
 .gar-alert-dot--yellow { background: #ffcc00; }
 
-/* Bike carousel — break out of page padding, pad scroll so cards aren't clipped */
-.gar-carousel {
-    margin: 0 calc(-1 * var(--pad-page)) 16px;
-}
+/* Bike carousel — same pattern as .mr-scroll in Library */
 .gar-carousel-scroll {
     display: flex;
     gap: 12px;
@@ -15224,8 +15221,9 @@ body:has(.act-sheet-mode) .topbar {
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     scroll-snap-type: x mandatory;
-    /* Padding inside scroll creates breathing room at start/end */
     padding: 4px var(--pad-page) 8px var(--pad-page);
+    margin-left: calc(-1 * var(--pad-page));
+    margin-right: calc(-1 * var(--pad-page));
 }
 .gar-carousel-scroll::-webkit-scrollbar { display: none; }
 
