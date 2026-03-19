@@ -6744,7 +6744,7 @@ function renderFitnessChart(activities, days) {
       },
       scales: {
         x: { grid: C_GRID, ticks: { ...C_TICK, maxTicksLimit: 8, color: 'transparent' } },
-        y: { ...cScales({}).y, afterFit(axis) { axis.width = 45; } }
+        y: { ...cScales({}).y, afterFit(axis) { axis.width = 30; } }
       }
     }
   });
@@ -6780,7 +6780,7 @@ function renderFitnessChart(activities, days) {
         },
         scales: {
           ...cScales({ xExtra: { maxTicksLimit: 8 } }),
-          y: { ...cScales({}).y, afterFit(axis) { axis.width = 45; }, title: { display: false }, grid: { color: _chartSubgrid() } }
+          y: { ...cScales({}).y, afterFit(axis) { axis.width = 30; }, title: { display: false }, grid: { color: _chartSubgrid() } }
         }
       }
     });
