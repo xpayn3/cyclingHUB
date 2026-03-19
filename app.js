@@ -8442,7 +8442,7 @@ async function renderPowerCurve(unit) {
 
   // Subtitle
   document.getElementById('powerCurveSubtitle').textContent =
-    `Best power efforts · Last ${state.rangeDays} days`;
+    `Best power efforts`;
 
   // Peak stat pills
   document.getElementById('curvePeaks').innerHTML = CURVE_PEAKS.map(p => {
