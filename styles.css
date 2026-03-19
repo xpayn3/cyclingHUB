@@ -885,6 +885,7 @@ code {
     right: 16px;
     left: auto;
     transform: none;
+    max-width: calc(52px * 3 + 6px); /* 3 buttons + padding */
     z-index: 15;
     background: var(--glass-bg);
     backdrop-filter: var(--glass-blur);
@@ -919,8 +920,10 @@ code {
     border-radius: 19px;
     border: none;
     min-height: 34px;
-    flex: 1;
-    padding: 7px 8px;
+    min-width: 52px;
+    width: 52px;
+    flex: 0 0 52px;
+    padding: 7px 0;
     background: none;
     color: rgba(255, 255, 255, 0.55);
     font-weight: 600;
