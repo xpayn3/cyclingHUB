@@ -877,6 +877,78 @@ code {
     position: relative;
 }
 
+/* ── Gear picker sheet (overlay, not <dialog>) ─ */
+.gear-picker-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10001;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+}
+.gear-picker-sheet {
+    width: 100%;
+    max-width: 480px;
+    max-height: 60vh;
+    background: var(--bg-surface);
+    border-radius: 16px 16px 0 0;
+    display: flex;
+    flex-direction: column;
+    animation: gearPickerIn 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+@keyframes gearPickerIn {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+}
+.gear-picker-handle {
+    width: 36px;
+    height: 5px;
+    border-radius: 2.5px;
+    background: var(--text-faint);
+    margin: 8px auto 0;
+    flex-shrink: 0;
+}
+.gear-picker-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-align: center;
+    padding: 12px 16px 8px;
+    flex-shrink: 0;
+}
+.gear-picker-list {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 0 8px 8px;
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+}
+.gear-picker-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-radius: 10px;
+    font-size: 17px;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: background 0.15s;
+    min-height: 44px;
+}
+.gear-picker-option:hover { background: var(--hover-overlay); }
+.gear-picker-option:active { background: var(--hover-overlay-strong); }
+.gear-picker-option--selected {
+    color: var(--accent);
+    font-weight: 600;
+}
+.gear-picker-check {
+    width: 20px;
+    height: 20px;
+    color: var(--accent);
+    flex-shrink: 0;
+}
+
 /* ── Notification bell — fixed top-right on dashboard ─ */
 .notif-bell {
     position: fixed;

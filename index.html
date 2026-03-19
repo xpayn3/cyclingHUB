@@ -315,6 +315,15 @@
             </div>
         </dialog>
 
+        <!-- ============================================================  GEAR PICKER SHEET  ============================================================ -->
+        <div class="gear-picker-overlay" id="gearPickerOverlay" style="display:none" onclick="if(event.target===this)closeGearPicker()">
+            <div class="gear-picker-sheet" id="gearPickerSheet">
+                <div class="gear-picker-handle"></div>
+                <div class="gear-picker-title" id="gearPickerTitle"></div>
+                <div class="gear-picker-list" id="gearPickerList"></div>
+            </div>
+        </div>
+
         <!-- ============================================================  NOTIFICATION SHEET  ============================================================ -->
         <dialog class="modal-dialog" id="notifSheet">
             <div class="modal" style="max-width:480px">

@@ -21120,6 +21120,83 @@ function openCompDetail(compId) {
   sheet.showModal();
 }
 
+/* ── Gear picker sheet — replaces dropdowns inside gear modals only ── */
+let _gearPickerCallback = null;
+
+function openGearPicker(selectEl) {
+  const overlay = document.getElementById('gearPickerOverlay');
+  const titleEl = document.getElementById('gearPickerTitle');
+  const listEl = document.getElementById('gearPickerList');
+  if (!overlay || !listEl || !selectEl) return;
+
+  // Get label from parent .field
+  const label = selectEl.closest('.field')?.querySelector('label')?.textContent || 'Select';
+  if (titleEl) titleEl.textContent = label;
+
+  const checkSvg = '<svg class="gear-picker-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+
+  listEl.innerHTML = Array.from(selectEl.options).map((opt, i) => {
+    const selected = i === selectEl.selectedIndex;
+    const text = opt.textContent.trim() || opt.value;
+    if (!text) return '';
+    return `<div class="gear-picker-option${selected ? ' gear-picker-option--selected' : ''}" data-index="${i}">
+      <span>${text}</span>
+      ${selected ? checkSvg : ''}
+    </div>`;
+  }).join('');
+
+  _gearPickerCallback = (idx) => {
+    selectEl.selectedIndex = idx;
+    selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+    // Update the custom dropdown trigger label if it exists
+    const wrap = selectEl.closest('.cdd-wrap');
+    if (wrap) {
+      const labelSpan = wrap.querySelector('.cdd-label');
+      const cur = selectEl.options[idx];
+      if (labelSpan && cur) labelSpan.textContent = cur.textContent.trim() || cur.value;
+    }
+    selectEl._cddRefresh?.();
+  };
+
+  listEl.onclick = e => {
+    const opt = e.target.closest('.gear-picker-option');
+    if (!opt) return;
+    if (_gearPickerCallback) _gearPickerCallback(+opt.dataset.index);
+    closeGearPicker();
+  };
+
+  overlay.style.display = 'flex';
+
+  // Scroll selected into view
+  requestAnimationFrame(() => {
+    const sel = listEl.querySelector('.gear-picker-option--selected');
+    if (sel) sel.scrollIntoView({ block: 'center', behavior: 'instant' });
+  });
+}
+
+function closeGearPicker() {
+  const overlay = document.getElementById('gearPickerOverlay');
+  if (overlay) overlay.style.display = 'none';
+  _gearPickerCallback = null;
+}
+
+function _gearHookPickerSheets(modalEl) {
+  // Find all custom dropdown triggers inside this modal and override their click
+  if (!modalEl) return;
+  modalEl.querySelectorAll('.cdd-wrap').forEach(wrap => {
+    const trigger = wrap.querySelector('.cdd-trigger');
+    const selectEl = wrap.querySelector('select');
+    if (!trigger || !selectEl) return;
+    // Clone trigger to remove old event listeners
+    const newTrigger = trigger.cloneNode(true);
+    trigger.parentNode.replaceChild(newTrigger, trigger);
+    newTrigger.addEventListener('click', e => {
+      e.stopPropagation();
+      openGearPicker(selectEl);
+    });
+  });
+}
+
 function openGearModal(editId) {
   const modal = document.getElementById('gearModal');
   const titleEl = document.getElementById('gearModalTitle');
@@ -21171,6 +21248,8 @@ function openGearModal(editId) {
   document.getElementById('gearFormCategory')?._cddRefresh?.();
   document.getElementById('gearFormBrand')?._cddRefresh?.();
   document.getElementById('gearFormModel')?._cddRefresh?.();
+  // Override dropdown triggers to use picker sheets
+  _gearHookPickerSheets(modal);
 
   // Brand → Model suggestions
   const brandSel = document.getElementById('gearFormBrand');
@@ -21682,6 +21761,7 @@ function openBatteryModal(editId) {
 
   modal.showModal();
   refreshCustomDropdowns(modal);
+  _gearHookPickerSheets(modal);
 }
 
 function closeBatteryModal() {
@@ -22043,6 +22123,7 @@ function openServiceModal(editId, presetBikeId) {
 
   modal.showModal();
   if (typeof initCustomDropdowns === 'function') initCustomDropdowns(modal);
+  _gearHookPickerSheets(modal);
 }
 
 function closeServiceModal() {
@@ -25822,6 +25903,7 @@ Object.assign(window, {
   showTpSlotForm, hideTpSlotForm, addTpSlot, removeTpSlot,
   setHideEmptyCards, setFtpAlert,
   gearSwitchTab, gearSelectBike, gearTriggerPhotoUpload, gearUploadPhoto, gearCompPhotoUpload, openCompDetail, renderBikeDetailPage,
+  openGearPicker, closeGearPicker,
   addCompareCard, setComparePeriod, updateComparePage,
   clearAllCaches, clearLifetimeCache, exportFullBackup, importFullBackup, exportGearData, importGearData,
   openNotifSheet, _notifDismiss, _notifClearAll, _notifRefreshBell, _notifRequestPush,
