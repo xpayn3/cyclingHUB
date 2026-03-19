@@ -21080,22 +21080,18 @@ function openCompDetail(compId) {
   const pctLabel = pct >= 100 ? 'Replace now' : pct >= 90 ? 'Replace soon' : pct !== null ? 'Good condition' : '';
   const purchaseDate = c.purchaseDate ? new Date(c.purchaseDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 
-  // Wear gauge ring (SVG donut)
-  const gaugeHtml = pct !== null ? (() => {
-    const radius = 40, circ = 2 * Math.PI * radius;
-    const offset = circ * (1 - pct / 100);
-    return `<div class="cd-gauge">
-      <svg viewBox="0 0 100 100" width="100" height="100">
-        <circle cx="50" cy="50" r="${radius}" fill="none" stroke="var(--bg-elevated)" stroke-width="8"/>
-        <circle cx="50" cy="50" r="${radius}" fill="none" stroke="${pctColor}" stroke-width="8" stroke-linecap="round"
-          stroke-dasharray="${circ}" stroke-dashoffset="${offset}" transform="rotate(-90 50 50)" style="transition:stroke-dashoffset 0.6s"/>
-      </svg>
-      <div class="cd-gauge-inner">
-        <span class="cd-gauge-pct" style="color:${pctColor}">${pct}%</span>
-        <span class="cd-gauge-label">${pctLabel}</span>
-      </div>
-    </div>`;
-  })() : '';
+  // Wear linear bar
+  const gaugeHtml = pct !== null ? `<div class="cd-wear-card">
+    <div class="cd-wear-top">
+      <span class="cd-wear-label">Component Wear</span>
+      <span class="cd-wear-pct" style="color:${pctColor}">${pct}%</span>
+    </div>
+    <div class="cd-wear-track">
+      <div class="cd-wear-fill" style="width:${pct}%;background:${pctColor}"></div>
+      <div class="cd-wear-glow" style="left:${pct}%;background:${pctColor}"></div>
+    </div>
+    <div class="cd-wear-status" style="color:${pctColor}">${pctLabel}</div>
+  </div>` : '';
 
   // Quick stats row
   const stats = [];
