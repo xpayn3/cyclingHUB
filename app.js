@@ -5499,7 +5499,7 @@ function renderWeekProgress(metric) {
           pointRadius:          thisWeekData.map((_, i) => i === todayIdx ? 9 : 0),
           pointHoverRadius: 7,
           pointBackgroundColor: m.color,
-          pointBorderColor:     'var(--bg-card)',
+          pointBorderColor:     cssVar('--bg-card'),
           pointBorderWidth: 2,
           fill: true,
           spanGaps: false,
