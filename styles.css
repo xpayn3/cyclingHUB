@@ -15765,6 +15765,27 @@ body:has(.act-sheet-mode) .topbar {
 }
 .gar-add-btn:hover { opacity: 0.85; }
 .gar-add-btn:active { transform: scale(0.9); }
+.gar-add-full-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 14px 20px;
+    margin-top: 12px;
+    background: var(--bg-card);
+    color: var(--accent);
+    border: none;
+    border-radius: var(--radius);
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    min-height: 50px;
+    transition: background 0.2s;
+}
+.gar-add-full-btn:hover { background: var(--bg-elevated); }
+.gar-add-full-btn:active { opacity: 0.8; }
 .gar-ghost-btn {
     background: none;
     border: none;

@@ -20819,42 +20819,41 @@ function renderBikeDetailPage() {
     <div class="gar-panel" id="gearPanelComponents">
       <div class="gar-panel-header">
         <span class="gar-panel-title">Components</span>
-        <button class="gar-add-btn" onclick="openGearModal()">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        </button>
       </div>
       <div id="gearComponentsGrid" class="gar-list"></div>
+      <button class="gar-add-full-btn" onclick="openGearModal()">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Component
+      </button>
     </div>
 
     <!-- Batteries panel -->
     <div class="gar-panel" id="gearPanelBatteries" style="display:none">
       <div class="gar-panel-header">
         <span class="gar-panel-title">Batteries</span>
-        <div style="display:flex;gap:8px;align-items:center">
-          <label class="gar-toggle-label" id="batteryObsoleteToggle" style="display:none">
-            <input type="checkbox" id="batteryShowObsolete" onchange="renderGearBatteries()">
-            <span>Retired</span>
-          </label>
-          <button class="gar-add-btn" onclick="openBatteryModal()">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          </button>
-        </div>
+        <label class="gar-toggle-label" id="batteryObsoleteToggle" style="display:none">
+          <input type="checkbox" id="batteryShowObsolete" onchange="renderGearBatteries()">
+          <span>Retired</span>
+        </label>
       </div>
       <div id="gearBatteriesGrid" class="gar-list"></div>
+      <button class="gar-add-full-btn" onclick="openBatteryModal()">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Battery
+      </button>
     </div>
 
     <!-- Service panel -->
     <div class="gar-panel" id="gearPanelService" style="display:none">
       <div class="gar-panel-header">
         <span class="gar-panel-title">Service History</span>
-        <div style="display:flex;gap:8px;align-items:center">
-          <button class="gar-ghost-btn" onclick="openServiceShopModal()">Shops</button>
-          <button class="gar-add-btn" onclick="openServiceModal()">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          </button>
-        </div>
+        <button class="gar-ghost-btn" onclick="openServiceShopModal()">Shops</button>
       </div>
       <div id="gearServiceGrid" class="gar-list"></div>
+      <button class="gar-add-full-btn" onclick="openServiceModal()">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Service
+      </button>
     </div>
   `;
 
