@@ -776,7 +776,7 @@ code {
     align-items: center;
     justify-content: center;
     font-family: var(--font-num);
-    border: 2px solid #000;
+    border: 2px solid var(--bg-base);
     padding: 0 3px;
     line-height: 1;
 }
