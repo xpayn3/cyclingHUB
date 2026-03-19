@@ -11077,9 +11077,19 @@ body:has(.act-sheet-mode) .topbar {
     background: var(--bg-card);
     border-radius: var(--radius);
     padding: 16px 16px 10px;
-    position: relative;
+    position: sticky;
+    top: 0;
     margin-bottom: 12px;
     overflow: hidden;
+    z-index: 10;
+    transition: border-radius 0.25s, margin 0.25s, padding 0.25s;
+}
+.wrk-chart-card.wrk-chart-stuck {
+    border-radius: 0 0 4px 4px;
+    margin-left: calc(-1 * var(--pad-page, 16px));
+    margin-right: calc(-1 * var(--pad-page, 16px));
+    padding-left: calc(var(--pad-page, 16px) + 16px);
+    padding-right: calc(var(--pad-page, 16px) + 16px);
 }
 .wrk-canvas {
     display: block;
@@ -11098,6 +11108,43 @@ body:has(.act-sheet-mode) .topbar {
     font-size: var(--text-sm);
     color: var(--text-muted);
     pointer-events: none;
+}
+
+/* ---- iOS Stepper ---- */
+.wrk-stepper {
+    display: flex;
+    align-items: center;
+    background: var(--bg-card);
+    border-radius: 8px;
+    overflow: hidden;
+}
+.wrk-stepper-btn {
+    width: 36px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--accent);
+    font-size: 18px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background var(--transition);
+}
+.wrk-stepper-btn:hover { background: var(--hover-overlay); }
+.wrk-stepper-btn:active { background: var(--hover-overlay-strong); }
+.wrk-stepper-val {
+    min-width: 36px;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: var(--font-num);
+    color: var(--text-primary);
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    padding: 0 4px;
+    line-height: 32px;
 }
 
 /* ---- Add segment chips ---- */
@@ -11291,8 +11338,8 @@ body:has(.act-sheet-mode) .topbar {
 .wrk-edit-row {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 10px;
-    flex-wrap: wrap;
 }
 .wrk-edit-row label {
     font-size: 13px;
@@ -11304,7 +11351,6 @@ body:has(.act-sheet-mode) .topbar {
     display: flex;
     align-items: center;
     gap: 5px;
-    flex: 1;
 }
 .wrk-dur-inputs input[type="number"] {
     width: 56px;
@@ -11340,10 +11386,10 @@ body:has(.act-sheet-mode) .topbar {
     font-size: 12px;
     font-weight: 700;
     font-family: var(--font-num);
-    padding: 3px 10px;
+    padding: 3px 0;
     border-radius: 20px;
     color: #fff;
-    min-width: 48px;
+    width: 48px;
     text-align: center;
     flex-shrink: 0;
 }

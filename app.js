@@ -2488,6 +2488,8 @@ function navigate(page) {
   if (_calFab)  { _calFab.style.visibility  = page === 'calendar'   ? '' : 'hidden'; _calFab.style.pointerEvents  = page === 'calendar'   ? '' : 'none'; }
   if (_actFab)  { _actFab.style.visibility  = page === 'activities' ? '' : 'hidden'; _actFab.style.pointerEvents  = page === 'activities' ? '' : 'none'; }
   if (_dashFab) { _dashFab.style.visibility = page === 'dashboard'  ? '' : 'hidden'; _dashFab.style.pointerEvents = page === 'dashboard'  ? '' : 'none'; }
+  const _sgnFab = document.getElementById('sgnBackFab');
+  if (_sgnFab) { _sgnFab.style.visibility = page === 'suggestion' ? '' : 'hidden'; _sgnFab.style.pointerEvents = page === 'suggestion' ? '' : 'none'; }
   const _settFab = document.getElementById('settingsBackFab');
   if (_settFab) { _settFab.style.visibility = page === 'settings' ? '' : 'hidden'; _settFab.style.pointerEvents = page === 'settings' ? '' : 'none'; }
   const _settSearch = document.getElementById('settingsSearchFab');
@@ -24884,11 +24886,6 @@ function renderSuggestionPage() {
       </button>`;
 
   el.innerHTML = `
-    <button class="sgn-back-btn" onclick="navigate('myroutes')">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-      Library
-    </button>
-
     <div class="sgn-detail-hero" style="--sgn-color:${int.color}">
       <div class="sgn-detail-intensity">${int.icon}<span>${int.label}</span></div>
       <h1 class="sgn-detail-title">${s.title}</h1>

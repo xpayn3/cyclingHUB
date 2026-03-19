@@ -143,7 +143,7 @@ export function wrkDrawChart() {
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
 
-  const PAD_T = 20, PAD_B = 28, PAD_L = 38, PAD_R = 10;
+  const PAD_T = 8, PAD_B = 28, PAD_L = 26, PAD_R = 10;
   const cW = W - PAD_L - PAD_R;
   const cH = H - PAD_T - PAD_B;
   const totalSecs = wrkTotalSecs();
@@ -155,7 +155,7 @@ export function wrkDrawChart() {
 
   // Y-axis grid lines
   const gridPcts = [50, 75, 100, 125];
-  ctx.font = `10px 'JetBrains Mono', monospace`;
+  ctx.font = `10px Inter, system-ui, sans-serif`;
   ctx.textAlign = 'right';
   gridPcts.forEach(pct => {
     const y = PAD_T + cH * (1 - pct / MAX_PCT);
@@ -169,7 +169,7 @@ export function wrkDrawChart() {
     ctx.fillStyle = pct === 100
       ? (dk ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.35)')
       : (dk ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.18)');
-    ctx.fillText(pct + '%', PAD_L - 4, y + 3.5);
+    ctx.fillText(pct, PAD_L - 4, y + 3.5);
   });
 
   // Draw segments
@@ -198,23 +198,12 @@ export function wrkDrawChart() {
       wrkDrawFree(ctx, x, segW, MAX_PCT, PAD_T, cH);
     }
 
-    // Selection highlight — subtle top glow line
+    // Selection highlight — subtle bottom accent line
     if (isSelected) {
-      const topPct = seg.type === 'interval' ? Math.max(seg.onPower, seg.offPower)
-                   : seg.type === 'warmup' || seg.type === 'cooldown' ? Math.max(seg.powerLow, seg.powerHigh)
-                   : seg.type === 'steady' ? seg.power : 55;
-      const selY = PAD_T + cH * (1 - topPct / MAX_PCT);
-      // Glow overlay
-      const glow = ctx.createLinearGradient(0, selY, 0, selY + 20);
-      glow.addColorStop(0, 'rgba(0,229,160,0.25)');
-      glow.addColorStop(1, 'rgba(0,229,160,0)');
-      ctx.fillStyle = glow;
-      ctx.fillRect(x, selY, segW, 20);
-      // Top accent line
-      ctx.strokeStyle = 'rgba(0,229,160,0.6)';
+      ctx.strokeStyle = 'rgba(0,229,160,0.5)';
       ctx.lineWidth = 2;
       ctx.setLineDash([]);
-      ctx.beginPath(); ctx.moveTo(x, selY); ctx.lineTo(x + segW, selY); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x, PAD_T + cH); ctx.lineTo(x + segW, PAD_T + cH); ctx.stroke();
     }
 
     // Time label at segment start (skip first and very narrow ones)
@@ -378,7 +367,11 @@ export function wrkBuildEditPanel(seg, idx) {
     fields = `
       <div class="wrk-edit-row">
         <label>Repetitions</label>
-        <div class="wrk-dur-inputs"><input type="number" min="1" max="50" value="${seg.reps}" oninput="wrkSet(${idx},'reps',+this.value)"> <span>×</span></div>
+        <div class="wrk-stepper">
+          <button class="wrk-stepper-btn" onclick="wrkSet(${idx},'reps',Math.max(1,${seg.reps}-1));wrkRender()">−</button>
+          <span class="wrk-stepper-val">${seg.reps}×</span>
+          <button class="wrk-stepper-btn" onclick="wrkSet(${idx},'reps',Math.min(50,${seg.reps}+1));wrkRender()">+</button>
+        </div>
       </div>
       <div class="wrk-edit-row">
         <label>Work duration</label>
@@ -748,6 +741,46 @@ export function buildFitWorkout(segments, name, ftp) {
     clearTimeout(_wrkRaf);
     _wrkRaf = setTimeout(wrkDrawChart, 80);
   });
+})();
+
+// Sticky chart: toggle .wrk-chart-stuck when card hits top
+(function() {
+  const initSticky = () => {
+    const card = document.querySelector('.wrk-chart-card');
+    if (!card) return;
+    // Sentinel div placed just before the card to detect when it leaves viewport
+    let sentinel = document.getElementById('wrkStickySentinel');
+    if (!sentinel) {
+      sentinel = document.createElement('div');
+      sentinel.id = 'wrkStickySentinel';
+      sentinel.style.height = '1px';
+      sentinel.style.marginBottom = '-1px';
+      card.parentNode.insertBefore(sentinel, card);
+    }
+    const obs = new IntersectionObserver(([e]) => {
+      card.classList.toggle('wrk-chart-stuck', !e.isIntersecting);
+      // Redraw canvas since width may have changed
+      if (state.currentPage === 'workout') setTimeout(wrkDrawChart, 50);
+    }, { threshold: 0 });
+    obs.observe(sentinel);
+  };
+  // Re-init when navigating to workout page
+  const origNav = window.navigate;
+  if (origNav) {
+    const _check = () => setTimeout(initSticky, 100);
+    document.addEventListener('click', (e) => {
+      if (state.currentPage === 'workout') return;
+      // Will be called after navigate
+    });
+  }
+  // Init on DOM ready
+  setTimeout(initSticky, 500);
+  // Also hook into page transitions
+  new MutationObserver(() => {
+    if (document.getElementById('page-workout')?.classList.contains('active')) {
+      setTimeout(initSticky, 100);
+    }
+  }).observe(document.getElementById('pageContent') || document.body, { attributes: true, subtree: true, attributeFilter: ['class'] });
 })();
 
 // ── Carousel mouse-drag scroll with momentum + rubber-band bounce ─────────────
