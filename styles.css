@@ -1457,9 +1457,17 @@ code {
     letter-spacing: 0.5px;
 }
 
-/* iOS 26-style scroll edge effect — disabled */
+/* Subtle dark gradient at top of viewport */
 .page-content.has-scroll-edge::before {
-    display: none;
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: calc(env(safe-area-inset-top) + 48px);
+    background: linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.2) 60%, transparent 100%);
+    z-index: 14;
+    pointer-events: none;
 }
 @media (min-width: 769px) {
     .page-content.has-scroll-edge::before {
