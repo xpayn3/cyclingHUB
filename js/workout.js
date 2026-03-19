@@ -939,28 +939,37 @@ export function _isDark() {
 }
 
 export function _updateChartColors() {
-  const dark = _isDark();
-  window.C_TICK = { color: dark ? '#62708a' : '#8892a6', font: { size: 10 } };
-  window.C_GRID = { color: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)' };
+  const cs = getComputedStyle(document.documentElement);
+  const tickColor = cs.getPropertyValue('--chart-tick').trim() || (_isDark() ? '#62708a' : '#8892a6');
+  const gridColor = cs.getPropertyValue('--chart-grid').trim() || (_isDark() ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)');
+  window.C_TICK = { color: tickColor, font: { size: 10 } };
+  window.C_GRID = { color: gridColor };
+}
+
+function _resolveTheme(mode) {
+  if (mode === 'auto') return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  return mode;
+}
+
+function _applyResolvedTheme(resolved) {
+  document.documentElement.setAttribute('data-theme', resolved);
+  const tc = document.querySelector('meta[name="theme-color"]');
+  if (tc) tc.setAttribute('content', resolved === 'light' ? '#f2f3f5' : '#090b0e');
+  _updateChartColors();
 }
 
 export function setTheme(mode) {
-  document.documentElement.setAttribute('data-theme', mode);
   try { localStorage.setItem('icu_theme', mode); } catch (e) { console.warn('localStorage.setItem failed:', e); }
 
-  // Sync PWA theme-color meta tag
-  const tc = document.querySelector('meta[name="theme-color"]');
-  if (tc) tc.setAttribute('content', mode === 'light' ? '#f2f3f5' : '#090b0e');
+  const resolved = _resolveTheme(mode);
+  _applyResolvedTheme(resolved);
 
-  // Update toggle button active states + slider position
+  // Update toggle button active states
   const toggle = document.getElementById('themePills');
   if (toggle) toggle.setAttribute('data-active', mode);
   document.querySelectorAll('#themePills .theme-toggle-btn').forEach(b =>
     b.classList.toggle('active', b.dataset.themeVal === mode)
   );
-
-  // Update chart style tokens
-  _updateChartColors();
 
   // Re-render charts on the current page
   const pg = state.currentPage;
@@ -980,11 +989,25 @@ export function setTheme(mode) {
 
 (function initTheme() {
   const saved = localStorage.getItem('icu_theme') || 'dark';
-  document.documentElement.setAttribute('data-theme', saved);
-  const tc = document.querySelector('meta[name="theme-color"]');
-  if (tc) tc.setAttribute('content', saved === 'light' ? '#f2f3f5' : '#090b0e');
-  _updateChartColors();
-  // Set active state on buttons (after DOM ready)
+  const resolved = _resolveTheme(saved);
+  _applyResolvedTheme(resolved);
+
+  // Listen for system theme changes when in auto mode
+  window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
+    if (localStorage.getItem('icu_theme') === 'auto') {
+      const r = _resolveTheme('auto');
+      _applyResolvedTheme(r);
+      // Re-render current page charts
+      const pg = state.currentPage;
+      if (pg) {
+        cleanupPageCharts(pg);
+        if (pg === 'dashboard') renderDashboard();
+        else if (pg === 'fitness') renderFitnessPage();
+        else if (pg === 'power') renderPowerPage();
+      }
+    }
+  });
+
   const applyToggle = () => {
     const toggle = document.getElementById('themePills');
     if (toggle) toggle.setAttribute('data-active', saved);

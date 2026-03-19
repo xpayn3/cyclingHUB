@@ -106,6 +106,22 @@
     --text-secondary: rgba(235, 235, 245, 0.6); /* labels   (iOS secondary label) */
     --text-muted: rgba(235, 235, 245, 0.4); /* hints    (iOS tertiary+, WCAG 3:1)  */
 
+    /* ── Glass / overlay ────────────────────────────────────── */
+    --glass-bg: rgba(22, 22, 24, 0.82);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-blur: blur(12px) saturate(1.4);
+    --hover-overlay: rgba(255, 255, 255, 0.06);
+    --hover-overlay-strong: rgba(255, 255, 255, 0.12);
+    --shadow-overlay: rgba(0, 0, 0, 0.45);
+
+    /* ── Chart / canvas ───────────────────────────────────── */
+    --chart-grid: rgba(255, 255, 255, 0.06);
+    --chart-tick: rgba(235, 235, 245, 0.4);
+    --chart-legend: rgba(235, 235, 245, 0.5);
+    --canvas-bg: #0a0e14;
+    --canvas-grid: rgba(255, 255, 255, 0.08);
+    --canvas-text: rgba(255, 255, 255, 0.7);
+
     /* ── Spacing ─────────────────────────────────────────────
        These three control all padding and gaps across the app.
        --pad-page   : left/right gutters of the main content
@@ -19083,12 +19099,74 @@ html[data-theme="light"] {
     --red-dim: rgba(255, 71, 87, 0.10);
     --yellow-dim: rgba(240, 196, 41, 0.10);
 
+    /* ── Glass / overlay ── */
+    --glass-bg: rgba(255, 255, 255, 0.78);
+    --glass-border: rgba(0, 0, 0, 0.06);
+    --glass-blur: blur(12px) saturate(1.4);
+    --hover-overlay: rgba(0, 0, 0, 0.04);
+    --hover-overlay-strong: rgba(0, 0, 0, 0.08);
+    --shadow-overlay: rgba(0, 0, 0, 0.15);
+
+    /* ── Chart / canvas ── */
+    --chart-grid: rgba(0, 0, 0, 0.08);
+    --chart-tick: #848d9f;
+    --chart-legend: #555e72;
+    --canvas-bg: #f0f2f6;
+    --canvas-grid: rgba(0, 0, 0, 0.10);
+    --canvas-text: rgba(0, 0, 0, 0.65);
+
     color-scheme: light;
 }
 
 /* ── Cards & surfaces ── */
 [data-theme="light"] .card {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.03);
+}
+
+/* ── Glass elements (pills, FABs, map tools) ── */
+[data-theme="light"] .dash-pill-nav {
+    background: var(--glass-bg);
+    border-color: var(--glass-border);
+    box-shadow: 0 2px 12px var(--shadow-overlay);
+}
+[data-theme="light"] .floating-range-pill {
+    background: var(--glass-bg);
+    border-color: var(--glass-border);
+    box-shadow: 0 2px 8px var(--shadow-overlay);
+}
+[data-theme="light"] .cal-fab,
+[data-theme="light"] #actSaveRouteFab,
+[data-theme="light"] #actSearchFab,
+[data-theme="light"] #dashRouteFab {
+    background: var(--glass-bg) !important;
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 2px 8px var(--shadow-overlay);
+    color: var(--text-primary);
+}
+[data-theme="light"] .maplibregl-ctrl-group {
+    background: var(--glass-bg) !important;
+    border: 1px solid var(--glass-border) !important;
+    box-shadow: 0 2px 8px var(--shadow-overlay) !important;
+}
+[data-theme="light"] .maplibregl-ctrl-group button {
+    border-bottom-color: var(--glass-border) !important;
+}
+[data-theme="light"] .maplibregl-ctrl-icon {
+    filter: none !important;
+}
+[data-theme="light"] .rb-map-tool-btn,
+[data-theme="light"] .act-map-tool-btn {
+    color: var(--text-primary);
+}
+[data-theme="light"] .act-sheet-map-back,
+[data-theme="light"] .act-sheet-map-nav {
+    background: var(--glass-bg);
+    border-color: var(--glass-border);
+    box-shadow: 0 2px 8px var(--shadow-overlay);
+}
+[data-theme="light"] .floating-profile-btn {
+    border-color: var(--glass-border) !important;
+    box-shadow: 0 1px 4px var(--shadow-overlay);
 }
 
 /* ── Sidebar ── */
@@ -19296,6 +19374,84 @@ html[data-theme="light"] {
 /* ── Heatmap / sparkline subtle borders ── */
 [data-theme="light"] .hm-cell {
     border-radius: 2px;
+}
+
+/* ── Heatmap sheet ── */
+[data-theme="light"] .hm-bottom-panel {
+    background: var(--bg-base);
+}
+[data-theme="light"] .hm-stat {
+    border-color: var(--border);
+}
+[data-theme="light"] .hm-pill {
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    border-color: var(--border);
+}
+[data-theme="light"] .hm-pill.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+}
+
+/* ── CDD dropdown hover ── */
+[data-theme="light"] .cdd-option:hover {
+    background: var(--hover-overlay);
+}
+[data-theme="light"] .cdd-dropdown {
+    background: var(--bg-surface);
+    border-color: var(--border);
+    box-shadow: 0 4px 16px var(--shadow-overlay);
+}
+
+/* ── Profile modal ── */
+[data-theme="light"] .prof-sheet {
+    background: var(--bg-base);
+}
+[data-theme="light"] .prof-hero {
+    background: linear-gradient(180deg, rgba(0,229,160,0.08) 0%, var(--bg-base) 100%);
+}
+[data-theme="light"] .prof-xp-track {
+    background: var(--bg-elevated);
+}
+[data-theme="light"] .prof-stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+}
+[data-theme="light"] .prof-best-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+}
+
+/* ── Route builder sheet ── */
+[data-theme="light"] .rb-sheet,
+[data-theme="light"] #rbBottomSheet {
+    background: var(--bg-base);
+}
+[data-theme="light"] .rb-action-pill {
+    background: var(--bg-card);
+    border-color: var(--border);
+    color: var(--text-primary);
+}
+
+/* ── Loading overlay ── */
+[data-theme="light"] .loading-overlay {
+    background: rgba(245, 246, 248, 0.85);
+}
+
+/* ── iOS settings rows ── */
+[data-theme="light"] .ios-row {
+    border-bottom-color: var(--border);
+}
+[data-theme="light"] .ios-group {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+}
+
+/* ── Drag ghost ── */
+[data-theme="light"] .cal-drag-ghost {
+    background: var(--bg-card) !important;
+    border-color: var(--border) !important;
 }
 
 /* ── Power zone header ── */

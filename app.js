@@ -4693,11 +4693,19 @@ const C_TOOLTIP = {
   external: externalTooltipHandler,   // use floating HTML tooltip instead
   position: 'aboveLine',              // keeps caretX on data-point x
 };
-const _cs = getComputedStyle(document.documentElement);
-const C_CLR_MUTED = _cs.getPropertyValue('--text-muted').trim() || 'rgba(235,235,245,0.4)';
-const C_CLR_GRID  = _cs.getPropertyValue('--border').trim()     || 'rgba(255,255,255,0.04)';
-let C_TICK  = { color: C_CLR_MUTED, font: { size: 10 } };
-let C_GRID  = { color: C_CLR_GRID };
+// Theme-aware chart color helpers — read CSS vars live
+function _chartTick() {
+  const cs = getComputedStyle(document.documentElement);
+  return cs.getPropertyValue('--chart-tick').trim() || (_isDark() ? 'rgba(235,235,245,0.4)' : '#848d9f');
+}
+function _chartGrid() {
+  const cs = getComputedStyle(document.documentElement);
+  return cs.getPropertyValue('--chart-grid').trim() || (_isDark() ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)');
+}
+function _chartSubgrid() { return _isDark() ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)'; }
+// Keep C_TICK/C_GRID as live-updating objects for backward compat
+let C_TICK  = { color: _chartTick(), font: { size: 10 } };
+let C_GRID  = { color: _chartGrid() };
 const C_NOGRID = { display: false };
 window.C_TICK = C_TICK; window.C_GRID = C_GRID; window.C_TOOLTIP = C_TOOLTIP;
 // Shared grow-from-bottom animation applied globally to all charts
@@ -4912,9 +4920,11 @@ Chart.register({
 
 // Standard scale pair — pass xGrid:false for bar charts
 function cScales({ xGrid = true, xExtra = {}, yExtra = {} } = {}) {
+  const tick = { color: _chartTick(), font: { size: 10 } };
+  const grid = { color: _chartGrid() };
   return {
-    x: { grid: xGrid ? C_GRID : C_NOGRID, ticks: { ...C_TICK, ...xExtra } },
-    y: { grid: C_GRID,                    ticks: { ...C_TICK, ...yExtra } },
+    x: { grid: xGrid ? grid : C_NOGRID, ticks: { ...tick, ...xExtra } },
+    y: { grid: grid,                    ticks: { ...tick, ...yExtra } },
   };
 }
 // labelColor swatch callback (used on multi-series charts)
@@ -6383,7 +6393,7 @@ function renderFitnessChart(activities, days) {
         },
         scales: {
           ...cScales({ xExtra: { maxTicksLimit: 8 } }),
-          y: { ...cScales({}).y, afterFit(axis) { axis.width = 45; }, title: { display: false }, grid: { color: 'rgba(255,255,255,0.04)' } }
+          y: { ...cScales({}).y, afterFit(axis) { axis.width = 45; }, title: { display: false }, grid: { color: _chartSubgrid() } }
         }
       }
     });
@@ -6481,7 +6491,7 @@ function renderHealthMetrics(days) {
     if (avgVal != null) {
       datasets.push({
         data: new Array(data.length).fill(avgVal),
-        borderColor: 'rgba(255,255,255,0.18)',
+        borderColor: _isDark() ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.15)',
         borderWidth: 1,
         borderDash: [4, 3],
         pointRadius: 0,
@@ -7003,7 +7013,7 @@ function renderYTDDistance() {
 
         // Vertical dashed line
         ctx2.setLineDash([4, 3]);
-        ctx2.strokeStyle = 'rgba(255,255,255,0.18)';
+        ctx2.strokeStyle = _isDark() ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.15)';
         ctx2.lineWidth = 1;
         ctx2.beginPath();
         ctx2.moveTo(x, yScale.top);
@@ -8240,7 +8250,7 @@ const _pprRingPlugin = {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.font = isHov ? 'bold 13px system-ui, sans-serif' : 'bold 10px system-ui, sans-serif';
-        ctx.fillStyle = isHov ? '#f0f2fa' : '#9ba5be';
+        ctx.fillStyle = isHov ? (_isDark() ? '#f0f2fa' : '#1a1d24') : (_isDark() ? '#9ba5be' : '#555e72');
         ctx.fillText(Math.round(w) + 'w', vx, vy);
       }
     }
@@ -8367,8 +8377,8 @@ function renderPowerProfileRadar() {
         r: {
           min: 0, max: 100,
           ticks: { stepSize: 10, display: false },
-          grid: { color: 'rgba(255,255,255,0.12)', circular: true },
-          angleLines: { color: 'rgba(255,255,255,0.12)' },
+          grid: { color: _isDark() ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)', circular: true },
+          angleLines: { color: _isDark() ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' },
           pointLabels: { display: false }
         }
       }
@@ -9244,7 +9254,7 @@ function renderKjZoneChart(days, ftp) {
       plugins: {
         legend: {
           display: true, position: 'bottom',
-          labels: { color: '#9ba5be', boxWidth: 12, font: { size: 10 }, padding: 12 },
+          labels: { color: _chartTick(), boxWidth: 12, font: { size: 10 }, padding: 12 },
         },
         tooltip: {
           ...C_TOOLTIP, mode: 'indexEager',
@@ -13231,7 +13241,8 @@ function _calInitDrag() {
     // Create opaque mouse-following clone
     var ghost = card.cloneNode(true);
     var w = card.offsetWidth;
-    ghost.style.cssText = 'position:fixed;pointer-events:none;z-index:99999;width:' + w + 'px;opacity:1;transform:scale(1.08) rotate(-1.5deg);box-shadow:0 8px 32px rgba(0,229,160,0.3),0 4px 12px rgba(0,0,0,0.6);border:1px solid rgba(0,229,160,0.4);border-radius:8px;background:#1a1a1a;padding:4px 6px;transition:none;left:' + (e.clientX - w/2) + 'px;top:' + (e.clientY - 20) + 'px;';
+    var ghostBg = _isDark() ? '#1a1a1a' : '#ffffff';
+    ghost.style.cssText = 'position:fixed;pointer-events:none;z-index:99999;width:' + w + 'px;opacity:1;transform:scale(1.08) rotate(-1.5deg);box-shadow:0 8px 32px rgba(0,229,160,0.3),0 4px 12px rgba(0,0,0,0.6);border:1px solid rgba(0,229,160,0.4);border-radius:8px;background:' + ghostBg + ';padding:4px 6px;transition:none;left:' + (e.clientX - w/2) + 'px;top:' + (e.clientY - 20) + 'px;';
     document.body.appendChild(ghost);
     _calDragGhost = ghost;
 
@@ -19187,7 +19198,7 @@ function renderZnpZoneTimeChart() {
         legend: {
           display: true,
           position: 'bottom',
-          labels: { color: '#9ba5be', boxWidth: 12, font: { size: 10 }, padding: 12 }
+          labels: { color: _chartTick(), boxWidth: 12, font: { size: 10 }, padding: 12 }
         },
         tooltip: {
           ...C_TOOLTIP,
@@ -22281,18 +22292,23 @@ function _renderProfileRadar() {
       i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
     }
     ctx.closePath();
-    ctx.strokeStyle = lv === levels ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.06)';
+    const dark = _isDark();
+    const gridOuter = dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)';
+    const gridInner = dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)';
+    ctx.strokeStyle = lv === levels ? gridOuter : gridInner;
     ctx.lineWidth = lv === levels ? 1.5 : 0.8;
     ctx.stroke();
   }
 
   // Draw axis lines from center to each vertex
+  const dark = _isDark();
+  const axisColor = dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)';
   for (let i = 0; i < n; i++) {
     const p = hexPt(i, maxR);
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.lineTo(p.x, p.y);
-    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.strokeStyle = axisColor;
     ctx.lineWidth = 0.8;
     ctx.stroke();
   }
@@ -22324,23 +22340,23 @@ function _renderProfileRadar() {
     ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
     ctx.fillStyle = '#00e5a0';
     ctx.fill();
-    ctx.strokeStyle = '#000';
+    ctx.strokeStyle = dark ? '#000' : '#fff';
     ctx.lineWidth = 2;
     ctx.stroke();
   }
 
   // Labels + values outside
+  const lblPrimary = dark ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.7)';
+  const lblSecondary = dark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.45)';
   for (let i = 0; i < n; i++) {
     const p = hexPt(i, maxR + 22);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    // Label
     ctx.font = '600 13px Inter, system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    ctx.fillStyle = lblPrimary;
     ctx.fillText(dims[i].label, p.x, p.y - 7);
-    // Value
     ctx.font = '500 11px Inter, system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.fillStyle = lblSecondary;
     ctx.fillText(dims[i].raw, p.x, p.y + 8);
   }
 }
