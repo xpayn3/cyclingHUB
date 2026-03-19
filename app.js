@@ -4712,17 +4712,18 @@ function _renderDashNextWorkout() {
   const titleEl = document.getElementById('dashNextWorkoutTitle');
   const subEl = document.getElementById('dashNextWorkoutSub');
   if (!card) return;
-  // Check saved workouts for most recent, or calendar events
-  const workouts = window._mrSavedWorkouts || [];
-  if (workouts.length > 0) {
-    const latest = workouts[0];
-    card.style.display = '';
-    if (titleEl) titleEl.textContent = latest.name || 'Saved Workout';
-    if (subEl) subEl.textContent = latest.totalDuration ? _fmtDuration(latest.totalDuration) + ' · ' + (latest.tssEstimate || 0) + ' TSS' : 'Tap to load';
-    card.onclick = () => { wrkLoadWorkout(latest); navigate('workout'); };
-  } else {
-    card.style.display = 'none';
-  }
+  // Load saved workouts from IndexedDB
+  wrkLoadAll().then(workouts => {
+    if (workouts.length > 0) {
+      const latest = workouts[0];
+      card.style.display = '';
+      if (titleEl) titleEl.textContent = latest.name || 'Saved Workout';
+      if (subEl) subEl.textContent = latest.totalDuration ? _fmtDuration(latest.totalDuration) + ' · ' + (latest.tssEstimate || 0) + ' TSS' : 'Tap to load';
+      card.onclick = () => { wrkLoadWorkout(latest); navigate('workout'); };
+    } else {
+      card.style.display = 'none';
+    }
+  }).catch(() => { card.style.display = 'none'; });
 }
 
 function resetDashboard() {
