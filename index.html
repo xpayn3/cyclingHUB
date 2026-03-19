@@ -324,6 +324,31 @@
             </div>
         </div>
 
+        <!-- ============================================================  GEAR DATE PICKER SHEET  ============================================================ -->
+        <div class="gear-picker-overlay" id="gearDateOverlay" style="display:none" onclick="if(event.target===this)closeGearDate()">
+            <div class="gear-picker-sheet gear-date-sheet">
+                <div class="gear-picker-handle"></div>
+                <div class="gear-picker-title" id="gearDateTitle">Select Date</div>
+                <div class="gd-nav">
+                    <button class="gd-nav-btn" id="gdPrev" onclick="_gdNav(-1)">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                    </button>
+                    <span class="gd-month-label" id="gdMonthLabel"></span>
+                    <button class="gd-nav-btn" id="gdNext" onclick="_gdNav(1)">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                    </button>
+                </div>
+                <div class="gd-weekdays">
+                    <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
+                </div>
+                <div class="gd-grid" id="gdGrid"></div>
+                <div class="gd-footer">
+                    <button class="gd-today-btn" onclick="_gdSelectToday()">Today</button>
+                    <button class="gd-clear-btn" onclick="_gdClear()">Clear</button>
+                </div>
+            </div>
+        </div>
+
         <!-- ============================================================  NOTIFICATION SHEET  ============================================================ -->
         <dialog class="modal-dialog" id="notifSheet">
             <div class="modal" style="max-width:480px">

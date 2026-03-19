@@ -21200,6 +21200,134 @@ function _gearHookPickerSheets(modalEl) {
   });
 }
 
+/* ── Gear date picker — month view calendar sheet ── */
+let _gdTarget = null;     // the <input type="date"> we're picking for
+let _gdYear = 2026;
+let _gdMonth = 2;         // 0-indexed
+let _gdSelected = null;   // 'YYYY-MM-DD' or null
+
+function openGearDate(inputEl) {
+  _gdTarget = inputEl;
+  const val = inputEl.value; // 'YYYY-MM-DD' or ''
+  const today = new Date();
+  if (val) {
+    const d = new Date(val);
+    _gdYear = d.getFullYear();
+    _gdMonth = d.getMonth();
+    _gdSelected = val;
+  } else {
+    _gdYear = today.getFullYear();
+    _gdMonth = today.getMonth();
+    _gdSelected = null;
+  }
+
+  const label = inputEl.closest('.field')?.querySelector('label')?.textContent || 'Select Date';
+  const titleEl = document.getElementById('gearDateTitle');
+  if (titleEl) titleEl.textContent = label;
+
+  _gdRender();
+  document.getElementById('gearDateOverlay').style.display = 'flex';
+}
+
+function closeGearDate() {
+  document.getElementById('gearDateOverlay').style.display = 'none';
+  _gdTarget = null;
+}
+
+function _gdNav(dir) {
+  _gdMonth += dir;
+  if (_gdMonth > 11) { _gdMonth = 0; _gdYear++; }
+  if (_gdMonth < 0) { _gdMonth = 11; _gdYear--; }
+  _gdRender();
+}
+
+function _gdRender() {
+  const monthLabel = document.getElementById('gdMonthLabel');
+  const grid = document.getElementById('gdGrid');
+  if (!monthLabel || !grid) return;
+
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  monthLabel.textContent = `${monthNames[_gdMonth]} ${_gdYear}`;
+
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0, 10);
+  const firstDay = new Date(_gdYear, _gdMonth, 1);
+  const lastDay = new Date(_gdYear, _gdMonth + 1, 0);
+  const startDow = (firstDay.getDay() + 6) % 7; // Mon=0
+
+  let html = '';
+  // Empty cells before first day
+  for (let i = 0; i < startDow; i++) html += '<div class="gd-day gd-day--empty"></div>';
+
+  for (let d = 1; d <= lastDay.getDate(); d++) {
+    const dateStr = `${_gdYear}-${String(_gdMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const isToday = dateStr === todayStr;
+    const isSelected = dateStr === _gdSelected;
+    let cls = 'gd-day';
+    if (isSelected) cls += ' gd-day--selected';
+    else if (isToday) cls += ' gd-day--today';
+    html += `<div class="${cls}" onclick="_gdPick('${dateStr}')">${d}</div>`;
+  }
+
+  grid.innerHTML = html;
+}
+
+function _gdPick(dateStr) {
+  if (_gdTarget) {
+    _gdTarget.value = dateStr;
+    _gdTarget.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  closeGearDate();
+}
+
+function _gdSelectToday() {
+  _gdPick(new Date().toISOString().slice(0, 10));
+}
+
+function _gdClear() {
+  if (_gdTarget) {
+    _gdTarget.value = '';
+    _gdTarget.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  closeGearDate();
+}
+
+function _gearHookDatePickers(modalEl) {
+  if (!modalEl) return;
+  modalEl.querySelectorAll('input[type="date"]').forEach(inp => {
+    // Wrap in a tappable row that opens the date sheet
+    inp.style.display = 'none';
+    let btn = inp.previousElementSibling;
+    if (btn?.classList.contains('gd-trigger')) return; // already hooked
+
+    btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'cdd-trigger gd-trigger';
+    const label = document.createElement('span');
+    label.className = 'cdd-label';
+    label.textContent = inp.value ? new Date(inp.value).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Select date';
+    const chev = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    chev.setAttribute('class', 'cdd-chevron');
+    chev.setAttribute('viewBox', '0 0 7 12');
+    chev.setAttribute('width', '10');
+    chev.setAttribute('height', '14');
+    chev.style.opacity = '0.4';
+    chev.innerHTML = '<path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>';
+    btn.append(label, chev);
+    inp.parentNode.insertBefore(btn, inp);
+
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      openGearDate(inp);
+    });
+
+    // Update label when value changes
+    inp.addEventListener('change', () => {
+      label.textContent = inp.value ? new Date(inp.value).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Select date';
+    });
+  });
+}
+
 function openGearModal(editId) {
   const modal = document.getElementById('gearModal');
   const titleEl = document.getElementById('gearModalTitle');
@@ -21253,6 +21381,7 @@ function openGearModal(editId) {
   document.getElementById('gearFormModel')?._cddRefresh?.();
   // Override dropdown triggers to use picker sheets
   _gearHookPickerSheets(modal);
+  _gearHookDatePickers(modal);
 
   // Brand → Model suggestions
   const brandSel = document.getElementById('gearFormBrand');
@@ -21765,6 +21894,7 @@ function openBatteryModal(editId) {
   modal.showModal();
   refreshCustomDropdowns(modal);
   _gearHookPickerSheets(modal);
+  _gearHookDatePickers(modal);
 }
 
 function closeBatteryModal() {
@@ -22127,6 +22257,7 @@ function openServiceModal(editId, presetBikeId) {
   modal.showModal();
   if (typeof initCustomDropdowns === 'function') initCustomDropdowns(modal);
   _gearHookPickerSheets(modal);
+  _gearHookDatePickers(modal);
 }
 
 function closeServiceModal() {
@@ -25906,7 +26037,7 @@ Object.assign(window, {
   showTpSlotForm, hideTpSlotForm, addTpSlot, removeTpSlot,
   setHideEmptyCards, setFtpAlert,
   gearSwitchTab, gearSelectBike, gearTriggerPhotoUpload, gearUploadPhoto, gearCompPhotoUpload, openCompDetail, renderBikeDetailPage,
-  openGearPicker, closeGearPicker,
+  openGearPicker, closeGearPicker, openGearDate, closeGearDate, _gdNav, _gdPick, _gdSelectToday, _gdClear,
   addCompareCard, setComparePeriod, updateComparePage,
   clearAllCaches, clearLifetimeCache, exportFullBackup, importFullBackup, exportGearData, importGearData,
   openNotifSheet, _notifDismiss, _notifClearAll, _notifRefreshBell, _notifRequestPush,

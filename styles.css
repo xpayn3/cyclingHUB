@@ -949,6 +949,107 @@ code {
     flex-shrink: 0;
 }
 
+/* ── Gear date picker sheet ─ */
+.gear-date-sheet {
+    max-height: 70vh;
+}
+.gd-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px 8px;
+}
+.gd-nav-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.gd-nav-btn:hover { background: var(--hover-overlay); }
+.gd-nav-btn:active { background: var(--hover-overlay-strong); }
+.gd-month-label {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.gd-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    padding: 0 12px 4px;
+}
+.gd-weekdays span {
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    padding: 4px 0;
+}
+.gd-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    padding: 0 12px;
+    gap: 2px;
+}
+.gd-day {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: background 0.15s;
+    min-height: 38px;
+}
+.gd-day:hover { background: var(--hover-overlay); }
+.gd-day:active { background: var(--hover-overlay-strong); }
+.gd-day--today {
+    color: var(--accent);
+    font-weight: 700;
+}
+.gd-day--selected {
+    background: var(--accent) !important;
+    color: #000 !important;
+    font-weight: 700;
+}
+.gd-day--other {
+    color: var(--text-muted);
+    opacity: 0.3;
+}
+.gd-day--empty {
+    pointer-events: none;
+}
+.gd-footer {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    padding: 12px 16px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
+.gd-today-btn, .gd-clear-btn {
+    background: none;
+    border: none;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 8px 16px;
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+.gd-today-btn { color: var(--accent); }
+.gd-clear-btn { color: var(--text-secondary); }
+.gd-today-btn:hover, .gd-clear-btn:hover { background: var(--hover-overlay); }
+
 /* ── Notification bell — fixed top-right on dashboard ─ */
 .notif-bell {
     position: fixed;
