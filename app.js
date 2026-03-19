@@ -142,7 +142,7 @@ if ('serviceWorker' in navigator) {
 // Populate version footer
 (function() {
   const el = document.getElementById('appVersionFooter');
-  if (el) el.textContent = 'CycleIQ v0.49';
+  if (el) el.textContent = 'CycleIQ v0.50';
 })();
 
 let _pwaInstallPrompt = null;
@@ -2514,6 +2514,7 @@ function navigate(page) {
     guide:      ['Training Guide', 'Understanding CTL · ATL · TSB & training load'],
     gear:       ['Gear & Service', 'Bikes, components, batteries & service tracking'],
     routes:     ['Route Builder',  'Plan & build cycling routes'],
+    myroutes:   ['My Routes',    'Route library & ride diary'],
   };
   const [title, sub] = info[page] || ['CycleIQ', ''];
   document.getElementById('pageTitle').textContent    = title;
@@ -2531,7 +2532,7 @@ function navigate(page) {
   // Headline — hidden for calendar & routes
   const headline = document.querySelector('.page-headline');
   if (headline) {
-    if (page === 'calendar' || page === 'routes') headline.classList.add('page-headline--hidden');
+    if (page === 'calendar' || page === 'routes' || page === 'myroutes') headline.classList.add('page-headline--hidden');
     else headline.classList.remove('page-headline--hidden');
   }
 
@@ -2617,6 +2618,7 @@ function navigate(page) {
   if (page === 'heatmap')  { ensureLifetimeLoaded(); renderHeatmapPage(); }
   if (page === 'goals')    { renderStreaksPage(); renderGoalsPage(); }
   if (page === 'workout')  { wrkRefreshStats(); wrkRender(); }
+  if (page === 'myroutes') renderMyRoutesPage();
   if (page === 'settings') {
     iosSettingsInit();
     initWeatherLocationUI();
@@ -24253,6 +24255,281 @@ if (document.readyState === 'loading') {
 }
 
 
+// ── My Routes page ──────────────────────────────────────
+let _mrActiveTab = 'explore';
+let _mrActiveFilter = 'all';
+
+function mrSwitchTab(tab) {
+  _mrActiveTab = tab;
+  document.querySelectorAll('.mr-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.getElementById('mrExplore').style.display = tab === 'explore' ? '' : 'none';
+  document.getElementById('mrCollection').style.display = tab === 'collection' ? '' : 'none';
+  const indicator = document.querySelector('.mr-tab-indicator');
+  if (indicator) indicator.style.transform = tab === 'collection' ? 'translateX(100%)' : '';
+}
+
+function mrFilter(filter) {
+  _mrActiveFilter = filter;
+  document.querySelectorAll('.mr-pill').forEach(p => p.classList.toggle('active', p.dataset.filter === filter));
+  _mrRenderCollection();
+}
+
+function mrToggleFav(id) {
+  let favs = [];
+  try { favs = JSON.parse(localStorage.getItem('icu_fav_routes') || '[]'); } catch {}
+  const idx = favs.indexOf(id);
+  if (idx >= 0) favs.splice(idx, 1); else favs.push(id);
+  try { localStorage.setItem('icu_fav_routes', JSON.stringify(favs)); } catch {}
+  document.querySelectorAll(`.mr-fav[data-id="${id}"]`).forEach(el => {
+    el.classList.toggle('mr-fav--active', favs.includes(id));
+  });
+}
+
+function _mrIsFav(id) {
+  try { return JSON.parse(localStorage.getItem('icu_fav_routes') || '[]').includes(id); } catch { return false; }
+}
+
+function _mrDrawPolyline(canvas, points, color) {
+  if (!canvas || !points || points.length < 2) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  ctx.scale(dpr, dpr);
+
+  let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+  for (const p of points) {
+    if (p[0] < minLat) minLat = p[0];
+    if (p[0] > maxLat) maxLat = p[0];
+    if (p[1] < minLng) minLng = p[1];
+    if (p[1] > maxLng) maxLng = p[1];
+  }
+  const pad = 12;
+  const rangeX = maxLng - minLng || 0.001;
+  const rangeY = maxLat - minLat || 0.001;
+  const scaleX = (w - pad * 2) / rangeX;
+  const scaleY = (h - pad * 2) / rangeY;
+  const scale = Math.min(scaleX, scaleY);
+  const offX = (w - rangeX * scale) / 2;
+  const offY = (h - rangeY * scale) / 2;
+
+  ctx.beginPath();
+  for (let i = 0; i < points.length; i++) {
+    const x = (points[i][1] - minLng) * scale + offX;
+    const y = h - ((points[i][0] - minLat) * scale + offY);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.strokeStyle = color || cssVar('--accent');
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.stroke();
+
+  const sx = (points[0][1] - minLng) * scale + offX;
+  const sy = h - ((points[0][0] - minLat) * scale + offY);
+  ctx.beginPath();
+  ctx.arc(sx, sy, 4, 0, Math.PI * 2);
+  ctx.fillStyle = color || cssVar('--accent');
+  ctx.fill();
+}
+
+function _mrRideCard(act, type) {
+  const id = act.id || act.icu_id;
+  const name = act.name || 'Untitled';
+  const dist = act.distance ? (act.distance / 1000).toFixed(1) + ' km' : '';
+  const elev = act.total_elevation_gain ? '+' + Math.round(act.total_elevation_gain) + 'm' : '';
+  const time = act.moving_time ? _fmtDuration(act.moving_time) : '';
+  const date = act.start_date_local ? new Date(act.start_date_local).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
+  const isFav = _mrIsFav(id);
+  const badge = type === 'route' ? 'ROUTE' : 'RIDE';
+  const badgeCls = type === 'route' ? 'mr-badge--route' : 'mr-badge--ride';
+
+  return `<div class="mr-card" data-id="${id}" data-type="${type}" onclick="${type === 'route' ? `navigate('routes');setTimeout(()=>rbLoadRoute('${id}'),400)` : `navigateToActivity(window._mrActLookup['${id}'])`}">
+    <div class="mr-card-map"><canvas class="mr-canvas" data-act-id="${id}" data-type="${type}"></canvas></div>
+    <div class="mr-card-body">
+      <div class="mr-card-top">
+        <span class="mr-card-name">${name}</span>
+        <button class="mr-fav${isFav ? ' mr-fav--active' : ''}" data-id="${id}" onclick="event.stopPropagation();mrToggleFav('${id}')" aria-label="Favorite">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="${isFav ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        </button>
+      </div>
+      <div class="mr-card-stats">${[dist, elev, time].filter(Boolean).join(' \u00b7 ')}</div>
+      <div class="mr-card-meta">
+        <span class="mr-card-date">${date}</span>
+        <span class="mr-badge ${badgeCls}">${badge}</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+function _mrRouteCard(route) {
+  const name = route.name || 'Untitled Route';
+  const dist = route.distance ? (route.distance / 1000).toFixed(1) + ' km' : '';
+  const elev = route.elevGain ? '+' + Math.round(route.elevGain) + 'm' : '';
+  const date = route.ts ? new Date(route.ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
+  const id = route.id;
+  const isFav = _mrIsFav(id);
+
+  return `<div class="mr-card" data-id="${id}" data-type="route" onclick="navigate('routes');setTimeout(()=>rbLoadRoute('${id}'),400)">
+    <div class="mr-card-map"><canvas class="mr-canvas" data-route-id="${id}"></canvas></div>
+    <div class="mr-card-body">
+      <div class="mr-card-top">
+        <span class="mr-card-name">${name}</span>
+        <button class="mr-fav${isFav ? ' mr-fav--active' : ''}" data-id="${id}" onclick="event.stopPropagation();mrToggleFav('${id}')" aria-label="Favorite">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="${isFav ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        </button>
+      </div>
+      <div class="mr-card-stats">${[dist, elev].filter(Boolean).join(' \u00b7 ')}</div>
+      <div class="mr-card-meta">
+        <span class="mr-card-date">${date}</span>
+        <span class="mr-badge mr-badge--route">ROUTE</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+function _fmtDuration(secs) {
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  return h ? `${h}h ${m}m` : `${m}m`;
+}
+
+async function _mrLoadSavedRoutes() {
+  try {
+    const RB_DB = 'cycleiq_routes';
+    const RB_STORE = 'routes';
+    const db = await new Promise((resolve, reject) => {
+      const req = indexedDB.open(RB_DB, 1);
+      req.onupgradeneeded = () => { if (!req.result.objectStoreNames.contains(RB_STORE)) req.result.createObjectStore(RB_STORE, { keyPath: 'id' }); };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    const tx = db.transaction(RB_STORE, 'readonly');
+    const store = tx.objectStore(RB_STORE);
+    const all = await new Promise((r, j) => { const req = store.getAll(); req.onsuccess = () => r(req.result || []); req.onerror = j; });
+    db.close();
+    return all.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  } catch { return []; }
+}
+
+function _mrRenderSection(containerId, html) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = html;
+  requestAnimationFrame(() => {
+    el.querySelectorAll('.mr-canvas').forEach(canvas => {
+      const actId = canvas.dataset.actId;
+      const routeId = canvas.dataset.routeId;
+      if (routeId && window._mrRouteLookup?.[routeId]) {
+        const route = window._mrRouteLookup[routeId];
+        const pts = route.routePoints || (route.waypoints || []).map(w => [w.lat, w.lng]);
+        _mrDrawPolyline(canvas, pts);
+      } else if (actId) {
+        try {
+          const cached = localStorage.getItem('icu_gps_pts_' + actId);
+          if (cached) {
+            const pts = JSON.parse(cached);
+            if (pts.length > 1) _mrDrawPolyline(canvas, pts);
+          }
+        } catch {}
+      }
+    });
+  });
+}
+
+function _mrRenderCollection() {
+  const list = document.getElementById('mrList');
+  const empty = document.getElementById('mrEmpty');
+  if (!list) return;
+
+  let items = [];
+  const routes = window._mrSavedRoutes || [];
+  const rides = window._mrGpsActivities || [];
+  const favs = (() => { try { return JSON.parse(localStorage.getItem('icu_fav_routes') || '[]'); } catch { return []; } })();
+
+  if (_mrActiveFilter === 'all' || _mrActiveFilter === 'saved') {
+    routes.forEach(r => items.push({ type: 'route', data: r, ts: r.ts || 0, id: r.id }));
+  }
+  if (_mrActiveFilter === 'all' || _mrActiveFilter === 'rides') {
+    rides.forEach(a => {
+      const id = a.id || a.icu_id;
+      items.push({ type: 'ride', data: a, ts: new Date(a.start_date_local || 0).getTime(), id });
+    });
+  }
+  if (_mrActiveFilter === 'favorites') {
+    routes.filter(r => favs.includes(r.id)).forEach(r => items.push({ type: 'route', data: r, ts: r.ts || 0, id: r.id }));
+    rides.filter(a => favs.includes(a.id || a.icu_id)).forEach(a => {
+      const id = a.id || a.icu_id;
+      items.push({ type: 'ride', data: a, ts: new Date(a.start_date_local || 0).getTime(), id });
+    });
+  }
+
+  items.sort((a, b) => b.ts - a.ts);
+
+  if (items.length === 0) {
+    list.innerHTML = '';
+    if (empty) empty.style.display = '';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+
+  list.innerHTML = items.map(item => {
+    if (item.type === 'route') return _mrRouteCard(item.data);
+    return _mrRideCard(item.data, 'ride');
+  }).join('');
+
+  _mrRenderSection('mrList', list.innerHTML);
+}
+
+async function renderMyRoutesPage() {
+  if (!state.synced) return;
+
+  const savedRoutes = await _mrLoadSavedRoutes();
+  window._mrSavedRoutes = savedRoutes;
+  window._mrRouteLookup = {};
+  savedRoutes.forEach(r => { window._mrRouteLookup[r.id] = r; });
+
+  const allActs = getAllActivities();
+  const gpsActivities = allActs.filter(a =>
+    a.type === 'Ride' && a.distance && a.distance > 1000 && a.start_date_local
+  ).sort((a, b) => new Date(b.start_date_local) - new Date(a.start_date_local));
+  window._mrGpsActivities = gpsActivities;
+  window._mrActLookup = {};
+  gpsActivities.forEach(a => { window._mrActLookup[a.id || a.icu_id] = a; });
+
+  const totalRoutes = savedRoutes.length;
+  const totalKm = Math.round(gpsActivities.reduce((s, a) => s + (a.distance || 0), 0) / 1000);
+  const totalElev = Math.round(gpsActivities.reduce((s, a) => s + (a.total_elevation_gain || 0), 0));
+  const heroEl = document.getElementById('mrHero');
+  if (heroEl) {
+    heroEl.innerHTML = `
+      <div class="mr-hero-stat"><span class="mr-hero-val">${totalRoutes}</span><span class="mr-hero-label">Routes</span></div>
+      <div class="mr-hero-stat"><span class="mr-hero-val">${totalKm.toLocaleString()}</span><span class="mr-hero-label">km Ridden</span></div>
+      <div class="mr-hero-stat"><span class="mr-hero-val">${totalElev.toLocaleString()}</span><span class="mr-hero-label">m Climbed</span></div>
+      <div class="mr-hero-stat"><span class="mr-hero-val">${gpsActivities.length}</span><span class="mr-hero-label">Rides</span></div>
+    `;
+  }
+
+  const recent = gpsActivities.slice(0, 10);
+  _mrRenderSection('mrRecentScroll', recent.map(a => _mrRideCard(a, 'ride')).join(''));
+
+  const savedSection = document.getElementById('mrSavedSection');
+  if (savedRoutes.length === 0 && savedSection) savedSection.style.display = 'none';
+  else if (savedSection) savedSection.style.display = '';
+  _mrRenderSection('mrSavedScroll', savedRoutes.map(r => _mrRouteCard(r)).join(''));
+
+  const longest = [...gpsActivities].sort((a, b) => (b.distance || 0) - (a.distance || 0)).slice(0, 10);
+  _mrRenderSection('mrLongestScroll', longest.map(a => _mrRideCard(a, 'ride')).join(''));
+
+  const climbers = [...gpsActivities].sort((a, b) => (b.total_elevation_gain || 0) - (a.total_elevation_gain || 0)).slice(0, 10);
+  _mrRenderSection('mrClimbScroll', climbers.map(a => _mrRideCard(a, 'ride')).join(''));
+
+  _mrRenderCollection();
+}
+
+
 /* ====================================================
    WINDOW EXPOSURE — make functions available to onclick handlers
    ES modules have their own scope, so onclick="fn()" needs window.fn
@@ -24378,6 +24655,8 @@ Object.assign(window, {
   // Weather performance proxies
   actVal, fmtDate, fmtDist, fmtSpeed,
   C_TOOLTIP, C_TICK, C_GRID,
+  // My Routes
+  mrSwitchTab, mrFilter, mrToggleFav, renderMyRoutesPage,
 });
 
 // ── Also expose constants ──

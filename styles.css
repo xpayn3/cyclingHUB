@@ -19298,6 +19298,289 @@ textarea:focus-visible {
 .theme-toggle-btn svg {
     flex-shrink: 0;
 }
+/* ============================================================
+   MY ROUTES PAGE
+============================================================ */
+.mr-tabs {
+    display: flex;
+    gap: 0;
+    position: relative;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+}
+.mr-tab {
+    flex: 1;
+    padding: 12px 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: center;
+    transition: color 0.2s;
+}
+.mr-tab.active {
+    color: var(--accent);
+}
+.mr-tab-indicator {
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    width: 50%;
+    height: 2px;
+    background: var(--accent);
+    border-radius: 1px;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Hero stats */
+.mr-hero {
+    display: flex;
+    gap: 4px;
+    padding: 0 0 20px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+.mr-hero::-webkit-scrollbar { display: none; }
+.mr-hero-stat {
+    flex: 1;
+    min-width: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+.mr-hero-val {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-family: var(--font-num);
+}
+.mr-hero-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+/* Sections */
+.mr-section {
+    margin-bottom: 28px;
+}
+.mr-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 0 12px;
+    cursor: pointer;
+}
+.mr-section-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+}
+.mr-section-header svg {
+    color: var(--text-muted);
+}
+
+/* Horizontal scroll */
+.mr-scroll {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+    margin-left: calc(-1 * var(--pad-page));
+    margin-right: calc(-1 * var(--pad-page));
+    padding-left: var(--pad-page);
+    padding-right: var(--pad-page);
+    scroll-padding-inline: var(--pad-page);
+}
+.mr-scroll::-webkit-scrollbar { display: none; }
+
+/* Cards */
+.mr-card {
+    flex: 0 0 260px;
+    scroll-snap-align: start;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.mr-card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 4px 16px var(--accent-whisper);
+}
+.mr-card:active {
+    transform: scale(0.98);
+}
+.mr-card-map {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: var(--canvas-bg);
+    position: relative;
+}
+.mr-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+.mr-card-body {
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.mr-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+}
+.mr-card-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+}
+.mr-card-stats {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-family: var(--font-num);
+}
+.mr-card-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+.mr-card-date {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+.mr-badge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    padding: 2px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+.mr-badge--ride {
+    background: var(--accent-dim);
+    color: var(--accent);
+}
+.mr-badge--route {
+    background: var(--blue-dim);
+    color: var(--blue);
+}
+
+/* Favorite button */
+.mr-fav {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    border-radius: 50%;
+    transition: color 0.2s;
+    flex-shrink: 0;
+    margin: -8px -8px 0 0;
+}
+.mr-fav:hover {
+    color: var(--red);
+}
+.mr-fav--active {
+    color: var(--red) !important;
+}
+
+/* Filters (collection tab) */
+.mr-filters {
+    display: flex;
+    gap: 8px;
+    padding: 0 0 16px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+.mr-filters::-webkit-scrollbar { display: none; }
+.mr-pill {
+    padding: 6px 16px;
+    border-radius: 100px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.mr-pill.active {
+    background: var(--accent);
+    color: var(--on-accent);
+    border-color: var(--accent);
+}
+
+/* Collection list (vertical) */
+.mr-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+}
+@media (min-width: 600px) {
+    .mr-list {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+@media (min-width: 1024px) {
+    .mr-list {
+        grid-template-columns: 1fr 1fr 1fr;
+    }
+}
+.mr-list .mr-card {
+    flex: none;
+    width: 100%;
+}
+
+/* Empty state */
+.mr-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 60px 20px;
+    color: var(--text-muted);
+    text-align: center;
+}
+.mr-empty svg {
+    opacity: 0.3;
+}
+.mr-empty p {
+    font-size: 17px;
+    font-weight: 500;
+}
+
 } /* end @layer pages */
 
 @layer themes {

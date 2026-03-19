@@ -1155,6 +1155,12 @@
                     </svg>
                     Route Builder
                 </div>
+                <div class="nav-item" data-page="myroutes" onclick="navigate('myroutes');closeSidebar();">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+                    </svg>
+                    My Routes
+                </div>
                 <span class="nav-section-label">Account</span>
                 <div
                     class="nav-item"
@@ -4651,7 +4657,7 @@
                             </div>
 
                             <div style="text-align:center;padding:24px 0 8px;color:var(--text-secondary);font-size:12px;opacity:0.5;">
-                                CycleIQ v0.49
+                                CycleIQ v0.50
                             </div>
                         </div>
 
@@ -5686,6 +5692,50 @@
                         </div>
 
                     </div><!-- close ios-settings -->
+                </div>
+
+                <!-- ==================== MY ROUTES PAGE ==================== -->
+                <div class="page" id="page-myroutes">
+                    <div class="mr-tabs" id="mrTabs">
+                        <button class="mr-tab active" data-tab="explore" onclick="mrSwitchTab('explore')">Explore</button>
+                        <button class="mr-tab" data-tab="collection" onclick="mrSwitchTab('collection')">My Collection</button>
+                        <div class="mr-tab-indicator"></div>
+                    </div>
+
+                    <div class="mr-tab-content active" id="mrExplore">
+                        <div class="mr-hero" id="mrHero"></div>
+                        <div class="mr-section" id="mrRecentSection">
+                            <div class="mr-section-header"><span class="mr-section-title">Recent Rides</span><svg viewBox="0 0 7 12" width="10" height="14"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                            <div class="mr-scroll" id="mrRecentScroll"></div>
+                        </div>
+                        <div class="mr-section" id="mrSavedSection">
+                            <div class="mr-section-header"><span class="mr-section-title">Saved Routes</span><svg viewBox="0 0 7 12" width="10" height="14"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                            <div class="mr-scroll" id="mrSavedScroll"></div>
+                        </div>
+                        <div class="mr-section" id="mrLongestSection">
+                            <div class="mr-section-header"><span class="mr-section-title">Longest Rides</span><svg viewBox="0 0 7 12" width="10" height="14"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                            <div class="mr-scroll" id="mrLongestScroll"></div>
+                        </div>
+                        <div class="mr-section" id="mrClimbSection">
+                            <div class="mr-section-header"><span class="mr-section-title">Most Elevation</span><svg viewBox="0 0 7 12" width="10" height="14"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                            <div class="mr-scroll" id="mrClimbScroll"></div>
+                        </div>
+                    </div>
+
+                    <div class="mr-tab-content" id="mrCollection" style="display:none">
+                        <div class="mr-filters" id="mrFilters">
+                            <button class="mr-pill active" data-filter="all" onclick="mrFilter('all')">All</button>
+                            <button class="mr-pill" data-filter="saved" onclick="mrFilter('saved')">Routes</button>
+                            <button class="mr-pill" data-filter="rides" onclick="mrFilter('rides')">Rides</button>
+                            <button class="mr-pill" data-filter="favorites" onclick="mrFilter('favorites')">Favorites</button>
+                        </div>
+                        <div class="mr-list" id="mrList"></div>
+                        <div class="mr-empty" id="mrEmpty" style="display:none">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                            <p>No routes yet</p>
+                            <button class="btn btn-primary" onclick="navigate('routes')">Create your first route</button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- ==================== GOALS & STREAKS PAGE ==================== -->
