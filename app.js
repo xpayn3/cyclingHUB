@@ -294,51 +294,48 @@ function initCustomDropdowns(root = document) {
     let focusIdx = -1;
 
     function openDrop() {
-      // Close any other open dropdowns first
-      document.querySelectorAll('.cdd-wrap--open').forEach(w => {
-        if (w !== wrap) {
-          w.classList.remove('cdd-wrap--open', 'cdd-wrap--flip');
-          w.querySelector('.cdd-trigger')?.setAttribute('aria-expanded', 'false');
-        }
+      // Open bottom sheet picker
+      const sheet = document.getElementById('cddPickerSheet');
+      const titleEl = document.getElementById('cddSheetTitle');
+      const listEl = document.getElementById('cddSheetList');
+      if (!sheet || !listEl) return;
+
+      // Get field label
+      const fieldLabel = wrap.closest('.field')?.querySelector('label')?.textContent || 'Select';
+      if (titleEl) titleEl.textContent = fieldLabel;
+
+      // Build options
+      const checkSvg = '<svg class="cdd-sheet-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+      listEl.innerHTML = Array.from(sel.options).map((opt, i) => {
+        const selected = i === sel.selectedIndex;
+        const text = opt.textContent.trim() || opt.value;
+        if (!text) return '';
+        return `<div class="cdd-sheet-option${selected ? ' cdd-sheet-option--selected' : ''}" data-index="${i}">
+          <span>${text}</span>
+          ${selected ? checkSvg : ''}
+        </div>`;
+      }).join('');
+
+      // Handle option click
+      listEl.onclick = e => {
+        const opt = e.target.closest('.cdd-sheet-option');
+        if (!opt) return;
+        selectByIndex(+opt.dataset.index);
+        sheet.close();
+      };
+
+      sheet.showModal();
+
+      // Scroll selected into view
+      requestAnimationFrame(() => {
+        const selected = listEl.querySelector('.cdd-sheet-option--selected');
+        if (selected) selected.scrollIntoView({ block: 'center', behavior: 'instant' });
       });
-      // If inside a modal/dialog, use fixed positioning to escape overflow
-      const inModal = wrap.closest('.modal-dialog, dialog');
-      const rect = trigger.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const flip = spaceBelow < 280;
-      if (inModal) {
-        dropdown.style.position = 'fixed';
-        dropdown.style.left = rect.left + 'px';
-        dropdown.style.width = rect.width + 'px';
-        if (flip) {
-          dropdown.style.bottom = (window.innerHeight - rect.top + 5) + 'px';
-          dropdown.style.top = 'auto';
-        } else {
-          dropdown.style.top = (rect.bottom + 5) + 'px';
-          dropdown.style.bottom = 'auto';
-        }
-      } else {
-        dropdown.style.position = '';
-        dropdown.style.left = '';
-        dropdown.style.width = '';
-        dropdown.style.top = '';
-        dropdown.style.bottom = '';
-      }
-      wrap.classList.toggle('cdd-wrap--flip', flip);
-      wrap.classList.add('cdd-wrap--open');
-      trigger.setAttribute('aria-expanded', 'true');
-      focusIdx = sel.selectedIndex;
-      highlightFocused();
     }
 
     function closeDrop() {
       wrap.classList.remove('cdd-wrap--open', 'cdd-wrap--flip');
       trigger.setAttribute('aria-expanded', 'false');
-      dropdown.style.position = '';
-      dropdown.style.left = '';
-      dropdown.style.width = '';
-      dropdown.style.top = '';
-      dropdown.style.bottom = '';
       focusIdx = -1;
     }
 
@@ -356,19 +353,10 @@ function initCustomDropdowns(root = document) {
       closeDrop();
     }
 
-    // ── Event: toggle open ──
+    // ── Event: open sheet picker ──
     trigger.addEventListener('click', e => {
       e.stopPropagation();
-      if (wrap.classList.contains('cdd-wrap--open')) closeDrop();
-      else openDrop();
-    });
-
-    // ── Event: click an option ──
-    dropdown.addEventListener('click', e => {
-      e.stopPropagation();
-      const opt = e.target.closest('.cdd-option');
-      if (!opt) return;
-      selectByIndex(+opt.dataset.index);
+      openDrop();
     });
 
     // ── Event: keyboard nav ──

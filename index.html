@@ -315,6 +315,15 @@
             </div>
         </dialog>
 
+        <!-- ============================================================  PICKER SHEET (shared for all selects)  ============================================================ -->
+        <dialog class="cdd-sheet-dialog" id="cddPickerSheet" onclick="if(event.target===this)this.close()">
+            <div class="cdd-sheet">
+                <div class="cdd-sheet-handle"></div>
+                <div class="cdd-sheet-title" id="cddSheetTitle"></div>
+                <div class="cdd-sheet-list" id="cddSheetList"></div>
+            </div>
+        </dialog>
+
         <!-- ============================================================  NOTIFICATION SHEET  ============================================================ -->
         <dialog class="modal-dialog" id="notifSheet">
             <div class="modal" style="max-width:480px">
