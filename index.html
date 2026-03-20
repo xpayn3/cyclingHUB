@@ -365,17 +365,18 @@
         </div>
 
         <!-- ============================================================  COMPONENT DETAIL SHEET  ============================================================ -->
-        <dialog class="modal-dialog" id="compDetailSheet">
-            <div class="modal" style="max-width:480px">
+        <div class="wxd-overlay" id="compDetailSheet" style="display:none">
+            <div class="wxd-backdrop" onclick="closeCompDetailSheet()"></div>
+            <div class="wxd-sheet" style="max-width:480px">
                 <div class="modal-drag-indicator"></div>
                 <div style="display:flex;justify-content:flex-end;padding:8px 16px 0">
-                    <button class="modal-close" onclick="document.getElementById('compDetailSheet').close()">
+                    <button class="modal-close" onclick="closeCompDetailSheet()">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                     </button>
                 </div>
-                <div class="modal-body" id="compDetailBody"></div>
+                <div class="wxd-sheet-body" id="compDetailBody"></div>
             </div>
-        </dialog>
+        </div>
 
         <!-- ============================================================  WEATHER DAY SHEET (overlay, not dialog)  ============================================================ -->
         <div class="wxd-overlay" id="wxDaySheet" style="display:none">
@@ -392,8 +393,9 @@
         </div>
 
         <!-- ============================================================  GEAR MODAL  ============================================================ -->
-        <dialog class="modal-dialog" id="gearModal" aria-labelledby="gearModalTitle">
-            <div class="modal" style="max-width: 520px">
+        <div class="wxd-overlay" id="gearModal" style="display:none">
+            <div class="wxd-backdrop" onclick="closeGearModal()"></div>
+            <div class="wxd-sheet" style="max-width: 520px">
                 <div class="modal-drag-indicator"></div>
                 <div class="modal-header">
                     <div>
@@ -585,11 +587,12 @@
                     </div>
                 </div>
             </div>
-        </dialog>
+        </div>
 
         <!-- Battery Modal -->
-        <dialog class="modal-dialog" id="batteryModal" aria-labelledby="batteryModalTitle">
-            <div class="modal" style="max-width:520px">
+        <div class="wxd-overlay" id="batteryModal" style="display:none">
+            <div class="wxd-backdrop" onclick="closeBatteryModal()"></div>
+            <div class="wxd-sheet" style="max-width:520px">
                 <div class="modal-drag-indicator"></div>
                 <div class="modal-header">
                     <div>
@@ -661,11 +664,12 @@
                     </div>
                 </div>
             </div>
-        </dialog>
+        </div>
 
         <!-- ==================== SERVICE MODAL ==================== -->
-        <dialog class="modal-dialog" id="serviceModal" aria-labelledby="serviceModalTitle">
-            <div class="modal" style="max-width:560px">
+        <div class="wxd-overlay" id="serviceModal" style="display:none">
+            <div class="wxd-backdrop" onclick="closeServiceModal()"></div>
+            <div class="wxd-sheet" style="max-width:560px">
                 <div class="modal-drag-indicator"></div>
                 <div class="modal-header">
                     <div>
@@ -744,11 +748,12 @@
                     </div>
                 </div>
             </div>
-        </dialog>
+        </div>
 
         <!-- ==================== SERVICE SHOP MODAL ==================== -->
-        <dialog class="modal-dialog" id="serviceShopModal" aria-labelledby="serviceShopModalTitle">
-            <div class="modal" style="max-width:480px">
+        <div class="wxd-overlay" id="serviceShopModal" style="display:none">
+            <div class="wxd-backdrop" onclick="closeServiceShopModal()"></div>
+            <div class="wxd-sheet" style="max-width:480px">
                 <div class="modal-drag-indicator"></div>
                 <div class="modal-header">
                     <div>
@@ -786,11 +791,12 @@
                     </div>
                 </div>
             </div>
-        </dialog>
+        </div>
 
         <!-- ==================== SERVICE HISTORY MODAL ==================== -->
-        <dialog class="modal-dialog" id="serviceHistoryModal" aria-labelledby="serviceHistoryTitle">
-            <div class="modal" style="max-width:560px;max-height:80vh;display:flex;flex-direction:column">
+        <div class="wxd-overlay" id="serviceHistoryModal" style="display:none">
+            <div class="wxd-backdrop" onclick="closeServiceHistory()"></div>
+            <div class="wxd-sheet" style="max-width:560px;max-height:80vh;display:flex;flex-direction:column">
                 <div class="modal-drag-indicator"></div>
                 <div class="modal-header">
                     <div>
@@ -806,11 +812,11 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                     </button>
                 </div>
-                <div class="modal-body" style="overflow-y:auto;flex:1">
+                <div class="wxd-sheet-body" style="overflow-y:auto;flex:1">
                     <div id="serviceHistoryList"></div>
                 </div>
             </div>
-        </dialog>
+        </div>
 
         <!-- Export Helper Dialog -->
         <dialog class="modal-dialog" id="exportHelperModal" aria-labelledby="exportHelperTitle">
@@ -907,8 +913,9 @@
         </dialog>
 
         <!-- Similar Rides Modal -->
-        <dialog class="modal-dialog" id="similarRidesModal" aria-labelledby="similarRidesTitle">
-            <div class="modal" style="max-width:560px">
+        <div class="wxd-overlay" id="similarRidesModal" style="display:none">
+            <div class="wxd-backdrop" onclick="closeSimilarRidesModal()"></div>
+            <div class="wxd-sheet" style="max-width:560px">
                 <div class="modal-drag-indicator"></div>
                 <div class="modal-header">
                     <div>
@@ -922,11 +929,11 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                     </button>
                 </div>
-                <div class="modal-body">
+                <div class="wxd-sheet-body">
                     <div id="similarRidesList" class="sim-rides-list"></div>
                 </div>
             </div>
-        </dialog>
+        </div>
 
         <!-- ============================================================  SIDEBAR  ============================================================ -->
 

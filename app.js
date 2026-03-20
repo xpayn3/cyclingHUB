@@ -12560,6 +12560,30 @@ function _unlockSheetScroll() {
   window.scrollTo(0, y);
 }
 
+/* ── Overlay-sheet open/close helpers (replaces dialog.showModal/close) ── */
+function _openOverlaySheet(id) {
+  const sheet = document.getElementById(id);
+  if (!sheet) return;
+  window._sheetScrollY = window.scrollY;
+  document.body.style.position = 'fixed';
+  document.body.style.top = `-${window._sheetScrollY}px`;
+  document.body.style.width = '100%';
+  sheet.style.display = '';
+  sheet.offsetHeight; // force reflow
+  sheet.classList.add('wxd-open');
+}
+
+function _closeOverlaySheet(id) {
+  const sheet = document.getElementById(id);
+  if (!sheet) return;
+  sheet.classList.remove('wxd-open');
+  setTimeout(() => { sheet.style.display = 'none'; }, 350);
+  document.body.style.position = '';
+  document.body.style.top = '';
+  document.body.style.width = '';
+  window.scrollTo(0, window._sheetScrollY || 0);
+}
+
 function _cleanSheet(inner) {
   if (!inner) return;
   inner.classList.remove('sheet-enter', 'sheet-dismiss', 'dragging');
@@ -16105,12 +16129,11 @@ function openSimilarRidesModal() {
       window._simLookup[r.id || r.icu_activity_id] = r;
     });
   }
-  document.getElementById('similarRidesModal').showModal();
+  _openOverlaySheet('similarRidesModal');
 }
 
 function closeSimilarRidesModal() {
-  const modal = document.getElementById('similarRidesModal');
-  if (modal) closeModalAnimated(modal);
+  _closeOverlaySheet('similarRidesModal');
 }
 
 /* ====================================================
@@ -21609,18 +21632,22 @@ function openCompDetail(compId) {
     </div>` : ''}
 
     <div class="comp-detail-actions">
-      <button class="btn btn-ghost" style="flex:1" onclick="document.getElementById('compDetailSheet').close();openGearModal('${c.id}')">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeCompDetailSheet();openGearModal('${c.id}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
         Edit
       </button>
-      <button class="btn btn-ghost" style="flex:1;color:var(--red)" onclick="document.getElementById('compDetailSheet').close();deleteGearComponent('${c.id}')">
+      <button class="btn btn-ghost" style="flex:1;color:var(--red)" onclick="closeCompDetailSheet();deleteGearComponent('${c.id}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
         Delete
       </button>
     </div>
   `;
 
-  sheet.showModal();
+  _openOverlaySheet('compDetailSheet');
+}
+
+function closeCompDetailSheet() {
+  _closeOverlaySheet('compDetailSheet');
 }
 
 /* ── Gear picker sheet — replaces dropdowns inside gear modals only ── */
@@ -21903,7 +21930,7 @@ function openGearModal(editId) {
     if (preview) { preview.innerHTML = ''; preview.style.background = 'var(--bg-elevated)'; }
   }
 
-  modal.showModal();
+  _openOverlaySheet('gearModal');
   initCustomDropdowns(modal);
   document.getElementById('gearFormBike')?._cddRefresh?.();
   document.getElementById('gearFormCategory')?._cddRefresh?.();
@@ -21948,7 +21975,7 @@ function gearCompPhotoUpload(compId) {
         // If modal is open, update preview + hidden field
         const preview = document.getElementById('gearFormImagePreview');
         const hiddenInput = document.getElementById('gearFormImage');
-        if (preview && document.getElementById('gearModal')?.open) {
+        if (preview && document.getElementById('gearModal')?.style.display !== 'none') {
           preview.innerHTML = `<img src="${dataUrl}" alt="preview">`;
           preview.style.background = 'transparent';
           if (hiddenInput) hiddenInput.value = dataUrl;
@@ -22233,8 +22260,7 @@ const _GEAR_BRAND_MODELS = {
 }
 
 function closeGearModal() {
-  const modal = document.getElementById('gearModal');
-  if (modal?.open) closeModalAnimated(modal);
+  _closeOverlaySheet('gearModal');
 }
 
 function submitGearForm() {
@@ -22520,15 +22546,14 @@ function openBatteryModal(editId) {
     if (_gearSelectedBike) bikeSel.value = _gearSelectedBike;
   }
 
-  modal.showModal();
+  _openOverlaySheet('batteryModal');
   refreshCustomDropdowns(modal);
   _gearHookPickerSheets(modal);
   _gearHookDatePickers(modal);
 }
 
 function closeBatteryModal() {
-  const m = document.getElementById('batteryModal');
-  if (m?.open) closeModalAnimated(m);
+  _closeOverlaySheet('batteryModal');
 }
 
 function onBatterySystemChange() {
@@ -22883,15 +22908,14 @@ function openServiceModal(editId, presetBikeId) {
     }
   }
 
-  modal.showModal();
+  _openOverlaySheet('serviceModal');
   if (typeof initCustomDropdowns === 'function') initCustomDropdowns(modal);
   _gearHookPickerSheets(modal);
   _gearHookDatePickers(modal);
 }
 
 function closeServiceModal() {
-  const m = document.getElementById('serviceModal');
-  if (m?.open) closeModalAnimated(m);
+  _closeOverlaySheet('serviceModal');
 }
 
 function onServiceShopChange() {
@@ -22993,12 +23017,11 @@ function openServiceShopModal() {
   document.getElementById('shopFormPhone').value = '';
   document.getElementById('shopFormAddress').value = '';
   renderServiceShopList();
-  modal.showModal();
+  _openOverlaySheet('serviceShopModal');
 }
 
 function closeServiceShopModal() {
-  const m = document.getElementById('serviceShopModal');
-  if (m?.open) closeModalAnimated(m);
+  _closeOverlaySheet('serviceShopModal');
 }
 
 function renderServiceShopList() {
@@ -23081,12 +23104,11 @@ function openServiceHistory(bikeId) {
   const bike = _gearBikeCache.find(b => b.id === bikeId);
   document.getElementById('serviceHistoryDesc').textContent = bike ? `All services for ${bike.name}` : 'All services for this bike';
   renderServiceHistoryList(bikeId);
-  modal.showModal();
+  _openOverlaySheet('serviceHistoryModal');
 }
 
 function closeServiceHistory() {
-  const m = document.getElementById('serviceHistoryModal');
-  if (m?.open) closeModalAnimated(m);
+  _closeOverlaySheet('serviceHistoryModal');
 }
 
 function renderServiceHistoryList(bikeId) {
@@ -26684,7 +26706,7 @@ Object.assign(window, {
   openTrainingPlanModal, closeTrainingPlanModal, applyTrainingPlan,
   showTpSlotForm, hideTpSlotForm, addTpSlot, removeTpSlot,
   setHideEmptyCards, setFtpAlert,
-  gearSwitchTab, gearSelectBike, gearTriggerPhotoUpload, gearUploadPhoto, gearCompPhotoUpload, openCompDetail, renderBikeDetailPage,
+  gearSwitchTab, gearSelectBike, gearTriggerPhotoUpload, gearUploadPhoto, gearCompPhotoUpload, openCompDetail, closeCompDetailSheet, renderBikeDetailPage,
   openGearPicker, closeGearPicker, openGearDate, closeGearDate, _gdNav, _gdPick, _gdSelectToday, _gdClear, saveLogodevKey, _gpImgFail,
   addCompareCard, setComparePeriod, updateComparePage,
   clearAllCaches, clearLifetimeCache, exportFullBackup, importFullBackup, exportGearData, importGearData,
