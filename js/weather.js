@@ -696,11 +696,15 @@ export async function renderWeatherPage(_restoreScrollY) {
   const container = document.getElementById('weatherPageContent');
   if (!container) return;
 
-  // Hide the day-detail back buttons if returning from detail sub-page
+  // Hide the day-detail back buttons, restore bottom nav
   const wxdBack = document.getElementById('wxdTopbarBack');
   if (wxdBack) wxdBack.style.display = 'none';
   const backFab = document.getElementById('wxDayBackFab');
   if (backFab) { backFab.style.visibility = 'hidden'; backFab.style.pointerEvents = 'none'; }
+  const pillNav = document.getElementById('dashPillNav');
+  if (pillNav) pillNav.style.display = '';
+  const menuBtn = document.getElementById('floatingMenuBtn');
+  if (menuBtn) menuBtn.style.display = '';
   // Restore weather page title
   const titleEl    = document.getElementById('pageTitle');
   const subtitleEl = document.getElementById('pageSubtitle');
@@ -1334,9 +1338,13 @@ export function renderWeatherDayDetail(dayIdx) {
   const container = document.getElementById('weatherPageContent');
   if (!container) return;
 
-  // Show back FAB
+  // Show back FAB, hide bottom nav
   const backFab = document.getElementById('wxDayBackFab');
   if (backFab) { backFab.style.visibility = 'visible'; backFab.style.pointerEvents = 'auto'; }
+  const pillNav = document.getElementById('dashPillNav');
+  if (pillNav) pillNav.style.display = 'none';
+  const menuBtn = document.getElementById('floatingMenuBtn');
+  if (menuBtn) menuBtn.style.display = 'none';
 
   const data = state.weatherPageData;
   const meta = state.weatherPageMeta;
