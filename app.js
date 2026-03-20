@@ -21209,7 +21209,6 @@ const GEAR_CATEGORY_COLORS = {
   'Front Derailleur': '#7dd3fc',
   'Rear Derailleur':  '#93c5fd',
   'Bottom Bracket':   '#a5b4fc',
-  Drivetrain:         C_BLUE_LIGHT, // backwards compat
   // Rest
   Wheels:        '#34d399',
   Cockpit:       '#a78bfa',
@@ -21217,7 +21216,6 @@ const GEAR_CATEGORY_COLORS = {
   Frame:         '#f97316',
   'Disc Brakes': C_RED_LIGHT,
   'Rim Brakes':  '#fb7185',
-  Brakes:        C_RED_LIGHT,  // backwards compat
   Tyres:         C_AMBER,
   Pedals:        '#e879f9',
   Saddle:        C_ORANGE_LIGHT,
