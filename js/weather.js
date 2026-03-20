@@ -1335,13 +1335,21 @@ export function renderWeatherDayDetail(dayIdx) {
 
   let data = state.weatherPageData;
   let meta = state.weatherPageMeta;
-  // Fallback: fetch full data if weather page hasn't been visited
+  // Fallback: try full page cache, then dashboard cache
   if (!data?.daily?.sunrise) {
-    // Try loading from full page cache first
     try { const pg = JSON.parse(localStorage.getItem('icu_wx_page')); if (pg?.daily?.sunrise) data = pg; } catch (_) {}
   }
-  if (!data?.daily?.sunrise) {
-    // Dashboard cache doesn't have enough fields — fetch fresh
+  if (!data?.daily) {
+    try { data = JSON.parse(localStorage.getItem('icu_wx_forecast')); } catch (_) {}
+  }
+  if (!meta) {
+    const isImperial = state.units === 'imperial';
+    meta = { deg: isImperial ? '°F' : '°C', windLbl: isImperial ? 'mph' : 'km/h' };
+  }
+  if (!data?.daily) return;
+
+  // If we have basic data but missing detail fields, fetch full data in background
+  if (!data.daily.sunrise) {
     try {
       const cached = JSON.parse(localStorage.getItem('icu_wx_coords'));
       if (cached?.lat != null) {
@@ -1353,21 +1361,14 @@ export function renderWeatherDayDetail(dayIdx) {
         fetch(url).then(r => r.ok ? r.json() : null).then(d => {
           if (d?.daily) {
             state.weatherPageData = d;
-            localStorage.setItem('icu_wx_page', JSON.stringify(d));
-            renderWeatherDayDetail(dayIdx); // retry with full data
+            try { localStorage.setItem('icu_wx_page', JSON.stringify(d)); } catch(_){}
+            // Re-render sheet content with full data (sheet is already open)
+            renderWeatherDayDetail(dayIdx);
           }
         });
-        return; // wait for fetch
       }
     } catch (_) {}
-    // Fall back to whatever dashboard cache has
-    try { data = JSON.parse(localStorage.getItem('icu_wx_forecast')); } catch (_) {}
   }
-  if (!meta) {
-    const isImperial = state.units === 'imperial';
-    meta = { deg: isImperial ? '°F' : '°C', windLbl: isImperial ? 'mph' : 'km/h' };
-  }
-  if (!data?.daily) return;
 
   const { deg, windLbl } = meta;
   const isMetric = deg !== '°F';
