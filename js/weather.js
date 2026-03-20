@@ -1600,15 +1600,20 @@ export function renderWeatherDayDetail(dayIdx) {
     </div><!-- /.aw-detail-wrap -->
   `;
 
-  // Open the sheet — lock body scroll to prevent jump
+  // Open the sheet — lock body to prevent scroll jump
   if (!sheet.open) {
     const scrollY = window.scrollY;
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = '100%';
+    document.body.style.overflow = 'hidden';
     sheet.showModal();
-    // Prevent browser from resetting scroll position
-    window.scrollTo(0, scrollY);
-    // On close, restore scroll
     sheet.addEventListener('close', function _wxClose() {
       sheet.removeEventListener('close', _wxClose);
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      document.body.style.overflow = '';
       window.scrollTo(0, scrollY);
     });
   }
