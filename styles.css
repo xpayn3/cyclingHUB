@@ -15012,6 +15012,7 @@ body:has(.act-sheet-mode) .topbar {
     display: flex;
     flex-direction: column;
     gap: 10px;
+    padding-bottom: 60px;
 }
 .aw-back-btn {
     display: inline-flex;

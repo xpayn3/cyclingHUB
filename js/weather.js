@@ -1558,11 +1558,6 @@ export function renderWeatherDayDetail(dayIdx) {
   // ── Build page ────────────────────────────────────────────────────────────
   container.innerHTML = `
     <div class="aw-detail-wrap">
-    <!-- Back link -->
-    <button class="aw-back-btn" onclick="renderWeatherPage()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg>
-      Weather
-    </button>
     <!-- Hero -->
     <div class="aw-detail-hero">
       <div class="aw-dh-icon">${wmoIcon(codes[i])}</div>
