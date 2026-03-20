@@ -13987,27 +13987,17 @@ body:has(.act-sheet-mode) .topbar {
 /* ── Forecast scroll rail (new standalone layout) ── */
 #forecastRail {
     display: flex;
-    gap: 0;
+    gap: 10px;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
-    scroll-snap-type: x proximity;
-    margin-left: calc(-1 * var(--pad-page));
-    margin-right: calc(-1 * var(--pad-page));
-    padding: 4px 0 8px;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 4px;
 }
 #forecastRail::-webkit-scrollbar { display: none; }
 .wx-day-card {
     flex: 0 0 120px;
-    margin-left: 10px;
     scroll-snap-align: start;
-    scroll-margin-inline-start: var(--pad-page);
-}
-.wx-day-card:first-child {
-    margin-left: var(--pad-page);
-}
-.wx-day-card:last-child {
-    margin-right: var(--pad-page);
 }
 
 /* ── Individual day card ── */
@@ -19156,7 +19146,8 @@ body:has(.act-sheet-mode) .topbar {
        Negative margins bleed to screen edge; padding keeps first/last
        item inset at the normal content gutter. */
     .goals-dash-scroll,
-    .wxp-week-scroll {
+    .wxp-week-scroll,
+    #forecastRail {
         margin-left: calc(-1 * var(--pad-page));
         margin-right: calc(-1 * var(--pad-page));
         padding-left: var(--pad-page);
