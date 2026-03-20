@@ -2168,8 +2168,43 @@ input[type="number"] {
     scroll-snap-align: start;
 }
 
+.stat-card {
+    --mouse-x: 50%;
+    --mouse-y: 50%;
+}
+.stat-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(255,255,255,0.055) 0%, transparent 65%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 0;
+}
+.stat-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(255,255,255,0.3) 0%, transparent 60%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 0;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+}
 .stat-card:hover {
     background: var(--bg-elevated);
+    border-color: transparent;
+}
+.stat-card:hover::before,
+.stat-card:hover::after {
+    opacity: 1;
 }
 .stat-card-header {
     display: flex;
@@ -14020,6 +14055,45 @@ body:has(.act-sheet-mode) .topbar {
 }
 
 /* ── Individual day card ── */
+.wx-day-card {
+    --mouse-x: 50%;
+    --mouse-y: 50%;
+}
+.wx-day-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(255,255,255,0.055) 0%, transparent 65%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 0;
+}
+.wx-day-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(255,255,255,0.3) 0%, transparent 60%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 0;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+}
+.wx-day-card:hover {
+    border-color: transparent;
+    box-shadow: 0 4px 20px var(--shadow-sm);
+}
+.wx-day-card:hover::before,
+.wx-day-card:hover::after {
+    opacity: 1;
+}
+
 .wx-day-card,
 .wx-day {
     display: flex;

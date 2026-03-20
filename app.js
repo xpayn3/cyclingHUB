@@ -25296,7 +25296,7 @@ document.getElementById('connectModal').addEventListener('click', function(e) {
   // expose so other parts of the app can attach glow to late-rendered elements
   window.attachCardGlow = attachGlow;
 
-  const GLOW_SEL = '.stat-card, .recent-act-card, .hero-act-card, .perf-metric, .act-pstat, .act-similar-card, .mm-cell, .wxp-day-card, .fit-kpi-card, .wx-day, .znp-kpi-card, .wxp-st, .wxp-best-card, .stk-hero-card, .stk-pb-card, .stk-badge--earned, .stk-stat-tile, .goal-dash-card, .fit-rec-metric, .fit-rp-card';
+  const GLOW_SEL = '.stat-card, .recent-act-card, .hero-act-card, .perf-metric, .act-pstat, .act-similar-card, .mm-cell, .wxp-day-card, .fit-kpi-card, .wx-day, .wx-day-card, .znp-kpi-card, .wxp-st, .wxp-best-card, .stk-hero-card, .stk-pb-card, .stk-badge--earned, .stk-stat-tile, .goal-dash-card, .fit-rec-metric, .fit-rp-card';
 
   function attachGlowAndPress(el) {
     attachGlow(el);
