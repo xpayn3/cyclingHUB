@@ -21202,7 +21202,15 @@ function gearSwitchTab(tab) {
 
 const GEAR_STORE_KEY = 'icu_gear_components';
 const GEAR_CATEGORY_COLORS = {
-  Drivetrain:    C_BLUE_LIGHT,
+  // Drivetrain (split)
+  Chain:              C_BLUE_LIGHT,
+  Cassette:           '#38bdf8',
+  Crankset:           '#818cf8',
+  'Front Derailleur': '#7dd3fc',
+  'Rear Derailleur':  '#93c5fd',
+  'Bottom Bracket':   '#a5b4fc',
+  Drivetrain:         C_BLUE_LIGHT, // backwards compat
+  // Rest
   Wheels:        '#34d399',
   Cockpit:       '#a78bfa',
   Hoods:         '#60a5fa',
@@ -21213,6 +21221,8 @@ const GEAR_CATEGORY_COLORS = {
   Tyres:         C_AMBER,
   Pedals:        '#e879f9',
   Saddle:        C_ORANGE_LIGHT,
+  Seatpost:      '#d4a373',
+  Bartape:       '#c084fc',
   Other:         '#94a3b8',
 };
 
