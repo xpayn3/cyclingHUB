@@ -26768,14 +26768,27 @@ function _gsRunSearch(q) {
 
   // ── Gear Components ──
   if (_gsFilter === 'all' || _gsFilter === 'gear') {
+    // Bikes
+    const bikes = (state.gearBikes || []).filter(b => (b.name || '').toLowerCase().includes(ql));
+    // Components
     const gear = (state.gearComponents || []).filter(g => {
       const name = (g.name || '').toLowerCase();
       const brand = (g.brand || '').toLowerCase();
       const model = (g.model || '').toLowerCase();
       return name.includes(ql) || brand.includes(ql) || model.includes(ql);
     }).slice(0, 10);
-    if (gear.length) {
+    if (bikes.length || gear.length) {
       html += `<div class="gs-group"><div class="gs-group-title">Gear</div>`;
+      bikes.forEach(b => {
+        html += `<div class="gs-item" onclick="closeGlobalSearch();navigate('gear');setTimeout(()=>gearSelectBike('${b.id}'),100)">
+          <div class="gs-item-icon" style="color:var(--accent)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5L9 11l-3.5 3.5M15 6l-4 5.5H5.5M15 6l3 5.5"/></svg></div>
+          <div class="gs-item-body">
+            <div class="gs-item-title">${_escHtml(b.name)}</div>
+            <div class="gs-item-sub">${b.km ? b.km.toLocaleString() + ' km' : b.type || 'Bike'}</div>
+          </div>
+          <svg class="gs-item-chevron" viewBox="0 0 7 12" width="8" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>`;
+      });
       gear.forEach(g => {
         const sub = [g.brand, g.model].filter(Boolean).join(' ');
         html += `<div class="gs-item" onclick="closeGlobalSearch();navigate('gear')">
@@ -26788,7 +26801,7 @@ function _gsRunSearch(q) {
         </div>`;
       });
       html += '</div>';
-      totalCount += gear.length;
+      totalCount += bikes.length + gear.length;
     }
   }
 
