@@ -7166,7 +7166,7 @@ input[type="number"] {
 }
 
 .cal-fab {
-    position: absolute;
+    position: fixed;
     bottom: 24px;
     right: 24px;
     width: 56px;
@@ -7180,6 +7180,7 @@ input[type="number"] {
     cursor: pointer;
     display: flex;
     align-items: center;
+    z-index: 1000;
     justify-content: center;
     box-shadow: var(--glass-shadow);
     z-index: 10;
