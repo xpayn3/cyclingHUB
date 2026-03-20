@@ -2620,6 +2620,8 @@ function navigate(page) {
   if (_calFab)  { _calFab.style.visibility  = page === 'calendar'   ? '' : 'hidden'; _calFab.style.pointerEvents  = page === 'calendar'   ? '' : 'none'; }
   if (_actFab)  { _actFab.style.visibility  = page === 'activities' ? '' : 'hidden'; _actFab.style.pointerEvents  = page === 'activities' ? '' : 'none'; }
   if (_dashFab) { _dashFab.style.visibility = page === 'dashboard'  ? '' : 'hidden'; _dashFab.style.pointerEvents = page === 'dashboard'  ? '' : 'none'; }
+  const _actBackFab = document.getElementById('actBackFab');
+  if (_actBackFab) { _actBackFab.style.visibility = page === 'activity' ? '' : 'hidden'; _actBackFab.style.pointerEvents = page === 'activity' ? '' : 'none'; }
   const _sgnFab = document.getElementById('sgnBackFab');
   if (_sgnFab) { _sgnFab.style.visibility = page === 'suggestion' ? '' : 'hidden'; _sgnFab.style.pointerEvents = page === 'suggestion' ? '' : 'none'; }
   const _bikeFab = document.getElementById('bikeBackFab');
