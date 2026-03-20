@@ -9508,11 +9508,10 @@ body.show-save-fab #actSaveRouteFab {
     align-items: center;
     gap: 0;
     background: var(--glass-bg);
-    border: none;
-    box-shadow:
-        0 0.5px 0 0 var(--glass-border) inset,
-        0 0 0 0.5px var(--glass-border) inset,
-        0 4px 12px var(--shadow-overlay);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 4px 16px var(--shadow-md);
     border-radius: 100px;
     padding: 4px;
 }
