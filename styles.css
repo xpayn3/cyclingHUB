@@ -245,6 +245,8 @@
     --radius-sm: 8px;
     --radius-pill: 20px;
     --radius-sheet: 24px;
+    /* iOS 26 concentric radius: inner = outer - padding */
+    --radius-concentric: calc(var(--radius-sheet) - var(--pad-card));
 
     /* ── Icon sizes ─────────────────────────────────────────*/
     --icon-xs: 14px;
@@ -8069,7 +8071,7 @@ body.show-save-fab #actSaveRouteFab {
     gap: 4px;
     padding: 16px 8px;
     background: var(--overlay-faint);
-    border-radius: var(--radius);
+    border-radius: var(--radius-concentric);
     border: 1px solid var(--border);
 }
 .prof-stat-num {
@@ -15053,6 +15055,19 @@ body:has(.act-sheet-mode) .topbar {
 .wxd-sheet-body {
     padding: 0 var(--pad-card) 40px;
 }
+/* iOS 26 concentric corners: inner elements in sheets get smaller radius */
+.wxd-sheet .card,
+.wxd-sheet .cev-section,
+.wxd-sheet .ios-group,
+.wxd-sheet .field input,
+.wxd-sheet .field select,
+.wxd-sheet .field textarea,
+.wxd-sheet .cdd-trigger,
+.wxd-sheet .goal-form-field input,
+.wxd-sheet .goal-form-field select {
+    border-radius: var(--radius-concentric);
+}
+
 /* Inside overlay sheets, modal-body must NOT be a separate scroll container */
 .wxd-sheet .modal-body {
     overflow-y: visible !important;
