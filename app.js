@@ -23570,7 +23570,6 @@ const DASH_SECTIONS = [
   { key: 'weather',           label: 'Weather Forecast',             defaultOn: true },
   { key: 'todaySuggestion',   label: 'Today\'s Plan',                defaultOn: true },
   { key: 'trainingLoad',      label: 'Training Load Chart',          defaultOn: true },
-  { key: 'recentTable',       label: 'Recent Activities Table',      defaultOn: true },
 ];
 
 function loadDashSectionPrefs() {
