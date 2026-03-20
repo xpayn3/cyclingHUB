@@ -9438,7 +9438,7 @@ body.show-save-fab #actSaveRouteFab {
     right: 0;
     z-index: 20;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     height: calc(44px + max(12px, env(safe-area-inset-top)));
     padding: max(12px, env(safe-area-inset-top)) 12px 0;
     background: transparent;
