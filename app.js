@@ -26698,6 +26698,8 @@ Object.assign(window, { weatherIconSvg, wmoIcon, wmoLabel, windDir, fmtTempC,
   fmtWindMs, renderActivityWeather, renderActivityNotes, renderActivityIntervals,
   renderWeatherForecast, renderWeatherPage, renderWeatherDayDetail, refreshWeatherPage });
 
+window._openOverlaySheet = _openOverlaySheet;
+window._closeOverlaySheet = _closeOverlaySheet;
 window.closeWxDaySheet = function() {
   _closeOverlaySheet('wxDaySheet');
 };
