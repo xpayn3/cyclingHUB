@@ -15008,11 +15008,45 @@ body:has(.act-sheet-mode) .topbar {
 .aw-footer a:hover { text-decoration: underline; }
 
 /* ── Day Detail ── */
+/* ── Weather day sheet overlay ── */
+.wxd-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+}
+.wxd-overlay.wxd-open .wxd-backdrop { opacity: 1; }
+.wxd-overlay.wxd-open .wxd-sheet { transform: translateY(0); }
+.wxd-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+.wxd-sheet {
+    position: relative;
+    background: var(--bg-surface);
+    border-radius: 14px 14px 0 0;
+    width: 100%;
+    max-width: 480px;
+    max-height: 85vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    transform: translateY(100%);
+    transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.3, 1);
+    padding-bottom: env(safe-area-inset-bottom, 20px);
+}
+.wxd-sheet-body {
+    padding: 0 var(--pad-card) 40px;
+}
+
 .aw-detail-wrap {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    padding-bottom: 60px;
 }
 .aw-back-btn {
     display: inline-flex;

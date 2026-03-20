@@ -26597,6 +26597,13 @@ Object.assign(window, { weatherIconSvg, wmoIcon, wmoLabel, windDir, fmtTempC,
   fmtWindMs, renderActivityWeather, renderActivityNotes, renderActivityIntervals,
   renderWeatherForecast, renderWeatherPage, renderWeatherDayDetail, refreshWeatherPage });
 
+window.closeWxDaySheet = function() {
+  const sheet = document.getElementById('wxDaySheet');
+  if (!sheet) return;
+  sheet.classList.remove('wxd-open');
+  setTimeout(() => { sheet.style.display = 'none'; }, 350);
+};
+
 // ── From share.js ──
 Object.assign(window, { openShareModal, closeShareModal, shareUpdateSetting,
   shareRender, shareImageDownload, shareImageCopy });

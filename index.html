@@ -376,18 +376,19 @@
             </div>
         </dialog>
 
-        <!-- ============================================================  WEATHER DAY SHEET  ============================================================ -->
-        <dialog class="modal-dialog" id="wxDaySheet">
-            <div class="modal" style="max-width:480px">
+        <!-- ============================================================  WEATHER DAY SHEET (overlay, not dialog)  ============================================================ -->
+        <div class="wxd-overlay" id="wxDaySheet" style="display:none">
+            <div class="wxd-backdrop" onclick="closeWxDaySheet()"></div>
+            <div class="wxd-sheet">
                 <div class="modal-drag-indicator"></div>
                 <div style="display:flex;justify-content:flex-end;padding:8px 16px 0">
-                    <button class="modal-close" onclick="document.getElementById('wxDaySheet').close()">
+                    <button class="modal-close" onclick="closeWxDaySheet()">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                     </button>
                 </div>
-                <div class="modal-body" id="wxDaySheetBody" style="padding-bottom:40px"></div>
+                <div class="wxd-sheet-body" id="wxDaySheetBody"></div>
             </div>
-        </dialog>
+        </div>
 
         <!-- ============================================================  GEAR MODAL  ============================================================ -->
         <dialog class="modal-dialog" id="gearModal" aria-labelledby="gearModalTitle">
@@ -1900,7 +1901,7 @@
 
                     <!-- Riding weather forecast (filled by renderWeatherForecast) -->
                     <div data-dash-section="weather" id="forecastSection" style="display:none">
-                        <div class="stat-grid-label" id="forecastHeader">
+                        <div class="stat-grid-label" id="forecastHeader" onclick="navigate('weather')" style="cursor:pointer">
                             Riding Forecast <span id="forecastLocation"></span>
                         </div>
                         <div id="forecastRail"></div>
