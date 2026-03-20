@@ -21742,6 +21742,9 @@ function openGearPicker(selectEl) {
     } else if (isBrand && opt.value) {
       const img = _gearGetDefaultImage(opt.value, '') || _gearBrandLogoUrl(opt.value);
       imgHtml = img ? `<img class="gp-opt-img" src="${img}" alt="" onerror="_gpImgFail(this)">` : defaultIcon;
+    } else if (selectEl.id === 'gearFormCategory' && opt.value) {
+      const catSlug = opt.value.toLowerCase().replace(/\s+/g, '-');
+      imgHtml = `<img class="gp-opt-img" src="img/components/categories/${catSlug}.webp" alt="" onerror="_gpImgFail(this)">`;
     } else if (i > 0) {
       imgHtml = defaultIcon;
     }
