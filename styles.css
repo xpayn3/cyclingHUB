@@ -245,6 +245,12 @@
     --radius-sm: 8px;
     --radius-pill: 20px;
 
+    /* ── Icon sizes ─────────────────────────────────────────*/
+    --icon-xs: 14px;
+    --icon-sm: 16px;
+    --icon-md: 20px;
+    --icon-lg: 24px;
+
     /* ── Motion ──────────────────────────────────────────────*/
     --transition: 0.25s ease; /* hover colour/opacity transitions */
 
@@ -633,8 +639,8 @@ code {
     user-select: none;
 }
 .nav-item svg {
-    width: 20px;
-    height: 20px;
+    width: var(--icon-md);
+    height: var(--icon-md);
     flex-shrink: 0;
 }
 .nav-item:hover {
@@ -1497,8 +1503,8 @@ code {
     transition: background var(--transition), color var(--transition), box-shadow var(--transition);
 }
 .btn svg {
-    width: 17px;
-    height: 17px;
+    width: var(--icon-sm);
+    height: var(--icon-sm);
 }
 .btn-primary {
     background: var(--accent);
@@ -1532,8 +1538,8 @@ code {
     flex-shrink: 0;
 }
 .btn-icon svg {
-    width: 20px;
-    height: 20px;
+    width: var(--icon-md);
+    height: var(--icon-md);
 }
 .btn-danger {
     background: rgba(255, 69, 58, 0.15);
@@ -2262,7 +2268,7 @@ input[type="number"] {
     align-items: center;
     gap: 6px;
 }
-.card-title svg { flex-shrink: 0; }
+.card-title svg { flex-shrink: 0; width: var(--icon-sm); height: var(--icon-sm); }
 .card-subtitle {
     font-size: var(--text-sm);
     color: var(--text-muted);
@@ -12195,7 +12201,7 @@ body:has(.act-sheet-mode) .topbar {
     z-index: 3;
 }
 .vitality-info-btn:hover { color: var(--text-primary); background: var(--bg-hover); }
-.vitality-info-btn svg { width: 18px; height: 18px; }
+.vitality-info-btn svg { width: var(--icon-sm); height: var(--icon-sm); }
 
 /* Biorhythm dialog */
 .vitality-dialog-body {
@@ -15192,7 +15198,7 @@ body:has(.act-sheet-mode) .topbar {
     flex-shrink: 0;
     background: var(--bg-card);
 }
-.gs-item-icon svg { width: 18px; height: 18px; }
+.gs-item-icon svg { width: var(--icon-sm); height: var(--icon-sm); }
 .gs-item-body { flex: 1; min-width: 0; }
 .gs-item-title {
     font-size: 14px;
@@ -22775,7 +22781,7 @@ html[data-theme="tdf"] {
     min-height: 56px;
     min-width: 56px;
 }
-.rb-action-pill svg { width: 20px; height: 20px; flex-shrink: 0; }
+.rb-action-pill svg { width: var(--icon-md); height: var(--icon-md); flex-shrink: 0; }
 .rb-action-pill span { color: var(--text-secondary); }
 .rb-action-pill:hover { background: var(--overlay-subtle); border-color: rgba(255, 255, 255, 0.2); }
 .rb-action-pill:active { background: rgba(255, 255, 255, 0.14); }
@@ -23094,7 +23100,7 @@ html[data-theme="tdf"] {
 [data-theme="light"] .rb-map-tool-btn:hover { background: rgba(255,255,255,0.92); color: var(--text-primary); }
 [data-theme="light"] .rb-map-tool-btn.active { color: var(--accent); background: var(--accent-wash); border-color: var(--accent-dim-strong); }
 [data-theme="light"] .rb-map-tool-btn.active:hover { background: var(--accent-border); }
-.rb-map-tool-btn svg { flex-shrink: 0; width: 20px; height: 20px; }
+.rb-map-tool-btn svg { flex-shrink: 0; width: var(--icon-md); height: var(--icon-md); }
 .rb-tool-disabled { opacity: 0.35; pointer-events: none; cursor: default; }
 
 /* ── Route builder map attribution — hidden default, custom overlay ── */
@@ -23172,7 +23178,7 @@ html[data-theme="tdf"] {
     width: 100%;
     height: 100%;
 }
-.rb-fs-logo-icon svg { width: 20px; height: 20px; }
+.rb-fs-logo-icon svg { width: var(--icon-md); height: var(--icon-md); }
 .rb-fullscreen .rb-fs-logo { display: flex; }
 .rb-fullscreen .rb-wrapper { left: 0; }
 .rb-fullscreen .sidebar { transform: translateX(-100%); }
