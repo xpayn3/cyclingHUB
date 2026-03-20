@@ -9449,6 +9449,32 @@ body.show-save-fab #actSaveRouteFab {
 }
 
 /* Back button */
+.act-sheet-back-fab {
+    display: none;
+}
+.act-sheet-mode .act-sheet-back-fab {
+    display: flex;
+    position: fixed;
+    bottom: 24px;
+    left: 24px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 4px 16px var(--shadow-md);
+    align-items: center;
+    justify-content: center;
+    color: var(--text-primary);
+    cursor: pointer;
+    z-index: 50;
+    transition: background 0.2s;
+}
+.act-sheet-mode .act-sheet-back-fab:hover {
+    background: var(--hover-overlay-strong);
+}
 .act-sheet-map-back {
     display: none;
 }
