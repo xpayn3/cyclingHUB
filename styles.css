@@ -421,8 +421,8 @@ select {
 }
 .cdd-trigger:focus,
 .cdd-wrap--open .cdd-trigger {
-    outline: 2px solid var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-dim);
+    outline: none;
+    border-color: var(--accent);
 }
 
 /* Chevron icon */
@@ -1980,8 +1980,8 @@ input[type="number"] {
 .field input:focus,
 .field select:focus,
 .field textarea:focus {
-    outline: 2px solid var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-dim);
+    outline: none;
+    border-color: var(--accent);
 }
 .field input::placeholder,
 .field textarea::placeholder {
