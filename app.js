@@ -26727,7 +26727,15 @@ let _gsDebounce = 0;
 function openGlobalSearch() {
   _openOverlaySheet('globalSearchSheet');
   const inp = document.getElementById('gsInput');
-  if (inp) { inp.value = ''; inp.focus(); }
+  if (inp) {
+    inp.value = '';
+    // Delay focus so sheet animation completes before iOS keyboard opens
+    setTimeout(() => {
+      inp.focus();
+      // On iOS, keyboard pushes viewport — scroll input into view
+      setTimeout(() => inp.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300);
+    }, 350);
+  }
   document.getElementById('gsClear').style.display = 'none';
   document.getElementById('gsResults').innerHTML = `<div class="gs-placeholder">
     <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>

@@ -15264,9 +15264,11 @@ body:has(.act-sheet-mode) .topbar {
     width: 100%;
     max-width: 480px;
     height: 100%;
+    height: 100dvh;
     display: flex;
     flex-direction: column;
     z-index: 1;
+    overflow: hidden;
 }
 #globalSearchSheet .wxd-backdrop { background: transparent; }
 #globalSearchSheet.wxd-open .gs-sheet { transform: translateY(0); }
