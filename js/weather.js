@@ -1325,6 +1325,47 @@ export function refreshWeatherPage() {
   renderWeatherPage();
 }
 
+/* Fetch weather page data without requiring the DOM container */
+async function _wxFetchPageData() {
+  if (state.weatherPageData?.daily) return; // already have it
+  let lat = null, lng = null;
+  try { const c = JSON.parse(localStorage.getItem('icu_wx_coords')); lat = c.lat; lng = c.lng; } catch (_) {}
+  if (lat == null) return;
+  const CACHE_KEY = 'icu_wx_page';
+  const CACHE_TS = 'icu_wx_page_ts';
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    const ts = +localStorage.getItem(CACHE_TS);
+    if (raw && ts && Date.now() - ts < 30 * 60000) {
+      const d = JSON.parse(raw);
+      if (d?.daily) { state.weatherPageData = d; state.weatherPageMeta = _wxBuildMeta(lat, lng); return; }
+    }
+  } catch (_) {}
+  const isImp = state.units === 'imperial';
+  const tU = isImp ? 'fahrenheit' : 'celsius';
+  const wU = isImp ? 'mph' : 'kmh';
+  const mdl = localStorage.getItem('icu_wx_model') || 'best_match';
+  try {
+    const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lng.toFixed(4)}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,windspeed_10m_max,winddirection_10m_dominant,uv_index_max,sunrise,sunset&hourly=temperature_2m,precipitation_probability,weathercode,windspeed_10m&current=temperature_2m,weathercode,windspeed_10m,winddirection_10m&timezone=auto&forecast_days=7&temperature_unit=${tU}&wind_speed_unit=${wU}&models=${mdl}`);
+    if (res.ok) {
+      const d = await res.json();
+      if (d?.daily) {
+        state.weatherPageData = d;
+        state.weatherPageMeta = _wxBuildMeta(lat, lng);
+        try { localStorage.setItem(CACHE_KEY, JSON.stringify(d)); localStorage.setItem(CACHE_TS, '' + Date.now()); } catch (_) {}
+      }
+    }
+  } catch (_) {}
+}
+
+function _wxBuildMeta(lat, lng) {
+  const isImp = state.units === 'imperial';
+  const athleteCity = state.athlete?.city;
+  const athleteCountry = state.athlete?.country;
+  const loc = athleteCity ? [athleteCity, athleteCountry].filter(Boolean).join(', ') : 'Your area';
+  return { deg: isImp ? '°F' : '°C', windLbl: isImp ? 'mph' : 'km/h', locationLabel: loc, lat, lng };
+}
+
 /* ====================================================
    WEATHER DAY DETAIL SUB-PAGE
 ==================================================== */
@@ -1336,11 +1377,9 @@ export function renderWeatherDayDetail(dayIdx) {
   let data = state.weatherPageData;
   let meta = state.weatherPageMeta;
 
-  // If weather page hasn't been loaded yet, load it first then retry
+  // If weather page hasn't been loaded yet, fetch data directly
   if (!data?.daily) {
-    renderWeatherPage().then(() => {
-      renderWeatherDayDetail(dayIdx);
-    });
+    _wxFetchPageData().then(() => renderWeatherDayDetail(dayIdx));
     return;
   }
 
