@@ -4657,11 +4657,13 @@ function renderDashboard() {
     wkRangeEl.textContent = `${startFmt} – ${endFmt}`;
   }
 
-  document.getElementById('activitiesSubtitle').textContent = `Last ${days} days · ${recent.length} activities`;
+  const actSubEl = document.getElementById('activitiesSubtitle');
+  if (actSubEl) actSubEl.textContent = `Last ${days} days · ${recent.length} activities`;
 
   // Fitness gauges removed — elements no longer in DOM
 
-  renderActivityList('activityList', recent.slice(0, 10));
+  const actListEl = document.getElementById('activityList');
+  if (actListEl) renderActivityList('activityList', recent.slice(0, 10));
   renderAllActivitiesList();
   updateSortButtons();
   _updateSportButtons();
@@ -4740,7 +4742,8 @@ function resetDashboard() {
     const el = document.getElementById(id);
     if (el) { el.textContent = 'Sync to load'; el.className = 'stat-delta neutral'; }
   });
-  document.getElementById('activityList').innerHTML = `
+  const _actList = document.getElementById('activityList');
+  if (_actList) _actList.innerHTML = `
     <div class="empty-state">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
       <p>Connect your account to see activities.</p>
