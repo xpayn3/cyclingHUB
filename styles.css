@@ -3452,7 +3452,7 @@ input[type="number"] {
     flex: 1;
     background: none;
     border: none;
-    border-radius: var(--radius-sm);
+    border-radius: calc(var(--radius-sm) - 2px);
     padding: 7px 0;
     font-size: 13px;
     font-weight: 500;
@@ -3476,7 +3476,7 @@ input[type="number"] {
     left: 2px;
     width: calc(33.333% - 1.33px);
     background: var(--hover-overlay-strong);
-    border-radius: var(--radius-sm);
+    border-radius: calc(var(--radius-sm) - 2px);
     transition: transform 0.25s cubic-bezier(0.25, 1, 0.5, 1);
     z-index: 0;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
@@ -3528,7 +3528,7 @@ input[type="number"] {
     align-items: center;
     gap: 2px;
     background: var(--fill-secondary);
-    border-radius: var(--radius);
+    border-radius: var(--radius-sm);
     padding: 3px;
     flex-shrink: 0;
     margin-left: auto;
@@ -3542,7 +3542,7 @@ input[type="number"] {
     justify-content: center;
     background: none;
     border: none;
-    border-radius: 6px;
+    border-radius: calc(var(--radius-sm) - 3px);
     cursor: pointer;
     color: var(--text-muted);
     transition: color 0.2s, background 0.2s;
