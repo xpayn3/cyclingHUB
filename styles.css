@@ -4190,9 +4190,13 @@ input[type="number"] {
 .fit-kpi-card {
     background: var(--bg-card);
     border: none;
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius);
     padding: 18px 20px 16px;
     position: relative;
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
     --mouse-x: 50%;
     --mouse-y: 50%;
     transition:
@@ -4317,6 +4321,10 @@ input[type="number"] {
     transition: border-color var(--transition);
     position: relative;
     overflow: hidden;
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
     --mouse-x: 50%;
     --mouse-y: 50%;
 }
