@@ -15035,12 +15035,23 @@ body:has(.act-sheet-mode) .topbar {
     max-height: 85vh;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
     transform: translateY(100%);
     transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.3, 1);
     padding-bottom: env(safe-area-inset-bottom, 20px);
+    z-index: 1;
 }
 .wxd-sheet-body {
     padding: 0 var(--pad-card) 40px;
+}
+/* Inside overlay sheets, modal-body must NOT be a separate scroll container */
+.wxd-sheet .modal-body {
+    overflow-y: visible !important;
+    -webkit-overflow-scrolling: unset !important;
+    overscroll-behavior-y: unset !important;
+    flex: unset !important;
+    min-height: unset !important;
 }
 
 /* ── Global Search Sheet ── */

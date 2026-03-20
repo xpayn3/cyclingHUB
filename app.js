@@ -12571,11 +12571,59 @@ function _openOverlaySheet(id) {
     document.body.style.position = 'fixed';
     document.body.style.top = `-${window._sheetScrollY}px`;
     document.body.style.width = '100%';
+    document.body.style.overflow = 'hidden';
   }
   _sheetStack.push(id);
   sheet.style.display = '';
   sheet.offsetHeight;
   sheet.classList.add('wxd-open');
+  // Swipe-to-dismiss on the sheet panel
+  _initSheetSwipeDismiss(sheet, id);
+}
+
+function _initSheetSwipeDismiss(overlay, id) {
+  const panel = overlay.querySelector('.wxd-sheet');
+  if (!panel || panel._swipeInit) return;
+  panel._swipeInit = true;
+  let startY = 0, currentY = 0, dragging = false;
+
+  panel.addEventListener('touchstart', e => {
+    // Only start drag if at scroll top (can't scroll up further)
+    if (panel.scrollTop > 5) return;
+    const t = e.touches[0];
+    startY = t.clientY;
+    currentY = startY;
+    dragging = true;
+    panel.style.transition = 'none';
+  }, { passive: true });
+
+  panel.addEventListener('touchmove', e => {
+    if (!dragging) return;
+    currentY = e.touches[0].clientY;
+    const dy = currentY - startY;
+    if (dy < 0) { dragging = false; panel.style.transform = ''; return; }
+    // Rubber-band drag
+    panel.style.transform = `translateY(${dy * 0.6}px)`;
+    // Fade backdrop
+    const backdrop = overlay.querySelector('.wxd-backdrop');
+    if (backdrop) backdrop.style.opacity = Math.max(0, 1 - dy / 300);
+  }, { passive: true });
+
+  panel.addEventListener('touchend', () => {
+    if (!dragging) return;
+    dragging = false;
+    const dy = currentY - startY;
+    panel.style.transition = '';
+    const backdrop = overlay.querySelector('.wxd-backdrop');
+    if (dy > 100) {
+      // Dismiss
+      _closeOverlaySheet(id);
+    } else {
+      // Snap back
+      panel.style.transform = '';
+      if (backdrop) backdrop.style.opacity = '';
+    }
+  }, { passive: true });
 }
 
 function _closeOverlaySheet(id) {
@@ -12589,8 +12637,14 @@ function _closeOverlaySheet(id) {
     document.body.style.position = '';
     document.body.style.top = '';
     document.body.style.width = '';
+    document.body.style.overflow = '';
     window.scrollTo(0, window._sheetScrollY || 0);
   }
+  // Reset panel transform from swipe
+  const panel = sheet.querySelector('.wxd-sheet');
+  if (panel) { panel.style.transform = ''; panel.style.transition = ''; }
+  const backdrop = sheet.querySelector('.wxd-backdrop');
+  if (backdrop) backdrop.style.opacity = '';
 }
 
 function _cleanSheet(inner) {
