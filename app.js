@@ -12921,7 +12921,24 @@ function openNotifSheet() {
   const sheet = document.getElementById('notifSheet');
   if (!sheet) return;
   renderNotifSheet();
-  sheet.showModal();
+  window._notifSheetScrollY = window.scrollY;
+  document.body.style.position = 'fixed';
+  document.body.style.top = `-${window._notifSheetScrollY}px`;
+  document.body.style.width = '100%';
+  sheet.style.display = '';
+  sheet.offsetHeight;
+  sheet.classList.add('wxd-open');
+}
+
+function closeNotifSheet() {
+  const sheet = document.getElementById('notifSheet');
+  if (!sheet) return;
+  sheet.classList.remove('wxd-open');
+  setTimeout(() => { sheet.style.display = 'none'; }, 350);
+  document.body.style.position = '';
+  document.body.style.top = '';
+  document.body.style.width = '';
+  window.scrollTo(0, window._notifSheetScrollY || 0);
 }
 
 function renderNotifSheet() {
@@ -26671,7 +26688,7 @@ Object.assign(window, {
   openGearPicker, closeGearPicker, openGearDate, closeGearDate, _gdNav, _gdPick, _gdSelectToday, _gdClear, saveLogodevKey, _gpImgFail,
   addCompareCard, setComparePeriod, updateComparePage,
   clearAllCaches, clearLifetimeCache, exportFullBackup, importFullBackup, exportGearData, importGearData,
-  openNotifSheet, _notifDismiss, _notifClearAll, _notifRefreshBell, _notifRequestPush,
+  openNotifSheet, closeNotifSheet, _notifDismiss, _notifClearAll, _notifRefreshBell, _notifRequestPush,
   exportLifetimeJSON, importLifetimeJSON, resyncLifetimeData,
   updateStorageBar, setUnits, copySetupLink, applySetupLink, handleAvatarUpload, removeAvatar,
   setWeatherCity, useMyLocation, clearWeatherLocation, setWeekStartDay,
