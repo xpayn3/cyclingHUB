@@ -12173,12 +12173,26 @@ body:has(.act-sheet-mode) .topbar {
     padding: 0;
     overflow: hidden;
     position: relative;
-    background:
-        radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px),
-        var(--bg-card);
-    background-size: 20px 20px;
+    background: var(--bg-card);
     border: none;
     box-shadow: none;
+}
+.vitality-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.35;
+    background-image:
+        radial-gradient(circle at 50% 55%, transparent 39px, rgba(255,255,255,0.05) 40px, transparent 41px),
+        radial-gradient(circle at 50% 55%, transparent 69px, rgba(255,255,255,0.05) 70px, transparent 71px),
+        radial-gradient(circle at 50% 55%, transparent 99px, rgba(255,255,255,0.04) 100px, transparent 101px),
+        radial-gradient(circle at 50% 55%, transparent 129px, rgba(255,255,255,0.04) 130px, transparent 131px),
+        radial-gradient(circle at 50% 55%, transparent 159px, rgba(255,255,255,0.03) 160px, transparent 161px),
+        radial-gradient(circle at 50% 55%, transparent 189px, rgba(255,255,255,0.03) 190px, transparent 191px),
+        radial-gradient(circle at 50% 55%, transparent 219px, rgba(255,255,255,0.02) 220px, transparent 221px),
+        radial-gradient(circle at 50% 55%, transparent 249px, rgba(255,255,255,0.02) 250px, transparent 251px);
 }
 .vitality-header {
     display: flex;
