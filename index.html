@@ -1801,33 +1801,7 @@
                         <!-- /card-row week+status -->
                     </div>
 
-                    <!-- ── Year to Date ── -->
-                    <div data-dash-section="yearToDate">
-                        <div class="card" id="ytdDistCard" style="display:none">
-                            <div class="card-header">
-                                <div>
-                                    <div class="card-title">
-                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>Year to Date
-                                    </div>
-                                    <div class="card-subtitle">Cumulative cycling distance</div>
-                                </div>
-                                <span class="ytd-badge" id="ytdBadge"></span>
-                            </div>
-                            <div class="ytd-stats">
-                                <div class="ytd-stat">
-                                    <div class="ytd-stat-value muted" id="ytdLastYearVal">—</div>
-                                    <div class="ytd-stat-label" id="ytdLastYearLabel">Last Year</div>
-                                </div>
-                                <div class="ytd-stat">
-                                    <div class="ytd-stat-value accent" id="ytdThisYearVal">—</div>
-                                    <div class="ytd-stat-label">This Year</div>
-                                </div>
-                            </div>
-                            <div class="chart-wrap" style="height:180px">
-                                <canvas id="ytdDistChart"></canvas>
-                            </div>
-                        </div>
-                    </div>
+                    <!-- YTD moved to fitness page -->
 
 
                     <div data-dash-section="weeklyStats">
@@ -4004,6 +3978,32 @@
                         </div>
                         <div class="chart-wrap">
                             <canvas id="fitAeChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- ── Year to Date ── -->
+                    <div class="card" id="ytdDistCard" style="display:none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">
+                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>Year to Date
+                                </div>
+                                <div class="card-subtitle">Cumulative cycling distance</div>
+                            </div>
+                            <span class="ytd-badge" id="ytdBadge"></span>
+                        </div>
+                        <div class="ytd-stats">
+                            <div class="ytd-stat">
+                                <div class="ytd-stat-value muted" id="ytdLastYearVal">—</div>
+                                <div class="ytd-stat-label" id="ytdLastYearLabel">Last Year</div>
+                            </div>
+                            <div class="ytd-stat">
+                                <div class="ytd-stat-value accent" id="ytdThisYearVal">—</div>
+                                <div class="ytd-stat-label">This Year</div>
+                            </div>
+                        </div>
+                        <div class="chart-wrap" style="height:180px">
+                            <canvas id="ytdDistChart"></canvas>
                         </div>
                     </div>
 

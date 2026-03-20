@@ -451,7 +451,7 @@ function lazyRenderChart(canvasId, renderFn) {
 
 /* ── Chart cleanup on page navigation ── */
 const _pageChartKeys = {
-  dashboard: ['weekProgressChart', 'fitnessChart', '_dashFormChart', 'weeklyChart', 'avgPowerChart', 'efSparkChart', 'powerCurveChart', 'powerProfileRadarChart', 'cyclingTrendsChart', 'monotonyChart', 'aeChart', 'rampRateChart', 'ytdDistChart', 'pwrHrScatterChart'],
+  dashboard: ['weekProgressChart', 'fitnessChart', '_dashFormChart', 'weeklyChart', 'avgPowerChart', 'efSparkChart', 'powerCurveChart', 'powerProfileRadarChart', 'cyclingTrendsChart', 'monotonyChart', 'aeChart', 'rampRateChart', 'pwrHrScatterChart'],
   fitness:   ['fitnessPageChart', '_fitFormChart', 'fitnessWeeklyPageChart', '_fitZonePieChart', 'fitFatigueChart', 'fitFtpHistChart', 'fitPeriodChart', 'healthRHRChart', 'healthHRVChart', 'healthStepsChart', 'healthWeightChart', 'insightHrvTssChart', 'insightRhrCtlChart', 'insightTssWeightChart', 'insightStepsHrvChart'],
   power:     ['powerPageChart', 'powerTrendChart'],
   zones:     ['znpZoneTimeChart', '_znpDecoupleChart'],
@@ -4667,7 +4667,6 @@ function renderDashboard() {
   renderVitality();
   renderTrainingStatus();
   renderTodaySuggestion();
-  lazyRenderChart('ytdDistChart',   () => renderYTDDistance());
   lazyRenderChart('fitnessChart',   () => renderFitnessChart(recent, days));
   lazyRenderChart('weeklyTssChart', () => renderWeeklyChart(recent));
   lazyRenderChart('avgPowerChart',  () => renderAvgPowerChart(recent));
@@ -10667,6 +10666,7 @@ function renderFitnessPage() {
   _renderFitCyclingTrends(fd);
   _renderFitWeeklyTss(fd);
   _renderFitInsights(fd);
+  renderYTDDistance();
   _rIC(() => { if (window.refreshGlow) refreshGlow(); });
 }
 
@@ -23463,7 +23463,6 @@ const DASH_SECTIONS = [
   { key: 'goalsTargets',      label: 'Goals & Targets',              defaultOn: true },
   { key: 'vitality',          label: 'Vitality & Level',             defaultOn: true },
   { key: 'weekProgress',      label: 'Week Progress',                defaultOn: true },
-  { key: 'yearToDate',        label: 'Year to Date',                 defaultOn: true },
   { key: 'weeklyStats',       label: 'Weekly Stats',                 defaultOn: true },
   { key: 'weather',           label: 'Weather Forecast',             defaultOn: true },
   { key: 'todaySuggestion',   label: 'Today\'s Plan',                defaultOn: true },

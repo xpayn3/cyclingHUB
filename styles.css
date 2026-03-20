@@ -13865,9 +13865,7 @@ body:has(.act-sheet-mode) .topbar {
     position: relative;
 }
 .tp-accent-strip {
-    height: 3px;
-    background: var(--accent);
-    transition: background 0.3s ease;
+    display: none;
 }
 .tp-content {
     padding: var(--pad-card);
