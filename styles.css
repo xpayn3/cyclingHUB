@@ -4185,9 +4185,14 @@ input[type="number"] {
 .fit-kpi-row,
 .fit-metrics-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 240px));
+    grid-template-columns: repeat(2, 1fr);
     gap: 12px;
-    justify-content: center;
+}
+@media (min-width: 600px) {
+    .fit-metrics-grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 240px));
+        justify-content: center;
+    }
 }
 .fit-kpi-card {
     background: var(--bg-card);
