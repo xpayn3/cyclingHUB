@@ -12173,7 +12173,10 @@ body:has(.act-sheet-mode) .topbar {
     padding: 0;
     overflow: hidden;
     position: relative;
-    background: var(--bg-card);
+    background:
+        radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px),
+        var(--bg-card);
+    background-size: 20px 20px;
     border: none;
     box-shadow: none;
 }
