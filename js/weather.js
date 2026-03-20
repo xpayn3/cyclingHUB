@@ -416,7 +416,11 @@ export async function renderActivityIntervals(activityId) {
 
 // ── 7-day riding forecast (Open-Meteo, free, no API key) ────────────────────
 export async function renderWeatherForecast() {
-  const card = document.getElementById('forecastCard');
+  const section = document.getElementById('forecastSection');
+  const rail    = document.getElementById('forecastRail');
+  const locEl   = document.getElementById('forecastLocation');
+  // Backward compat: also check old card element
+  const card    = section || document.getElementById('forecastCard');
   if (!card) return;
 
   // Get coordinates — try cached coords first, then geocode from city/country
@@ -428,20 +432,15 @@ export async function renderWeatherForecast() {
   } catch (_) {}
 
   if (lat == null) {
-    // No location set yet — show a prompt card instead
-    card.style.display = '';
-    card.innerHTML = `
-      <div class="card-header">
-        <div>
-          <div class="card-title">Riding Forecast</div>
-          <div class="card-subtitle">Set your location to see the weather</div>
-        </div>
-      </div>
-      <div class="wx-no-location">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32"><path d="M12 2a7 7 0 0 1 7 7c0 5.25-7 13-7 13S5 14.25 5 9a7 7 0 0 1 7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
-        <p>No location set. Add your city in <strong>Settings → Weather Location</strong>.</p>
+    if (section) {
+      section.style.display = '';
+      if (locEl) locEl.textContent = 'Set your location to see the weather';
+      if (rail) rail.innerHTML = `<div class="card" style="margin:0 var(--pad-page);padding:20px;text-align:center">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32" style="opacity:0.4;margin-bottom:8px"><path d="M12 2a7 7 0 0 1 7 7c0 5.25-7 13-7 13S5 14.25 5 9a7 7 0 0 1 7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+        <p style="color:var(--text-muted);font-size:13px">Add your city in <strong>Settings → Weather</strong></p>
         <button class="btn btn-primary btn-sm" onclick="navigate('settings')">Go to Settings</button>
       </div>`;
+    }
     return;
   }
 
@@ -472,7 +471,7 @@ export async function renderWeatherForecast() {
     } catch (_) {}
   }
 
-  if (!forecast?.daily) { card.style.display = 'none'; return; }
+  if (!forecast?.daily) { if (section) section.style.display = 'none'; else if (card) card.style.display = 'none'; return; }
 
   // Cache today's weather code per location for pill icons
   try {
@@ -600,7 +599,7 @@ export async function renderWeatherForecast() {
       ? `<div class="wx-day-precip"><svg viewBox="0 0 24 24" fill="currentColor" width="10" height="10"><path d="M12 2C8 8 5 12.5 5 15.5a7 7 0 0 0 14 0C19 12.5 16 8 12 2z"/></svg>${Math.round(precipPct)}%</div>`
       : `<div class="wx-day-precip"></div>`;
     return `
-      <div class="wx-day wx-day--${score}${isToday ? ' wx-day--today' : ''}" onclick="navigate('weather'); setTimeout(() => renderWeatherDayDetail(${i}), 50)">
+      <div class="wx-day-card wx-day--${score}${isToday ? ' wx-day--today' : ''}" onclick="navigate('weather'); setTimeout(() => renderWeatherDayDetail(${i}), 50)">
         <div class="wx-day-name">${dayName}</div>
         <div class="wx-day-icon">${wmoIcon(codes[i])}</div>
         <div class="wx-day-label">${wmoLabel(codes[i])}</div>
@@ -613,20 +612,23 @@ export async function renderWeatherForecast() {
       </div>`;
   }).join('');
 
-  card.style.display = '';
-  card.innerHTML = `
-    <div class="card-header">
-      <div>
-        <div class="card-title">Riding Forecast</div>
-        <div class="card-subtitle">${location}</div>
+  if (section && rail) {
+    // New scroll rail layout
+    section.style.display = '';
+    if (locEl) locEl.textContent = location;
+    rail.innerHTML = days;
+  } else if (card) {
+    // Fallback to old card layout
+    card.style.display = '';
+    card.innerHTML = `
+      <div class="card-header">
+        <div>
+          <div class="card-title">Riding Forecast</div>
+          <div class="card-subtitle">${location}</div>
+        </div>
       </div>
-      <div class="wx-legend">
-        <div class="wx-legend-item"><div class="wx-riding-dot wx-riding-dot--good"></div>Good</div>
-        <div class="wx-legend-item"><div class="wx-riding-dot wx-riding-dot--fair"></div>Fair</div>
-        <div class="wx-legend-item"><div class="wx-riding-dot wx-riding-dot--poor"></div>Poor</div>
-      </div>
-    </div>
-    <div class="wx-forecast-row">${days}</div>`;
+      <div class="wx-forecast-row">${days}</div>`;
+  }
 }
 
 /* ── Sun arc helper (sunrise/sunset visual) ── */

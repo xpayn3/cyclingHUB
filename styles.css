@@ -13984,7 +13984,34 @@ body:has(.act-sheet-mode) .topbar {
     margin-top: 8px;
 }
 
+/* ── Forecast scroll rail (new standalone layout) ── */
+#forecastRail {
+    display: flex;
+    gap: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    scroll-snap-type: x proximity;
+    margin-left: calc(-1 * var(--pad-page));
+    margin-right: calc(-1 * var(--pad-page));
+    padding: 4px 0 8px;
+}
+#forecastRail::-webkit-scrollbar { display: none; }
+.wx-day-card {
+    flex: 0 0 120px;
+    margin-left: 10px;
+    scroll-snap-align: start;
+    scroll-margin-inline-start: var(--pad-page);
+}
+.wx-day-card:first-child {
+    margin-left: var(--pad-page);
+}
+.wx-day-card:last-child {
+    margin-right: var(--pad-page);
+}
+
 /* ── Individual day card ── */
+.wx-day-card,
 .wx-day {
     display: flex;
     flex-direction: column;
@@ -20600,7 +20627,8 @@ body.hm-map-dragging html,
     .wx-loc-switcher,
     .wxp-week-scroll,
     .wxd-hourly-scroll,
-    .goals-dash-scroll {
+    .goals-dash-scroll,
+    #forecastRail {
         scrollbar-width: none !important;
     }
     .recent-act-scroll-rail::-webkit-scrollbar,

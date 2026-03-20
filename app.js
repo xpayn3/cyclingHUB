@@ -3113,8 +3113,10 @@ function clearWeatherLocation() {
   localStorage.removeItem('icu_wx_page_ts');
   const statusEl = document.getElementById('wxCurrentLocation');
   if (statusEl) statusEl.textContent = 'Not set';
-  const card = document.getElementById('forecastCard');
-  if (card) card.style.display = 'none';
+  const fSec = document.getElementById('forecastSection');
+  if (fSec) fSec.style.display = 'none';
+  const fCard = document.getElementById('forecastCard');
+  if (fCard) fCard.style.display = 'none';
   _refreshWxLocSettings();
 }
 
