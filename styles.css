@@ -12398,7 +12398,7 @@ body:has(.act-sheet-mode) .topbar {
     letter-spacing: 0.04em;
 }
 .trs-form-status {
-    display: inline-flex;
+    display: none;
     align-items: center;
     font-size: var(--text-sm);
     font-weight: 800;
