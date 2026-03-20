@@ -254,6 +254,11 @@
     --icon-md: 20px;
     --icon-lg: 24px;
 
+    /* ── Hover glow (desktop) ──────────────────────────────────*/
+    --glow-surface: rgba(255, 255, 255, 0.055);
+    --glow-rim: rgba(255, 255, 255, 0.3);
+    --glow-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+
     /* ── Motion ──────────────────────────────────────────────*/
     --transition: 0.25s ease; /* hover colour/opacity transitions */
 
@@ -2177,7 +2182,7 @@ input[type="number"] {
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(255,255,255,0.055) 0%, transparent 65%);
+    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), var(--glow-surface) 0%, transparent 65%);
     opacity: 0;
     transition: opacity 0.35s ease;
     pointer-events: none;
@@ -2189,7 +2194,7 @@ input[type="number"] {
     inset: 0;
     border-radius: inherit;
     padding: 1px;
-    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(255,255,255,0.3) 0%, transparent 60%);
+    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), var(--glow-rim) 0%, transparent 60%);
     opacity: 0;
     transition: opacity 0.35s ease;
     pointer-events: none;
@@ -2625,7 +2630,7 @@ input[type="number"] {
     border-radius: inherit;
     background: radial-gradient(
         circle at var(--mouse-x) var(--mouse-y),
-        rgba(255, 255, 255, 0.055) 0%,
+        var(--glow-surface) 0%,
         transparent 65%
     );
     opacity: 0;
@@ -4203,7 +4208,7 @@ input[type="number"] {
     border-radius: inherit;
     background: radial-gradient(
         circle at var(--mouse-x) var(--mouse-y),
-        rgba(255, 255, 255, 0.055) 0%,
+        var(--glow-surface) 0%,
         transparent 65%
     );
     opacity: 0;
@@ -4708,7 +4713,7 @@ input[type="number"] {
 }
 .fit-rp-card::before {
     content: ""; position: absolute; inset: 0; border-radius: inherit;
-    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(255,255,255,0.055) 0%, transparent 65%);
+    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), var(--glow-surface) 0%, transparent 65%);
     opacity: 0; transition: opacity 0.35s ease; pointer-events: none; z-index: 0;
 }
 .fit-rp-card::after {
@@ -10243,7 +10248,7 @@ body:has(.act-sheet-mode) .topbar {
     border-radius: inherit;
     background: radial-gradient(
         circle at var(--mouse-x) var(--mouse-y),
-        rgba(255, 255, 255, 0.055) 0%,
+        var(--glow-surface) 0%,
         transparent 65%
     );
     opacity: 0;
@@ -10424,7 +10429,7 @@ body:has(.act-sheet-mode) .topbar {
     border-radius: inherit;
     background: radial-gradient(
         circle at var(--mouse-x) var(--mouse-y),
-        rgba(255, 255, 255, 0.055) 0%,
+        var(--glow-surface) 0%,
         transparent 65%
     );
     opacity: 0;
@@ -13462,7 +13467,7 @@ body:has(.act-sheet-mode) .topbar {
 }
 .pwr-insight-card:hover {
     border-color: var(--border-active);
-    box-shadow: 0 4px 20px var(--shadow-sm);
+    box-shadow: var(--glow-shadow);
 }
 .pwr-insight-icon {
     flex-shrink: 0;
@@ -14063,7 +14068,7 @@ body:has(.act-sheet-mode) .topbar {
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(255,255,255,0.055) 0%, transparent 65%);
+    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), var(--glow-surface) 0%, transparent 65%);
     opacity: 0;
     transition: opacity 0.35s ease;
     pointer-events: none;
@@ -14075,7 +14080,7 @@ body:has(.act-sheet-mode) .topbar {
     inset: 0;
     border-radius: inherit;
     padding: 1px;
-    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(255,255,255,0.3) 0%, transparent 60%);
+    background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), var(--glow-rim) 0%, transparent 60%);
     opacity: 0;
     transition: opacity 0.35s ease;
     pointer-events: none;
@@ -14086,7 +14091,7 @@ body:has(.act-sheet-mode) .topbar {
 }
 .wx-day-card:hover {
     border-color: transparent;
-    box-shadow: 0 4px 20px var(--shadow-sm);
+    box-shadow: var(--glow-shadow);
 }
 .wx-day-card:hover::before,
 .wx-day-card:hover::after {
@@ -14131,7 +14136,7 @@ body:has(.act-sheet-mode) .topbar {
     border-radius: inherit;
     background: radial-gradient(
         circle at var(--mouse-x) var(--mouse-y),
-        rgba(255, 255, 255, 0.055) 0%,
+        var(--glow-surface) 0%,
         transparent 65%
     );
     opacity: 0;
@@ -14149,7 +14154,7 @@ body:has(.act-sheet-mode) .topbar {
     padding: 1px;
     background: radial-gradient(
         circle at var(--mouse-x) var(--mouse-y),
-        rgba(255, 255, 255, 0.3) 0%,
+        var(--glow-rim) 0%,
         transparent 60%
     );
     opacity: 0;
@@ -14165,7 +14170,7 @@ body:has(.act-sheet-mode) .topbar {
 
 .wx-day:hover {
     border-color: transparent;
-    box-shadow: 0 4px 20px var(--shadow-sm);
+    box-shadow: var(--glow-shadow);
 }
 .wx-day:hover::before,
 .wx-day:hover::after {
@@ -15526,7 +15531,7 @@ body:has(.act-sheet-mode) .topbar {
     border-radius: inherit;
     background: radial-gradient(
         circle at var(--mouse-x) var(--mouse-y),
-        rgba(255, 255, 255, 0.055) 0%,
+        var(--glow-surface) 0%,
         transparent 65%
     );
     opacity: 0;
@@ -15542,7 +15547,7 @@ body:has(.act-sheet-mode) .topbar {
     padding: 1px;
     background: radial-gradient(
         circle at var(--mouse-x) var(--mouse-y),
-        rgba(255, 255, 255, 0.3) 0%,
+        var(--glow-rim) 0%,
         transparent 60%
     );
     opacity: 0;
@@ -17992,7 +17997,7 @@ body:has(.act-sheet-mode) .topbar {
     border-radius: inherit;
     background: radial-gradient(
         circle at var(--mouse-x) var(--mouse-y),
-        rgba(255, 255, 255, 0.055) 0%,
+        var(--glow-surface) 0%,
         transparent 65%
     );
     opacity: 0;
@@ -18314,7 +18319,7 @@ body:has(.act-sheet-mode) .topbar {
     border-radius: inherit;
     background: radial-gradient(
         circle at var(--mouse-x) var(--mouse-y),
-        rgba(255, 255, 255, 0.055) 0%,
+        var(--glow-surface) 0%,
         transparent 65%
     );
     opacity: 0;
@@ -19514,7 +19519,7 @@ body:has(.act-sheet-mode) .topbar {
     border-radius: inherit;
     background: radial-gradient(
         circle at var(--mouse-x) var(--mouse-y),
-        rgba(255, 255, 255, 0.055) 0%,
+        var(--glow-surface) 0%,
         transparent 65%
     );
     opacity: 0;
@@ -21657,6 +21662,11 @@ html[data-theme="light"] {
     --hover-overlay: rgba(0, 0, 0, 0.04);
     --hover-overlay-strong: rgba(0, 0, 0, 0.08);
     --shadow-overlay: rgba(0, 0, 0, 0.15);
+
+    /* ── Hover glow (lighter for light theme) ── */
+    --glow-surface: rgba(0, 0, 0, 0.03);
+    --glow-rim: rgba(0, 0, 0, 0.08);
+    --glow-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
 
     /* ── Chart / canvas ── */
     --chart-grid: rgba(0, 0, 0, 0.08);
