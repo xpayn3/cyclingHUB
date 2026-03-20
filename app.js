@@ -24263,50 +24263,15 @@ function computeGoalProgress(goal) {
   return { current, target: goal.target, pct, pace, status, elapsed, remaining, totalDays };
 }
 
-function goalFormHTML() {
-  return `<div class="wxd-overlay" id="goalFormOverlay" style="display:none">
-    <div class="wxd-backdrop" onclick="hideGoalForm()"></div>
-    <div class="wxd-sheet" style="max-width:480px">
-      <div class="modal-drag-indicator"></div>
-      <div class="modal-header">
-        <div class="modal-title" id="goalFormTitle">Add Goal</div>
-        <button class="modal-close" onclick="hideGoalForm()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>
-      <div class="wxd-sheet-body">
-        <input type="hidden" id="goalFormId" value="">
-        <div class="goal-form-field">
-          <label>Metric</label>
-          <select id="goalFormMetric" class="app-select">
-            ${Object.entries(GOAL_METRICS).map(([k,v]) => `<option value="${k}">${v.label} (${v.unit || 'count'})</option>`).join('')}
-          </select>
-        </div>
-        <div class="goal-form-field">
-          <label>Target</label>
-          <div class="goal-number-wrap">
-            <input type="number" id="goalFormTarget" placeholder="e.g. 200" min="0" step="any">
-            <div class="goal-number-btns">
-              <button type="button" onclick="goalNumStep(1)" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15l-6-6-6 6"/></svg></button>
-              <button type="button" onclick="goalNumStep(-1)" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
-            </div>
-          </div>
-        </div>
-        <div class="goal-form-field">
-          <label>Period</label>
-          <select id="goalFormPeriod" class="app-select">
-            <option value="week">Weekly</option>
-            <option value="month">Monthly</option>
-            <option value="year">Yearly</option>
-          </select>
-        </div>
-        <div class="goal-form-actions">
-          <button class="btn btn-ghost" onclick="hideGoalForm()">Cancel</button>
-          <button class="btn btn-primary" onclick="submitGoalForm()">Save Goal</button>
-        </div>
-      </div>
-    </div>
-  </div>`;
+function _initGoalFormMetrics() {
+  const sel = document.getElementById('goalFormMetric');
+  if (!sel || sel.options.length > 0) return;
+  Object.entries(GOAL_METRICS).forEach(([k, v]) => {
+    const opt = document.createElement('option');
+    opt.value = k;
+    opt.textContent = `${v.label} (${v.unit || 'count'})`;
+    sel.appendChild(opt);
+  });
 }
 
 function renderGoalsPage() {
@@ -24329,7 +24294,7 @@ function renderGoalsPage() {
         <h3>No goals set yet</h3>
         <p>Set training targets to track your progress over time.</p>
         <button class="btn btn-primary" onclick="showGoalForm()">Create Your First Goal</button>
-      </div>` + goalFormHTML();
+      </div>`;
     return;
   }
 
@@ -24387,7 +24352,6 @@ function renderGoalsPage() {
   });
 
   html += '</div>';
-  html += goalFormHTML();
 
   container.innerHTML = html;
 }
@@ -24402,9 +24366,10 @@ function goalNumStep(dir) {
 }
 
 function showGoalForm(editId) {
+  _initGoalFormMetrics();
+  _openOverlaySheet('goalFormOverlay');
   const overlay = document.getElementById('goalFormOverlay');
   if (!overlay) return;
-  _openOverlaySheet('goalFormOverlay');
   initCustomDropdowns(overlay);
   const titleEl = document.getElementById('goalFormTitle');
   const idEl = document.getElementById('goalFormId');
