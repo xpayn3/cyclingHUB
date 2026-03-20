@@ -696,9 +696,11 @@ export async function renderWeatherPage(_restoreScrollY) {
   const container = document.getElementById('weatherPageContent');
   if (!container) return;
 
-  // Hide the day-detail back button if returning from detail sub-page
+  // Hide the day-detail back buttons if returning from detail sub-page
   const wxdBack = document.getElementById('wxdTopbarBack');
   if (wxdBack) wxdBack.style.display = 'none';
+  const backFab = document.getElementById('wxDayBackFab');
+  if (backFab) { backFab.style.visibility = 'hidden'; backFab.style.pointerEvents = 'none'; }
   // Restore weather page title
   const titleEl    = document.getElementById('pageTitle');
   const subtitleEl = document.getElementById('pageSubtitle');
@@ -1331,6 +1333,10 @@ export function refreshWeatherPage() {
 export function renderWeatherDayDetail(dayIdx) {
   const container = document.getElementById('weatherPageContent');
   if (!container) return;
+
+  // Show back FAB
+  const backFab = document.getElementById('wxDayBackFab');
+  if (backFab) { backFab.style.visibility = 'visible'; backFab.style.pointerEvents = 'auto'; }
 
   const data = state.weatherPageData;
   const meta = state.weatherPageMeta;

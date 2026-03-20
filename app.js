@@ -2630,6 +2630,8 @@ function navigate(page) {
   if (_settSearch) { _settSearch.style.visibility = page === 'settings' ? '' : 'hidden'; _settSearch.style.pointerEvents = page === 'settings' ? '' : 'none'; }
   const _mrAddFab = document.getElementById('mrAddFab');
   if (_mrAddFab) { _mrAddFab.style.visibility = page === 'myroutes' ? '' : 'hidden'; _mrAddFab.style.pointerEvents = page === 'myroutes' ? '' : 'none'; }
+  const _wxDayFab = document.getElementById('wxDayBackFab');
+  if (_wxDayFab && page !== 'weather') { _wxDayFab.style.visibility = 'hidden'; _wxDayFab.style.pointerEvents = 'none'; }
   document.querySelectorAll('.dash-pill-btn').forEach(btn => {
     const lbl = btn.querySelector('span')?.textContent?.toLowerCase() || '';
     const match = lbl === page || (lbl === 'home' && page === 'dashboard');
