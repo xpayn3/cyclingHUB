@@ -1335,40 +1335,20 @@ export function renderWeatherDayDetail(dayIdx) {
 
   let data = state.weatherPageData;
   let meta = state.weatherPageMeta;
-  // Fallback: try full page cache, then dashboard cache
-  if (!data?.daily?.sunrise) {
-    try { const pg = JSON.parse(localStorage.getItem('icu_wx_page')); if (pg?.daily?.sunrise) data = pg; } catch (_) {}
-  }
+
+  // If weather page hasn't been loaded yet, load it first then retry
   if (!data?.daily) {
-    try { data = JSON.parse(localStorage.getItem('icu_wx_forecast')); } catch (_) {}
+    renderWeatherPage().then(() => {
+      renderWeatherDayDetail(dayIdx);
+    });
+    return;
   }
+
   if (!meta) {
     const isImperial = state.units === 'imperial';
     meta = { deg: isImperial ? '°F' : '°C', windLbl: isImperial ? 'mph' : 'km/h' };
   }
   if (!data?.daily) return;
-
-  // If we have basic data but missing detail fields, fetch full data in background
-  if (!data.daily.sunrise) {
-    try {
-      const cached = JSON.parse(localStorage.getItem('icu_wx_coords'));
-      if (cached?.lat != null) {
-        const isImp = state.units === 'imperial';
-        const tU = isImp ? 'fahrenheit' : 'celsius';
-        const wU = isImp ? 'mph' : 'kmh';
-        const mdl = localStorage.getItem('icu_wx_model') || 'best_match';
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${cached.lat.toFixed(4)}&longitude=${cached.lng.toFixed(4)}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,weathercode,windspeed_10m_max,winddirection_10m_dominant,uv_index_max,sunrise,sunset&hourly=temperature_2m,weathercode,precipitation_probability,windspeed_10m&timezone=auto&forecast_days=7&temperature_unit=${tU}&wind_speed_unit=${wU}&models=${mdl}`;
-        fetch(url).then(r => r.ok ? r.json() : null).then(d => {
-          if (d?.daily) {
-            state.weatherPageData = d;
-            try { localStorage.setItem('icu_wx_page', JSON.stringify(d)); } catch(_){}
-            // Re-render sheet content with full data (sheet is already open)
-            renderWeatherDayDetail(dayIdx);
-          }
-        });
-      }
-    } catch (_) {}
-  }
 
   const { deg, windLbl } = meta;
   const isMetric = deg !== '°F';
