@@ -4708,22 +4708,25 @@ function _renderDashStreak() {
 }
 
 function _renderDashNextWorkout() {
-  const card = document.getElementById('dashNextWorkoutCard');
+  const wrap = document.getElementById('dashNextWorkoutCard');
   const titleEl = document.getElementById('dashNextWorkoutTitle');
   const subEl = document.getElementById('dashNextWorkoutSub');
-  if (!card) return;
-  // Load saved workouts from IndexedDB
+  if (!wrap) return;
   wrkLoadAll().then(workouts => {
     if (workouts.length > 0) {
       const latest = workouts[0];
-      card.style.display = '';
+      wrap.style.display = '';
       if (titleEl) titleEl.textContent = latest.name || 'Saved Workout';
       if (subEl) subEl.textContent = latest.totalDuration ? _fmtDuration(latest.totalDuration) + ' · ' + (latest.tssEstimate || 0) + ' TSS' : 'Tap to load';
-      card.onclick = () => { wrkLoadWorkout(latest); navigate('workout'); };
+      const row = wrap.querySelector('.tp-workout-row');
+      if (row) {
+        row.dataset.wid = latest.id || '';
+        row.onclick = () => { wrkLoadWorkout(latest); navigate('workout'); };
+      }
     } else {
-      card.style.display = 'none';
+      wrap.style.display = 'none';
     }
-  }).catch(() => { card.style.display = 'none'; });
+  }).catch(() => { wrap.style.display = 'none'; });
 }
 
 function resetDashboard() {
@@ -6693,12 +6696,19 @@ function renderTodaySuggestion() {
     badgeEl.style.color      = cInfo.fg;
   }
 
+  // Accent strip color
+  const stripEl = document.getElementById('tpAccentStrip');
+  if (stripEl) stripEl.style.background = cInfo.fg;
+
+  // Streak pill
+  const streakEl = document.getElementById('dashStreakNum');
+  if (streakEl) streakEl.textContent = streak;
+
   // Context pills
   if (ctxEl) {
     const tsbSign = tsb >= 0 ? '+' : '';
     const rampSign = ramp >= 0 ? '+' : '';
     let pills = `<span class="today-sg-pill">TSB ${tsbSign}${Math.round(tsb)}</span>`;
-    if (streak > 0) pills += `<span class="today-sg-pill">${streak} day${streak > 1 ? 's' : ''} in a row</span>`;
     pills += `<span class="today-sg-pill">Ramp ${rampSign}${ramp.toFixed(1)}/wk</span>`;
     ctxEl.innerHTML = pills;
   }
@@ -12873,6 +12883,7 @@ function _notifDismiss(id) {
   if (!d.includes(id)) { d.push(id); localStorage.setItem('icu_notif_dismissed', JSON.stringify(d)); }
   _notifRefreshBell();
   renderNotifSheet();
+  if ('setAppBadge' in navigator) navigator.clearAppBadge().catch(() => {});
 }
 function _notifClearAll() {
   const all = _collectAllNotifications();
@@ -12881,6 +12892,7 @@ function _notifClearAll() {
   localStorage.setItem('icu_notif_dismissed', JSON.stringify(d));
   _notifRefreshBell();
   renderNotifSheet();
+  if ('setAppBadge' in navigator) navigator.clearAppBadge().catch(() => {});
 }
 
 function _notifRefreshBell() {
@@ -12894,6 +12906,13 @@ function _notifRefreshBell() {
     badge.textContent = count > 99 ? '99+' : count;
     badge.style.display = count > 0 ? '' : 'none';
   }
+  // PWA app badge
+  if ('setAppBadge' in navigator) {
+    if (count > 0) navigator.setAppBadge(count).catch(() => {});
+    else navigator.clearAppBadge().catch(() => {});
+  }
+  // Update title with count
+  document.title = count > 0 ? `(${count}) CycleIQ` : 'CycleIQ';
 }
 
 function openNotifSheet() {
@@ -23447,8 +23466,7 @@ const DASH_SECTIONS = [
   { key: 'yearToDate',        label: 'Year to Date',                 defaultOn: true },
   { key: 'weeklyStats',       label: 'Weekly Stats',                 defaultOn: true },
   { key: 'weather',           label: 'Weather Forecast',             defaultOn: true },
-  { key: 'todaySuggestion',   label: 'Today\'s Suggestion',          defaultOn: true },
-  { key: 'streakNextWorkout', label: 'Streak & Next Workout',        defaultOn: true },
+  { key: 'todaySuggestion',   label: 'Today\'s Plan',                defaultOn: true },
   { key: 'trainingLoad',      label: 'Training Load Chart',          defaultOn: true },
   { key: 'recentTable',       label: 'Recent Activities Table',      defaultOn: true },
 ];

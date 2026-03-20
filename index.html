@@ -1915,49 +1915,38 @@
                         </div>
                     </div>
 
-                    <!-- Today's Training Suggestion -->
+                    <!-- Today's Plan — merged suggestion + streak + next workout -->
                     <div data-dash-section="todaySuggestion">
-                        <div class="card today-suggestion" id="todaySuggestionCard">
-                            <div class="today-sg-header">
-                                <div>
-                                    <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 1 4 12.7V17H8v-2.3A7 7 0 0 1 12 2z"/></svg>Today's Suggestion</div>
-                                    <div class="card-subtitle">Based on your current form & load</div>
-                                </div>
-                                <div class="today-sg-badge" id="todaySgBadge"></div>
-                            </div>
-                            <div class="today-sg-body">
-                                <div class="today-sg-icon" id="todaySgIcon"></div>
-                                <div class="today-sg-main">
-                                    <div class="today-sg-title" id="todaySgTitle">—</div>
-                                    <div class="today-sg-desc" id="todaySgDesc">Sync data to get your suggestion</div>
-                                </div>
-                            </div>
-                            <div class="today-sg-context" id="todaySgContext"></div>
-                        </div>
-                    </div>
-
-                    <!-- Streak + Next Workout compact row -->
-                    <div data-dash-section="streakNextWorkout">
-                        <div class="card-row">
-                            <div class="card" id="dashStreakCard">
-                                <div style="display:flex;align-items:center;gap:12px;padding:4px 0">
-                                    <div style="width:44px;height:44px;border-radius:50%;background:var(--accent-dim);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-                                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12c2-2.96 0-7-1-8 0 3.038-1.773 4.741-3 6-1.226 1.26-2 3.24-2 5a6 6 0 1 0 12 0c0-1.532-1.056-3.94-2-5-1.786 3-2.791 3-4 2z"/></svg>
-                                    </div>
-                                    <div>
-                                        <div style="font-size:22px;font-weight:700;font-family:var(--font-num);color:var(--text-primary)" id="dashStreakNum">—</div>
-                                        <div style="font-size:12px;color:var(--text-muted)">Day Streak</div>
+                        <div class="tp-card" id="todaySuggestionCard">
+                            <!-- Top: gradient accent strip based on intensity -->
+                            <div class="tp-accent-strip" id="tpAccentStrip"></div>
+                            <!-- Main suggestion area -->
+                            <div class="tp-content">
+                                <div class="tp-top-row">
+                                    <div class="tp-badge" id="todaySgBadge">Fresh</div>
+                                    <div class="tp-streak" id="tpStreakPill">
+                                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12c2-2.96 0-7-1-8 0 3.038-1.773 4.741-3 6-1.226 1.26-2 3.24-2 5a6 6 0 1 0 12 0c0-1.532-1.056-3.94-2-5-1.786 3-2.791 3-4 2z"/></svg>
+                                        <span id="dashStreakNum">0</span>
                                     </div>
                                 </div>
-                            </div>
-                            <div class="card" id="dashNextWorkoutCard" style="display:none">
-                                <div style="display:flex;align-items:center;gap:12px;padding:4px 0">
-                                    <div style="width:44px;height:44px;border-radius:50%;background:rgba(90,200,250,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-                                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#5ac8fa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                <div class="tp-suggestion">
+                                    <div class="tp-sg-icon" id="todaySgIcon"></div>
+                                    <div class="tp-sg-text">
+                                        <div class="tp-sg-title" id="todaySgTitle">—</div>
+                                        <div class="tp-sg-desc" id="todaySgDesc">Sync data to get your suggestion</div>
                                     </div>
-                                    <div style="flex:1;min-width:0">
-                                        <div style="font-size:14px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="dashNextWorkoutTitle">—</div>
-                                        <div style="font-size:12px;color:var(--text-muted)" id="dashNextWorkoutSub">No planned workout</div>
+                                </div>
+                                <div class="tp-context" id="todaySgContext"></div>
+                                <!-- Next workout row (shown if workout exists) -->
+                                <div class="tp-workout" id="dashNextWorkoutCard" style="display:none">
+                                    <div class="tp-workout-divider"></div>
+                                    <div class="tp-workout-row" onclick="if(this.dataset.wid){wrkLoadWorkout(this.dataset.wid);navigate('workout')}">
+                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                        <div class="tp-workout-info">
+                                            <div class="tp-workout-title" id="dashNextWorkoutTitle">—</div>
+                                            <div class="tp-workout-sub" id="dashNextWorkoutSub">No planned workout</div>
+                                        </div>
+                                        <svg viewBox="0 0 7 12" width="8" height="12" style="opacity:0.3;flex-shrink:0"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                     </div>
                                 </div>
                             </div>
