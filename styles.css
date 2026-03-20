@@ -7409,10 +7409,10 @@ body.show-save-fab #actSaveRouteFab {
     content: '';
     position: absolute;
     top: 0;
-    left: 20px;
+    left: 0;
     right: 0;
     height: 0.5px;
-    background: rgba(84, 84, 88, 0.65);
+    background: var(--border);
 }
 
 /* Row label (left side) — Apple HIG: 17pt body text */
