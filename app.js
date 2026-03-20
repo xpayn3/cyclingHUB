@@ -10517,8 +10517,7 @@ function renderFitnessWellness() {
     shown++;
   }
 
-  const strip = document.getElementById('fitWellnessStrip');
-  if (strip) strip.style.display = shown > 0 ? 'grid' : 'none';
+  // Individual wellness cards are now in the flat grid — no strip to show/hide
 }
 
 function renderFitnessHeatmap() {

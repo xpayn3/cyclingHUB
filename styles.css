@@ -4182,9 +4182,10 @@ input[type="number"] {
 ============================================================ */
 
 /* ── KPI row: 6 cards ── */
-.fit-kpi-row {
+.fit-kpi-row,
+.fit-metrics-grid {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 12px;
 }
 .fit-kpi-card {
@@ -4307,9 +4308,8 @@ input[type="number"] {
     background: var(--orange);
 }
 
-/* ── Wellness strip ── */
+/* ── Wellness strip (legacy, now merged into fit-metrics-grid) ── */
 .fit-wellness-strip {
-    margin-top: calc(-1 * var(--gap-layout) + 12px);
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 12px;

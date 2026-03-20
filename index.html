@@ -3416,50 +3416,25 @@
                 </div>
 
                 <div class="page" id="page-fitness">
-                    <!-- ── Key metrics row ── -->
-                    <div class="fit-kpi-row">
+                    <!-- ── All fitness metric cards in one flat grid ── -->
+                    <div class="fit-metrics-grid" id="fitMetricsGrid">
                         <div class="fit-kpi-card">
                             <div class="fit-kpi-label">CTL</div>
-                            <div
-                                class="fit-kpi-value fit-kpi-value--ctl"
-                                id="fitCTL"
-                            >
-                                —
-                            </div>
+                            <div class="fit-kpi-value fit-kpi-value--ctl" id="fitCTL">—</div>
                             <div class="fit-kpi-name">Fitness</div>
-                            <div class="fit-kpi-bar">
-                                <div
-                                    class="fit-kpi-bar-fill fit-kpi-bar-fill--ctl"
-                                    id="fitBarCTL"
-                                ></div>
-                            </div>
+                            <div class="fit-kpi-bar"><div class="fit-kpi-bar-fill fit-kpi-bar-fill--ctl" id="fitBarCTL"></div></div>
                         </div>
                         <div class="fit-kpi-card">
                             <div class="fit-kpi-label">ATL</div>
-                            <div
-                                class="fit-kpi-value fit-kpi-value--atl"
-                                id="fitATL"
-                            >
-                                —
-                            </div>
+                            <div class="fit-kpi-value fit-kpi-value--atl" id="fitATL">—</div>
                             <div class="fit-kpi-name">Fatigue</div>
-                            <div class="fit-kpi-bar">
-                                <div
-                                    class="fit-kpi-bar-fill fit-kpi-bar-fill--atl"
-                                    id="fitBarATL"
-                                ></div>
-                            </div>
+                            <div class="fit-kpi-bar"><div class="fit-kpi-bar-fill fit-kpi-bar-fill--atl" id="fitBarATL"></div></div>
                         </div>
                         <div class="fit-kpi-card">
                             <div class="fit-kpi-label">TSB</div>
                             <div class="fit-kpi-value" id="fitTSB">—</div>
                             <div class="fit-kpi-name">Form</div>
-                            <div class="fit-kpi-bar">
-                                <div
-                                    class="fit-kpi-bar-fill"
-                                    id="fitBarTSB"
-                                ></div>
-                            </div>
+                            <div class="fit-kpi-bar"><div class="fit-kpi-bar-fill" id="fitBarTSB"></div></div>
                         </div>
                         <div class="fit-kpi-card">
                             <div class="fit-kpi-label">Ramp Rate</div>
@@ -3469,12 +3444,7 @@
                         </div>
                         <div class="fit-kpi-card">
                             <div class="fit-kpi-label">Streak</div>
-                            <div
-                                class="fit-kpi-value fit-kpi-value--streak"
-                                id="fitStreak"
-                            >
-                                —
-                            </div>
+                            <div class="fit-kpi-value fit-kpi-value--streak" id="fitStreak">—</div>
                             <div class="fit-kpi-name">days</div>
                             <div class="fit-kpi-hint" id="fitStreakHint"></div>
                         </div>
@@ -3484,67 +3454,25 @@
                             <div class="fit-kpi-name">activities</div>
                             <div class="fit-kpi-hint" id="fitWeekHint"></div>
                         </div>
-                    </div>
-
-                    <!-- ── Wellness strip (shown only if data available) ── -->
-                    <div
-                        class="fit-wellness-strip"
-                        id="fitWellnessStrip"
-                        style="display: none"
-                    >
-                        <div
-                            class="fit-wcard"
-                            id="fitWcardHRV"
-                            style="display: none"
-                        >
-                            <div class="fit-wcard-label">
-                                HRV
-                                <span
-                                    class="fit-wcard-trend"
-                                    id="fitHRVTrend"
-                                ></span>
-                            </div>
-                            <div class="fit-wcard-val" id="fitHRV">—</div>
-                            <div class="fit-wcard-sub">ms · 7-day avg</div>
+                        <div class="fit-kpi-card" id="fitWcardHRV" style="display:none">
+                            <div class="fit-kpi-label">HRV <span class="fit-wcard-trend" id="fitHRVTrend"></span></div>
+                            <div class="fit-kpi-value" id="fitHRV">—</div>
+                            <div class="fit-kpi-name">ms · 7-day avg</div>
                         </div>
-                        <div
-                            class="fit-wcard"
-                            id="fitWcardHR"
-                            style="display: none"
-                        >
-                            <div class="fit-wcard-label">Resting HR</div>
-                            <div class="fit-wcard-val" id="fitRestHR">—</div>
-                            <div class="fit-wcard-sub">bpm · latest</div>
+                        <div class="fit-kpi-card" id="fitWcardHR" style="display:none">
+                            <div class="fit-kpi-label">Resting HR</div>
+                            <div class="fit-kpi-value" id="fitRestHR">—</div>
+                            <div class="fit-kpi-name">bpm · latest</div>
                         </div>
-                        <div
-                            class="fit-wcard"
-                            id="fitWcardSleep"
-                            style="display: none"
-                        >
-                            <div class="fit-wcard-label">
-                                Sleep
-                                <span
-                                    class="fit-wcard-trend"
-                                    id="fitSleepTrend"
-                                ></span>
-                            </div>
-                            <div class="fit-wcard-val" id="fitSleep">—</div>
-                            <div class="fit-wcard-sub">hours · 7-day avg</div>
+                        <div class="fit-kpi-card" id="fitWcardSleep" style="display:none">
+                            <div class="fit-kpi-label">Sleep <span class="fit-wcard-trend" id="fitSleepTrend"></span></div>
+                            <div class="fit-kpi-value" id="fitSleep">—</div>
+                            <div class="fit-kpi-name">hours · 7-day avg</div>
                         </div>
-                        <div
-                            class="fit-wcard"
-                            id="fitWcardWeight"
-                            style="display: none"
-                        >
-                            <div class="fit-wcard-label">
-                                Weight
-                                <span
-                                    class="fit-wcard-trend"
-                                    id="fitWeightTrend"
-                                ></span>
-                            </div>
-                            <div class="fit-wcard-val" id="fitWeight">—</div>
-                            <div class="fit-wcard-sub">kg · latest</div>
+                        <div class="fit-kpi-card" id="fitWcardWeight" style="display:none">
+                            <div class="fit-kpi-label">Weight <span class="fit-wcard-trend" id="fitWeightTrend"></span></div>
+                            <div class="fit-kpi-value" id="fitWeight">—</div>
+                            <div class="fit-kpi-name">kg · latest</div>
                         </div>
                     </div>
 
