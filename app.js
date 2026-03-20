@@ -21508,6 +21508,7 @@ async function renderGearPage() {
             return { id: g.id, name: g.name || 'Unnamed bike', km, type: g.type || 'Bike' };
           });
           state.gearBikes = bikes;
+          try { localStorage.setItem('icu_gear_bikes', JSON.stringify(bikes)); } catch(e) {}
         }
       }
     }
