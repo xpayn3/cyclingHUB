@@ -599,7 +599,7 @@ export async function renderWeatherForecast() {
       ? `<div class="wx-day-precip"><svg viewBox="0 0 24 24" fill="currentColor" width="10" height="10"><path d="M12 2C8 8 5 12.5 5 15.5a7 7 0 0 0 14 0C19 12.5 16 8 12 2z"/></svg>${Math.round(precipPct)}%</div>`
       : `<div class="wx-day-precip"></div>`;
     return `
-      <div class="wx-day-card wx-day--${score}${isToday ? ' wx-day--today' : ''}" onclick="navigate('weather'); setTimeout(() => renderWeatherDayDetail(${i}), 50)">
+      <div class="wx-day-card wx-day--${score}${isToday ? ' wx-day--today' : ''}" onclick="renderWeatherDayDetail(${i})">
         <div class="wx-day-name">${dayName}</div>
         <div class="wx-day-icon">${wmoIcon(codes[i])}</div>
         <div class="wx-day-label">${wmoLabel(codes[i])}</div>
@@ -696,15 +696,9 @@ export async function renderWeatherPage(_restoreScrollY) {
   const container = document.getElementById('weatherPageContent');
   if (!container) return;
 
-  // Hide the day-detail back buttons, restore bottom nav
+  // Hide the day-detail back button if returning from detail sub-page
   const wxdBack = document.getElementById('wxdTopbarBack');
   if (wxdBack) wxdBack.style.display = 'none';
-  const backFab = document.getElementById('wxDayBackFab');
-  if (backFab) { backFab.style.visibility = 'hidden'; backFab.style.pointerEvents = 'none'; }
-  const pillNav = document.getElementById('dashPillNav');
-  if (pillNav) pillNav.style.display = '';
-  const menuBtn = document.getElementById('floatingMenuBtn');
-  if (menuBtn) menuBtn.style.display = '';
   // Restore weather page title
   const titleEl    = document.getElementById('pageTitle');
   const subtitleEl = document.getElementById('pageSubtitle');
@@ -1335,20 +1329,21 @@ export function refreshWeatherPage() {
    WEATHER DAY DETAIL SUB-PAGE
 ==================================================== */
 export function renderWeatherDayDetail(dayIdx) {
-  const container = document.getElementById('weatherPageContent');
-  if (!container) return;
+  const sheet = document.getElementById('wxDaySheet');
+  const container = document.getElementById('wxDaySheetBody');
+  if (!sheet || !container) return;
 
-  // Show back FAB, hide bottom nav
-  const backFab = document.getElementById('wxDayBackFab');
-  if (backFab) { backFab.style.visibility = 'visible'; backFab.style.pointerEvents = 'auto'; }
-  const pillNav = document.getElementById('dashPillNav');
-  if (pillNav) pillNav.style.display = 'none';
-  const menuBtn = document.getElementById('floatingMenuBtn');
-  if (menuBtn) menuBtn.style.display = 'none';
-
-  const data = state.weatherPageData;
-  const meta = state.weatherPageMeta;
-  if (!data?.daily || !meta) { renderWeatherPage(); return; }
+  let data = state.weatherPageData;
+  let meta = state.weatherPageMeta;
+  // Fallback: load from dashboard forecast cache if weather page hasn't been visited
+  if (!data?.daily) {
+    try { data = JSON.parse(localStorage.getItem('icu_wx_forecast')); } catch (_) {}
+  }
+  if (!meta) {
+    const isImperial = state.units === 'imperial';
+    meta = { deg: isImperial ? '°F' : '°C', windLbl: isImperial ? 'mph' : 'km/h' };
+  }
+  if (!data?.daily) return;
 
   const { deg, windLbl } = meta;
   const isMetric = deg !== '°F';
@@ -1557,13 +1552,7 @@ export function renderWeatherDayDetail(dayIdx) {
 
   // ── Show back button in topbar, update page title ────────────────────────
   const wxdBack = document.getElementById('wxdTopbarBack');
-  if (wxdBack) wxdBack.style.display = '';
-  const titleEl    = document.getElementById('pageTitle');
-  const subtitleEl = document.getElementById('pageSubtitle');
-  if (titleEl)    titleEl.textContent    = dayName;
-  if (subtitleEl) subtitleEl.textContent = 'Weather · Day detail';
-
-  // ── Build page ────────────────────────────────────────────────────────────
+  // ── Build sheet content ───────────────────────────────────────────────────
   container.innerHTML = `
     <div class="aw-detail-wrap">
     <!-- Hero -->
@@ -1610,6 +1599,9 @@ export function renderWeatherDayDetail(dayIdx) {
     </div>
     </div><!-- /.aw-detail-wrap -->
   `;
+
+  // Open the sheet
+  if (!sheet.open) sheet.showModal();
 
   // Drag-to-scroll on hourly rail
   const hRail = container.querySelector('.aw-hourly-scroll');

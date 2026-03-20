@@ -376,6 +376,19 @@
             </div>
         </dialog>
 
+        <!-- ============================================================  WEATHER DAY SHEET  ============================================================ -->
+        <dialog class="modal-dialog" id="wxDaySheet">
+            <div class="modal" style="max-width:480px">
+                <div class="modal-drag-indicator"></div>
+                <div style="display:flex;justify-content:flex-end;padding:8px 16px 0">
+                    <button class="modal-close" onclick="document.getElementById('wxDaySheet').close()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+                <div class="modal-body" id="wxDaySheetBody" style="padding-bottom:40px"></div>
+            </div>
+        </dialog>
+
         <!-- ============================================================  GEAR MODAL  ============================================================ -->
         <dialog class="modal-dialog" id="gearModal" aria-labelledby="gearModalTitle">
             <div class="modal" style="max-width: 520px">
@@ -6508,11 +6521,6 @@
             </svg>
         </button>
         <button class="cal-fab settings-back-fab" id="settingsBackFab" onclick="settingsBack()" aria-label="Back" style="visibility:hidden;pointer-events:none">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="15 18 9 12 15 6"/>
-            </svg>
-        </button>
-        <button class="cal-fab settings-back-fab" id="wxDayBackFab" onclick="renderWeatherPage()" aria-label="Back to Weather" style="visibility:hidden;pointer-events:none">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="15 18 9 12 15 6"/>
             </svg>
