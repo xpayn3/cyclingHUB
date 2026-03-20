@@ -1600,10 +1600,14 @@ export function renderWeatherDayDetail(dayIdx) {
     </div><!-- /.aw-detail-wrap -->
   `;
 
-  // Open the sheet overlay
+  // Open the sheet overlay + lock background scroll
   if (sheet.style.display === 'none' || !sheet.classList.contains('wxd-open')) {
+    window._wxSheetScrollY = window.scrollY;
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${window._wxSheetScrollY}px`;
+    document.body.style.width = '100%';
     sheet.style.display = '';
-    sheet.offsetHeight; // force reflow
+    sheet.offsetHeight;
     sheet.classList.add('wxd-open');
   }
 

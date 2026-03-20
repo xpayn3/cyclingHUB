@@ -26602,6 +26602,10 @@ window.closeWxDaySheet = function() {
   if (!sheet) return;
   sheet.classList.remove('wxd-open');
   setTimeout(() => { sheet.style.display = 'none'; }, 350);
+  document.body.style.position = '';
+  document.body.style.top = '';
+  document.body.style.width = '';
+  window.scrollTo(0, window._wxSheetScrollY || 0);
 };
 
 // ── From share.js ──
