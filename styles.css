@@ -9456,7 +9456,7 @@ body.show-save-fab #actSaveRouteFab {
     display: flex;
     position: fixed;
     bottom: 24px;
-    left: 24px;
+    left: 16px;
     width: 56px;
     height: 56px;
     border-radius: 50%;
