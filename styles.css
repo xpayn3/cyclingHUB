@@ -6079,7 +6079,8 @@ input[type="number"] {
 [data-dash-section="goalsTargets"],
 [data-dash-section="weeklyStats"],
 [data-dash-section="recentActivities"],
-[data-dash-section="powerProfile"] {
+[data-dash-section="powerProfile"],
+[data-dash-section="weather"] {
     content-visibility: visible;
     contain: style;
 }
