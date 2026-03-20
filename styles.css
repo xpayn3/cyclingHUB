@@ -21082,8 +21082,7 @@ textarea:focus-visible {
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 .mr-card:hover {
-    border-color: var(--accent);
-    box-shadow: 0 4px 16px var(--accent-whisper);
+    border-color: var(--border-active, var(--border));
 }
 .mr-card:active {
     transform: scale(0.98);
