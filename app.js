@@ -21275,7 +21275,7 @@ function renderBikeDetailPage() {
   _gearSelectedBike = bikeId;
   const photos = _gearLoadPhotos();
   const photo = photos[bikeId];
-  const kmFmt = bike.km >= 1000 ? (bike.km / 1000).toFixed(1) + 'k' : bike.km;
+  const kmFmt = bike.km.toLocaleString();
   const comps = loadGearComponents().filter(c => c.bikeId === bikeId);
   const bats = loadGearBatteries().filter(b => b.bikeId === bikeId && !b.obsolete);
   const svcs = loadGearServices().filter(s => s.bikeId === bikeId);
@@ -21408,7 +21408,7 @@ async function renderGearPage() {
   const bikeCards = bikes.map(b => {
     const sel = '';
     const photo = photos[b.id];
-    const kmFmt = b.km >= 1000 ? (b.km / 1000).toFixed(1) + 'k' : b.km;
+    const kmFmt = b.km.toLocaleString();
     return `<div class="gar-bike-card${sel}" onclick="gearSelectBike('${b.id}')">
       <div class="gar-bike-photo">
         ${photo ? `<img src="${photo}" alt="${b.name}">` : bikeSvg}
