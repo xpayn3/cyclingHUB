@@ -4667,11 +4667,11 @@ input[type="number"] {
     gap: 8px;
     overflow: hidden;
 }
-#fitPrWallCard { overflow: hidden; }
+#fitPrWallCard { overflow: hidden; padding: 12px; }
 .pr-tile {
     background: var(--bg-elevated);
-    border-radius: var(--radius);
-    padding: 14px;
+    border-radius: var(--radius-concentric);
+    padding: 10px;
     text-align: center;
     min-width: 0;
     overflow: hidden;
