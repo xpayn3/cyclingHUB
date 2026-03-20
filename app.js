@@ -16482,14 +16482,28 @@ function renderActivityBasic(a) {
      </div>`;
   };
 
+  // ── Derived advanced metrics ──────────────────────────────────────────
+  const vi = (np > 0 && avgW > 0) ? (np / avgW) : 0;           // Variability Index
+  const weight = state.athlete?.weight || 0;
+  const wkg = (np > 0 && weight > 0) ? (np / weight) :
+              (avgW > 0 && weight > 0) ? (avgW / weight) : 0;  // W/kg
+  const ftp = state.athlete?.ftp || 0;
+  const kj = a.kilojoules || (avgW > 0 && secs > 0 ? avgW * secs / 1000 : 0);
+  // Pw:Hr decoupling — drift of power:HR ratio from 1st half to 2nd half
+  const decoupling = a.icu_power_hr_decoupling || a.decoupling || 0;
+
   let sec = '';
   if (elev > 0)                  sec += sStat(elev.toLocaleString() + ' m', 'Elevation',   'elev',   'green',  pctElev, false);
   if (speedKmh > 0.5)           sec += sStat(speedKmh.toFixed(1) + ' km/h','Avg Speed',   'speed',  'blue',   pctSpd,  true);
   if (avgW > 0 && np > 0)        sec += sStat(Math.round(avgW) + 'W',       'Avg Power',   'zap',    'orange', pctPow,  true);
   else if (powerEstimated)       sec += sStat(estAvgW + 'W',               'Est. Power',  'zap',    'orange', null,    false);
   if (maxW > 0)                  sec += sStat(Math.round(maxW) + 'W',       'Max Power',   'zap',    'orange', null,    false);
+  if (wkg > 0)                   sec += sStat(wkg.toFixed(2) + ' W/kg',    'Power/Weight', 'zap',    'green',  null,    false);
+  if (vi > 1.0)                  sec += sStat(vi.toFixed(2),               'Variability',  'target', 'purple', null,    false);
+  if (ifVal > 0)                 sec += sStat(ifVal.toFixed(2),             'Int. Factor',  'target', 'purple', null,    false);
+  if (decoupling)                sec += sStat(decoupling.toFixed(1) + '%', 'Pw:Hr Drift',  'pulse',  decoupling > 5 ? 'red' : 'green', null, false);
+  if (kj > 0 && !powerEstimated) sec += sStat(Math.round(kj) + ' kJ',    'Energy',       'fire',   'yellow', null,    false);
   if (powerEstimated && estKj > 0) sec += sStat(Math.round(estKj) + ' kJ', 'Est. Energy', 'fire',   'yellow', null,    false);
-  if (ifVal > 0)                 sec += sStat(ifVal.toFixed(2),              'Int. Factor', 'target', 'purple', null,    false);
   if (maxHR > 0)                 sec += sStat(Math.round(maxHR) + ' bpm',   'Max HR',      'heart',  'red',    null,    false);
   if (avgCad > 0)                sec += sStat(Math.round(avgCad) + ' rpm',  'Cadence',     'cad',    'yellow', pctCad,  false);
   if (cals > 0)                  sec += sStat(Math.round(cals).toLocaleString(), 'Calories','fire',   'orange', null,    false);
@@ -16500,6 +16514,20 @@ function renderActivityBasic(a) {
   secEl.querySelectorAll('.act-sstat').forEach(el => {
     if (!el.dataset.glow) { el.dataset.glow = '1'; window.attachCardGlow && window.attachCardGlow(el); }
   });
+
+  // ── Gear used badge ──────────────────────────────────────────────────
+  const gearBadgeEl = document.getElementById('actGearBadge');
+  if (gearBadgeEl) {
+    gearBadgeEl.style.display = 'none';
+    const gearId = a.gear_id || a.icu_gear_id || '';
+    if (gearId && state.athlete?.bikes) {
+      const bike = state.athlete.bikes.find(b => b.id === gearId);
+      if (bike) {
+        gearBadgeEl.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5L9 11l-3.5 3.5M15 6l-4 5.5H5.5M15 6l3 5.5"/></svg> ${_escHtml(bike.name || gearId)}`;
+        gearBadgeEl.style.display = '';
+      }
+    }
+  }
 
   // ── Weather conditions during this ride ──────────────────────────────────
   renderActivityWeather(a);
