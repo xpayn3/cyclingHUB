@@ -2132,22 +2132,30 @@ input[type="number"] {
     margin: 4px 0;
 }
 .stat-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
-    gap: 8px;
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 4px;
 }
+.stat-grid::-webkit-scrollbar { display: none; }
 .stat-card {
+    flex: 0 0 calc(50% - 5px);
+    aspect-ratio: 1;
     background: var(--bg-card);
     border: none;
     border-radius: var(--radius);
     padding: var(--pad-card);
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    justify-content: space-between;
     transition:
         background var(--transition);
     position: relative;
     contain: layout style;
+    scroll-snap-align: start;
 }
 
 .stat-card:hover {
@@ -19148,7 +19156,8 @@ body:has(.act-sheet-mode) .topbar {
        item inset at the normal content gutter. */
     .goals-dash-scroll,
     .wxp-week-scroll,
-    #forecastRail {
+    #forecastRail,
+    .stat-grid {
         margin-left: calc(-1 * var(--pad-page));
         margin-right: calc(-1 * var(--pad-page));
         padding-left: var(--pad-page);
@@ -20621,6 +20630,7 @@ body.hm-map-dragging html,
     .wxp-week-scroll,
     .wxd-hourly-scroll,
     .goals-dash-scroll,
+    .stat-grid,
     #forecastRail {
         scrollbar-width: none !important;
     }
@@ -20630,7 +20640,8 @@ body.hm-map-dragging html,
     .wx-loc-switcher::-webkit-scrollbar,
     .wxp-week-scroll::-webkit-scrollbar,
     .wxd-hourly-scroll::-webkit-scrollbar,
-    .goals-dash-scroll::-webkit-scrollbar {
+    .goals-dash-scroll::-webkit-scrollbar,
+    .stat-grid::-webkit-scrollbar {
         display: none !important;
     }
 }
