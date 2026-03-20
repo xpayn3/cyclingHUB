@@ -12640,9 +12640,9 @@ function _closeOverlaySheet(id) {
     document.body.style.overflow = '';
     window.scrollTo(0, window._sheetScrollY || 0);
   }
-  // Reset panel transform from swipe
+  // Reset panel transform from swipe + scroll position
   const panel = sheet.querySelector('.wxd-sheet');
-  if (panel) { panel.style.transform = ''; panel.style.transition = ''; }
+  if (panel) { panel.style.transform = ''; panel.style.transition = ''; panel.scrollTop = 0; }
   const backdrop = sheet.querySelector('.wxd-backdrop');
   if (backdrop) backdrop.style.opacity = '';
 }
