@@ -24443,7 +24443,7 @@ function renderGoalsDashWidget() {
     const ringColor = statusColor[statusCls[p.status]] || 'var(--accent)';
 
     html += `
-    <div class="goal-dash-card card" onclick="navigate('goals')">
+    <div class="goal-dash-card card" onclick="showGoalForm(${goal.id})">
       <div class="goal-dash-header">
         <div class="goal-dash-title">${m.label}</div>
         <div class="goal-dash-ring">
