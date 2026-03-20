@@ -1600,8 +1600,18 @@ export function renderWeatherDayDetail(dayIdx) {
     </div><!-- /.aw-detail-wrap -->
   `;
 
-  // Open the sheet
-  if (!sheet.open) sheet.showModal();
+  // Open the sheet — lock body scroll to prevent jump
+  if (!sheet.open) {
+    const scrollY = window.scrollY;
+    sheet.showModal();
+    // Prevent browser from resetting scroll position
+    window.scrollTo(0, scrollY);
+    // On close, restore scroll
+    sheet.addEventListener('close', function _wxClose() {
+      sheet.removeEventListener('close', _wxClose);
+      window.scrollTo(0, scrollY);
+    });
+  }
 
   // Drag-to-scroll on hourly rail
   const hRail = container.querySelector('.aw-hourly-scroll');
