@@ -1600,15 +1600,9 @@ export function renderWeatherDayDetail(dayIdx) {
     </div><!-- /.aw-detail-wrap -->
   `;
 
-  // Open the sheet overlay + lock background scroll
+  // Open the sheet overlay
   if (sheet.style.display === 'none' || !sheet.classList.contains('wxd-open')) {
-    window._wxSheetScrollY = window.scrollY;
-    document.body.style.position = 'fixed';
-    document.body.style.top = `-${window._wxSheetScrollY}px`;
-    document.body.style.width = '100%';
-    sheet.style.display = '';
-    sheet.offsetHeight;
-    sheet.classList.add('wxd-open');
+    window._openOverlaySheet('wxDaySheet');
   }
 
   // Drag-to-scroll on hourly rail

@@ -12561,15 +12561,20 @@ function _unlockSheetScroll() {
 }
 
 /* ── Overlay-sheet open/close helpers (replaces dialog.showModal/close) ── */
+let _sheetStack = [];
 function _openOverlaySheet(id) {
   const sheet = document.getElementById(id);
   if (!sheet) return;
-  window._sheetScrollY = window.scrollY;
-  document.body.style.position = 'fixed';
-  document.body.style.top = `-${window._sheetScrollY}px`;
-  document.body.style.width = '100%';
+  // Only lock body on first sheet
+  if (_sheetStack.length === 0) {
+    window._sheetScrollY = window.scrollY;
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${window._sheetScrollY}px`;
+    document.body.style.width = '100%';
+  }
+  _sheetStack.push(id);
   sheet.style.display = '';
-  sheet.offsetHeight; // force reflow
+  sheet.offsetHeight;
   sheet.classList.add('wxd-open');
 }
 
@@ -12578,10 +12583,14 @@ function _closeOverlaySheet(id) {
   if (!sheet) return;
   sheet.classList.remove('wxd-open');
   setTimeout(() => { sheet.style.display = 'none'; }, 350);
-  document.body.style.position = '';
-  document.body.style.top = '';
-  document.body.style.width = '';
-  window.scrollTo(0, window._sheetScrollY || 0);
+  _sheetStack = _sheetStack.filter(s => s !== id);
+  // Only unlock body when all sheets closed
+  if (_sheetStack.length === 0) {
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.width = '';
+    window.scrollTo(0, window._sheetScrollY || 0);
+  }
 }
 
 function _cleanSheet(inner) {
@@ -12942,27 +12951,12 @@ function _notifRefreshBell() {
 }
 
 function openNotifSheet() {
-  const sheet = document.getElementById('notifSheet');
-  if (!sheet) return;
   renderNotifSheet();
-  window._notifSheetScrollY = window.scrollY;
-  document.body.style.position = 'fixed';
-  document.body.style.top = `-${window._notifSheetScrollY}px`;
-  document.body.style.width = '100%';
-  sheet.style.display = '';
-  sheet.offsetHeight;
-  sheet.classList.add('wxd-open');
+  _openOverlaySheet('notifSheet');
 }
 
 function closeNotifSheet() {
-  const sheet = document.getElementById('notifSheet');
-  if (!sheet) return;
-  sheet.classList.remove('wxd-open');
-  setTimeout(() => { sheet.style.display = 'none'; }, 350);
-  document.body.style.position = '';
-  document.body.style.top = '';
-  document.body.style.width = '';
-  window.scrollTo(0, window._notifSheetScrollY || 0);
+  _closeOverlaySheet('notifSheet');
 }
 
 function renderNotifSheet() {
@@ -26637,14 +26631,7 @@ Object.assign(window, { weatherIconSvg, wmoIcon, wmoLabel, windDir, fmtTempC,
   renderWeatherForecast, renderWeatherPage, renderWeatherDayDetail, refreshWeatherPage });
 
 window.closeWxDaySheet = function() {
-  const sheet = document.getElementById('wxDaySheet');
-  if (!sheet) return;
-  sheet.classList.remove('wxd-open');
-  setTimeout(() => { sheet.style.display = 'none'; }, 350);
-  document.body.style.position = '';
-  document.body.style.top = '';
-  document.body.style.width = '';
-  window.scrollTo(0, window._wxSheetScrollY || 0);
+  _closeOverlaySheet('wxDaySheet');
 };
 
 // ── From share.js ──
