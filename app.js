@@ -16520,8 +16520,9 @@ function renderActivityBasic(a) {
   if (gearBadgeEl) {
     gearBadgeEl.style.display = 'none';
     const gearId = a.gear_id || a.icu_gear_id || '';
-    if (gearId && state.athlete?.bikes) {
-      const bike = state.athlete.bikes.find(b => b.id === gearId);
+    const bikes = state.gearBikes || JSON.parse(localStorage.getItem('icu_gear_bikes') || '[]');
+    if (gearId && bikes.length) {
+      const bike = bikes.find(b => b.id === gearId);
       if (bike) {
         gearBadgeEl.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5L9 11l-3.5 3.5M15 6l-4 5.5H5.5M15 6l3 5.5"/></svg> ${_escHtml(bike.name || gearId)}`;
         gearBadgeEl.style.display = '';
