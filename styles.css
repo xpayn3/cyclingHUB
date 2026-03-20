@@ -4309,6 +4309,7 @@ input[type="number"] {
 
 /* ── Wellness strip ── */
 .fit-wellness-strip {
+    margin-top: calc(-1 * var(--gap-layout) + 12px);
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 12px;
