@@ -392,6 +392,38 @@
             </div>
         </div>
 
+        <!-- ============================================================  GLOBAL SEARCH SHEET  ============================================================ -->
+        <div class="wxd-overlay" id="globalSearchSheet" style="display:none">
+            <div class="wxd-backdrop" onclick="closeGlobalSearch()"></div>
+            <div class="gs-sheet">
+                <!-- Search bar -->
+                <div class="gs-bar">
+                    <svg class="gs-bar-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input id="gsInput" type="text" placeholder="Search activities, routes, settings…" autocomplete="off">
+                    <button class="gs-clear" id="gsClear" onclick="gsClearInput()" style="display:none">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                    <button class="gs-cancel" onclick="closeGlobalSearch()">Cancel</button>
+                </div>
+                <!-- Filter chips -->
+                <div class="gs-filters" id="gsFilters">
+                    <button class="gs-chip gs-chip--active" data-gs-filter="all" onclick="gsSetFilter('all')">All</button>
+                    <button class="gs-chip" data-gs-filter="activities" onclick="gsSetFilter('activities')">Activities</button>
+                    <button class="gs-chip" data-gs-filter="routes" onclick="gsSetFilter('routes')">Routes</button>
+                    <button class="gs-chip" data-gs-filter="workouts" onclick="gsSetFilter('workouts')">Workouts</button>
+                    <button class="gs-chip" data-gs-filter="gear" onclick="gsSetFilter('gear')">Gear</button>
+                    <button class="gs-chip" data-gs-filter="settings" onclick="gsSetFilter('settings')">Settings</button>
+                </div>
+                <!-- Results -->
+                <div class="gs-results" id="gsResults">
+                    <div class="gs-placeholder">
+                        <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <div>Search across your rides, routes, gear & settings</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- ============================================================  GEAR MODAL  ============================================================ -->
         <div class="wxd-overlay" id="gearModal" style="display:none">
             <div class="wxd-backdrop" onclick="closeGearModal()"></div>
@@ -6499,7 +6531,7 @@
         </main>
 
         <!-- ── Global floating FABs (outside all page transforms) ── -->
-        <button class="cal-fab" id="actSearchFab" onclick="openActivitySearch()" aria-label="Search activities" style="visibility:hidden;pointer-events:none">
+        <button class="cal-fab" id="actSearchFab" onclick="openGlobalSearch()" aria-label="Search activities" style="visibility:hidden;pointer-events:none">
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                 <circle cx="8.5" cy="8.5" r="5.5"/><line x1="13" y1="13" x2="18" y2="18"/>
             </svg>
@@ -6534,7 +6566,7 @@
                 <polyline points="15 18 9 12 15 6"/>
             </svg>
         </button>
-        <button class="cal-fab settings-search-fab" id="settingsSearchFab" onclick="focusSettingsSearch()" aria-label="Search settings" style="visibility:hidden;pointer-events:none">
+        <button class="cal-fab settings-search-fab" id="settingsSearchFab" onclick="openGlobalSearch()" aria-label="Search settings" style="visibility:hidden;pointer-events:none">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>

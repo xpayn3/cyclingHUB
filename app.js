@@ -26634,6 +26634,213 @@ window.closeWxDaySheet = function() {
   _closeOverlaySheet('wxDaySheet');
 };
 
+/* ============================================================
+   GLOBAL SEARCH SHEET
+============================================================ */
+let _gsFilter = 'all';
+let _gsDebounce = 0;
+
+function openGlobalSearch() {
+  _openOverlaySheet('globalSearchSheet');
+  const inp = document.getElementById('gsInput');
+  if (inp) { inp.value = ''; inp.focus(); }
+  document.getElementById('gsClear').style.display = 'none';
+  document.getElementById('gsResults').innerHTML = `<div class="gs-placeholder">
+    <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <div>Search across your rides, routes, gear & settings</div>
+  </div>`;
+  gsSetFilter('all');
+}
+
+function closeGlobalSearch() {
+  _closeOverlaySheet('globalSearchSheet');
+  const inp = document.getElementById('gsInput');
+  if (inp) inp.blur();
+}
+
+function gsClearInput() {
+  const inp = document.getElementById('gsInput');
+  if (inp) { inp.value = ''; inp.focus(); }
+  document.getElementById('gsClear').style.display = 'none';
+  document.getElementById('gsResults').innerHTML = `<div class="gs-placeholder">
+    <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <div>Search across your rides, routes, gear & settings</div>
+  </div>`;
+}
+
+function gsSetFilter(f) {
+  _gsFilter = f;
+  document.querySelectorAll('.gs-chip').forEach(c => {
+    c.classList.toggle('gs-chip--active', c.dataset.gsFilter === f);
+  });
+  const inp = document.getElementById('gsInput');
+  if (inp && inp.value.trim()) _gsRunSearch(inp.value.trim());
+}
+
+function _gsOnInput(e) {
+  const q = e.target.value.trim();
+  document.getElementById('gsClear').style.display = q ? '' : 'none';
+  clearTimeout(_gsDebounce);
+  if (!q) { gsClearInput(); return; }
+  _gsDebounce = setTimeout(() => _gsRunSearch(q), 150);
+}
+
+function _gsRunSearch(q) {
+  const ql = q.toLowerCase();
+  const results = document.getElementById('gsResults');
+  if (!results) return;
+  let html = '';
+  let totalCount = 0;
+
+  // ── Activities ──
+  if (_gsFilter === 'all' || _gsFilter === 'activities') {
+    const acts = (getAllActivities ? getAllActivities() : state.activities || [])
+      .filter(a => {
+        const name = (a.name || '').toLowerCase();
+        const type = (a.type || a.icu_sport || '').toLowerCase();
+        return name.includes(ql) || type.includes(ql);
+      })
+      .sort((a, b) => new Date(b.start_date_local || b.start_date) - new Date(a.start_date_local || a.start_date))
+      .slice(0, 15);
+    if (acts.length) {
+      html += `<div class="gs-group"><div class="gs-group-title">Activities</div>`;
+      acts.forEach(a => {
+        const name = a.name || 'Untitled';
+        const type = a.type || a.icu_sport || 'Ride';
+        const d = new Date(a.start_date_local || a.start_date);
+        const dateStr = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+        const dist = a.distance ? (a.distance / 1000).toFixed(1) + ' km' : '';
+        html += `<div class="gs-item" onclick="closeGlobalSearch();navigate('activity');renderActivityDetail('${a.id}')">
+          <div class="gs-item-icon" style="color:var(--accent)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+          <div class="gs-item-body">
+            <div class="gs-item-title">${_escHtml(name)}</div>
+            <div class="gs-item-sub">${dateStr}${dist ? ' · ' + dist : ''} · ${_escHtml(type)}</div>
+          </div>
+          <svg class="gs-item-chevron" viewBox="0 0 7 12" width="8" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>`;
+      });
+      html += '</div>';
+      totalCount += acts.length;
+    }
+  }
+
+  // ── Saved Routes ──
+  if (_gsFilter === 'all' || _gsFilter === 'routes') {
+    const routes = (window._mrSavedRoutes || []).filter(r => (r.name || '').toLowerCase().includes(ql)).slice(0, 10);
+    if (routes.length) {
+      html += `<div class="gs-group"><div class="gs-group-title">Routes</div>`;
+      routes.forEach(r => {
+        const dist = r.distance ? (r.distance / 1000).toFixed(1) + ' km' : '';
+        html += `<div class="gs-item" onclick="closeGlobalSearch();navigate('myroutes')">
+          <div class="gs-item-icon" style="color:#5ac8fa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 1 7 7c0 5.25-7 13-7 13S5 14.25 5 9a7 7 0 0 1 7-7z"/><circle cx="12" cy="9" r="2.5"/></svg></div>
+          <div class="gs-item-body">
+            <div class="gs-item-title">${_escHtml(r.name || 'Untitled Route')}</div>
+            <div class="gs-item-sub">${dist || 'Saved route'}</div>
+          </div>
+          <svg class="gs-item-chevron" viewBox="0 0 7 12" width="8" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>`;
+      });
+      html += '</div>';
+      totalCount += routes.length;
+    }
+  }
+
+  // ── Saved Workouts ──
+  if (_gsFilter === 'all' || _gsFilter === 'workouts') {
+    const workouts = (window._mrSavedWorkouts || []).filter(w => (w.name || '').toLowerCase().includes(ql)).slice(0, 10);
+    if (workouts.length) {
+      html += `<div class="gs-group"><div class="gs-group-title">Workouts</div>`;
+      workouts.forEach(w => {
+        const dur = w.totalDuration ? _fmtDuration(w.totalDuration) : '';
+        html += `<div class="gs-item" onclick="closeGlobalSearch();wrkLoadWorkout(window._mrSavedWorkouts.find(x=>x.id==='${w.id}'));navigate('workout')">
+          <div class="gs-item-icon" style="color:#ff9500"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+          <div class="gs-item-body">
+            <div class="gs-item-title">${_escHtml(w.name || 'Untitled Workout')}</div>
+            <div class="gs-item-sub">${dur || 'Saved workout'}</div>
+          </div>
+          <svg class="gs-item-chevron" viewBox="0 0 7 12" width="8" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>`;
+      });
+      html += '</div>';
+      totalCount += workouts.length;
+    }
+  }
+
+  // ── Gear Components ──
+  if (_gsFilter === 'all' || _gsFilter === 'gear') {
+    const gear = (state.gearComponents || []).filter(g => {
+      const name = (g.name || '').toLowerCase();
+      const brand = (g.brand || '').toLowerCase();
+      const model = (g.model || '').toLowerCase();
+      return name.includes(ql) || brand.includes(ql) || model.includes(ql);
+    }).slice(0, 10);
+    if (gear.length) {
+      html += `<div class="gs-group"><div class="gs-group-title">Gear</div>`;
+      gear.forEach(g => {
+        const sub = [g.brand, g.model].filter(Boolean).join(' ');
+        html += `<div class="gs-item" onclick="closeGlobalSearch();navigate('gear')">
+          <div class="gs-item-icon" style="color:#f0c429"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M14.31 8l5.74 9.94M9.69 8h11.48M7.38 12l5.74-9.94M9.69 16L3.95 6.06M14.31 16H2.83M16.62 12l-5.74 9.94"/></svg></div>
+          <div class="gs-item-body">
+            <div class="gs-item-title">${_escHtml(g.name || 'Component')}</div>
+            <div class="gs-item-sub">${_escHtml(sub || g.category || '')}</div>
+          </div>
+          <svg class="gs-item-chevron" viewBox="0 0 7 12" width="8" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>`;
+      });
+      html += '</div>';
+      totalCount += gear.length;
+    }
+  }
+
+  // ── Settings ──
+  if (_gsFilter === 'all' || _gsFilter === 'settings') {
+    const settingsItems = [
+      { label: 'intervals.icu Connection', sub: 'Sync, credentials', page: 'settings', subpage: 'intervalsicu' },
+      { label: 'Theme', sub: 'Dark, light, Tour de France', page: 'settings', subpage: 'theme' },
+      { label: 'Notifications', sub: 'Push alerts, gear reminders', page: 'settings', subpage: 'notifications' },
+      { label: 'My Garage', sub: 'Bike fleet, components', page: 'settings', subpage: 'mygarage' },
+      { label: 'Route Builder', sub: 'API keys, routing engines', page: 'settings', subpage: 'routebuilder' },
+      { label: 'Backup & Restore', sub: 'Export, import data', page: 'settings', subpage: 'backup' },
+      { label: 'Dashboard Sections', sub: 'Show/hide cards', page: 'settings', subpage: 'dashboardsections' },
+      { label: 'Feedback', sub: 'Report bugs, suggestions', page: 'settings', subpage: 'feedback' },
+      { label: 'Changelog', sub: 'Version history', page: 'settings', subpage: 'changelog' },
+    ];
+    const matched = settingsItems.filter(s =>
+      s.label.toLowerCase().includes(ql) || s.sub.toLowerCase().includes(ql)
+    );
+    if (matched.length) {
+      html += `<div class="gs-group"><div class="gs-group-title">Settings</div>`;
+      matched.forEach(s => {
+        html += `<div class="gs-item" onclick="closeGlobalSearch();navigate('${s.page}');setTimeout(()=>{const el=document.getElementById('iosSubpage-${s.subpage}');if(el)iosOpenSubpage('${s.subpage}')},100)">
+          <div class="gs-item-icon" style="color:var(--text-secondary)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
+          <div class="gs-item-body">
+            <div class="gs-item-title">${s.label}</div>
+            <div class="gs-item-sub">${s.sub}</div>
+          </div>
+          <svg class="gs-item-chevron" viewBox="0 0 7 12" width="8" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>`;
+      });
+      html += '</div>';
+      totalCount += matched.length;
+    }
+  }
+
+  if (totalCount === 0) {
+    html = `<div class="gs-no-results">
+      <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.3;margin-bottom:8px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <div>No results for "${_escHtml(q)}"</div>
+    </div>`;
+  }
+
+  results.innerHTML = html;
+}
+
+// Attach global search input listener
+document.addEventListener('DOMContentLoaded', () => {
+  const inp = document.getElementById('gsInput');
+  if (inp) inp.addEventListener('input', _gsOnInput);
+});
+
 // ── From share.js ──
 Object.assign(window, { openShareModal, closeShareModal, shareUpdateSetting,
   shareRender, shareImageDownload, shareImageCopy });
@@ -26651,6 +26858,9 @@ Object.assign(window, { renderRouteBuilderPage, rbUndo, rbRedo, rbReverse,
 // ── From heatmap.js ──
 Object.assign(window, { renderHeatmapPage, hmLoadAllRoutes, hmApplyFilters,
   hmRedraw, hmToggleAnimate, hmRescanGPS });
+
+// ── Global Search ──
+Object.assign(window, { openGlobalSearch, closeGlobalSearch, gsClearInput, gsSetFilter });
 
 // ── From workout.js (includes settings/theme functions) ──
 Object.assign(window, { wrkRender, wrkRefreshStats, wrkSetName, wrkAddSegment, wrkRemove, wrkMove,
