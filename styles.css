@@ -244,6 +244,7 @@
     --radius-lg: 12px;
     --radius-sm: 8px;
     --radius-pill: 20px;
+    --radius-sheet: 20px;
 
     /* ── Icon sizes ─────────────────────────────────────────*/
     --icon-xs: 14px;
@@ -899,7 +900,7 @@ code {
     max-width: 480px;
     max-height: 60vh;
     background: var(--bg-surface);
-    border-radius: var(--radius) var(--radius) 0 0;
+    border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
     display: flex;
     flex-direction: column;
     animation: gearPickerIn 0.3s cubic-bezier(0.32, 0.72, 0, 1);
@@ -7702,7 +7703,7 @@ body.show-save-fab #actSaveRouteFab {
     right: 0;
     max-height: 90dvh;
     background: var(--bg-base);
-    border-radius: var(--radius) var(--radius) 0 0;
+    border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
     overflow: hidden;
     transform: translateY(100%);
     transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.3, 1);
@@ -7799,7 +7800,7 @@ body.show-save-fab #actSaveRouteFab {
         max-width: 420px;
         left: 50%;
         transform: translateX(-50%) translateY(100%);
-        border-radius: var(--radius) var(--radius) 0 0;
+        border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
     }
     .prof-overlay.prof-open .prof-sheet {
         transform: translateX(-50%) translateY(0);
@@ -9446,7 +9447,7 @@ body.show-save-fab #actSaveRouteFab {
     will-change: transform;
     transition: transform 0.35s cubic-bezier(0.2, 0, 0, 1);
     background: var(--bg-base);
-    border-radius: var(--radius) var(--radius) 0 0;
+    border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
     box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.5);
     overflow: visible;
 }
@@ -15036,7 +15037,7 @@ body:has(.act-sheet-mode) .topbar {
 .wxd-sheet {
     position: relative;
     background: var(--bg-surface);
-    border-radius: var(--radius) var(--radius) 0 0;
+    border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
     width: 100%;
     max-width: 480px;
     max-height: 85vh;
@@ -16972,7 +16973,7 @@ body:has(.act-sheet-mode) .topbar {
         max-width: 100% !important;
         width: 100%;
         max-height: 85dvh;
-        border-radius: var(--radius) var(--radius) 0 0;
+        border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
         display: flex;
         flex-direction: column;
         overflow: hidden;
@@ -19911,7 +19912,7 @@ body.hm-map-dragging html,
     }
     .hm-wrapper:not(.hm-sheet-mode) .hm-bottom-panel {
         padding: 14px;
-        border-radius: var(--radius) var(--radius) 0 0;
+        border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
     }
 }
 
@@ -19941,7 +19942,7 @@ body.hm-map-dragging html,
     will-change: transform;
     transition: transform 0.35s cubic-bezier(0.2, 0, 0, 1);
     background: var(--bg-base);
-    border-radius: var(--radius) var(--radius) 0 0;
+    border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
     box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.5);
     overflow: visible;
 }
@@ -21171,7 +21172,7 @@ textarea:focus-visible {
     display: flex;
     align-items: flex-end;
     padding: 16px 12px 12px;
-    border-radius: var(--radius) var(--radius) 0 0;
+    border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
     overflow: hidden;
 }
 .mr-card-workout-bars {
@@ -24024,7 +24025,7 @@ html[data-theme="tdf"] {
     will-change: transform;
     transition: transform 0.35s cubic-bezier(0.2, 0, 0, 1);
     background: var(--bg-base);
-    border-radius: var(--radius) var(--radius) 0 0;
+    border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
     box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.5);
     overflow: visible;
 }
