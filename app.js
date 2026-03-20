@@ -21386,11 +21386,14 @@ async function renderGearPage() {
         );
         if (resp.ok) {
           const data = await resp.json();
-          bikes = (data || []).map(g => ({
-            id: g.id, name: g.name || 'Unnamed bike',
-            km: g.distance ? Math.round(g.distance / 1000) : 0,
-            type: g.type || 'Bike',
-          }));
+          bikes = (data || []).map(g => {
+            // distance may be in meters (g.distance), or already km (g.total_distance_km)
+            let km = 0;
+            if (g.distance) km = Math.round(g.distance / 1000);
+            else if (g.total_distance) km = Math.round(g.total_distance / 1000);
+            else if (g.usage?.total_distance_km) km = Math.round(g.usage.total_distance_km);
+            return { id: g.id, name: g.name || 'Unnamed bike', km, type: g.type || 'Bike' };
+          });
           state.gearBikes = bikes;
         }
       }
