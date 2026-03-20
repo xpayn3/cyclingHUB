@@ -4667,7 +4667,6 @@ input[type="number"] {
     gap: 8px;
     overflow: hidden;
 }
-#fitPrWallCard > .card-header { padding: 0; margin-bottom: 8px; }
 .pr-tile {
     background: var(--bg-card);
     border-radius: var(--radius);
