@@ -240,9 +240,9 @@
        --radius-lg : larger panels, modals, hero cards
        --radius-sm : small chips, badges, inputs
     ──────────────────────────────────────────────────────── */
-    --radius: 12px;
-    --radius-lg: 12px;
-    --radius-sm: 8px;
+    --radius: 16px;
+    --radius-lg: 16px;
+    --radius-sm: 10px;
     --radius-pill: 20px;
     --radius-sheet: 24px;
     /* iOS 26 concentric radius: inner = outer - padding */
