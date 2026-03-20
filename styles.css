@@ -356,8 +356,8 @@ select {
     background-color: rgba(120, 120, 128, 0.32);
 }
 .app-select:focus {
-    outline: 2px solid var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-dim);
+    outline: none;
+    border-color: var(--accent);
 }
 .app-select option {
     background: var(--bg-elevated);
@@ -3368,7 +3368,7 @@ input[type="number"] {
     color: var(--text-muted);
 }
 .acts-search-input:focus {
-    box-shadow: 0 0 0 2px var(--accent-dim);
+    border-color: var(--accent);
 }
 .acts-search-input:focus ~ .acts-search-kbd {
     display: none;
@@ -5408,7 +5408,6 @@ input[type="number"] {
 }
 .stt-input:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-dim);
 }
 
 /* ── Actions row ── */
@@ -7498,7 +7497,8 @@ body.show-save-fab #actSaveRouteFab {
     color: rgba(235, 235, 245, 0.2);
 }
 .cev-value-input:focus {
-    outline: 2px solid var(--accent);
+    outline: none;
+    border-color: var(--accent);
 }
 
 /* Delete section — iOS destructive style */
@@ -9180,7 +9180,6 @@ body.show-save-fab #actSaveRouteFab {
     .map-toggle-trigger:hover { border-color: var(--border-active); }
     .map-toggle-wrap--open .map-toggle-trigger {
         border-color: var(--accent);
-        box-shadow: 0 0 0 3px var(--accent-dim);
     }
     .map-toggle-trigger .map-mode-icon { flex-shrink: 0; }
     .map-toggle-chevron {
@@ -20869,7 +20868,7 @@ body.hm-map-dragging html,
 /* ── Focus visible for keyboard accessibility ────────────── */
 :focus-visible {
     outline: 2px solid var(--accent);
-    outline-offset: 2px;
+    outline-offset: -2px;
 }
 
 button:focus-visible,
@@ -20878,7 +20877,7 @@ input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
     outline: 2px solid var(--accent);
-    outline-offset: 2px;
+    outline-offset: -2px;
 }
 
 .nav-item:focus-visible {
@@ -20889,7 +20888,7 @@ textarea:focus-visible {
 
 .card:focus-visible {
     outline: 2px solid var(--accent);
-    outline-offset: 2px;
+    outline-offset: -2px;
     border-radius: var(--radius);
 }
 
@@ -22566,7 +22565,6 @@ html[data-theme="tdf"] {
 .rb-export-trigger:hover { border-color: var(--border-active); }
 .rb-export-wrap--open .rb-export-trigger {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-dim);
 }
 .rb-export-trigger svg:first-child { color: var(--accent); flex-shrink: 0; }
 .rb-export-chevron {
@@ -22645,7 +22643,7 @@ html[data-theme="tdf"] {
 .rb-router-trigger:hover { background: var(--hover-overlay-strong); }
 .rb-router-wrap--open .rb-router-trigger {
     background: var(--hover-overlay-strong);
-    box-shadow: 0 0 0 3px var(--accent-dim);
+    border-color: var(--accent);
 }
 .rb-router-trigger svg:first-child { color: var(--accent); flex-shrink: 0; }
 .rb-router-chevron {
