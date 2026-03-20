@@ -4190,8 +4190,10 @@ input[type="number"] {
 }
 @media (min-width: 600px) {
     .fit-metrics-grid {
-        grid-template-columns: repeat(auto-fill, minmax(140px, 240px));
-        justify-content: center;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    }
+    .fit-metrics-grid .fit-kpi-card {
+        max-width: 240px;
     }
 }
 .fit-kpi-card {
