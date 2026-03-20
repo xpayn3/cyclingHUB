@@ -2252,6 +2252,7 @@ input[type="number"] {
     letter-spacing: -1px;
     font-family: var(--font-num);
     line-height: 1;
+    margin-top: auto;
 }
 .stat-value .unit {
     font-size: var(--text-base);
