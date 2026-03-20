@@ -3286,6 +3286,12 @@ input[type="number"] {
 .ti-status-badge.danger  { color: var(--red);    background: rgba(255,71,87,0.12); }
 .ti-status-badge.neutral { color: var(--text-muted); background: var(--bg-elevated); }
 
+/* ── Merged Training Insights card ── */
+.fit-insights-grid { display:grid; grid-template-columns: 1fr; gap: 16px; }
+.fit-insight-item { }
+.fit-insight-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.fit-insight-label { font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-secondary); }
+
 /* Intensity Distribution stacked bar */
 .ti-dist-bar-wrap {
     padding: 8px 0 4px;

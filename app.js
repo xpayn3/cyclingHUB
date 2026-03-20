@@ -9028,6 +9028,9 @@ async function renderPowerPage() {
     renderPowerProfileRadar('pwrPageProfileCard', 'pwrPageProfileRadar', 'pwrPageProfileSub');
     _renderPwrPageAvgPower(recent);
     _renderPwrPageScatter(recent);
+    renderBestEfforts();
+    renderPrWall();
+    renderFitnessZoneDist(days);
   } catch(e) { console.warn('Power page extras:', e); }
 }
 
@@ -10606,9 +10609,7 @@ function setFitnessRange(days) {
     renderFitnessMonthlyTable(days);
     renderFtpHistoryChart(days);
     renderPeriodizationChart(days);
-    renderFitnessZoneDist(days);
     renderWellnessInsights(days);
-    renderHealthMetrics(days);
   });
 }
 
@@ -10657,18 +10658,13 @@ function renderFitnessPage() {
   renderFitnessHeatmap();
   renderFitnessWeeklyPageChart(fd);
   renderFitnessMonthlyTable(fd);
-  renderBestEfforts();
-  renderPrWall();
   renderRecoveryEstimation();
   renderRacePredictor();
   renderFatiguePredChart();
   renderFtpHistoryChart(fd);
   renderPeriodizationChart(fd);
-  renderFitnessZoneDist(fd);
-  renderHealthMetrics(fd);
   renderWellnessInsights(fd);
   _renderFitCyclingTrends(fd);
-  _renderFitWeeklyTss(fd);
   _renderFitInsights(fd);
   renderYTDDistance();
   _rIC(() => { if (window.refreshGlow) refreshGlow(); });
@@ -10745,14 +10741,17 @@ function _renderFitInsights(days) {
   const acts = (state.activities || []).filter(a =>
     new Date(a.start_date_local || a.start_date) >= cutoff && !isEmptyActivity(a)
   );
-  try { _renderFitMonotony(acts, days); } catch(e) { console.warn('fitMonotony:', e); }
-  try { _renderFitAE(acts, days); } catch(e) { console.warn('fitAE:', e); }
-  try { _renderFitRampRate(acts, days); } catch(e) { console.warn('fitRamp:', e); }
+  let anyShown = false;
+  try { if (_renderFitMonotony(acts, days)) anyShown = true; } catch(e) { console.warn('fitMonotony:', e); }
+  try { if (_renderFitAE(acts, days)) anyShown = true; } catch(e) { console.warn('fitAE:', e); }
+  try { if (_renderFitRampRate(acts, days)) anyShown = true; } catch(e) { console.warn('fitRamp:', e); }
+  const insightsCard = document.getElementById('fitInsightsCard');
+  if (insightsCard) insightsCard.style.display = anyShown ? '' : 'none';
 }
 
 function _renderFitMonotony(acts, days) {
-  const card = document.getElementById('fitMonotonyCard');
-  if (!card) return;
+  const item = document.getElementById('fitInsightMono');
+  if (!item) return false;
   // Weekly TSS values for last N weeks
   const weeks = Math.ceil(days / 7);
   const weekTSS = Array(weeks).fill(0);
@@ -10761,8 +10760,8 @@ function _renderFitMonotony(acts, days) {
     const weeksAgo = Math.floor((Date.now() - d.getTime()) / (7 * 86400000));
     if (weeksAgo < weeks) weekTSS[weeks - 1 - weeksAgo] += (a.icu_training_load || 0);
   });
-  if (weekTSS.every(v => v === 0)) { card.style.display = 'none'; return; }
-  card.style.display = '';
+  if (weekTSS.every(v => v === 0)) { item.style.display = 'none'; return false; }
+  item.style.display = '';
   // Monotony = mean daily TSS / stdev daily TSS (last 7 days)
   const last7 = acts.filter(a => (Date.now() - new Date(a.start_date_local || a.start_date).getTime()) < 7 * 86400000);
   const daily = Array(7).fill(0);
@@ -10778,20 +10777,21 @@ function _renderFitMonotony(acts, days) {
   const sub = document.getElementById('fitMonotonySub');
   if (sub) sub.textContent = `Monotony: ${mono}`;
   const ctx = document.getElementById('fitMonotonyChart');
-  if (!ctx) return;
+  if (!ctx) return true;
   if (state._fitMonoChart) state._fitMonoChart.destroy();
   state._fitMonoChart = new Chart(ctx.getContext('2d'), {
     type: 'bar', data: { labels: weekTSS.map((_, i) => 'W' + (i + 1)), datasets: [{ data: weekTSS, backgroundColor: mono > 2 ? 'rgba(255,71,87,0.5)' : 'rgba(0,229,160,0.5)', borderRadius: 4 }] },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { ...cScales({}) } }
   });
+  return true;
 }
 
 function _renderFitAE(acts, days) {
-  const card = document.getElementById('fitAeCard');
-  if (!card) return;
+  const item = document.getElementById('fitInsightAe');
+  if (!item) return false;
   const data = acts.filter(a => (a.icu_weighted_avg_watts || a.average_watts) && a.average_heartrate).slice(0, 20).reverse();
-  if (data.length < 3) { card.style.display = 'none'; return; }
-  card.style.display = '';
+  if (data.length < 3) { item.style.display = 'none'; return false; }
+  item.style.display = '';
   const labels = data.map(a => new Date(a.start_date_local || a.start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }));
   const vals = data.map(a => +((a.icu_weighted_avg_watts || a.average_watts) / a.average_heartrate).toFixed(2));
   const latest = vals[vals.length - 1];
@@ -10800,17 +10800,18 @@ function _renderFitAE(acts, days) {
   const sub = document.getElementById('fitAeSub');
   if (sub) sub.textContent = 'NP / HR trend';
   const ctx = document.getElementById('fitAeChart');
-  if (!ctx) return;
+  if (!ctx) return true;
   if (state._fitAeChart) state._fitAeChart.destroy();
   state._fitAeChart = new Chart(ctx.getContext('2d'), {
     type: 'line', data: { labels, datasets: [{ data: vals, borderColor: '#4a9eff', borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#4a9eff', tension: 0.3, fill: false }] },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP } }, scales: { ...cScales({ xExtra: { maxTicksLimit: 6 } }) } }
   });
+  return true;
 }
 
 function _renderFitRampRate(acts, days) {
-  const card = document.getElementById('fitRampRateCard');
-  if (!card) return;
+  const item = document.getElementById('fitInsightRamp');
+  if (!item) return false;
   const weeks = Math.ceil(days / 7);
   const weekTSS = Array(weeks).fill(0);
   acts.forEach(a => {
@@ -10818,19 +10819,20 @@ function _renderFitRampRate(acts, days) {
     const weeksAgo = Math.floor((Date.now() - d.getTime()) / (7 * 86400000));
     if (weeksAgo < weeks) weekTSS[weeks - 1 - weeksAgo] += (a.icu_training_load || 0);
   });
-  if (weekTSS.length < 2) { card.style.display = 'none'; return; }
-  card.style.display = '';
+  if (weekTSS.length < 2) { item.style.display = 'none'; return false; }
+  item.style.display = '';
   const changes = weekTSS.slice(1).map((v, i) => weekTSS[i] > 0 ? +((v - weekTSS[i]) / weekTSS[i] * 100).toFixed(0) : 0);
   const latest = changes[changes.length - 1] || 0;
   const badge = document.getElementById('fitRampRateBadge');
   if (badge) { badge.textContent = (latest >= 0 ? '+' : '') + latest + '%'; badge.style.color = Math.abs(latest) > 20 ? 'var(--red)' : 'var(--accent)'; }
   const ctx = document.getElementById('fitRampRateChart');
-  if (!ctx) return;
+  if (!ctx) return true;
   if (state._fitRampChart) state._fitRampChart.destroy();
   state._fitRampChart = new Chart(ctx.getContext('2d'), {
     type: 'bar', data: { labels: changes.map((_, i) => 'W' + (i + 2)), datasets: [{ data: changes, backgroundColor: changes.map(v => v > 0 ? 'rgba(0,229,160,0.5)' : 'rgba(255,71,87,0.5)'), borderRadius: 4 }] },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { ...cScales({}) } }
   });
+  return true;
 }
 
 

@@ -3707,57 +3707,6 @@
                             </table>
                         </div>
                     </div>
-                    <!-- ── Best Distance Efforts ── -->
-                    <div class="card" id="fitBestEffortsCard">
-                        <div class="card-header">
-                            <div>
-                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>Best Distance Efforts</div>
-                                <div class="card-subtitle">Fastest estimated time per distance · all rides</div>
-                            </div>
-                        </div>
-                        <div class="fit-be-grid" id="fitBestEffortsGrid"></div>
-                    </div>
-                    <!-- ── Personal Records Wall ── -->
-                    <div class="card" id="fitPrWallCard">
-                        <div class="card-header">
-                            <div>
-                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5C7 4 6 9 6 9Zm12 0h1.5a2.5 2.5 0 0 0 0-5C17 4 18 9 18 9Zm-1 0H7l1 10a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2l1-10Z"/></svg>Personal Records</div>
-                                <div class="card-subtitle">All-time ride superlatives</div>
-                            </div>
-                        </div>
-                        <div class="pr-wall-grid" id="prWallGrid"></div>
-                    </div>
-                    <!-- ── Zone Distribution (Fitness page) ── -->
-                    <div class="card" id="fitZoneCard" style="display: none">
-                        <div class="card-header">
-                            <div>
-                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                                    Power Zone Distribution
-                                </div>
-                                <div class="card-subtitle" id="fitZoneSubtitle">
-                                    Time in zone · all activities
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- KPI strip -->
-                        <div class="fit-zone-kpis" id="fitZoneKpis"></div>
-
-                        <!-- Chart + zone rows side by side -->
-                        <div class="fit-zone-body">
-                            <div class="fit-zone-chart-wrap">
-                                <canvas id="fitZonePie"></canvas>
-                                <div
-                                    class="fit-zone-pie-center"
-                                    id="fitZonePieCenter"
-                                ></div>
-                            </div>
-                            <div class="fit-zone-rows" id="fitZoneRows"></div>
-                        </div>
-
-                        <!-- Stacked balance bar + style -->
-                        <div class="fit-zone-balance" id="fitZoneBalance"></div>
-                    </div>
                     <!-- ── Wellness Insights ── -->
                     <div class="health-grid" style="margin-top:20px">
                         <!-- HRV vs Training Load -->
@@ -3828,73 +3777,6 @@
                         </div>
                     </div>
 
-                    <!-- ── Health Metrics ── -->
-                    <div class="health-grid" style="margin-top:20px">
-                        <!-- Resting Heart Rate -->
-                        <div class="card" id="healthRHRCard" style="display:none">
-                            <div class="card-header">
-                                <div>
-                                    <div class="card-title health-title" style="color:#ff375f">
-                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="#ff375f" stroke="none"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>Resting HR
-                                    </div>
-                                    <div class="card-subtitle" id="healthRHRRange"></div>
-                                </div>
-                            </div>
-                            <div class="ytd-stats">
-                                <div class="ytd-stat"><div class="ytd-stat-value" style="color:#ff375f" id="healthRHRAvg">—</div><div class="ytd-stat-label">Average</div></div>
-                                <div class="ytd-stat"><div class="ytd-stat-value muted" id="healthRHRMin">—</div><div class="ytd-stat-label">Minimum</div></div>
-                            </div>
-                            <div class="chart-wrap" style="height:140px"><canvas id="healthRHRChart"></canvas></div>
-                        </div>
-                        <!-- HRV -->
-                        <div class="card" id="healthHRVCard" style="display:none">
-                            <div class="card-header">
-                                <div>
-                                    <div class="card-title health-title" style="color:#ff375f">
-                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#ff375f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>HRV
-                                    </div>
-                                    <div class="card-subtitle" id="healthHRVRange"></div>
-                                </div>
-                            </div>
-                            <div class="ytd-stats">
-                                <div class="ytd-stat"><div class="ytd-stat-value" style="color:#ff375f" id="healthHRVAvg">—</div><div class="ytd-stat-label">Average</div></div>
-                                <div class="ytd-stat"><div class="ytd-stat-value muted" id="healthHRVMax">—</div><div class="ytd-stat-label">Maximum</div></div>
-                            </div>
-                            <div class="chart-wrap" style="height:140px"><canvas id="healthHRVChart"></canvas></div>
-                        </div>
-                        <!-- Steps -->
-                        <div class="card" id="healthStepsCard" style="display:none">
-                            <div class="card-header">
-                                <div>
-                                    <div class="card-title health-title" style="color:#b8ff3e">
-                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="#b8ff3e" stroke="none"><path d="M13.5 5.5C14.88 5.5 16 4.38 16 3s-1.12-2.5-2.5-2.5S11 1.62 11 3s1.12 2.5 2.5 2.5zM9.89 19.38l1-4.38L13 17v6h2v-7.5l-2.11-2 .61-3A8.26 8.26 0 0 0 19 13v-2a6.23 6.23 0 0 1-4.56-2.13l-1-1.2A2 2 0 0 0 11.8 7H11a2 2 0 0 0-1.6.8L6 12l1.62 1.05 2.27-3.55z"/></svg>Steps
-                                    </div>
-                                    <div class="card-subtitle" id="healthStepsRange"></div>
-                                </div>
-                            </div>
-                            <div class="ytd-stats">
-                                <div class="ytd-stat"><div class="ytd-stat-value" style="color:#b8ff3e" id="healthStepsAvg">—</div><div class="ytd-stat-label">Daily Avg</div></div>
-                                <div class="ytd-stat"><div class="ytd-stat-value muted" id="healthStepsTotal">—</div><div class="ytd-stat-label">Total</div></div>
-                            </div>
-                            <div class="chart-wrap" style="height:140px"><canvas id="healthStepsChart"></canvas></div>
-                        </div>
-                        <!-- Weight -->
-                        <div class="card" id="healthWeightCard" style="display:none">
-                            <div class="card-header">
-                                <div>
-                                    <div class="card-title health-title" style="color:#4a9eff">
-                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#4a9eff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12l-1.5 5H7.5L6 2z"/><circle cx="12" cy="15" r="6"/><path d="M12 12v3l2 1"/></svg>Weight
-                                    </div>
-                                    <div class="card-subtitle" id="healthWeightRange"></div>
-                                </div>
-                            </div>
-                            <div class="ytd-stats">
-                                <div class="ytd-stat"><div class="ytd-stat-value" style="color:#4a9eff" id="healthWeightCur">—</div><div class="ytd-stat-label">Current</div></div>
-                                <div class="ytd-stat"><div class="ytd-stat-value muted" id="healthWeightDelta">—</div><div class="ytd-stat-label">Change</div></div>
-                            </div>
-                            <div class="chart-wrap" style="height:140px"><canvas id="healthWeightChart"></canvas></div>
-                        </div>
-                    </div>
                     <!-- Cycling Trends (moved from dashboard) -->
                     <div class="card" id="fitCyclingTrendsCard" style="display:none">
                         <div class="card-header">
@@ -3910,56 +3792,37 @@
                         <div class="cycling-trends-legend" id="fitCyclingTrendsLegend"></div>
                     </div>
 
-                    <!-- Weekly TSS (moved from dashboard) -->
-                    <div class="card" id="fitWeeklyTssCard" style="display:none">
-                        <div class="card-header">
-                            <div>
-                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Weekly Load</div>
-                                <div class="card-subtitle">TSS per week</div>
-                            </div>
-                        </div>
-                        <div class="chart-wrap">
-                            <canvas id="fitWeeklyTssChart"></canvas>
-                        </div>
-                    </div>
 
-                    <!-- Training Insights (moved from dashboard) -->
-                    <div class="card-row">
-                        <div class="card" id="fitMonotonyCard" style="display:none">
-                            <div class="card-header">
-                                <div>
-                                    <div class="card-title" style="color:#ff6b35"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#ff6b35" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Training Monotony</div>
-                                    <div class="card-subtitle" id="fitMonotonySub">Overtraining risk</div>
-                                </div>
-                                <span class="ti-status-badge" id="fitMonotonyBadge"></span>
-                            </div>
-                            <div class="chart-wrap chart-wrap--sm">
-                                <canvas id="fitMonotonyChart"></canvas>
-                            </div>
-                        </div>
-                        <div class="card" id="fitRampRateCard" style="display:none">
-                            <div class="card-header">
-                                <div>
-                                    <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>Volume Ramp Rate</div>
-                                    <div class="card-subtitle" id="fitRampRateSub">Weekly load change</div>
-                                </div>
-                                <span class="ti-status-badge" id="fitRampRateBadge"></span>
-                            </div>
-                            <div class="chart-wrap chart-wrap--sm">
-                                <canvas id="fitRampRateChart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card" id="fitAeCard" style="display:none">
+                    <!-- Training Insights (merged) -->
+                    <div class="card" id="fitInsightsCard" style="display:none">
                         <div class="card-header">
                             <div>
-                                <div class="card-title" style="color:#4a9eff"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#4a9eff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>Aerobic Efficiency</div>
-                                <div class="card-subtitle" id="fitAeSub">NP / HR trend</div>
+                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>Training Insights</div>
+                                <div class="card-subtitle">Monotony, ramp rate & efficiency</div>
                             </div>
-                            <span class="ti-status-badge" id="fitAeBadge"></span>
                         </div>
-                        <div class="chart-wrap">
-                            <canvas id="fitAeChart"></canvas>
+                        <div class="fit-insights-grid" id="fitInsightsGrid">
+                            <div class="fit-insight-item" id="fitInsightMono">
+                                <div class="fit-insight-header">
+                                    <span class="fit-insight-label">Monotony</span>
+                                    <span class="ti-status-badge" id="fitMonotonyBadge"></span>
+                                </div>
+                                <div class="chart-wrap chart-wrap--sm"><canvas id="fitMonotonyChart"></canvas></div>
+                            </div>
+                            <div class="fit-insight-item" id="fitInsightRamp">
+                                <div class="fit-insight-header">
+                                    <span class="fit-insight-label">Volume Ramp</span>
+                                    <span class="ti-status-badge" id="fitRampRateBadge"></span>
+                                </div>
+                                <div class="chart-wrap chart-wrap--sm"><canvas id="fitRampRateChart"></canvas></div>
+                            </div>
+                            <div class="fit-insight-item" id="fitInsightAe">
+                                <div class="fit-insight-header">
+                                    <span class="fit-insight-label">Aerobic Efficiency</span>
+                                    <span class="ti-status-badge" id="fitAeBadge"></span>
+                                </div>
+                                <div class="chart-wrap chart-wrap--sm"><canvas id="fitAeChart"></canvas></div>
+                            </div>
                         </div>
                     </div>
 
@@ -4266,6 +4129,49 @@
                         <div class="chart-wrap">
                             <canvas id="pwrPageAvgPowerChart"></canvas>
                         </div>
+                    </div>
+
+                    <!-- ── Best Distance Efforts (moved from fitness) ── -->
+                    <div class="card" id="fitBestEffortsCard">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>Best Distance Efforts</div>
+                                <div class="card-subtitle">Fastest estimated time per distance · all rides</div>
+                            </div>
+                        </div>
+                        <div class="fit-be-grid" id="fitBestEffortsGrid"></div>
+                    </div>
+                    <!-- ── Personal Records Wall (moved from fitness) ── -->
+                    <div class="card" id="fitPrWallCard">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5C7 4 6 9 6 9Zm12 0h1.5a2.5 2.5 0 0 0 0-5C17 4 18 9 18 9Zm-1 0H7l1 10a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2l1-10Z"/></svg>Personal Records</div>
+                                <div class="card-subtitle">All-time ride superlatives</div>
+                            </div>
+                        </div>
+                        <div class="pr-wall-grid" id="prWallGrid"></div>
+                    </div>
+                    <!-- ── Zone Distribution (moved from fitness) ── -->
+                    <div class="card" id="fitZoneCard" style="display: none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                                    Power Zone Distribution
+                                </div>
+                                <div class="card-subtitle" id="fitZoneSubtitle">
+                                    Time in zone · all activities
+                                </div>
+                            </div>
+                        </div>
+                        <div class="fit-zone-kpis" id="fitZoneKpis"></div>
+                        <div class="fit-zone-body">
+                            <div class="fit-zone-chart-wrap">
+                                <canvas id="fitZonePie"></canvas>
+                                <div class="fit-zone-pie-center" id="fitZonePieCenter"></div>
+                            </div>
+                            <div class="fit-zone-rows" id="fitZoneRows"></div>
+                        </div>
+                        <div class="fit-zone-balance" id="fitZoneBalance"></div>
                     </div>
                 </div>
 
