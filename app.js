@@ -15240,6 +15240,10 @@ function activateSheetMode() {
 
   page.classList.add('act-sheet-mode');
 
+  // Show activity back FAB
+  const _abf = document.getElementById('actBackFab');
+  if (_abf) { _abf.style.visibility = ''; _abf.style.pointerEvents = ''; }
+
   // Reparent map into background container
   mapBg.appendChild(mapEl);
 
@@ -15340,6 +15344,10 @@ function deactivateSheetMode() {
   if (!page || !_sheet.active) return;
 
   page.classList.remove('act-sheet-mode');
+
+  // Hide activity back FAB
+  const _abf = document.getElementById('actBackFab');
+  if (_abf) { _abf.style.visibility = 'hidden'; _abf.style.pointerEvents = 'none'; }
 
   // Reparent map + controls back to #detailMapCard
   const mapEl = document.getElementById('activityMap');
