@@ -3102,7 +3102,7 @@ input[type="number"] {
 }
 .ra-stat-unit {
     font-size: 0.85em;
-    font-weight: 600;
+    font-weight: 400;
     font-family: var(--font-num);
     color: inherit;
     letter-spacing: 0;
