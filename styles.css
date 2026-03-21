@@ -2255,24 +2255,7 @@ input[type="number"] {
     50% { box-shadow: 0 0 20px rgba(0,229,160,0.6); }
 }
 
-.stat-grid-label {
-    font-size: var(--text-xs);
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--text-muted);
-    margin-bottom: 12px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-.stat-grid-label span {
-    font-weight: 500;
-    text-transform: none;
-    letter-spacing: 0;
-    color: var(--text-secondary);
-    font-size: var(--text-xs);
-}
+/* .stat-grid-label removed — unified into .dash-section-header / .dash-section-title */
 
 /* ── Year-to-Date card ── */
 .ytd-stats {
@@ -6939,6 +6922,8 @@ input[type="number"] {
     min-width: 168px;
     text-align: center;
 }
+.cal-view-toggle { display: none; } /* hidden on desktop, shown in mobile media query */
+.cal-list-view { display: none; } /* hidden on desktop */
 .cal-today-btn {
     font-size: var(--text-xs);
     font-weight: 600;
@@ -12088,12 +12073,137 @@ body:has(.act-sheet-mode) .topbar {
     .cal-panel-toggle {
         display: none !important;
     }
-    .cal-today-btn {
-        font-size: 12px;
-        font-weight: 600;
-        padding: 5px 14px;
+    .cal-today-btn { display: none !important; }
+
+    /* ── Grid/List toggle button ── */
+    .cal-view-toggle {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
         margin-left: auto;
         flex-shrink: 0;
+        background: none;
+        border: none;
+        color: var(--accent);
+        padding: 6px;
+        cursor: pointer;
+        border-radius: 8px;
+    }
+    .cal-view-toggle:active { opacity: 0.6; }
+    /* In grid mode: show list icon (to switch TO list) */
+    .cal-view-toggle .cal-toggle-list { display: block; }
+    .cal-view-toggle .cal-toggle-grid { display: none; }
+    /* In list mode: show grid icon (to switch TO grid) */
+    .cal-shell--list-view .cal-view-toggle .cal-toggle-list { display: none; }
+    .cal-shell--list-view .cal-view-toggle .cal-toggle-grid { display: block; }
+
+    /* ── List view: full-height scrollable chronological list ── */
+    .cal-list-view {
+        flex: 1;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: 0 var(--pad-page);
+    }
+    .cal-list-view-month {
+        font-size: var(--text-sm);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--accent);
+        padding: 20px 0 10px;
+        margin-top: 8px;
+        position: sticky;
+        top: 0;
+        background: var(--bg-base);
+        z-index: 1;
+        border-bottom: 2px solid rgba(255,255,255,0.1);
+    }
+    .cal-list-view-day {
+        padding: 14px 0 8px;
+        font-size: var(--text-sm);
+        font-weight: 600;
+        min-height: 40px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .cal-list-view-day-group { }
+    .cal-list-view-day--has-activity {
+        background: rgba(255,255,255,0.03);
+        margin: 4px calc(-1 * var(--pad-page));
+        padding: 0 var(--pad-page) 4px;
+        border-radius: var(--radius);
+    }
+    .cal-list-view-dayname {
+        color: var(--text-primary);
+        letter-spacing: 0.04em;
+    }
+    .cal-list-view-daydate {
+        color: var(--text-muted);
+        font-weight: 500;
+    }
+    .cal-list-view-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--hover-overlay);
+        cursor: pointer;
+    }
+    .cal-list-view-item:active { opacity: 0.6; }
+    .cal-list-view-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+    .cal-list-view-info { flex: 1; min-width: 0; }
+    .cal-list-mini-graph {
+        display: flex;
+        align-items: flex-end;
+        height: 20px;
+        margin-top: 6px;
+        border-radius: 3px;
+        overflow: hidden;
+        background: rgba(255,255,255,0.03);
+    }
+    .cal-list-mini-graph:not(.has-data) { display: none; }
+    .cal-list-mini-graph .zc-seg {
+        flex-shrink: 0;
+        min-width: 1px;
+        border-radius: 1px 1px 0 0;
+        opacity: 0.85;
+    }
+    .cal-list-mini-graph .zc-seg--rest { opacity: 0.4; }
+    .cal-list-view-name {
+        font-size: var(--text-base);
+        font-weight: 600;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .cal-list-view-meta {
+        font-size: var(--text-xs);
+        color: var(--text-muted);
+        margin-top: 2px;
+    }
+    .cal-list-view-tss {
+        font-size: var(--text-xs);
+        font-weight: 700;
+        color: var(--text-secondary);
+        flex-shrink: 0;
+    }
+
+    /* ── When in list mode, hide grid+panel, show list ── */
+    .cal-shell--list-view .cal-stats-strip,
+    .cal-shell--list-view .cal-left,
+    .cal-shell--list-view .cal-day-panel {
+        display: none !important;
+    }
+    .cal-shell--list-view .cal-list-view {
+        display: flex !important;
+        flex-direction: column;
     }
 
     /* ── Month title: iOS-style big headline ── */
@@ -12163,23 +12273,25 @@ body:has(.act-sheet-mode) .topbar {
         background: var(--bg-base);
     }
     .cal-left {
-        flex: none;
+        flex: 0 0 50%;
         border-right: none;
         border-bottom: none;
         background: var(--bg-base);
+        max-height: 50%;
     }
 
     /* ── Band: 3-slide drag carousel on mobile ── */
     .cal-band-wrapper {
         overflow: hidden;
-        flex: none;
+        flex: 1;
+        min-height: 0;
         width: 100%;
         background: var(--bg-base);
     }
     .cal-band-track {
         display: flex;
         width: 300%;
-        height: auto;
+        height: 100%;
         transform: translateX(0); /* set by JS */
     }
     .cal-band-slide {
@@ -12290,11 +12402,11 @@ body:has(.act-sheet-mode) .topbar {
         border-top: 1px solid var(--hover-overlay) !important;
     }
 
-    /* ── Day panel: below the grid, full width ── */
+    /* ── Day panel: below the grid, full width, fixed 50% ── */
     .cal-day-panel {
         width: 100% !important;
-        flex: 1 1 0 !important;
-        min-height: 120px;
+        flex: 1 1 50% !important;
+        min-height: 0;
         background: var(--bg-base);
         border-top: none;
         overflow-y: auto;
@@ -12358,13 +12470,14 @@ body:has(.act-sheet-mode) .topbar {
 
     /* ── Mobile: panel always visible (ignore desktop hide state) ── */
     .cal-body--panel-hidden .cal-day-panel {
-        flex: 1 1 0 !important;
+        flex: 1 1 50%;
         opacity: 1;
         pointer-events: auto;
-        min-height: 120px;
+        min-height: 0;
     }
     .cal-body--panel-hidden .cal-left {
-        flex: none;
+        flex: 0 0 50%;
+        max-height: 50%;
         border-bottom: none;
     }
 
@@ -21388,6 +21501,13 @@ body:has(.act-sheet-mode) .topbar {
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--text-muted);
+}
+.dash-section-title span {
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
 }
 .dash-section-link {
     font-size: var(--text-xs);

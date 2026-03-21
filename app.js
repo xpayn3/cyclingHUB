@@ -13514,6 +13514,130 @@ function calGoToday() {
   refreshCalendarEvents();
 }
 
+/* ── Calendar Grid/List view toggle ── */
+function toggleCalView() {
+  const shell = document.querySelector('.cal-shell');
+  if (!shell) return;
+  const isList = shell.classList.toggle('cal-shell--list-view');
+  if (isList) renderCalListView();
+}
+
+function renderCalListView() {
+  const container = document.getElementById('calListViewScroll');
+  if (!container) return;
+  const actMap = buildCalActMap();
+  // Find earliest date with data, show all days from today back to that date
+  const allDates = Object.keys(actMap).sort();
+  const today = new Date();
+  const earliest = allDates.length > 0 ? new Date(allDates[0] + 'T00:00') : new Date(today.getFullYear(), today.getMonth(), 1);
+  const dates = [];
+  for (let dt = new Date(today); dt >= earliest; dt.setDate(dt.getDate() - 1)) {
+    dates.push(toDateStr(dt));
+  }
+  let html = '', currentMonth = '';
+  const chevron = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
+
+  for (const dateStr of dates) {
+    const items = actMap[dateStr] || [];
+    const [y, mo, d] = dateStr.split('-').map(Number);
+    const dateObj = new Date(y, mo - 1, d);
+    const monthKey = dateObj.toLocaleDateString('default', { month: 'long', year: 'numeric' });
+    if (monthKey !== currentMonth) {
+      currentMonth = monthKey;
+      html += `<div class="cal-list-view-month">${monthKey}</div>`;
+    }
+    const dayName = dateObj.toLocaleDateString('default', { weekday: 'long' }).toUpperCase();
+    const dayDate = dateObj.toLocaleDateString('default', { day: 'numeric', month: 'long' });
+    const hasAct = items.length > 0;
+    html += `<div class="cal-list-view-day-group${hasAct ? ' cal-list-view-day--has-activity' : ''}">`;
+    html += `<div class="cal-list-view-day"><span class="cal-list-view-dayname">${dayName}</span> <span class="cal-list-view-daydate">${dayDate}</span></div>`;
+
+    for (const { a, stateIdx, isEvent } of items) {
+      if (!isEvent && isEmptyActivity(a)) continue;
+      const name = isEvent
+        ? (a.name || a.category || 'Event')
+        : cleanActivityName((a.name && a.name.trim()) ? a.name.trim() : activityFallbackName(a)).title;
+      const dist = (a.distance || 0) / 1000;
+      const secs = a.moving_time || a.elapsed_time || 0;
+      const tss  = isEvent ? (a.icu_training_load || 0) : actVal(a, 'icu_training_load', 'tss');
+      const meta = [
+        dist > 0.1 ? dist.toFixed(1) + ' km' : '',
+        secs > 0   ? fmtDur(secs) : '',
+      ].filter(Boolean).join(' · ');
+      const dotColor = isEvent
+        ? 'var(--accent)'
+        : (calEventClass(a).includes('ride') ? 'var(--accent)' : 'var(--text-muted)');
+      const onclick = isEvent
+        ? `openCalEventModal(window._calEvLookup && window._calEvLookup[${a.id}])`
+        : `navigateToActivity(${stateIdx})`;
+      if (isEvent) {
+        if (!window._calEvLookup) window._calEvLookup = {};
+        window._calEvLookup[a.id] = a;
+      }
+      const actId = isEvent ? null : (a.id || null);
+      html += `<div class="cal-list-view-item" onclick="${onclick}">
+        <div class="cal-list-view-dot" style="background:${dotColor}"></div>
+        <div class="cal-list-view-info">
+          <div class="cal-list-view-name">${name}</div>
+          ${meta ? `<div class="cal-list-view-meta">${meta}</div>` : ''}
+          ${actId ? `<div class="cal-list-mini-graph" data-act-id="${actId}"></div>` : ''}
+        </div>
+        ${tss > 0 ? `<div class="cal-list-view-tss">${Math.round(tss)} TSS</div>` : ''}
+        ${chevron}
+      </div>`;
+    }
+    html += `</div>`; // close day-group
+  }
+  container.innerHTML = html;
+  // Async-load mini interval graphs
+  _loadCalListMiniGraphs(container);
+}
+
+async function _loadCalListMiniGraphs(container) {
+  const els = container.querySelectorAll('.cal-list-mini-graph[data-act-id]');
+  const ftp = state.athlete?.ftp || 200;
+  for (const el of els) {
+    const actId = el.dataset.actId;
+    if (!actId) continue;
+    try {
+      let raw = await actCacheGet(actId, 'intervals');
+      if (!raw) {
+        const res = await fetch(`${ICU_BASE}/api/v1/activity/${actId}/intervals`, { headers: { Authorization: 'Bearer ' + ICU_API_KEY } });
+        if (res.ok) { raw = await res.json(); actCachePut(actId, 'intervals', raw); }
+      }
+      const intervals = raw?.icu_intervals;
+      if (!Array.isArray(intervals) || intervals.length < 1) continue;
+      const totalDur = intervals.reduce((s, iv) => s + (iv.moving_time || iv.elapsed_time || 0), 0);
+      const maxWatts = Math.max(...intervals.map(iv => iv.average_watts || 0), 1);
+      if (totalDur <= 0) continue;
+      let gh = '';
+      intervals.forEach(iv => {
+        const dur = iv.moving_time || iv.elapsed_time || 0;
+        if (dur <= 0) return;
+        const watts = iv.average_watts || 0;
+        const widthPct = (dur / totalDur * 100).toFixed(2);
+        const heightPct = watts > 0 ? Math.max(20, (watts / maxWatts * 100)) : 20;
+        let zoneIdx = (iv.zone || 0) - 1;
+        if (zoneIdx < 0 && watts > 0 && ftp > 0) {
+          const ratio = watts / ftp;
+          if (ratio < 0.55) zoneIdx = 0;
+          else if (ratio < 0.75) zoneIdx = 1;
+          else if (ratio < 0.90) zoneIdx = 2;
+          else if (ratio < 1.05) zoneIdx = 3;
+          else if (ratio < 1.20) zoneIdx = 4;
+          else zoneIdx = 5;
+        }
+        zoneIdx = Math.max(0, Math.min(5, zoneIdx));
+        const color = ZONE_HEX[zoneIdx] || ZONE_HEX[0];
+        const isRest = /REST|RECOVER/.test((iv.type || '').toUpperCase());
+        gh += `<div class="zc-seg${isRest ? ' zc-seg--rest' : ''}" style="width:${widthPct}%;height:${heightPct}%;background:${color}"></div>`;
+      });
+      el.innerHTML = gh;
+      el.classList.add('has-data');
+    } catch (e) { /* skip */ }
+  }
+}
+
 // ── Band drag: real-time horizontal drag to change months (mobile) ────────
 (function _initCalBandDrag() {
   let startX = 0, startY = 0, isHoriz = null, dragging = false;
@@ -28475,7 +28599,7 @@ Object.assign(window, {
   onBatterySystemChange, onBatteryComponentChange, renderGearBatteries,
   openServiceModal, closeServiceModal, submitServiceForm,
   openServiceShopModal, closeServiceShopModal, saveServiceShop, closeServiceHistory,
-  calPrevMonth, calNextMonth, calGoToday, toggleCalPanel,
+  calPrevMonth, calNextMonth, calGoToday, toggleCalPanel, toggleCalView,
   openTrainingPlanModal, closeTrainingPlanModal, applyTrainingPlan,
   showTpSlotForm, hideTpSlotForm, addTpSlot, removeTpSlot,
   setHideEmptyCards, setFtpAlert,
