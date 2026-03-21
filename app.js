@@ -4163,10 +4163,6 @@ function buildHeroActCardHTML(a, idx) {
   ).join('');
 
   return `<div class="hero-act-wrap" id="recentActCard_${idx}">
-    <div class="hero-act-outer-header">
-      <div class="hero-act-title">${name}</div>
-      <div class="hero-act-subtitle">${dateFmt}${timeFmt ? ' \u00B7 ' + timeFmt : ''}${platformTag ? ` \u00B7 ${platformTag}` : ''}</div>
-    </div>
     <div class="card card--clickable hero-act-card">
       <div class="hero-act-map" id="recentActCardMap_${idx}"></div>
       <div class="hero-act-category">${sportLabel}</div>
@@ -4174,6 +4170,10 @@ function buildHeroActCardHTML(a, idx) {
         <div class="hero-act-stats">${statsHTML}</div>
         ${(tssBadge || wxChip) ? `<div class="hero-act-trailing">${tssBadge}${wxChip}</div>` : ''}
       </div>
+    </div>
+    <div class="hero-act-outer-header">
+      <div class="hero-act-title">${name}</div>
+      <div class="hero-act-subtitle">${dateFmt}${timeFmt ? ' \u00B7 ' + timeFmt : ''}${platformTag ? ` \u00B7 ${platformTag}` : ''}</div>
     </div>
   </div>`;
 }
