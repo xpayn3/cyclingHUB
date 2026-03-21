@@ -20358,6 +20358,7 @@ body:has(.act-sheet-mode) .topbar {
 .goal-form-preview-card {
     pointer-events: none;
     cursor: default;
+    background: var(--bg-elevated) !important;
 }
 .goal-form-actions {
     display: flex;
