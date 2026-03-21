@@ -12854,16 +12854,20 @@ body:has(.act-sheet-mode) .topbar {
     cursor: pointer;
     pointer-events: auto;
     transition: transform 0.15s, background 0.15s;
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
 }
 .wrk-fab:active { transform: scale(0.9); }
 .wrk-fab--back {
-    background: rgba(255,255,255,0.1);
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
     color: var(--text-primary);
 }
 .wrk-fab--fav {
-    background: rgba(255,255,255,0.1);
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
     color: var(--text-muted);
 }
 .wrk-fab--fav.is-saved {
@@ -12874,7 +12878,9 @@ body:has(.act-sheet-mode) .topbar {
 }
 [data-theme="light"] .wrk-fab--back,
 [data-theme="light"] .wrk-fab--fav {
-    background: rgba(0,0,0,0.06);
+    background: var(--glass-bg);
+    border-color: var(--glass-border);
+    box-shadow: var(--glass-shadow);
 }
 
 /* ---- Save button (legacy) ---- */
