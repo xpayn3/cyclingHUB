@@ -4822,11 +4822,20 @@ function _renderDashBatteries() {
   const grid = document.getElementById('dashBatGrid');
   if (!section || !grid) return;
 
+  // Ensure lifetime activities are loaded for accurate battery calc
+  if (!state.lifetimeActivities) {
+    const cached = (typeof loadLifetimeCache === 'function') ? loadLifetimeCache() : null;
+    if (cached) { state.lifetimeActivities = cached.activities; state.lifetimeLastSync = cached.lastSync; }
+  }
+
   const batteries = (typeof loadGearBatteries === 'function') ? loadGearBatteries() : [];
   const activeBats = batteries.filter(b => !b.obsolete);
   if (!activeBats.length) { section.style.display = 'none'; return; }
 
-  const gear = state.gearBikes || [];
+  let gear = state.gearBikes || [];
+  if (!gear.length) {
+    try { gear = JSON.parse(localStorage.getItem('icu_gear_bikes')) || []; } catch {}
+  }
 
   grid.innerHTML = activeBats.map(b => {
     const pct = (typeof calcBatteryPercent === 'function') ? calcBatteryPercent(b) : null;
