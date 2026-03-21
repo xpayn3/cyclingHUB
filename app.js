@@ -13662,10 +13662,11 @@ function renderCalListView() {
   const monthDividers = container.querySelectorAll('.cal-list-view-month');
   if (listParent && monthDividers.length) {
     const updateMonthTitle = () => {
-      const scrollTop = listParent.scrollTop;
+      const parentTop = listParent.getBoundingClientRect().top;
       let current = monthDividers[0];
       for (const div of monthDividers) {
-        if (div.offsetTop <= scrollTop + 10) current = div;
+        const top = div.getBoundingClientRect().top - parentTop;
+        if (top <= 10) current = div;
         else break;
       }
       if (current) {
