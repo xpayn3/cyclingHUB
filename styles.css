@@ -15921,7 +15921,7 @@ body:has(.act-sheet-mode) .topbar {
 }
 
 @media (max-width: 600px) {
-    .wxd-overlay {
+    .wxd-overlay:not(:has(.wxd-sheet--partial)) {
         align-items: stretch;
     }
     /* Full-screen sheet: sheet itself is the scroll container.
