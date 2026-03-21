@@ -2161,7 +2161,7 @@ input[type="number"] {
 }
 .stat-grid {
     display: flex;
-    gap: 10px;
+    gap: var(--gap-layout);
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
@@ -2179,7 +2179,7 @@ input[type="number"] {
 
 .stat-grid::-webkit-scrollbar { display: none; }
 .stat-card {
-    flex: 0 0 calc(50% - 5px);
+    flex: 0 0 calc(50% - var(--gap-layout) / 2);
     aspect-ratio: 1;
     background: var(--bg-card);
     border: none;
@@ -11699,7 +11699,7 @@ body:has(.act-sheet-mode) .topbar {
     }
     .stat-grid {
         display: flex;
-        gap: 10px;
+        gap: var(--gap-layout);
         overflow-x: auto;
         scroll-snap-type: x mandatory;
         -webkit-overflow-scrolling: touch;
@@ -14318,7 +14318,7 @@ body:has(.act-sheet-mode) .topbar {
 /* ── Forecast scroll rail (new standalone layout) ── */
 #forecastRail {
     display: flex;
-    gap: 10px;
+    gap: var(--gap-layout);
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
