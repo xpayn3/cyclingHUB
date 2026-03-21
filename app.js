@@ -4806,10 +4806,23 @@ async function _renderDashGear() {
 let _dashRouteMapInst = null;
 async function _renderDashRouteMap() {
   const el = document.getElementById('dashRouteMap');
-  if (!el || !window.maplibregl) return;
+  if (!el) return;
+
+  // Wait for MapLibre to load
+  if (!window.maplibregl) {
+    setTimeout(_renderDashRouteMap, 500);
+    return;
+  }
 
   // Clean up previous
   if (_dashRouteMapInst) { try { _dashRouteMapInst.remove(); } catch {} _dashRouteMapInst = null; }
+  el.innerHTML = '';
+
+  // Ensure container has dimensions before creating map
+  if (!el.clientWidth || !el.clientHeight) {
+    setTimeout(_renderDashRouteMap, 300);
+    return;
+  }
 
   let lat = 46.05, lng = 14.51; // Default: Ljubljana
   try {
@@ -4820,20 +4833,22 @@ async function _renderDashRouteMap() {
     lng = pos.coords.longitude;
   } catch {}
 
-  _dashRouteMapInst = new maplibregl.Map({
-    container: el,
-    style: _mlGetStyle(loadMapTheme()),
-    center: [lng, lat],
-    zoom: 12,
-    interactive: false,
-    attributionControl: false,
-    fadeDuration: 0,
-    renderWorldCopies: false,
-    antialias: false,
-    trackResize: false,
-    maxTileCacheSize: 20,
-    pixelRatio: Math.min(devicePixelRatio, 2),
-  });
+  try {
+    _dashRouteMapInst = new maplibregl.Map({
+      container: el,
+      style: _mlGetStyle(loadMapTheme()),
+      center: [lng, lat],
+      zoom: 13,
+      interactive: false,
+      attributionControl: false,
+      fadeDuration: 0,
+      renderWorldCopies: false,
+      antialias: false,
+      trackResize: false,
+      maxTileCacheSize: 20,
+      pixelRatio: Math.min(devicePixelRatio, 2),
+    });
+  } catch (e) { console.warn('dashRouteMap init failed:', e); return; }
 
   // Location dot marker
   const dot = document.createElement('div');
