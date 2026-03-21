@@ -229,7 +229,6 @@ export function wrkDrawChart() {
     const dur = wrkSegDuration(seg);
     const segX = PAD_L + (curSec / totalSecs) * cW;
     (seg.messages || []).forEach(m => {
-      if (!m.text) return;
       const mx = segX + (m.offset / totalSecs) * cW;
       // Dashed vertical line
       ctx.strokeStyle = 'rgba(255,255,255,0.6)';
