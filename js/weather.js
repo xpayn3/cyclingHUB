@@ -1241,21 +1241,17 @@ export async function renderWeatherPage(_restoreScrollY) {
         rPts.push({ i, mm, label, isNow, code: hCodes[start + i] ?? 0 });
       }
       const rMax = Math.max(...rPts.map(p => p.mm), 1);
-      const rColW = 64, rBarMaxH = 80, rTotalW = (rPts.length - 1) * rColW + 40;
+      const rColW = 36, rBarMaxH = 80, rTotalW = (rPts.length - 1) * rColW + 40;
 
       let rainBarsHtml = '';
       let rainTimeHtml = '';
-      let rainIconsHtml = '';
       rPts.forEach((p, idx) => {
         const x = 20 + idx * rColW;
         const barH = (p.mm / rMax) * rBarMaxH;
         const mmLabel = p.mm > 0 ? (p.mm < 0.1 ? p.mm.toFixed(2) : p.mm.toFixed(1)) : '0';
         rainBarsHtml += `<div class="aw-rain-col" style="left:${x}px">
           <div class="aw-rain-val">${mmLabel}</div>
-          <div class="aw-rain-bar" style="height:${Math.max(barH, 2)}px"></div>
-        </div>`;
-        rainIconsHtml += `<div class="aw-tcurve-col" style="left:${x}px">
-          <div class="aw-tcurve-icon">${wmoIcon(p.code)}</div>
+          <div class="aw-rain-bar" style="height:${Math.max(barH, 6)}px"></div>
         </div>`;
         rainTimeHtml += `<span class="aw-tcurve-time-mark${p.isNow ? ' aw-tcurve-time--now' : ''}" style="left:${x}px">${p.label}</span>`;
       });
@@ -1264,7 +1260,6 @@ export async function renderWeatherPage(_restoreScrollY) {
         <div class="aw-card-label">${WEATHER_SVGS.rain || ''} PRECIPITATION</div>
         <div class="aw-tcurve-wrap">
           <div class="aw-rain-chart" style="width:${rTotalW}px">
-            <div class="aw-rain-icons" style="width:${rTotalW}px">${rainIconsHtml}</div>
             <div class="aw-rain-bars">${rainBarsHtml}</div>
           </div>
           <div class="aw-tcurve-timeline" style="width:${rTotalW}px">${rainTimeHtml}</div>
