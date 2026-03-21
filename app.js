@@ -2285,18 +2285,21 @@ document.addEventListener('DOMContentLoaded', () => {
   if (bd) {
     bd.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
   }
-  // Pill nav bounce on button tap
+  // Pill nav bounce on button tap — Web Animations API runs on the compositor (no reflow)
   const pillNav = document.getElementById('dashPillNav');
   if (pillNav) {
     pillNav.addEventListener('click', function(e) {
       if (e.target.closest('.dash-pill-btn')) {
-        pillNav.classList.remove('pill-bounce');
-        void pillNav.offsetWidth; // force reflow to restart animation
-        pillNav.classList.add('pill-bounce');
+        pillNav.animate(
+          [
+            { transform: 'scale(1)' },
+            { transform: 'scale(0.96)' },
+            { transform: 'scale(1.02)' },
+            { transform: 'scale(1)' },
+          ],
+          { duration: 320, easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)', fill: 'none' }
+        );
       }
-    });
-    pillNav.addEventListener('animationend', function() {
-      pillNav.classList.remove('pill-bounce');
     });
   }
 });
