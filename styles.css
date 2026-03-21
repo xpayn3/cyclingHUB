@@ -12276,8 +12276,8 @@ body:has(.act-sheet-mode) .topbar {
     border-radius: 0 0 4px 4px;
     margin-left: calc(-1 * var(--pad-page, 16px));
     margin-right: calc(-1 * var(--pad-page, 16px));
-    padding-left: calc(var(--pad-page, 16px) + 4px);
-    padding-right: calc(var(--pad-page, 16px) + 4px);
+    padding-left: 4px;
+    padding-right: 4px;
 }
 .wrk-canvas {
     display: block;
