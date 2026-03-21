@@ -2109,6 +2109,127 @@ input[type="number"] {
     color: var(--text-muted);
     margin-bottom: 12px;
 }
+/* ── Dashboard Quick Links: Garage + Route Builder ── */
+.dash-quick-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+.dash-quick-card {
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    min-height: 160px;
+    overflow: hidden;
+}
+.dash-quick-card .card-header {
+    margin-bottom: 8px;
+}
+.dash-quick-card .card-title {
+    font-size: 13px;
+}
+
+/* Gear carousel */
+.dash-gear-scroll {
+    flex: 1;
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    gap: 0;
+}
+.dash-gear-scroll::-webkit-scrollbar { display: none; }
+.dash-gear-slide {
+    flex: 0 0 100%;
+    scroll-snap-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    cursor: pointer;
+}
+.dash-gear-photo {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--border);
+}
+.dash-gear-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--bg-elevated);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+}
+.dash-gear-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+.dash-gear-km {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+.dash-gear-empty {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+.dash-gear-dots {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    padding-top: 6px;
+}
+.dash-gear-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    opacity: 0.3;
+    transition: opacity 0.15s;
+}
+.dash-gear-dot.active {
+    opacity: 1;
+}
+
+/* Route Builder map card */
+.dash-route-card {
+    cursor: pointer;
+}
+.dash-route-map {
+    flex: 1;
+    border-radius: 10px;
+    overflow: hidden;
+    min-height: 80px;
+}
+.dash-route-pin {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 3px solid rgba(0, 229, 160, 0.3);
+    box-shadow: 0 0 12px rgba(0, 229, 160, 0.5);
+    animation: dashPinPulse 2s infinite;
+}
+@keyframes dashPinPulse {
+    0%, 100% { box-shadow: 0 0 8px rgba(0,229,160,0.4); }
+    50% { box-shadow: 0 0 20px rgba(0,229,160,0.6); }
+}
+
 .stat-grid-label {
     font-size: var(--text-xs);
     font-weight: 700;

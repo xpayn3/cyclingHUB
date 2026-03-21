@@ -4723,7 +4723,115 @@ function renderDashboard() {
   renderGoalsDashWidget();   // goals & targets compact summary
   _renderDashStreak();
   _renderDashNextWorkout();
+  _renderDashGear();
+  _renderDashRouteMap();
   _rIC(() => { if (window.refreshGlow) refreshGlow(); });
+}
+
+// ── Dashboard Quick Links: Garage + Route Builder ────────────
+async function _renderDashGear() {
+  const scroll = document.getElementById('dashGearScroll');
+  const dotsEl = document.getElementById('dashGearDots');
+  if (!scroll) return;
+
+  // Load bikes (from state or API)
+  let bikes = state.gearBikes;
+  if (!bikes || !bikes.length) {
+    try { bikes = JSON.parse(localStorage.getItem('icu_gear_bikes') || '[]'); } catch { bikes = []; }
+  }
+  if (!bikes.length) {
+    try {
+      const apiKey = localStorage.getItem('icu_api_key');
+      const athlete = localStorage.getItem('icu_athlete_id');
+      if (apiKey && athlete) {
+        const resp = await fetch(
+          `https://intervals.icu/api/v1/athlete/${athlete}/gear`,
+          { headers: { 'Authorization': 'Basic ' + btoa('API_KEY:' + apiKey) } }
+        );
+        if (resp.ok) {
+          const data = await resp.json();
+          bikes = (data || []).map(g => ({
+            id: g.id, name: g.name || 'Unnamed', type: g.type || 'Bike',
+            km: Math.round((g.distance || g.total_distance || 0) / 1000),
+          }));
+          state.gearBikes = bikes;
+          try { localStorage.setItem('icu_gear_bikes', JSON.stringify(bikes)); } catch {}
+        }
+      }
+    } catch {}
+  }
+
+  if (!bikes.length) {
+    scroll.innerHTML = '<div class="dash-gear-empty">No bikes yet</div>';
+    if (dotsEl) dotsEl.innerHTML = '';
+    return;
+  }
+
+  const photos = (typeof _gearLoadPhotos === 'function') ? _gearLoadPhotos() : {};
+  const bikeIcon = `<svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="18" r="3"/><circle cx="19" cy="18" r="3"/><path d="M5 18h3l2-5 2-5h4l2 5 1 2.5"/></svg>`;
+
+  scroll.innerHTML = bikes.map(b => {
+    const photo = photos[b.id];
+    const imgHtml = photo
+      ? `<img class="dash-gear-photo" src="${photo}" alt="">`
+      : `<div class="dash-gear-icon">${bikeIcon}</div>`;
+    return `<div class="dash-gear-slide" onclick="navigate('gear')">
+      ${imgHtml}
+      <div class="dash-gear-name">${b.name}</div>
+      <div class="dash-gear-km">${b.km ? b.km.toLocaleString() + ' km' : '—'}</div>
+    </div>`;
+  }).join('');
+
+  // Dots
+  if (dotsEl && bikes.length > 1) {
+    dotsEl.innerHTML = bikes.map((_, i) =>
+      `<span class="dash-gear-dot${i === 0 ? ' active' : ''}"></span>`
+    ).join('');
+    scroll.addEventListener('scroll', () => {
+      const idx = Math.round(scroll.scrollLeft / scroll.clientWidth);
+      dotsEl.querySelectorAll('.dash-gear-dot').forEach((d, i) => d.classList.toggle('active', i === idx));
+    }, { passive: true });
+  } else if (dotsEl) {
+    dotsEl.innerHTML = '';
+  }
+}
+
+let _dashRouteMapInst = null;
+async function _renderDashRouteMap() {
+  const el = document.getElementById('dashRouteMap');
+  if (!el || !window.maplibregl) return;
+
+  // Clean up previous
+  if (_dashRouteMapInst) { try { _dashRouteMapInst.remove(); } catch {} _dashRouteMapInst = null; }
+
+  let lat = 46.05, lng = 14.51; // Default: Ljubljana
+  try {
+    const pos = await new Promise((res, rej) =>
+      navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 })
+    );
+    lat = pos.coords.latitude;
+    lng = pos.coords.longitude;
+  } catch {}
+
+  _dashRouteMapInst = new maplibregl.Map({
+    container: el,
+    style: _mlGetStyle(loadMapTheme()),
+    center: [lng, lat],
+    zoom: 12,
+    interactive: false,
+    attributionControl: false,
+    fadeDuration: 0,
+    renderWorldCopies: false,
+    antialias: false,
+    trackResize: false,
+    maxTileCacheSize: 20,
+    pixelRatio: Math.min(devicePixelRatio, 2),
+  });
+
+  // Location dot marker
+  const dot = document.createElement('div');
+  dot.className = 'dash-route-pin';
+  new maplibregl.Marker({ element: dot, anchor: 'center' }).setLngLat([lng, lat]).addTo(_dashRouteMapInst);
 }
 
 function _renderDashStreak() {
