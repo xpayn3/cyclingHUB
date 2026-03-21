@@ -25778,6 +25778,8 @@ function _initGoalScrubber() {
 
   const THRESHOLD = 10;
 
+  let touchStartX = 0, touchStartY = 0;
+
   scrubber.addEventListener('pointerdown', e => {
     if (e.button > 0) return;
     dragStartX = e.clientX;
@@ -25797,7 +25799,19 @@ function _initGoalScrubber() {
     applyStep(dragStartStep - (e.clientX - dragStartX) / PX);
   });
 
-  scrubber.addEventListener('touchmove', e => { if (dragging) e.preventDefault(); }, { passive: false });
+  scrubber.addEventListener('touchstart', e => {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+
+  scrubber.addEventListener('touchmove', e => {
+    if (dragging) { e.preventDefault(); return; }
+    if (pending) {
+      const dx = Math.abs(e.touches[0].clientX - touchStartX);
+      const dy = Math.abs(e.touches[0].clientY - touchStartY);
+      if (dx > dy && dx > 6) e.preventDefault();
+    }
+  }, { passive: false });
 
   const endDrag = () => {
     if (pending) { pending = false; return; }
