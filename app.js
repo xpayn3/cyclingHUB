@@ -2800,7 +2800,8 @@ function navigate(page, opts) {
   if (page === 'compare')  { ensureLifetimeLoaded(); renderComparePage(); }
   if (page === 'heatmap')  { ensureLifetimeLoaded(); renderHeatmapPage(); }
   if (page === 'goals')    { renderStreaksPage(); renderGoalsPage(); }
-  if (page === 'workout')  { wrkRefreshStats(); wrkRender(); }
+  if (page === 'workout')  { wrkRefreshStats(); wrkRender(); document.getElementById('pageContent')?.classList.add('wrk-snap'); }
+  else document.getElementById('pageContent')?.classList.remove('wrk-snap');
   if (page === 'myroutes') renderMyRoutesPage();
   if (page === 'suggestion') renderSuggestionPage();
   if (page === 'bikedetail') renderBikeDetailPage();

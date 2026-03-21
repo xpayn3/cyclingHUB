@@ -12443,6 +12443,12 @@ body:has(.act-sheet-mode) .topbar {
     z-index: 10;
     transition: border-radius 0.25s, margin 0.25s, padding 0.25s;
 }
+.page-content.wrk-snap {
+    scroll-snap-type: y proximity;
+}
+.wrk-chart-card {
+    scroll-snap-align: start;
+}
 .wrk-chart-card.wrk-chart-stuck {
     border-radius: 0 0 12px 12px;
     margin-left: calc(-1 * var(--pad-page, 16px));
