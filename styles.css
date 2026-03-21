@@ -2180,6 +2180,12 @@ input[type="number"] {
     font-size: 11px;
     color: var(--text-muted);
 }
+.dash-gear-warn {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--red);
+    margin-top: 2px;
+}
 .dash-gear-empty {
     flex: 1;
     display: flex;

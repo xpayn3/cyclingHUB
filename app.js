@@ -4768,6 +4768,8 @@ async function _renderDashGear() {
   }
 
   const photos = (typeof _gearLoadPhotos === 'function') ? _gearLoadPhotos() : {};
+  const components = (typeof loadGearComponents === 'function') ? loadGearComponents() : [];
+  const batteries = (typeof loadGearBatteries === 'function') ? loadGearBatteries() : [];
   const _gearIcon = (type) => {
     const t = (type || '').toLowerCase();
     if (t.includes('shoe') || t.includes('run'))
@@ -4782,10 +4784,20 @@ async function _renderDashGear() {
     const imgHtml = photo
       ? `<img class="dash-gear-photo" src="${photo}" alt="">`
       : `<div class="dash-gear-icon">${_gearIcon(g.type)}</div>`;
+    const partCount = components.filter(c => c.bikeId === g.id && !c.retired).length;
+    const batList = batteries.filter(b => b.bikeId === g.id && !b.obsolete);
+    const batLow = batList.find(b => { const p = (typeof calcBatteryPercent === 'function') ? calcBatteryPercent(b) : null; return p !== null && p < 25; });
+    let meta = g.km ? g.km.toLocaleString() + ' km' : (g.type || '—');
+    const tags = [];
+    if (partCount) tags.push(`${partCount} parts`);
+    if (batList.length) tags.push(`${batList.length} bat`);
+    if (tags.length) meta += ' · ' + tags.join(' · ');
+
     return `<div class="dash-gear-slide" onclick="navigate('gear')">
       ${imgHtml}
       <div class="dash-gear-name">${g.name}</div>
-      <div class="dash-gear-km">${g.km ? g.km.toLocaleString() + ' km' : g.type || '—'}</div>
+      <div class="dash-gear-km">${meta}</div>
+      ${batLow ? '<div class="dash-gear-warn">Low battery</div>' : ''}
     </div>`;
   }).join('');
 
