@@ -12898,20 +12898,41 @@ function _openOverlaySheet(id) {
   sheet.style.display = '';
   sheet.offsetHeight;
   sheet.classList.add('wxd-open');
-  // Prevent background scroll on iOS — block touchmove on the overlay backdrop
+  // Prevent background scroll on iOS — block touchmove that would leak to body
   if (!sheet._bgScrollLock) {
     sheet._bgScrollLock = true;
+    const panel = sheet.querySelector('.wxd-sheet');
+    // Block all touchmove on the overlay (backdrop area)
     sheet.addEventListener('touchmove', e => {
-      // Allow touchmove inside scrollable sheet body, but block on backdrop
-      const panel = sheet.querySelector('.wxd-sheet');
       if (panel && !panel.contains(e.target)) {
         e.preventDefault();
       }
     }, { passive: false });
-    // Also block touchmove on the backdrop element itself
     const backdrop = sheet.querySelector('.wxd-backdrop');
     if (backdrop) {
       backdrop.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+    }
+    // Block scroll-leak inside the sheet panel at scroll boundaries
+    if (panel) {
+      panel.addEventListener('touchmove', e => {
+        const sh = panel.scrollHeight;
+        const ch = panel.clientHeight;
+        // If content doesn't overflow, block all vertical scroll
+        if (sh <= ch + 1) { e.preventDefault(); return; }
+        // At top boundary scrolling up, or bottom boundary scrolling down — block
+        const st = panel.scrollTop;
+        if (st <= 0 && e.touches[0] && panel._touchStartY !== undefined) {
+          const dy = e.touches[0].clientY - panel._touchStartY;
+          if (dy > 0) e.preventDefault(); // pulling down at top
+        }
+        if (st + ch >= sh - 1 && e.touches[0] && panel._touchStartY !== undefined) {
+          const dy = e.touches[0].clientY - panel._touchStartY;
+          if (dy < 0) e.preventDefault(); // pushing up at bottom
+        }
+      }, { passive: false });
+      panel.addEventListener('touchstart', e => {
+        panel._touchStartY = e.touches[0]?.clientY || 0;
+      }, { passive: true });
     }
   }
   // Swipe-to-dismiss on the sheet panel
