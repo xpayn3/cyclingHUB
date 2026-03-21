@@ -12577,10 +12577,11 @@ function _initSheetSwipeDismiss(overlay, id) {
   let startY = 0, currentY = 0, dragging = false;
 
   panel.addEventListener('touchstart', e => {
-    // Only allow swipe-to-dismiss from the drag indicator pill —
-    // identical to native iOS sheet behaviour and avoids conflicts
-    // with sheet content scrolling anywhere else.
-    if (!e.target.closest('.modal-drag-indicator')) return;
+    // Allow dismiss from the drag indicator at any scroll position,
+    // OR from anywhere when already scrolled to the very top.
+    const onDragHandle = !!e.target.closest('.modal-drag-indicator');
+    const atTop = panel.scrollTop <= 5;
+    if (!onDragHandle && !atTop) return;
     const t = e.touches[0];
     startY = t.clientY;
     currentY = startY;
