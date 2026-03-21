@@ -3101,8 +3101,9 @@ input[type="number"] {
     white-space: nowrap;
 }
 .ra-stat-unit {
-    font-size: var(--text-xs);
-    font-weight: 500;
+    font-size: 0.85em;
+    font-weight: 600;
+    font-family: var(--font-num);
     color: var(--text-secondary);
     letter-spacing: 0;
 }
