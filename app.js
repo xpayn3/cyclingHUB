@@ -4178,14 +4178,14 @@ function buildHeroActCardHTML(a, idx) {
       <div class="hero-act-map" id="recentActCardMap_${idx}"></div>
       <div class="hero-act-category">${sportLabel}</div>
       ${_heroAchBadge(a)}
+      <div class="hero-act-inner-header">
+        <div class="hero-act-title">${name}</div>
+        <div class="hero-act-subtitle">${dateFmt}${timeFmt ? ' \u00B7 ' + timeFmt : ''}${platformTag ? ` \u00B7 ${platformTag}` : ''}</div>
+      </div>
       <div class="hero-act-bottom">
         <div class="hero-act-stats">${statsHTML}</div>
         ${(tssBadge || wxChip) ? `<div class="hero-act-trailing">${tssBadge}${wxChip}</div>` : ''}
       </div>
-    </div>
-    <div class="hero-act-outer-header">
-      <div class="hero-act-title">${name}</div>
-      <div class="hero-act-subtitle">${dateFmt}${timeFmt ? ' \u00B7 ' + timeFmt : ''}${platformTag ? ` \u00B7 ${platformTag}` : ''}</div>
     </div>
   </div>`;
 }
