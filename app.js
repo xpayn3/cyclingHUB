@@ -13463,8 +13463,8 @@ function fmtDur(secs) {
 function _fmtDurHTML(secs) {
   const h = Math.floor(secs / 3600);
   const m = Math.floor((secs % 3600) / 60);
-  if (h > 0) return `${h}<span class="ra-stat-unit">h</span> ${m}<span class="ra-stat-unit">m</span>`;
-  return `${m}<span class="ra-stat-unit">m</span>`;
+  if (h > 0) return `${h}<span class="ra-stat-unit"> h</span> ${m}<span class="ra-stat-unit"> m</span>`;
+  return `${m}<span class="ra-stat-unit"> m</span>`;
 }
 
 function fmtDate(str) {
