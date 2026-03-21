@@ -179,14 +179,10 @@ export function wrkDrawChart() {
       wrkDrawFree(ctx, x, segW, MAX_PCT, PAD_T, cH);
     }
 
-    // Selection highlight — full-height overlay + border
+    // Selection highlight — full-height overlay
     if (isSelected) {
       ctx.fillStyle = 'rgba(0,229,160,0.12)';
       ctx.fillRect(x, PAD_T, segW, cH);
-      ctx.strokeStyle = 'rgba(0,229,160,0.5)';
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([]);
-      ctx.strokeRect(x, PAD_T, segW, cH);
     }
 
     // Time label at segment start (skip first and very narrow ones)
