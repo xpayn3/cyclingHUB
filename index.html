@@ -493,16 +493,18 @@
                 <!-- All content scrolls: drag pill, title, icon, desc, form -->
                 <div class="modal-drag-indicator"></div>
                 <div class="modal-header">
-                    <div class="modal-title" id="gearModalTitle">Add Component</div>
+                    <div style="display:flex;align-items:center;gap:12px">
+                        <div class="modal-header-icon" style="margin:0;flex-shrink:0">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+                                <circle cx="12" cy="12" r="3" />
+                                <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                                <path d="M4.93 4.93a10 10 0 0 0 0 14.14" />
+                            </svg>
+                        </div>
+                        <div class="modal-title" id="gearModalTitle">Add Component</div>
+                    </div>
                 </div>
                 <div class="modal-body">
-                    <div class="modal-header-icon" style="margin-bottom:4px">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
-                            <circle cx="12" cy="12" r="3" />
-                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-                            <path d="M4.93 4.93a10 10 0 0 0 0 14.14" />
-                        </svg>
-                    </div>
                     <div class="modal-desc" style="margin-bottom:20px">
                         Track a bike part — brand, install date, and when to replace it.
                     </div>
