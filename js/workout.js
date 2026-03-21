@@ -579,6 +579,7 @@ function _doWrkClear() {
   const inp = document.getElementById('wrkNameInput');
   if (inp) inp.value = 'New Workout';
   wrkRender();
+  _wrkUpdateFavBtn();
 }
 
 /* ── Exports ──────────────────────────────────── */
@@ -830,6 +831,12 @@ async function _wrkOpenDB() {
   });
 }
 
+function _wrkUpdateFavBtn() {
+  const btn = document.getElementById('wrkFavBtn');
+  if (!btn) return;
+  btn.classList.toggle('is-saved', !!wrkState.saveId);
+}
+
 export async function wrkSave() {
   if (!wrkState.segments.length) { showToast('Add segments first', 'error'); return; }
   try {
@@ -848,7 +855,8 @@ export async function wrkSave() {
     await new Promise((r, j) => { tx.oncomplete = r; tx.onerror = j; });
     db.close();
     wrkState.saveId = workout.id;
-    showToast('Workout saved', 'success');
+    showToast('Workout saved to library', 'success');
+    _wrkUpdateFavBtn();
   } catch (e) {
     console.error('wrkSave', e);
     showToast('Failed to save workout', 'error');
@@ -890,6 +898,7 @@ export function wrkLoadWorkout(workout) {
   const ftpInp = document.getElementById('wrkFtpInput');
   if (ftpInp) ftpInp.value = wrkState.ftpOverride || '';
   wrkRender();
+  _wrkUpdateFavBtn();
 }
 
 export function wrkDownload(filename, content, mime) {

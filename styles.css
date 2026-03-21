@@ -12832,7 +12832,52 @@ body:has(.act-sheet-mode) .topbar {
     margin: 0 16px;
 }
 
-/* ---- Save button ---- */
+/* ---- Bottom FAB nav ---- */
+.wrk-fab-bar {
+    position: fixed;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+    left: var(--pad-page, 16px);
+    right: var(--pad-page, 16px);
+    display: flex;
+    justify-content: space-between;
+    pointer-events: none;
+    z-index: 100;
+}
+.wrk-fab {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: transform 0.15s, background 0.15s;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+.wrk-fab:active { transform: scale(0.9); }
+.wrk-fab--back {
+    background: rgba(255,255,255,0.1);
+    color: var(--text-primary);
+}
+.wrk-fab--fav {
+    background: rgba(255,255,255,0.1);
+    color: var(--text-muted);
+}
+.wrk-fab--fav.is-saved {
+    color: var(--red);
+}
+.wrk-fab--fav.is-saved svg {
+    fill: var(--red);
+}
+[data-theme="light"] .wrk-fab--back,
+[data-theme="light"] .wrk-fab--fav {
+    background: rgba(0,0,0,0.06);
+}
+
+/* ---- Save button (legacy) ---- */
 .wrk-save-btn {
     display: flex;
     align-items: center;
