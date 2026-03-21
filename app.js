@@ -2593,6 +2593,12 @@ function navigate(page) {
   // Clean up charts from the page we're leaving to free memory
   if (state.currentPage) cleanupPageCharts(state.currentPage);
 
+  // Clear weather gradient when leaving weather page
+  if (state.currentPage === 'weather' && page !== 'weather') {
+    const _pc = document.getElementById('pageContent');
+    if (_pc) _pc.style.background = '';
+  }
+
   // Clear scroll restore if navigating anywhere other than activities→activity round-trip
   if (!_restoreActScroll) window._actListScrollRestore = null;
 

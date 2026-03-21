@@ -104,6 +104,35 @@ export function wmoLabel(code) {
   return 'Clear';
 }
 
+// Weather-based page gradient
+function wxPageGradient(code, isDay) {
+  // Night
+  if (!isDay) {
+    if ([51,53,55,61,63,65,66,67,80,81,82].includes(code)) return 'linear-gradient(180deg, #1a2744 0%, #1e3352 40%, #253d5e 100%)';
+    if ([95,96,99].includes(code)) return 'linear-gradient(180deg, #201840 0%, #2e2050 40%, #3d2c62 100%)';
+    if ([71,73,75,77,85,86].includes(code)) return 'linear-gradient(180deg, #2a3448 0%, #354260 50%, #3e4d68 100%)';
+    if ([45,48].includes(code)) return 'linear-gradient(180deg, #262640 0%, #32324e 60%, #2e2e4a 100%)';
+    if (code >= 2) return 'linear-gradient(180deg, #182038 0%, #222e4a 40%, #2a3855 100%)';
+    return 'linear-gradient(180deg, #101840 0%, #1e2a5c 35%, #162450 100%)'; // clear night
+  }
+  // Thunderstorm
+  if ([95,96,99].includes(code)) return 'linear-gradient(180deg, #2c2c3a 0%, #3d3552 40%, #4a4260 100%)';
+  // Rain / showers / drizzle
+  if ([51,53,55,61,63,65,66,67,80,81,82].includes(code)) return 'linear-gradient(180deg, #3a4a5c 0%, #4a5a6c 40%, #5a6a7c 100%)';
+  // Snow
+  if ([71,73,75,77,85,86].includes(code)) return 'linear-gradient(180deg, #6b7b8d 0%, #8a9aac 50%, #a0b0c0 100%)';
+  // Fog
+  if ([45,48].includes(code)) return 'linear-gradient(180deg, #4a5568 0%, #5a6578 50%, #6b7280 100%)';
+  // Overcast
+  if (code === 3) return 'linear-gradient(180deg, #4a5a6c 0%, #5a6a7c 40%, #6a7a8c 100%)';
+  // Mostly cloudy
+  if (code === 2) return 'linear-gradient(180deg, #3a5068 0%, #4a6078 40%, #5a7088 100%)';
+  // Partly cloudy
+  if (code === 1) return 'linear-gradient(180deg, #2a4a6e 0%, #3a6a9e 35%, #4a7ab0 100%)';
+  // Clear sky
+  return 'linear-gradient(180deg, #1e3a5f 0%, #2a6cb5 35%, #4a9eda 100%)';
+}
+
 // Degrees → compass cardinal
 export function windDir(deg) {
   if (deg == null) return '';
@@ -1114,6 +1143,22 @@ export async function renderWeatherPage(_restoreScrollY) {
     container.style.minHeight = h + 'px';
   }
 
+  const isDay = cur.is_day != null ? !!cur.is_day : true;
+  const wxScene = [95,96,99].includes(curCode) ? 'storm'
+    : [61,63,65,66,67,80,81,82].includes(curCode) ? 'rain'
+    : [71,73,75,77,85,86].includes(curCode) ? 'snow'
+    : [45,48].includes(curCode) ? 'fog'
+    : curCode >= 2 ? 'cloudy'
+    : 'clear';
+
+  // Insert horizon backdrop into the page container (outside body flow)
+  let horizonEl = container.querySelector('.aw-horizon');
+  if (!horizonEl) {
+    horizonEl = document.createElement('div');
+    container.insertBefore(horizonEl, container.firstChild);
+  }
+  horizonEl.className = `aw-horizon ${isDay ? 'aw-horizon--day' : 'aw-horizon--night'} aw-horizon--${wxScene}`;
+
   body.innerHTML = `
     <!-- Apple Weather Hero -->
     <div class="aw-hero">
@@ -1149,44 +1194,115 @@ export async function renderWeatherPage(_restoreScrollY) {
       </div>
     </div>
 
-    <!-- Conditions Grid -->
+    <!-- Conditions Grid — SwiftUI style -->
     <div class="aw-conditions-grid">
-      <div class="card aw-tile">
-        <div class="aw-tile-label">${WEATHER_SVGS.uv} UV INDEX</div>
-        <div class="aw-tile-val">${Math.round(curUV)}</div>
-        <div class="aw-tile-desc">${uvDesc(curUV)}</div>
-        <div class="aw-tile-bar-track"><div class="aw-tile-bar" style="width:${Math.min(curUV / 11 * 100, 100)}%;background:linear-gradient(to right,#34C759,#FFD60A,#FF453A)"></div></div>
+      ${(() => {
+        const dewPt = curTemp != null && curHumidity != null ? Math.round(curTemp - ((100 - curHumidity) / 5)) : null;
+        const dewDesc = dewPt == null ? '' : dewPt <= -5 ? 'The air is very dry' : dewPt <= 5 ? 'The air is dry' : dewPt <= 12 ? 'Comfortable' : dewPt <= 18 ? 'Slightly humid' : 'Muggy';
+        const windDeg = cur.winddirection_10m ?? 0;
+        const pressureDesc = curPressure != null ? (curPressure > 1025 ? 'Currently rising rapidly' : curPressure > 1013 ? 'Currently rising' : curPressure < 1000 ? 'Currently falling rapidly' : curPressure < 1013 ? 'Currently falling' : 'Stable') : '';
+        const pressureAngle = curPressure != null ? Math.min(Math.max((curPressure - 960) / (1060 - 960), 0), 1) * 240 - 120 : 0;
+        const visDesc = curVis != null && curVis >= 10000 ? 'Unlimited visibility' : curVis != null && curVis >= 5000 ? 'Good visibility' : 'Reduced visibility';
+        const visKm = curVis != null ? (curVis >= 10000 ? (curVis / 1000).toFixed(2) : (curVis / 1000).toFixed(1)) : '—';
+        return `
+      <div class="card aw-tile aw-tile--viz">
+        <div class="aw-tile-label">${WEATHER_SVGS.uv} UV index</div>
+        <div class="aw-tile-desc">${uvDesc(curUV)} rest of day</div>
+        <div class="aw-tile-viz">
+          <div class="aw-tile-big">${curUV <= 2 ? 'Low' : curUV <= 5 ? 'Moderate' : curUV <= 7 ? 'High' : curUV <= 10 ? 'Very High' : 'Extreme'}</div>
+          <div class="aw-uv-bar">
+            <div class="aw-uv-bar-track"></div>
+            <div class="aw-uv-dot" style="left:clamp(11px, ${Math.min(curUV / 11 * 100, 100)}%, calc(100% - 11px))"><span>${Math.round(curUV)}</span></div>
+          </div>
+        </div>
       </div>
-      <div class="card aw-tile">
-        <div class="aw-tile-label">${WEATHER_SVGS.wind} WIND</div>
-        <div class="aw-tile-val">${Math.round(curWind)}<span> ${windLbl}</span></div>
-        <div class="aw-tile-desc">${curWindDir}</div>
+      <div class="card aw-tile aw-tile--viz">
+        <div class="aw-tile-label">${WEATHER_SVGS.humidity} Humidity</div>
+        <div class="aw-tile-desc">${curHumidity != null ? (Math.abs((curHumidity) - 50) < 15 ? 'Similar to yesterday' : curHumidity > 70 ? 'Feels muggy' : 'Dry air') : ''}</div>
+        <div class="aw-tile-viz">
+          <div class="aw-tile-big">${curHumidity != null ? Math.round(curHumidity) + '%' : '—'}</div>
+          <div class="aw-humidity-bar">
+            <div class="aw-humidity-fill" style="width:${curHumidity ?? 0}%"></div>
+          </div>
+        </div>
       </div>
-      <div class="card aw-tile">
-        <div class="aw-tile-label">${WEATHER_SVGS.rain} PRECIPITATION</div>
-        <div class="aw-tile-val">${Math.round(curPrecipProb)}<span>%</span></div>
-        <div class="aw-tile-desc">${(rainMm?.[0] ?? 0) > 0.5 ? (rainMm[0]).toFixed(1) + ' mm expected' : 'None expected'}</div>
+      <div class="card aw-tile aw-tile--viz">
+        <div class="aw-tile-label">${WEATHER_SVGS.wind} Wind</div>
+        <div class="aw-tile-desc">${curWind < 5 ? "It's calm" : curWind < 20 ? 'Light breeze' : curWind < 40 ? 'Breezy' : 'Strong wind'}</div>
+        <div class="aw-tile-viz">
+          <div class="aw-compass">
+            <svg viewBox="0 0 140 140" class="aw-compass-svg">
+              <!-- Outer ring band (thick stroke) -->
+              <circle cx="70" cy="70" r="57" fill="none" stroke="var(--text-muted)" stroke-width="14" opacity="0.18"/>
+              <circle cx="70" cy="70" r="69" fill="none" stroke="var(--text-muted)" stroke-width="1" opacity="0.2"/>
+              <circle cx="70" cy="70" r="45" fill="none" stroke="var(--text-muted)" stroke-width="1" opacity="0.2"/>
+              <!-- Cardinal labels centered in the ring band (radially aligned) -->
+              <text x="70" y="13" text-anchor="middle" dominant-baseline="central" fill="#FF453A" font-size="11" font-weight="700">N</text>
+              <text x="127" y="70" text-anchor="middle" dominant-baseline="central" fill="var(--text-muted)" font-size="10" font-weight="600" transform="rotate(90, 127, 70)">E</text>
+              <text x="70" y="127" text-anchor="middle" dominant-baseline="central" fill="var(--text-muted)" font-size="10" font-weight="600" transform="rotate(180, 70, 127)">S</text>
+              <text x="13" y="70" text-anchor="middle" dominant-baseline="central" fill="var(--text-muted)" font-size="10" font-weight="600" transform="rotate(-90, 13, 70)">W</text>
+              <!-- Intercardinal labels in the ring band (radially aligned) -->
+              <text x="110" y="30" text-anchor="middle" dominant-baseline="central" fill="var(--text-muted)" font-size="7" opacity="0.45" transform="rotate(45, 110, 30)">NE</text>
+              <text x="110" y="110" text-anchor="middle" dominant-baseline="central" fill="var(--text-muted)" font-size="7" opacity="0.45" transform="rotate(135, 110, 110)">SE</text>
+              <text x="30" y="110" text-anchor="middle" dominant-baseline="central" fill="var(--text-muted)" font-size="7" opacity="0.45" transform="rotate(-135, 30, 110)">SW</text>
+              <text x="30" y="30" text-anchor="middle" dominant-baseline="central" fill="var(--text-muted)" font-size="7" opacity="0.45" transform="rotate(-45, 30, 30)">NW</text>
+              <!-- Tick marks on inner edge of ring -->
+              ${[0,45,90,135,180,225,270,315].map(a => {const ri=42,ro=45,cx2=70,cy2=70,rad=a*Math.PI/180;return '<line x1="'+(cx2+ri*Math.sin(rad))+'" y1="'+(cy2-ri*Math.cos(rad))+'" x2="'+(cx2+ro*Math.sin(rad))+'" y2="'+(cy2-ro*Math.cos(rad))+'" stroke="var(--text-muted)" stroke-width="1" opacity="0.3"/>'}).join('')}
+              <!-- Wind direction arrow -->
+              <g transform="rotate(${windDeg}, 70, 70)">
+                <path d="M70,28 L76,42 Q70,40 64,42 Z" fill="var(--text-primary)" opacity="0.9"/>
+              </g>
+            </svg>
+            <div class="aw-compass-center">
+              <div class="aw-compass-speed">${Math.round(curWind)}</div>
+              <div class="aw-compass-unit">${windLbl}</div>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="card aw-tile">
-        <div class="aw-tile-label">${WEATHER_SVGS.feelslike} FEELS LIKE</div>
-        <div class="aw-tile-val">${curFeels != null ? Math.round(curFeels) : '—'}°</div>
-        <div class="aw-tile-desc">${feelsDesc(curFeels, curTemp)}</div>
+      <div class="card aw-tile aw-tile--viz">
+        <div class="aw-tile-label">${WEATHER_SVGS.humidity} Dew point</div>
+        <div class="aw-tile-desc">${dewDesc}</div>
+        <div class="aw-tile-viz">
+          <div class="aw-tile-huge">${dewPt != null ? dewPt + '°' : '—'}</div>
+        </div>
       </div>
-      <div class="card aw-tile">
-        <div class="aw-tile-label">${WEATHER_SVGS.humidity} HUMIDITY</div>
-        <div class="aw-tile-val">${curHumidity != null ? Math.round(curHumidity) : '—'}<span>%</span></div>
-        <div class="aw-tile-desc">The dew point is ${curTemp != null && curHumidity != null ? Math.round(curTemp - ((100 - curHumidity) / 5)) : '—'}° right now</div>
+      <div class="card aw-tile aw-tile--viz">
+        <div class="aw-tile-label">${WEATHER_SVGS.pressure} Pressure</div>
+        <div class="aw-tile-desc">${pressureDesc}</div>
+        <div class="aw-tile-viz">
+          <div class="aw-gauge">
+            <svg viewBox="0 0 140 120" class="aw-gauge-svg">
+              ${(() => {
+                const cx=70,cy=70,r=52,pNorm=curPressure!=null?Math.min(Math.max((curPressure-960)/(1060-960),0),1):0.5;
+                const gapDeg=108,arcDeg=360-gapDeg;
+                const startDeg=90+gapDeg/2,endDeg=startDeg+arcDeg;
+                const toRad=d=>d*Math.PI/180;
+                const pt=(deg)=>[cx+r*Math.cos(toRad(deg)),cy+r*Math.sin(toRad(deg))];
+                const s=pt(startDeg),e=pt(endDeg);
+                const bg='M '+s[0].toFixed(1)+' '+s[1].toFixed(1)+' A '+r+' '+r+' 0 1 1 '+e[0].toFixed(1)+' '+e[1].toFixed(1);
+                const fillDeg=startDeg+arcDeg*pNorm;
+                const fillPt=pt(fillDeg);
+                const large=arcDeg*pNorm>180?1:0;
+                const fg='M '+s[0].toFixed(1)+' '+s[1].toFixed(1)+' A '+r+' '+r+' 0 '+large+' 1 '+fillPt[0].toFixed(1)+' '+fillPt[1].toFixed(1);
+                const val = curPressure != null ? curPressure.toFixed(1) : '—';
+                return '<path d="'+bg+'" fill="none" stroke="var(--text-muted)" stroke-width="10" stroke-linecap="round" opacity="0.15"/>'
+                  +'<path d="'+fg+'" fill="none" stroke="var(--text-primary)" stroke-width="10" stroke-linecap="round" opacity="0.7"/>'
+                  +'<text x="70" y="68" text-anchor="middle" dominant-baseline="central" fill="var(--text-primary)" font-size="28" font-weight="500" font-family="var(--font-num)">'+val+'</text>'
+                  +'<text x="70" y="108" text-anchor="middle" dominant-baseline="central" fill="var(--text-muted)" font-size="14" font-weight="500">mb</text>';
+              })()}
+            </svg>
+          </div>
+        </div>
       </div>
-      <div class="card aw-tile">
-        <div class="aw-tile-label">${WEATHER_SVGS.visibility} VISIBILITY</div>
-        <div class="aw-tile-val">${visStr}</div>
-        <div class="aw-tile-desc">${curVis != null && curVis >= 10000 ? 'Perfectly clear' : curVis != null && curVis >= 5000 ? 'Good visibility' : 'Reduced visibility'}</div>
-      </div>
-      <div class="card aw-tile">
-        <div class="aw-tile-label">${WEATHER_SVGS.pressure} PRESSURE</div>
-        <div class="aw-tile-val">${curPressure != null ? Math.round(curPressure) : '—'}<span> hPa</span></div>
-        <div class="aw-tile-desc">${curPressure != null ? (curPressure > 1020 ? 'High pressure' : curPressure < 1000 ? 'Low pressure' : 'Normal') : ''}</div>
-      </div>
+      <div class="card aw-tile aw-tile--viz">
+        <div class="aw-tile-label">${WEATHER_SVGS.visibility} Visibility</div>
+        <div class="aw-tile-desc">${visDesc}</div>
+        <div class="aw-tile-viz">
+          <div class="aw-tile-huge">${visKm}<span> km</span></div>
+        </div>
+      </div>`;
+      })()}
     </div>
 
     <!-- Sunrise & Sunset — full-width premium card -->
@@ -1243,6 +1359,12 @@ export async function renderWeatherPage(_restoreScrollY) {
     <!-- Footer -->
     <div class="aw-footer">Data from <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> · ${localStorage.getItem('icu_wx_model') || 'best_match'} · ${lat.toFixed(2)}°N, ${lng.toFixed(2)}°E</div>
   `;
+
+  // Apply weather-based background gradient to the scrollable page container
+  const pageContent = document.getElementById('pageContent');
+  if (pageContent) {
+    pageContent.style.background = wxPageGradient(curCode, isDay);
+  }
 
   // Restore scroll position after location switch
   if (_restoreScrollY != null) {
@@ -1597,50 +1719,82 @@ export function renderWeatherDayDetail(dayIdx) {
   // ── Show back button in topbar, update page title ────────────────────────
   const wxdBack = document.getElementById('wxdTopbarBack');
   // ── Build sheet content ───────────────────────────────────────────────────
+  const scoreLabelText = label === 'great' ? 'Great' : label === 'good' ? 'Good' : label === 'fair' ? 'Fair' : 'Poor';
+
+  // ── Build conditions mini-grid data ─────────────────────────────────────
+  const uvLabel = uv <= 2 ? 'Low' : uv <= 5 ? 'Moderate' : uv <= 7 ? 'High' : uv <= 10 ? 'Very High' : 'Extreme';
+  const windDesc2 = wind < 5 ? 'Calm' : wind < 20 ? 'Light' : wind < 40 ? 'Breezy' : 'Strong';
+  const precipDesc = rain > 0.5 ? `${rain.toFixed(1)} mm expected` : precip > 0 ? `${Math.round(precip)}% chance` : 'None expected';
+
   container.innerHTML = `
     <div class="aw-detail-wrap">
-    <!-- Hero -->
-    <div class="aw-detail-hero">
-      <div class="aw-dh-icon">${wmoIcon(codes[i])}</div>
-      <div class="aw-dh-info">
-        <div class="aw-dh-condition">${wmoLabel(codes[i])}</div>
-        <div class="aw-dh-temp">${Math.round(high)}°<span class="aw-dh-lo">/${Math.round(low)}°</span></div>
-      </div>
-      <div class="aw-dh-score">
+
+    <!-- Hero — centered Apple weather style -->
+    <div class="wxd-hero">
+      <div class="wxd-hero-day">${dayName}</div>
+      <div class="wxd-hero-icon">${wmoIcon(codes[i])}</div>
+      <div class="wxd-hero-condition">${wmoLabel(codes[i])}</div>
+      <div class="wxd-hero-temp">${Math.round(high)}°<span class="wxd-hero-lo">/${Math.round(low)}°</span></div>
+      <div class="wxd-hero-score">
         <div class="aw-score-badge aw-score--${label}">${score}</div>
-        <div class="aw-dh-score-label">${label === 'great' ? 'Great' : label === 'good' ? 'Good' : label === 'fair' ? 'Fair' : 'Poor'}</div>
+        <div class="wxd-hero-score-label">${scoreLabelText}</div>
       </div>
     </div>
 
-    <!-- Hourly conditions -->
+    <!-- Hourly forecast strip -->
     ${hourlyHtml ? `
     <div class="card aw-card">
-      <div class="aw-card-label">HOURLY CONDITIONS</div>
+      <div class="aw-card-label">${WEATHER_SVGS.clock || ''} HOURLY FORECAST</div>
       <div class="aw-hourly-scroll">${hourlyHtml}</div>
     </div>` : ''}
 
-    <!-- Ride Assessment -->
+    <!-- Conditions mini-grid -->
+    <div class="wxd-grid">
+      <div class="wxd-grid-tile">
+        <div class="wxd-gt-label">${WEATHER_SVGS.wind} Wind</div>
+        <div class="wxd-gt-val">${Math.round(wind)} <span>${windLbl}</span></div>
+        <div class="wxd-gt-desc">${windDesc2} · ${wdir}</div>
+      </div>
+      <div class="wxd-grid-tile">
+        <div class="wxd-gt-label">${WEATHER_SVGS.uv} UV Index</div>
+        <div class="wxd-gt-val">${Math.round(uv)}</div>
+        <div class="wxd-gt-desc">${uvLabel}</div>
+      </div>
+      <div class="wxd-grid-tile">
+        <div class="wxd-gt-label">${WEATHER_SVGS.rain} Precipitation</div>
+        <div class="wxd-gt-val">${Math.round(precip)}<span>%</span></div>
+        <div class="wxd-gt-desc">${precipDesc}</div>
+      </div>
+      <div class="wxd-grid-tile">
+        <div class="wxd-gt-label">${WEATHER_SVGS.sunrise_icon || WEATHER_SVGS.sun} Daylight</div>
+        <div class="wxd-gt-val" style="font-size:18px">${srStr}</div>
+        <div class="wxd-gt-desc">Sunset ${ssStr}</div>
+      </div>
+    </div>
+
+    <!-- Best Ride Window — accent card -->
+    ${bestWindowStr ? `
+    <div class="card aw-card wxd-window-card">
+      <div class="aw-card-label">${WEATHER_SVGS.bike} BEST RIDE WINDOW</div>
+      <div class="wxd-window-body">
+        <div class="aw-window-time">${bestWindowStr}</div>
+        ${_buildSunArc(sunProgress, srStr, ssStr)}
+      </div>
+    </div>` : ''}
+
+    <!-- Ride Assessment — clean grouped list -->
     ${reasonsHtml ? `
     <div class="card aw-card">
       <div class="aw-card-label">RIDE ASSESSMENT</div>
       <div class="aw-reasons-list">${reasonsHtml}</div>
     </div>` : ''}
 
-    <!-- Best Ride Window -->
-    ${bestWindowStr ? `
-    <div class="card aw-card">
-      <div class="aw-card-label">BEST RIDE WINDOW</div>
-      <div class="aw-window-content">
-        <div class="aw-window-time">${bestWindowStr}</div>
-        ${_buildSunArc(sunProgress, srStr, ssStr)}
-      </div>
-    </div>` : ''}
-
-    <!-- Ride Planner -->
+    <!-- Ride Planner — grouped tips -->
     <div class="card aw-card">
       <div class="aw-card-label">RIDE PLANNER</div>
       <div class="aw-tips-list">${tipsHtml}</div>
     </div>
+
     </div><!-- /.aw-detail-wrap -->
   `;
 

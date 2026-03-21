@@ -14717,6 +14717,146 @@ body:has(.act-sheet-mode) .topbar {
    APPLE WEATHER REDESIGN  (aw-)
 ============================================================ */
 
+/* Weather page gradient background */
+.page-content {
+    transition: background 0.6s ease;
+}
+
+/* Atmospheric horizon backdrop */
+.aw-horizon {
+    position: absolute;
+    top: 0;
+    left: -16px;
+    right: -16px;
+    height: 420px;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+}
+/* Horizon glow — radial gradient simulating light at the horizon */
+.aw-horizon::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 140%;
+    height: 200px;
+    border-radius: 50%;
+    filter: blur(40px);
+    opacity: 0.5;
+}
+/* Hill silhouette */
+.aw-horizon::after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: -10%;
+    width: 120%;
+    height: 80px;
+    border-radius: 50% 50% 0 0;
+    opacity: 0.12;
+}
+
+/* Day scenes */
+.aw-horizon--day.aw-horizon--clear::before {
+    background: radial-gradient(ellipse, rgba(255, 200, 80, 0.6) 0%, rgba(100, 180, 255, 0.2) 60%, transparent 100%);
+    opacity: 0.5;
+}
+.aw-horizon--day.aw-horizon--clear::after {
+    background: rgba(0, 0, 0, 0.08);
+}
+.aw-horizon--day.aw-horizon--cloudy::before {
+    background: radial-gradient(ellipse, rgba(180, 200, 220, 0.4) 0%, rgba(120, 150, 180, 0.15) 60%, transparent 100%);
+    opacity: 0.4;
+}
+.aw-horizon--day.aw-horizon--cloudy::after {
+    background: rgba(0, 0, 0, 0.06);
+}
+.aw-horizon--day.aw-horizon--rain::before {
+    background: radial-gradient(ellipse, rgba(120, 140, 170, 0.35) 0%, rgba(80, 100, 130, 0.1) 60%, transparent 100%);
+    opacity: 0.35;
+}
+.aw-horizon--day.aw-horizon--rain::after {
+    background: rgba(0, 0, 0, 0.06);
+}
+.aw-horizon--day.aw-horizon--snow::before {
+    background: radial-gradient(ellipse, rgba(210, 220, 240, 0.5) 0%, rgba(180, 195, 215, 0.2) 60%, transparent 100%);
+    opacity: 0.45;
+}
+.aw-horizon--day.aw-horizon--fog::before {
+    background: radial-gradient(ellipse, rgba(170, 180, 200, 0.4) 0%, rgba(140, 155, 175, 0.2) 70%, transparent 100%);
+    opacity: 0.5;
+    height: 300px;
+}
+.aw-horizon--day.aw-horizon--storm::before {
+    background: radial-gradient(ellipse, rgba(100, 80, 130, 0.35) 0%, rgba(70, 60, 100, 0.1) 60%, transparent 100%);
+    opacity: 0.35;
+}
+
+/* Night scenes */
+.aw-horizon--night.aw-horizon--clear::before {
+    background: radial-gradient(ellipse, rgba(60, 80, 160, 0.4) 0%, rgba(30, 50, 120, 0.15) 60%, transparent 100%);
+    opacity: 0.5;
+}
+.aw-horizon--night.aw-horizon--clear::after {
+    background: rgba(10, 15, 40, 0.15);
+}
+.aw-horizon--night.aw-horizon--cloudy::before {
+    background: radial-gradient(ellipse, rgba(50, 60, 100, 0.35) 0%, rgba(30, 40, 80, 0.1) 60%, transparent 100%);
+    opacity: 0.4;
+}
+.aw-horizon--night.aw-horizon--cloudy::after {
+    background: rgba(10, 15, 35, 0.12);
+}
+.aw-horizon--night.aw-horizon--rain::before {
+    background: radial-gradient(ellipse, rgba(40, 50, 90, 0.3) 0%, rgba(25, 35, 70, 0.1) 60%, transparent 100%);
+    opacity: 0.35;
+}
+.aw-horizon--night.aw-horizon--snow::before {
+    background: radial-gradient(ellipse, rgba(80, 90, 130, 0.35) 0%, rgba(50, 60, 100, 0.15) 60%, transparent 100%);
+    opacity: 0.4;
+}
+.aw-horizon--night.aw-horizon--fog::before {
+    background: radial-gradient(ellipse, rgba(60, 65, 90, 0.4) 0%, rgba(40, 45, 70, 0.2) 70%, transparent 100%);
+    opacity: 0.45;
+    height: 300px;
+}
+.aw-horizon--night.aw-horizon--storm::before {
+    background: radial-gradient(ellipse, rgba(80, 50, 120, 0.35) 0%, rgba(50, 30, 80, 0.1) 60%, transparent 100%);
+    opacity: 0.35;
+}
+
+/* Content sits above horizon */
+#weatherPageContent {
+    position: relative;
+}
+#wxPageBody {
+    position: relative;
+    z-index: 1;
+}
+
+/* Weather location switcher — transparent over gradient */
+#weatherPageContent .wx-loc-switcher {
+    background: transparent;
+}
+
+/* Glass cards on weather page */
+#wxPageBody .card {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    contain: layout style;
+}
+#wxPageBody .aw-tile {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    contain: layout style;
+}
+
 /* Weather page body — flex column with consistent card gaps */
 #wxPageBody {
     display: flex;
@@ -14765,7 +14905,7 @@ body:has(.act-sheet-mode) .topbar {
     text-transform: uppercase;
     color: var(--text-muted);
     padding: 12px 16px 10px;
-    border-bottom: 1px solid var(--border);
+    border-bottom: none;
 }
 .aw-card-label svg {
     width: 14px;
@@ -14933,15 +15073,15 @@ body:has(.act-sheet-mode) .topbar {
     color: var(--text-secondary);
 }
 .aw-rs-bar-track {
-    height: 4px;
+    height: 8px;
     background: var(--bg-elevated);
-    border-radius: 2px;
+    border-radius: 4px;
     overflow: hidden;
     margin-bottom: 14px;
 }
 .aw-rs-bar {
     height: 100%;
-    border-radius: 2px;
+    border-radius: 4px;
     transition: width 0.6s ease;
 }
 .aw-rs-bar--great { background: var(--accent); }
@@ -14991,7 +15131,7 @@ body:has(.act-sheet-mode) .topbar {
     line-height: 1.4;
 }
 
-/* Conditions Grid — 2 columns */
+/* Conditions Grid — SwiftUI style 2-col */
 .aw-conditions-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -14999,11 +15139,11 @@ body:has(.act-sheet-mode) .topbar {
     margin-bottom: 8px;
 }
 .aw-tile {
-    padding: 14px !important;
+    padding: 14px 14px 18px !important;
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    min-height: 110px;
+    gap: 2px;
+    min-height: 180px;
 }
 .aw-tile-label {
     display: flex;
@@ -15011,8 +15151,8 @@ body:has(.act-sheet-mode) .topbar {
     gap: 5px;
     font-size: 11px;
     font-weight: 600;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    text-transform: capitalize;
     color: var(--text-muted);
 }
 .aw-tile-label svg {
@@ -15021,6 +15161,149 @@ body:has(.act-sheet-mode) .topbar {
     flex-shrink: 0;
     opacity: 0.7;
 }
+.aw-tile-desc {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.35;
+}
+.aw-tile-viz {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: flex-start;
+}
+
+/* Big value text (UV label, etc.) */
+.aw-tile-big {
+    font-size: 32px;
+    font-weight: 400;
+    font-family: var(--font-num);
+    color: var(--text-primary);
+    line-height: 1;
+    margin-bottom: 8px;
+}
+
+/* Huge value text (Dew point, Visibility) */
+.aw-tile-huge {
+    font-size: 40px;
+    font-weight: 300;
+    font-family: var(--font-num);
+    color: var(--text-primary);
+    line-height: 1;
+}
+.aw-tile-huge span {
+    font-size: 18px;
+    font-weight: 400;
+    color: var(--text-muted);
+}
+
+/* UV gradient bar with dot indicator */
+.aw-uv-bar {
+    position: relative;
+    width: 100%;
+    height: 22px;
+    display: flex;
+    align-items: center;
+}
+.aw-uv-bar-track {
+    width: 100%;
+    height: 8px;
+    border-radius: 4px;
+    background: linear-gradient(to right, #34C759, #7CC934, #FFD60A, #FF9F0A, #FF453A, #BF5AF2);
+}
+.aw-uv-dot {
+    position: absolute;
+    top: 50%;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--bg-card);
+    border: 2.5px solid var(--text-primary);
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.aw-uv-dot span {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-family: var(--font-num);
+}
+
+/* Humidity bar */
+.aw-humidity-bar {
+    position: relative;
+    width: 100%;
+    height: 22px;
+    display: flex;
+    align-items: center;
+}
+.aw-humidity-bar::before {
+    content: '';
+    position: absolute;
+    inset: 7px 0;
+    border-radius: 4px;
+    background: var(--bg-elevated);
+}
+.aw-humidity-fill {
+    height: 8px;
+    border-radius: 4px;
+    background: linear-gradient(to right, #5AC8FA, #007AFF);
+    position: relative;
+    z-index: 1;
+}
+
+/* Wind compass */
+.aw-compass {
+    position: relative;
+    width: 110px;
+    height: 110px;
+    margin: 0 auto;
+}
+.aw-compass-svg {
+    width: 100%;
+    height: 100%;
+}
+.aw-compass-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    line-height: 1;
+}
+.aw-compass-speed {
+    font-size: 22px;
+    font-weight: 500;
+    font-family: var(--font-num);
+    color: var(--text-primary);
+}
+.aw-compass-unit {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-top: 1px;
+}
+.aw-tile--viz .aw-tile-viz:has(.aw-compass) {
+    align-items: center;
+}
+
+/* Pressure gauge */
+.aw-gauge {
+    width: 140px;
+    margin: 0 auto;
+}
+.aw-gauge-svg {
+    width: 100%;
+    height: auto;
+}
+.aw-tile--viz .aw-tile-viz:has(.aw-gauge) {
+    align-items: center;
+}
+
+/* Legacy compat */
 .aw-tile-val {
     font-size: 28px;
     font-weight: 300;
@@ -15033,12 +15316,6 @@ body:has(.act-sheet-mode) .topbar {
     font-size: 14px;
     font-weight: 400;
     color: var(--text-muted);
-}
-.aw-tile-desc {
-    font-size: 12px;
-    color: var(--text-secondary);
-    margin-top: auto;
-    line-height: 1.4;
 }
 .aw-tile-bar-track {
     height: 4px;
@@ -15444,46 +15721,73 @@ body:has(.act-sheet-mode) .topbar {
 }
 .aw-back-btn svg { flex-shrink: 0; }
 .aw-back-btn:active { opacity: 0.6; }
+/* Legacy detail hero (kept for compat) */
 .aw-detail-hero {
     display: flex;
     align-items: center;
     gap: 14px;
     padding: 16px 0 20px;
 }
-.aw-dh-icon {
-    width: 52px;
-    height: 52px;
-    flex-shrink: 0;
-}
+.aw-dh-icon { width: 52px; height: 52px; flex-shrink: 0; }
 .aw-dh-icon svg { width: 100%; height: 100%; }
-.aw-dh-info {
-    flex: 1;
-    min-width: 0;
+.aw-dh-info { flex: 1; min-width: 0; }
+.aw-dh-condition { font-size: var(--text-sm); color: var(--text-secondary); margin-bottom: 2px; }
+.aw-dh-temp { font-size: 36px; font-weight: 200; font-family: var(--font-num); color: var(--text-primary); line-height: 1; }
+.aw-dh-lo { font-size: 18px; font-weight: 400; color: var(--text-muted); }
+
+/* ── New centered Apple-style hero ── */
+.wxd-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 8px 0 24px;
+    gap: 4px;
 }
-.aw-dh-condition {
-    font-size: var(--text-sm);
+.wxd-hero-day {
+    font-size: 15px;
+    font-weight: 600;
     color: var(--text-secondary);
-    margin-bottom: 2px;
+    margin-bottom: 4px;
 }
-.aw-dh-temp {
-    font-size: 36px;
+.wxd-hero-icon {
+    width: 56px;
+    height: 56px;
+}
+.wxd-hero-icon svg { width: 100%; height: 100%; }
+.wxd-hero-condition {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+.wxd-hero-temp {
+    font-size: 48px;
     font-weight: 200;
     font-family: var(--font-num);
     color: var(--text-primary);
     line-height: 1;
+    letter-spacing: -1px;
 }
-.aw-dh-lo {
-    font-size: 18px;
+.wxd-hero-lo {
+    font-size: 22px;
     font-weight: 400;
     color: var(--text-muted);
 }
-.aw-dh-score {
+.wxd-hero-score {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 4px;
-    flex-shrink: 0;
+    gap: 8px;
+    margin-top: 8px;
 }
+.wxd-hero-score-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+/* Score badge (shared) */
 .aw-score-badge {
     width: 44px;
     height: 44px;
@@ -15505,6 +15809,65 @@ body:has(.act-sheet-mode) .topbar {
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.04em;
+}
+
+/* ── Day detail conditions mini-grid ── */
+.wxd-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+.wxd-grid-tile {
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-height: 90px;
+}
+.wxd-gt-label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+}
+.wxd-gt-label svg {
+    width: 13px;
+    height: 13px;
+    flex-shrink: 0;
+    opacity: 0.6;
+}
+.wxd-gt-val {
+    font-size: 24px;
+    font-weight: 300;
+    font-family: var(--font-num);
+    color: var(--text-primary);
+    line-height: 1;
+    margin-top: auto;
+}
+.wxd-gt-val span {
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--text-muted);
+}
+.wxd-gt-desc {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.3;
+}
+
+/* Best Ride Window card — accent highlight */
+.wxd-window-card {
+    border: 1px solid var(--accent-dim);
+}
+.wxd-window-body {
+    padding: 16px;
+    text-align: center;
 }
 
 /* Reasons list in day detail */
@@ -15577,6 +15940,9 @@ body:has(.act-sheet-mode) .topbar {
     .aw-hero-temp { font-size: 52px; }
     .aw-conditions-grid { grid-template-columns: 1fr 1fr; }
     .aw-tile-val { font-size: 24px; }
+    .aw-tile-big { font-size: 28px; }
+    .aw-tile-huge { font-size: 34px; }
+    .aw-tile { min-height: 160px; }
     .aw-rs-num { font-size: 40px; }
     .aw-dh-temp { font-size: 28px; }
 }
