@@ -12646,79 +12646,44 @@ function _cleanSheet(inner) {
 }
 
 // ── iOS keyboard-aware viewport tracking ──
-// iOS Safari PWA scrolls the layout viewport when an input inside a
-// position:fixed element is focused. This shifts the entire dialog upward
-// (the black bar + grey gap you see below the sheet).
-//
-// Strategy:
-//   1. Translate the DIALOG element by vv.offsetTop to compensate for the
-//      layout-viewport scroll — this re-anchors everything visually without
-//      touching bottom/height/scroll.
-//   2. Keep the existing maxHeight + paddingBottom trick so the body stays
-//      scrollable and inputs are reachable above the keyboard.
+// Sheets are now full-screen on mobile so there is no gap below the modal
+// for black to bleed through. The only thing we need is paddingBottom on
+// the scrollable body so content stays reachable above the keyboard +
+// iOS input-accessory bar.
 let _sheetVVHandler = null;
 function _startViewportTracking(dialog) {
   if (!window.visualViewport) return;
   _stopViewportTracking();
 
   const vv = window.visualViewport;
+  const _initH = vv.height; // capture full height before keyboard appears
 
   function onVVResize() {
     if (!dialog.open || !dialog.classList.contains('sheet-open')) return;
 
-    const offsetY  = Math.round(vv.offsetTop  || 0);
-    const kbHeight = Math.round(Math.max(0, window.innerHeight - vv.height - offsetY));
-    const inner    = dialog.querySelector('.modal');
-    const body     = inner && (
+    const kbHeight = Math.max(0, _initH - vv.height);
+    const inner = dialog.querySelector('.modal');
+    const body  = inner && (
       inner.querySelector('.cev-body') ||
       inner.querySelector('.modal-body') ||
       inner.querySelector('.act-search-results')
     );
 
-    // Compensate for iOS layout-viewport scroll by translating the dialog
-    // downward — keeps header, sheet and backdrop all visually correct.
-    dialog.style.transform = offsetY > 0 ? 'translateY(' + offsetY + 'px)' : '';
-
-    if (kbHeight > 50) {
-      // Keyboard open — constrain modal height and add scroll padding
-      if (body)  body.style.paddingBottom = (kbHeight + 20) + 'px';
-      if (inner) inner.style.maxHeight    = (vv.height - 20) + 'px';
-    } else {
-      // Keyboard closed — reset everything immediately.
-      // Delaying maxHeight causes the modal to stay squished at the bottom
-      // while window.innerHeight has already expanded, leaving a black gap above.
-      clearTimeout(dialog._kbResetTimer);
-      if (body)  body.style.paddingBottom = '';
-      if (inner) inner.style.maxHeight    = '';
-      dialog.style.transform = '';
-      // Force GPU compositor to repaint the layer now that the modal is
-      // back to full size — clears any black residue from behind the keyboard.
-      dialog._kbResetTimer = requestAnimationFrame(function() {
-        dialog.style.webkitTransform = 'translateZ(0)';
-        requestAnimationFrame(function() { dialog.style.webkitTransform = ''; });
-      });
-    }
+    if (body) body.style.paddingBottom = kbHeight > 50 ? kbHeight + 'px' : '';
   }
 
   _sheetVVHandler = onVVResize;
   vv.addEventListener('resize', onVVResize);
-  vv.addEventListener('scroll', onVVResize);
 }
 
 function _stopViewportTracking() {
   if (_sheetVVHandler && window.visualViewport) {
     window.visualViewport.removeEventListener('resize', _sheetVVHandler);
-    window.visualViewport.removeEventListener('scroll', _sheetVVHandler);
     _sheetVVHandler = null;
   }
-  // Reset any keyboard / viewport-offset adjustments on all open modals
   document.querySelectorAll('dialog.modal-dialog[open]').forEach(dlg => {
-    clearTimeout(dlg._kbResetTimer);
-    dlg.style.transform = '';
-    dlg.style.webkitTransform = '';
     const inner = dlg.querySelector('.modal');
     if (!inner) return;
-    inner.style.maxHeight = '';
     const body = inner.querySelector('.cev-body') || inner.querySelector('.modal-body') || inner.querySelector('.act-search-results');
     if (body) body.style.paddingBottom = '';
   });

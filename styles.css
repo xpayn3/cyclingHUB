@@ -17957,33 +17957,21 @@ body:has(.act-sheet-mode) .topbar {
         display: none !important;
         background: transparent !important;
     }
-    /* The .modal positions ITSELF at the bottom — no flex parent needed.
-       This is the only reliable approach on iOS Safari. */
+    /* Full-screen sheet on mobile — eliminates all iOS keyboard black-bar issues.
+       The modal fills the entire visual viewport; keyboard shrinks the space
+       naturally so there is never a gap below for black to show through. */
     .modal {
         position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
+        top: 0; left: 0; right: 0; bottom: 0;
         max-width: 100% !important;
         width: 100%;
-        max-height: 85dvh;
-        border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+        max-height: none;
+        border-radius: 0;
         display: flex;
         flex-direction: column;
         overflow: hidden;
         will-change: transform;
         transform: translateY(100%);
-    }
-    /* Extend the modal background below the safe area / home indicator */
-    .modal::after {
-        content: '';
-        position: absolute;
-        bottom: -200px;
-        left: 0;
-        right: 0;
-        height: 200px;
-        background: var(--bg-elevated);
-        pointer-events: none;
     }
     .modal.sheet-enter {
         animation: sheetSlideIn 0.35s cubic-bezier(0.2, 0.9, 0.3, 1) both;
@@ -18011,7 +17999,7 @@ body:has(.act-sheet-mode) .topbar {
         flex-shrink: 0;
     }
     .modal-body {
-        padding: 0 18px 18px;
+        padding: 0 18px calc(18px + env(safe-area-inset-bottom, 0px));
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
         overscroll-behavior-y: contain;
