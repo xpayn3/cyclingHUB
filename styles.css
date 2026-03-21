@@ -14317,6 +14317,17 @@ body:has(.act-sheet-mode) .topbar {
 }
 
 /* ── Forecast scroll rail (new standalone layout) ── */
+/* Desktop: cards fill full width, no scroll */
+@media (min-width: 601px) {
+    #forecastRail {
+        overflow-x: visible;
+        flex-wrap: nowrap;
+    }
+    #forecastRail .wx-day-card {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+}
 #forecastRail {
     display: flex;
     gap: var(--gap-layout);
