@@ -25569,8 +25569,19 @@ html[data-theme="tdf"] {
 
 /* ============================================================
    UNLAYERED — beats all @layer rules, no !important needed
-   Desktop wxd-sheet scroll fix
 ============================================================ */
+
+/* Mobile: sheet is the scroll container — reset modal-body so it
+   doesn't consume wheel events as a zero-overflow scroll container */
+@media (max-width: 600px) {
+    .wxd-sheet:not(.wxd-sheet--partial) .modal-body {
+        overflow-y: visible;
+        flex: unset;
+        min-height: unset;
+    }
+}
+
+/* Desktop: sheet is flex column, modal-body is the scroll container */
 @media (min-width: 601px) {
     .wxd-sheet:not(.wxd-sheet--partial) {
         display: flex;
