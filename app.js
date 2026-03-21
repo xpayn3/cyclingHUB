@@ -12684,10 +12684,20 @@ function _startViewportTracking(dialog) {
       if (body)  body.style.paddingBottom = (kbHeight + 20) + 'px';
       if (inner) inner.style.maxHeight    = (vv.height - 20) + 'px';
     } else {
-      // Keyboard closed — reset
-      if (body)  body.style.paddingBottom = '';
-      if (inner) inner.style.maxHeight    = '';
-      dialog.style.transform = ''; // ensure fully reset once keyboard gone
+      // Keyboard closed — reset body padding immediately so content
+      // doesn't reflow, but delay the maxHeight reset until after the
+      // iOS keyboard close animation finishes (~350ms). This prevents
+      // the GPU compositor from exposing the black area that was behind
+      // the keyboard before iOS has composited the layers back together.
+      if (body) body.style.paddingBottom = '';
+      clearTimeout(dialog._kbResetTimer);
+      dialog._kbResetTimer = setTimeout(function() {
+        if (inner) inner.style.maxHeight = '';
+        dialog.style.transform = '';
+        // Nudge GPU to repaint the compositor layer
+        dialog.style.webkitTransform = 'translateZ(0)';
+        requestAnimationFrame(function() { dialog.style.webkitTransform = ''; });
+      }, 350);
     }
   }
 
@@ -12704,7 +12714,9 @@ function _stopViewportTracking() {
   }
   // Reset any keyboard / viewport-offset adjustments on all open modals
   document.querySelectorAll('dialog.modal-dialog[open]').forEach(dlg => {
+    clearTimeout(dlg._kbResetTimer);
     dlg.style.transform = '';
+    dlg.style.webkitTransform = '';
     const inner = dlg.querySelector('.modal');
     if (!inner) return;
     inner.style.maxHeight = '';
