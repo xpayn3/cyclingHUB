@@ -4402,7 +4402,7 @@ input[type="number"] {
     height: 56px;
     margin: 10px 14px 0;
     border-radius: var(--radius-sm);
-    background: var(--overlay-faint);
+    background: transparent;
     position: relative;
     overflow: hidden;
 }
