@@ -2113,7 +2113,7 @@ input[type="number"] {
 .dash-quick-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
+    gap: var(--gap-layout);
 }
 .dash-quick-card {
     padding: 12px;
