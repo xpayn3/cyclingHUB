@@ -12680,24 +12680,23 @@ function _startViewportTracking(dialog) {
     dialog.style.transform = offsetY > 0 ? 'translateY(' + offsetY + 'px)' : '';
 
     if (kbHeight > 50) {
-      // Keyboard open — give body room to scroll past keyboard
+      // Keyboard open — constrain modal height and add scroll padding
       if (body)  body.style.paddingBottom = (kbHeight + 20) + 'px';
       if (inner) inner.style.maxHeight    = (vv.height - 20) + 'px';
     } else {
-      // Keyboard closed — reset body padding immediately so content
-      // doesn't reflow, but delay the maxHeight reset until after the
-      // iOS keyboard close animation finishes (~350ms). This prevents
-      // the GPU compositor from exposing the black area that was behind
-      // the keyboard before iOS has composited the layers back together.
-      if (body) body.style.paddingBottom = '';
+      // Keyboard closed — reset everything immediately.
+      // Delaying maxHeight causes the modal to stay squished at the bottom
+      // while window.innerHeight has already expanded, leaving a black gap above.
       clearTimeout(dialog._kbResetTimer);
-      dialog._kbResetTimer = setTimeout(function() {
-        if (inner) inner.style.maxHeight = '';
-        dialog.style.transform = '';
-        // Nudge GPU to repaint the compositor layer
+      if (body)  body.style.paddingBottom = '';
+      if (inner) inner.style.maxHeight    = '';
+      dialog.style.transform = '';
+      // Force GPU compositor to repaint the layer now that the modal is
+      // back to full size — clears any black residue from behind the keyboard.
+      dialog._kbResetTimer = requestAnimationFrame(function() {
         dialog.style.webkitTransform = 'translateZ(0)';
         requestAnimationFrame(function() { dialog.style.webkitTransform = ''; });
-      }, 350);
+      });
     }
   }
 
