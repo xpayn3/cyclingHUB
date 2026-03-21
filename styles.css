@@ -2224,7 +2224,7 @@ input[type="number"] {
     top: 0; left: 0; right: 0;
     z-index: 2;
     margin: 0;
-    padding: 10px 12px;
+    padding: 12px;
     background: linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, transparent 100%);
 }
 .dash-route-card .card-title {
