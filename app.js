@@ -24763,6 +24763,7 @@ function goalNumStep(dir) {
   const step = cur >= 100 ? 10 : cur >= 10 ? 5 : 1;
   el.value = Math.max(0, cur + step * dir);
   el.focus();
+  _updateGoalPreview();
 }
 
 function _updateGoalPreview() {
@@ -24843,6 +24844,7 @@ function showGoalForm(editId) {
   overlay._previewCtrl = ctrl;
   const { signal } = ctrl;
   targetEl?.addEventListener('input', _updateGoalPreview, { signal });
+  targetEl?.addEventListener('change', _updateGoalPreview, { signal });
   metricEl?.addEventListener('change', _updateGoalPreview, { signal });
   periodEl?.addEventListener('change', _updateGoalPreview, { signal });
   // CDD clicks fire before the underlying select updates, so defer
