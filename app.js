@@ -19455,7 +19455,7 @@ function renderDetailPlatformOffset(streams, activity) {
   const hasLeft  = lData.length > 5 && lData.some(v => v != null);
   const hasRight = rData.length > 5 && rData.some(v => v != null);
 
-  if (!hasLeft && !hasRight) { showCardNA('detailPCOCard'); return; }
+  if (!hasLeft && !hasRight) { card.style.display = 'none'; return; }
 
   // Compute averages
   const leftValid  = lData.filter(v => v != null);
