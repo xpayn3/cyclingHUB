@@ -2212,6 +2212,7 @@ input[type="number"] {
     padding: 0;
     position: relative;
     overflow: hidden;
+    min-height: 160px;
 }
 .dash-route-card .card-header {
     position: absolute;
