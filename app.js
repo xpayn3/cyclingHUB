@@ -3833,8 +3833,10 @@ function buildZonesCardHTML(a, idx) {
     : '';
 
   const achBadge = _heroAchBadge(a);
+  const _zac = _achColor(a);
+  const _zacStyle = _zac ? ` style="border:1px solid ${_zac}22;background:linear-gradient(135deg, ${_zac}0a 0%, transparent 60%)"` : '';
 
-  return `<div class="card card--clickable zones-card" id="zonesCard_${idx}">
+  return `<div class="card card--clickable zones-card" id="zonesCard_${idx}"${_zacStyle}>
     <div class="zones-card-header">
       <div class="zones-card-date">${dateFmt}${timeFmt ? ' · ' + timeFmt : ''}</div>
       <div class="zones-card-name-row">
@@ -4167,8 +4169,11 @@ function buildHeroActCardHTML(a, idx) {
     </div>`
   ).join('');
 
+  const _hac = _achColor(a);
+  const _hacBorder = _hac ? ` style="border:1px solid ${_hac}22"` : '';
+
   return `<div class="hero-act-wrap" id="recentActCard_${idx}">
-    <div class="card card--clickable hero-act-card">
+    <div class="card card--clickable hero-act-card"${_hacBorder}>
       <div class="hero-act-map" id="recentActCardMap_${idx}"></div>
       <div class="hero-act-category">${sportLabel}</div>
       ${_heroAchBadge(a)}
@@ -4182,6 +4187,13 @@ function buildHeroActCardHTML(a, idx) {
       <div class="hero-act-subtitle">${dateFmt}${timeFmt ? ' \u00B7 ' + timeFmt : ''}${platformTag ? ` \u00B7 ${platformTag}` : ''}</div>
     </div>
   </div>`;
+}
+
+function _achColor(a) {
+  const achs = a.icu_achievements;
+  if (!Array.isArray(achs) || !achs.length) return null;
+  const colors = { BEST_POWER: '#ffcc00', FTP_UP: '#00e5a0', LTHR_UP: '#ff4d6a', BEST_PACE: '#4a9eff' };
+  return colors[(achs[0].type || 'BEST_POWER')] || '#ffcc00';
 }
 
 function _heroAchBadge(a) {
@@ -4251,7 +4263,10 @@ function buildRecentActCardHTML(a, idx, idPrefix = 'recentActCard') {
     </div>`
   ).join('');
 
-  return `<div class="card card--clickable recent-act-card" id="${idPrefix}_${idx}">
+  const _ac = _achColor(a);
+  const _achStyle = _ac ? ` style="border:1px solid ${_ac}22;background:linear-gradient(135deg, ${_ac}0a 0%, transparent 60%)"` : '';
+
+  return `<div class="card card--clickable recent-act-card" id="${idPrefix}_${idx}"${_achStyle}>
     <div class="recent-act-body">
       <div class="recent-act-info">
         <div class="recent-act-header">
