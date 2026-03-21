@@ -1443,7 +1443,7 @@ code {
 }
 .page-content {
     flex: 1;
-    padding: calc(env(safe-area-inset-top) + 76px) var(--pad-page)
+    padding: calc(env(safe-area-inset-top) + 88px) var(--pad-page)
         calc(max(20px, env(safe-area-inset-bottom)) + 80px);
     display: flex;
     flex-direction: column;
