@@ -12552,12 +12552,11 @@ let _sheetStack = [];
 function _openOverlaySheet(id) {
   const sheet = document.getElementById(id);
   if (!sheet) return;
-  // Only lock body on first sheet
+  // Only lock body on first sheet — overflow:hidden only, no position:fixed.
+  // position:fixed on body creates a formatting context that causes iOS to
+  // misposition fixed children during keyboard events (black bar + shift).
   if (_sheetStack.length === 0) {
-    window._sheetScrollY = window.scrollY;
-    document.body.style.position = 'fixed';
-    document.body.style.top = `-${window._sheetScrollY}px`;
-    document.body.style.width = '100%';
+    document.documentElement.style.overflow = 'hidden';
     document.body.style.overflow = 'hidden';
   }
   _sheetStack.push(id);
@@ -12621,11 +12620,8 @@ function _closeOverlaySheet(id) {
   _sheetStack = _sheetStack.filter(s => s !== id);
   // Only unlock body when all sheets closed
   if (_sheetStack.length === 0) {
-    document.body.style.position = '';
-    document.body.style.top = '';
-    document.body.style.width = '';
+    document.documentElement.style.overflow = '';
     document.body.style.overflow = '';
-    window.scrollTo(0, window._sheetScrollY || 0);
   }
   // Reset panel transform from swipe + scroll position
   const panel = sheet.querySelector('.wxd-sheet');
