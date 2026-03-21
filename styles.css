@@ -12444,11 +12444,12 @@ body:has(.act-sheet-mode) .topbar {
     transition: border-radius 0.25s, margin 0.25s, padding 0.25s;
 }
 .wrk-chart-card.wrk-chart-stuck {
-    border-radius: 0 0 4px 4px;
+    border-radius: 0 0 12px 12px;
     margin-left: calc(-1 * var(--pad-page, 16px));
     margin-right: calc(-1 * var(--pad-page, 16px));
     padding-left: 4px;
     padding-right: 4px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 .wrk-canvas {
     display: block;
