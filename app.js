@@ -13372,6 +13372,7 @@ function openCalEventModal(presetDateOrEvent) {
     const ev = presetDateOrEvent;
 
     document.getElementById('calEvDate').value       = (ev.start_date_local || '').slice(0, 10);
+    _cevUpdateDateDisplay();
     document.getElementById('calEvCategory').value    = ev.category || 'WORKOUT';
     document.getElementById('calEvName').value        = ev.name || '';
     document.getElementById('calEvSport').value       = ev.type || 'Ride';
@@ -13383,6 +13384,7 @@ function openCalEventModal(presetDateOrEvent) {
     const _locMatch = _desc.match(/^📍\s*(.+)\n?/);
     document.getElementById('calEvLocation').value    = _locMatch ? _locMatch[1].trim() : '';
     document.getElementById('calEvDesc').value        = _locMatch ? _desc.replace(/^📍\s*.+\n?\n?/, '') : _desc;
+    document.getElementById('calEvColor').value       = ev.color || '';
 
     document.querySelector('#calEventModal .cev-hdr-title').textContent = 'Edit Event';
     document.getElementById('calEvPresets').style.display  = 'none';
@@ -13397,6 +13399,7 @@ function openCalEventModal(presetDateOrEvent) {
     _editingCalEvent = null;
     const date = presetDateOrEvent || state.calSelectedDate || toDateStr(new Date());
     document.getElementById('calEvDate').value       = date;
+    _cevUpdateDateDisplay();
     document.getElementById('calEvCategory').value    = 'WORKOUT';
     document.getElementById('calEvName').value        = '';
     document.getElementById('calEvSport').value       = 'Ride';
@@ -13405,8 +13408,9 @@ function openCalEventModal(presetDateOrEvent) {
     document.getElementById('calEvTss').value         = '';
     document.getElementById('calEvLocation').value    = '';
     document.getElementById('calEvDesc').value        = '';
+    document.getElementById('calEvColor').value       = '';
 
-    document.querySelector('#calEventModal .cev-hdr-title').textContent = 'New';
+    document.querySelector('#calEventModal .cev-hdr-title').textContent = 'New Event';
     document.getElementById('calEvPresets').style.display  = '';
     document.getElementById('calEvDeleteSection').style.display = 'none';
   }
@@ -13416,6 +13420,7 @@ function openCalEventModal(presetDateOrEvent) {
   document.querySelectorAll('#calEventModal .error').forEach(el => el.classList.remove('error'));
 
   _calEvCategoryChanged();
+  _renderCalEvColors();
   _initModalControls();
   _syncModalControls();
   modal.showModal();
@@ -13431,6 +13436,118 @@ function _calEvCategoryChanged() {
   const showMetrics = cat === 'WORKOUT' || cat === 'RACE';
   document.getElementById('calEvSportField').style.display   = showMetrics ? '' : 'none';
   document.getElementById('calEvMetricsRow').style.display    = showMetrics ? '' : 'none';
+  const metricsLabel = document.getElementById('calEvMetricsLabel');
+  if (metricsLabel) metricsLabel.style.display = showMetrics ? '' : 'none';
+}
+
+// ── Calendar Event Color Picker ──
+const _calEvColors = [
+  null,         // "none" = default category color
+  '#00e5a0',   // green (accent)
+  '#4a9eff',   // blue
+  '#9b59ff',   // purple
+  '#ff6b35',   // orange
+  '#ff4d6a',   // red/pink
+  '#f5c542',   // yellow
+  '#5ac8fa',   // cyan
+];
+
+function _renderCalEvColors() {
+  const container = document.getElementById('calEvColorSwatches');
+  if (!container) return;
+  const selected = document.getElementById('calEvColor').value || '';
+  container.innerHTML = _calEvColors.map(c => {
+    const isNone = c === null;
+    const isActive = isNone ? !selected : selected === c;
+    const cls = ['cev-color-dot'];
+    if (isNone) cls.push('cev-color-dot--none');
+    if (isActive) cls.push('cev-color-dot--active');
+    return `<div class="${cls.join(' ')}" ${!isNone ? `style="background:${c}"` : ''} onclick="_pickCalEvColor(${isNone ? 'null' : `'${c}'`})"></div>`;
+  }).join('');
+}
+
+function _pickCalEvColor(color) {
+  document.getElementById('calEvColor').value = color || '';
+  _renderCalEvColors();
+}
+
+// ── Calendar Event Date Picker ──
+let _cevDateMonth = null; // { year, month }
+let _cevDateSelected = null;
+
+function _cevUpdateDateDisplay() {
+  const el = document.getElementById('calEvDateDisplay');
+  const inp = document.getElementById('calEvDate');
+  if (!el || !inp) return;
+  if (inp.value) {
+    const d = new Date(inp.value + 'T12:00:00');
+    el.textContent = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  } else {
+    el.textContent = '—';
+  }
+}
+
+function openCevDatePicker() {
+  const overlay = document.getElementById('cevDateOverlay');
+  if (!overlay) return;
+  const val = document.getElementById('calEvDate').value;
+  const d = val ? new Date(val + 'T12:00:00') : new Date();
+  _cevDateMonth = { year: d.getFullYear(), month: d.getMonth() };
+  _cevDateSelected = val || null;
+  _cevDateRender();
+  overlay.style.display = 'flex';
+}
+
+function closeCevDate() {
+  const overlay = document.getElementById('cevDateOverlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+function _cevDateNav(dir) {
+  _cevDateMonth.month += dir;
+  if (_cevDateMonth.month > 11) { _cevDateMonth.month = 0; _cevDateMonth.year++; }
+  if (_cevDateMonth.month < 0) { _cevDateMonth.month = 11; _cevDateMonth.year--; }
+  _cevDateRender();
+}
+
+function _cevDateSelectToday() {
+  const today = new Date();
+  _cevDateSelect(toDateStr(today));
+}
+
+function _cevDateSelect(dateStr) {
+  _cevDateSelected = dateStr;
+  document.getElementById('calEvDate').value = dateStr;
+  _cevUpdateDateDisplay();
+  closeCevDate();
+}
+
+function _cevDateRender() {
+  const grid = document.getElementById('cevDateGrid');
+  const label = document.getElementById('cevDateMonthLabel');
+  if (!grid || !label) return;
+  const { year, month } = _cevDateMonth;
+  label.textContent = new Date(year, month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  const first = new Date(year, month, 1);
+  let startDay = first.getDay() - 1;
+  if (startDay < 0) startDay = 6;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const todayStr = toDateStr(new Date());
+
+  let html = '';
+  for (let i = 0; i < startDay; i++) html += '<span class="gd-empty"></span>';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const cls = [];
+    if (ds === _cevDateSelected) cls.push('gd-day--selected');
+    if (ds === todayStr) cls.push('gd-day--today');
+    html += `<button class="gd-day ${cls.join(' ')}" onclick="_cevDateSelect('${ds}')">${d}</button>`;
+  }
+  // Pad to 42 cells (6 rows) so sheet height stays fixed
+  const totalCells = startDay + daysInMonth;
+  for (let i = totalCells; i < 42; i++) html += '<span class="gd-empty"></span>';
+  grid.innerHTML = html;
 }
 
 function _applyCalEvPreset(key) {
@@ -13632,14 +13749,17 @@ function _upgradeDateInput(input) {
 }
 
 // Initialize and sync all custom controls in the modal
+// Note: selects are upgraded globally by cdd-wrap system; date uses slide-in sheet
 function _initModalControls() {
-  document.querySelectorAll('#calEventModal select').forEach(_upgradeSelect);
-  const dateInput = document.getElementById('calEvDate');
-  if (dateInput) _upgradeDateInput(dateInput);
+  // no-op: cdd-wrap handles selects, calEvDateDisplay + openCevDatePicker handles date
 }
 function _syncModalControls() {
-  document.querySelectorAll('#calEventModal .cs-wrap').forEach(w => w._sync && w._sync());
-  document.querySelectorAll('#calEventModal .dp-wrap').forEach(w => w._sync && w._sync());
+  // Sync cdd-wrap selects
+  document.querySelectorAll('#calEventModal .cdd-wrap').forEach(wrap => {
+    const sel = wrap.querySelector('select');
+    const label = wrap.querySelector('.cdd-label');
+    if (sel && label) label.textContent = sel.options[sel.selectedIndex]?.text || '';
+  });
 }
 
 function _parseDurationToSecs(str) {
@@ -13693,6 +13813,10 @@ async function saveCalEvent() {
       const tss = parseInt(document.getElementById('calEvTss').value);
       if (tss > 0) payload.icu_training_load = tss;
     }
+
+    const evColor = document.getElementById('calEvColor').value;
+    if (evColor) payload.color = evColor;
+    else payload.color = null; // clear color if "none" selected
 
     const loc  = document.getElementById('calEvLocation').value.trim();
     const desc = document.getElementById('calEvDesc').value.trim();
@@ -14149,9 +14273,10 @@ function renderCalendar() {
         const catLabel = cat === 'WORKOUT' ? 'Workout' : cat === 'RACE' ? 'Race' : cat === 'GOAL' ? 'Goal' : 'Note';
         const catCls = 'cal-ev-cat--' + catLabel.toLowerCase();
         window._calEvLookup[a.id] = a;
-        return `<div class="cal-day-card cal-day-card--planned ${catCls}" draggable="true" data-event-id="${a.id}" onclick="event.stopPropagation();openCalEventModal(window._calEvLookup[${a.id}])">
+        const evColorStyle = a.color ? ` style="border-color:${a.color};background:${a.color}12"` : '';
+        return `<div class="cal-day-card cal-day-card--planned ${catCls}"${evColorStyle} draggable="true" data-event-id="${a.id}" onclick="event.stopPropagation();openCalEventModal(window._calEvLookup[${a.id}])">
           <div class="cal-day-card-top">
-            <span class="cal-ev-badge ${catCls}">${catLabel}</span>
+            <span class="cal-ev-badge ${catCls}"${a.color ? ` style="color:${a.color};background:${a.color}18"` : ''}>${catLabel}</span>
           </div>
           <div class="cal-day-card-name">${evName}</div>
         </div>`;
@@ -14261,146 +14386,155 @@ function _calInitDrag() {
   if (!grid || grid._calDragBound) return;
   grid._calDragBound = true;
 
-  grid.addEventListener('dragstart', function(e) {
-    const card = e.target.closest('.cal-day-card--planned[draggable="true"]');
-    if (!card) { e.preventDefault(); return; }
+  // Pointer-event-based drag (works in all browsers, no HTML5 DnD)
+  var _dragThreshold = 5;
+  var _startX = 0, _startY = 0, _dragging = false;
+  var _calDropDay = null; // track current drop target during drag
+
+  grid.addEventListener('pointerdown', function(e) {
+    const card = e.target.closest('.cal-day-card--planned');
+    if (!card || e.button !== 0) return;
     _calDragId = card.dataset.eventId;
     _calDragCard = card;
-    e.dataTransfer.effectAllowed = 'move';
-    try { e.dataTransfer.setData('text/plain', _calDragId); } catch(_){}
+    _startX = e.clientX;
+    _startY = e.clientY;
+    _dragging = false;
 
-    // Hide native drag image (1x1 transparent pixel)
-    var blank = document.createElement('canvas');
-    blank.width = 1; blank.height = 1;
-    e.dataTransfer.setDragImage(blank, 0, 0);
+    function onMove(ev) {
+      var dx = ev.clientX - _startX;
+      var dy = ev.clientY - _startY;
 
-    // Create opaque mouse-following clone
-    var ghost = card.cloneNode(true);
-    var w = card.offsetWidth;
-    var ghostBg = _isDark() ? '#1a1a1a' : '#ffffff';
-    ghost.style.cssText = 'position:fixed;pointer-events:none;z-index:99999;width:' + w + 'px;opacity:1;transform:scale(1.08) rotate(-1.5deg);box-shadow:0 8px 32px rgba(0,229,160,0.3),0 4px 12px rgba(0,0,0,0.6);border:1px solid rgba(0,229,160,0.4);border-radius:8px;background:' + ghostBg + ';padding:4px 6px;transition:none;left:' + (e.clientX - w/2) + 'px;top:' + (e.clientY - 20) + 'px;';
-    document.body.appendChild(ghost);
-    _calDragGhost = ghost;
-
-    // Follow mouse during drag
-    _calDragMove = function(ev) {
-      ghost.style.left = (ev.clientX - w/2) + 'px';
-      ghost.style.top = (ev.clientY - 20) + 'px';
-    };
-    document.addEventListener('dragover', _calDragMove);
-
-    setTimeout(function() { card.classList.add('cal-card--dragging'); }, 0);
-  });
-
-  grid.addEventListener('dragend', function() {
-    if (_calDragCard) _calDragCard.classList.remove('cal-card--dragging');
-    if (_calDragGhost) { _calDragGhost.remove(); _calDragGhost = null; }
-    if (_calDragMove) { document.removeEventListener('dragover', _calDragMove); _calDragMove = null; }
-    grid.querySelectorAll('.cal-day--drag-over').forEach(function(el) { el.classList.remove('cal-day--drag-over'); });
-    // Remove any drop indicators
-    grid.querySelectorAll('.cal-drop-indicator').forEach(function(el) { el.remove(); });
-    _calDragId = null;
-    _calDragCard = null;
-    _calDropIdx = -1;
-  });
-
-  grid.addEventListener('dragover', function(e) {
-    if (!_calDragId) return;
-    const day = e.target.closest('.cal-day[data-date]');
-    if (!day) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    grid.querySelectorAll('.cal-day--drag-over').forEach(function(el) { if (el !== day) el.classList.remove('cal-day--drag-over'); });
-    day.classList.add('cal-day--drag-over');
-
-    // Show drop indicator between cards in the cell
-    var cardsContainer = day.querySelector('.cal-day-cards');
-    if (!cardsContainer) return;
-    var cards = Array.from(cardsContainer.querySelectorAll('.cal-day-card--planned'));
-    // Remove old indicators from other cells
-    grid.querySelectorAll('.cal-drop-indicator').forEach(function(el) { el.remove(); });
-
-    if (cards.length === 0) { _calDropIdx = 0; return; }
-
-    var mouseY = e.clientY;
-    var insertIdx = cards.length; // default: end
-    for (var i = 0; i < cards.length; i++) {
-      var rect = cards[i].getBoundingClientRect();
-      var mid = rect.top + rect.height / 2;
-      if (mouseY < mid) { insertIdx = i; break; }
-    }
-    _calDropIdx = insertIdx;
-
-    // Create indicator line
-    var indicator = document.createElement('div');
-    indicator.className = 'cal-drop-indicator';
-    indicator.style.cssText = 'height:2px;background:var(--accent);border-radius:1px;margin:1px 0;pointer-events:none;';
-    if (insertIdx < cards.length) {
-      cardsContainer.insertBefore(indicator, cards[insertIdx]);
-    } else {
-      cardsContainer.appendChild(indicator);
-    }
-  });
-
-  grid.addEventListener('dragleave', function(e) {
-    const day = e.target.closest('.cal-day[data-date]');
-    if (day && !day.contains(e.relatedTarget)) {
-      day.classList.remove('cal-day--drag-over');
-      day.querySelectorAll('.cal-drop-indicator').forEach(function(el) { el.remove(); });
-    }
-  });
-
-  grid.addEventListener('drop', function(e) {
-    if (!_calDragId) return;
-    const day = e.target.closest('.cal-day[data-date]');
-    if (!day) return;
-    e.preventDefault();
-    day.classList.remove('cal-day--drag-over');
-    grid.querySelectorAll('.cal-drop-indicator').forEach(function(el) { el.remove(); });
-
-    const newDate = day.dataset.date;
-    const evId = _calDragId;
-    var dropIdx = _calDropIdx;
-    _calDragId = null;
-    _calDropIdx = -1;
-    if (_calDragCard) _calDragCard.classList.remove('cal-card--dragging');
-    _calDragCard = null;
-
-    const ev = window._calEvLookup ? window._calEvLookup[evId] : null;
-    if (!ev) return;
-
-    const oldDate = (ev.start_date_local || ev.start_date || '').slice(0, 10);
-
-    // Same cell reorder: move card DOM position immediately
-    if (oldDate === newDate) {
-      var cardsContainer = day.querySelector('.cal-day-cards');
-      if (!cardsContainer) return;
-      var cardEl = cardsContainer.querySelector('[data-event-id="' + evId + '"]');
-      if (!cardEl) return;
-      var allCards = Array.from(cardsContainer.querySelectorAll('.cal-day-card--planned'));
-      var currentIdx = allCards.indexOf(cardEl);
-      if (currentIdx === dropIdx || (dropIdx > currentIdx && dropIdx === currentIdx + 1)) return; // no change
-      if (dropIdx >= allCards.length) {
-        cardsContainer.appendChild(cardEl);
-      } else {
-        var target = allCards[dropIdx];
-        if (currentIdx < dropIdx) target = allCards[dropIdx]; // after removal, indices shift
-        cardsContainer.insertBefore(cardEl, target);
+      // Start drag after threshold
+      if (!_dragging) {
+        if (Math.abs(dx) < _dragThreshold && Math.abs(dy) < _dragThreshold) return;
+        _dragging = true;
+        card.classList.add('cal-card--dragging');
+        // Create ghost
+        var ghost = card.cloneNode(true);
+        var w = card.offsetWidth;
+        var ghostBg = _isDark() ? '#1a1a1a' : '#ffffff';
+        ghost.style.cssText = 'position:fixed;pointer-events:none;z-index:99999;width:' + w + 'px;opacity:1;transform:scale(1.08) rotate(-1.5deg);box-shadow:0 8px 32px rgba(0,229,160,0.3),0 4px 12px rgba(0,0,0,0.6);border:1px solid rgba(0,229,160,0.4);border-radius:8px;background:' + ghostBg + ';padding:4px 6px;transition:none;';
+        document.body.appendChild(ghost);
+        _calDragGhost = ghost;
+        // Don't use setPointerCapture — it breaks elementFromPoint hit-testing
       }
-      showToast('Reordered "' + (ev.name || 'Event') + '"', 'success');
-      return;
+
+      // Move ghost
+      if (_calDragGhost) {
+        var w2 = _calDragGhost.offsetWidth;
+        _calDragGhost.style.left = (ev.clientX - w2 / 2) + 'px';
+        _calDragGhost.style.top = (ev.clientY - 20) + 'px';
+      }
+
+      // Hit-test: find day cell under pointer
+      // Temporarily hide ghost to get element underneath
+      if (_calDragGhost) _calDragGhost.style.display = 'none';
+      var elUnder = document.elementFromPoint(ev.clientX, ev.clientY);
+      if (_calDragGhost) _calDragGhost.style.display = '';
+
+      var day = elUnder ? elUnder.closest('.cal-day[data-date]') : null;
+      _calDropDay = day; // track for onUp
+      grid.querySelectorAll('.cal-day--drag-over').forEach(function(el) { if (el !== day) el.classList.remove('cal-day--drag-over'); });
+      grid.querySelectorAll('.cal-drop-indicator').forEach(function(el) { el.remove(); });
+
+      if (day) {
+        day.classList.add('cal-day--drag-over');
+        var cardsContainer = day.querySelector('.cal-day-cards');
+        if (cardsContainer) {
+          var cards = Array.from(cardsContainer.querySelectorAll('.cal-day-card--planned'));
+          var insertIdx = cards.length;
+          for (var i = 0; i < cards.length; i++) {
+            var rect = cards[i].getBoundingClientRect();
+            if (ev.clientY < rect.top + rect.height / 2) { insertIdx = i; break; }
+          }
+          _calDropIdx = insertIdx;
+          if (cards.length > 0) {
+            var indicator = document.createElement('div');
+            indicator.className = 'cal-drop-indicator';
+            indicator.style.cssText = 'height:2px;background:var(--accent);border-radius:1px;margin:1px 0;pointer-events:none;';
+            if (insertIdx < cards.length) {
+              cardsContainer.insertBefore(indicator, cards[insertIdx]);
+            } else {
+              cardsContainer.appendChild(indicator);
+            }
+          }
+        }
+      }
     }
 
-    // Different cell: move to new date
-    icuPut('/athlete/' + state.athleteId + '/events/' + evId, {
-      start_date_local: newDate + 'T00:00:00',
-    }).then(function() {
-      showToast('Moved "' + (ev.name || 'Event') + '" to ' + newDate, 'success');
-      refreshCalendarEvents();
-    }).catch(function(err) {
-      showToast('Failed to move event', 'error');
-      console.error('Calendar drag-drop error:', err);
-    });
+    function onUp(ev) {
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+
+      if (_calDragCard) _calDragCard.classList.remove('cal-card--dragging');
+      if (_calDragGhost) { _calDragGhost.remove(); _calDragGhost = null; }
+      grid.querySelectorAll('.cal-day--drag-over').forEach(function(el) { el.classList.remove('cal-day--drag-over'); });
+      grid.querySelectorAll('.cal-drop-indicator').forEach(function(el) { el.remove(); });
+
+      if (!_dragging || !_calDragId) {
+        _calDragId = null;
+        _calDragCard = null;
+        _calDropIdx = -1;
+        _calDropDay = null;
+        return;
+      }
+
+      // Use the drop target tracked during move
+      var day = _calDropDay;
+      _calDropDay = null;
+
+      if (!day) {
+        _calDragId = null;
+        _calDragCard = null;
+        _calDropIdx = -1;
+        return;
+      }
+
+      // Execute drop
+      var evId = _calDragId;
+      var newDate = day.dataset.date;
+      var dropIdx = _calDropIdx;
+      _calDragId = null;
+      _calDragCard = null;
+      _calDropIdx = -1;
+
+      var calEvt = window._calEvLookup ? window._calEvLookup[evId] : null;
+      if (!calEvt) return;
+
+      var oldDate = (calEvt.start_date_local || calEvt.start_date || '').slice(0, 10);
+
+      // Same cell reorder
+      if (oldDate === newDate) {
+        var cardsContainer = day.querySelector('.cal-day-cards');
+        if (!cardsContainer) return;
+        var cardEl = cardsContainer.querySelector('[data-event-id="' + evId + '"]');
+        if (!cardEl) return;
+        var allCards = Array.from(cardsContainer.querySelectorAll('.cal-day-card--planned'));
+        var currentIdx = allCards.indexOf(cardEl);
+        if (currentIdx === dropIdx || (dropIdx > currentIdx && dropIdx === currentIdx + 1)) return;
+        if (dropIdx >= allCards.length) {
+          cardsContainer.appendChild(cardEl);
+        } else {
+          cardsContainer.insertBefore(cardEl, allCards[dropIdx]);
+        }
+        showToast('Reordered "' + (calEvt.name || 'Event') + '"', 'success');
+        return;
+      }
+
+      // Different cell: move to new date
+      icuPut('/athlete/' + state.athleteId + '/events/' + evId, {
+        start_date_local: newDate + 'T00:00:00',
+      }).then(function() {
+        showToast('Moved "' + (calEvt.name || 'Event') + '" to ' + newDate, 'success');
+        refreshCalendarEvents();
+      }).catch(function(err) {
+        showToast('Failed to move event', 'error');
+        console.error('Calendar drag-drop error:', err);
+      });
+    }
+
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
   });
 }
 
@@ -16556,6 +16690,9 @@ function renderActivityBasic(a) {
     }
   }
 
+  // ── Achievements / Personal Records ──────────────────────────────────────
+  _renderAchievements(a);
+
   // ── Weather conditions during this ride ──────────────────────────────────
   renderActivityWeather(a);
 
@@ -16570,6 +16707,79 @@ function renderActivityBasic(a) {
 
   // ── Export options ─────────────────────────────────────────────────────────
   renderDetailExport(a);
+}
+
+function _renderAchievements(a) {
+  const el = document.getElementById('detailAchievements');
+  if (!el) return;
+
+  const achievements = a.icu_achievements;
+  if (!Array.isArray(achievements) || achievements.length === 0) {
+    el.style.display = 'none';
+    return;
+  }
+
+  const iconMap = {
+    BEST_POWER: `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
+    FTP_UP: `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>`,
+    LTHR_UP: `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`,
+    BEST_PACE: `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+  };
+
+  const themeMap = {
+    BEST_POWER: { color: '#ffcc00', glow: 'rgba(255,204,0,0.25)', bg: 'rgba(255,204,0,0.06)', label: 'Power Record' },
+    FTP_UP:     { color: 'var(--accent)', glow: 'rgba(0,229,160,0.25)', bg: 'rgba(0,229,160,0.06)', label: 'FTP Increase' },
+    LTHR_UP:    { color: '#ff4d6a', glow: 'rgba(255,77,106,0.25)', bg: 'rgba(255,77,106,0.06)', label: 'LTHR Update' },
+    BEST_PACE:  { color: '#4a9eff', glow: 'rgba(74,158,255,0.25)', bg: 'rgba(74,158,255,0.06)', label: 'Pace Record' },
+  };
+
+  const rows = achievements.map(ach => {
+    const type = ach.type || 'BEST_POWER';
+    const icon = iconMap[type] || iconMap.BEST_POWER;
+    const theme = themeMap[type] || themeMap.BEST_POWER;
+
+    let mainValue = '', subLabel = '', description = '';
+
+    if (type === 'BEST_POWER') {
+      mainValue = ach.watts ? `${ach.watts}<span class="ach-row-unit">W</span>` : '';
+      if (ach.secs) {
+        subLabel = ach.secs >= 3600 ? fmtDur(ach.secs) : ach.secs >= 60 ? `${Math.round(ach.secs / 60)} min` : `${ach.secs}s`;
+        subLabel = `Best ${subLabel} power`;
+      }
+      description = ach.message || 'New all-time best';
+    } else if (type === 'FTP_UP') {
+      mainValue = ach.watts ? `${ach.watts}<span class="ach-row-unit">W</span>` : (ach.value ? `${ach.value}<span class="ach-row-unit">W</span>` : '');
+      subLabel = 'Functional Threshold Power';
+      description = ach.message || 'FTP increased';
+    } else if (type === 'LTHR_UP') {
+      const bpmVal = ach.value || (ach.point && ach.point.value);
+      mainValue = bpmVal ? `${bpmVal}<span class="ach-row-unit">bpm</span>` : '';
+      subLabel = 'Lactate Threshold HR';
+      description = ach.message || 'LTHR updated';
+    } else if (type === 'BEST_PACE') {
+      if (ach.distance) {
+        mainValue = `${(ach.distance / 1000).toFixed(1)}<span class="ach-row-unit">km</span>`;
+      }
+      subLabel = 'Best pace';
+      description = ach.message || 'New pace record';
+    }
+
+    return `<div class="ach-row" style="--ach-color:${theme.color};--ach-glow:${theme.glow};--ach-bg:${theme.bg}">
+      <div class="ach-row-icon">${icon}</div>
+      <div class="ach-row-body">
+        <div class="ach-row-top">
+          <span class="ach-row-label">${theme.label}</span>
+          <span class="ach-row-value">${mainValue}</span>
+        </div>
+        <div class="ach-row-sub">${subLabel}</div>
+        ${description ? `<div class="ach-row-desc">${_escHtml(description)}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('achCount').textContent = achievements.length;
+  document.getElementById('achList').innerHTML = rows;
+  el.style.display = '';
 }
 
 function renderDetailComparison(a) {
@@ -21957,6 +22167,9 @@ function _gdRender() {
     else if (isToday) cls += ' gd-day--today';
     html += `<div class="${cls}" onclick="_gdPick('${dateStr}')">${d}</div>`;
   }
+  // Pad to 42 cells (6 rows) so sheet height stays fixed
+  const totalCells = startDow + lastDay.getDate();
+  for (let i = totalCells; i < 42; i++) html += '<div class="gd-day gd-day--empty"></div>';
 
   grid.innerHTML = html;
 }
@@ -27471,6 +27684,7 @@ Object.assign(window, {
   renderVitality,
   // Calendar create/edit event
   icuPost, icuPut, icuDelete, openCalEventModal, closeCalEventModal, saveCalEvent, deleteCalEvent,
+  openCevDatePicker, closeCevDate, _cevDateNav, _cevDateSelectToday, _cevDateSelect, _pickCalEvColor,
   openProfileModal, closeProfileModal, setXpStartDate,
   // Head-to-head compare
   setCompareTab, h2hSearch, h2hAddActivity, h2hRemoveActivity,

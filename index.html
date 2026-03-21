@@ -334,22 +334,22 @@
             <div class="gear-picker-sheet gear-date-sheet">
                 <div class="gear-picker-handle"></div>
                 <div class="gear-picker-title" id="gearDateTitle">Select Date</div>
-                <div class="gd-nav">
-                    <button class="gd-nav-btn" id="gdPrev" onclick="_gdNav(-1)">
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-                    </button>
+                <div class="gd-month-header">
                     <span class="gd-month-label" id="gdMonthLabel"></span>
-                    <button class="gd-nav-btn" id="gdNext" onclick="_gdNav(1)">
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-                    </button>
                 </div>
                 <div class="gd-weekdays">
                     <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
                 </div>
-                <div class="gd-grid" id="gdGrid"></div>
+                <div class="gd-grid gd-grid--fixed" id="gdGrid"></div>
                 <div class="gd-footer">
+                    <button class="gd-nav-btn" id="gdPrev" onclick="_gdNav(-1)">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                    </button>
                     <button class="gd-today-btn" onclick="_gdSelectToday()">Today</button>
                     <button class="gd-clear-btn" onclick="_gdClear()">Clear</button>
+                    <button class="gd-nav-btn" id="gdNext" onclick="_gdNav(1)">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                    </button>
                 </div>
             </div>
         </div>
@@ -2433,6 +2433,18 @@
                     <!-- Gear used badge -->
                     <div class="act-gear-badge" id="actGearBadge" style="display:none"></div>
 
+                    <!-- Achievements / Personal Records -->
+                    <div class="ach-card" id="detailAchievements" style="display:none">
+                        <div class="ach-card-header">
+                            <div class="ach-trophy-icon">
+                                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 010-5H6"/><path d="M18 9h1.5a2.5 2.5 0 000-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22"/><path d="M18 2H6v7a6 6 0 0012 0V2z"/></svg>
+                            </div>
+                            <span class="ach-card-title">Personal Records</span>
+                            <span class="ach-card-count" id="achCount"></span>
+                        </div>
+                        <div class="ach-list" id="achList"></div>
+                    </div>
+
                     <!-- vs-average comparison card -->
                     <div
                         class="card"
@@ -3290,58 +3302,66 @@
                     <dialog class="modal-dialog" id="calEventModal">
                         <div class="modal cev-modal">
                             <div class="modal-drag-indicator"></div>
-                            <!-- iOS Calendar-style header -->
+                            <!-- Header -->
                             <div class="cev-header">
                                 <button class="cev-hdr-btn" onclick="closeCalEventModal()" aria-label="Close">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                                 </button>
-                                <span class="cev-hdr-title modal-title">New</span>
+                                <span class="cev-hdr-title modal-title">New Event</span>
                                 <button class="cev-hdr-btn cev-hdr-btn--done" id="calEvSaveBtn" onclick="saveCalEvent()" aria-label="Save">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                                 </button>
                             </div>
                             <div class="modal-body cev-body">
-                                <!-- Preset pills -->
+                                <!-- Preset chips -->
                                 <div class="cev-presets" id="calEvPresets">
-                                    <button type="button" data-preset="easy">Easy Ride</button>
-                                    <button type="button" data-preset="intervals">Intervals</button>
-                                    <button type="button" data-preset="long">Long Ride</button>
-                                    <button type="button" data-preset="rest">Rest Day</button>
-                                    <button type="button" data-preset="race">Race</button>
+                                    <button type="button" data-preset="easy">
+                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2a10 10 0 100 20 10 10 0 000-20z"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/></svg>
+                                        Easy Ride
+                                    </button>
+                                    <button type="button" data-preset="intervals">
+                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                                        Intervals
+                                    </button>
+                                    <button type="button" data-preset="long">
+                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 3l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/></svg>
+                                        Long Ride
+                                    </button>
+                                    <button type="button" data-preset="rest">
+                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+                                        Rest Day
+                                    </button>
+                                    <button type="button" data-preset="race">
+                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                                        Race
+                                    </button>
                                 </div>
-                                <!-- Section: Title & Location -->
-                                <div class="cev-section">
-                                    <div class="cev-row cev-row--input">
-                                        <input type="text" id="calEvName" class="cev-input" placeholder="Title">
-                                    </div>
-                                    <div class="cev-row cev-row--input">
-                                        <input type="text" id="calEvLocation" class="cev-input" placeholder="Location">
-                                    </div>
+
+                                <!-- Title input — standalone prominent field -->
+                                <div class="cev-title-field">
+                                    <input type="text" id="calEvName" placeholder="Event title" autocomplete="off">
                                 </div>
-                                <!-- Section: Notes -->
-                                <div class="cev-section">
-                                    <div class="cev-row cev-row--input">
-                                        <textarea id="calEvDesc" class="cev-input cev-textarea" rows="4" placeholder="Notes"></textarea>
-                                    </div>
-                                </div>
-                                <!-- Section: Event details -->
-                                <div class="cev-section">
-                                    <div class="cev-row">
-                                        <span class="cev-label">Type</span>
-                                        <select id="calEvCategory" class="cev-select" onchange="_calEvCategoryChanged()">
+
+                                <!-- Details group -->
+                                <div class="cev-group">
+                                    <div class="cev-group-row">
+                                        <span class="cev-group-icon">
+                                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+                                        </span>
+                                        <span class="cev-group-label">Type</span>
+                                        <select id="calEvCategory" class="app-select" onchange="_calEvCategoryChanged()">
                                             <option value="WORKOUT">Workout</option>
                                             <option value="NOTE">Note</option>
                                             <option value="RACE">Race</option>
                                             <option value="GOAL">Goal</option>
                                         </select>
                                     </div>
-                                    <div class="cev-row">
-                                        <span class="cev-label">Date</span>
-                                        <input type="date" id="calEvDate" class="cev-date">
-                                    </div>
-                                    <div class="cev-row" id="calEvSportField">
-                                        <span class="cev-label">Sport</span>
-                                        <select id="calEvSport" class="cev-select">
+                                    <div class="cev-group-row" id="calEvSportField">
+                                        <span class="cev-group-icon">
+                                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 000 20 14.5 14.5 0 000-20"/><path d="M2 12h20"/></svg>
+                                        </span>
+                                        <span class="cev-group-label">Sport</span>
+                                        <select id="calEvSport" class="app-select">
                                             <option value="Ride">Ride</option>
                                             <option value="Run">Run</option>
                                             <option value="Swim">Swim</option>
@@ -3349,29 +3369,86 @@
                                             <option value="Other">Other</option>
                                         </select>
                                     </div>
+                                    <div class="cev-group-row" onclick="openCevDatePicker()" style="cursor:pointer">
+                                        <span class="cev-group-icon">
+                                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                        </span>
+                                        <span class="cev-group-label">Date</span>
+                                        <span class="cev-group-value" id="calEvDateDisplay">--</span>
+                                        <svg class="cev-group-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                        <input type="hidden" id="calEvDate">
+                                    </div>
+                                    <div class="cev-group-row">
+                                        <span class="cev-group-icon">
+                                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+                                        </span>
+                                        <span class="cev-group-label">Color</span>
+                                        <div class="cev-color-swatches" id="calEvColorSwatches"></div>
+                                        <input type="hidden" id="calEvColor">
+                                    </div>
                                 </div>
-                                <!-- Section: Metrics (workout/race only) -->
-                                <div class="cev-section" id="calEvMetricsRow">
-                                    <div class="cev-row">
-                                        <span class="cev-label">Duration</span>
-                                        <input type="text" id="calEvDuration" class="cev-value-input" placeholder="e.g. 1h 30m">
+
+                                <!-- Location & Notes -->
+                                <div class="cev-group">
+                                    <div class="cev-group-row cev-group-row--input">
+                                        <span class="cev-group-icon">
+                                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                                        </span>
+                                        <input type="text" id="calEvLocation" placeholder="Location" autocomplete="off">
                                     </div>
-                                    <div class="cev-row">
-                                        <span class="cev-label">Distance</span>
-                                        <input type="number" id="calEvDistance" class="cev-value-input" step="0.1" placeholder="km">
-                                    </div>
-                                    <div class="cev-row" id="calEvTssField">
-                                        <span class="cev-label">Target TSS</span>
-                                        <input type="number" id="calEvTss" class="cev-value-input" placeholder="e.g. 75">
+                                    <div class="cev-group-row cev-group-row--input cev-group-row--textarea">
+                                        <span class="cev-group-icon" style="align-self:flex-start;margin-top:2px">
+                                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/></svg>
+                                        </span>
+                                        <textarea id="calEvDesc" rows="2" placeholder="Notes"></textarea>
                                     </div>
                                 </div>
+
+                                <!-- Targets -->
+                                <div class="cev-section-label" id="calEvMetricsLabel">Targets</div>
+                                <div class="cev-targets" id="calEvMetricsRow">
+                                    <div class="cev-target-card">
+                                        <label for="calEvDuration">Duration</label>
+                                        <input type="text" id="calEvDuration" placeholder="0h 0m">
+                                    </div>
+                                    <div class="cev-target-card">
+                                        <label for="calEvDistance">Distance</label>
+                                        <div class="cev-target-unit">
+                                            <input type="number" id="calEvDistance" step="0.1" placeholder="0.0">
+                                            <span>km</span>
+                                        </div>
+                                    </div>
+                                    <div class="cev-target-card" id="calEvTssField">
+                                        <label for="calEvTss">TSS</label>
+                                        <input type="number" id="calEvTss" placeholder="0">
+                                    </div>
+                                </div>
+
                                 <!-- Delete (edit mode only) -->
-                                <div class="cev-section cev-section--danger" id="calEvDeleteSection" style="display:none">
-                                    <button class="cev-row cev-delete-btn" id="calEvDeleteBtn" onclick="deleteCalEvent()">Delete Event</button>
+                                <div id="calEvDeleteSection" style="display:none;margin-top:24px">
+                                    <button class="cev-delete-action" id="calEvDeleteBtn" onclick="deleteCalEvent()">Delete Event</button>
                                 </div>
                             </div>
                         </div>
                     </dialog>
+
+                    <!-- Calendar event date picker sheet -->
+                    <div class="gear-picker-overlay" id="cevDateOverlay" style="display:none" onclick="if(event.target===this)closeCevDate()">
+                        <div class="gear-picker-sheet gear-date-sheet">
+                            <div class="gear-picker-handle"></div>
+                            <div class="gear-picker-title">Select Date</div>
+                            <div class="gd-month-header">
+                                <span class="gd-month-label" id="cevDateMonthLabel"></span>
+                            </div>
+                            <div class="gd-weekdays"><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span></div>
+                            <div class="gd-grid gd-grid--fixed" id="cevDateGrid"></div>
+                            <div class="gd-footer">
+                                <button class="gd-nav-btn" onclick="_cevDateNav(-1)"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+                                <button class="gd-today-btn" onclick="_cevDateSelectToday()">Today</button>
+                                <button class="gd-nav-btn" onclick="_cevDateNav(1)"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- ── Training Plan Builder Modal ── -->
                     <dialog class="modal-dialog" id="trainingPlanModal">
@@ -4367,6 +4444,35 @@
                                 </div>
                                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="wrk-export-chevron"><polyline points="9 18 15 12 9 6"/></svg>
                             </button>
+                            <div class="wrk-export-divider"></div>
+                            <button class="wrk-export-row wrk-export-row--calendar" onclick="wrkSendToCalendar()">
+                                <div class="wrk-export-icon wrk-export-icon--icu">
+                                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/></svg>
+                                </div>
+                                <div class="wrk-export-row-info">
+                                    <span class="wrk-export-row-title">Send to Calendar</span>
+                                    <span class="wrk-export-row-sub">Push to intervals.icu → syncs to Garmin head unit</span>
+                                </div>
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="wrk-export-chevron"><polyline points="9 18 15 12 9 6"/></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Workout Calendar Date Picker Sheet -->
+                    <div class="gear-picker-overlay" id="wrkCalDateOverlay" style="display:none" onclick="if(event.target===this)_wrkCalDateClose()">
+                        <div class="gear-picker-sheet gear-date-sheet">
+                            <div class="gear-picker-handle"></div>
+                            <div class="gear-picker-title">Schedule Workout</div>
+                            <div class="gd-month-header">
+                                <span class="gd-month-label" id="wrkCalDateMonthLabel"></span>
+                            </div>
+                            <div class="gd-weekdays"><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span></div>
+                            <div class="gd-grid gd-grid--fixed" id="wrkCalDateGrid"></div>
+                            <div class="gd-footer">
+                                <button class="gd-nav-btn" onclick="_wrkCalDateNav(-1)"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+                                <button class="gd-today-btn" onclick="_wrkCalDateToday()">Today</button>
+                                <button class="gd-nav-btn" onclick="_wrkCalDateNav(1)"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+                            </div>
                         </div>
                     </div>
 
@@ -4573,6 +4679,11 @@
                                     <span class="ios-row-label">Activity Sections</span>
                                     <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                 </div>
+                                <div class="ios-row" data-nav onclick="openSettingsSubpage('navigation')">
+                                    <div class="ios-row-icon" style="background:#5856d6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></div>
+                                    <span class="ios-row-label">Tab Bar & FAB</span>
+                                    <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                </div>
                             </div>
 
                             <!-- DATA -->
@@ -4756,16 +4867,6 @@
                                 <div class="ios-row" data-nav onclick="openSettingsSubpage('leveling')">
                                     <div class="ios-row-icon" style="background:#af52de"><svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
                                     <span class="ios-row-label">Leveling</span>
-                                    <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                                </div>
-                            </div>
-
-                            <!-- NAVIGATION -->
-                            <div class="ios-group-label">Navigation</div>
-                            <div class="ios-group">
-                                <div class="ios-row" data-nav onclick="openSettingsSubpage('navigation')">
-                                    <div class="ios-row-icon" style="background:#5856d6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></div>
-                                    <span class="ios-row-label">Tab Bar & FAB</span>
                                     <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                 </div>
                             </div>
@@ -6465,8 +6566,8 @@
 
         <!-- ── Global floating FABs (outside all page transforms) ── -->
         <button class="cal-fab" id="actSearchFab" onclick="openGlobalSearch()" aria-label="Search activities" style="visibility:hidden;pointer-events:none">
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                <circle cx="8.5" cy="8.5" r="5.5"/><line x1="13" y1="13" x2="18" y2="18"/>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
         </button>
         <button class="cal-fab" id="actSaveRouteFab" onclick="saveActivityRoute()" aria-label="Save route">

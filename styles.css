@@ -1030,6 +1030,12 @@ code {
 .gear-date-sheet {
     max-height: 70vh;
 }
+.gd-month-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 16px 8px;
+}
 .gd-nav {
     display: flex;
     align-items: center;
@@ -1074,16 +1080,31 @@ code {
     padding: 0 12px;
     gap: 2px;
 }
+.gd-grid--fixed {
+    grid-template-rows: repeat(6, 38px);
+}
 .gd-day {
-    aspect-ratio: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 50%;
     font-size: 15px;
     font-weight: 500;
     color: var(--text-primary);
     cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+}
+.gd-grid--fixed .gd-day {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    margin: auto;
+    transition: background 0.15s;
+}
+.gd-grid:not(.gd-grid--fixed) .gd-day {
+    aspect-ratio: 1;
+    border-radius: 50%;
     transition: background 0.15s;
     min-height: 38px;
 }
@@ -1107,8 +1128,9 @@ code {
 }
 .gd-footer {
     display: flex;
-    justify-content: center;
-    gap: 16px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
     padding: 12px 16px;
     padding-bottom: max(12px, env(safe-area-inset-bottom));
 }
@@ -7202,12 +7224,13 @@ input[type="number"] {
 .settings-back-fab {
     position: fixed !important;
     right: auto !important;
-    left: 24px;
+    left: 16px;
+    bottom: 20px;
     background: var(--glass-bg);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
     border: 1px solid var(--glass-border);
-    box-shadow: 0 4px 16px var(--shadow-md);
+    box-shadow: var(--glass-shadow);
     color: var(--text-primary);
 }
 .settings-back-fab svg {
@@ -7218,12 +7241,13 @@ input[type="number"] {
 .settings-search-fab {
     position: fixed !important;
     left: auto !important;
-    right: 24px;
+    right: 16px;
+    bottom: 20px;
     background: var(--glass-bg);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
     border: 1px solid var(--glass-border);
-    box-shadow: 0 4px 16px var(--shadow-md);
+    box-shadow: var(--glass-shadow);
     color: var(--text-primary);
 }
 .settings-search-fab svg {
@@ -7377,25 +7401,27 @@ body.show-save-fab #actSaveRouteFab {
 /* ── Calendar Event Modal — iOS Calendar Style ─────────────────── */
 
 /* iOS Calendar modal surface — secondarySystemBackground (var(--bg-surface)) */
+/* ============================================================
+   CALENDAR EVENT MODAL — Apple/Strava/Nike Redesign
+============================================================ */
 .cev-modal {
     background: var(--bg-surface) !important;
 }
 
-/* iOS Calendar header: × title ✓
-   Apple HIG: 20pt content inset, 30pt circular buttons, 17pt semibold title */
+/* ── Header: × Title ✓ (circle buttons) ──────────────── */
 .cev-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 14px 20px 14px;
+    padding: 14px 20px 12px;
     flex-shrink: 0;
     position: relative;
     z-index: 3;
     background: var(--bg-surface);
 }
 .cev-hdr-btn {
-    width: 44px;
-    height: 44px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
     background: var(--glass-bg);
     backdrop-filter: var(--glass-blur);
@@ -7407,31 +7433,25 @@ body.show-save-fab #actSaveRouteFab {
     justify-content: center;
     color: var(--text-primary);
     cursor: pointer;
-    transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
+    transition: background 0.2s, transform 0.15s;
     flex-shrink: 0;
-    position: relative;
-    overflow: hidden;
 }
-/* Specular removed — uniform flat glass */
-.cev-hdr-btn::before { display: none; }
 .cev-hdr-btn svg {
-    width: 18px;
-    height: 18px;
-    position: relative;
-    z-index: 1;
+    width: 16px;
+    height: 16px;
 }
 .cev-hdr-btn:active {
     background: rgba(255, 255, 255, 0.16);
     transform: scale(0.92);
-    box-shadow:
-        inset 0 0.5px 0 0 rgba(255, 255, 255, 0.15),
-        0 0.5px 2px rgba(0, 0, 0, 0.25);
 }
 .cev-hdr-btn--done {
-    color: var(--text-primary);
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent-dark);
 }
 .cev-hdr-btn--done:active {
-    color: var(--text-primary);
+    opacity: 0.85;
+    transform: scale(0.92);
 }
 .cev-hdr-title {
     font-size: 17px;
@@ -7441,38 +7461,48 @@ body.show-save-fab #actSaveRouteFab {
     flex: 1;
 }
 
-/* Scrollable body */
+/* ── Body ─────────────────────────────────────────────── */
 .cev-body {
-    padding: 0 20px 32px !important;
+    padding: 0 20px 40px !important;
     background: transparent !important;
 }
 
-/* Preset pills — horizontal scroll with HIG spacing */
+/* ── Preset chips — Strava/Nike style ────────────────── */
 .cev-presets {
     display: flex;
     gap: 8px;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
-    padding: 0 0 20px;
+    padding: 4px 0 20px;
     flex-wrap: nowrap;
 }
 .cev-presets::-webkit-scrollbar { display: none; }
 .cev-presets button {
-    padding: 8px 18px;
-    border-radius: var(--radius-pill, 20px);
-    background: var(--bg-elevated);
-    border: 1px solid rgba(120, 120, 128, 0.3);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 100px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     color: var(--text-secondary);
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
+    letter-spacing: 0.01em;
     cursor: pointer;
-    transition: border-color 0.15s, color 0.15s, background 0.15s;
+    transition: all 0.2s ease;
     white-space: nowrap;
     flex-shrink: 0;
 }
+.cev-presets button svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    opacity: 0.6;
+}
 .cev-presets button:active {
-    background: var(--separator-active);
+    transform: scale(0.95);
 }
 .cev-presets button.active {
     background: var(--accent);
@@ -7480,153 +7510,248 @@ body.show-save-fab #actSaveRouteFab {
     border-color: var(--accent);
     font-weight: 600;
 }
+.cev-presets button.active svg { opacity: 1; stroke: var(--on-accent-dark); }
 
-/* iOS grouped section — tertiarySystemBackground (var(--bg-elevated)) */
-.cev-section {
+/* ── Title field — prominent standalone input ─────────── */
+.cev-title-field {
+    margin-bottom: 16px;
+}
+.cev-title-field input {
+    width: 100%;
+    border: none;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 20px;
+    font-weight: 600;
+    padding: 14px 16px;
+    outline: none;
+    letter-spacing: -0.02em;
+    transition: background 0.2s;
+}
+.cev-title-field input::placeholder {
+    color: var(--text-muted);
+    font-weight: 500;
+}
+.cev-title-field input:focus {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+/* ── Grouped rows — rounded card sections ─────────────── */
+.cev-group {
     background: var(--bg-elevated);
-    border-radius: var(--radius-sm);
-    margin-bottom: 35px;
+    border-radius: 12px;
+    margin-bottom: 12px;
     overflow: visible;
     position: relative;
 }
-.cev-section:last-child {
-    margin-bottom: 0;
-}
-
-/* Individual row inside a section — Apple HIG: 44pt height, 20pt horizontal padding */
-.cev-row {
+.cev-group-row {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 12px;
     min-height: 44px;
-    padding: 0 20px;
+    padding: 0 16px;
     position: relative;
 }
-/* Hairline separator between rows — Apple HIG: inset from left by 20pt */
-.cev-row + .cev-row::before {
+.cev-group-row + .cev-group-row::before {
     content: '';
     position: absolute;
     top: 0;
-    left: 0;
-    right: 0;
+    left: 48px;
+    right: 16px;
     height: 0.5px;
     background: var(--border);
 }
-
-/* Row label (left side) — Apple HIG: 17pt body text */
-.cev-label {
-    font-size: 17px;
-    color: var(--text-primary);
+.cev-group-icon {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
-    padding: 12px 0;
+    color: var(--text-muted);
+    opacity: 0.5;
+}
+.cev-group-icon svg {
+    width: 18px;
+    height: 18px;
+}
+.cev-group-label {
+    flex: 1;
+    font-size: 16px;
+    font-weight: 400;
+    color: var(--text-primary);
+    min-width: 0;
+}
+.cev-group-value {
+    font-size: 16px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+.cev-group-chevron {
+    color: rgba(155, 155, 160, 0.4);
+    flex-shrink: 0;
+    margin-left: 2px;
 }
 
-/* Input rows (Title, Notes) — full width, no label */
-.cev-row--input {
-    padding: 0;
+/* Color swatches */
+.cev-color-swatches {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+    align-items: center;
 }
-.cev-input {
-    width: 100%;
+.cev-color-dot {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s;
+    position: relative;
+    flex-shrink: 0;
+}
+.cev-color-dot:active { transform: scale(0.9); }
+.cev-color-dot--active {
+    border-color: #fff;
+    box-shadow: 0 0 0 2px rgba(255,255,255,0.2);
+}
+.cev-color-dot--none {
+    background: var(--fill-tertiary);
+    position: relative;
+}
+.cev-color-dot--none::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 14px; height: 2px;
+    background: var(--text-muted);
+    transform: translate(-50%, -50%) rotate(-45deg);
+    border-radius: 1px;
+}
+
+/* cdd-wrap selects inside cev-group-row */
+.cev-group-row .cdd-wrap {
+    width: auto;
+    flex-shrink: 0;
+}
+.cev-group-row .cdd-trigger {
+    padding: 6px 12px;
+    min-height: 30px;
+    font-size: 15px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.06);
+}
+.cev-group-row .cdd-wrap--open { z-index: 300; }
+.cev-group-row .cdd-dropdown {
+    right: 0;
+    left: auto;
+    min-width: 160px;
+}
+
+/* Input variant rows (location, notes) */
+.cev-group-row--input input,
+.cev-group-row--input textarea {
+    flex: 1;
     border: none;
     background: transparent;
     color: var(--text-primary);
     font-family: inherit;
-    font-size: 17px;
-    padding: 13px 20px;
+    font-size: 16px;
+    padding: 12px 0;
     outline: none;
-    min-height: 44px;
+    min-height: 22px;
 }
-.cev-input::placeholder {
-    color: var(--text-faint);
+.cev-group-row--input input::placeholder,
+.cev-group-row--input textarea::placeholder {
+    color: var(--text-muted);
 }
-.cev-textarea {
+.cev-group-row--textarea textarea {
     resize: none;
     line-height: 1.5;
-    min-height: 100px;
-    max-height: 200px;
+    min-height: 52px;
+    max-height: 140px;
     overflow-y: auto;
-    padding-top: 13px;
-    padding-bottom: 13px;
+    padding: 12px 0;
+    width: 100%;
 }
 
-/* Select control (right side, iOS pill style) — Apple HIG: rounded rect, secondary fill */
-.cev-select {
-    appearance: none;
-    -webkit-appearance: none;
-    border: none;
-    background: var(--bg-tertiary);
-    color: var(--text-secondary);
-    font-family: inherit;
-    font-size: 15px;
-    padding: 7px 30px 7px 14px;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    outline: none;
-    min-height: 34px;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 10px center;
+/* ── Section label ────────────────────────────────────── */
+.cev-section-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 8px 4px 8px;
 }
 
-/* Date input (pill style) — Apple HIG: secondary fill bg */
-.cev-date {
-    appearance: none;
-    -webkit-appearance: none;
-    border: none;
-    background: var(--bg-tertiary);
-    color: var(--text-secondary);
-    font-family: inherit;
-    font-size: 15px;
-    padding: 7px 14px;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    outline: none;
-    min-height: 34px;
-    color-scheme: dark;
+/* ── Targets — card grid (Strava/Nike metric cards) ──── */
+.cev-targets {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
 }
-
-/* Right-aligned value input (duration, distance, tss) */
-.cev-value-input {
-    border: none;
-    background: var(--bg-tertiary);
-    color: var(--text-secondary);
-    font-family: inherit;
-    font-size: 15px;
-    padding: 7px 14px;
-    border-radius: var(--radius-sm);
-    outline: none;
-    text-align: right;
-    width: 140px;
-    min-height: 34px;
-    flex-shrink: 0;
-}
-.cev-value-input::placeholder {
-    color: rgba(235, 235, 245, 0.2);
-}
-.cev-value-input:focus {
-    outline: none;
-    border-color: var(--accent);
-}
-
-/* Delete section — iOS destructive style */
-.cev-section--danger {
+.cev-target-card {
     background: var(--bg-elevated);
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
-.cev-delete-btn {
+.cev-target-card label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.cev-target-card input {
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 20px;
+    font-weight: 600;
+    padding: 0;
+    outline: none;
+    width: 100%;
+    letter-spacing: -0.02em;
+}
+.cev-target-card input::placeholder {
+    color: rgba(255, 255, 255, 0.15);
+    font-weight: 500;
+}
+.cev-target-unit {
+    display: flex;
+    align-items: baseline;
+    gap: 2px;
+}
+.cev-target-unit input { flex: 1; }
+.cev-target-unit span {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+/* ── Delete button ────────────────────────────────────── */
+.cev-delete-action {
     width: 100%;
     text-align: center;
     font-size: 17px;
-    font-weight: 400;
+    font-weight: 500;
     color: var(--red, #FF453A);
-    cursor: pointer;
+    background: var(--bg-elevated);
     border: none;
-    background: transparent;
-    padding: 13px 20px;
-    display: block;
-    min-height: 44px;
-    transition: color 0.15s, background 0.15s;
+    border-radius: 12px;
+    padding: 14px;
+    cursor: pointer;
+    transition: background 0.15s;
 }
-.cev-delete-btn:active {
+.cev-delete-action:active {
     background: rgba(255, 69, 58, 0.12);
 }
 .cev-delete-btn--confirm {
@@ -7635,7 +7760,7 @@ body.show-save-fab #actSaveRouteFab {
     font-weight: 600;
 }
 
-/* Focus states — subtle like iOS, no green accent ring */
+/* ── Focus reset ──────────────────────────────────────── */
 .cev-modal input:focus,
 .cev-modal input:focus-visible,
 .cev-modal textarea:focus,
@@ -7648,128 +7773,40 @@ body.show-save-fab #actSaveRouteFab {
     box-shadow: none !important;
     outline-offset: 0 !important;
 }
-.cev-value-input:focus,
-.cev-select:focus,
-.cev-date:focus {
-    background: var(--bg-quaternary);
-}
-
-/* Validation error state */
-.cev-input.error,
-.cev-value-input.error {
-    outline: 2px solid var(--red, #FF453A);
-}
-
-/* Custom select/date picker overrides inside calendar modal rows */
-.cev-row .cs-wrap {
-    flex-shrink: 0;
-    position: relative;
-}
-.cev-row .cs-wrap--open,
-.cev-row .dp-wrap--open {
-    z-index: 300;
-}
-.cev-row .cs-trigger {
-    width: auto;
-    background: var(--bg-tertiary);
-    border-radius: var(--radius-sm);
-    padding: 7px 14px;
-    min-height: 34px;
-    font-size: 15px;
-    color: var(--text-secondary);
-    border: 2px solid transparent;
-}
-.cev-row .cs-chevron {
-    margin-left: 8px;
-}
-.cev-row .cs-dropdown {
-    left: auto;
-    right: 0;
-    min-width: 180px;
-    z-index: 300;
-}
-.cev-row .dp-wrap {
-    flex-shrink: 0;
-}
-.cev-row .dp-trigger {
-    width: auto;
-    background: var(--bg-tertiary);
-    border-radius: var(--radius-sm);
-    padding: 7px 14px;
-    min-height: 34px;
-    font-size: 15px;
-    color: var(--text-secondary);
-    border: 2px solid transparent;
-}
-.cev-row .dp-icon {
-    margin-left: 8px;
-}
-.cev-row .dp-dropdown {
-    left: auto;
-    right: 0;
-    z-index: 300;
-}
-[data-theme="light"] .cev-row .cs-trigger,
-[data-theme="light"] .cev-row .dp-trigger {
-    background: rgba(120, 120, 128, 0.12);
-    color: rgba(60, 60, 67, 0.6);
-}
 
 /* ── Light theme overrides ── */
 [data-theme="light"] .cev-modal {
     background: #F2F2F7 !important;
 }
-[data-theme="light"] .cev-body {
-    background: transparent !important;
+[data-theme="light"] .cev-title-field input {
+    background: rgba(0, 0, 0, 0.04);
 }
-/* Light theme cev-hdr-btn: tokens handle it */
-[data-theme="light"] .cev-hdr-btn::before {
-    background: linear-gradient(
-        180deg,
-        rgba(255, 255, 255, 0.6) 0%,
-        rgba(255, 255, 255, 0.1) 60%,
-        transparent 100%
-    );
-}
-[data-theme="light"] .cev-hdr-btn:active {
-    background: rgba(255, 255, 255, 0.7);
-}
-[data-theme="light"] .cev-hdr-title {
-    color: var(--on-accent-dark);
-}
-[data-theme="light"] .cev-section {
-    background: var(--bg-card);
-}
-[data-theme="light"] .cev-label {
-    color: var(--on-accent-dark);
-}
-[data-theme="light"] .cev-input {
-    color: var(--on-accent-dark);
-}
-[data-theme="light"] .cev-input::placeholder {
-    color: rgba(60, 60, 67, 0.3);
-}
-[data-theme="light"] .cev-row + .cev-row::before {
-    background: rgba(60, 60, 67, 0.18);
-}
-[data-theme="light"] .cev-select,
-[data-theme="light"] .cev-date,
-[data-theme="light"] .cev-value-input {
-    background: rgba(120, 120, 128, 0.12);
-    color: rgba(60, 60, 67, 0.6);
-    color-scheme: light;
+[data-theme="light"] .cev-title-field input:focus {
+    background: rgba(0, 0, 0, 0.06);
 }
 [data-theme="light"] .cev-presets button {
-    background: var(--bg-card);
-    color: rgba(60, 60, 67, 0.6);
-    border-color: rgba(60, 60, 67, 0.18);
+    background: rgba(0, 0, 0, 0.04);
+    border-color: rgba(60, 60, 67, 0.15);
+    color: var(--text-secondary);
 }
 [data-theme="light"] .cev-presets button.active {
     background: var(--accent);
     color: var(--on-accent-dark);
     border-color: var(--accent);
 }
-[data-theme="light"] .cev-section--danger {
+[data-theme="light"] .cev-group {
+    background: var(--bg-card);
+}
+[data-theme="light"] .cev-group-row .cdd-trigger {
+    background: rgba(0, 0, 0, 0.05);
+}
+[data-theme="light"] .cev-target-card {
+    background: var(--bg-card);
+}
+[data-theme="light"] .cev-target-card input::placeholder {
+    color: rgba(0, 0, 0, 0.15);
+}
+[data-theme="light"] .cev-delete-action {
     background: var(--bg-card);
 }
 
@@ -10319,6 +10356,146 @@ body:has(.act-sheet-mode) .topbar {
     margin-top: 4px;
 }
 .act-gear-badge svg { color: var(--accent); flex-shrink: 0; }
+
+/* ── Achievements Card ─────────────────────────── */
+.ach-card {
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-top: 12px;
+    overflow: hidden;
+    position: relative;
+}
+.ach-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+.ach-trophy-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(255,204,0,0.15), rgba(255,170,0,0.08));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffcc00;
+    flex-shrink: 0;
+}
+.ach-card-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+    flex: 1;
+}
+.ach-card-count {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    background: var(--fill-tertiary);
+    border-radius: 10px;
+    padding: 2px 8px;
+    min-width: 22px;
+    text-align: center;
+}
+.ach-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.ach-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--ach-bg);
+    border: 1px solid rgba(255,255,255,0.04);
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.15s;
+}
+.ach-row::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: var(--ach-color);
+    border-radius: 0 2px 2px 0;
+}
+.ach-row::after {
+    content: '';
+    position: absolute;
+    top: -20px;
+    right: -20px;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: var(--ach-glow);
+    filter: blur(30px);
+    pointer-events: none;
+}
+.ach-row-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--ach-bg);
+    border: 1.5px solid color-mix(in srgb, var(--ach-color) 30%, transparent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ach-color);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+}
+.ach-row-body {
+    flex: 1;
+    min-width: 0;
+    position: relative;
+    z-index: 1;
+}
+.ach-row-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+}
+.ach-row-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ach-color);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.ach-row-value {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+.ach-row-unit {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-left: 2px;
+}
+.ach-row-sub {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+.ach-row-desc {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 3px;
+}
 .act-sstat {
     display: flex;
     flex-direction: column;
@@ -12004,6 +12181,10 @@ body:has(.act-sheet-mode) .topbar {
 .wrk-export-icon--garmin {
     background: rgba(0, 156, 222, 0.15);
     color: #009cde;
+}
+.wrk-export-icon--icu {
+    background: var(--accent-dim);
+    color: var(--accent);
 }
 .wrk-export-row-info {
     flex: 1;

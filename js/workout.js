@@ -520,6 +520,180 @@ export function wrkExportFit() {
   }
 }
 
+/* ── Send to Calendar (intervals.icu) ──────────── */
+const icuPost            = _app('icuPost');
+const fetchCalendarEvents = _app('fetchCalendarEvents');
+
+function _wrkFmtDur(secs) {
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = secs % 60;
+  if (h > 0 && m > 0 && s > 0) return `${h}h${m}m${s}s`;
+  if (h > 0 && m > 0) return `${h}h${m}m`;
+  if (h > 0) return `${h}h`;
+  if (m > 0 && s > 0) return `${m}m${s}s`;
+  if (m > 0) return `${m}m`;
+  return `${s}s`;
+}
+
+export function wrkToDescription() {
+  const lines = [];
+  let hasWarmup = false, hasMain = false, hasCooldown = false;
+
+  wrkState.segments.forEach(seg => {
+    if (seg.type === 'warmup' && !hasWarmup) {
+      lines.push('Warmup');
+      hasWarmup = true;
+    } else if (seg.type === 'cooldown' && !hasCooldown) {
+      if (hasMain || hasWarmup) lines.push('');
+      lines.push('Cooldown');
+      hasCooldown = true;
+    } else if (!hasMain && seg.type !== 'warmup') {
+      if (hasWarmup) lines.push('');
+      lines.push('Main Set');
+      hasMain = true;
+    }
+
+    const dur = _wrkFmtDur(seg.duration || 0);
+    if (seg.type === 'warmup') {
+      lines.push(`- ${dur} ramp ${seg.powerLow}%-${seg.powerHigh}%`);
+    } else if (seg.type === 'cooldown') {
+      const hi = Math.max(seg.powerLow, seg.powerHigh);
+      const lo = Math.min(seg.powerLow, seg.powerHigh);
+      lines.push(`- ${dur} ramp ${hi}%-${lo}%`);
+    } else if (seg.type === 'steady') {
+      lines.push(`- ${dur} ${seg.power}%`);
+    } else if (seg.type === 'interval') {
+      const onDur = _wrkFmtDur(seg.onDuration);
+      const offDur = _wrkFmtDur(seg.offDuration);
+      lines.push(`${seg.reps}x`);
+      lines.push(`- ${onDur} ${seg.onPower}%`);
+      lines.push(`- ${offDur} ${seg.offPower}%`);
+    } else if (seg.type === 'free') {
+      lines.push(`- ${dur} freeride`);
+    }
+  });
+
+  return lines.join('\n');
+}
+
+export async function wrkSendToCalendar() {
+  if (!wrkState.segments.length) { showToast('Add segments first', 'error'); return; }
+  if (!state.athleteId) { showToast('Connect to intervals.icu first', 'error'); return; }
+
+  // Open a date picker sheet
+  const overlay = document.getElementById('wrkCalDateOverlay');
+  if (overlay) {
+    overlay.style.display = '';
+    requestAnimationFrame(() => overlay.classList.add('active'));
+    // Init to today
+    const today = new Date();
+    window._wrkCalDateMonth = { year: today.getFullYear(), month: today.getMonth() };
+    window._wrkCalDateSelected = null;
+    _wrkCalDateRender();
+  }
+}
+
+function _wrkCalDateRender() {
+  const grid = document.getElementById('wrkCalDateGrid');
+  const label = document.getElementById('wrkCalDateMonthLabel');
+  if (!grid || !label) return;
+  const { year, month } = window._wrkCalDateMonth;
+  label.textContent = new Date(year, month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  const first = new Date(year, month, 1);
+  let startDay = first.getDay() - 1;
+  if (startDay < 0) startDay = 6;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  let html = '';
+  for (let i = 0; i < startDay; i++) html += '<span class="gd-empty"></span>';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const cls = ['gd-day'];
+    if (ds === window._wrkCalDateSelected) cls.push('gd-day--selected');
+    if (ds === todayStr) cls.push('gd-day--today');
+    html += `<button class="${cls.join(' ')}" onclick="_wrkCalDatePick('${ds}')">${d}</button>`;
+  }
+  const totalCells = startDay + daysInMonth;
+  for (let i = totalCells; i < 42; i++) html += '<span class="gd-empty"></span>';
+  grid.innerHTML = html;
+}
+
+function _wrkCalDateNav(dir) {
+  const m = window._wrkCalDateMonth;
+  m.month += dir;
+  if (m.month > 11) { m.month = 0; m.year++; }
+  if (m.month < 0)  { m.month = 11; m.year--; }
+  _wrkCalDateRender();
+}
+
+function _wrkCalDateToday() {
+  const t = new Date();
+  window._wrkCalDateMonth = { year: t.getFullYear(), month: t.getMonth() };
+  window._wrkCalDateSelected = t.toISOString().slice(0, 10);
+  _wrkCalDateRender();
+  _wrkCalDateConfirm();
+}
+
+async function _wrkCalDatePick(ds) {
+  window._wrkCalDateSelected = ds;
+  _wrkCalDateRender();
+  // Auto-confirm after selection
+  await _wrkCalDateConfirm();
+}
+
+async function _wrkCalDateConfirm() {
+  const date = window._wrkCalDateSelected;
+  if (!date) return;
+
+  const overlay = document.getElementById('wrkCalDateOverlay');
+  const btn = overlay?.querySelector('.gd-day--selected');
+  if (btn) { btn.style.pointerEvents = 'none'; btn.style.opacity = '0.5'; }
+
+  try {
+    const name = wrkState.name || 'CycleIQ Workout';
+    const description = wrkToDescription();
+    const totalSecs = wrkTotalSecs();
+    const tss = wrkEstimateTSS();
+
+    const payload = {
+      start_date_local: date + 'T00:00:00',
+      name,
+      category: 'WORKOUT',
+      type: 'Ride',
+      description,
+    };
+    if (totalSecs > 0) payload.moving_time = totalSecs;
+    if (tss > 0) payload.icu_training_load = tss;
+
+    await icuPost(`/athlete/${state.athleteId}/events`, payload);
+    _wrkCalDateClose();
+    showToast('Workout added to calendar — syncs to Garmin automatically', 'success');
+
+    // Refresh calendar if visible
+    try { await fetchCalendarEvents(); renderCalendar(); } catch {}
+  } catch (err) {
+    showToast('Failed: ' + err.message, 'error');
+  } finally {
+    if (btn) { btn.style.pointerEvents = ''; btn.style.opacity = ''; }
+  }
+}
+
+function _wrkCalDateClose() {
+  const overlay = document.getElementById('wrkCalDateOverlay');
+  if (overlay) {
+    overlay.classList.remove('active');
+    setTimeout(() => overlay.style.display = 'none', 300);
+  }
+}
+
+// Expose to window for onclick handlers
+Object.assign(window, {
+  wrkSendToCalendar, wrkToDescription, _wrkCalDateNav, _wrkCalDateToday, _wrkCalDatePick, _wrkCalDateClose,
+});
+
 /* ── Workout persistence (IndexedDB) ──────────── */
 const WRK_DB = 'cycleiq_workouts';
 const WRK_STORE = 'workouts';
