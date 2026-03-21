@@ -1819,7 +1819,7 @@ function updateConnectionUI(connected) {
     if (lvlBadge && state.activities?.length) {
       const lvlInfo = getLevel(getTotalXP());
       const lvl = lvlInfo?.level || '';
-      lvlBadge.textContent = lvl ? `Lv ${lvl}` : '';
+      lvlBadge.textContent = lvl || '';
       lvlBadge.style.display = lvl ? '' : 'none';
     }
   } else {
