@@ -143,7 +143,7 @@ export function wrkDrawChart() {
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
 
-  const PAD_T = 8, PAD_B = 28, PAD_L = 26, PAD_R = 10;
+  const PAD_T = 6, PAD_B = 22, PAD_L = 4, PAD_R = 4;
   const cW = W - PAD_L - PAD_R;
   const cH = H - PAD_T - PAD_B;
   const totalSecs = wrkTotalSecs();
@@ -169,7 +169,8 @@ export function wrkDrawChart() {
     ctx.fillStyle = pct === 100
       ? (dk ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.35)')
       : (dk ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.18)');
-    ctx.fillText(pct, PAD_L - 4, y + 3.5);
+    ctx.textAlign = 'left';
+    ctx.fillText(pct, PAD_L + 3, y - 3);
   });
 
   // Draw segments
@@ -221,7 +222,7 @@ export function wrkDrawChart() {
   ctx.fillStyle = _isDark() ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.25)';
   ctx.textAlign = 'center';
   ctx.font = '9px Inter, sans-serif';
-  ctx.fillText(wrkFmtTime(Math.round(totalSecs)), PAD_L + cW, PAD_T + cH + 16);
+  ctx.fillText(wrkFmtTime(Math.round(totalSecs)), PAD_L + cW, PAD_T + cH + 14);
 }
 
 export function wrkDrawBlock(ctx, x, w, pct, maxPct, padT, cH) {
