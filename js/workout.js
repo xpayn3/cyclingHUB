@@ -315,24 +315,31 @@ export function wrkRender() {
   requestAnimationFrame(() => wrkInitScrubbers());
 }
 
-function _wrkScrub(idx, field, val, min, max, unit, isPower) {
+function _wrkFmtSecs(secs) {
+  const m = Math.floor(secs / 60), s = secs % 60;
+  if (m > 0 && s > 0) return `${m}m ${s}s`;
+  if (m > 0) return `${m}m`;
+  return `${s}s`;
+}
+
+function _wrkScrub(idx, field, val, min, max, unit, isPower, step) {
   const color = isPower ? `style="color:${wrkZoneColor(val, 1)}"` : '';
-  return `<div class="wrk-scrub" data-idx="${idx}" data-field="${field}" data-min="${min}" data-max="${max}" data-val="${val}" ${isPower ? 'data-power="1"' : ''}>
+  const isDur = unit === 'dur';
+  const display = isDur ? _wrkFmtSecs(val) : val;
+  const unitText = isDur ? '' : unit;
+  return `<div class="wrk-scrub" data-idx="${idx}" data-field="${field}" data-min="${min}" data-max="${max}" data-val="${val}" data-step="${step || 1}" ${isPower ? 'data-power="1"' : ''} ${isDur ? 'data-fmt="dur"' : ''}>
       <div class="wrk-scrub-head">
-        <span class="wrk-scrub-val" ${color}>${val}</span>
-        <span class="wrk-scrub-unit">${unit}</span>
+        <span class="wrk-scrub-val" ${color}>${display}</span>
+        ${unitText ? `<span class="wrk-scrub-unit">${unitText}</span>` : ''}
       </div>
       <div class="wrk-scrub-track"><div class="wrk-scrub-ruler"></div></div>
     </div>`;
 }
 
-function _wrkDurRow(label, idx, fieldMin, fieldSec, m, s, maxMin) {
+function _wrkDurRow(label, idx, field, secs, maxSecs, step) {
   return `<div class="wrk-edit-row">
       <label>${label}</label>
-      <div class="wrk-scrub-pair">
-        ${_wrkScrub(idx, fieldMin, m, 0, maxMin || 120, 'min')}
-        ${_wrkScrub(idx, fieldSec, s, 0, 59, 'sec')}
-      </div>
+      ${_wrkScrub(idx, field, secs, 0, maxSecs || 3600, 'dur', false, step || 15)}
     </div>`;
 }
 
@@ -344,32 +351,25 @@ function _wrkPowerRow(label, idx, field, val, min, max) {
 }
 
 export function wrkBuildEditPanel(seg, idx) {
-  const fmtDur = (secs) => ({ m: Math.floor(secs / 60), s: secs % 60 });
-
   let fields = '';
   if (seg.type === 'steady') {
-    const { m, s } = fmtDur(seg.duration);
-    fields = _wrkDurRow('Duration', idx, 'durationMin', 'durationSec', m, s)
+    fields = _wrkDurRow('Duration', idx, 'duration', seg.duration, 3600, 15)
            + _wrkPowerRow('Power', idx, 'power', seg.power, 40, 160);
   } else if (seg.type === 'warmup' || seg.type === 'cooldown') {
-    const { m, s } = fmtDur(seg.duration);
-    fields = _wrkDurRow('Duration', idx, 'durationMin', 'durationSec', m, s)
+    fields = _wrkDurRow('Duration', idx, 'duration', seg.duration, 3600, 15)
            + _wrkPowerRow('Power from', idx, 'powerLow', seg.powerLow, 30, 130)
            + _wrkPowerRow('Power to', idx, 'powerHigh', seg.powerHigh, 30, 130);
   } else if (seg.type === 'interval') {
-    const { m: onM, s: onS } = fmtDur(seg.onDuration);
-    const { m: offM, s: offS } = fmtDur(seg.offDuration);
     fields = `<div class="wrk-edit-row">
         <label>Reps</label>
         ${_wrkScrub(idx, 'reps', seg.reps, 1, 50, '×')}
       </div>`
-           + _wrkDurRow('Work duration', idx, 'onDurMin', 'onDurSec', onM, onS, 60)
+           + _wrkDurRow('Work', idx, 'onDuration', seg.onDuration, 600, 5)
            + _wrkPowerRow('Work power', idx, 'onPower', seg.onPower, 50, 200)
-           + _wrkDurRow('Rest duration', idx, 'offDurMin', 'offDurSec', offM, offS, 60)
+           + _wrkDurRow('Rest', idx, 'offDuration', seg.offDuration, 600, 5)
            + _wrkPowerRow('Rest power', idx, 'offPower', seg.offPower, 30, 100);
   } else if (seg.type === 'free') {
-    const { m, s } = fmtDur(seg.duration);
-    fields = _wrkDurRow('Duration', idx, 'durationMin', 'durationSec', m, s);
+    fields = _wrkDurRow('Duration', idx, 'duration', seg.duration, 3600, 15);
   }
 
   return `<div class="wrk-edit-panel">${fields}</div>`;
@@ -385,21 +385,22 @@ export function wrkInitScrubbers() {
     const field = el.dataset.field;
     const min   = +el.dataset.min;
     const max   = +el.dataset.max;
+    const step  = +(el.dataset.step || 1);
     const isPow = el.dataset.power === '1';
+    const isDur = el.dataset.fmt === 'dur';
     let val     = +el.dataset.val;
 
     const ruler   = el.querySelector('.wrk-scrub-ruler');
     const valEl   = el.querySelector('.wrk-scrub-val');
-    const unitEl  = el.querySelector('.wrk-scrub-unit');
     let dragStartX = 0, dragStartVal = 0;
     let pending = false, dragging = false, pid = 0;
 
     function apply(v) {
-      val = Math.max(min, Math.min(max, Math.round(v)));
+      val = Math.max(min, Math.min(max, Math.round(v / step) * step));
       const trackW = el.querySelector('.wrk-scrub-track').clientWidth || 60;
-      const step = val - min;
-      ruler.style.transform = `translateX(${trackW / 2 - step * _WRK_PX}px)`;
-      valEl.textContent = val;
+      const stepIdx = (val - min) / step;
+      ruler.style.transform = `translateX(${trackW / 2 - stepIdx * _WRK_PX}px)`;
+      valEl.textContent = isDur ? _wrkFmtSecs(val) : val;
       if (isPow) valEl.style.color = wrkZoneColor(val, 1);
       el.dataset.val = val;
       wrkSet(idx, field, val);
@@ -407,7 +408,8 @@ export function wrkInitScrubbers() {
 
     // Set initial ruler position
     const trackW = el.querySelector('.wrk-scrub-track').clientWidth || 60;
-    ruler.style.transform = `translateX(${trackW / 2 - (val - min) * _WRK_PX}px)`;
+    const stepIdx = (val - min) / step;
+    ruler.style.transform = `translateX(${trackW / 2 - stepIdx * _WRK_PX}px)`;
 
     el.addEventListener('pointerdown', e => {
       if (e.button > 0) return;
@@ -425,7 +427,7 @@ export function wrkInitScrubbers() {
         el.setPointerCapture(pid);
       }
       if (!dragging) return;
-      apply(dragStartVal - (e.clientX - dragStartX) / _WRK_PX);
+      apply(dragStartVal - (e.clientX - dragStartX) / _WRK_PX * step);
     });
 
     el.addEventListener('touchmove', e => { if (dragging) e.preventDefault(); }, { passive: false });
