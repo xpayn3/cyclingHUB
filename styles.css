@@ -2209,12 +2209,26 @@ input[type="number"] {
 /* Route Builder map card */
 .dash-route-card {
     cursor: pointer;
+    padding: 0;
+    position: relative;
+    overflow: hidden;
+}
+.dash-route-card .card-header {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    z-index: 2;
+    margin: 0;
+    padding: 10px 12px;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, transparent 100%);
+}
+.dash-route-card .card-title {
+    color: #fff;
 }
 .dash-route-map {
-    flex: 1;
-    border-radius: 10px;
+    position: absolute;
+    inset: 0;
+    border-radius: 0;
     overflow: hidden;
-    min-height: 80px;
 }
 .dash-route-pin {
     width: 16px;
