@@ -24879,7 +24879,7 @@ function _renderProfileRadar() {
   ctx.clearRect(0, 0, size, size);
 
   const cx = size / 2, cy = size / 2;
-  const maxR = 105;
+  const maxR = 90;
   const angleStep = (Math.PI * 2) / n;
   const startA = -Math.PI / 2;
 
