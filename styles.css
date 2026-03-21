@@ -15969,11 +15969,12 @@ body:has(.act-sheet-mode) .topbar {
     border-radius: var(--radius-concentric);
 }
 
-/* On desktop: full-screen sheets use flex column so body scrolls independently */
+/* On desktop: full-screen sheets — sheet is flex column, only modal-body scrolls */
 @media (min-width: 601px) {
     .wxd-sheet:not(.wxd-sheet--partial) {
         display: flex;
         flex-direction: column;
+        overflow-y: hidden;
     }
     .wxd-sheet:not(.wxd-sheet--partial) .modal-header {
         flex-shrink: 0;
@@ -15982,6 +15983,7 @@ body:has(.act-sheet-mode) .topbar {
         flex: 1;
         overflow-y: auto;
         min-height: 0;
+        -webkit-overflow-scrolling: touch;
     }
 }
 
