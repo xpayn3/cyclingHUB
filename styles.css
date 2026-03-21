@@ -12657,6 +12657,96 @@ body:has(.act-sheet-mode) .topbar {
             rgba(0,0,0,0.12) 0, rgba(0,0,0,0.12) 1px,
             transparent 1px, transparent 6px);
 }
+/* ---- Workout messages ---- */
+.wrk-msg-section {
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+    margin-top: 2px;
+}
+.wrk-msg-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+.wrk-msg-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+}
+.wrk-msg-add {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 8px;
+    transition: background 0.15s;
+}
+.wrk-msg-add:active {
+    background: var(--accent-wash);
+}
+.wrk-msg-empty {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 6px 0 2px;
+}
+.wrk-msg-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+.wrk-msg-row .wrk-msg-offset {
+    flex: 0 0 80px;
+    min-width: 0;
+}
+.wrk-msg-row .wrk-msg-offset .wrk-scrub-val {
+    font-size: 13px;
+    font-weight: 600;
+}
+.wrk-msg-row .wrk-msg-offset .wrk-scrub-track {
+    height: 12px;
+}
+.wrk-msg-text {
+    flex: 1;
+    background: var(--bg-card);
+    border: none;
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 13px;
+    padding: 7px 10px;
+    outline: none;
+    min-width: 0;
+}
+.wrk-msg-text:focus {
+    background: var(--bg-base);
+}
+.wrk-msg-del {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.wrk-msg-del:active {
+    background: rgba(255, 71, 87, 0.15);
+    color: var(--red);
+}
+
 .wrk-scrub-pair {
     display: flex;
     gap: 8px;

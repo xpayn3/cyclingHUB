@@ -33,11 +33,11 @@ const wrkState = {
 
 // Segment type defaults
 const WRK_DEFAULTS = {
-  warmup:   { type:'warmup',   duration:600,  powerLow:50,  powerHigh:75 },
-  steady:   { type:'steady',   duration:1200, power:88 },
-  interval: { type:'interval', reps:5, onDuration:180, onPower:120, offDuration:120, offPower:50 },
-  cooldown: { type:'cooldown', duration:600,  powerLow:75,  powerHigh:40 },
-  free:     { type:'free',     duration:600 },
+  warmup:   { type:'warmup',   duration:600,  powerLow:50,  powerHigh:75, messages:[] },
+  steady:   { type:'steady',   duration:1200, power:88, messages:[] },
+  interval: { type:'interval', reps:5, onDuration:180, onPower:120, offDuration:120, offPower:50, messages:[] },
+  cooldown: { type:'cooldown', duration:600,  powerLow:75,  powerHigh:40, messages:[] },
+  free:     { type:'free',     duration:600, messages:[] },
 };
 
 // Zone color by % FTP
@@ -372,7 +372,58 @@ export function wrkBuildEditPanel(seg, idx) {
     fields = _wrkDurRow('Duration', idx, 'duration', seg.duration, 3600, 15);
   }
 
+  // Messages section
+  const msgs = seg.messages || [];
+  const msgsHtml = msgs.map((m, mi) => `
+    <div class="wrk-msg-row">
+      <div class="wrk-scrub wrk-msg-offset" data-idx="${idx}" data-field="msgOffset" data-min="0" data-max="${wrkSegDuration(seg)}" data-val="${m.offset}" data-step="5" data-fmt="dur" data-msgidx="${mi}">
+        <div class="wrk-scrub-head"><span class="wrk-scrub-val">${_wrkFmtSecs(m.offset)}</span></div>
+        <div class="wrk-scrub-track"><div class="wrk-scrub-ruler"></div></div>
+      </div>
+      <input class="wrk-msg-text" value="${(m.text || '').replace(/"/g, '&quot;')}" placeholder="Message text…"
+        oninput="wrkEditMsg(${idx},${mi},this.value)">
+      <button class="wrk-msg-del" onclick="wrkRemoveMsg(${idx},${mi})" title="Remove">×</button>
+    </div>`).join('');
+
+  fields += `
+    <div class="wrk-msg-section">
+      <div class="wrk-msg-header">
+        <span class="wrk-msg-label">Messages</span>
+        <button class="wrk-msg-add" onclick="wrkAddMsg(${idx})">+ Add</button>
+      </div>
+      ${msgsHtml || '<div class="wrk-msg-empty">No messages — riders will see these on screen</div>'}
+    </div>`;
+
   return `<div class="wrk-edit-panel">${fields}</div>`;
+}
+
+// ── Message manipulation ────────────────────────────────────
+export function wrkAddMsg(idx) {
+  const seg = wrkState.segments[idx];
+  if (!seg) return;
+  if (!seg.messages) seg.messages = [];
+  seg.messages.push({ offset: 0, text: '' });
+  wrkRender();
+}
+
+export function wrkRemoveMsg(segIdx, msgIdx) {
+  const seg = wrkState.segments[segIdx];
+  if (!seg?.messages) return;
+  seg.messages.splice(msgIdx, 1);
+  wrkRender();
+}
+
+export function wrkEditMsg(segIdx, msgIdx, text) {
+  const seg = wrkState.segments[segIdx];
+  if (!seg?.messages?.[msgIdx]) return;
+  seg.messages[msgIdx].text = text;
+}
+
+export function wrkSetMsgOffset(segIdx, msgIdx, val) {
+  const seg = wrkState.segments[segIdx];
+  if (!seg?.messages?.[msgIdx]) return;
+  seg.messages[msgIdx].offset = val;
+  wrkDrawChart();
 }
 
 // ── Init scrubbers after wrkRender ──────────────────────────
@@ -403,7 +454,8 @@ export function wrkInitScrubbers() {
       valEl.textContent = isDur ? _wrkFmtSecs(val) : val;
       if (isPow) valEl.style.color = wrkZoneColor(val, 1);
       el.dataset.val = val;
-      wrkSet(idx, field, val);
+      if (field === 'msgOffset') wrkSetMsgOffset(idx, +(el.dataset.msgidx || 0), val);
+      else wrkSet(idx, field, val);
     }
 
     // Set initial ruler position
@@ -497,17 +549,25 @@ export function wrkClear() {
 export function wrkExportZwo() {
   if (!wrkState.segments.length) { showToast('Add segments first', 'error'); return; }
   const name = wrkState.name || 'CycleIQ Workout';
+  const msgXml = seg => (seg.messages || []).filter(m => m.text)
+    .map(m => `\n      <textevent timeoffset="${m.offset}" message="${m.text.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;')}"/>`).join('');
   const seg2zwo = seg => {
+    const msgs = msgXml(seg);
     if (seg.type === 'warmup')
-      return `    <Warmup Duration="${seg.duration}" PowerLow="${(seg.powerLow/100).toFixed(2)}" PowerHigh="${(seg.powerHigh/100).toFixed(2)}"/>`;
+      return msgs ? `    <Warmup Duration="${seg.duration}" PowerLow="${(seg.powerLow/100).toFixed(2)}" PowerHigh="${(seg.powerHigh/100).toFixed(2)}">${msgs}\n    </Warmup>`
+                  : `    <Warmup Duration="${seg.duration}" PowerLow="${(seg.powerLow/100).toFixed(2)}" PowerHigh="${(seg.powerHigh/100).toFixed(2)}"/>`;
     if (seg.type === 'cooldown')
-      return `    <Cooldown Duration="${seg.duration}" PowerLow="${(Math.min(seg.powerLow,seg.powerHigh)/100).toFixed(2)}" PowerHigh="${(Math.max(seg.powerLow,seg.powerHigh)/100).toFixed(2)}"/>`;
+      return msgs ? `    <Cooldown Duration="${seg.duration}" PowerLow="${(Math.min(seg.powerLow,seg.powerHigh)/100).toFixed(2)}" PowerHigh="${(Math.max(seg.powerLow,seg.powerHigh)/100).toFixed(2)}">${msgs}\n    </Cooldown>`
+                  : `    <Cooldown Duration="${seg.duration}" PowerLow="${(Math.min(seg.powerLow,seg.powerHigh)/100).toFixed(2)}" PowerHigh="${(Math.max(seg.powerLow,seg.powerHigh)/100).toFixed(2)}"/>`;
     if (seg.type === 'steady')
-      return `    <SteadyState Duration="${seg.duration}" Power="${(seg.power/100).toFixed(2)}"/>`;
+      return msgs ? `    <SteadyState Duration="${seg.duration}" Power="${(seg.power/100).toFixed(2)}">${msgs}\n    </SteadyState>`
+                  : `    <SteadyState Duration="${seg.duration}" Power="${(seg.power/100).toFixed(2)}"/>`;
     if (seg.type === 'interval')
-      return `    <IntervalsT Repeat="${seg.reps}" OnDuration="${seg.onDuration}" OffDuration="${seg.offDuration}" OnPower="${(seg.onPower/100).toFixed(2)}" OffPower="${(seg.offPower/100).toFixed(2)}"/>`;
+      return msgs ? `    <IntervalsT Repeat="${seg.reps}" OnDuration="${seg.onDuration}" OffDuration="${seg.offDuration}" OnPower="${(seg.onPower/100).toFixed(2)}" OffPower="${(seg.offPower/100).toFixed(2)}">${msgs}\n    </IntervalsT>`
+                  : `    <IntervalsT Repeat="${seg.reps}" OnDuration="${seg.onDuration}" OffDuration="${seg.offDuration}" OnPower="${(seg.onPower/100).toFixed(2)}" OffPower="${(seg.offPower/100).toFixed(2)}"/>`;
     if (seg.type === 'free')
-      return `    <FreeRide Duration="${seg.duration}"/>`;
+      return msgs ? `    <FreeRide Duration="${seg.duration}">${msgs}\n    </FreeRide>`
+                  : `    <FreeRide Duration="${seg.duration}"/>`;
     return '';
   };
   const xml = `<?xml version="1.0" encoding="utf-8"?>
@@ -714,6 +774,7 @@ function _wrkCalDateClose() {
 // Expose to window for onclick handlers
 Object.assign(window, {
   wrkSendToCalendar, wrkToDescription, _wrkCalDateNav, _wrkCalDateToday, _wrkCalDatePick, _wrkCalDateClose,
+  wrkAddMsg, wrkRemoveMsg, wrkEditMsg, wrkSetMsgOffset,
 });
 
 /* ── Workout persistence (IndexedDB) ──────────── */
