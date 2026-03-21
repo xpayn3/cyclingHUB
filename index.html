@@ -443,6 +443,36 @@
             </div>
         </div>
 
+        <!-- ============================================================  COLOR PICKER SHEET  ============================================================ -->
+        <div class="wxd-overlay" id="calEvColorSheet" style="display:none">
+            <div class="wxd-backdrop" onclick="closeCalEvColorPicker()"></div>
+            <div class="wxd-sheet wxd-sheet--partial" style="max-width:420px">
+                <div class="modal-drag-indicator"></div>
+                <div class="wxd-sheet-body" style="padding:16px 20px 28px">
+                    <div class="ccp-section-label">Presets</div>
+                    <div class="ccp-swatches" id="ccpSwatches"></div>
+
+                    <div class="ccp-section-label" style="margin-top:20px">Custom</div>
+                    <div class="ccp-canvas-wrap">
+                        <canvas id="ccpGradient" class="ccp-gradient" width="320" height="200"></canvas>
+                        <div class="ccp-crosshair" id="ccpCrosshair"></div>
+                    </div>
+                    <div class="ccp-hue-bar">
+                        <canvas id="ccpHueCanvas" class="ccp-hue-canvas" width="320" height="20"></canvas>
+                        <div class="ccp-hue-thumb" id="ccpHueThumb"></div>
+                    </div>
+                    <div class="ccp-bottom-row">
+                        <div class="ccp-preview" id="ccpPreview"></div>
+                        <div class="ccp-hex-wrap">
+                            <span class="ccp-hex-hash">#</span>
+                            <input class="ccp-hex-input" id="ccpHexInput" maxlength="6" placeholder="00e5a0" oninput="_ccpHexInput(this.value)">
+                        </div>
+                        <button class="ccp-done-btn" onclick="closeCalEvColorPicker()">Done</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- ============================================================  GLOBAL SEARCH SHEET  ============================================================ -->
         <div class="wxd-overlay" id="globalSearchSheet" style="display:none">
             <div class="wxd-backdrop" onclick="closeGlobalSearch()"></div>
@@ -3367,12 +3397,13 @@
                                         <svg class="cev-group-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                         <input type="hidden" id="calEvDate">
                                     </div>
-                                    <div class="cev-group-row">
+                                    <div class="cev-group-row" onclick="openCalEvColorPicker()">
                                         <span class="cev-group-icon">
                                             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
                                         </span>
                                         <span class="cev-group-label">Color</span>
-                                        <div class="cev-color-swatches" id="calEvColorSwatches"></div>
+                                        <div class="cev-color-preview" id="calEvColorPreview"></div>
+                                        <svg class="cev-group-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                         <input type="hidden" id="calEvColor">
                                     </div>
                                 </div>

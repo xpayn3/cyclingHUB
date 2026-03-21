@@ -13553,25 +13553,231 @@ const _calEvColors = [
   '#ff4d6a',   // red/pink
   '#f5c542',   // yellow
   '#5ac8fa',   // cyan
+  '#34c759',   // iOS green
+  '#ff9500',   // iOS orange
+  '#af52de',   // iOS purple
+  '#ff2d55',   // iOS pink
 ];
 
 function _renderCalEvColors() {
-  const container = document.getElementById('calEvColorSwatches');
-  if (!container) return;
-  const selected = document.getElementById('calEvColor').value || '';
-  container.innerHTML = _calEvColors.map(c => {
-    const isNone = c === null;
-    const isActive = isNone ? !selected : selected === c;
-    const cls = ['cev-color-dot'];
-    if (isNone) cls.push('cev-color-dot--none');
-    if (isActive) cls.push('cev-color-dot--active');
-    return `<div class="${cls.join(' ')}" ${!isNone ? `style="background:${c}"` : ''} onclick="_pickCalEvColor(${isNone ? 'null' : `'${c}'`})"></div>`;
-  }).join('');
+  // Render preview dot in the form row
+  const preview = document.getElementById('calEvColorPreview');
+  if (preview) {
+    const c = document.getElementById('calEvColor')?.value;
+    if (c) {
+      preview.style.background = c;
+      preview.classList.remove('cev-color-preview--none');
+    } else {
+      preview.style.background = '';
+      preview.classList.add('cev-color-preview--none');
+    }
+  }
 }
 
 function _pickCalEvColor(color) {
   document.getElementById('calEvColor').value = color || '';
   _renderCalEvColors();
+  _ccpSyncUI(color);
+}
+
+// ── Color Picker Sheet ──────────────────────────────────────
+let _ccpHue = 0, _ccpSat = 100, _ccpBri = 50;
+let _ccpGradInited = false;
+
+function openCalEvColorPicker() {
+  _openOverlaySheet('calEvColorSheet');
+  _ccpRenderSwatches();
+  const currentColor = document.getElementById('calEvColor')?.value;
+  _ccpSyncUI(currentColor);
+  if (!_ccpGradInited) {
+    _ccpGradInited = true;
+    _ccpInitGradient();
+    _ccpInitHueBar();
+  }
+  // Redraw after sheet animation settles
+  setTimeout(() => { _ccpDrawGradient(); _ccpDrawHueBar(); }, 50);
+}
+
+function closeCalEvColorPicker() {
+  _closeOverlaySheet('calEvColorSheet');
+}
+
+function _ccpRenderSwatches() {
+  const el = document.getElementById('ccpSwatches');
+  if (!el) return;
+  const selected = document.getElementById('calEvColor')?.value || '';
+  el.innerHTML = _calEvColors.map(c => {
+    const isNone = c === null;
+    const isActive = isNone ? !selected : selected === c;
+    const cls = ['ccp-dot'];
+    if (isNone) cls.push('ccp-dot--none');
+    if (isActive) cls.push('ccp-dot--active');
+    return `<div class="${cls.join(' ')}" ${!isNone ? `style="background:${c}"` : ''} onclick="_pickCalEvColor(${isNone ? 'null' : `'${c}'`});_ccpRenderSwatches()"></div>`;
+  }).join('');
+}
+
+function _ccpSyncUI(hex) {
+  if (hex) {
+    const hsl = _hexToHSL(hex);
+    _ccpHue = hsl.h; _ccpSat = hsl.s; _ccpBri = hsl.l;
+  }
+  _ccpDrawGradient();
+  _ccpUpdateCrosshair();
+  _ccpUpdateHueThumb();
+  _ccpUpdatePreview();
+  const inp = document.getElementById('ccpHexInput');
+  if (inp && hex) inp.value = hex.replace('#', '');
+  else if (inp) inp.value = '';
+}
+
+// ── HSL ↔ Hex conversion ────────────────────────────────────
+function _hslToHex(h, s, l) {
+  s /= 100; l /= 100;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => { const k = (n + h / 30) % 12; return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); };
+  const toHex = v => Math.round(v * 255).toString(16).padStart(2, '0');
+  return '#' + toHex(f(0)) + toHex(f(8)) + toHex(f(4));
+}
+
+function _hexToHSL(hex) {
+  hex = hex.replace('#', '');
+  if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+  const r = parseInt(hex.slice(0,2),16)/255, g = parseInt(hex.slice(2,4),16)/255, b = parseInt(hex.slice(4,6),16)/255;
+  const max = Math.max(r,g,b), min = Math.min(r,g,b), d = max - min;
+  let h = 0, s = 0, l = (max + min) / 2;
+  if (d > 0) {
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) * 60;
+    else if (max === g) h = ((b - r) / d + 2) * 60;
+    else h = ((r - g) / d + 4) * 60;
+  }
+  return { h: Math.round(h), s: Math.round(s * 100), l: Math.round(l * 100) };
+}
+
+// ── Saturation/Brightness gradient canvas ───────────────────
+function _ccpDrawGradient() {
+  const canvas = document.getElementById('ccpGradient');
+  if (!canvas || !canvas.clientWidth) return;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  // Base hue fill
+  ctx.fillStyle = `hsl(${_ccpHue}, 100%, 50%)`;
+  ctx.fillRect(0, 0, w, h);
+  // White gradient left → right (saturation)
+  const white = ctx.createLinearGradient(0, 0, w, 0);
+  white.addColorStop(0, 'rgba(255,255,255,1)');
+  white.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = white;
+  ctx.fillRect(0, 0, w, h);
+  // Black gradient top → bottom (brightness)
+  const black = ctx.createLinearGradient(0, 0, 0, h);
+  black.addColorStop(0, 'rgba(0,0,0,0)');
+  black.addColorStop(1, 'rgba(0,0,0,1)');
+  ctx.fillStyle = black;
+  ctx.fillRect(0, 0, w, h);
+}
+
+function _ccpUpdateCrosshair() {
+  const canvas = document.getElementById('ccpGradient');
+  const ch = document.getElementById('ccpCrosshair');
+  if (!canvas || !ch) return;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  ch.style.left = (_ccpSat / 100 * w) + 'px';
+  ch.style.top = ((100 - _ccpBri) / 100 * h) + 'px';
+  ch.style.borderColor = _ccpBri > 50 ? '#000' : '#fff';
+}
+
+function _ccpInitGradient() {
+  const canvas = document.getElementById('ccpGradient');
+  if (!canvas) return;
+
+  const pick = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const y = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+    _ccpSat = Math.round(x * 100);
+    _ccpBri = Math.round((1 - y) * 100);
+    _ccpApply();
+  };
+
+  let dragging = false;
+  canvas.addEventListener('pointerdown', e => { dragging = true; canvas.setPointerCapture(e.pointerId); pick(e); });
+  canvas.addEventListener('pointermove', e => { if (dragging) pick(e); });
+  canvas.addEventListener('pointerup', () => { dragging = false; });
+  canvas.addEventListener('pointercancel', () => { dragging = false; });
+  canvas.addEventListener('touchmove', e => { if (dragging) e.preventDefault(); }, { passive: false });
+}
+
+// ── Hue bar ─────────────────────────────────────────────────
+function _ccpDrawHueBar() {
+  const canvas = document.getElementById('ccpHueCanvas');
+  if (!canvas || !canvas.clientWidth) return;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const grad = ctx.createLinearGradient(0, 0, w, 0);
+  for (let i = 0; i <= 6; i++) grad.addColorStop(i / 6, `hsl(${i * 60}, 100%, 50%)`);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+}
+
+function _ccpUpdateHueThumb() {
+  const canvas = document.getElementById('ccpHueCanvas');
+  const thumb = document.getElementById('ccpHueThumb');
+  if (!canvas || !thumb) return;
+  thumb.style.left = (_ccpHue / 360 * canvas.clientWidth) + 'px';
+  thumb.style.background = `hsl(${_ccpHue}, 100%, 50%)`;
+}
+
+function _ccpInitHueBar() {
+  const canvas = document.getElementById('ccpHueCanvas');
+  if (!canvas) return;
+
+  const pick = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    _ccpHue = Math.round(Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) * 360);
+    _ccpDrawGradient();
+    _ccpApply();
+  };
+
+  let dragging = false;
+  canvas.addEventListener('pointerdown', e => { dragging = true; canvas.setPointerCapture(e.pointerId); pick(e); });
+  canvas.addEventListener('pointermove', e => { if (dragging) pick(e); });
+  canvas.addEventListener('pointerup', () => { dragging = false; });
+  canvas.addEventListener('pointercancel', () => { dragging = false; });
+  canvas.addEventListener('touchmove', e => { if (dragging) e.preventDefault(); }, { passive: false });
+}
+
+// ── Apply current HSL to color input ────────────────────────
+function _ccpApply() {
+  const hex = _hslToHex(_ccpHue, _ccpSat, _ccpBri);
+  document.getElementById('calEvColor').value = hex;
+  _ccpUpdateCrosshair();
+  _ccpUpdateHueThumb();
+  _ccpUpdatePreview();
+  const inp = document.getElementById('ccpHexInput');
+  if (inp) inp.value = hex.replace('#', '');
+  _renderCalEvColors();
+  _ccpRenderSwatches(); // deselect presets
+}
+
+function _ccpUpdatePreview() {
+  const el = document.getElementById('ccpPreview');
+  if (el) el.style.background = _hslToHex(_ccpHue, _ccpSat, _ccpBri);
+}
+
+function _ccpHexInput(val) {
+  val = val.replace(/[^0-9a-fA-F]/g, '');
+  if (val.length === 6) {
+    _pickCalEvColor('#' + val);
+    _ccpRenderSwatches();
+  }
 }
 
 // ── Calendar Event Date Picker ──
@@ -28173,6 +28379,7 @@ Object.assign(window, {
   // Calendar create/edit event
   icuPost, icuPut, icuDelete, openCalEventModal, closeCalEventModal, saveCalEvent, deleteCalEvent,
   openCevDatePicker, closeCevDate, _cevDateNav, _cevDateSelectToday, _cevDateSelect, _pickCalEvColor,
+  openCalEvColorPicker, closeCalEvColorPicker, _ccpHexInput, _ccpRenderSwatches,
   openProfileModal, closeProfileModal, setXpStartDate,
   // Head-to-head compare
   setCompareTab, h2hSearch, h2hAddActivity, h2hRemoveActivity,

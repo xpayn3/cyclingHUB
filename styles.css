@@ -7943,32 +7943,20 @@ body.show-save-fab #actSaveRouteFab {
 }
 
 /* Color swatches */
-.cev-color-swatches {
-    display: flex;
-    gap: 8px;
-    margin-left: auto;
-    align-items: center;
-}
-.cev-color-dot {
+/* ── Color preview dot (in form row) ── */
+.cev-color-preview {
     width: 24px;
     height: 24px;
     border-radius: 50%;
-    border: 2px solid transparent;
-    cursor: pointer;
-    transition: transform 0.15s, border-color 0.15s;
-    position: relative;
+    margin-left: auto;
     flex-shrink: 0;
+    border: 2px solid rgba(255,255,255,0.15);
 }
-.cev-color-dot:active { transform: scale(0.9); }
-.cev-color-dot--active {
-    border-color: #fff;
-    box-shadow: 0 0 0 2px rgba(255,255,255,0.2);
-}
-.cev-color-dot--none {
-    background: var(--fill-tertiary);
+.cev-color-preview--none {
+    background: var(--fill-tertiary) !important;
     position: relative;
 }
-.cev-color-dot--none::after {
+.cev-color-preview--none::after {
     content: '';
     position: absolute;
     top: 50%; left: 50%;
@@ -7977,6 +7965,155 @@ body.show-save-fab #actSaveRouteFab {
     transform: translate(-50%, -50%) rotate(-45deg);
     border-radius: 1px;
 }
+
+/* ── Color Picker Sheet ── */
+.ccp-section-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+}
+.ccp-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.ccp-dot {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2.5px solid transparent;
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s;
+    flex-shrink: 0;
+}
+.ccp-dot:active { transform: scale(0.9); }
+.ccp-dot--active {
+    border-color: #fff;
+    box-shadow: 0 0 0 3px rgba(255,255,255,0.2);
+}
+.ccp-dot--none {
+    background: var(--fill-tertiary);
+    position: relative;
+}
+.ccp-dot--none::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 18px; height: 2px;
+    background: var(--text-muted);
+    transform: translate(-50%, -50%) rotate(-45deg);
+    border-radius: 1px;
+}
+
+/* Gradient canvas */
+.ccp-canvas-wrap {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: crosshair;
+    touch-action: none;
+}
+.ccp-gradient {
+    display: block;
+    width: 100%;
+    height: 180px;
+    border-radius: 12px;
+}
+.ccp-crosshair {
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border: 2.5px solid #fff;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    box-shadow: 0 0 4px rgba(0,0,0,0.5);
+}
+
+/* Hue bar */
+.ccp-hue-bar {
+    position: relative;
+    margin-top: 12px;
+    border-radius: 10px;
+    overflow: hidden;
+    touch-action: none;
+    cursor: pointer;
+}
+.ccp-hue-canvas {
+    display: block;
+    width: 100%;
+    height: 24px;
+    border-radius: 10px;
+}
+.ccp-hue-thumb {
+    position: absolute;
+    top: 50%;
+    width: 20px;
+    height: 20px;
+    border: 3px solid #fff;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    box-shadow: 0 0 4px rgba(0,0,0,0.4);
+}
+
+/* Bottom row: preview + hex input + done */
+.ccp-bottom-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 16px;
+}
+.ccp-preview {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    border: 2px solid rgba(255,255,255,0.1);
+    flex-shrink: 0;
+}
+.ccp-hex-wrap {
+    display: flex;
+    align-items: center;
+    background: var(--bg-elevated);
+    border-radius: 10px;
+    padding: 0 12px;
+    height: 40px;
+    flex: 1;
+}
+.ccp-hex-hash {
+    color: var(--text-muted);
+    font-size: 14px;
+    font-weight: 600;
+    margin-right: 2px;
+}
+.ccp-hex-input {
+    border: none;
+    background: none;
+    color: var(--text-primary);
+    font-family: var(--font-num);
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    width: 100%;
+    outline: none;
+}
+.ccp-done-btn {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 10px;
+    padding: 0 20px;
+    height: 40px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.ccp-done-btn:active { opacity: 0.8; }
 
 /* cdd-wrap selects inside cev-group-row */
 .cev-group-row .cdd-wrap {
