@@ -8100,7 +8100,7 @@ body.show-save-fab #actSaveRouteFab {
     cursor: ew-resize;
     user-select: none;
     -webkit-user-select: none;
-    touch-action: none;
+    touch-action: pan-y;
     padding: 2px 0 0;
 }
 .cev-scrubber-value {

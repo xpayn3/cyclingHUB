@@ -13929,26 +13929,36 @@ function _initCalScrubbers() {
       });
     }
 
+    let pending = false, pendingPid = 0;
+    const DRAG_THRESHOLD = 10; // px of horizontal movement before committing
+
     scrubber.addEventListener('pointerdown', e => {
       if (e.button > 0) return;
       dragStartX = e.clientX;
       dragStartStep = step;
-      dragging = true;
-      scrubber.setPointerCapture(e.pointerId);
-      e.preventDefault();
+      pending = true;
+      pendingPid = e.pointerId;
     });
 
     scrubber.addEventListener('pointermove', e => {
+      if (pending) {
+        const dx = Math.abs(e.clientX - dragStartX);
+        if (dx < DRAG_THRESHOLD) return; // not enough horizontal movement yet
+        // Commit to horizontal drag
+        pending = false;
+        dragging = true;
+        scrubber.setPointerCapture(pendingPid);
+      }
       if (!dragging) return;
       const delta = e.clientX - dragStartX;
       applyStep(dragStartStep - delta / _CEV_PX_PER_STEP);
     });
 
-    // iOS Safari: explicitly block vertical scroll during drag
-    scrubber.addEventListener('touchstart', e => { e.preventDefault(); }, { passive: false });
+    // Lock vertical scroll only after committed to horizontal drag
     scrubber.addEventListener('touchmove', e => { if (dragging) e.preventDefault(); }, { passive: false });
 
     const endDrag = () => {
+      if (pending) { pending = false; return; }
       if (!dragging) return;
       dragging = false;
       // Only push to history if the value actually changed from drag start
