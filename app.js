@@ -23007,6 +23007,19 @@ function openGearPicker(selectEl) {
     } else if (selectEl.id === 'gearFormCategory' && opt.value) {
       const catSlug = opt.value.toLowerCase().replace(/\s+/g, '-');
       imgHtml = `<img class="gp-opt-img" src="img/components/categories/${catSlug}.webp" alt="" onerror="_gpImgFail(this)">`;
+    } else if (selectEl.id === 'batteryFormComponent' && opt.value) {
+      const batSys = document.getElementById('batteryFormSystem')?.value || '';
+      if (batSys === 'sram_axs' && opt.value === 'shifter_left') {
+        imgHtml = `<img class="gp-opt-img" src="img/components/sram/rival-ed-left-front.webp" alt="Left Shifter" onerror="_gpImgFail(this)">`;
+      } else if (batSys === 'sram_axs' && opt.value === 'shifter_right') {
+        imgHtml = `<img class="gp-opt-img" src="img/components/sram/rival-ed-right-front.webp" alt="Right Shifter" onerror="_gpImgFail(this)">`;
+      } else if (batSys === 'sram_axs' && opt.value === 'rear_derailleur') {
+        imgHtml = `<img class="gp-opt-img" src="img/components/sram/sram-battery.webp" alt="Derailleur" onerror="_gpImgFail(this)">`;
+      } else if (batSys === 'sram_axs' && (opt.value === 'rear_derailleur_eagle' || opt.value === 'front_derailleur')) {
+        imgHtml = `<img class="gp-opt-img" src="img/components/sram/sram-battery.webp" alt="Derailleur" onerror="_gpImgFail(this)">`;
+      } else {
+        imgHtml = defaultIcon;
+      }
     } else if (i > 0) {
       imgHtml = defaultIcon;
     }
