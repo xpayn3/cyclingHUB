@@ -13170,9 +13170,9 @@ function showConfirmDialog(title, message, onConfirm) {
 
   const backdrop = document.createElement('dialog');
   backdrop.id = 'confirmDialog';
-  backdrop.className = 'modal-dialog';
+  backdrop.className = 'modal-dialog confirm-dialog';
   backdrop.innerHTML = `
-    <div class="modal" style="max-width:400px">
+    <div class="modal confirm-modal" style="max-width:400px">
       <div class="modal-header" style="padding:20px 24px 8px">
         <div><div class="modal-title" style="font-size:var(--text-md)">${title}</div></div>
         <button class="modal-close" id="confirmClose" aria-label="Close">
@@ -13840,12 +13840,16 @@ const _CEV_SCRUBBER_DEFS = {
       return h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
     },
     display(s) {
-      if (s === 0) return { text: '—', zero: true, unit: '' };
+      if (s === 0) return { text: '—', zero: true, unit: '', color: '' };
       const mins = s * 5;
       const h = Math.floor(mins / 60), m = mins % 60;
-      if (h > 0 && m > 0) return { text: `${h}h ${m}`, zero: false, unit: 'm' };
-      if (h > 0) return { text: `${h}`, zero: false, unit: 'h' };
-      return { text: `${m}`, zero: false, unit: 'm' };
+      const color = mins < 30  ? 'var(--accent)'
+                  : mins < 60  ? 'var(--yellow)'
+                  : mins < 120 ? 'var(--orange)'
+                  :              'var(--red)';
+      if (h > 0 && m > 0) return { text: `${h}h ${m}`, zero: false, unit: 'm', color };
+      if (h > 0) return { text: `${h}`, zero: false, unit: 'h', color };
+      return { text: `${m}`, zero: false, unit: 'm', color };
     },
   },
   distance: {
@@ -13857,7 +13861,13 @@ const _CEV_SCRUBBER_DEFS = {
     },
     fromStep(s) { return s === 0 ? '' : (s * 0.5).toFixed(1); },
     display(s) {
-      return s === 0 ? { text: '—', zero: true } : { text: (s * 0.5).toFixed(1), zero: false };
+      if (s === 0) return { text: '—', zero: true, color: '' };
+      const km = s * 0.5;
+      const color = km < 20  ? 'var(--accent)'
+                  : km < 50  ? 'var(--yellow)'
+                  : km < 100 ? 'var(--orange)'
+                  :            'var(--red)';
+      return { text: km.toFixed(1), zero: false, color };
     },
   },
   tss: {
@@ -25069,13 +25079,20 @@ function goalNumStep(dir) {
 
 // ── Goal target scrubber ────────────────────────────────────
 const _GOAL_SCRUB_CFGS = {
-  distance:  { maxSteps: 100, stepVal: 5,   unit: 'km',  fmt: v => v % 1 ? v.toFixed(1) : String(v) },
-  time:      { maxSteps: 100, stepVal: 0.5, unit: 'h',   fmt: v => v.toFixed(1) },
-  tss:       { maxSteps: 200, stepVal: 10,  unit: 'TSS', fmt: v => String(v) },
-  elevation: { maxSteps: 200, stepVal: 100, unit: 'm',   fmt: v => v.toLocaleString() },
-  power:     { maxSteps: 100, stepVal: 5,   unit: 'w',   fmt: v => String(v) },
-  count:     { maxSteps: 50,  stepVal: 1,   unit: '',    fmt: v => String(v) },
-  heartrate: { maxSteps: 220, stepVal: 1,   unit: 'bpm', fmt: v => String(v) },
+  distance:  { maxSteps: 100, stepVal: 5,   unit: 'km',  fmt: v => v % 1 ? v.toFixed(1) : String(v),
+    color: v => v < 20 ? 'var(--accent)' : v < 50 ? 'var(--yellow)' : v < 100 ? 'var(--orange)' : 'var(--red)' },
+  time:      { maxSteps: 100, stepVal: 0.5, unit: 'h',   fmt: v => v.toFixed(1),
+    color: v => v < 1 ? 'var(--accent)' : v < 3 ? 'var(--yellow)' : v < 6 ? 'var(--orange)' : 'var(--red)' },
+  tss:       { maxSteps: 200, stepVal: 10,  unit: 'TSS', fmt: v => String(v),
+    color: v => v < 50 ? 'var(--accent)' : v < 150 ? 'var(--yellow)' : v < 300 ? 'var(--orange)' : 'var(--red)' },
+  elevation: { maxSteps: 200, stepVal: 100, unit: 'm',   fmt: v => v.toLocaleString(),
+    color: v => v < 500 ? 'var(--accent)' : v < 1000 ? 'var(--yellow)' : v < 2000 ? 'var(--orange)' : 'var(--red)' },
+  power:     { maxSteps: 100, stepVal: 5,   unit: 'w',   fmt: v => String(v),
+    color: v => v < 150 ? 'var(--accent)' : v < 250 ? 'var(--yellow)' : v < 350 ? 'var(--orange)' : 'var(--red)' },
+  count:     { maxSteps: 50,  stepVal: 1,   unit: '',    fmt: v => String(v),
+    color: v => v < 3 ? 'var(--accent)' : v < 5 ? 'var(--yellow)' : v < 7 ? 'var(--orange)' : 'var(--red)' },
+  heartrate: { maxSteps: 220, stepVal: 1,   unit: 'bpm', fmt: v => String(v),
+    color: v => v < 120 ? 'var(--accent)' : v < 145 ? 'var(--yellow)' : v < 170 ? 'var(--orange)' : 'var(--red)' },
 };
 
 let _goalScrubInited = false;
@@ -25106,6 +25123,7 @@ function _initGoalScrubber() {
     const isZero = step === 0;
     valueEl.textContent = isZero ? '—' : cfg.fmt(val);
     valueEl.classList.toggle('is-zero', isZero);
+    valueEl.style.color = isZero ? '' : (cfg.color ? cfg.color(val) : '');
     if (unitEl) unitEl.textContent = isZero ? '' : cfg.unit;
     input.value = isZero ? '' : val;
     _updateGoalPreview();
