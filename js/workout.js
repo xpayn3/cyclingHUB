@@ -499,18 +499,24 @@ export function wrkInitScrubbers() {
       pid = e.pointerId;
     });
 
+    let lockScroll = false;
+
     el.addEventListener('pointermove', e => {
       if (pending) {
         if (Math.abs(e.clientX - dragStartX) < _WRK_THRESHOLD) return;
         pending = false;
         dragging = true;
+        lockScroll = true;
         el.setPointerCapture(pid);
       }
       if (!dragging) return;
       apply(dragStartVal - (e.clientX - dragStartX) / _WRK_PX * step);
     });
 
-    el.addEventListener('touchmove', e => { if (dragging || pending) e.preventDefault(); }, { passive: false });
+    // Block scroll until touchend (survives pointerup)
+    el.addEventListener('touchmove', e => { if (dragging || lockScroll) e.preventDefault(); }, { passive: false });
+    el.addEventListener('touchend', () => { lockScroll = false; });
+    el.addEventListener('touchcancel', () => { lockScroll = false; });
 
     const end = () => { pending = false; dragging = false; };
     el.addEventListener('pointerup', end);

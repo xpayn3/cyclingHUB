@@ -14575,7 +14575,7 @@ function _initCalScrubbers() {
       });
     }
 
-    let pending = false, pendingPid = 0;
+    let pending = false, pendingPid = 0, lockScroll = false;
     const DRAG_THRESHOLD = 10; // px of horizontal movement before committing
 
     scrubber.addEventListener('pointerdown', e => {
@@ -14589,10 +14589,10 @@ function _initCalScrubbers() {
     scrubber.addEventListener('pointermove', e => {
       if (pending) {
         const dx = Math.abs(e.clientX - dragStartX);
-        if (dx < DRAG_THRESHOLD) return; // not enough horizontal movement yet
-        // Commit to horizontal drag
+        if (dx < DRAG_THRESHOLD) return;
         pending = false;
         dragging = true;
+        lockScroll = true;
         scrubber.setPointerCapture(pendingPid);
       }
       if (!dragging) return;
@@ -14600,8 +14600,10 @@ function _initCalScrubbers() {
       applyStep(dragStartStep - delta / _CEV_PX_PER_STEP);
     });
 
-    // Lock vertical scroll only after horizontal drag confirmed
-    scrubber.addEventListener('touchmove', e => { if (dragging) e.preventDefault(); }, { passive: false });
+    // Block scroll as long as lockScroll is true (survives pointerup)
+    scrubber.addEventListener('touchmove', e => { if (dragging || lockScroll) e.preventDefault(); }, { passive: false });
+    scrubber.addEventListener('touchend', () => { lockScroll = false; });
+    scrubber.addEventListener('touchcancel', () => { lockScroll = false; });
 
     const endDrag = () => {
       if (pending) { pending = false; return; }
@@ -25793,6 +25795,7 @@ function _initGoalScrubber() {
   }
 
   const THRESHOLD = 10;
+  let lockScroll = false; // stays true until touchend to prevent late scroll leaks
 
   // Set touch-action directly to override global !important rule
   scrubber.style.setProperty('touch-action', 'pan-y', 'important');
@@ -25810,13 +25813,17 @@ function _initGoalScrubber() {
       if (Math.abs(e.clientX - dragStartX) < THRESHOLD) return;
       pending = false;
       dragging = true;
+      lockScroll = true;
       scrubber.setPointerCapture(pendingPid);
     }
     if (!dragging) return;
     applyStep(dragStartStep - (e.clientX - dragStartX) / PX);
   });
 
-  scrubber.addEventListener('touchmove', e => { if (dragging) e.preventDefault(); }, { passive: false });
+  // Block scroll as long as lockScroll is true (survives pointerup)
+  scrubber.addEventListener('touchmove', e => { if (dragging || lockScroll) e.preventDefault(); }, { passive: false });
+  scrubber.addEventListener('touchend', () => { lockScroll = false; });
+  scrubber.addEventListener('touchcancel', () => { lockScroll = false; });
 
   const endDrag = () => {
     if (pending) { pending = false; return; }
