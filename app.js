@@ -141,18 +141,21 @@ if ('serviceWorker' in navigator) {
     .catch(err => console.warn('SW registration failed:', err));
 }
 
-// Populate version footer
+// Populate version footer + splash version
 (function() {
-  const el = document.getElementById('appVersionFooter');
-  if (el) {
-    // Pull version from SW cache name
-    if (navigator.serviceWorker?.controller) {
-      const mc = new MessageChannel();
-      mc.port1.onmessage = e => { if (e.data?.version) el.textContent = 'CycleIQ ' + e.data.version.replace('icu-app-shell-', ''); };
-      navigator.serviceWorker.controller.postMessage({ type: 'GET_VERSION' }, [mc.port2]);
-    } else {
-      el.textContent = 'CycleIQ';
-    }
+  function setVersion(ver) {
+    const footer = document.getElementById('appVersionFooter');
+    const splash = document.getElementById('splashVersion');
+    if (footer) footer.textContent = 'CycleIQ ' + ver;
+    if (splash) splash.textContent = ver;
+  }
+  if (navigator.serviceWorker?.controller) {
+    const mc = new MessageChannel();
+    mc.port1.onmessage = e => { if (e.data?.version) setVersion(e.data.version.replace('icu-app-shell-', '')); };
+    navigator.serviceWorker.controller.postMessage({ type: 'GET_VERSION' }, [mc.port2]);
+  } else {
+    const footer = document.getElementById('appVersionFooter');
+    if (footer) footer.textContent = 'CycleIQ';
   }
 })();
 
