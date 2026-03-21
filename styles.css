@@ -17973,8 +17973,6 @@ body:has(.act-sheet-mode) .topbar {
         overflow: hidden;
         will-change: transform;
         transform: translateY(100%);
-        /* Smooth keyboard avoidance — lift above keyboard without reflow */
-        transition: bottom 0.25s cubic-bezier(0.2, 0.9, 0.3, 1);
     }
     /* Extend the modal background below the safe area / home indicator */
     .modal::after {
@@ -17989,11 +17987,9 @@ body:has(.act-sheet-mode) .topbar {
     }
     .modal.sheet-enter {
         animation: sheetSlideIn 0.35s cubic-bezier(0.2, 0.9, 0.3, 1) both;
-        transition: none !important; /* don't let bottom transition fight slide-in */
     }
     .modal.sheet-dismiss {
         animation: sheetSlideOut 0.25s cubic-bezier(0.4, 0, 1, 1) both !important;
-        transition: none !important;
     }
     .modal.dragging {
         animation: none !important;
