@@ -2455,6 +2455,11 @@ input[type="number"] {
     padding: 4px 10px;
     border-radius: var(--radius-sm);
 }
+.hero-act-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
 .hero-act-title {
     font-size: var(--text-lg);
     font-weight: 600;
@@ -2464,7 +2469,22 @@ input[type="number"] {
     margin-bottom: 2px;
     white-space: nowrap;
     overflow: hidden;
+    flex: 1;
+    min-width: 0;
     text-overflow: ellipsis;
+}
+.hero-ach-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    border: 1.5px solid;
+    border-radius: 20px;
+    padding: 2px 8px 2px 5px;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 .hero-act-subtitle {
     font-size: var(--text-xs);

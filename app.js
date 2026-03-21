@@ -4172,10 +4172,32 @@ function buildHeroActCardHTML(a, idx) {
       </div>
     </div>
     <div class="hero-act-outer-header">
-      <div class="hero-act-title">${name}</div>
+      <div class="hero-act-title-row">
+        <div class="hero-act-title">${name}</div>
+        ${_heroAchBadge(a)}
+      </div>
       <div class="hero-act-subtitle">${dateFmt}${timeFmt ? ' \u00B7 ' + timeFmt : ''}${platformTag ? ` \u00B7 ${platformTag}` : ''}</div>
     </div>
   </div>`;
+}
+
+function _heroAchBadge(a) {
+  const achs = a.icu_achievements;
+  if (!Array.isArray(achs) || !achs.length) return '';
+  const colors = {
+    BEST_POWER: '#ffcc00', FTP_UP: '#00e5a0', LTHR_UP: '#ff4d6a', BEST_PACE: '#4a9eff',
+  };
+  const labels = {
+    BEST_POWER: 'PR', FTP_UP: 'FTP', LTHR_UP: 'LTHR', BEST_PACE: 'PR',
+  };
+  const type = achs[0].type || 'BEST_POWER';
+  const color = colors[type] || '#ffcc00';
+  const label = labels[type] || 'PR';
+  const count = achs.length > 1 ? ` ×${achs.length}` : '';
+  return `<span class="hero-ach-badge" style="color:${color};border-color:${color}">
+    <svg viewBox="0 0 24 24" width="12" height="12" fill="${color}" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+    ${label}${count}
+  </span>`;
 }
 
 // Build HTML for a single recent-activity carousel card (used by Activities grid)
