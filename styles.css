@@ -21380,7 +21380,6 @@ body:has(.act-sheet-mode) .topbar {
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    margin-top: 8px;
     margin-bottom: 12px;
 }
 .dash-section-title {
