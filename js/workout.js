@@ -430,7 +430,7 @@ export function wrkInitScrubbers() {
       apply(dragStartVal - (e.clientX - dragStartX) / _WRK_PX * step);
     });
 
-    el.addEventListener('touchmove', e => { if (dragging) e.preventDefault(); }, { passive: false });
+    el.addEventListener('touchmove', e => { if (dragging || pending) e.preventDefault(); }, { passive: false });
 
     const end = () => { pending = false; dragging = false; };
     el.addEventListener('pointerup', end);
