@@ -6610,6 +6610,18 @@
                 <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
         </button>
+        <!-- Weather back FAB (bottom-left) -->
+        <button class="cal-fab settings-back-fab" id="weatherBackFab" onclick="navigate('dashboard')" aria-label="Back to Dashboard" style="visibility:hidden;pointer-events:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"/>
+            </svg>
+        </button>
+        <!-- Weather add-location FAB (bottom-right) -->
+        <button class="cal-fab settings-search-fab" id="weatherAddFab" onclick="openSettingsSubpage('weather')" aria-label="Add weather location" style="visibility:hidden;pointer-events:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+        </button>
 
         <!-- LOADING OVERLAY -->
         <div class="loading-overlay" id="loadingOverlay">

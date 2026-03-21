@@ -2618,7 +2618,7 @@ function navigate(page, opts) {
 
   // Update pill nav active state + visibility (use visibility to keep backdrop-filter warm)
   const _pillNav = document.getElementById('dashPillNav');
-  const _pillHidePages = new Set(['settings', 'routes', 'workout', 'activity', 'heatmap', 'suggestion', 'bikedetail']);
+  const _pillHidePages = new Set(['settings', 'routes', 'workout', 'activity', 'heatmap', 'suggestion', 'bikedetail', 'weather']);
   if (_pillNav) {
     const hide = _pillHidePages.has(page);
     _pillNav.style.visibility = hide ? 'hidden' : '';
@@ -2645,6 +2645,10 @@ function navigate(page, opts) {
   if (_settSearch) { _settSearch.style.visibility = page === 'settings' ? '' : 'hidden'; _settSearch.style.pointerEvents = page === 'settings' ? '' : 'none'; }
   const _mrAddFab = document.getElementById('mrAddFab');
   if (_mrAddFab) { _mrAddFab.style.visibility = page === 'myroutes' ? '' : 'hidden'; _mrAddFab.style.pointerEvents = page === 'myroutes' ? '' : 'none'; }
+  const _wxBackFab = document.getElementById('weatherBackFab');
+  const _wxAddFab  = document.getElementById('weatherAddFab');
+  if (_wxBackFab) { _wxBackFab.style.visibility = page === 'weather' ? '' : 'hidden'; _wxBackFab.style.pointerEvents = page === 'weather' ? '' : 'none'; }
+  if (_wxAddFab)  { _wxAddFab.style.visibility  = page === 'weather' ? '' : 'hidden'; _wxAddFab.style.pointerEvents  = page === 'weather' ? '' : 'none'; }
   document.querySelectorAll('.dash-pill-btn').forEach(btn => {
     const lbl = btn.querySelector('span')?.textContent?.toLowerCase() || '';
     const match = lbl === page || (lbl === 'home' && page === 'dashboard');
