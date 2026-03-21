@@ -147,6 +147,11 @@
                             <span class="prof-stat-num" id="profTotalElev">0</span>
                             <span class="prof-stat-lbl">m climbed</span>
                         </div>
+                        <div class="prof-stat-card">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#ff375f" stroke-width="2" width="18" height="18"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                            <span class="prof-stat-num" id="profStreakXP">0</span>
+                            <span class="prof-stat-lbl">Streak XP</span>
+                        </div>
                     </div>
                     <!-- Top XP Rides -->
                     <div class="prof-best-ride" id="profBestRide" style="display:none">
@@ -441,12 +446,16 @@
             <div class="gs-sheet">
                 <!-- Search bar -->
                 <div class="gs-bar">
-                    <svg class="gs-bar-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                    <input id="gsInput" type="text" placeholder="Search activities, routes, settings…" autocomplete="off">
-                    <button class="gs-clear" id="gsClear" onclick="gsClearInput()" style="display:none">
+                    <div class="gs-input-wrap">
+                        <svg class="gs-bar-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <input id="gsInput" type="text" placeholder="Search" autocomplete="off">
+                        <button class="gs-clear" id="gsClear" onclick="gsClearInput()" style="display:none">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" stroke="none"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15" stroke="#000" stroke-width="2" stroke-linecap="round"/><line x1="9" y1="9" x2="15" y2="15" stroke="#000" stroke-width="2" stroke-linecap="round"/></svg>
+                        </button>
+                    </div>
+                    <button class="gs-close-btn" onclick="closeGlobalSearch()" aria-label="Close">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                     </button>
-                    <button class="gs-cancel" onclick="closeGlobalSearch()">Cancel</button>
                 </div>
                 <!-- Filter chips -->
                 <div class="gs-filters" id="gsFilters">
@@ -1753,26 +1762,6 @@
                                         </div>
                                         <div class="trs-metric-name">TSB</div>
                                         <div class="trs-metric-desc">Form</div>
-                                    </div>
-                                </div>
-
-                                <!-- Aerobic Efficiency sparkline -->
-                                <div class="trs-ef-wrap">
-                                    <div class="trs-ef-header">
-                                        <div class="trs-metric-label">
-                                            Aerobic Efficiency · NP ÷ HR
-                                        </div>
-                                        <div class="trs-ef-nums">
-                                            <span id="trsEFCurrent">—</span>
-                                            <span id="trsEFDelta">—</span>
-                                        </div>
-                                    </div>
-                                    <div class="trs-ef-chart-area">
-                                        <canvas id="trsEFChart"></canvas>
-                                    </div>
-                                    <div class="trs-ef-footer">
-                                        Last 10 qualifying rides with power + HR
-                                        · higher = more efficient
                                     </div>
                                 </div>
                             </div>
@@ -4771,6 +4760,16 @@
                                 </div>
                             </div>
 
+                            <!-- NAVIGATION -->
+                            <div class="ios-group-label">Navigation</div>
+                            <div class="ios-group">
+                                <div class="ios-row" data-nav onclick="openSettingsSubpage('navigation')">
+                                    <div class="ios-row-icon" style="background:#5856d6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></div>
+                                    <span class="ios-row-label">Tab Bar & FAB</span>
+                                    <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                </div>
+                            </div>
+
                             <!-- CONNECTIONS -->
                             <div class="ios-group-label">Connections</div>
                             <div class="ios-group">
@@ -5491,74 +5490,160 @@
                                 </div>
                                 <div class="lvl-hero-text">
                                     <div class="lvl-hero-title">Earn XP. Level Up.</div>
-                                    <div class="lvl-hero-desc">Every ride earns XP based on distance, climbing, duration, intensity, and speed. Longer, harder rides earn exponentially more.</div>
+                                    <div class="lvl-hero-desc">Every ride earns XP from 8 scoring categories. Ride longer, climb harder, push your heart rate — every effort counts.</div>
                                 </div>
                             </div>
 
-                            <!-- XP Per Ride -->
-                            <div class="ios-group-label">XP Per Ride</div>
+                            <!-- How XP Works -->
+                            <div class="ios-group-label">How XP Works</div>
                             <div class="ios-group">
-                                <div class="ios-row"><span class="ios-row-label">Distance</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">1 XP/km &rarr; 3 XP/km at 150+ km</span></div>
-                                <div class="ios-row"><span class="ios-row-label">Climbing</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">1 XP/40m &rarr; 1 XP/20m at 1500+ m</span></div>
-                                <div class="ios-row"><span class="ios-row-label">Duration</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">1 XP/10min &rarr; 1 XP/6min at 3+ h</span></div>
-                                <div class="ios-row"><span class="ios-row-label">Training Load</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">1 XP/10 TSS &rarr; 1 XP/5 at 250+</span></div>
-                                <div class="ios-row"><span class="ios-row-label">Speed Bonus</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">+3 at 20 &rarr; +25 at 35+ km/h</span></div>
-                                <div class="ios-row"><span class="ios-row-label">Ride Bonus</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">+5 XP per completed ride</span></div>
+                                <div class="ios-row" style="flex-direction:column;align-items:flex-start;gap:4px;padding:14px 16px">
+                                    <span style="font-size:13px;color:var(--text-secondary);line-height:1.45">Each ride scores XP across <strong style="color:var(--text-primary)">8 categories</strong>. Hit 4+ categories well and earn a <strong style="color:var(--accent)">combo multiplier</strong> (up to 1.35&times;). Streaks and consistency earn bonus XP on top.</span>
+                                </div>
                             </div>
-                            <div class="ios-group-footer">Longer, harder, faster rides earn exponentially more XP. A casual 30 km ride earns ~40 XP. An epic 150 km mountain ride earns 350+ XP.</div>
+
+                            <!-- XP Per Ride: Core -->
+                            <div class="ios-group-label">Ride Scoring</div>
+                            <div class="ios-group">
+                                <div class="ios-row">
+                                    <div class="ios-row-icon" style="background:#5ac8fa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><polyline points="12 5 19 12 12 19"/></svg></div>
+                                    <span class="ios-row-label">Distance</span><span class="ios-row-value" style="font-size:12px;color:var(--text-muted)">3&ndash;10 XP/km</span>
+                                </div>
+                                <div class="ios-row">
+                                    <div class="ios-row-icon" style="background:#bf5af2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 20l5-10 4 6 3-4 6 8"/></svg></div>
+                                    <span class="ios-row-label">Climbing</span><span class="ios-row-value" style="font-size:12px;color:var(--text-muted)">1 XP per 4&ndash;15m</span>
+                                </div>
+                                <div class="ios-row">
+                                    <div class="ios-row-icon" style="background:#ff9f0a"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
+                                    <span class="ios-row-label">Duration</span><span class="ios-row-value" style="font-size:12px;color:var(--text-muted)">0.5&ndash;1.5 XP/min</span>
+                                </div>
+                                <div class="ios-row">
+                                    <div class="ios-row-icon" style="background:#30d158"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+                                    <span class="ios-row-label">Training Load</span><span class="ios-row-value" style="font-size:12px;color:var(--text-muted)">0.4&ndash;1.0 XP/TSS</span>
+                                </div>
+                                <div class="ios-row">
+                                    <div class="ios-row-icon" style="background:#ff375f"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>
+                                    <span class="ios-row-label">Heart Rate</span><span class="ios-row-value" style="font-size:12px;color:var(--text-muted)">Effort &times; duration</span>
+                                </div>
+                            </div>
+                            <div class="ios-group-footer">Higher tiers unlock at longer distances, more climbing, and harder efforts. Each category has 4&ndash;5 progressive tiers.</div>
+
+                            <!-- Bonus XP -->
+                            <div class="ios-group-label">Bonus XP</div>
+                            <div class="ios-group">
+                                <div class="ios-row">
+                                    <div class="ios-row-icon" style="background:#64d2ff"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+                                    <span class="ios-row-label">Speed Bonus</span><span class="ios-row-value" style="font-size:12px;color:var(--text-muted)">+5 to +60 XP</span>
+                                </div>
+                                <div class="ios-row">
+                                    <div class="ios-row-icon" style="background:#ffd60a"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></div>
+                                    <span class="ios-row-label">Power Bonus</span><span class="ios-row-value" style="font-size:12px;color:var(--text-muted)">+3 to +40 XP</span>
+                                </div>
+                                <div class="ios-row">
+                                    <div class="ios-row-icon" style="background:#ff6961"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6"/></svg></div>
+                                    <span class="ios-row-label">Calorie Burn</span><span class="ios-row-value" style="font-size:12px;color:var(--text-muted)">+5 to +30 XP</span>
+                                </div>
+                                <div class="ios-row">
+                                    <div class="ios-row-icon" style="background:var(--accent)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
+                                    <span class="ios-row-label">Ride Completed</span><span class="ios-row-value" style="font-size:12px;color:var(--text-muted)">+10 XP always</span>
+                                </div>
+                            </div>
+
+                            <!-- Combo Multiplier -->
+                            <div class="ios-group-label">Combo Multiplier</div>
+                            <div class="ios-group">
+                                <div class="ios-row" style="flex-direction:column;align-items:flex-start;gap:6px;padding:14px 16px">
+                                    <span style="font-size:13px;color:var(--text-secondary);line-height:1.45">Well-rounded rides that score across multiple categories earn a multiplier bonus:</span>
+                                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:2px">
+                                        <span style="font-size:12px;padding:4px 10px;border-radius:8px;background:rgba(255,255,255,0.06);color:var(--text-muted)">4 categories = <strong style="color:var(--accent)">1.15&times;</strong></span>
+                                        <span style="font-size:12px;padding:4px 10px;border-radius:8px;background:rgba(255,255,255,0.06);color:var(--text-muted)">5 categories = <strong style="color:var(--accent)">1.25&times;</strong></span>
+                                        <span style="font-size:12px;padding:4px 10px;border-radius:8px;background:rgba(255,255,255,0.06);color:var(--text-muted)">6 categories = <strong style="color:var(--accent)">1.35&times;</strong></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Streak & Consistency -->
+                            <div class="ios-group-label">Streaks &amp; Consistency</div>
+                            <div class="ios-group">
+                                <div class="ios-row">
+                                    <div class="ios-row-icon" style="background:#ff9f0a"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2c1 3 3.5 5 6 7-2 4-4 8-6 10-2-2-4-6-6-10 2.5-2 5-4 6-7z"/></svg></div>
+                                    <span class="ios-row-label">Week Streak</span><span class="ios-row-value" style="font-size:12px;color:var(--text-muted)">+5 XP/week + milestones</span>
+                                </div>
+                                <div class="ios-row">
+                                    <div class="ios-row-icon" style="background:#30d158"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
+                                    <span class="ios-row-label">Consistency</span><span class="ios-row-value" style="font-size:12px;color:var(--text-muted)">Up to +200 XP/year</span>
+                                </div>
+                                <div class="ios-row">
+                                    <div class="ios-row-icon" style="background:#5ac8fa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+                                    <span class="ios-row-label">Volume</span><span class="ios-row-value" style="font-size:12px;color:var(--text-muted)">Up to +500 XP/year</span>
+                                </div>
+                            </div>
+                            <div class="ios-group-footer">Streak milestones: 2 weeks (+15), 1 month (+60), 2 months (+150), 3 months (+300), 6 months (+800), 1 year (+2000). Ride at least once per week to keep your streak alive.</div>
 
                             <!-- Example Rides -->
                             <div class="ios-group-label">Example Rides</div>
                             <div class="ios-group">
                                 <div class="ios-row">
                                     <div class="ios-row-icon" style="background:#30d158"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></div>
-                                    <span class="ios-row-label">Easy 20 km flat</span><span class="ios-row-value" style="color:var(--accent);font-weight:700">~30 XP</span>
+                                    <span class="ios-row-label">Easy 20 km flat</span><span class="ios-row-value" style="color:var(--accent);font-weight:700">~85 XP</span>
                                 </div>
                                 <div class="ios-row">
                                     <div class="ios-row-icon" style="background:#5ac8fa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
-                                    <span class="ios-row-label">60 km / 500m / 2h</span><span class="ios-row-value" style="color:var(--accent);font-weight:700">~110 XP</span>
+                                    <span class="ios-row-label">60 km / 500 m / 2h</span><span class="ios-row-value" style="color:var(--accent);font-weight:700">~350 XP</span>
                                 </div>
                                 <div class="ios-row">
                                     <div class="ios-row-icon" style="background:#ff9f0a"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 20l5-10 4 6 3-4 6 8"/></svg></div>
-                                    <span class="ios-row-label">100 km / 1500m / 4h</span><span class="ios-row-value" style="color:var(--accent);font-weight:700">~220 XP</span>
+                                    <span class="ios-row-label">100 km / 1500 m / 4h</span><span class="ios-row-value" style="color:var(--accent);font-weight:700">~750 XP</span>
                                 </div>
                                 <div class="ios-row">
                                     <div class="ios-row-icon" style="background:#ff453a"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
-                                    <span class="ios-row-label">200 km / 3000m / 8h</span><span class="ios-row-value" style="color:var(--accent);font-weight:700">~500 XP</span>
+                                    <span class="ios-row-label">200 km / 3000 m / 8h</span><span class="ios-row-value" style="color:var(--accent);font-weight:700">~2,200 XP</span>
                                 </div>
                             </div>
+                            <div class="ios-group-footer">XP values include heart rate and combo multiplier for typical efforts. Your actual XP may vary based on power, HR, and speed.</div>
 
                             <!-- Leveling Curve -->
                             <div class="ios-group-label">Leveling Curve</div>
                             <div class="ios-group">
-                                <div class="ios-row"><span class="ios-row-label">Level 1</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">100 XP (~1 ride)</span></div>
-                                <div class="ios-row"><span class="ios-row-label">Level 5</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">1,118 XP (~10 rides)</span></div>
-                                <div class="ios-row"><span class="ios-row-label">Level 10</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">3,162 XP (~30 rides)</span></div>
-                                <div class="ios-row"><span class="ios-row-label">Level 25</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">12,500 XP (~110 rides)</span></div>
-                                <div class="ios-row"><span class="ios-row-label">Level 50</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">35,355 XP (~315 rides)</span></div>
-                                <div class="ios-row"><span class="ios-row-label">Level 100</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">100,000 XP (~900 rides)</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Level 1</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">41 XP (1 easy ride)</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Level 10</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">460 XP (~5 rides)</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Level 25</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">1,375 XP (~15 rides)</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Level 50</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">3,500 XP (~40 rides)</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Level 100</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">10,040 XP (~100 rides)</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Level 200</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">32,040 XP (~300 rides)</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Level 500</span><span class="ios-row-value" style="font-size:13px;color:var(--text-muted)">170,040 XP (max level)</span></div>
                             </div>
-                            <div class="ios-group-footer">Level N requires floor(100 &times; N^1.5) XP. Leveling is infinite — there is no cap.</div>
+                            <div class="ios-group-footer">Formula: 40n + 0.6n&sup2; XP per level. Early levels are fast, later ones require serious dedication. Max level is 500.</div>
 
                             <!-- Rank Titles -->
                             <div class="ios-group-label">Rank Titles</div>
                             <div class="ios-group">
                                 <div class="ios-row"><span class="ios-row-label">LVL 0</span><span class="ios-row-value" style="font-size:13px">Newbie</span></div>
                                 <div class="ios-row"><span class="ios-row-label">LVL 2</span><span class="ios-row-value" style="font-size:13px">Pedal Pusher</span></div>
-                                <div class="ios-row"><span class="ios-row-label">LVL 4</span><span class="ios-row-value" style="font-size:13px">Road Rookie</span></div>
-                                <div class="ios-row"><span class="ios-row-label">LVL 6</span><span class="ios-row-value" style="font-size:13px">Chain Breaker</span></div>
-                                <div class="ios-row"><span class="ios-row-label">LVL 8</span><span class="ios-row-value" style="font-size:13px">Hill Hunter</span></div>
-                                <div class="ios-row"><span class="ios-row-label">LVL 10</span><span class="ios-row-value" style="font-size:13px">Saddle Veteran</span></div>
-                                <div class="ios-row"><span class="ios-row-label">LVL 13</span><span class="ios-row-value" style="font-size:13px">Peloton Force</span></div>
-                                <div class="ios-row"><span class="ios-row-label">LVL 16</span><span class="ios-row-value" style="font-size:13px">Breakaway Artist</span></div>
-                                <div class="ios-row"><span class="ios-row-label">LVL 20</span><span class="ios-row-value" style="font-size:13px">Summit Chaser</span></div>
-                                <div class="ios-row"><span class="ios-row-label">LVL 25</span><span class="ios-row-value" style="font-size:13px">Iron Legs</span></div>
-                                <div class="ios-row"><span class="ios-row-label">LVL 30</span><span class="ios-row-value" style="font-size:13px">Domestique Elite</span></div>
-                                <div class="ios-row"><span class="ios-row-label">LVL 40</span><span class="ios-row-value" style="font-size:13px">Grand Tour Rider</span></div>
-                                <div class="ios-row"><span class="ios-row-label">LVL 50</span><span class="ios-row-value" style="font-size:13px">Mountain King</span></div>
-                                <div class="ios-row"><span class="ios-row-label">LVL 65</span><span class="ios-row-value" style="font-size:13px">Yellow Jersey</span></div>
-                                <div class="ios-row"><span class="ios-row-label">LVL 80</span><span class="ios-row-value" style="font-size:13px">Living Legend</span></div>
-                                <div class="ios-row"><span class="ios-row-label">LVL 100</span><span class="ios-row-value" style="font-size:13px">Cycling God</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 5</span><span class="ios-row-value" style="font-size:13px">Road Rookie</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 8</span><span class="ios-row-value" style="font-size:13px">Chain Breaker</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 12</span><span class="ios-row-value" style="font-size:13px">Hill Hunter</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 16</span><span class="ios-row-value" style="font-size:13px">Saddle Veteran</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 20</span><span class="ios-row-value" style="font-size:13px">Peloton Force</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 25</span><span class="ios-row-value" style="font-size:13px">Breakaway Artist</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 30</span><span class="ios-row-value" style="font-size:13px">Summit Chaser</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 40</span><span class="ios-row-value" style="font-size:13px">Iron Legs</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 50</span><span class="ios-row-value" style="font-size:13px">Domestique Elite</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 65</span><span class="ios-row-value" style="font-size:13px">Grand Tour Rider</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 80</span><span class="ios-row-value" style="font-size:13px">Mountain King</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 100</span><span class="ios-row-value" style="font-size:13px">Yellow Jersey</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 125</span><span class="ios-row-value" style="font-size:13px">Living Legend</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 150</span><span class="ios-row-value" style="font-size:13px">Cycling God</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 175</span><span class="ios-row-value" style="font-size:13px">Maglia Rosa</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 200</span><span class="ios-row-value" style="font-size:13px">Tour Champion</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 230</span><span class="ios-row-value" style="font-size:13px">Monument Master</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 260</span><span class="ios-row-value" style="font-size:13px">Palmares Elite</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 300</span><span class="ios-row-value" style="font-size:13px">Ventoux Conqueror</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 340</span><span class="ios-row-value" style="font-size:13px">Galibier Ghost</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 380</span><span class="ios-row-value" style="font-size:13px">Hour Record Holder</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 420</span><span class="ios-row-value" style="font-size:13px">GOAT Candidate</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 460</span><span class="ios-row-value" style="font-size:13px">Eternal Champion</span></div>
+                                <div class="ios-row"><span class="ios-row-label">LVL 500</span><span class="ios-row-value" style="font-size:13px;color:var(--accent);font-weight:700">Merckx Reborn</span></div>
                             </div>
 
                             <!-- Settings -->
@@ -5570,6 +5655,21 @@
                                 </div>
                             </div>
                             <div class="ios-group-footer">Only rides after this date count towards your XP and level. Leave empty to count all rides.</div>
+                        </div>
+
+                        <!-- Navigation subpage -->
+                        <div class="ios-subpage" id="iosSubpage-navigation">
+                            <div class="ios-group-label">Tab Bar</div>
+                            <div class="ios-group-footer" style="margin-top:0;margin-bottom:8px">Drag to reorder. Tap to change which page a tab opens.</div>
+                            <div class="ios-group" id="navTabList"></div>
+
+                            <div class="ios-group-label">Quick Action Button (+)</div>
+                            <div class="ios-group-footer" style="margin-top:0;margin-bottom:8px">Choose what the floating + button does on the home screen.</div>
+                            <div class="ios-group" id="navFabPicker"></div>
+
+                            <div style="padding:16px">
+                                <button class="stt-donate-btn" style="width:100%;background:var(--accent);color:#000" onclick="resetNavConfig()">Reset to Default</button>
+                            </div>
                         </div>
 
                         <!-- Donate subpage -->

@@ -1460,7 +1460,7 @@ const _iosSubpageNames = {
   share: 'Share CycleIQ', donate: 'Support CycleIQ',
   defaultrange: 'Default Range', leveling: 'Leveling',
   apptheme: 'Theme', changelog: 'Changelog', feedback: 'Feedback',
-  licenses: 'Licenses'
+  licenses: 'Licenses', navigation: 'Tab Bar & FAB'
 };
 
 let _iosSourceRow = null;
@@ -1485,6 +1485,7 @@ const _STT_HERO_DATA = {
   licenses:     { bg: 'linear-gradient(135deg,rgba(142,142,147,0.15),rgba(0,229,160,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>', desc: 'Open-source licenses and attributions.' },
   donate:       { bg: 'linear-gradient(135deg,rgba(255,45,85,0.15),rgba(255,149,0,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="#ff2d55" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>', desc: 'Support development and keep CycleIQ free.' },
   mygarage:     { bg: 'linear-gradient(135deg,rgba(139,92,246,0.15),rgba(0,229,160,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5L9 11l-3.5 3.5M15 6l-4 5.5H5.5M15 6l3 5.5"/></svg>', desc: 'Manage your bike fleet, track components, and enable brand logos.' },
+  navigation:   { bg: 'linear-gradient(135deg,rgba(88,86,214,0.15),rgba(0,229,160,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>', desc: 'Customize your tab bar order and quick action button.' },
 };
 
 function openSettingsSubpage(id) {
@@ -1525,6 +1526,9 @@ function openSettingsSubpage(id) {
   sub.style.display = 'block';
   sub.offsetHeight; // force reflow
   sub.classList.add('active');
+
+  // Render dynamic subpage content
+  if (id === 'navigation' && typeof renderNavSettings === 'function') renderNavSettings();
 
   // Inject hero intro if not already present
   if (!sub.querySelector('.stt-hero') && _STT_HERO_DATA[id]) {
@@ -2567,7 +2571,8 @@ if (window.visualViewport) {
   });
 }
 
-function navigate(page) {
+function navigate(page, opts) {
+  if (opts?.settingsSubpage) window._pendingSettingsSubpage = opts.settingsSubpage;
   // Route Builder: confirm before leaving if there's an unsaved route
   if (state.currentPage === 'routes' && page !== 'routes' && window._rb && window._rb.waypoints && window._rb.waypoints.length > 0) {
     _rbConfirmLeave(page);
@@ -2760,7 +2765,14 @@ function navigate(page) {
   }
 
   if (page === 'dashboard') { applyDashSectionVisibility(); }
-  if (page === 'settings') { renderDashSectionToggles(); renderActSectionToggles(); }
+  if (page === 'settings') {
+    renderDashSectionToggles(); renderActSectionToggles();
+    if (window._pendingSettingsSubpage) {
+      const _psub = window._pendingSettingsSubpage;
+      window._pendingSettingsSubpage = null;
+      setTimeout(() => { _iosNavLocked = false; openSettingsSubpage(_psub); }, 350);
+    }
+  }
 
   if (page === 'dashboard' && state.synced) {
     const rail = document.getElementById('recentActScrollRail');
@@ -23812,7 +23824,16 @@ function getGoalPeriodRange(period) {
 }
 
 /* ====================================================
-   XP & LEVELING SYSTEM
+   XP & LEVELING SYSTEM  v2
+   ─────────────────────────────────────────────────────
+   • Max level: 500
+   • Curve: easy early, exponentially harder later
+   • Formula: xpForLevel(n) = 40·n + 0.6·n² (smooth quadratic)
+     Lvl 1→41 XP, Lvl 10→460, Lvl 50→3500, Lvl 100→12040,
+     Lvl 200→46080, Lvl 500→280020 (cumulative ~47M)
+   • More generous XP from rides (~3-5× more than v1)
+   • Heart rate scoring added
+   • Streak bonuses integrated
 ==================================================== */
 function computeXP(a) {
   const dist  = actVal(a, 'distance', 'icu_distance') / 1000;       // km
@@ -23821,61 +23842,206 @@ function computeXP(a) {
   const tss   = actVal(a, 'icu_training_load', 'tss');
   const speed = actVal(a, 'average_speed', 'icu_average_speed');     // m/s
   const avgKmh = speed > 0 ? speed * 3.6 : (mins > 0 ? dist / (mins / 60) : 0);
+  const avgHR  = actVal(a, 'average_heartrate', 'icu_average_heartrate');
+  const maxHR  = actVal(a, 'max_heartrate', 'icu_max_heartrate');
+  const watts  = actVal(a, 'icu_weighted_avg_watts', 'weighted_average_watts', 'average_watts');
+  const cals   = actVal(a, 'calories', 'icu_calories');
 
   // ── Distance XP: tiered — longer rides earn proportionally more ──
   let distXP = 0;
-  if (dist <= 30)       distXP = Math.floor(dist * 1);       // 1 XP/km for short rides
-  else if (dist <= 80)  distXP = 30 + Math.floor((dist - 30) * 1.5); // 1.5 XP/km 30-80
-  else if (dist <= 150) distXP = 30 + 75 + Math.floor((dist - 80) * 2); // 2 XP/km 80-150
-  else                  distXP = 30 + 75 + 140 + Math.floor((dist - 150) * 3); // 3 XP/km 150+
+  if (dist <= 20)       distXP = Math.round(dist * 3);            // 3 XP/km casual
+  else if (dist <= 60)  distXP = 60 + Math.round((dist - 20) * 4);   // 4 XP/km medium
+  else if (dist <= 120) distXP = 220 + Math.round((dist - 60) * 5);  // 5 XP/km long
+  else if (dist <= 200) distXP = 520 + Math.round((dist - 120) * 7); // 7 XP/km century+
+  else                  distXP = 1080 + Math.round((dist - 200) * 10); // 10 XP/km ultra
 
   // ── Elevation XP: climbing is hard — reward it well ──
   let elevXP = 0;
-  if (elev <= 500)       elevXP = Math.floor(elev / 40);      // 1 XP per 40m
-  else if (elev <= 1500) elevXP = 12 + Math.floor((elev - 500) / 30);  // 1 XP per 30m
-  else                   elevXP = 12 + 33 + Math.floor((elev - 1500) / 20); // 1 XP per 20m
+  if (elev <= 300)       elevXP = Math.round(elev / 15);              // 1 XP per 15m
+  else if (elev <= 800)  elevXP = 20 + Math.round((elev - 300) / 10); // 1 XP per 10m
+  else if (elev <= 2000) elevXP = 70 + Math.round((elev - 800) / 7);  // 1 XP per 7m
+  else                   elevXP = 241 + Math.round((elev - 2000) / 4); // 1 XP per 4m (hc climbs)
 
   // ── Duration XP: endurance rewards ──
   let timeXP = 0;
-  if (mins <= 60)        timeXP = Math.floor(mins / 10);      // 1 XP per 10 min
-  else if (mins <= 180)  timeXP = 6 + Math.floor((mins - 60) / 8);   // 1 XP per 8 min
-  else                   timeXP = 6 + 15 + Math.floor((mins - 180) / 6); // 1 XP per 6 min
+  if (mins <= 30)        timeXP = Math.round(mins * 0.5);             // 0.5 XP/min warmup
+  else if (mins <= 90)   timeXP = 15 + Math.round((mins - 30) * 0.8); // 0.8 XP/min standard
+  else if (mins <= 240)  timeXP = 63 + Math.round((mins - 90) * 1.2); // 1.2 XP/min endurance
+  else                   timeXP = 243 + Math.round((mins - 240) * 1.5); // 1.5 XP/min epic
 
   // ── TSS XP: training intensity ──
   let tssXP = 0;
-  if (tss <= 100)        tssXP = Math.floor(tss / 10);        // 1 XP per 10 TSS
-  else if (tss <= 250)   tssXP = 10 + Math.floor((tss - 100) / 8);   // 1 XP per 8 TSS
-  else                   tssXP = 10 + 19 + Math.floor((tss - 250) / 5); // 1 XP per 5 TSS
+  if (tss <= 50)         tssXP = Math.round(tss * 0.4);               // easy day
+  else if (tss <= 150)   tssXP = 20 + Math.round((tss - 50) * 0.6);   // moderate
+  else if (tss <= 300)   tssXP = 80 + Math.round((tss - 150) * 0.8);  // hard
+  else                   tssXP = 200 + Math.round((tss - 300) * 1.0);  // brutal
 
-  // ── Speed bonus: faster avg = more XP ──
+  // ── Heart Rate XP: effort-based scoring ──
+  let hrXP = 0;
+  if (avgHR > 0 && mins > 10) {
+    // Base HR XP: higher avg HR × longer duration = more effort XP
+    // Normalize HR to effort zones (rough: 100bpm=easy, 160+=threshold)
+    const hrIntensity = Math.max(0, avgHR - 90) / 80;  // 0→1 scale (90-170bpm)
+    hrXP = Math.round(Math.min(hrIntensity, 1.5) * mins * 0.3); // up to 0.45 XP/min at max
+    // Max HR spike bonus: pushing to the limit
+    if (maxHR > 0 && maxHR >= 185) hrXP += 15;
+    else if (maxHR >= 175) hrXP += 8;
+    else if (maxHR >= 165) hrXP += 4;
+  }
+
+  // ── Speed bonus: faster avg = more XP (expanded tiers) ──
   let speedBonus = 0;
-  if (avgKmh >= 35)      speedBonus = 25;   // elite pace
-  else if (avgKmh >= 30) speedBonus = 15;   // fast
-  else if (avgKmh >= 25) speedBonus = 8;    // solid
-  else if (avgKmh >= 20) speedBonus = 3;    // moderate
+  if (avgKmh >= 40)      speedBonus = 60;   // pro pace
+  else if (avgKmh >= 35) speedBonus = 40;   // elite
+  else if (avgKmh >= 32) speedBonus = 28;   // fast group ride
+  else if (avgKmh >= 28) speedBonus = 18;   // solid
+  else if (avgKmh >= 24) speedBonus = 10;   // moderate
+  else if (avgKmh >= 20) speedBonus = 5;    // casual
+
+  // ── Power bonus: watts-based reward ──
+  let powerBonus = 0;
+  if (watts >= 300) powerBonus = 40;
+  else if (watts >= 250) powerBonus = 25;
+  else if (watts >= 200) powerBonus = 15;
+  else if (watts >= 150) powerBonus = 8;
+  else if (watts >= 100) powerBonus = 3;
+
+  // ── Calorie burn bonus ──
+  let calBonus = 0;
+  if (cals >= 3000) calBonus = 30;
+  else if (cals >= 2000) calBonus = 20;
+  else if (cals >= 1000) calBonus = 12;
+  else if (cals >= 500) calBonus = 5;
 
   // ── Ride completion bonus ──
-  const completionBonus = 5;
+  const completionBonus = 10;
 
-  return distXP + elevXP + timeXP + tssXP + speedBonus + completionBonus;
+  // ── Combo multiplier: reward well-rounded rides ──
+  // Count how many categories scored meaningful XP
+  let categories = 0;
+  if (distXP >= 30) categories++;
+  if (elevXP >= 15) categories++;
+  if (timeXP >= 30) categories++;
+  if (tssXP >= 15) categories++;
+  if (hrXP >= 10) categories++;
+  if (speedBonus >= 10) categories++;
+  // 4+ categories = 1.15×, 5+ = 1.25×, 6 = 1.35× (well-rounded ride bonus)
+  let comboMultiplier = 1;
+  if (categories >= 6) comboMultiplier = 1.35;
+  else if (categories >= 5) comboMultiplier = 1.25;
+  else if (categories >= 4) comboMultiplier = 1.15;
+
+  const rawXP = distXP + elevXP + timeXP + tssXP + hrXP + speedBonus + powerBonus + calBonus + completionBonus;
+  return Math.round(rawXP * comboMultiplier);
 }
 
-function xpForLevel(n) { return Math.floor(100 * Math.pow(n, 1.5)); }
+// ── Streak XP bonuses (applied on top of ride XP in getXPStats) ──
+function computeStreakBonusXP(acts) {
+  if (acts.length === 0) return 0;
+  // Build a set of active weeks
+  const weekKey = d => {
+    const dt = new Date(d);
+    const jan1 = new Date(dt.getFullYear(), 0, 1);
+    const week = Math.ceil(((dt - jan1) / 86400000 + jan1.getDay() + 1) / 7);
+    return `${dt.getFullYear()}-W${String(week).padStart(2, '0')}`;
+  };
+  const activeWeeks = new Set();
+  const activeDays = new Set();
+  acts.forEach(a => {
+    const d = (a.start_date_local || a.start_date || '').slice(0, 10);
+    if (d) { activeDays.add(d); activeWeeks.add(weekKey(d)); }
+  });
+
+  // Count consecutive weeks from current
+  const now = new Date();
+  const currentWeek = weekKey(now.toISOString().slice(0, 10));
+  let weekStreak = 0;
+  const sortedWeeks = [...activeWeeks].sort().reverse();
+  // Check if current or last week is active
+  const lastWeek = weekKey(new Date(now.getTime() - 7 * 86400000).toISOString().slice(0, 10));
+  let checkWeek = activeWeeks.has(currentWeek) ? currentWeek : (activeWeeks.has(lastWeek) ? lastWeek : null);
+  if (checkWeek) {
+    for (const w of sortedWeeks) {
+      if (w <= checkWeek) {
+        if (w === checkWeek) { weekStreak++; /* step back one week */
+          const parts = checkWeek.split('-W');
+          let yr = parseInt(parts[0]), wk = parseInt(parts[1]);
+          wk--; if (wk < 1) { yr--; wk = 52; }
+          checkWeek = `${yr}-W${String(wk).padStart(2, '0')}`;
+        } else break;
+      }
+    }
+  }
+
+  // Streak XP rewards (generous — consistency matters!)
+  let streakXP = 0;
+  // Weekly streak milestone bonuses
+  if (weekStreak >= 52) streakXP += 2000;      // 1 year streak!
+  else if (weekStreak >= 26) streakXP += 800;   // 6 months
+  else if (weekStreak >= 12) streakXP += 300;   // 3 months
+  else if (weekStreak >= 8) streakXP += 150;    // 2 months
+  else if (weekStreak >= 4) streakXP += 60;     // 1 month
+  else if (weekStreak >= 2) streakXP += 15;     // 2 weeks
+
+  // Per-week continuous bonus: 5 XP per streak week (compounds)
+  streakXP += weekStreak * 5;
+
+  // Consistency bonus: % of weeks with rides in last 12 months
+  const last52 = [];
+  for (let i = 0; i < 52; i++) {
+    const d = new Date(now.getTime() - i * 7 * 86400000);
+    last52.push(weekKey(d.toISOString().slice(0, 10)));
+  }
+  const activeInLast52 = last52.filter(w => activeWeeks.has(w)).length;
+  const consistencyPct = activeInLast52 / 52;
+  // 80%+ consistency = 200 XP, 60%+ = 100, 40%+ = 40
+  if (consistencyPct >= 0.8) streakXP += 200;
+  else if (consistencyPct >= 0.6) streakXP += 100;
+  else if (consistencyPct >= 0.4) streakXP += 40;
+
+  // Volume bonus: total unique ride days in the year
+  const thisYear = String(now.getFullYear());
+  const daysThisYear = [...activeDays].filter(d => d.startsWith(thisYear)).length;
+  if (daysThisYear >= 200) streakXP += 500;       // riding machine
+  else if (daysThisYear >= 150) streakXP += 250;
+  else if (daysThisYear >= 100) streakXP += 120;
+  else if (daysThisYear >= 50) streakXP += 40;
+
+  return streakXP;
+}
+
+/* ── Leveling curve: easy early, harder later ──
+   xpForLevel(n) = 40n + 0.6n²
+   Cumulative to reach level N: Σ(40i + 0.6i²) ≈ 20N² + 0.2N³
+   Lvl 1: 41 XP | Lvl 5: 215 | Lvl 10: 460 | Lvl 25: 1375
+   Lvl 50: 3500 | Lvl 100: 10040 | Lvl 200: 32040
+   Lvl 300: 62040 | Lvl 500: 170040
+   Total XP for max level 500: ~28.4M
+*/
+const MAX_LEVEL = 500;
+function xpForLevel(n) {
+  if (n <= 0) return 0;
+  if (n > MAX_LEVEL) return Infinity;
+  return Math.floor(40 * n + 0.6 * n * n);
+}
 
 function getTotalXP() {
   const startDate = localStorage.getItem('icu_xp_start_date') || '2000-01-01';
-  return getAllActivities()
-    .filter(a => !isEmptyActivity(a) && (a.start_date_local || a.start_date || '') >= startDate)
-    .reduce((sum, a) => sum + computeXP(a), 0);
+  const acts = getAllActivities()
+    .filter(a => !isEmptyActivity(a) && (a.start_date_local || a.start_date || '') >= startDate);
+  const rideXP = acts.reduce((sum, a) => sum + computeXP(a), 0);
+  const streakXP = computeStreakBonusXP(acts);
+  return rideXP + streakXP;
 }
 
 function getLevel(totalXP) {
   let lvl = 0, cumulative = 0;
-  while (cumulative + xpForLevel(lvl + 1) <= totalXP) {
+  while (lvl < MAX_LEVEL && cumulative + xpForLevel(lvl + 1) <= totalXP) {
     lvl++;
     cumulative += xpForLevel(lvl);
   }
-  return { level: lvl, currentXP: totalXP - cumulative, nextLevelXP: xpForLevel(lvl + 1), totalXP };
+  const nextXP = lvl >= MAX_LEVEL ? 0 : xpForLevel(lvl + 1);
+  return { level: lvl, currentXP: totalXP - cumulative, nextLevelXP: nextXP, totalXP };
 }
 
 function getXPStats() {
@@ -23888,14 +24054,16 @@ function getXPStats() {
       if (cached && cached.level > 0) return cached;
     } catch(e) {}
   }
-  let totalXP = 0, totalDist = 0, totalElev = 0, totalRides = acts.length;
+  let rideXP = 0, totalDist = 0, totalElev = 0, totalRides = acts.length;
   acts.forEach(a => {
-    totalXP += computeXP(a);
+    rideXP += computeXP(a);
     totalDist += actVal(a, 'distance', 'icu_distance') / 1000;
     totalElev += actVal(a, 'total_elevation_gain', 'icu_total_elevation_gain');
   });
+  const streakXP = computeStreakBonusXP(acts);
+  const totalXP = rideXP + streakXP;
   const lvl = getLevel(totalXP);
-  const result = { ...lvl, totalRides, totalDist: Math.round(totalDist), totalElev: Math.round(totalElev) };
+  const result = { ...lvl, totalRides, totalDist: Math.round(totalDist), totalElev: Math.round(totalElev), rideXP, streakXP };
   // Cache for crash recovery
   try { localStorage.setItem('iq_xp_cache', JSON.stringify(result)); } catch(e) {}
   return result;
@@ -23916,20 +24084,30 @@ function openProfileModal() {
   const levelTitles = [
     [0, 'Newbie'],
     [2, 'Pedal Pusher'],
-    [4, 'Road Rookie'],
-    [6, 'Chain Breaker'],
-    [8, 'Hill Hunter'],
-    [10, 'Saddle Veteran'],
-    [13, 'Peloton Force'],
-    [16, 'Breakaway Artist'],
-    [20, 'Summit Chaser'],
-    [25, 'Iron Legs'],
-    [30, 'Domestique Elite'],
-    [40, 'Grand Tour Rider'],
-    [50, 'Mountain King'],
-    [65, 'Yellow Jersey'],
-    [80, 'Living Legend'],
-    [100, 'Cycling God'],
+    [5, 'Road Rookie'],
+    [8, 'Chain Breaker'],
+    [12, 'Hill Hunter'],
+    [16, 'Saddle Veteran'],
+    [20, 'Peloton Force'],
+    [25, 'Breakaway Artist'],
+    [30, 'Summit Chaser'],
+    [40, 'Iron Legs'],
+    [50, 'Domestique Elite'],
+    [65, 'Grand Tour Rider'],
+    [80, 'Mountain King'],
+    [100, 'Yellow Jersey'],
+    [125, 'Living Legend'],
+    [150, 'Cycling God'],
+    [175, 'Maglia Rosa'],
+    [200, 'Tour Champion'],
+    [230, 'Monument Master'],
+    [260, 'Palmares Elite'],
+    [300, 'Ventoux Conqueror'],
+    [340, 'Galibier Ghost'],
+    [380, 'Hour Record Holder'],
+    [420, 'GOAT Candidate'],
+    [460, 'Eternal Champion'],
+    [500, 'Merckx Reborn'],
   ];
   let levelTitle = 'Newbie';
   for (const [minLvl, title] of levelTitles) {
@@ -23974,6 +24152,7 @@ function openProfileModal() {
   setTxt('profTotalRides', stats.totalRides.toLocaleString());
   setTxt('profTotalDist', stats.totalDist.toLocaleString());
   setTxt('profTotalElev', stats.totalElev.toLocaleString());
+  setTxt('profStreakXP', (stats.streakXP || 0).toLocaleString());
 
   // Populate sticky header
   const stickyAvatar = document.getElementById('profStickyAvatar');
@@ -26812,13 +26991,16 @@ function _gsRunSearch(q) {
       .slice(0, 15);
     if (acts.length) {
       html += `<div class="gs-group"><div class="gs-group-title">Activities</div>`;
-      acts.forEach(a => {
+      if (!window._actLookup) window._actLookup = {};
+      acts.forEach((a, _gi) => {
         const name = a.name || 'Untitled';
         const type = a.type || a.icu_sport || 'Ride';
         const d = new Date(a.start_date_local || a.start_date);
         const dateStr = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
         const dist = a.distance ? (a.distance / 1000).toFixed(1) + ' km' : '';
-        html += `<div class="gs-item" onclick="closeGlobalSearch();navigate('activity');renderActivityDetail('${a.id}')">
+        const gsKey = '_gs_' + _gi;
+        window._actLookup[gsKey] = a;
+        html += `<div class="gs-item" onclick="closeGlobalSearch();navigateToActivity('${gsKey}')">
           <div class="gs-item-icon" style="color:var(--accent)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
           <div class="gs-item-body">
             <div class="gs-item-title">${_escHtml(name)}</div>
@@ -26916,15 +27098,23 @@ function _gsRunSearch(q) {
   // ── Settings ──
   if (_gsFilter === 'all' || _gsFilter === 'settings') {
     const settingsItems = [
-      { label: 'intervals.icu Connection', sub: 'Sync, credentials', page: 'settings', subpage: 'intervalsicu' },
-      { label: 'Theme', sub: 'Dark, light, Tour de France', page: 'settings', subpage: 'theme' },
-      { label: 'Notifications', sub: 'Push alerts, gear reminders', page: 'settings', subpage: 'notifications' },
+      { label: 'intervals.icu Connection', sub: 'Sync, credentials', page: 'settings', subpage: 'icu' },
+      { label: 'Theme', sub: 'Dark, light, Tour de France', page: 'settings', subpage: 'apptheme' },
+      { label: 'Font', sub: 'Inter, system, monospace', page: 'settings', subpage: 'font' },
+      { label: 'Map Theme', sub: 'Strava, satellite, terrain', page: 'settings', subpage: 'maptheme' },
       { label: 'My Garage', sub: 'Bike fleet, components', page: 'settings', subpage: 'mygarage' },
       { label: 'Route Builder', sub: 'API keys, routing engines', page: 'settings', subpage: 'routebuilder' },
       { label: 'Backup & Restore', sub: 'Export, import data', page: 'settings', subpage: 'backup' },
-      { label: 'Dashboard Sections', sub: 'Show/hide cards', page: 'settings', subpage: 'dashboardsections' },
+      { label: 'Dashboard Sections', sub: 'Show/hide cards', page: 'settings', subpage: 'dashsections' },
+      { label: 'Activity Sections', sub: 'Show/hide activity cards', page: 'settings', subpage: 'actsections' },
       { label: 'Feedback', sub: 'Report bugs, suggestions', page: 'settings', subpage: 'feedback' },
       { label: 'Changelog', sub: 'Version history', page: 'settings', subpage: 'changelog' },
+      { label: 'Leveling & XP', sub: 'XP scoring, levels, ranks, streaks', page: 'settings', subpage: 'leveling' },
+      { label: 'Share & Export', sub: 'Share rides, export data', page: 'settings', subpage: 'share' },
+      { label: 'Donate', sub: 'Support development', page: 'settings', subpage: 'donate' },
+      { label: 'Default Range', sub: 'Dashboard date range', page: 'settings', subpage: 'defaultrange' },
+      { label: 'Licenses', sub: 'Open source licenses', page: 'settings', subpage: 'licenses' },
+      { label: 'Tab Bar & FAB', sub: 'Navigation order, quick action button', page: 'settings', subpage: 'navigation' },
     ];
     const matched = settingsItems.filter(s =>
       s.label.toLowerCase().includes(ql) || s.sub.toLowerCase().includes(ql)
@@ -26932,7 +27122,7 @@ function _gsRunSearch(q) {
     if (matched.length) {
       html += `<div class="gs-group"><div class="gs-group-title">Settings</div>`;
       matched.forEach(s => {
-        html += `<div class="gs-item" onclick="closeGlobalSearch();navigate('${s.page}');setTimeout(()=>{const el=document.getElementById('iosSubpage-${s.subpage}');if(el)iosOpenSubpage('${s.subpage}')},100)">
+        html += `<div class="gs-item" onclick="closeGlobalSearch();navigate('${s.page}',{settingsSubpage:'${s.subpage}'})">
           <div class="gs-item-icon" style="color:var(--text-secondary)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
           <div class="gs-item-body">
             <div class="gs-item-title">${s.label}</div>
@@ -26979,6 +27169,217 @@ Object.assign(window, { renderRouteBuilderPage, rbUndo, rbRedo, rbReverse,
 // ── From heatmap.js ──
 Object.assign(window, { renderHeatmapPage, hmLoadAllRoutes, hmApplyFilters,
   hmRedraw, hmToggleAnimate, hmRescanGPS });
+
+// ── Navigation Customization ──
+
+const NAV_PAGES = [
+  { id: 'dashboard',  label: 'Home',       icon: '<path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/><polyline points="9 21 9 12 15 12 15 21"/>' },
+  { id: 'activities', label: 'Activities',  icon: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>' },
+  { id: 'calendar',   label: 'Calendar',    icon: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>' },
+  { id: 'fitness',    label: 'Fitness',     icon: '<path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/>' },
+  { id: 'weather',    label: 'Weather',     icon: '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9z"/>' },
+  { id: 'goals',      label: 'Goals',       icon: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>' },
+  { id: 'power',      label: 'Power',       icon: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/><circle cx="12" cy="12" r="1"/>' },
+  { id: 'zones',      label: 'Zones',       icon: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16"/><path d="M10 4v16"/>' },
+  { id: 'compare',    label: 'Compare',     icon: '<path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/>' },
+  { id: 'heatmap',    label: 'Heat Map',    icon: '<circle cx="12" cy="10" r="3"/><path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 7 8 11.7z"/>' },
+  { id: 'myroutes',   label: 'My Routes',   icon: '<path d="M3 6h18"/><path d="M3 12h18"/><path d="M3 18h18"/>' },
+  { id: 'import',     label: 'Import',      icon: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>' },
+  { id: 'settings',   label: 'Settings',    icon: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>' },
+];
+
+const FAB_ACTIONS = [
+  { id: 'routes',     label: 'Route Builder',   icon: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>' },
+  { id: 'import',     label: 'Import Ride',     icon: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>' },
+  { id: 'search',     label: 'Global Search',   icon: '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>' },
+  { id: 'weather',    label: 'Weather',          icon: '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9z"/>' },
+  { id: 'calendar',   label: 'Calendar',         icon: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>' },
+  { id: 'goals',      label: 'Goals & Streaks',  icon: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>' },
+  { id: 'settings',   label: 'Settings',         icon: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>' },
+];
+
+const DEFAULT_NAV_TABS = ['dashboard', 'activities', 'calendar', 'fitness'];
+const DEFAULT_FAB_ACTION = 'routes';
+
+function getNavConfig() {
+  try {
+    const raw = localStorage.getItem('icu_nav_config');
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return { tabs: [...DEFAULT_NAV_TABS], fab: DEFAULT_FAB_ACTION };
+}
+
+function saveNavConfig(cfg) {
+  localStorage.setItem('icu_nav_config', JSON.stringify(cfg));
+  applyNavConfig();
+}
+
+function applyNavConfig() {
+  const cfg = getNavConfig();
+  const nav = document.getElementById('dashPillNav');
+  if (!nav) return;
+
+  // Rebuild tab buttons
+  nav.innerHTML = '';
+  cfg.tabs.forEach(tabId => {
+    const pg = NAV_PAGES.find(p => p.id === tabId);
+    if (!pg) return;
+    const btn = document.createElement('button');
+    btn.className = 'dash-pill-btn';
+    btn.setAttribute('aria-label', pg.label);
+    btn.onclick = () => navigate(pg.id);
+    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${pg.icon}</svg><span>${pg.label}</span>`;
+    // Mark active
+    const curPage = state.currentPage || 'dashboard';
+    if (pg.id === curPage || (pg.id === 'dashboard' && curPage === 'dashboard')) {
+      btn.classList.add('active');
+    }
+    nav.appendChild(btn);
+  });
+
+  // Update FAB action
+  const fab = document.getElementById('dashRouteFab');
+  if (fab) {
+    const action = FAB_ACTIONS.find(a => a.id === cfg.fab) || FAB_ACTIONS[0];
+    fab.setAttribute('aria-label', action.label);
+    fab.onclick = () => {
+      if (action.id === 'search') { openGlobalSearch(); }
+      else { navigate(action.id); }
+    };
+    fab.querySelector('svg').innerHTML = action.icon;
+  }
+}
+
+function renderNavSettings() {
+  const cfg = getNavConfig();
+
+  // Tab list with drag reorder
+  const tabList = document.getElementById('navTabList');
+  if (tabList) {
+    let html = '';
+    cfg.tabs.forEach((tabId, i) => {
+      const pg = NAV_PAGES.find(p => p.id === tabId);
+      if (!pg) return;
+      html += `<div class="ios-row nav-tab-row" draggable="true" data-nav-idx="${i}" data-nav-id="${tabId}">
+        <div class="nav-drag-handle"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="16" y2="18"/></svg></div>
+        <div class="ios-row-icon" style="background:#5856d6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${pg.icon}</svg></div>
+        <span class="ios-row-label">${pg.label}</span>
+        <select class="app-select nav-tab-select" data-nav-slot="${i}" onchange="changeNavTab(${i}, this.value)">
+          ${NAV_PAGES.map(p => `<option value="${p.id}" ${p.id === tabId ? 'selected' : ''}>${p.label}</option>`).join('')}
+        </select>
+        ${cfg.tabs.length > 2 ? `<button class="nav-remove-btn" onclick="removeNavTab(${i})" aria-label="Remove">&times;</button>` : ''}
+      </div>`;
+    });
+    if (cfg.tabs.length < 5) {
+      html += `<div class="ios-row" onclick="addNavTab()" style="cursor:pointer">
+        <div class="ios-row-icon" style="background:var(--accent)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+        <span class="ios-row-label" style="color:var(--accent)">Add Tab</span>
+      </div>`;
+    }
+    tabList.innerHTML = html;
+    initNavDrag();
+  }
+
+  // FAB picker
+  const fabPicker = document.getElementById('navFabPicker');
+  if (fabPicker) {
+    let html = '';
+    FAB_ACTIONS.forEach(a => {
+      const active = a.id === cfg.fab;
+      html += `<div class="ios-row${active ? ' nav-fab-active' : ''}" onclick="setFabAction('${a.id}')" style="cursor:pointer">
+        <div class="ios-row-icon" style="background:${active ? 'var(--accent)' : 'rgba(255,255,255,0.08)'}"><svg viewBox="0 0 24 24" fill="none" stroke="${active ? '#000' : 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${a.icon}</svg></div>
+        <span class="ios-row-label">${a.label}</span>
+        ${active ? '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+      </div>`;
+    });
+    fabPicker.innerHTML = html;
+  }
+}
+
+function changeNavTab(slot, newPageId) {
+  const cfg = getNavConfig();
+  cfg.tabs[slot] = newPageId;
+  saveNavConfig(cfg);
+  renderNavSettings();
+}
+
+function removeNavTab(slot) {
+  const cfg = getNavConfig();
+  if (cfg.tabs.length <= 2) return;
+  cfg.tabs.splice(slot, 1);
+  saveNavConfig(cfg);
+  renderNavSettings();
+}
+
+function addNavTab() {
+  const cfg = getNavConfig();
+  if (cfg.tabs.length >= 5) return;
+  // Pick first page not already in tabs
+  const available = NAV_PAGES.find(p => !cfg.tabs.includes(p.id));
+  if (available) {
+    cfg.tabs.push(available.id);
+    saveNavConfig(cfg);
+    renderNavSettings();
+  }
+}
+
+function setFabAction(actionId) {
+  const cfg = getNavConfig();
+  cfg.fab = actionId;
+  saveNavConfig(cfg);
+  renderNavSettings();
+}
+
+function resetNavConfig() {
+  localStorage.removeItem('icu_nav_config');
+  applyNavConfig();
+  renderNavSettings();
+  showToast('Navigation reset to default', 'success');
+}
+
+// Drag-to-reorder for nav tabs
+function initNavDrag() {
+  const rows = document.querySelectorAll('.nav-tab-row');
+  let dragIdx = null;
+  rows.forEach(row => {
+    row.addEventListener('dragstart', e => {
+      dragIdx = +row.dataset.navIdx;
+      row.style.opacity = '0.4';
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    row.addEventListener('dragend', () => {
+      row.style.opacity = '1';
+      dragIdx = null;
+      document.querySelectorAll('.nav-tab-row').forEach(r => r.classList.remove('nav-drag-over'));
+    });
+    row.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      row.classList.add('nav-drag-over');
+    });
+    row.addEventListener('dragleave', () => row.classList.remove('nav-drag-over'));
+    row.addEventListener('drop', e => {
+      e.preventDefault();
+      row.classList.remove('nav-drag-over');
+      const dropIdx = +row.dataset.navIdx;
+      if (dragIdx === null || dragIdx === dropIdx) return;
+      const cfg = getNavConfig();
+      const [moved] = cfg.tabs.splice(dragIdx, 1);
+      cfg.tabs.splice(dropIdx, 0, moved);
+      saveNavConfig(cfg);
+      renderNavSettings();
+    });
+  });
+}
+
+
+// Apply on load
+document.addEventListener('DOMContentLoaded', () => { applyNavConfig(); });
+// Also apply immediately if DOM already loaded
+if (document.readyState !== 'loading') applyNavConfig();
+
+Object.assign(window, { renderNavSettings, changeNavTab, removeNavTab, addNavTab,
+  setFabAction, resetNavConfig, applyNavConfig });
 
 // ── Global Search ──
 Object.assign(window, { openGlobalSearch, closeGlobalSearch, gsClearInput, gsSetFilter });
