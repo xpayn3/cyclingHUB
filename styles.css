@@ -2261,7 +2261,6 @@ input[type="number"] {
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--text-muted);
-    margin-top: -8px;
     margin-bottom: 12px;
     display: flex;
     align-items: center;
@@ -6864,7 +6863,7 @@ input[type="number"] {
 
 }
 [data-dash-section="weeklyStats"] {
-    margin-top: 24px;
+    margin-top: 0;
 }
 } /* end @layer components */
 
