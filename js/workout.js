@@ -153,26 +153,6 @@ export function wrkDrawChart() {
   ctx.fillStyle = 'rgba(0,0,0,0)';
   ctx.clearRect(0, 0, W, H);
 
-  // Y-axis grid lines
-  const gridPcts = [50, 75, 100, 125];
-  ctx.font = `10px Inter, system-ui, sans-serif`;
-  ctx.textAlign = 'right';
-  gridPcts.forEach(pct => {
-    const y = PAD_T + cH * (1 - pct / MAX_PCT);
-    const dk = _isDark();
-    ctx.strokeStyle = pct === 100
-      ? (dk ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)')
-      : (dk ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)');
-    ctx.lineWidth = pct === 100 ? 1 : 0.5;
-    ctx.setLineDash([]);
-    ctx.beginPath(); ctx.moveTo(PAD_L, y); ctx.lineTo(PAD_L + cW, y); ctx.stroke();
-    ctx.fillStyle = pct === 100
-      ? (dk ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.35)')
-      : (dk ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.18)');
-    ctx.textAlign = 'left';
-    ctx.fillText(pct, PAD_L + 3, y - 3);
-  });
-
   // Draw segments
   let curSec = 0;
   segs.forEach((seg, idx) => {
@@ -223,6 +203,25 @@ export function wrkDrawChart() {
   ctx.textAlign = 'center';
   ctx.font = '9px Inter, sans-serif';
   ctx.fillText(wrkFmtTime(Math.round(totalSecs)), PAD_L + cW, PAD_T + cH + 14);
+
+  // Y-axis grid lines + labels (drawn on top of bars)
+  const gridPcts = [50, 75, 100, 125];
+  gridPcts.forEach(pct => {
+    const y = PAD_T + cH * (1 - pct / MAX_PCT);
+    const dk = _isDark();
+    ctx.strokeStyle = pct === 100
+      ? (dk ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.2)')
+      : (dk ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)');
+    ctx.lineWidth = pct === 100 ? 1 : 0.5;
+    ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(PAD_L, y); ctx.lineTo(PAD_L + cW, y); ctx.stroke();
+    ctx.font = '10px Inter, system-ui, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = pct === 100
+      ? (dk ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)')
+      : (dk ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.35)');
+    ctx.fillText(pct, PAD_L + 3, y - 3);
+  });
 }
 
 export function wrkDrawBlock(ctx, x, w, pct, maxPct, padT, cH) {
