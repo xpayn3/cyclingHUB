@@ -4734,12 +4734,12 @@ async function _renderDashGear() {
   const dotsEl = document.getElementById('dashGearDots');
   if (!scroll) return;
 
-  // Load bikes (from state or API)
-  let bikes = state.gearBikes;
-  if (!bikes || !bikes.length) {
-    try { bikes = JSON.parse(localStorage.getItem('icu_gear_bikes') || '[]'); } catch { bikes = []; }
+  // Load all gear (from state or API)
+  let gear = state.gearBikes;
+  if (!gear || !gear.length) {
+    try { gear = JSON.parse(localStorage.getItem('icu_gear_bikes') || '[]'); } catch { gear = []; }
   }
-  if (!bikes.length) {
+  if (!gear.length) {
     try {
       const apiKey = localStorage.getItem('icu_api_key');
       const athlete = localStorage.getItem('icu_athlete_id');
@@ -4750,41 +4750,48 @@ async function _renderDashGear() {
         );
         if (resp.ok) {
           const data = await resp.json();
-          bikes = (data || []).map(g => ({
+          gear = (data || []).map(g => ({
             id: g.id, name: g.name || 'Unnamed', type: g.type || 'Bike',
             km: Math.round((g.distance || g.total_distance || 0) / 1000),
           }));
-          state.gearBikes = bikes;
-          try { localStorage.setItem('icu_gear_bikes', JSON.stringify(bikes)); } catch {}
+          state.gearBikes = gear;
+          try { localStorage.setItem('icu_gear_bikes', JSON.stringify(gear)); } catch {}
         }
       }
     } catch {}
   }
 
-  if (!bikes.length) {
-    scroll.innerHTML = '<div class="dash-gear-empty">No bikes yet</div>';
+  if (!gear.length) {
+    scroll.innerHTML = '<div class="dash-gear-empty">No gear yet</div>';
     if (dotsEl) dotsEl.innerHTML = '';
     return;
   }
 
   const photos = (typeof _gearLoadPhotos === 'function') ? _gearLoadPhotos() : {};
-  const bikeIcon = `<svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="18" r="3"/><circle cx="19" cy="18" r="3"/><path d="M5 18h3l2-5 2-5h4l2 5 1 2.5"/></svg>`;
+  const _gearIcon = (type) => {
+    const t = (type || '').toLowerCase();
+    if (t.includes('shoe') || t.includes('run'))
+      return `<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18h18v-3l-4-6H7l-4 6v3z"/><path d="M7 9V6a2 2 0 0 1 2-2h2"/></svg>`;
+    if (t.includes('trainer') || t.includes('indoor'))
+      return `<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="10" rx="2"/><line x1="6" y1="12" x2="18" y2="12"/></svg>`;
+    return `<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="18" r="3"/><circle cx="19" cy="18" r="3"/><path d="M5 18h3l2-5 2-5h4l2 5 1 2.5"/></svg>`;
+  };
 
-  scroll.innerHTML = bikes.map(b => {
-    const photo = photos[b.id];
+  scroll.innerHTML = gear.map(g => {
+    const photo = photos[g.id];
     const imgHtml = photo
       ? `<img class="dash-gear-photo" src="${photo}" alt="">`
-      : `<div class="dash-gear-icon">${bikeIcon}</div>`;
+      : `<div class="dash-gear-icon">${_gearIcon(g.type)}</div>`;
     return `<div class="dash-gear-slide" onclick="navigate('gear')">
       ${imgHtml}
-      <div class="dash-gear-name">${b.name}</div>
-      <div class="dash-gear-km">${b.km ? b.km.toLocaleString() + ' km' : '—'}</div>
+      <div class="dash-gear-name">${g.name}</div>
+      <div class="dash-gear-km">${g.km ? g.km.toLocaleString() + ' km' : g.type || '—'}</div>
     </div>`;
   }).join('');
 
   // Dots
-  if (dotsEl && bikes.length > 1) {
-    dotsEl.innerHTML = bikes.map((_, i) =>
+  if (dotsEl && gear.length > 1) {
+    dotsEl.innerHTML = gear.map((_, i) =>
       `<span class="dash-gear-dot${i === 0 ? ' active' : ''}"></span>`
     ).join('');
     scroll.addEventListener('scroll', () => {
