@@ -482,43 +482,28 @@
             <div class="wxd-backdrop" onclick="closeGearModal()"></div>
             <div class="wxd-sheet" style="max-width: 520px">
                 <div class="modal-drag-indicator"></div>
+                <!-- Sticky title bar: only title + close button -->
                 <div class="modal-header">
-                    <div>
-                        <div class="modal-header-icon">
-                            <svg
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                                width="22"
-                                height="22"
-                            >
-                                <circle cx="12" cy="12" r="3" />
-                                <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-                                <path d="M4.93 4.93a10 10 0 0 0 0 14.14" />
-                            </svg>
-                        </div>
-                        <div class="modal-title" id="gearModalTitle">
-                            Add Component
-                        </div>
-                        <div class="modal-desc">
-                            Track a bike part — brand, install date, and when to
-                            replace it.
-                        </div>
-                    </div>
+                    <div class="modal-title" id="gearModalTitle">Add Component</div>
                     <button class="modal-close" onclick="closeGearModal()" aria-label="Close">
-                        <svg
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2.5"
-                        >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                             <line x1="18" y1="6" x2="6" y2="18" />
                             <line x1="6" y1="6" x2="18" y2="18" />
                         </svg>
                     </button>
                 </div>
+                <!-- Scrollable body: icon + desc + form -->
                 <div class="modal-body">
+                    <div class="modal-header-icon" style="margin-bottom:4px">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+                            <circle cx="12" cy="12" r="3" />
+                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                            <path d="M4.93 4.93a10 10 0 0 0 0 14.14" />
+                        </svg>
+                    </div>
+                    <div class="modal-desc" style="margin-bottom:20px">
+                        Track a bike part — brand, install date, and when to replace it.
+                    </div>
                     <input type="hidden" id="gearEditId" />
                     <div class="gear-form-grid">
                         <div class="field">

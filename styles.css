@@ -15919,28 +15919,32 @@ body:has(.act-sheet-mode) .topbar {
     .wxd-overlay {
         align-items: stretch;
     }
+    /* Full-screen sheet: sheet itself is the scroll container.
+       Drag indicator + header stay sticky at the top. */
     .wxd-sheet {
         position: relative;
         max-width: 100%;
         max-height: none;
         height: 100%;
         border-radius: 0;
+        overflow-y: auto;
+        display: block;
         padding-top: env(safe-area-inset-top, 0px);
-        overflow-y: hidden;
-        display: flex;
-        flex-direction: column;
     }
-    .wxd-sheet .modal-drag-indicator,
+    .wxd-sheet .modal-drag-indicator {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: var(--bg-surface);
+        padding-top: 8px;
+        margin: 0;
+    }
     .wxd-sheet .modal-header {
-        flex-shrink: 0;
-    }
-    /* Restore scroll on the inner body when full-screen */
-    .wxd-sheet .modal-body {
-        overflow-y: auto !important;
-        -webkit-overflow-scrolling: touch !important;
-        overscroll-behavior-y: contain !important;
-        flex: 1 !important;
-        min-height: 0 !important;
+        position: sticky;
+        top: 21px; /* below drag indicator */
+        z-index: 2;
+        background: var(--bg-surface);
+        border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.06));
     }
 }
 .wxd-sheet-body {
