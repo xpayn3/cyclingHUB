@@ -765,6 +765,10 @@ code {
     font-size: var(--text-sm);
     padding: 8px 10px;
 }
+.athlete-avatar-wrap {
+    position: relative;
+    flex-shrink: 0;
+}
 .athlete-avatar {
     width: 30px;
     height: 30px;
@@ -793,11 +797,25 @@ code {
     font-size: var(--text-xs);
     color: var(--text-muted);
 }
+.athlete-chip-lvl {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--accent);
+    background: rgba(0,229,160,0.12);
+    border-radius: 999px;
+    padding: 2px 7px;
+    flex-shrink: 0;
+    font-family: var(--font-num);
+}
 .connection-dot {
-    width: 8px;
-    height: 8px;
+    width: 9px;
+    height: 9px;
     border-radius: 50%;
     flex-shrink: 0;
+    position: absolute;
+    bottom: -1px;
+    right: -1px;
+    border: 2px solid var(--bg-elevated);
 }
 .connection-dot.connected {
     background: var(--accent);

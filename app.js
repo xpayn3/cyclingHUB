@@ -1814,6 +1814,13 @@ function updateConnectionUI(connected) {
     // iOS settings profile card
     const iosName = document.getElementById('iosProfileName');
     if (iosName) iosName.textContent = aName;
+    // Sidebar level badge
+    const lvlBadge = document.getElementById('sidebarLvlBadge');
+    if (lvlBadge) {
+      const lvl = calcAthleteLevel?.() ?? '';
+      lvlBadge.textContent = lvl ? `Lv ${lvl}` : '';
+      lvlBadge.style.display = lvl ? '' : 'none';
+    }
   } else {
     dot.className   = 'connection-dot disconnected';
     name.textContent = 'Not connected';
