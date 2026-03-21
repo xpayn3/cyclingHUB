@@ -12287,9 +12287,8 @@ body:has(.act-sheet-mode) .topbar {
     outline: none;
 }
 .wrk-chart-empty {
-    position: absolute;
-    inset: 0;
     display: flex;
+    min-height: 120px;
     flex-direction: column;
     align-items: center;
     justify-content: center;
