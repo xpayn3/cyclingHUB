@@ -12642,10 +12642,10 @@ function _cleanSheet(inner) {
 }
 
 // ── iOS keyboard-aware viewport tracking ──
-// When the virtual keyboard opens on iOS, visualViewport shrinks.
-// Instead of repositioning the dialog (which causes flyaway), we keep the
-// dialog fixed full-screen and add bottom padding to the scroll body so the
-// user can scroll inputs above the keyboard.
+// When the virtual keyboard opens on iOS Safari (PWA), visualViewport shrinks
+// but position:fixed elements are still anchored to the full layout viewport.
+// Fix: lift the .modal above the keyboard using `bottom` (no reflow/jump).
+// Fix: force a GPU repaint on keyboard dismiss to clear the iOS black-bar artifact.
 let _sheetVVHandler = null;
 function _startViewportTracking(dialog) {
   if (!window.visualViewport) return;
@@ -12656,21 +12656,36 @@ function _startViewportTracking(dialog) {
   function onVVResize() {
     if (!dialog.open || !dialog.classList.contains('sheet-open')) return;
 
-    const kbHeight = window.innerHeight - vv.height;
+    // `offsetTop` accounts for any layout-viewport scroll iOS may have applied
+    const kbHeight = Math.max(0, window.innerHeight - vv.height - (vv.offsetTop || 0));
     const inner = dialog.querySelector('.modal');
-    // Find the scrollable body inside the modal
-    const body = inner && (inner.querySelector('.cev-body') || inner.querySelector('.modal-body') || inner.querySelector('.act-search-results'));
+    const body = inner && (
+      inner.querySelector('.cev-body') ||
+      inner.querySelector('.modal-body') ||
+      inner.querySelector('.act-search-results')
+    );
 
-    if (kbHeight > 50) {
-      // Keyboard is open — add padding so user can scroll past keyboard
-      if (body) body.style.paddingBottom = (kbHeight + 20) + 'px';
-      // Also shrink the modal max-height so it doesn't extend behind keyboard
-      if (inner) inner.style.maxHeight = (vv.height - 20) + 'px';
-    } else {
-      // Keyboard hidden — reset
-      if (body) body.style.paddingBottom = '';
-      if (inner) inner.style.maxHeight = '';
-    }
+    requestAnimationFrame(function() {
+      if (kbHeight > 100) {
+        // ── Keyboard open ──
+        // Lift the sheet above the keyboard by adjusting `bottom` — no height
+        // change means no reflow, no jump.
+        if (inner) inner.style.bottom = kbHeight + 'px';
+        // Reset layout-viewport scroll iOS sometimes sneaks in
+        window.scrollTo(0, 0);
+      } else {
+        // ── Keyboard closed ──
+        if (inner) inner.style.bottom = '';
+        // Force GPU repaint to clear the iOS black-bar artifact that lingers
+        // after keyboard dismissal on position:fixed elements.
+        if (inner) {
+          inner.style.transform = 'translateZ(0)';
+          requestAnimationFrame(function() { inner.style.transform = ''; });
+        }
+        // Ensure layout viewport is back at origin
+        window.scrollTo(0, 0);
+      }
+    });
   }
 
   _sheetVVHandler = onVVResize;
@@ -12685,33 +12700,45 @@ function _stopViewportTracking() {
     _sheetVVHandler = null;
   }
   // Reset any keyboard adjustments on all open modals
-  document.querySelectorAll('dialog.modal-dialog[open] .modal').forEach(inner => {
+  document.querySelectorAll('dialog.modal-dialog[open] .modal').forEach(function(inner) {
+    inner.style.bottom = '';
     inner.style.maxHeight = '';
     const body = inner.querySelector('.cev-body') || inner.querySelector('.modal-body') || inner.querySelector('.act-search-results');
     if (body) body.style.paddingBottom = '';
   });
 }
 
-// Prevent iOS from scrolling the page when focusing inputs inside sheets.
-// Instead, scroll the input into view within the modal's own scroll container.
+// Prevent iOS from scrolling the layout viewport when an input inside a sheet
+// receives focus. We block the native scroll-to-focus behaviour and rely on
+// the visualViewport handler above to reposition the sheet instead.
 document.addEventListener('focusin', function(e) {
   if (!_isMobileSheet()) return;
   const sheet = e.target.closest('dialog.modal-dialog.sheet-open');
   if (!sheet) return;
   const tag = e.target.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
-    // Small delay to let keyboard animation settle, then scroll within modal
+    // Reset any body scroll iOS applied immediately — the VV handler will
+    // lift the sheet instead.
+    window.scrollTo(0, 0);
+  }
+});
+
+// When keyboard is dismissed (focusout), give iOS a moment to finish its
+// viewport animation then force a repaint to clear any black-bar residue.
+document.addEventListener('focusout', function(e) {
+  if (!_isMobileSheet()) return;
+  const sheet = e.target.closest('dialog.modal-dialog.sheet-open');
+  if (!sheet) return;
+  const tag = e.target.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
     setTimeout(function() {
-      const modalBody = e.target.closest('.cev-body') || e.target.closest('.modal-body');
-      if (modalBody) {
-        const rect = e.target.getBoundingClientRect();
-        const bodyRect = modalBody.getBoundingClientRect();
-        // If the input is below the visible area of the modal body, scroll it up
-        if (rect.bottom > bodyRect.bottom - 20 || rect.top < bodyRect.top + 20) {
-          e.target.scrollIntoView({ block: 'center', behavior: 'smooth' });
-        }
+      window.scrollTo(0, 0);
+      const inner = sheet.querySelector('.modal');
+      if (inner) {
+        inner.style.transform = 'translateZ(0)';
+        requestAnimationFrame(function() { inner.style.transform = ''; });
       }
-    }, 300);
+    }, 100);
   }
 });
 
