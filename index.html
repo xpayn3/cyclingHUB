@@ -673,10 +673,15 @@
         <div class="wxd-overlay" id="batteryModal" style="display:none">
             <div class="wxd-backdrop" onclick="closeBatteryModal()"></div>
             <div class="wxd-sheet" style="max-width:520px">
+                <div class="wxd-floating-close">
+                    <button class="modal-close" onclick="closeBatteryModal()" aria-label="Close">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
                 <div class="modal-drag-indicator"></div>
                 <div class="modal-header">
-                    <div>
-                        <div class="modal-header-icon">
+                    <div style="display:flex;align-items:center;gap:12px">
+                        <div class="modal-header-icon" style="margin:0;flex-shrink:0">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22">
                                 <rect x="6" y="4" width="12" height="18" rx="2"/>
                                 <line x1="10" y1="1" x2="14" y2="1" stroke-width="3" stroke-linecap="round"/>
@@ -684,11 +689,8 @@
                             </svg>
                         </div>
                         <div class="modal-title" id="batteryModalTitle">Add Battery</div>
-                        <div class="modal-desc">Track an electronic shifting battery or power pack.</div>
                     </div>
-                    <button class="modal-close" onclick="closeBatteryModal()" aria-label="Close">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                    </button>
+                    <div class="modal-desc">Track an electronic shifting battery or power pack.</div>
                 </div>
                 <div class="modal-body">
                     <input type="hidden" id="batteryEditId">
@@ -750,20 +752,22 @@
         <div class="wxd-overlay" id="serviceModal" style="display:none">
             <div class="wxd-backdrop" onclick="closeServiceModal()"></div>
             <div class="wxd-sheet" style="max-width:560px">
+                <div class="wxd-floating-close">
+                    <button class="modal-close" onclick="closeServiceModal()" aria-label="Close">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
                 <div class="modal-drag-indicator"></div>
                 <div class="modal-header">
-                    <div>
-                        <div class="modal-header-icon">
+                    <div style="display:flex;align-items:center;gap:12px">
+                        <div class="modal-header-icon" style="margin:0;flex-shrink:0">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22">
                                 <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
                             </svg>
                         </div>
                         <div class="modal-title" id="serviceModalTitle">Add Service</div>
-                        <div class="modal-desc">Record a bike service — what was done, where, and when it's next due.</div>
                     </div>
-                    <button class="modal-close" onclick="closeServiceModal()" aria-label="Close">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                    </button>
+                    <div class="modal-desc">Record a bike service — what was done, where, and when it's next due.</div>
                 </div>
                 <div class="modal-body">
                     <input type="hidden" id="serviceEditId">
