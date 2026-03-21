@@ -12677,18 +12677,20 @@ body:has(.act-sheet-mode) .topbar {
     color: var(--text-muted);
 }
 .wrk-msg-add {
-    font-size: 12px;
+    width: 100%;
+    font-size: 13px;
     font-weight: 600;
     color: var(--accent);
-    background: none;
+    background: var(--accent-wash);
     border: none;
     cursor: pointer;
-    padding: 4px 8px;
-    border-radius: 8px;
+    padding: 10px;
+    border-radius: 10px;
+    margin-top: 8px;
     transition: background 0.15s;
 }
 .wrk-msg-add:active {
-    background: var(--accent-wash);
+    background: var(--accent-dim);
 }
 .wrk-msg-empty {
     font-size: 12px;

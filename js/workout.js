@@ -389,9 +389,9 @@ export function wrkBuildEditPanel(seg, idx) {
     <div class="wrk-msg-section">
       <div class="wrk-msg-header">
         <span class="wrk-msg-label">Messages</span>
-        <button class="wrk-msg-add" onclick="wrkAddMsg(${idx})">+ Add</button>
       </div>
       ${msgsHtml || '<div class="wrk-msg-empty">No messages — riders will see these on screen</div>'}
+      <button class="wrk-msg-add" onclick="wrkAddMsg(${idx})">+ Add Message</button>
     </div>`;
 
   return `<div class="wrk-edit-panel">${fields}</div>`;
