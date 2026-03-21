@@ -3834,7 +3834,7 @@ function buildZonesCardHTML(a, idx) {
 
   const achBadge = _heroAchBadge(a);
   const _zac = _achColor(a);
-  const _zacStyle = _zac ? ` style="border:1px solid ${_zac}40;background:linear-gradient(135deg, ${_zac}28 0%, ${_zac}10 50%, transparent 100%)"` : '';
+  const _zacStyle = _zac ? ` style="border:1px solid ${_zac}40;background:linear-gradient(135deg, ${_zac}28 0%, ${_zac}10 50%, transparent 100%), var(--bg-card)"` : '';
 
   return `<div class="card card--clickable zones-card" id="zonesCard_${idx}"${_zacStyle}>
     <div class="zones-card-header">
@@ -4264,7 +4264,7 @@ function buildRecentActCardHTML(a, idx, idPrefix = 'recentActCard') {
   ).join('');
 
   const _ac = _achColor(a);
-  const _achStyle = _ac ? ` style="border:1px solid ${_ac}40;background:linear-gradient(135deg, ${_ac}28 0%, ${_ac}10 50%, transparent 100%)"` : '';
+  const _achStyle = _ac ? ` style="border:1px solid ${_ac}40;background:linear-gradient(135deg, ${_ac}28 0%, ${_ac}10 50%, transparent 100%), var(--bg-card)"` : '';
 
   return `<div class="card card--clickable recent-act-card" id="${idPrefix}_${idx}"${_achStyle}>
     <div class="recent-act-body">
