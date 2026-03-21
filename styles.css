@@ -17967,6 +17967,7 @@ body:has(.act-sheet-mode) .topbar {
         width: 100%;
         max-height: none;
         border-radius: 0;
+        padding-top: env(safe-area-inset-top, 0px);
         display: flex;
         flex-direction: column;
         overflow: hidden;
