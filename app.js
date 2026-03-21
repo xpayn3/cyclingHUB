@@ -4850,6 +4850,10 @@ async function _renderDashRouteMap() {
     });
   } catch (e) { console.warn('dashRouteMap init failed:', e); return; }
 
+  _dashRouteMapInst.on('load', () => {
+    if (_isStravaTheme()) _applyStravaOverrides(_dashRouteMapInst);
+  });
+
   // Location dot marker
   const dot = document.createElement('div');
   dot.className = 'dash-route-pin';
