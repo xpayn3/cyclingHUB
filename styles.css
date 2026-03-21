@@ -4908,6 +4908,328 @@ input[type="number"] {
 }
 
 /* ============================================================
+   FITNESS PAGE — TRAINING STATUS HERO CARD
+============================================================ */
+.fit-status-card { container-type: inline-size; }
+
+.fit-status-body {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 16px 12px;
+}
+
+.fit-status-side {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    min-width: 0;
+}
+.fit-status-side--right { align-items: flex-end; text-align: right; }
+
+.fit-status-num {
+    font-size: 38px;
+    font-weight: 800;
+    font-family: var(--font-num);
+    line-height: 1;
+    letter-spacing: -1.5px;
+}
+.fit-status-num--ctl { color: var(--accent); }
+.fit-status-num--atl { color: var(--orange); }
+
+.fit-status-metric-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--text-muted);
+    margin-top: 5px;
+}
+.fit-status-metric-sub {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 1px;
+    margin-bottom: 10px;
+}
+.fit-status-bar { width: 100%; height: 4px; border-radius: 2px; }
+
+/* Center ring */
+.fit-status-center {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.fit-status-ring-wrap {
+    position: relative;
+    width: 148px;
+    height: 148px;
+}
+.fit-status-ring {
+    width: 148px;
+    height: 148px;
+    display: block;
+}
+.fit-status-ring-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    pointer-events: none;
+    width: 90px;
+}
+.fit-status-ring-lbl {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 2px;
+}
+.fit-status-ring-val {
+    font-size: 30px;
+    font-weight: 800;
+    font-family: var(--font-num);
+    line-height: 1;
+    letter-spacing: -1px;
+}
+.fit-status-ring-state {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    color: var(--text-secondary);
+    margin-top: 3px;
+    white-space: nowrap;
+}
+
+/* Footer stats */
+.fit-status-footer {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+}
+.fit-status-stat {
+    flex: 1;
+    text-align: center;
+}
+.fit-status-stat-val {
+    font-size: 20px;
+    font-weight: 700;
+    font-family: var(--font-num);
+    line-height: 1;
+}
+.fit-status-stat-lbl {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    margin-top: 3px;
+}
+.fit-status-stat-hint {
+    font-size: 10px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+    min-height: 12px;
+}
+.fit-status-divider {
+    width: 1px;
+    height: 34px;
+    background: var(--border);
+    flex-shrink: 0;
+}
+
+/* Responsive: smaller ring on narrow screens */
+@container (max-width: 360px) {
+    .fit-status-ring-wrap,
+    .fit-status-ring { width: 116px; height: 116px; }
+    .fit-status-num { font-size: 30px; }
+    .fit-status-ring-val { font-size: 24px; }
+}
+
+/* ── Wellness Pills Row ── */
+.fit-wellness-pills-row {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
+}
+.fit-wellness-pills-row::-webkit-scrollbar { display: none; }
+
+.fit-wpill {
+    flex: 1;
+    min-width: 88px;
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.fit-wpill-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.fit-wpill-val {
+    font-size: 22px;
+    font-weight: 700;
+    font-family: var(--font-num);
+    line-height: 1;
+}
+.fit-wpill-lbl {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+/* ── Load Risk Index Card ── */
+.fit-risk-body {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 0 16px 8px;
+}
+.fit-risk-score-wrap {
+    text-align: center;
+    flex-shrink: 0;
+    width: 76px;
+}
+.fit-risk-score {
+    font-size: 44px;
+    font-weight: 800;
+    font-family: var(--font-num);
+    line-height: 1;
+    letter-spacing: -2px;
+}
+.fit-risk-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+.fit-risk-factors {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+}
+.fit-risk-factor {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 13px;
+}
+.fit-risk-factor-name { color: var(--text-secondary); }
+.fit-risk-factor-val { font-weight: 600; font-family: var(--font-num); }
+.fit-risk-track-wrap {
+    padding: 4px 16px 14px;
+}
+.fit-risk-bar-track {
+    height: 6px;
+    background: var(--bg-elevated);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+}
+.fit-risk-bar {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.7s cubic-bezier(0.4,0,0.2,1), background 0.4s;
+}
+.fit-risk-zones {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 5px;
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+}
+
+/* ── Monthly Summary — horizontal card scroll ── */
+.fit-monthly-scroll {
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 0 16px 16px;
+    -webkit-overflow-scrolling: touch;
+}
+.fit-monthly-scroll::-webkit-scrollbar { display: none; }
+
+.fit-monthly-cards {
+    display: flex;
+    gap: 10px;
+    width: max-content;
+}
+.fit-month-card {
+    flex-shrink: 0;
+    width: 118px;
+    background: var(--bg-elevated);
+    border-radius: var(--radius);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.fit-month-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+.fit-month-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 4px;
+}
+.fit-month-val {
+    font-size: 13px;
+    font-weight: 600;
+    font-family: var(--font-num);
+    color: var(--text-primary);
+}
+.fit-month-unit {
+    font-size: 10px;
+    color: var(--text-muted);
+}
+.fit-month-tss-section { margin-top: 4px; }
+.fit-month-tss-bar-track {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-top: 5px;
+    overflow: hidden;
+}
+.fit-month-tss-bar {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.6s ease;
+}
+.fit-month-empty {
+    color: var(--text-muted);
+    font-size: 13px;
+    padding: 20px 0;
+}
+
+/* ── Training Insights — 3-col on desktop ── */
+@media (min-width: 700px) {
+    .fit-insights-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* ============================================================
    PULL TO REFRESH
 ============================================================ */
 .ptr-indicator {
@@ -16871,6 +17193,57 @@ body:has(.act-sheet-mode) .topbar {
     font-size: var(--text-xs);
     font-weight: 600;
     text-align: center;
+}
+
+/* ── Platform Center Offset card ── */
+.pco-pedals-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    padding: 8px 16px 0;
+}
+.pco-pedal-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+.pco-pedal-svg {
+    width: 100%;
+    max-width: 150px;
+    height: auto;
+}
+.pco-pedal-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-bottom: 8px;
+}
+.pco-divider {
+    width: 1px;
+    height: 70px;
+    background: var(--border);
+    flex-shrink: 0;
+    margin: 0 4px;
+    align-self: center;
+}
+.pco-legend {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    align-items: center;
+    padding: 4px 0 10px;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+.pco-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
 /* ── Activity streams chart: zoom controls ── */

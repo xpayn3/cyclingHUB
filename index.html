@@ -2869,6 +2869,51 @@
                         </div>
                     </div>
 
+                    <!-- Platform Center Offset (Assioma / Garmin pedal power) -->
+                    <div class="card" id="detailPCOCard" style="display:none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="8" width="20" height="10" rx="3"/><line x1="12" y1="8" x2="12" y2="18"/><line x1="2" y1="13" x2="22" y2="13" stroke-dasharray="3 3"/></svg>Platform Center Offset</div>
+                                <div class="card-subtitle">Cleat position on pedal platform</div>
+                            </div>
+                            <span class="detail-lrbal-badge" id="detailPCOBadge"></span>
+                        </div>
+                        <!-- Pedal visual -->
+                        <div class="pco-pedals-row">
+                            <div class="pco-pedal-wrap">
+                                <svg id="pcoLeftPedalSVG" class="pco-pedal-svg" viewBox="0 0 120 120"></svg>
+                                <div class="pco-pedal-label">Left Pedal</div>
+                            </div>
+                            <div class="pco-divider"></div>
+                            <div class="pco-pedal-wrap">
+                                <svg id="pcoRightPedalSVG" class="pco-pedal-svg" viewBox="0 0 120 120"></svg>
+                                <div class="pco-pedal-label">Right Pedal</div>
+                            </div>
+                        </div>
+                        <!-- Legend -->
+                        <div class="pco-legend">
+                            <div class="pco-legend-item">
+                                <svg width="24" height="2" viewBox="0 0 24 2"><line x1="0" y1="1" x2="24" y2="1" stroke="rgba(180,180,180,0.35)" stroke-width="1.5" stroke-dasharray="4 4"/></svg>
+                                <span>Center</span>
+                            </div>
+                            <div class="pco-legend-item">
+                                <svg width="24" height="2" viewBox="0 0 24 2"><line x1="0" y1="1" x2="24" y2="1" stroke="rgba(255,100,100,0.8)" stroke-width="2"/></svg>
+                                <span>Average</span>
+                            </div>
+                        </div>
+                        <!-- Time-series scatter chart -->
+                        <div class="card-header" style="padding-top:0;padding-bottom:8px">
+                            <div class="card-subtitle" style="padding-left:0">Offset over time</div>
+                            <div class="chart-legend">
+                                <span class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--accent)"></span>Left</span>
+                                <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#4a9eff"></span>Right</span>
+                            </div>
+                        </div>
+                        <div class="chart-wrap" style="height:160px">
+                            <canvas id="detailPCOChart"></canvas>
+                        </div>
+                    </div>
+
                     <!-- Power zones + HR zones side by side / swipe carousel on mobile -->
                     <div class="detail-zones-carousel-card" id="detailZonesCarouselCard" style="display:none">
                         <div class="detail-zones-row" id="detailZonesRow">
@@ -3467,63 +3512,132 @@
                 </div>
 
                 <div class="page" id="page-fitness">
-                    <!-- ── All fitness metric cards in one flat grid ── -->
-                    <div class="fit-metrics-grid" id="fitMetricsGrid">
-                        <div class="fit-kpi-card">
-                            <div class="fit-kpi-label">CTL</div>
-                            <div class="fit-kpi-value fit-kpi-value--ctl" id="fitCTL">—</div>
-                            <div class="fit-kpi-name">Fitness</div>
-                            <div class="fit-kpi-bar"><div class="fit-kpi-bar-fill fit-kpi-bar-fill--ctl" id="fitBarCTL"></div></div>
+                    <!-- ── Training Status Hero ── -->
+                    <div class="card fit-status-card">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">Training Status</div>
+                                <div class="card-subtitle">Fitness · Fatigue · Form</div>
+                            </div>
+                            <span class="ti-status-badge" id="fitStatusBadge"></span>
                         </div>
-                        <div class="fit-kpi-card">
-                            <div class="fit-kpi-label">ATL</div>
-                            <div class="fit-kpi-value fit-kpi-value--atl" id="fitATL">—</div>
-                            <div class="fit-kpi-name">Fatigue</div>
-                            <div class="fit-kpi-bar"><div class="fit-kpi-bar-fill fit-kpi-bar-fill--atl" id="fitBarATL"></div></div>
+                        <div class="fit-status-body">
+                            <div class="fit-status-side fit-status-side--left">
+                                <div class="fit-status-num fit-status-num--ctl" id="fitCTL">—</div>
+                                <div class="fit-status-metric-label">CTL</div>
+                                <div class="fit-status-metric-sub">Fitness</div>
+                                <div class="fit-kpi-bar fit-status-bar">
+                                    <div class="fit-kpi-bar-fill fit-kpi-bar-fill--ctl" id="fitBarCTL"></div>
+                                </div>
+                            </div>
+                            <div class="fit-status-center">
+                                <div class="fit-status-ring-wrap">
+                                    <svg class="fit-status-ring" viewBox="0 0 160 160">
+                                        <circle cx="80" cy="80" r="60"
+                                            fill="none" stroke-width="12"
+                                            stroke="rgba(255,255,255,0.07)"
+                                            stroke-dasharray="283 94"
+                                            stroke-linecap="round"
+                                            transform="rotate(135 80 80)"/>
+                                        <circle id="fitStatusArc" cx="80" cy="80" r="60"
+                                            fill="none" stroke-width="12"
+                                            stroke-dasharray="0 377"
+                                            stroke-linecap="round"
+                                            transform="rotate(135 80 80)"
+                                            style="stroke:var(--accent);transition:stroke-dasharray 0.8s cubic-bezier(0.4,0,0.2,1),stroke 0.4s"/>
+                                    </svg>
+                                    <div class="fit-status-ring-content">
+                                        <div class="fit-status-ring-lbl">FORM</div>
+                                        <div class="fit-status-ring-val" id="fitTSB">—</div>
+                                        <div class="fit-status-ring-state" id="fitStatusState"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="fit-status-side fit-status-side--right">
+                                <div class="fit-status-num fit-status-num--atl" id="fitATL">—</div>
+                                <div class="fit-status-metric-label">ATL</div>
+                                <div class="fit-status-metric-sub">Fatigue</div>
+                                <div class="fit-kpi-bar fit-status-bar">
+                                    <div class="fit-kpi-bar-fill fit-kpi-bar-fill--atl" id="fitBarATL"></div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="fit-kpi-card">
-                            <div class="fit-kpi-label">TSB</div>
-                            <div class="fit-kpi-value" id="fitTSB">—</div>
-                            <div class="fit-kpi-name">Form</div>
-                            <div class="fit-kpi-bar"><div class="fit-kpi-bar-fill" id="fitBarTSB"></div></div>
+                        <div class="fit-status-footer">
+                            <div class="fit-status-stat">
+                                <div class="fit-status-stat-val" id="fitRamp">—</div>
+                                <div class="fit-status-stat-lbl">Ramp Rate</div>
+                                <div class="fit-status-stat-hint" id="fitRampHint"></div>
+                            </div>
+                            <div class="fit-status-divider"></div>
+                            <div class="fit-status-stat">
+                                <div class="fit-status-stat-val" id="fitStreak">—</div>
+                                <div class="fit-status-stat-lbl">Streak</div>
+                                <div class="fit-status-stat-hint" id="fitStreakHint"></div>
+                            </div>
+                            <div class="fit-status-divider"></div>
+                            <div class="fit-status-stat">
+                                <div class="fit-status-stat-val" id="fitWeekActs">—</div>
+                                <div class="fit-status-stat-lbl">This Week</div>
+                                <div class="fit-status-stat-hint" id="fitWeekHint"></div>
+                            </div>
                         </div>
-                        <div class="fit-kpi-card">
-                            <div class="fit-kpi-label">Ramp Rate</div>
-                            <div class="fit-kpi-value" id="fitRamp">—</div>
-                            <div class="fit-kpi-name">CTL / week</div>
-                            <div class="fit-kpi-hint" id="fitRampHint"></div>
+                    </div>
+
+                    <!-- ── Wellness Pills ── -->
+                    <div class="fit-wellness-pills-row" id="fitWellnessPillsRow" style="display:none">
+                        <div class="fit-wpill" id="fitWcardHRV" style="display:none">
+                            <div class="fit-wpill-dot" style="background:var(--red)"></div>
+                            <div class="fit-wpill-body">
+                                <div class="fit-wpill-val" id="fitHRV">—</div>
+                                <div class="fit-wpill-lbl">HRV ms <span class="fit-wcard-trend" id="fitHRVTrend"></span></div>
+                            </div>
                         </div>
-                        <div class="fit-kpi-card">
-                            <div class="fit-kpi-label">Streak</div>
-                            <div class="fit-kpi-value fit-kpi-value--streak" id="fitStreak">—</div>
-                            <div class="fit-kpi-name">days</div>
-                            <div class="fit-kpi-hint" id="fitStreakHint"></div>
+                        <div class="fit-wpill" id="fitWcardHR" style="display:none">
+                            <div class="fit-wpill-dot" style="background:var(--red)"></div>
+                            <div class="fit-wpill-body">
+                                <div class="fit-wpill-val" id="fitRestHR">—</div>
+                                <div class="fit-wpill-lbl">Resting HR <span class="fit-wcard-trend" id="fitHRTrend"></span></div>
+                            </div>
                         </div>
-                        <div class="fit-kpi-card">
-                            <div class="fit-kpi-label">This Week</div>
-                            <div class="fit-kpi-value" id="fitWeekActs">—</div>
-                            <div class="fit-kpi-name">activities</div>
-                            <div class="fit-kpi-hint" id="fitWeekHint"></div>
+                        <div class="fit-wpill" id="fitWcardSleep" style="display:none">
+                            <div class="fit-wpill-dot" style="background:var(--blue)"></div>
+                            <div class="fit-wpill-body">
+                                <div class="fit-wpill-val" id="fitSleep">—</div>
+                                <div class="fit-wpill-lbl">Sleep · 7d avg <span class="fit-wcard-trend" id="fitSleepTrend"></span></div>
+                            </div>
                         </div>
-                        <div class="fit-kpi-card" id="fitWcardHRV" style="display:none">
-                            <div class="fit-kpi-label">HRV <span class="fit-wcard-trend" id="fitHRVTrend"></span></div>
-                            <div class="fit-kpi-value" id="fitHRV">—</div>
-                            <div class="fit-kpi-name">ms · 7-day avg</div>
+                        <div class="fit-wpill" id="fitWcardWeight" style="display:none">
+                            <div class="fit-wpill-dot" style="background:var(--orange)"></div>
+                            <div class="fit-wpill-body">
+                                <div class="fit-wpill-val" id="fitWeight">—</div>
+                                <div class="fit-wpill-lbl">Weight kg <span class="fit-wcard-trend" id="fitWeightTrend"></span></div>
+                            </div>
                         </div>
-                        <div class="fit-kpi-card" id="fitWcardHR" style="display:none">
-                            <div class="fit-kpi-label">Resting HR</div>
-                            <div class="fit-kpi-value" id="fitRestHR">—</div>
-                            <div class="fit-kpi-name">bpm · latest</div>
+                    </div>
+
+                    <!-- ── Load Risk Index (new) ── -->
+                    <div class="card" id="fitInjuryRiskCard" style="display:none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">Load Risk Index</div>
+                                <div class="card-subtitle">Overtraining risk · ramp rate &amp; form</div>
+                            </div>
+                            <span class="ti-status-badge" id="fitRiskBadge"></span>
                         </div>
-                        <div class="fit-kpi-card" id="fitWcardSleep" style="display:none">
-                            <div class="fit-kpi-label">Sleep <span class="fit-wcard-trend" id="fitSleepTrend"></span></div>
-                            <div class="fit-kpi-value" id="fitSleep">—</div>
-                            <div class="fit-kpi-name">hours · 7-day avg</div>
+                        <div class="fit-risk-body">
+                            <div class="fit-risk-score-wrap">
+                                <div class="fit-risk-score" id="fitRiskScore">—</div>
+                                <div class="fit-risk-label" id="fitRiskLabel"></div>
+                            </div>
+                            <div class="fit-risk-factors" id="fitRiskFactors"></div>
                         </div>
-                        <div class="fit-kpi-card" id="fitWcardWeight" style="display:none">
-                            <div class="fit-kpi-label">Weight <span class="fit-wcard-trend" id="fitWeightTrend"></span></div>
-                            <div class="fit-kpi-value" id="fitWeight">—</div>
-                            <div class="fit-kpi-name">kg · latest</div>
+                        <div class="fit-risk-track-wrap">
+                            <div class="fit-risk-bar-track">
+                                <div class="fit-risk-bar" id="fitRiskBar"></div>
+                            </div>
+                            <div class="fit-risk-zones">
+                                <span>Low</span><span>Moderate</span><span>High</span>
+                            </div>
                         </div>
                     </div>
 
@@ -3729,33 +3843,11 @@
                             </div>
                         </div>
 
-                        <!-- Monthly Summary table -->
-                        <div class="fit-monthly-wrap">
-                            <table class="fit-monthly-table">
-                                <thead>
-                                    <tr>
-                                        <th>Month</th>
-                                        <th>Rides</th>
-                                        <th>Distance</th>
-                                        <th>Time</th>
-                                        <th>TSS</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="fitMonthlyBody">
-                                    <tr>
-                                        <td
-                                            colspan="5"
-                                            style="
-                                                text-align: center;
-                                                color: var(--text-muted);
-                                                padding: 24px;
-                                            "
-                                        >
-                                            Sync to load
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                        <!-- Monthly Summary cards -->
+                        <div class="fit-monthly-scroll">
+                            <div id="fitMonthlyCards" class="fit-monthly-cards">
+                                <div class="fit-month-empty">Sync to load</div>
+                            </div>
                         </div>
                     </div>
                     <!-- ── Wellness Insights ── -->

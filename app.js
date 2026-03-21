@@ -460,7 +460,7 @@ const _pageChartKeys = {
   zones:     ['znpZoneTimeChart', '_znpDecoupleChart'],
   activity:  ['activityStreamsChart', 'activityPowerChart', 'activityHRChart',
               'activityHistogramChart', 'activityGradientChart', 'activityCadenceChart',
-              'activityCurveChart', 'activityHRCurveChart', '_detailDecoupleChart', '_detailLRBalChart'],
+              'activityCurveChart', 'activityHRCurveChart', '_detailDecoupleChart', '_detailLRBalChart', '_detailPCOChart'],
   routes:    ['_rbElevChart'],
 };
 
@@ -10509,7 +10509,9 @@ function renderFitnessWellness() {
     shown++;
   }
 
-  // Individual wellness cards are now in the flat grid — no strip to show/hide
+  // Toggle pills row visibility
+  const pillsRow = document.getElementById('fitWellnessPillsRow');
+  if (pillsRow) pillsRow.style.display = shown > 0 ? '' : 'none';
 }
 
 function renderFitnessHeatmap() {
@@ -10605,7 +10607,7 @@ function setFitnessRange(days) {
 function renderFitnessPage() {
   if (!state.synced) return;
 
-  // ── KPI cards ──
+  // ── Training Status Hero ──
   if (state.fitness) {
     const ctl  = state.fitness.ctl  ?? 0;
     const atl  = state.fitness.atl  ?? 0;
@@ -10616,33 +10618,51 @@ function renderFitnessPage() {
     updateSidebarCTL();
     document.getElementById('fitATL').textContent = Math.round(atl);
 
-    const tsbEl  = document.getElementById('fitTSB');
-    const barTSB = document.getElementById('fitBarTSB');
-    tsbEl.textContent = (tsb >= 0 ? '+' : '') + Math.round(tsb);
-    if      (tsb >  5) { tsbEl.style.color = 'var(--accent)'; barTSB.style.background = 'var(--accent)'; }
-    else if (tsb < -10){ tsbEl.style.color = 'var(--red)';    barTSB.style.background = 'var(--red)'; }
-    else               { tsbEl.style.color = 'var(--orange)'; barTSB.style.background = 'var(--orange)'; }
+    // CTL / ATL bars
+    const barCTL = document.getElementById('fitBarCTL');
+    const barATL = document.getElementById('fitBarATL');
+    if (barCTL) barCTL.style.width = Math.min(100, ctl / 1.5) + '%';
+    if (barATL) barATL.style.width = Math.min(100, atl / 1.5) + '%';
 
-    document.getElementById('fitBarCTL').style.width = Math.min(100, ctl / 1.5) + '%';
-    document.getElementById('fitBarATL').style.width = Math.min(100, atl / 1.5) + '%';
-    document.getElementById('fitBarTSB').style.width = Math.min(100, Math.abs(tsb) * 2.5) + '%';
+    // TSB ring arc
+    const arc = document.getElementById('fitStatusArc');
+    const tsbEl = document.getElementById('fitTSB');
+    const stateEl = document.getElementById('fitStatusState');
+    const badgeEl = document.getElementById('fitStatusBadge');
 
-    const rampEl   = document.getElementById('fitRamp');
-    const hintEl   = document.getElementById('fitRampHint');
+    const tsbRnd = Math.round(tsb);
+    if (tsbEl) {
+      tsbEl.textContent = (tsb >= 0 ? '+' : '') + tsbRnd;
+      tsbEl.style.color = tsb > 5 ? 'var(--accent)' : tsb < -10 ? 'var(--red)' : 'var(--orange)';
+    }
+    if (arc) {
+      // Map TSB from -30..+25 → 0..283 (270° of arc circumference)
+      const pct = Math.max(0, Math.min(1, (tsb + 30) / 55));
+      const fill = (pct * 283).toFixed(1);
+      arc.setAttribute('stroke-dasharray', `${fill} 377`);
+      arc.style.stroke = tsb > 5 ? 'var(--accent)' : tsb < -10 ? 'var(--red)' : 'var(--orange)';
+    }
+    const statusLabel = tsb > 10 ? 'Peak Form' : tsb > 5 ? 'Fresh' : tsb > -5 ? 'Neutral' : tsb > -15 ? 'Tired' : tsb > -25 ? 'Fatigued' : 'Overreached';
+    const statusClass = tsb > 5 ? 'good' : tsb > -10 ? 'warning' : 'danger';
+    if (stateEl) stateEl.textContent = statusLabel;
+    if (badgeEl) { badgeEl.textContent = statusLabel; badgeEl.className = `ti-status-badge ${statusClass}`; }
+
+    // Ramp rate
+    const rampEl = document.getElementById('fitRamp');
+    const hintEl = document.getElementById('fitRampHint');
     if (ramp != null) {
-      rampEl.textContent = (ramp >= 0 ? '+' : '') + ramp.toFixed(1);
-      rampEl.style.color = ramp > 0 ? 'var(--accent)' : ramp < -3 ? 'var(--red)' : 'var(--orange)';
-      hintEl.textContent = ramp > 1.5 ? 'Building' : ramp < -1.5 ? 'Tapering' : 'Maintaining';
+      if (rampEl) { rampEl.textContent = (ramp >= 0 ? '+' : '') + ramp.toFixed(1); rampEl.style.color = ramp > 0 ? 'var(--accent)' : ramp < -3 ? 'var(--red)' : 'var(--orange)'; }
+      if (hintEl) hintEl.textContent = ramp > 1.5 ? 'Building' : ramp < -1.5 ? 'Tapering' : 'Maintaining';
     } else {
-      rampEl.textContent = '—';
-      rampEl.style.color = '';
-      hintEl.textContent = '';
+      if (rampEl) { rampEl.textContent = '—'; rampEl.style.color = ''; }
+      if (hintEl) hintEl.textContent = '';
     }
   }
 
   const fd = state.fitnessRangeDays;
   renderFitnessStreak();
   renderFitnessWellness();
+  renderFitInjuryRisk();
   renderFitnessHistoryChart(fd);
   renderFitnessHeatmap();
   renderFitnessWeeklyPageChart(fd);
@@ -10657,6 +10677,57 @@ function renderFitnessPage() {
   _renderFitInsights(fd);
   renderYTDDistance();
   _rIC(() => { if (window.refreshGlow) refreshGlow(); });
+}
+
+function renderFitInjuryRisk() {
+  const card = document.getElementById('fitInjuryRiskCard');
+  if (!card || !state.fitness) { if (card) card.style.display = 'none'; return; }
+  const ctl  = state.fitness.ctl  ?? 0;
+  const ramp = state.fitness.rampRate ?? 0;
+  const tsb  = state.fitness.tsb  ?? 0;
+  if (ctl < 5) { card.style.display = 'none'; return; }
+
+  // Risk components 0-100
+  const rampRisk = Math.abs(ramp) > 8 ? 80 : Math.abs(ramp) > 5 ? 55 : Math.abs(ramp) > 3 ? 30 : 10;
+  const tsbRisk  = tsb < -25 ? 85 : tsb < -15 ? 60 : tsb < -8 ? 35 : tsb > 15 ? 20 : 10;
+  const risk = Math.round(rampRisk * 0.55 + tsbRisk * 0.45);
+
+  const riskLabel = risk >= 70 ? 'High Risk' : risk >= 40 ? 'Moderate' : 'Low Risk';
+  const riskColor = risk >= 70 ? 'var(--red)' : risk >= 40 ? 'var(--orange)' : 'var(--accent)';
+  const badgeClass = risk >= 70 ? 'danger' : risk >= 40 ? 'warning' : 'good';
+  const riskShort = risk >= 70 ? 'High' : risk >= 40 ? 'Moderate' : 'Low';
+
+  const scoreEl = document.getElementById('fitRiskScore');
+  const labelEl = document.getElementById('fitRiskLabel');
+  const badgeEl = document.getElementById('fitRiskBadge');
+  const barEl   = document.getElementById('fitRiskBar');
+  const factEl  = document.getElementById('fitRiskFactors');
+
+  if (scoreEl) { scoreEl.textContent = risk; scoreEl.style.color = riskColor; }
+  if (labelEl) labelEl.textContent = riskLabel;
+  if (badgeEl) { badgeEl.textContent = riskShort; badgeEl.className = `ti-status-badge ${badgeClass}`; }
+  if (barEl)   { barEl.style.width = risk + '%'; barEl.style.background = riskColor; }
+
+  if (factEl) {
+    const rampCol = rampRisk >= 70 ? 'var(--red)' : rampRisk >= 40 ? 'var(--orange)' : 'var(--accent)';
+    const tsbCol  = tsbRisk  >= 70 ? 'var(--red)' : tsbRisk  >= 40 ? 'var(--orange)' : 'var(--accent)';
+    const rampLbl = rampRisk >= 70 ? 'High' : rampRisk >= 40 ? 'Moderate' : 'Low';
+    const tsbLbl  = tsbRisk  >= 70 ? 'High' : tsbRisk  >= 40 ? 'Moderate' : 'Low';
+    const rec = risk >= 70 ? 'Rest or easy spin' : risk >= 40 ? 'Keep intensity low' : 'Load looks healthy';
+    factEl.innerHTML = `
+      <div class="fit-risk-factor">
+        <span class="fit-risk-factor-name">Ramp Rate (${ramp >= 0 ? '+' : ''}${ramp != null ? ramp.toFixed(1) : '—'}/wk)</span>
+        <span class="fit-risk-factor-val" style="color:${rampCol}">${rampLbl}</span>
+      </div>
+      <div class="fit-risk-factor">
+        <span class="fit-risk-factor-name">Form / TSB (${tsb >= 0 ? '+' : ''}${Math.round(tsb)})</span>
+        <span class="fit-risk-factor-val" style="color:${tsbCol}">${tsbLbl}</span>
+      </div>
+      <div class="fit-risk-factor">
+        <span class="fit-risk-factor-name" style="color:var(--text-muted)">${rec}</span>
+      </div>`;
+  }
+  card.style.display = '';
 }
 
 function _renderFitCyclingTrends(days) {
@@ -11500,15 +11571,15 @@ function renderFitnessWeeklyPageChart(days) {
 }
 
 function renderFitnessMonthlyTable(days) {
-  const tbody = document.getElementById('fitMonthlyBody');
-  if (!tbody) return;
+  const container = document.getElementById('fitMonthlyCards');
+  if (!container) return;
 
   const now = new Date();
   const cutoff = days ? new Date(now - days * 86400000) : null;
   const months = {};
   state.activities.filter(a => !isEmptyActivity(a)).forEach(a => {
     if (cutoff) { const d = new Date(a.start_date_local || a.start_date); if (d < cutoff) return; }
-    const key = (a.start_date_local || a.start_date || '').slice(0, 7); // YYYY-MM
+    const key = (a.start_date_local || a.start_date || '').slice(0, 7);
     if (!key) return;
     if (!months[key]) months[key] = { count: 0, dist: 0, time: 0, tss: 0 };
     months[key].count++;
@@ -11517,22 +11588,27 @@ function renderFitnessMonthlyTable(days) {
     months[key].tss  += actVal(a, 'icu_training_load', 'tss');
   });
 
-  const entries = Object.entries(months).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 8);
+  const entries = Object.entries(months).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 10);
   if (!entries.length) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:24px">No data</td></tr>`;
+    container.innerHTML = `<div class="fit-month-empty">No data</div>`;
     return;
   }
 
-  tbody.innerHTML = entries.map(([key, m]) => {
+  const maxTSS = Math.max(...entries.map(([, m]) => m.tss), 1);
+  container.innerHTML = entries.map(([key, m]) => {
     const [yr, mo] = key.split('-');
-    const label = new Date(+yr, +mo - 1, 1).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
-    return `<tr>
-      <td class="fit-month-label">${label}</td>
-      <td>${m.count}</td>
-      <td>${m.dist.toFixed(0)} km</td>
-      <td>${m.time.toFixed(1)} h</td>
-      <td class="fit-tss-cell">${Math.round(m.tss)}</td>
-    </tr>`;
+    const label = new Date(+yr, +mo - 1, 1).toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+    const tssPct = Math.round(m.tss / maxTSS * 100);
+    return `<div class="fit-month-card">
+      <div class="fit-month-name">${label}</div>
+      <div class="fit-month-row"><span class="fit-month-val">${m.count}</span><span class="fit-month-unit">rides</span></div>
+      <div class="fit-month-row"><span class="fit-month-val">${m.dist.toFixed(0)}</span><span class="fit-month-unit">km</span></div>
+      <div class="fit-month-row"><span class="fit-month-val">${m.time.toFixed(1)}</span><span class="fit-month-unit">hrs</span></div>
+      <div class="fit-month-tss-section">
+        <div class="fit-month-row"><span class="fit-month-val">${Math.round(m.tss)}</span><span class="fit-month-unit">TSS</span></div>
+        <div class="fit-month-tss-bar-track"><div class="fit-month-tss-bar" style="width:${tssPct}%"></div></div>
+      </div>
+    </div>`;
   }).join('');
 }
 
@@ -14791,6 +14867,38 @@ async function navigateToActivity(actKey, fromStep = false) {
       normStreams.grade_smooth = computeGradeStream(normStreams.altitude, normStreams.distance);
     }
 
+    // PCO (Platform Center Offset) is NOT in the intervals.icu streams API — only in the FIT binary.
+    // Try for any activity that has power data (catches both single and dual-sided meters).
+    if (!normStreams.left_platform_center_offset &&
+        (normStreams.lrbalance?.some(v => v != null && v > 0) ||
+         normStreams.watts?.some(v => v != null && v > 0))) {
+      try {
+        console.log('[PCO] Fetching FIT for activity', actId,
+          '| lrbalance[:3]:', normStreams.lrbalance?.slice(0, 3),
+          '| watts[:3]:', normStreams.watts?.slice(0, 3));
+        const fitBufPCO = await fetchFitFile(actId);
+        console.log('[PCO] FIT buffer:', fitBufPCO ? fitBufPCO.byteLength + ' bytes' : 'null');
+        if (fitBufPCO) {
+          const fitRecsPCO = parseFitBuffer(fitBufPCO);
+          console.log('[PCO] FIT records parsed:', fitRecsPCO?.length,
+            '| first rec keys:', fitRecsPCO?.[0] ? Object.keys(fitRecsPCO[0]) : 'none',
+            '| first rec:', JSON.stringify(fitRecsPCO?.[0]).slice(0, 200));
+          const fitStrPCO  = fitRecordsToStreams(fitRecsPCO);
+          console.log('[PCO] FIT streams keys:', Object.keys(fitStrPCO || {}),
+            '| left_pco[:5]:', fitStrPCO?.left_platform_center_offset?.slice(0, 5),
+            '| right_pco[:5]:', fitStrPCO?.right_platform_center_offset?.slice(0, 5));
+          if (fitStrPCO?.left_platform_center_offset)  normStreams.left_platform_center_offset  = fitStrPCO.left_platform_center_offset;
+          if (fitStrPCO?.right_platform_center_offset) normStreams.right_platform_center_offset = fitStrPCO.right_platform_center_offset;
+        }
+      } catch (pcoErr) {
+        console.warn('[PCO] FIT fetch/parse error:', pcoErr);
+      }
+    } else {
+      console.log('[PCO] Skipped — no power data or PCO already present.',
+        'lrbal:', !!normStreams.lrbalance, 'watts:', !!normStreams.watts,
+        'already has PCO:', !!normStreams.left_platform_center_offset);
+    }
+
     // If icu_hr_zone_times still not present, compute it from the HR stream
     if (!Array.isArray(richActivity.icu_hr_zone_times) || richActivity.icu_hr_zone_times.length === 0) {
       const hrArr    = normStreams.heartrate || normStreams.heart_rate || [];
@@ -14914,6 +15022,7 @@ async function navigateToActivity(actKey, fromStep = false) {
     renderDetailPerformance(richActivity, actId, normStreams);
     renderDetailDecoupleChart(normStreams, richActivity);
     renderDetailLRBalance(normStreams, richActivity);
+    renderDetailPlatformOffset(normStreams, richActivity);
     renderDetailZones(richActivity);
     renderDetailHRZones(richActivity);
     initZonesCarousel();
@@ -15557,6 +15666,7 @@ function destroyChartInstances() {
   window._tempChart = destroyChart(window._tempChart);
   state._detailDecoupleChart = destroyChart(state._detailDecoupleChart);
   state._detailLRBalChart = destroyChart(state._detailLRBalChart);
+  state._detailPCOChart = destroyChart(state._detailPCOChart);
   // Clear NA overlays so they don't double-up
   _DETAIL_CARD_IDS.forEach(id => {
     const el = document.getElementById(id);
@@ -15753,14 +15863,24 @@ async function fetchActivityDetail(activityId) {
   return result;
 }
 
+const _STREAMS_VER = 2; // bump when new stream types are added
+
 async function fetchActivityStreams(activityId) {
   // 1. IDB (fastest — same device)
   const cached = await actCacheGet(activityId, 'streams');
   if (cached) {
     if (cached.__noStreams) return null;  // sentinel: known to have no streams
-    // Backfill local JSON only — never download FIT from IDB path (avoids API calls)
-    if (window._fitOfflineSave) _fitOfflineSave(activityId, 'streams', cached);
-    return cached;
+    // If cache pre-dates our schema version, invalidate so we re-fetch with new stream types
+    // Exception: if __pcoChecked is set, API was already queried and PCO wasn't available
+    const norm = normalizeStreams(cached);
+    const hasPCO = norm.left_platform_center_offset || norm.right_platform_center_offset;
+    const isPowerMeter = norm.lrbalance?.some(v => v > 0);
+    const cacheOk = (cached.__sv >= _STREAMS_VER) || hasPCO || !isPowerMeter || cached.__pcoChecked;
+    if (cacheOk) {
+      if (window._fitOfflineSave) _fitOfflineSave(activityId, 'streams', cached);
+      return cached;
+    }
+    // Fall through to fresh fetch — stale cache for power-meter activity without PCO
   }
 
   // 2. Local backup folder (works on fresh installs / other devices)
@@ -15772,7 +15892,7 @@ async function fetchActivityStreams(activityId) {
     }
   }
 
-  const types   = 'time,watts,heartrate,cadence,velocity_smooth,altitude,distance,latlng,lat,lng,grade_smooth,temp,temperature,lrbalance';
+  const types   = 'time,watts,heartrate,cadence,velocity_smooth,altitude,distance,latlng,lat,lng,grade_smooth,temp,temperature,lrbalance,left_platform_center_offset,right_platform_center_offset';
   const headers = { ...authHeader(), 'Accept': 'application/json' };
 
   // Try typed URLs first (faster, less data)
@@ -15791,34 +15911,47 @@ async function fetchActivityStreams(activityId) {
     if (data && (Array.isArray(data) ? data.length : Object.keys(data).length)) { streams = data; break; }
   }
 
-  // If typed fetch succeeded but temp is absent, try the unfiltered endpoint which returns
-  // all recorded streams including temperature (intervals.icu may not expose it in the typed path)
+  // If typed fetch succeeded, check for any missing fields and try the unfiltered endpoint.
+  // intervals.icu may not expose temp or PCO via the typed path.
   if (streams) {
     const norm = normalizeStreams(streams);
-    if (!norm.temp && !norm.temperature) {
+    const missingTemp = !norm.temp && !norm.temperature;
+    const missingPCO  = !norm.left_platform_center_offset && !norm.right_platform_center_offset;
+    if (missingTemp || missingPCO) {
       try {
         const res = await fetch(ICU_BASE + `/activity/${activityId}/streams`, { headers });
         rlTrackRequest();
         if (res.ok) {
-          const allData = await res.json();
-          const allNorm = normalizeStreams(allData);
-          const tempArr = allNorm.temp || allNorm.temperature || null;
-          if (tempArr && tempArr.length > 0) {
-            // Merge temp into the existing streams array/object
-            if (Array.isArray(streams)) {
-              streams.push({ type: 'temp', data: tempArr });
-            } else {
-              streams.temp = tempArr;
+          const allNorm = normalizeStreams(await res.json());
+          // Merge any missing fields from unfiltered endpoint
+          const mergeFields = [
+            'temp', 'temperature',
+            'left_platform_center_offset', 'right_platform_center_offset',
+          ];
+          mergeFields.forEach(f => {
+            if (!norm[f] && allNorm[f]?.length > 0) {
+              if (Array.isArray(streams)) streams.push({ type: f, data: allNorm[f] });
+              else streams[f] = allNorm[f];
             }
-          }
+          });
         }
       } catch (_) {}
     }
+    // Mark cache with schema version + PCO-checked sentinel
+    const toCache = Array.isArray(streams) ? streams : { ...streams };
+    if (!Array.isArray(toCache)) {
+      toCache.__sv = _STREAMS_VER;
+      // If power meter but still no PCO after unfiltered merge, set sentinel to avoid repeat fetches
+      const n2 = normalizeStreams(toCache);
+      if (n2.lrbalance?.some(v => v > 0) && !n2.left_platform_center_offset && !n2.right_platform_center_offset) {
+        toCache.__pcoChecked = true;
+      }
+    }
     // 3a. Cache in IDB and local folder, then return
-    actCachePut(activityId, 'streams', streams);
-    if (window._fitOfflineSave)    _fitOfflineSave(activityId, 'streams', streams);   // background
-    if (window._fitOfflineSaveFit) _fitOfflineSaveFit(activityId);                    // background
-    return streams;
+    actCachePut(activityId, 'streams', toCache);
+    if (window._fitOfflineSave)    _fitOfflineSave(activityId, 'streams', toCache);  // background
+    if (window._fitOfflineSaveFit) _fitOfflineSaveFit(activityId);                   // background
+    return toCache;
   }
 
   // Full fallback: unfiltered endpoint
@@ -16063,6 +16196,8 @@ function parseFitBuffer(buffer) {
           case 6:   rec.speed       = raw / 1000;       break; // mm/s → m/s
           case 7:   rec.power       = raw;              break;
           case 13:  rec.temperature = raw;              break; // °C — Garmin ambient temp sensor
+          case 53:  rec.left_platform_center_offset  = raw;  break; // mm from pedal center (Assioma etc.)
+          case 54:  rec.right_platform_center_offset = raw;  break;
         }
       }
       pos += f.size;
@@ -16131,7 +16266,7 @@ function parseFitBuffer(buffer) {
 function fitRecordsToStreams(records) {
   if (!records || !records.length) return null;
   const t0 = (records.find(r => r.timestamp) || {}).timestamp || 0;
-  const out = { time: [], watts: [], heartrate: [], cadence: [], velocity_smooth: [], altitude: [], temp: [], latlng: [] };
+  const out = { time: [], watts: [], heartrate: [], cadence: [], velocity_smooth: [], altitude: [], temp: [], latlng: [], left_platform_center_offset: [], right_platform_center_offset: [] };
   records.forEach(r => {
     out.time.push((r.timestamp || 0) - t0);
     out.watts.push(r.power      ?? null);
@@ -16141,10 +16276,14 @@ function fitRecordsToStreams(records) {
     out.altitude.push(r.altitude ?? null);
     out.temp.push(r.temperature ?? null);        // °C — Garmin ambient temp sensor
     out.latlng.push((r.lat != null && r.lng != null) ? [r.lat, r.lng] : null);
+    out.left_platform_center_offset.push(r.left_platform_center_offset ?? null);
+    out.right_platform_center_offset.push(r.right_platform_center_offset ?? null);
   });
   // Drop streams with no real data (all nulls)
   if (out.latlng.every(p => p === null)) delete out.latlng;
   if (out.temp.every(v => v === null))   delete out.temp;
+  if (out.left_platform_center_offset.every(v => v === null))  delete out.left_platform_center_offset;
+  if (out.right_platform_center_offset.every(v => v === null)) delete out.right_platform_center_offset;
   return out;
 }
 
@@ -19258,6 +19397,135 @@ function renderDetailLRBalance(streams, activity) {
   clearCardNA(card);
   card.style.display = '';
   unskeletonCard('detailLRBalanceCard');
+}
+
+/* ── Platform Center Offset (Assioma / power pedals) ── */
+function _pcoDrawPedal(svgId, offsetMm, side) {
+  const svg = document.getElementById(svgId);
+  if (!svg || offsetMm == null) return;
+
+  const PX = 18, PY = 10, PW = 82, PH = 72;
+  const cx = PX + PW / 2;
+  const spindleX = side === 'left' ? PX - 13 : PX + PW;
+
+  // Scale: ±15 mm → ±(PW * 0.38) px
+  const clamp = Math.max(-15, Math.min(15, offsetMm));
+  const ox = cx + (clamp / 15) * (PW * 0.38);
+
+  const col = Math.abs(offsetMm) < 3 ? '#00e5a0' : Math.abs(offsetMm) < 8 ? '#ff9f0a' : '#ff453a';
+  const sign = offsetMm >= 0 ? '+' : '';
+  // Outer edge is +, inner is − (outer = away from bike)
+  const leftLbl  = side === 'left'  ? '+' : '−';
+  const rightLbl = side === 'left'  ? '−' : '+';
+
+  svg.innerHTML = `
+    <rect x="${PX}" y="${PY}" width="${PW}" height="${PH}" rx="6"
+          fill="rgba(130,130,130,0.2)" stroke="rgba(200,200,200,0.18)" stroke-width="1"/>
+    <rect x="${PX+10}" y="${PY+PH-14}" width="${PW-20}" height="5" rx="2" fill="rgba(90,90,90,0.5)"/>
+    <rect x="${PX+10}" y="${PY+PH-7}" width="${PW-20}" height="5" rx="2" fill="rgba(90,90,90,0.5)"/>
+    <rect x="${spindleX}" y="${PY+15}" width="13" height="24" rx="3"
+          fill="rgba(110,110,110,0.45)" stroke="rgba(200,200,200,0.12)" stroke-width="1"/>
+    <text x="${PX+7}" y="${PY+PH/2+5}" fill="rgba(255,255,255,0.22)" font-size="13"
+          font-family="'Inter',sans-serif" font-weight="600">${leftLbl}</text>
+    <text x="${PX+PW-13}" y="${PY+PH/2+5}" fill="rgba(255,255,255,0.22)" font-size="13"
+          font-family="'Inter',sans-serif" font-weight="600">${rightLbl}</text>
+    <line x1="${cx}" y1="${PY-6}" x2="${cx}" y2="${PY+PH+6}"
+          stroke="rgba(180,180,180,0.3)" stroke-width="1.5" stroke-dasharray="4,4"/>
+    <line x1="${ox}" y1="${PY-6}" x2="${ox}" y2="${PY+PH+6}"
+          stroke="${col}" stroke-width="2.5"/>
+    <text x="${cx}" y="108" text-anchor="middle" font-size="13" font-weight="700"
+          fill="${col}" font-family="'Inter',sans-serif">${sign}${Math.round(offsetMm)} mm</text>
+  `;
+}
+
+function renderDetailPlatformOffset(streams, activity) {
+  const card = document.getElementById('detailPCOCard');
+  if (!card) return;
+
+  // Support several possible field name formats (intervals.icu / Garmin FIT / camelCase variants)
+  const lData = streams.left_platform_center_offset  || streams.leftPlatformCenterOffset
+             || streams.left_pco || streams.lpco || [];
+  const rData = streams.right_platform_center_offset || streams.rightPlatformCenterOffset
+             || streams.right_pco || streams.rpco || [];
+  const timeArr = streams.time || [];
+
+  const hasLeft  = lData.length > 5 && lData.some(v => v != null);
+  const hasRight = rData.length > 5 && rData.some(v => v != null);
+
+  if (!hasLeft && !hasRight) { showCardNA('detailPCOCard'); return; }
+
+  // Compute averages
+  const leftValid  = lData.filter(v => v != null);
+  const rightValid = rData.filter(v => v != null);
+  const avgLeft  = hasLeft  ? leftValid.reduce((s, v) => s + v, 0) / leftValid.length : null;
+  const avgRight = hasRight ? rightValid.reduce((s, v) => s + v, 0) / rightValid.length : null;
+
+  // Draw pedal SVGs
+  if (hasLeft)  _pcoDrawPedal('pcoLeftPedalSVG',  avgLeft,  'left');
+  if (hasRight) _pcoDrawPedal('pcoRightPedalSVG', avgRight, 'right');
+
+  // Badge
+  const badgeEl = document.getElementById('detailPCOBadge');
+  if (badgeEl) {
+    const maxOff = Math.max(Math.abs(avgLeft ?? 0), Math.abs(avgRight ?? 0));
+    badgeEl.textContent = maxOff < 3 ? 'Centered' : maxOff < 8 ? 'Slight offset' : 'Large offset';
+    badgeEl.style.color = maxOff < 3 ? ACCENT : maxOff < 8 ? C_YELLOW : C_RED;
+  }
+
+  // Build scatter datasets — sample without averaging to preserve variability
+  const src = hasLeft ? lData : rData;
+  const step = Math.max(1, Math.floor(src.length / 400));
+  const datasets = [];
+
+  const makePoints = (data) => {
+    const pts = [];
+    data.forEach((v, i) => {
+      if (i % step === 0 && v != null) pts.push({ x: timeArr[i] ?? i, y: v });
+    });
+    return pts;
+  };
+
+  if (hasLeft)  datasets.push({ label: 'Left',  data: makePoints(lData), backgroundColor: ACCENT + 'aa', pointRadius: 2, pointHoverRadius: 4 });
+  if (hasRight) datasets.push({ label: 'Right', data: makePoints(rData), backgroundColor: '#4a9effaa', pointRadius: 2, pointHoverRadius: 4 });
+
+  // Zero reference
+  const maxT = timeArr[timeArr.length - 1] ?? src.length;
+  datasets.push({ label: '_zero', data: [{ x: 0, y: 0 }, { x: maxT, y: 0 }], type: 'line', showLine: true, borderColor: 'rgba(255,255,255,0.18)', borderWidth: 1, borderDash: [6, 4], pointRadius: 0 });
+
+  state._detailPCOChart = destroyChart(state._detailPCOChart);
+  const ctx = document.getElementById('detailPCOChart')?.getContext('2d');
+  if (!ctx) { clearCardNA(card); card.style.display = ''; return; }
+
+  state._detailPCOChart = new Chart(ctx, {
+    type: 'scatter',
+    data: { datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      animation: false,
+      interaction: { mode: 'nearest', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          ...C_TOOLTIP,
+          callbacks: {
+            title: c => {
+              const t = c[0]?.parsed?.x ?? 0;
+              return `${Math.floor(t / 60)}:${String(Math.round(t % 60)).padStart(2, '0')}`;
+            },
+            label: c => c.dataset.label?.startsWith('_') ? null : `${c.dataset.label}: ${c.parsed.y >= 0 ? '+' : ''}${c.parsed.y.toFixed(1)} mm`,
+          }
+        }
+      },
+      scales: {
+        x: { type: 'linear', grid: C_GRID, ticks: { ...C_TICK, maxTicksLimit: 6, callback: v => Math.floor(v / 60) + 'min' } },
+        y: { grid: C_GRID, ticks: { ...C_TICK, callback: v => (v >= 0 ? '+' : '') + v + ' mm' } }
+      }
+    }
+  });
+
+  clearCardNA(card);
+  card.style.display = '';
+  unskeletonCard('detailPCOCard');
 }
 
 function renderDetailZones(activity) {
