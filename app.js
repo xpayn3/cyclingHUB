@@ -3834,7 +3834,7 @@ function buildZonesCardHTML(a, idx) {
 
   const achBadge = _heroAchBadge(a);
   const _zac = _achColor(a);
-  const _zacStyle = _zac ? ` style="border:1px solid ${_zac}22;background:linear-gradient(135deg, ${_zac}0a 0%, transparent 60%)"` : '';
+  const _zacStyle = _zac ? ` style="border:1px solid ${_zac}30;background:linear-gradient(135deg, ${_zac}18 0%, transparent 70%)"` : '';
 
   return `<div class="card card--clickable zones-card" id="zonesCard_${idx}"${_zacStyle}>
     <div class="zones-card-header">
@@ -4170,7 +4170,7 @@ function buildHeroActCardHTML(a, idx) {
   ).join('');
 
   const _hac = _achColor(a);
-  const _hacBorder = _hac ? ` style="border:1px solid ${_hac}22"` : '';
+  const _hacBorder = _hac ? ` style="border:1px solid ${_hac}30"` : '';
 
   return `<div class="hero-act-wrap" id="recentActCard_${idx}">
     <div class="card card--clickable hero-act-card"${_hacBorder}>
@@ -4264,7 +4264,7 @@ function buildRecentActCardHTML(a, idx, idPrefix = 'recentActCard') {
   ).join('');
 
   const _ac = _achColor(a);
-  const _achStyle = _ac ? ` style="border:1px solid ${_ac}22;background:linear-gradient(135deg, ${_ac}0a 0%, transparent 60%)"` : '';
+  const _achStyle = _ac ? ` style="border:1px solid ${_ac}30;background:linear-gradient(135deg, ${_ac}18 0%, transparent 70%)"` : '';
 
   return `<div class="card card--clickable recent-act-card" id="${idPrefix}_${idx}"${_achStyle}>
     <div class="recent-act-body">
