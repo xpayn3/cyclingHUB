@@ -360,12 +360,8 @@ export function wrkBuildEditPanel(seg, idx) {
     const { m: onM, s: onS } = fmtDur(seg.onDuration);
     const { m: offM, s: offS } = fmtDur(seg.offDuration);
     fields = `<div class="wrk-edit-row">
-        <label>Repetitions</label>
-        <div class="wrk-stepper">
-          <button class="wrk-stepper-btn" onclick="wrkSet(${idx},'reps',Math.max(1,${seg.reps}-1));wrkRender()">−</button>
-          <span class="wrk-stepper-val">${seg.reps}×</span>
-          <button class="wrk-stepper-btn" onclick="wrkSet(${idx},'reps',Math.min(50,${seg.reps}+1));wrkRender()">+</button>
-        </div>
+        <label>Reps</label>
+        ${_wrkScrub(idx, 'reps', seg.reps, 1, 50, '×')}
       </div>`
            + _wrkDurRow('Work duration', idx, 'onDurMin', 'onDurSec', onM, onS, 60)
            + _wrkPowerRow('Work power', idx, 'onPower', seg.onPower, 50, 200)
