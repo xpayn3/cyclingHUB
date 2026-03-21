@@ -12670,6 +12670,20 @@ function _startViewportTracking(dialog) {
     );
 
     if (body) body.style.paddingBottom = kbHeight > 50 ? kbHeight + 'px' : '';
+
+    if (kbHeight <= 50) {
+      // Keyboard closed — re-anchor the body lock so iOS viewport drift
+      // doesn't leave a black strip at the bottom.
+      if (document.body.dataset.sheetLocked === '1') {
+        const savedY = parseInt(document.body.dataset.sheetScrollY || '0', 10);
+        document.body.style.top = `-${savedY}px`;
+      }
+      // Force a compositor repaint on the dialog layer.
+      requestAnimationFrame(function() {
+        dialog.style.transform = 'translateZ(0)';
+        requestAnimationFrame(function() { dialog.style.transform = ''; });
+      });
+    }
   }
 
   _sheetVVHandler = onVVResize;
