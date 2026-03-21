@@ -1663,10 +1663,6 @@ function setTssModel(val) {
   document.getElementById('tssModelPills')?.setAttribute('data-active', val);
 }
 
-function focusSettingsSearch() {
-  // Scroll to top — future: open search overlay
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
 
 function settingsBack() {
   if (_iosNavLocked) return;
@@ -2927,32 +2923,6 @@ function _hideWxSuggestions() {
   if (box) { box.classList.remove('active'); box.innerHTML = ''; }
 }
 
-async function setWeatherCity() {
-  const input = document.getElementById('wxCityInput');
-  const city  = (input?.value || '').trim();
-  if (!city) return;
-
-  const statusEl = document.getElementById('wxCurrentLocation');
-  if (statusEl) statusEl.textContent = 'Looking up…';
-
-  try {
-    const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`;
-    const geoRes = await fetch(geoUrl);
-    if (!geoRes.ok) throw new Error('Geocoding request failed');
-    const geoData = await geoRes.json();
-    if (!geoData.results?.length) throw new Error('City not found');
-
-    const { latitude: lat, longitude: lng, name, country } = geoData.results[0];
-    const label = [name, country].filter(Boolean).join(', ');
-
-    addWxLocation(lat, lng, label);
-    if (statusEl) statusEl.textContent = `${getWxLocations().length} / ${WX_MAX_LOCATIONS} locations`;
-    if (input) input.value = '';
-    _hideWxSuggestions();
-  } catch (e) {
-    if (statusEl) statusEl.textContent = 'City not found — try a different name';
-  }
-}
 
 async function useMyLocation() {
   const statusEl = document.getElementById('wxCurrentLocation');
@@ -3451,21 +3421,7 @@ function setActivitiesSearch(q) {
 /* ── Apple-style Activity Search Modal ── */
 let _actSearchDebounce = null;
 
-function openActivitySearch() {
-  const modal = document.getElementById('actSearchModal');
-  if (!modal) return;
-  document.body.style.overflow = 'hidden';
-  modal.showModal();
-  const input = document.getElementById('actSearchInput');
-  if (input) {
-    input.value = '';
-    setTimeout(() => input.focus(), 100);
-  }
-  const clearBtn = document.getElementById('actSearchClear');
-  if (clearBtn) clearBtn.classList.remove('visible');
-  document.getElementById('actSearchResults').innerHTML =
-    '<div class="act-search-empty">Type to search all activities</div>';
-}
+
 
 function closeActivitySearch() {
   const modal = document.getElementById('actSearchModal');
@@ -22993,36 +22949,7 @@ function chargeBattery(id) {
   showToast(bat.batteryType === 'coin_cell' ? 'Battery marked as replaced' : 'Battery marked as charged', 'success');
 }
 
-function retireBattery(id) {
-  if (!confirm('Retire this battery? It will be hidden but kept in history.')) return;
-  const all = loadGearBatteries();
-  const bat = all.find(b => b.id === id);
-  if (!bat) return;
-  bat.obsolete = true;
-  bat.obsoleteDate = new Date().toISOString().split('T')[0];
-  saveGearBatteries(all);
-  renderGearBatteries();
-  showToast('Battery retired', 'info');
-}
 
-function reactivateBattery(id) {
-  const all = loadGearBatteries();
-  const bat = all.find(b => b.id === id);
-  if (!bat) return;
-  bat.obsolete = false;
-  bat.obsoleteDate = null;
-  saveGearBatteries(all);
-  renderGearBatteries();
-  showToast('Battery reactivated', 'success');
-}
-
-function deleteBatteryPermanent(id) {
-  if (!confirm('Permanently delete this battery? This cannot be undone.')) return;
-  const all = loadGearBatteries().filter(b => b.id !== id);
-  saveGearBatteries(all);
-  renderGearBatteries();
-  showToast('Battery deleted', 'info');
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GEAR — BIKE SERVICE TRACKING
@@ -27651,7 +27578,7 @@ Object.assign(window, {
   openNotifSheet, closeNotifSheet, _notifDismiss, _notifClearAll, _notifRefreshBell, _notifRequestPush,
   exportLifetimeJSON, importLifetimeJSON, resyncLifetimeData,
   updateStorageBar, setUnits, copySetupLink, applySetupLink, handleAvatarUpload, removeAvatar,
-  setWeatherCity, useMyLocation, clearWeatherLocation, setWeekStartDay,
+  useMyLocation, clearWeatherLocation, setWeekStartDay,
   offlineSyncStart, offlineSyncCancel, offlineClearCache,
   setOfflineEnabled, setOfflineLimitPill, setSmartPoll, setSmartPollInterval,
   pollRestore, rlUpdateUI,
@@ -27675,7 +27602,7 @@ Object.assign(window, {
   removeWxLocation, initWeatherLocationUI,
   // Gear page
   gearSelectBike, deleteGearComponent,
-  chargeBattery, reactivateBattery, deleteBatteryPermanent, retireBattery,
+  chargeBattery,
   editServiceShop, deleteServiceShop, openServiceHistory, deleteServiceFromHistory,
   // Activity detail
   selectCalDay, downloadActivityFile, downloadFITFile, downloadGPXFile,
@@ -27684,7 +27611,7 @@ Object.assign(window, {
   goalNumStep, hideGoalForm, submitGoalForm, showGoalForm, deleteGoal,
   // Settings / data
   setWeatherModel, renderDashSectionToggles,
-  openSettingsSubpage, closeSettingsSubpage, settingsBack, focusSettingsSearch,
+  openSettingsSubpage, closeSettingsSubpage, settingsBack,
   setHrZoneSource, setPwrZoneSource, setTssModel, iosSettingsInit,
   // Vitality shader + Dashboard FAB gooey expand
   renderVitality,
@@ -27697,7 +27624,7 @@ Object.assign(window, {
   // Similar rides & radar
   openSimilarRidesModal, closeSimilarRidesModal, renderPowerProfileRadar, switchPowerCurveUnit,
   // Activity search modal
-  openActivitySearch, closeActivitySearch, clearActivitySearch,
+  closeActivitySearch, clearActivitySearch,
   // Weather performance proxies
   actVal, fmtDate, fmtDist, fmtSpeed,
   C_TOOLTIP, C_TICK, C_GRID,
