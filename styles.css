@@ -17246,6 +17246,78 @@ body:has(.act-sheet-mode) .topbar {
     gap: 6px;
 }
 
+/* ── Cycling Dynamics card (Assioma: TE + PS) ── */
+.dyn-metric-section {
+    padding: 12px 16px 8px;
+}
+.dyn-metric-section--divider {
+    border-top: 1px solid var(--border);
+    margin-top: 2px;
+}
+.dyn-metric-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.dyn-metric-hint {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--text-muted);
+}
+.dyn-lr-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+}
+.dyn-lr-side {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.dyn-lr-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    width: 12px;
+    flex-shrink: 0;
+}
+.dyn-lr-val {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+    min-width: 42px;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+}
+.dyn-bar-track {
+    flex: 1;
+    height: 6px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.dyn-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.6s cubic-bezier(.4,0,.2,1);
+    width: 0;
+}
+.dyn-bar-fill--blue { background: #4a9eff; }
+.dyn-bar-fill--pink { background: #e84393; }
+.dyn-lr-divider {
+    width: 1px;
+    height: 28px;
+    background: var(--border);
+    flex-shrink: 0;
+    margin: 0 12px;
+}
+
 /* ── Activity streams chart: zoom controls ── */
 .streams-zoom-controls {
     display: flex;

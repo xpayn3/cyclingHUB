@@ -460,7 +460,7 @@ const _pageChartKeys = {
   zones:     ['znpZoneTimeChart', '_znpDecoupleChart'],
   activity:  ['activityStreamsChart', 'activityPowerChart', 'activityHRChart',
               'activityHistogramChart', 'activityGradientChart', 'activityCadenceChart',
-              'activityCurveChart', 'activityHRCurveChart', '_detailDecoupleChart', '_detailLRBalChart', '_detailPCOChart'],
+              'activityCurveChart', 'activityHRCurveChart', '_detailDecoupleChart', '_detailLRBalChart', '_detailPCOChart', '_detailDynChart'],
   routes:    ['_rbElevChart'],
 };
 
@@ -15007,6 +15007,7 @@ async function navigateToActivity(actKey, fromStep = false) {
     renderDetailPerformance(richActivity, actId, normStreams);
     renderDetailDecoupleChart(normStreams, richActivity);
     renderDetailLRBalance(normStreams, richActivity);
+    renderDetailCyclingDynamics(normStreams, richActivity);
     renderDetailPlatformOffset(normStreams, richActivity);
     renderDetailZones(richActivity);
     renderDetailHRZones(richActivity);
@@ -15848,7 +15849,7 @@ async function fetchActivityDetail(activityId) {
   return result;
 }
 
-const _STREAMS_VER = 2; // bump when new stream types are added
+const _STREAMS_VER = 3; // bump when new stream types are added
 
 async function fetchActivityStreams(activityId) {
   // 1. IDB (fastest — same device)
@@ -15877,7 +15878,7 @@ async function fetchActivityStreams(activityId) {
     }
   }
 
-  const types   = 'time,watts,heartrate,cadence,velocity_smooth,altitude,distance,latlng,lat,lng,grade_smooth,temp,temperature,lrbalance,left_platform_center_offset,right_platform_center_offset';
+  const types   = 'time,watts,heartrate,cadence,velocity_smooth,altitude,distance,latlng,lat,lng,grade_smooth,temp,temperature,lrbalance,left_torque_effectiveness,right_torque_effectiveness,left_pedal_smoothness,right_pedal_smoothness,left_platform_center_offset,right_platform_center_offset';
   const headers = { ...authHeader(), 'Accept': 'application/json' };
 
   // Try typed URLs first (faster, less data)
@@ -16199,6 +16200,10 @@ function parseFitBuffer(buffer) {
           case 6:   rec.speed       = raw / 1000;       break; // mm/s → m/s
           case 7:   rec.power       = raw;              break;
           case 13:  rec.temperature = raw;              break; // °C — Garmin ambient temp sensor
+          case 43:  rec.left_torque_effectiveness  = raw / 2; break; // FIT scale 2 → %
+          case 44:  rec.right_torque_effectiveness = raw / 2; break;
+          case 45:  rec.left_pedal_smoothness      = raw / 2; break;
+          case 46:  rec.right_pedal_smoothness     = raw / 2; break;
           case 53:  rec.left_platform_center_offset  = raw;  break; // mm from pedal center (Assioma etc.)
           case 54:  rec.right_platform_center_offset = raw;  break;
         }
@@ -16269,7 +16274,7 @@ function parseFitBuffer(buffer) {
 function fitRecordsToStreams(records) {
   if (!records || !records.length) return null;
   const t0 = (records.find(r => r.timestamp) || {}).timestamp || 0;
-  const out = { time: [], watts: [], heartrate: [], cadence: [], velocity_smooth: [], altitude: [], temp: [], latlng: [], left_platform_center_offset: [], right_platform_center_offset: [] };
+  const out = { time: [], watts: [], heartrate: [], cadence: [], velocity_smooth: [], altitude: [], temp: [], latlng: [], left_torque_effectiveness: [], right_torque_effectiveness: [], left_pedal_smoothness: [], right_pedal_smoothness: [], left_platform_center_offset: [], right_platform_center_offset: [] };
   records.forEach(r => {
     out.time.push((r.timestamp || 0) - t0);
     out.watts.push(r.power      ?? null);
@@ -16279,12 +16284,20 @@ function fitRecordsToStreams(records) {
     out.altitude.push(r.altitude ?? null);
     out.temp.push(r.temperature ?? null);        // °C — Garmin ambient temp sensor
     out.latlng.push((r.lat != null && r.lng != null) ? [r.lat, r.lng] : null);
+    out.left_torque_effectiveness.push(r.left_torque_effectiveness ?? null);
+    out.right_torque_effectiveness.push(r.right_torque_effectiveness ?? null);
+    out.left_pedal_smoothness.push(r.left_pedal_smoothness ?? null);
+    out.right_pedal_smoothness.push(r.right_pedal_smoothness ?? null);
     out.left_platform_center_offset.push(r.left_platform_center_offset ?? null);
     out.right_platform_center_offset.push(r.right_platform_center_offset ?? null);
   });
   // Drop streams with no real data (all nulls)
   if (out.latlng.every(p => p === null)) delete out.latlng;
   if (out.temp.every(v => v === null))   delete out.temp;
+  if (out.left_torque_effectiveness.every(v => v === null))  delete out.left_torque_effectiveness;
+  if (out.right_torque_effectiveness.every(v => v === null)) delete out.right_torque_effectiveness;
+  if (out.left_pedal_smoothness.every(v => v === null))      delete out.left_pedal_smoothness;
+  if (out.right_pedal_smoothness.every(v => v === null))     delete out.right_pedal_smoothness;
   if (out.left_platform_center_offset.every(v => v === null))  delete out.left_platform_center_offset;
   if (out.right_platform_center_offset.every(v => v === null)) delete out.right_platform_center_offset;
   return out;
@@ -19439,6 +19452,103 @@ function _pcoDrawPedal(svgId, offsetMm, side) {
     <text x="${cx}" y="108" text-anchor="middle" font-size="13" font-weight="700"
           fill="${col}" font-family="'Inter',sans-serif">${sign}${Math.round(offsetMm)} mm</text>
   `;
+}
+
+function renderDetailCyclingDynamics(streams, activity) {
+  const card = document.getElementById('detailDynCard');
+  if (!card) return;
+
+  const teL = streams.left_torque_effectiveness  || [];
+  const teR = streams.right_torque_effectiveness || [];
+  const psL = streams.left_pedal_smoothness      || [];
+  const psR = streams.right_pedal_smoothness     || [];
+  const time = streams.time || [];
+
+  const hasTE = teL.some(v => v != null && v > 0) || teR.some(v => v != null && v > 0);
+  const hasPS = psL.some(v => v != null && v > 0) || psR.some(v => v != null && v > 0);
+
+  if (!hasTE && !hasPS) { card.style.display = 'none'; return; }
+  card.style.display = '';
+
+  const avg = arr => {
+    const v = arr.filter(x => x != null && x > 0);
+    return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null;
+  };
+  const fmt = v => v != null ? v.toFixed(1) + '%' : '—';
+
+  const avgTEL = avg(teL), avgTER = avg(teR);
+  const avgPSL = avg(psL), avgPSR = avg(psR);
+
+  // Badge: average torque effectiveness
+  const avgTE = [avgTEL, avgTER].filter(v => v != null);
+  const overallTE = avgTE.length ? avgTE.reduce((s, v) => s + v, 0) / avgTE.length : null;
+  const badgeEl = document.getElementById('detailDynBadge');
+  if (badgeEl && overallTE != null) {
+    badgeEl.textContent = fmt(overallTE) + ' TE';
+    badgeEl.style.color = overallTE >= 90 ? ACCENT : overallTE >= 80 ? C_YELLOW : C_RED;
+  }
+
+  // Torque Effectiveness section
+  const teSection = document.getElementById('detailDynTESection');
+  if (teSection) teSection.style.display = hasTE ? '' : 'none';
+  if (hasTE) {
+    document.getElementById('detailDynTEL').textContent = fmt(avgTEL);
+    document.getElementById('detailDynTER').textContent = fmt(avgTER);
+    // TE bar: 0–100% range
+    document.getElementById('detailDynTEBarL').style.width = (avgTEL ?? 0) + '%';
+    document.getElementById('detailDynTEBarR').style.width = (avgTER ?? 0) + '%';
+  }
+
+  // Pedal Smoothness section
+  const psSection = document.getElementById('detailDynPSSection');
+  if (psSection) psSection.style.display = hasPS ? '' : 'none';
+  if (hasPS) {
+    document.getElementById('detailDynPSL').textContent = fmt(avgPSL);
+    document.getElementById('detailDynPSR').textContent = fmt(avgPSR);
+    // PS bar: typical max ~40%, so scale × 2.5 for visual clarity
+    document.getElementById('detailDynPSBarL').style.width = Math.min(100, (avgPSL ?? 0) * 2.5) + '%';
+    document.getElementById('detailDynPSBarR').style.width = Math.min(100, (avgPSR ?? 0) * 2.5) + '%';
+  }
+
+  // Torque Effectiveness time chart
+  if (!hasTE) { card.querySelector('.chart-wrap')?.setAttribute('style', 'display:none'); return; }
+
+  const step = Math.max(1, Math.floor(Math.max(teL.length, teR.length) / 300));
+  const labels = [], dL = [], dR = [];
+  for (let i = 0; i < Math.max(teL.length, teR.length); i += step) {
+    const s = time[i] ?? i;
+    labels.push(`${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`);
+    dL.push(teL[i] ?? null);
+    dR.push(teR[i] ?? null);
+  }
+
+  state._detailDynChart = destroyChart(state._detailDynChart);
+  const ctx = document.getElementById('detailDynChart')?.getContext('2d');
+  if (!ctx) return;
+
+  state._detailDynChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Left TE',  data: dL, borderColor: '#4a9eff', borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: false, spanGaps: true },
+        { label: 'Right TE', data: dR, borderColor: '#e84393', borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: false, spanGaps: true },
+      ],
+    },
+    options: {
+      animation: false,
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false,
+        callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y?.toFixed(1) ?? '—'}%` } } },
+      scales: {
+        x: { display: false },
+        y: { min: 50, max: 100, grid: { color: 'rgba(255,255,255,0.05)' },
+          ticks: { color: 'rgba(255,255,255,0.4)', font: { size: 10 },
+            callback: v => v + '%' } },
+      },
+    },
+  });
 }
 
 function renderDetailPlatformOffset(streams, activity) {

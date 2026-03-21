@@ -2914,6 +2914,68 @@
                         </div>
                     </div>
 
+                    <!-- Cycling Dynamics (Assioma: torque effectiveness + pedal smoothness) -->
+                    <div class="card" id="detailDynCard" style="display:none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><circle cx="12" cy="12" r="3"/></svg>Cycling Dynamics</div>
+                                <div class="card-subtitle">Torque effectiveness &amp; pedal smoothness</div>
+                            </div>
+                            <span class="detail-lrbal-badge" id="detailDynBadge"></span>
+                        </div>
+                        <!-- Torque Effectiveness -->
+                        <div class="dyn-metric-section" id="detailDynTESection">
+                            <div class="dyn-metric-title">
+                                <span>Torque Effectiveness</span>
+                                <span class="dyn-metric-hint">How efficiently force is applied</span>
+                            </div>
+                            <div class="dyn-lr-row">
+                                <div class="dyn-lr-side">
+                                    <span class="dyn-lr-label">L</span>
+                                    <span class="dyn-lr-val" id="detailDynTEL">—</span>
+                                    <div class="dyn-bar-track"><div class="dyn-bar-fill dyn-bar-fill--blue" id="detailDynTEBarL"></div></div>
+                                </div>
+                                <div class="dyn-lr-divider"></div>
+                                <div class="dyn-lr-side">
+                                    <span class="dyn-lr-label">R</span>
+                                    <span class="dyn-lr-val" id="detailDynTER">—</span>
+                                    <div class="dyn-bar-track"><div class="dyn-bar-fill dyn-bar-fill--pink" id="detailDynTEBarR"></div></div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Pedal Smoothness -->
+                        <div class="dyn-metric-section dyn-metric-section--divider" id="detailDynPSSection">
+                            <div class="dyn-metric-title">
+                                <span>Pedal Smoothness</span>
+                                <span class="dyn-metric-hint">Circular vs. mashing pedal stroke</span>
+                            </div>
+                            <div class="dyn-lr-row">
+                                <div class="dyn-lr-side">
+                                    <span class="dyn-lr-label">L</span>
+                                    <span class="dyn-lr-val" id="detailDynPSL">—</span>
+                                    <div class="dyn-bar-track"><div class="dyn-bar-fill dyn-bar-fill--blue" id="detailDynPSBarL"></div></div>
+                                </div>
+                                <div class="dyn-lr-divider"></div>
+                                <div class="dyn-lr-side">
+                                    <span class="dyn-lr-label">R</span>
+                                    <span class="dyn-lr-val" id="detailDynPSR">—</span>
+                                    <div class="dyn-bar-track"><div class="dyn-bar-fill dyn-bar-fill--pink" id="detailDynPSBarR"></div></div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Time chart -->
+                        <div class="card-header" style="padding-top:0;padding-bottom:8px">
+                            <div class="card-subtitle" style="padding-left:0">Torque effectiveness over time</div>
+                            <div class="chart-legend">
+                                <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#4a9eff"></span>Left</span>
+                                <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#e84393"></span>Right</span>
+                            </div>
+                        </div>
+                        <div class="chart-wrap" style="height:140px">
+                            <canvas id="detailDynChart"></canvas>
+                        </div>
+                    </div>
+
                     <!-- Power zones + HR zones side by side / swipe carousel on mobile -->
                     <div class="detail-zones-carousel-card" id="detailZonesCarouselCard" style="display:none">
                         <div class="detail-zones-row" id="detailZonesRow">
