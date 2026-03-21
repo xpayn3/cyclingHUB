@@ -13941,7 +13941,7 @@ function _initCalScrubbers() {
     scrubber.addEventListener('pointermove', e => {
       if (!dragging) return;
       const delta = e.clientX - dragStartX;
-      applyStep(dragStartStep + delta / _CEV_PX_PER_STEP);
+      applyStep(dragStartStep - delta / _CEV_PX_PER_STEP);
     });
 
     const endDrag = () => {
