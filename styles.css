@@ -15969,16 +15969,19 @@ body:has(.act-sheet-mode) .topbar {
     border-radius: var(--radius-concentric);
 }
 
-/* Inside overlay sheets on desktop, modal-body must NOT be a separate scroll
-   container — the sheet itself scrolls. On mobile the sheet is full-screen
-   so modal-body IS the scroll container (handled in the 600px media query). */
+/* On desktop: sheet is a flex column, header is fixed, body scrolls */
 @media (min-width: 601px) {
+    .wxd-sheet {
+        display: flex;
+        flex-direction: column;
+    }
+    .wxd-sheet .modal-header {
+        flex-shrink: 0;
+    }
     .wxd-sheet .modal-body {
-        overflow-y: visible !important;
-        -webkit-overflow-scrolling: unset !important;
-        overscroll-behavior-y: unset !important;
-        flex: unset !important;
-        min-height: unset !important;
+        flex: 1;
+        overflow-y: auto;
+        min-height: 0;
     }
 }
 
