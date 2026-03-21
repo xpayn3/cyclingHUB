@@ -1687,6 +1687,11 @@ body.sheet-locked .page-content {
     align-items: flex-start;
     justify-content: space-between;
 }
+.wxd-sheet .modal-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+}
 .modal-header-icon {
     width: 44px;
     height: 44px;
