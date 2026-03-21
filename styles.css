@@ -14836,9 +14836,33 @@ body:has(.act-sheet-mode) .topbar {
     z-index: 1;
 }
 
-/* Weather location switcher — transparent over gradient */
+/* Hide scroll-edge overlay on weather page — gradient bg handles it */
+.page-content.has-scroll-edge:has(#page-weather.active)::before {
+    display: none;
+}
+
+/* Weather location switcher — transparent over gradient with fade edge */
 #weatherPageContent .wx-loc-switcher {
     background: transparent;
+}
+#weatherPageContent .wx-loc-switcher {
+    overflow: visible;
+}
+#weatherPageContent .wx-loc-switcher::after {
+    content: '';
+    position: absolute;
+    left: -16px;
+    right: -16px;
+    top: 100%;
+    height: 30px;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.15) 50%, transparent 100%);
+    pointer-events: none;
+    z-index: -1;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+#weatherPageContent .wx-loc-switcher.is-stuck::after {
+    opacity: 1;
 }
 
 /* Glass cards on weather page */
@@ -14904,7 +14928,7 @@ body:has(.act-sheet-mode) .topbar {
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--text-muted);
-    padding: 12px 16px 10px;
+    padding: 12px 0 10px;
     border-bottom: none;
 }
 .aw-card-label svg {
@@ -14915,11 +14939,15 @@ body:has(.act-sheet-mode) .topbar {
 }
 
 /* Hourly forecast strip */
+.aw-card:has(.aw-hourly-scroll) {
+    overflow: visible;
+}
 .aw-hourly-scroll {
     display: flex;
     gap: 0;
     overflow-x: auto;
-    padding: 12px 8px 14px;
+    padding: 12px 16px 14px;
+    margin: 0 -16px;
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
     cursor: grab;
@@ -14927,6 +14955,127 @@ body:has(.act-sheet-mode) .topbar {
 }
 .aw-hourly-scroll::-webkit-scrollbar { display: none; }
 .aw-hourly-scroll.is-dragging { cursor: grabbing; }
+
+/* Temperature curve chart */
+.aw-tcurve-wrap {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    margin: 0 -16px;
+    padding: 0 16px;
+}
+.aw-tcurve-wrap::-webkit-scrollbar { display: none; }
+.aw-tcurve-periods {
+    position: relative;
+    height: 20px;
+    margin-bottom: 4px;
+}
+.aw-tcurve-period {
+    position: absolute;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+    transform: translateX(-50%);
+}
+.aw-tcurve-chart {
+    position: relative;
+}
+.aw-tcurve-svg {
+    width: 100%;
+    height: 150px;
+    display: block;
+}
+.aw-tcurve-icon-overlay {
+    position: absolute;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    pointer-events: none;
+}
+.aw-tcurve-col {
+    position: absolute;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+.aw-tcurve-icon {
+    width: 24px;
+    height: 24px;
+}
+.aw-tcurve-icon svg { width: 100%; height: 100%; }
+.aw-tcurve-precip {
+    font-size: 10px;
+    font-weight: 600;
+    color: #60A5FA;
+    font-family: var(--font-num);
+}
+.aw-tcurve-timeline {
+    position: relative;
+    height: 24px;
+    margin-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    padding-top: 8px;
+}
+.aw-tcurve-time-mark {
+    position: absolute;
+    transform: translateX(-50%);
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+    white-space: nowrap;
+}
+.aw-tcurve-time--now {
+    color: var(--accent);
+    font-weight: 700;
+}
+
+/* Rain bar chart */
+.aw-rain-chart {
+    position: relative;
+    padding-top: 8px;
+}
+.aw-rain-icons {
+    position: relative;
+    height: 32px;
+}
+.aw-rain-bars {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    height: 100px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.aw-rain-col {
+    position: absolute;
+    bottom: 0;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+.aw-rain-val {
+    font-size: 11px;
+    font-weight: 600;
+    font-family: var(--font-num);
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+.aw-rain-bar {
+    width: 20px;
+    background: #60A5FA;
+    border-radius: 4px 4px 0 0;
+    min-height: 2px;
+    opacity: 0.85;
+}
 
 .aw-hour {
     flex: 0 0 60px;
@@ -15407,43 +15556,72 @@ body:has(.act-sheet-mode) .topbar {
     width: 14px;
     height: 14px;
 }
-/* Detail rows */
-.aw-sun-card-details {
+/* Sun stat row – 3 columns */
+.aw-sun-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
     margin-top: 16px;
-    background: var(--border);
-    border-radius: var(--radius);
-    overflow: hidden;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
-.aw-sun-detail {
+.aw-sun-stat {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 10px;
-    padding: 14px 14px;
-    background: var(--card-bg);
+    gap: 4px;
+    padding: 14px 4px;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
 }
-.aw-sun-detail-icon {
-    width: 22px;
-    height: 22px;
-    flex-shrink: 0;
-    opacity: 0.8;
+.aw-sun-stat:last-child { border-right: none; }
+.aw-sun-stat-icon {
+    width: 20px;
+    height: 20px;
+    opacity: 0.7;
 }
-.aw-sun-detail-icon svg { width: 100%; height: 100%; }
-.aw-sun-detail-label {
+.aw-sun-stat-icon svg { width: 100%; height: 100%; }
+.aw-sun-stat-label {
     font-size: 11px;
     font-weight: 500;
     color: var(--text-muted);
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
 }
-.aw-sun-detail-val {
+.aw-sun-stat-val {
     font-size: var(--text-base);
     font-weight: 600;
     font-family: var(--font-num);
     color: var(--text-primary);
     letter-spacing: -0.2px;
+    white-space: nowrap;
+}
+/* Golden hour row */
+.aw-sun-golden {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.aw-sun-golden .aw-sun-stat-icon {
+    width: 18px;
+    height: 18px;
+    opacity: 0.7;
+    flex-shrink: 0;
+}
+.aw-sun-golden-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+.aw-sun-golden-val {
+    margin-left: auto;
+    font-size: var(--text-base);
+    font-weight: 600;
+    font-family: var(--font-num);
+    color: var(--text-primary);
+    white-space: nowrap;
 }
 .aw-sun-card-tomorrow {
     text-align: center;

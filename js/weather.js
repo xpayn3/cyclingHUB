@@ -664,13 +664,17 @@ export async function renderWeatherForecast() {
 export function _buildSunArc(sunProgress, heroSr, heroSs) {
   const p = Math.max(0, Math.min(1, sunProgress));
   const isDay = sunProgress >= 0 && sunProgress <= 1;
-  const W = 240, H = 72, PAD = 20;
-  const arcD = 'M' + PAD + ',' + H + ' Q' + (W/2) + ',' + (-H*0.7) + ' ' + (W-PAD) + ',' + H;
-  // Sun position on quadratic bezier
+  const W = 240, BASE = 80, PAD = 20;
+  const H = BASE;
+  // Bell curve / gaussian shape like Apple Weather — steep sides, pointed peak
+  const cx1 = PAD + (W - 2*PAD) * 0.38, cy1 = -BASE * 0.15;
+  const cx2 = W - PAD - (W - 2*PAD) * 0.38, cy2 = -BASE * 0.15;
+  const arcD = 'M' + PAD + ',' + BASE + ' C' + cx1 + ',' + cy1 + ' ' + cx2 + ',' + cy2 + ' ' + (W-PAD) + ',' + BASE;
+  // Sun position on cubic bezier
   const t = p;
-  const x0 = PAD, y0 = H, x1 = W/2, y1 = -H*0.7, x2 = W-PAD, y2 = H;
-  const sx = (1-t)*(1-t)*x0 + 2*(1-t)*t*x1 + t*t*x2;
-  const sy = (1-t)*(1-t)*y0 + 2*(1-t)*t*y1 + t*t*y2;
+  const x0 = PAD, y0 = H, x3 = W-PAD, y3 = H;
+  const sx = (1-t)*(1-t)*(1-t)*x0 + 3*(1-t)*(1-t)*t*cx1 + 3*(1-t)*t*t*cx2 + t*t*t*x3;
+  const sy = (1-t)*(1-t)*(1-t)*y0 + 3*(1-t)*(1-t)*t*cy1 + 3*(1-t)*t*t*cy2 + t*t*t*y3;
   const isNight = !isDay;
   const primaryLabel = isNight ? 'SUNRISE' : 'SUNSET';
   const primaryTime = isNight ? heroSr : heroSs;
@@ -681,7 +685,7 @@ export function _buildSunArc(sunProgress, heroSr, heroSs) {
   const dotColor = isDay ? '#FFD93D' : 'rgba(255,217,61,0.4)';
   const dotStroke = isDay ? '#FFB800' : 'rgba(255,184,0,0.4)';
 
-  let svg = '<svg class="aw-sun-svg" viewBox="0 0 ' + W + ' ' + (H + 12) + '" preserveAspectRatio="xMidYMid meet">';
+  let svg = '<svg class="aw-sun-svg" viewBox="0 0 ' + W + ' ' + (BASE + 12) + '" preserveAspectRatio="xMidYMid meet">';
   // Filled area under the traversed arc (subtle glow)
   if (isDay && t > 0.02) {
     // Build the fill: arc up to current point, then line back to start
@@ -689,8 +693,8 @@ export function _buildSunArc(sunProgress, heroSr, heroSs) {
     var steps = Math.ceil(t * 30);
     for (var s = 0; s <= steps; s++) {
       var tt = (s / steps) * t;
-      var fx = (1-tt)*(1-tt)*x0 + 2*(1-tt)*tt*x1 + tt*tt*x2;
-      var fy = (1-tt)*(1-tt)*y0 + 2*(1-tt)*tt*y1 + tt*tt*y2;
+      var fx = (1-tt)*(1-tt)*(1-tt)*x0 + 3*(1-tt)*(1-tt)*tt*cx1 + 3*(1-tt)*tt*tt*cx2 + tt*tt*tt*x3;
+      var fy = (1-tt)*(1-tt)*(1-tt)*y0 + 3*(1-tt)*(1-tt)*tt*cy1 + 3*(1-tt)*tt*tt*cy2 + tt*tt*tt*y3;
       fillArc += ' L' + fx.toFixed(1) + ',' + fy.toFixed(1);
     }
     fillArc += ' L' + sx.toFixed(1) + ',' + H + ' Z';
@@ -797,7 +801,7 @@ export async function renderWeatherPage(_restoreScrollY) {
     const url = `https://api.open-meteo.com/v1/forecast` +
       `?latitude=${lat.toFixed(4)}&longitude=${lng.toFixed(4)}` +
       `&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,windspeed_10m_max,winddirection_10m_dominant,uv_index_max,sunrise,sunset` +
-      `&hourly=temperature_2m,precipitation_probability,weathercode,windspeed_10m` +
+      `&hourly=temperature_2m,precipitation_probability,precipitation,weathercode,windspeed_10m` +
       `&current=temperature_2m,weathercode,windspeed_10m,winddirection_10m,relative_humidity_2m,apparent_temperature,precipitation,cloud_cover,surface_pressure,uv_index,visibility,is_day` +
       `&timezone=auto&forecast_days=7` +
       `&temperature_unit=${tUnit}&wind_speed_unit=${wUnit}&models=${wxModel}`;
@@ -1088,8 +1092,9 @@ export async function renderWeatherPage(_restoreScrollY) {
 
   // Hourly strip for main page (from current hour, ~24h)
   let hourlyStripHtml = '';
+  let tempCurveHtml = '';
   if (data.hourly) {
-    const { time: hTimes, temperature_2m: hTemps, weathercode: hCodes, precipitation_probability: hPrecip } = data.hourly;
+    const { time: hTimes, temperature_2m: hTemps, weathercode: hCodes, precipitation_probability: hPrecip, precipitation: hRainMm } = data.hourly;
     const nowISO = new Date().toISOString().slice(0, 13);
     const startIdx = hTimes.findIndex(t => t.startsWith(nowISO.slice(0, 13)));
     const start = startIdx >= 0 ? startIdx : 0;
@@ -1102,6 +1107,162 @@ export async function renderWeatherPage(_restoreScrollY) {
       const temp = hTemps[hi] != null ? Math.round(hTemps[hi]) : '—';
       const cod = hCodes[hi] ?? 0;
       hourlyStripHtml += `<div class="aw-hour${isNow ? ' aw-hour--now' : ''}"><div class="aw-hour-time">${label}</div><div class="aw-hour-icon">${wmoIcon(cod)}</div><div class="aw-hour-temp">${temp}°</div></div>`;
+    }
+
+    // ── Temperature curve chart ──
+    const cCount = end - start;
+    if (cCount > 2) {
+      const cTemps = [], cLabels = [], cIcons = [], cPrecip = [], cNowIdx = 0;
+      for (let ci = start; ci < end; ci++) {
+        const d = new Date(hTimes[ci]);
+        const hr = d.getHours();
+        const isNow = ci === start;
+        cTemps.push(hTemps[ci] != null ? Math.round(hTemps[ci]) : null);
+        cLabels.push(isNow ? 'Now' : (hr === 0 ? '12am' : hr < 12 ? hr + 'am' : hr === 12 ? '12pm' : (hr - 12) + 'pm'));
+        cIcons.push(hCodes[ci] ?? 0);
+        cPrecip.push(hPrecip?.[ci] ?? 0);
+      }
+      // Show every 3rd hour
+      const step = 3;
+      const pts = [];
+      for (let i = 0; i < cCount; i += step) {
+        if (cTemps[i] != null) pts.push({ i, t: cTemps[i] });
+      }
+      if (pts.length > 1) {
+        const tMin = Math.min(...pts.map(p => p.t));
+        const tMax = Math.max(...pts.map(p => p.t));
+        const tRange = tMax - tMin || 1;
+        const colW = 64, chartH = 80, padTop = 56, padBot = 8;
+        const totalW = (pts.length - 1) * colW + 40;
+        const svgH = chartH + padTop + padBot;
+        // Map temp to y
+        const yOf = t => padTop + (1 - (t - tMin) / tRange) * chartH;
+        // Build points
+        const coords = pts.map((p, idx) => ({ x: 20 + idx * colW, y: yOf(p.t) }));
+        // Smooth cubic spline path
+        let path = 'M' + coords[0].x + ',' + coords[0].y;
+        for (let ci = 0; ci < coords.length - 1; ci++) {
+          const c = coords[ci], n = coords[ci + 1];
+          const cpx = (n.x - c.x) * 0.4;
+          path += ' C' + (c.x + cpx) + ',' + c.y + ' ' + (n.x - cpx) + ',' + n.y + ' ' + n.x + ',' + n.y;
+        }
+        // Fill path under curve
+        const fillPath = path + ' L' + coords[coords.length-1].x + ',' + (svgH) + ' L' + coords[0].x + ',' + (svgH) + ' Z';
+
+        let curveSvg = `<svg class="aw-tcurve-svg" viewBox="0 0 ${totalW} ${svgH}" preserveAspectRatio="none">`;
+        curveSvg += `<path d="${fillPath}" fill="url(#tcGrad)" opacity="0.15"/>`;
+        curveSvg += `<defs><linearGradient id="tcGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--accent)"/><stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>`;
+        curveSvg += `<path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+        // Dots + temp labels
+        coords.forEach((c, idx) => {
+          const isNow = pts[idx].i === 0;
+          curveSvg += `<circle cx="${c.x}" cy="${c.y}" r="${isNow ? 5 : 3.5}" fill="${isNow ? 'var(--accent)' : 'rgba(255,255,255,0.9)'}" stroke="${isNow ? '#fff' : 'none'}" stroke-width="${isNow ? 2 : 0}"/>`;
+          curveSvg += `<text x="${c.x}" y="${c.y - 14}" text-anchor="middle" fill="var(--text-primary)" font-size="12" font-weight="600" font-family="var(--font-num)">${pts[idx].t}°</text>`;
+        });
+        curveSvg += '</svg>';
+
+        // Weather icons overlaid above temp labels on chart
+        let iconOverlayHtml = '';
+        coords.forEach((c, idx) => {
+          const precip = cPrecip[pts[idx].i];
+          const precipStr = precip > 0 ? `<div class="aw-tcurve-precip">${precip}%</div>` : '';
+          // Position icon above the temp text (which is at y - 14 in SVG coords)
+          // SVG viewBox height is svgH, CSS height is 120px, so scale: 120/svgH
+          const scale = 120 / svgH;
+          const topPx = (c.y - 38) * scale;
+          iconOverlayHtml += `<div class="aw-tcurve-icon-overlay" style="left:${c.x}px;top:${topPx}px">
+            <div class="aw-tcurve-icon">${wmoIcon(cIcons[pts[idx].i])}</div>
+            ${precipStr}
+          </div>`;
+        });
+        // Separate time strip
+        let timeHtml = '';
+        pts.forEach((p, idx) => {
+          timeHtml += `<span class="aw-tcurve-time-mark${p.i === 0 ? ' aw-tcurve-time--now' : ''}" style="left:${20 + idx * colW}px">${cLabels[p.i]}</span>`;
+        });
+
+        // Period headers — centered across each period's column span (sequential grouping)
+        const getPeriod = hr => {
+          if (hr >= 5 && hr < 12) return 'Morning';
+          if (hr >= 12 && hr < 17) return 'Afternoon';
+          if (hr >= 17 && hr < 21) return 'Evening';
+          return 'Overnight';
+        };
+        const periodRuns = [];
+        let lastPeriod = null;
+        pts.forEach((p, idx) => {
+          const hr = new Date(hTimes[start + p.i]).getHours();
+          const pName = getPeriod(hr);
+          if (pName !== lastPeriod) {
+            periodRuns.push({ name: pName, positions: [] });
+            lastPeriod = pName;
+          }
+          periodRuns[periodRuns.length - 1].positions.push(20 + idx * colW);
+        });
+        let periodHtml = '';
+        // Evenly distribute period labels across the chart width
+        const periodSpacing = totalW / (periodRuns.length + 1);
+        periodRuns.forEach((run, ri) => {
+          const centerX = periodSpacing * (ri + 1);
+          periodHtml += `<span class="aw-tcurve-period" style="left:${centerX}px">${run.name}</span>`;
+        });
+
+        tempCurveHtml = `<div class="card aw-card">
+          <div class="aw-card-label">${WEATHER_SVGS.thermometer || ''} TEMPERATURE</div>
+          <div class="aw-tcurve-wrap">
+            <div class="aw-tcurve-periods">${periodHtml}</div>
+            <div class="aw-tcurve-chart" style="width:${totalW}px">
+              ${curveSvg}
+              ${iconOverlayHtml}
+            </div>
+            <div class="aw-tcurve-timeline" style="width:${totalW}px">${timeHtml}</div>
+          </div>
+        </div>`;
+      }
+    }
+
+    // ── Rain mm bar chart ──
+    const rainData = hRainMm || hPrecip?.map(() => 0) || [];
+    if (cCount > 2) {
+      const rStep = 3;
+      const rPts = [];
+      for (let i = 0; i < cCount; i += rStep) {
+        const mm = rainData[start + i] ?? 0;
+        const hr = new Date(hTimes[start + i]).getHours();
+        const isNow = i === 0;
+        const label = isNow ? 'Now' : (hr === 0 ? '12am' : hr < 12 ? hr + 'am' : hr === 12 ? '12pm' : (hr - 12) + 'pm');
+        rPts.push({ i, mm, label, isNow, code: hCodes[start + i] ?? 0 });
+      }
+      const rMax = Math.max(...rPts.map(p => p.mm), 1);
+      const rColW = 64, rBarMaxH = 80, rTotalW = (rPts.length - 1) * rColW + 40;
+
+      let rainBarsHtml = '';
+      let rainTimeHtml = '';
+      let rainIconsHtml = '';
+      rPts.forEach((p, idx) => {
+        const x = 20 + idx * rColW;
+        const barH = (p.mm / rMax) * rBarMaxH;
+        const mmLabel = p.mm > 0 ? (p.mm < 0.1 ? p.mm.toFixed(2) : p.mm.toFixed(1)) : '0';
+        rainBarsHtml += `<div class="aw-rain-col" style="left:${x}px">
+          <div class="aw-rain-val">${mmLabel}</div>
+          <div class="aw-rain-bar" style="height:${Math.max(barH, 2)}px"></div>
+        </div>`;
+        rainIconsHtml += `<div class="aw-tcurve-col" style="left:${x}px">
+          <div class="aw-tcurve-icon">${wmoIcon(p.code)}</div>
+        </div>`;
+        rainTimeHtml += `<span class="aw-tcurve-time-mark${p.isNow ? ' aw-tcurve-time--now' : ''}" style="left:${x}px">${p.label}</span>`;
+      });
+
+      tempCurveHtml += `<div class="card aw-card">
+        <div class="aw-card-label">${WEATHER_SVGS.rain || ''} PRECIPITATION</div>
+        <div class="aw-tcurve-wrap">
+          <div class="aw-rain-chart" style="width:${rTotalW}px">
+            <div class="aw-rain-icons" style="width:${rTotalW}px">${rainIconsHtml}</div>
+            <div class="aw-rain-bars">${rainBarsHtml}</div>
+          </div>
+          <div class="aw-tcurve-timeline" style="width:${rTotalW}px">${rainTimeHtml}</div>
+        </div>
+      </div>`;
     }
   }
 
@@ -1173,6 +1334,8 @@ export async function renderWeatherPage(_restoreScrollY) {
       <div class="aw-card-label">HOURLY FORECAST</div>
       <div class="aw-hourly-scroll">${hourlyStripHtml}</div>
     </div>` : ''}
+
+    ${tempCurveHtml}
 
     <!-- 7-Day Forecast -->
     <div class="card aw-card">
@@ -1316,35 +1479,27 @@ export async function renderWeatherPage(_restoreScrollY) {
           </div>
         </div>
         ${_buildSunArc(sunProgress, heroSr, heroSs)}
-        <div class="aw-sun-card-details">
-          <div class="aw-sun-detail">
-            <div class="aw-sun-detail-icon">${WEATHER_SVGS.sunrise_icon}</div>
-            <div class="aw-sun-detail-info">
-              <div class="aw-sun-detail-label">Sunrise</div>
-              <div class="aw-sun-detail-val">${heroSr}</div>
-            </div>
+        <div class="aw-sun-row">
+          <div class="aw-sun-stat">
+            <div class="aw-sun-stat-icon">${WEATHER_SVGS.sunrise_icon}</div>
+            <div class="aw-sun-stat-label">Sunrise</div>
+            <div class="aw-sun-stat-val">${heroSr}</div>
           </div>
-          <div class="aw-sun-detail">
-            <div class="aw-sun-detail-icon">${WEATHER_SVGS.sunset_icon}</div>
-            <div class="aw-sun-detail-info">
-              <div class="aw-sun-detail-label">Sunset</div>
-              <div class="aw-sun-detail-val">${heroSs}</div>
-            </div>
+          <div class="aw-sun-stat">
+            <div class="aw-sun-stat-icon">${WEATHER_SVGS.sunset_icon}</div>
+            <div class="aw-sun-stat-label">Sunset</div>
+            <div class="aw-sun-stat-val">${heroSs}</div>
           </div>
-          <div class="aw-sun-detail">
-            <div class="aw-sun-detail-icon">${WEATHER_SVGS.sun}</div>
-            <div class="aw-sun-detail-info">
-              <div class="aw-sun-detail-label">Daylight</div>
-              <div class="aw-sun-detail-val">${daylightHrs}h ${daylightMin}m</div>
-            </div>
+          <div class="aw-sun-stat">
+            <div class="aw-sun-stat-icon">${WEATHER_SVGS.sun}</div>
+            <div class="aw-sun-stat-label">Daylight</div>
+            <div class="aw-sun-stat-val">${daylightHrs}h ${daylightMin}m</div>
           </div>
-          <div class="aw-sun-detail">
-            <div class="aw-sun-detail-icon"><svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="8" fill="#FFB800" opacity="0.2"/><circle cx="20" cy="20" r="5" fill="#FFB800"/></svg></div>
-            <div class="aw-sun-detail-info">
-              <div class="aw-sun-detail-label">Golden Hour</div>
-              <div class="aw-sun-detail-val">${goldenStart} – ${goldenEnd}</div>
-            </div>
-          </div>
+        </div>
+        <div class="aw-sun-golden">
+          <div class="aw-sun-stat-icon"><svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="8" fill="#FFB800" opacity="0.2"/><circle cx="20" cy="20" r="5" fill="#FFB800"/></svg></div>
+          <span class="aw-sun-golden-label">Golden Hour</span>
+          <span class="aw-sun-golden-val">${goldenStart} – ${goldenEnd}</span>
         </div>
         ${tomorrowSr ? `<div class="aw-sun-card-tomorrow">Tomorrow's sunrise: <strong>${tomorrowSr}</strong></div>` : ''}
       </div>
@@ -1359,6 +1514,19 @@ export async function renderWeatherPage(_restoreScrollY) {
     <!-- Footer -->
     <div class="aw-footer">Data from <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> · ${localStorage.getItem('icu_wx_model') || 'best_match'} · ${lat.toFixed(2)}°N, ${lng.toFixed(2)}°E</div>
   `;
+
+  // Detect sticky state on location switcher for fade gradient
+  const switcher = container.querySelector('.wx-loc-switcher');
+  if (switcher && !switcher._stickyObs) {
+    const sentinel = document.createElement('div');
+    sentinel.style.cssText = 'height:1px;margin-bottom:-1px;pointer-events:none;';
+    switcher.parentNode.insertBefore(sentinel, switcher);
+    const obs = new IntersectionObserver(([e]) => {
+      switcher.classList.toggle('is-stuck', !e.isIntersecting);
+    }, { threshold: 0 });
+    obs.observe(sentinel);
+    switcher._stickyObs = obs;
+  }
 
   // Apply weather-based background gradient to the scrollable page container
   const pageContent = document.getElementById('pageContent');
