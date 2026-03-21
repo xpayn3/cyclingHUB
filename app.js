@@ -460,7 +460,7 @@ const _pageChartKeys = {
   zones:     ['znpZoneTimeChart', '_znpDecoupleChart'],
   activity:  ['activityStreamsChart', 'activityPowerChart', 'activityHRChart',
               'activityHistogramChart', 'activityGradientChart', 'activityCadenceChart',
-              'activityCurveChart', 'activityHRCurveChart', '_detailDecoupleChart', '_detailLRBalChart', '_detailPCOChart', '_detailDynChart'],
+              'activityCurveChart', 'activityHRCurveChart', '_detailDecoupleChart', '_detailLRBalChart'],
   routes:    ['_rbElevChart'],
 };
 
@@ -14867,22 +14867,6 @@ async function navigateToActivity(actKey, fromStep = false) {
       normStreams.grade_smooth = computeGradeStream(normStreams.altitude, normStreams.distance);
     }
 
-    // PCO (Platform Center Offset) is NOT in the intervals.icu streams API — only in the FIT binary.
-    // Try for any activity that has power data (catches both single and dual-sided meters).
-    if (!normStreams.left_platform_center_offset &&
-        (normStreams.lrbalance?.some(v => v != null && v > 0) ||
-         normStreams.left_right_balance?.some(v => v != null && v > 0) ||
-         normStreams.watts?.some(v => v != null && v > 0))) {
-      try {
-        const fitBufPCO = await fetchFitFile(actId);
-        if (fitBufPCO) {
-          const fitRecsPCO = parseFitBuffer(fitBufPCO);
-          const fitStrPCO  = fitRecordsToStreams(fitRecsPCO);
-          if (fitStrPCO?.left_platform_center_offset)  normStreams.left_platform_center_offset  = fitStrPCO.left_platform_center_offset;
-          if (fitStrPCO?.right_platform_center_offset) normStreams.right_platform_center_offset = fitStrPCO.right_platform_center_offset;
-        }
-      } catch (_) { /* FIT unavailable — PCO card will stay hidden */ }
-    }
 
     // If icu_hr_zone_times still not present, compute it from the HR stream
     if (!Array.isArray(richActivity.icu_hr_zone_times) || richActivity.icu_hr_zone_times.length === 0) {
@@ -15007,8 +14991,6 @@ async function navigateToActivity(actKey, fromStep = false) {
     renderDetailPerformance(richActivity, actId, normStreams);
     renderDetailDecoupleChart(normStreams, richActivity);
     renderDetailLRBalance(normStreams, richActivity);
-    renderDetailCyclingDynamics(normStreams, richActivity);
-    renderDetailPlatformOffset(normStreams, richActivity);
     renderDetailZones(richActivity);
     renderDetailHRZones(richActivity);
     initZonesCarousel();
@@ -15652,7 +15634,6 @@ function destroyChartInstances() {
   window._tempChart = destroyChart(window._tempChart);
   state._detailDecoupleChart = destroyChart(state._detailDecoupleChart);
   state._detailLRBalChart = destroyChart(state._detailLRBalChart);
-  state._detailPCOChart = destroyChart(state._detailPCOChart);
   // Clear NA overlays so they don't double-up
   _DETAIL_CARD_IDS.forEach(id => {
     const el = document.getElementById(id);
@@ -19415,231 +19396,6 @@ function renderDetailLRBalance(streams, activity) {
   unskeletonCard('detailLRBalanceCard');
 }
 
-/* ── Platform Center Offset (Assioma / power pedals) ── */
-function _pcoDrawPedal(svgId, offsetMm, side) {
-  const svg = document.getElementById(svgId);
-  if (!svg || offsetMm == null) return;
-
-  const PX = 18, PY = 10, PW = 82, PH = 72;
-  const cx = PX + PW / 2;
-  const spindleX = side === 'left' ? PX - 13 : PX + PW;
-
-  // Scale: ±15 mm → ±(PW * 0.38) px
-  const clamp = Math.max(-15, Math.min(15, offsetMm));
-  const ox = cx + (clamp / 15) * (PW * 0.38);
-
-  const col = Math.abs(offsetMm) < 3 ? '#00e5a0' : Math.abs(offsetMm) < 8 ? '#ff9f0a' : '#ff453a';
-  const sign = offsetMm >= 0 ? '+' : '';
-  // Outer edge is +, inner is − (outer = away from bike)
-  const leftLbl  = side === 'left'  ? '+' : '−';
-  const rightLbl = side === 'left'  ? '−' : '+';
-
-  svg.innerHTML = `
-    <rect x="${PX}" y="${PY}" width="${PW}" height="${PH}" rx="6"
-          fill="rgba(130,130,130,0.2)" stroke="rgba(200,200,200,0.18)" stroke-width="1"/>
-    <rect x="${PX+10}" y="${PY+PH-14}" width="${PW-20}" height="5" rx="2" fill="rgba(90,90,90,0.5)"/>
-    <rect x="${PX+10}" y="${PY+PH-7}" width="${PW-20}" height="5" rx="2" fill="rgba(90,90,90,0.5)"/>
-    <rect x="${spindleX}" y="${PY+15}" width="13" height="24" rx="3"
-          fill="rgba(110,110,110,0.45)" stroke="rgba(200,200,200,0.12)" stroke-width="1"/>
-    <text x="${PX+7}" y="${PY+PH/2+5}" fill="rgba(255,255,255,0.22)" font-size="13"
-          font-family="'Inter',sans-serif" font-weight="600">${leftLbl}</text>
-    <text x="${PX+PW-13}" y="${PY+PH/2+5}" fill="rgba(255,255,255,0.22)" font-size="13"
-          font-family="'Inter',sans-serif" font-weight="600">${rightLbl}</text>
-    <line x1="${cx}" y1="${PY-6}" x2="${cx}" y2="${PY+PH+6}"
-          stroke="rgba(180,180,180,0.3)" stroke-width="1.5" stroke-dasharray="4,4"/>
-    <line x1="${ox}" y1="${PY-6}" x2="${ox}" y2="${PY+PH+6}"
-          stroke="${col}" stroke-width="2.5"/>
-    <text x="${cx}" y="108" text-anchor="middle" font-size="13" font-weight="700"
-          fill="${col}" font-family="'Inter',sans-serif">${sign}${Math.round(offsetMm)} mm</text>
-  `;
-}
-
-function renderDetailCyclingDynamics(streams, activity) {
-  const card = document.getElementById('detailDynCard');
-  if (!card) return;
-
-  const teL = streams.left_torque_effectiveness  || [];
-  const teR = streams.right_torque_effectiveness || [];
-  const psL = streams.left_pedal_smoothness      || [];
-  const psR = streams.right_pedal_smoothness     || [];
-  const time = streams.time || [];
-
-  const hasTE = teL.some(v => v != null && v > 0) || teR.some(v => v != null && v > 0);
-  const hasPS = psL.some(v => v != null && v > 0) || psR.some(v => v != null && v > 0);
-
-  if (!hasTE && !hasPS) { card.style.display = 'none'; return; }
-  card.style.display = '';
-
-  const avg = arr => {
-    const v = arr.filter(x => x != null && x > 0);
-    return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null;
-  };
-  const fmt = v => v != null ? v.toFixed(1) + '%' : '—';
-
-  const avgTEL = avg(teL), avgTER = avg(teR);
-  const avgPSL = avg(psL), avgPSR = avg(psR);
-
-  // Badge: average torque effectiveness
-  const avgTE = [avgTEL, avgTER].filter(v => v != null);
-  const overallTE = avgTE.length ? avgTE.reduce((s, v) => s + v, 0) / avgTE.length : null;
-  const badgeEl = document.getElementById('detailDynBadge');
-  if (badgeEl && overallTE != null) {
-    badgeEl.textContent = fmt(overallTE) + ' TE';
-    badgeEl.style.color = overallTE >= 90 ? ACCENT : overallTE >= 80 ? C_YELLOW : C_RED;
-  }
-
-  // Torque Effectiveness section
-  const teSection = document.getElementById('detailDynTESection');
-  if (teSection) teSection.style.display = hasTE ? '' : 'none';
-  if (hasTE) {
-    document.getElementById('detailDynTEL').textContent = fmt(avgTEL);
-    document.getElementById('detailDynTER').textContent = fmt(avgTER);
-    // TE bar: 0–100% range
-    document.getElementById('detailDynTEBarL').style.width = (avgTEL ?? 0) + '%';
-    document.getElementById('detailDynTEBarR').style.width = (avgTER ?? 0) + '%';
-  }
-
-  // Pedal Smoothness section
-  const psSection = document.getElementById('detailDynPSSection');
-  if (psSection) psSection.style.display = hasPS ? '' : 'none';
-  if (hasPS) {
-    document.getElementById('detailDynPSL').textContent = fmt(avgPSL);
-    document.getElementById('detailDynPSR').textContent = fmt(avgPSR);
-    // PS bar: typical max ~40%, so scale × 2.5 for visual clarity
-    document.getElementById('detailDynPSBarL').style.width = Math.min(100, (avgPSL ?? 0) * 2.5) + '%';
-    document.getElementById('detailDynPSBarR').style.width = Math.min(100, (avgPSR ?? 0) * 2.5) + '%';
-  }
-
-  // Torque Effectiveness time chart
-  if (!hasTE) { card.querySelector('.chart-wrap')?.setAttribute('style', 'display:none'); return; }
-
-  const step = Math.max(1, Math.floor(Math.max(teL.length, teR.length) / 300));
-  const labels = [], dL = [], dR = [];
-  for (let i = 0; i < Math.max(teL.length, teR.length); i += step) {
-    const s = time[i] ?? i;
-    labels.push(`${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`);
-    dL.push(teL[i] ?? null);
-    dR.push(teR[i] ?? null);
-  }
-
-  state._detailDynChart = destroyChart(state._detailDynChart);
-  const ctx = document.getElementById('detailDynChart')?.getContext('2d');
-  if (!ctx) return;
-
-  state._detailDynChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [
-        { label: 'Left TE',  data: dL, borderColor: '#4a9eff', borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: false, spanGaps: true },
-        { label: 'Right TE', data: dR, borderColor: '#e84393', borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: false, spanGaps: true },
-      ],
-    },
-    options: {
-      animation: false,
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false,
-        callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y?.toFixed(1) ?? '—'}%` } } },
-      scales: {
-        x: { display: false },
-        y: { min: 50, max: 100, grid: { color: 'rgba(255,255,255,0.05)' },
-          ticks: { color: 'rgba(255,255,255,0.4)', font: { size: 10 },
-            callback: v => v + '%' } },
-      },
-    },
-  });
-}
-
-function renderDetailPlatformOffset(streams, activity) {
-  const card = document.getElementById('detailPCOCard');
-  if (!card) return;
-
-  // Support several possible field name formats (intervals.icu / Garmin FIT / camelCase variants)
-  const lData = streams.left_platform_center_offset  || streams.leftPlatformCenterOffset
-             || streams.left_pco || streams.lpco || [];
-  const rData = streams.right_platform_center_offset || streams.rightPlatformCenterOffset
-             || streams.right_pco || streams.rpco || [];
-  const timeArr = streams.time || [];
-
-  const hasLeft  = lData.length > 5 && lData.some(v => v != null);
-  const hasRight = rData.length > 5 && rData.some(v => v != null);
-
-  if (!hasLeft && !hasRight) { card.style.display = 'none'; return; }
-
-  // Compute averages
-  const leftValid  = lData.filter(v => v != null);
-  const rightValid = rData.filter(v => v != null);
-  const avgLeft  = hasLeft  ? leftValid.reduce((s, v) => s + v, 0) / leftValid.length : null;
-  const avgRight = hasRight ? rightValid.reduce((s, v) => s + v, 0) / rightValid.length : null;
-
-  // Draw pedal SVGs
-  if (hasLeft)  _pcoDrawPedal('pcoLeftPedalSVG',  avgLeft,  'left');
-  if (hasRight) _pcoDrawPedal('pcoRightPedalSVG', avgRight, 'right');
-
-  // Badge
-  const badgeEl = document.getElementById('detailPCOBadge');
-  if (badgeEl) {
-    const maxOff = Math.max(Math.abs(avgLeft ?? 0), Math.abs(avgRight ?? 0));
-    badgeEl.textContent = maxOff < 3 ? 'Centered' : maxOff < 8 ? 'Slight offset' : 'Large offset';
-    badgeEl.style.color = maxOff < 3 ? ACCENT : maxOff < 8 ? C_YELLOW : C_RED;
-  }
-
-  // Build scatter datasets — sample without averaging to preserve variability
-  const src = hasLeft ? lData : rData;
-  const step = Math.max(1, Math.floor(src.length / 400));
-  const datasets = [];
-
-  const makePoints = (data) => {
-    const pts = [];
-    data.forEach((v, i) => {
-      if (i % step === 0 && v != null) pts.push({ x: timeArr[i] ?? i, y: v });
-    });
-    return pts;
-  };
-
-  if (hasLeft)  datasets.push({ label: 'Left',  data: makePoints(lData), backgroundColor: ACCENT + 'aa', pointRadius: 2, pointHoverRadius: 4 });
-  if (hasRight) datasets.push({ label: 'Right', data: makePoints(rData), backgroundColor: '#4a9effaa', pointRadius: 2, pointHoverRadius: 4 });
-
-  // Zero reference
-  const maxT = timeArr[timeArr.length - 1] ?? src.length;
-  datasets.push({ label: '_zero', data: [{ x: 0, y: 0 }, { x: maxT, y: 0 }], type: 'line', showLine: true, borderColor: 'rgba(255,255,255,0.18)', borderWidth: 1, borderDash: [6, 4], pointRadius: 0 });
-
-  state._detailPCOChart = destroyChart(state._detailPCOChart);
-  const ctx = document.getElementById('detailPCOChart')?.getContext('2d');
-  if (!ctx) { clearCardNA(card); card.style.display = ''; return; }
-
-  state._detailPCOChart = new Chart(ctx, {
-    type: 'scatter',
-    data: { datasets },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      animation: false,
-      interaction: { mode: 'nearest', intersect: false },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          ...C_TOOLTIP,
-          callbacks: {
-            title: c => {
-              const t = c[0]?.parsed?.x ?? 0;
-              return `${Math.floor(t / 60)}:${String(Math.round(t % 60)).padStart(2, '0')}`;
-            },
-            label: c => c.dataset.label?.startsWith('_') ? null : `${c.dataset.label}: ${c.parsed.y >= 0 ? '+' : ''}${c.parsed.y.toFixed(1)} mm`,
-          }
-        }
-      },
-      scales: {
-        x: { type: 'linear', grid: C_GRID, ticks: { ...C_TICK, maxTicksLimit: 6, callback: v => Math.floor(v / 60) + 'min' } },
-        y: { grid: C_GRID, ticks: { ...C_TICK, callback: v => (v >= 0 ? '+' : '') + v + ' mm' } }
-      }
-    }
-  });
-
-  clearCardNA(card);
-  card.style.display = '';
-  unskeletonCard('detailPCOCard');
-}
 
 function renderDetailZones(activity) {
   const card = document.getElementById('detailZonesCard');
