@@ -12190,7 +12190,7 @@ body:has(.act-sheet-mode) .topbar {
 /* ---- Top bar ---- */
 /* ---- Hero header ---- */
 .wrk-hero {
-    margin-bottom: 16px;
+    margin-bottom: 8px;
 }
 .wrk-hero-top {
     display: flex;
