@@ -24952,12 +24952,15 @@ function _renderProfileRadar() {
     ctx.stroke();
   }
 
-  // Labels + values outside
+  // Labels + values outside — aligned away from chart center
   const lblPrimary = dark ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.7)';
   const lblSecondary = dark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.45)';
   for (let i = 0; i < n; i++) {
-    const p = hexPt(i, maxR + 22);
-    ctx.textAlign = 'center';
+    const angle = startA + i * angleStep;
+    const p = hexPt(i, maxR + 24);
+    // Align text away from center: left side = right-align, right side = left-align, top/bottom = center
+    const cosA = Math.cos(angle);
+    ctx.textAlign = cosA < -0.15 ? 'right' : cosA > 0.15 ? 'left' : 'center';
     ctx.textBaseline = 'middle';
     ctx.font = '600 13px Inter, system-ui, sans-serif';
     ctx.fillStyle = lblPrimary;
