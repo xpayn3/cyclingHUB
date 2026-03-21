@@ -110,31 +110,34 @@ export function wmoLabel(code) {
 
 // Weather-based page gradient
 function wxPageGradient(code, isDay) {
+  // Gradient strategy: weather colour fills the hero/top area then fades
+  // to the app's pure-black background so scrolling down feels natural.
+  // Stops: [weather-top 0%] → [weather-mid 25%] → [#000 65%]
   // Night
   if (!isDay) {
-    if ([51,53,55,61,63,65,66,67,80,81,82].includes(code)) return 'linear-gradient(180deg, #1a2744 0%, #1e3352 40%, #253d5e 100%)';
-    if ([95,96,99].includes(code)) return 'linear-gradient(180deg, #201840 0%, #2e2050 40%, #3d2c62 100%)';
-    if ([71,73,75,77,85,86].includes(code)) return 'linear-gradient(180deg, #2a3448 0%, #354260 50%, #3e4d68 100%)';
-    if ([45,48].includes(code)) return 'linear-gradient(180deg, #262640 0%, #32324e 60%, #2e2e4a 100%)';
-    if (code >= 2) return 'linear-gradient(180deg, #182038 0%, #222e4a 40%, #2a3855 100%)';
-    return 'linear-gradient(180deg, #101840 0%, #1e2a5c 35%, #162450 100%)'; // clear night
+    if ([51,53,55,61,63,65,66,67,80,81,82].includes(code)) return 'linear-gradient(180deg, #1a2744 0%, #1e3352 25%, #000000 65%)';
+    if ([95,96,99].includes(code))                          return 'linear-gradient(180deg, #201840 0%, #2e2050 25%, #000000 65%)';
+    if ([71,73,75,77,85,86].includes(code))                 return 'linear-gradient(180deg, #2a3448 0%, #354260 25%, #000000 65%)';
+    if ([45,48].includes(code))                             return 'linear-gradient(180deg, #262640 0%, #32324e 25%, #000000 65%)';
+    if (code >= 2)                                          return 'linear-gradient(180deg, #182038 0%, #222e4a 25%, #000000 65%)';
+    return 'linear-gradient(180deg, #101840 0%, #1e2a5c 25%, #000000 65%)'; // clear night
   }
   // Thunderstorm
-  if ([95,96,99].includes(code)) return 'linear-gradient(180deg, #2c2c3a 0%, #3d3552 40%, #4a4260 100%)';
+  if ([95,96,99].includes(code))                           return 'linear-gradient(180deg, #2c2c3a 0%, #3d3552 25%, #000000 65%)';
   // Rain / showers / drizzle
-  if ([51,53,55,61,63,65,66,67,80,81,82].includes(code)) return 'linear-gradient(180deg, #3a4a5c 0%, #4a5a6c 40%, #5a6a7c 100%)';
+  if ([51,53,55,61,63,65,66,67,80,81,82].includes(code))  return 'linear-gradient(180deg, #3a4a5c 0%, #4a5a6c 25%, #000000 65%)';
   // Snow
-  if ([71,73,75,77,85,86].includes(code)) return 'linear-gradient(180deg, #6b7b8d 0%, #8a9aac 50%, #a0b0c0 100%)';
+  if ([71,73,75,77,85,86].includes(code))                  return 'linear-gradient(180deg, #6b7b8d 0%, #8a9aac 25%, #000000 65%)';
   // Fog
-  if ([45,48].includes(code)) return 'linear-gradient(180deg, #4a5568 0%, #5a6578 50%, #6b7280 100%)';
+  if ([45,48].includes(code))                              return 'linear-gradient(180deg, #4a5568 0%, #5a6578 25%, #000000 65%)';
   // Overcast
-  if (code === 3) return 'linear-gradient(180deg, #4a5a6c 0%, #5a6a7c 40%, #6a7a8c 100%)';
+  if (code === 3)                                          return 'linear-gradient(180deg, #4a5a6c 0%, #5a6a7c 25%, #000000 65%)';
   // Mostly cloudy
-  if (code === 2) return 'linear-gradient(180deg, #3a5068 0%, #4a6078 40%, #5a7088 100%)';
+  if (code === 2)                                          return 'linear-gradient(180deg, #3a5068 0%, #4a6078 25%, #000000 65%)';
   // Partly cloudy
-  if (code === 1) return 'linear-gradient(180deg, #2a4a6e 0%, #3a6a9e 35%, #4a7ab0 100%)';
+  if (code === 1)                                          return 'linear-gradient(180deg, #2a4a6e 0%, #3a6a9e 25%, #000000 65%)';
   // Clear sky
-  return 'linear-gradient(180deg, #1e3a5f 0%, #2a6cb5 35%, #4a9eda 100%)';
+  return 'linear-gradient(180deg, #1e3a5f 0%, #2a6cb5 25%, #000000 65%)';
 }
 
 // Degrees → compass cardinal
