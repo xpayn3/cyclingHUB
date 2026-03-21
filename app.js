@@ -14360,8 +14360,8 @@ function _initCalScrubbers() {
       applyStep(dragStartStep - delta / _CEV_PX_PER_STEP);
     });
 
-    // Lock vertical scroll only after committed to horizontal drag
-    scrubber.addEventListener('touchmove', e => { if (dragging) e.preventDefault(); }, { passive: false });
+    // Lock vertical scroll during pending + dragging
+    scrubber.addEventListener('touchmove', e => { if (dragging || pending) e.preventDefault(); }, { passive: false });
 
     const endDrag = () => {
       if (pending) { pending = false; return; }
@@ -25573,7 +25573,7 @@ function _initGoalScrubber() {
     applyStep(dragStartStep - (e.clientX - dragStartX) / PX);
   });
 
-  scrubber.addEventListener('touchmove', e => { if (dragging) e.preventDefault(); }, { passive: false });
+  scrubber.addEventListener('touchmove', e => { if (dragging || pending) e.preventDefault(); }, { passive: false });
 
   const endDrag = () => {
     if (pending) { pending = false; return; }
