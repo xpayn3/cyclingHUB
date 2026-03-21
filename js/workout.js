@@ -1,4 +1,4 @@
-/* Workout Builder module — extracted from app.js */
+/* Workout Builder module — v424 */
 import { state } from './state.js';
 
 /* ── Lazy proxies for functions defined in other modules ── */
