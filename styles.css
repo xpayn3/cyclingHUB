@@ -1284,9 +1284,11 @@ code {
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     text-align: center;
     padding: 40px 16px;
     color: var(--text-muted);
+    min-height: 200px;
 }
 .notif-empty svg { margin-bottom: 8px; opacity: 0.4; }
 .notif-clear-btn {
