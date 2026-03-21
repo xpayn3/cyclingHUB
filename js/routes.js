@@ -477,6 +477,14 @@ export function rbCleanupSheetMode() {
     window.removeEventListener('resize', _rbSheetResizeHandler);
     _rbSheetResizeHandler = null;
   }
+  if (_rb._rotateMove) {
+    window.removeEventListener('mousemove', _rb._rotateMove);
+    _rb._rotateMove = null;
+  }
+  if (_rb._rotateUp) {
+    window.removeEventListener('mouseup', _rb._rotateUp);
+    _rb._rotateUp = null;
+  }
 }
 window.rbCleanupSheetMode = rbCleanupSheetMode;
 
@@ -574,7 +582,7 @@ export function _rbInitMap() {
     });
     mapEl.addEventListener('contextmenu', function(e) { e.preventDefault(); });
     let _rbRotateRAF = 0;
-    window.addEventListener('mousemove', function(e) {
+    _rb._rotateMove = function(e) {
       if (!rotating) return;
       const cx = e.clientX, cy = e.clientY;
       if (_rbRotateRAF) return;
@@ -583,15 +591,17 @@ export function _rbInitMap() {
         _rb.map.setBearing(startBearing + (cx - startX) * 0.2);
         _rb.map.setPitch(Math.min(85, Math.max(0, startPitch - (cy - startY) * 0.3)));
       });
-    });
-    window.addEventListener('mouseup', function() {
+    };
+    _rb._rotateUp = function() {
       if (!rotating) return;
       rotating = false;
       _rb.map.dragPan.enable();
       mapEl.style.cursor = '';
       _rb.map.off('click', _rbOnMapClick);
       setTimeout(() => _rb.map.on('click', _rbOnMapClick), 50);
-    });
+    };
+    window.addEventListener('mousemove', _rb._rotateMove);
+    window.addEventListener('mouseup', _rb._rotateUp);
   })();
 
   _rb.map.on('click', _rbOnMapClick);

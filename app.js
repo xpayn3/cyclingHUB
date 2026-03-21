@@ -452,8 +452,8 @@ function lazyRenderChart(canvasId, renderFn) {
 /* ── Chart cleanup on page navigation ── */
 const _pageChartKeys = {
   dashboard: ['weekProgressChart', 'fitnessChart', '_dashFormChart', 'weeklyChart', 'avgPowerChart', 'efSparkChart', 'powerCurveChart', 'powerProfileRadarChart', 'cyclingTrendsChart', 'monotonyChart', 'aeChart', 'rampRateChart', 'pwrHrScatterChart'],
-  fitness:   ['fitnessPageChart', '_fitFormChart', 'fitnessWeeklyPageChart', '_fitZonePieChart', 'fitFatigueChart', 'fitFtpHistChart', 'fitPeriodChart', 'healthRHRChart', 'healthHRVChart', 'healthStepsChart', 'healthWeightChart', 'insightHrvTssChart', 'insightRhrCtlChart', 'insightTssWeightChart', 'insightStepsHrvChart'],
-  power:     ['powerPageChart', 'powerTrendChart'],
+  fitness:   ['fitnessPageChart', '_fitFormChart', 'fitnessWeeklyPageChart', '_fitZonePieChart', 'fitFatigueChart', 'fitFtpHistChart', 'fitPeriodChart', 'healthRHRChart', 'healthHRVChart', 'healthStepsChart', 'healthWeightChart', 'insightHrvTssChart', 'insightRhrCtlChart', 'insightTssWeightChart', 'insightStepsHrvChart', '_fitCTChart', '_fitWTChart', '_fitMonoChart', '_fitAeChart', '_fitRampChart'],
+  power:     ['powerPageChart', 'powerTrendChart', '_pwrPageScatterChart', '_pwrPageProfileChart', '_pwrPageAvgChart'],
   zones:     ['znpZoneTimeChart', '_znpDecoupleChart'],
   activity:  ['activityStreamsChart', 'activityPowerChart', 'activityHRChart',
               'activityHistogramChart', 'activityGradientChart', 'activityCadenceChart',
@@ -497,6 +497,7 @@ function cleanupPageCharts(leavingPage) {
   // Cleanup heatmap sheet
   if (leavingPage === 'heatmap') {
     if (window.hmCleanupSheetMode) hmCleanupSheetMode();
+    if (window._hm && window._hm.animTimer) { clearInterval(window._hm.animTimer); window._hm.animTimer = null; }
   }
   // Clean up card grid maps when leaving activities page
   if (leavingPage === 'activities') {
@@ -2597,6 +2598,11 @@ function navigate(page, opts) {
 
   // Clean up charts from the page we're leaving to free memory
   if (state.currentPage) cleanupPageCharts(state.currentPage);
+
+  // Clear any pending debounce timers from the page we're leaving
+  clearTimeout(_wxSearchTimer);
+  clearTimeout(_actSearchDebounce);
+  clearTimeout(_h2hDebounce);
 
   // Clear weather gradient when leaving weather page
   if (state.currentPage === 'weather' && page !== 'weather') {

@@ -846,6 +846,7 @@ code {
     display: none;
 }
 .floating-profile-btn {
+    position: relative;
     width: 42px;
     height: 42px;
     border-radius: 50%;
@@ -888,9 +889,6 @@ code {
     border: 2px solid var(--bg-base);
     padding: 0 3px;
     line-height: 1;
-}
-.floating-profile-btn {
-    position: relative;
 }
 
 /* ── Gear picker sheet (overlay, not <dialog>) ─ */
@@ -944,6 +942,7 @@ code {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 12px;
     padding: 14px 16px;
     border-radius: var(--radius-sm);
     font-size: 17px;
@@ -984,11 +983,6 @@ code {
 .gp-opt-text {
     flex: 1;
     min-width: 0;
-}
-.gear-picker-option {
-    display: flex;
-    align-items: center;
-    gap: 12px;
 }
 .gear-picker-check {
     width: 20px;
@@ -1404,6 +1398,10 @@ code {
 .sticky-page-title-text {
     position: relative;
     z-index: 1;
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
 }
 .sticky-page-title--settings {
     display: flex;
@@ -1412,12 +1410,6 @@ code {
     opacity: 1;
     transform: translateY(0);
     pointer-events: auto;
-}
-.sticky-page-title-text {
-    font-size: 17px;
-    font-weight: 600;
-    color: var(--text-primary);
-    letter-spacing: -0.02em;
 }
 /* Hide on pages that don't use the headline */
 .page-content--calendar .sticky-page-title,
@@ -2176,6 +2168,15 @@ input[type="number"] {
     scroll-snap-type: x mandatory;
     padding-bottom: 4px;
 }
+/* ── Shared glow card custom-property init ── */
+.stat-card, .hero-act-card, .recent-act-card, .fit-kpi-card,
+.fit-wcard, .fit-rp-card, .mm-cell, .act-sstat, .perf-metric,
+.wx-day-card, .wx-day, .znp-kpi-card, .stk-hero-card,
+.stk-pb-card, .stk-badge, .stk-stat-tile {
+    --mouse-x: 50%;
+    --mouse-y: 50%;
+}
+
 .stat-grid::-webkit-scrollbar { display: none; }
 .stat-card {
     flex: 0 0 calc(50% - 5px);
@@ -2192,11 +2193,6 @@ input[type="number"] {
     position: relative;
     contain: layout style;
     scroll-snap-align: start;
-}
-
-.stat-card {
-    --mouse-x: 50%;
-    --mouse-y: 50%;
 }
 .stat-card::before {
     content: "";
@@ -2393,8 +2389,6 @@ input[type="number"] {
     transition:
         transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1),
         box-shadow 0.22s ease;
-    --mouse-x: 50%;
-    --mouse-y: 50%;
 }
 
 /* Full-bleed map background */
@@ -2642,8 +2636,6 @@ input[type="number"] {
     transition:
         transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
         box-shadow 0.18s ease;
-    --mouse-x: 50%;
-    --mouse-y: 50%;
 }
 .recent-act-card::before {
     content: "";
@@ -4234,8 +4226,6 @@ input[type="number"] {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    --mouse-x: 50%;
-    --mouse-y: 50%;
     transition:
         border-color var(--transition),
         box-shadow var(--transition);
@@ -4362,8 +4352,6 @@ input[type="number"] {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    --mouse-x: 50%;
-    --mouse-y: 50%;
 }
 .fit-wcard::before {
     content: "";
@@ -4785,7 +4773,6 @@ input[type="number"] {
     background: var(--bg-elevated); border: 1px solid var(--border);
     border-radius: var(--radius); padding: 14px 12px; text-align: center;
     position: relative;
-    --mouse-x: 50%; --mouse-y: 50%;
     transition: border-color var(--transition), box-shadow var(--transition);
 }
 .fit-rp-card::before {
@@ -9107,8 +9094,6 @@ body.show-save-fab #actSaveRouteFab {
     gap: 1px;
     min-width: 0;
     position: relative;
-    --mouse-x: 50%;
-    --mouse-y: 50%;
 }
 .mm-cell::before {
     content: "";
@@ -10509,8 +10494,6 @@ body:has(.act-sheet-mode) .topbar {
         border-color var(--transition),
         background var(--transition);
     position: relative;
-    --mouse-x: 50%;
-    --mouse-y: 50%;
 }
 .act-sstat::before {
     content: "";
@@ -10690,8 +10673,6 @@ body:has(.act-sheet-mode) .topbar {
     flex-direction: column;
     gap: 4px;
     position: relative;
-    --mouse-x: 50%;
-    --mouse-y: 50%;
 }
 .perf-metric::before {
     content: "";
@@ -14349,12 +14330,6 @@ body:has(.act-sheet-mode) .topbar {
     flex: 0 0 120px;
     scroll-snap-align: start;
 }
-
-/* ── Individual day card ── */
-.wx-day-card {
-    --mouse-x: 50%;
-    --mouse-y: 50%;
-}
 .wx-day-card::before {
     content: "";
     position: absolute;
@@ -14401,8 +14376,6 @@ body:has(.act-sheet-mode) .topbar {
     background: var(--bg-card);
     border: 1px solid var(--border);
     position: relative;
-    --mouse-x: 50%;
-    --mouse-y: 50%;
     cursor: pointer;
     transition:
         border-color var(--transition),
@@ -14724,6 +14697,7 @@ body:has(.act-sheet-mode) .topbar {
    of .page-content (otherwise the flex item expands to content width and
    the inner scroll container never gets a chance to trigger) */
 #weatherPageContent {
+    position: relative;
     min-width: 0;
     width: 100%;
 }
@@ -15018,13 +14992,6 @@ body:has(.act-sheet-mode) .topbar {
 }
 
 /* Content sits above horizon */
-#weatherPageContent {
-    position: relative;
-}
-#wxPageBody {
-    position: relative;
-    z-index: 1;
-}
 
 /* Hide scroll-edge overlay on weather page — gradient bg handles it */
 .page-content.has-scroll-edge:has(#page-weather.active)::before {
@@ -15034,8 +15001,6 @@ body:has(.act-sheet-mode) .topbar {
 /* Weather location switcher — transparent over gradient with fade edge */
 #weatherPageContent .wx-loc-switcher {
     background: transparent;
-}
-#weatherPageContent .wx-loc-switcher {
     overflow: visible;
 }
 #weatherPageContent .wx-loc-switcher::after {
@@ -15056,13 +15021,7 @@ body:has(.act-sheet-mode) .topbar {
 }
 
 /* Glass cards on weather page */
-#wxPageBody .card {
-    background: rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    contain: layout style;
-}
+#wxPageBody .card,
 #wxPageBody .aw-tile {
     background: rgba(255, 255, 255, 0.08);
     backdrop-filter: blur(20px);
@@ -15073,6 +15032,8 @@ body:has(.act-sheet-mode) .topbar {
 
 /* Weather page body — flex column with consistent card gaps */
 #wxPageBody {
+    position: relative;
+    z-index: 1;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -16454,8 +16415,6 @@ body:has(.act-sheet-mode) .topbar {
     border-radius: var(--radius-lg);
     padding: 20px 22px 18px;
     position: relative;
-    --mouse-x: 50%;
-    --mouse-y: 50%;
     transition:
         border-color var(--transition),
         box-shadow var(--transition);
@@ -18673,8 +18632,6 @@ body:has(.act-sheet-mode) .topbar {
         box-shadow var(--transition);
     position: relative;
     overflow: hidden;
-    --mouse-x: 50%;
-    --mouse-y: 50%;
 }
 /* hero cards: ::before is used for decorative top gradient, so use ::after for rim glow */
 .stk-hero-card::after {
@@ -18920,8 +18877,6 @@ body:has(.act-sheet-mode) .topbar {
     gap: 4px;
     position: relative;
     overflow: hidden;
-    --mouse-x: 50%;
-    --mouse-y: 50%;
     transition:
         border-color var(--transition),
         box-shadow var(--transition);
@@ -19095,8 +19050,6 @@ body:has(.act-sheet-mode) .topbar {
         box-shadow var(--transition);
     position: relative;
     overflow: hidden;
-    --mouse-x: 50%;
-    --mouse-y: 50%;
 }
 .stk-badge--earned::before {
     content: "";
@@ -19242,8 +19195,6 @@ body:has(.act-sheet-mode) .topbar {
     gap: 3px;
     position: relative;
     overflow: hidden;
-    --mouse-x: 50%;
-    --mouse-y: 50%;
     transition:
         border-color var(--transition),
         box-shadow var(--transition);

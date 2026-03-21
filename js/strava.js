@@ -430,6 +430,7 @@ export async function stravaSyncActivities(options = {}) {
 
 export function stravaCancelSync() {
   _stravaSync.cancelled = true;
+  _stravaSync.inProgress = false;
   showToast('Cancelling sync...');
 }
 
