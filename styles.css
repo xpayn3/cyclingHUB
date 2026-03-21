@@ -20359,6 +20359,18 @@ body:has(.act-sheet-mode) .topbar {
     pointer-events: none;
     cursor: default;
     background: var(--bg-elevated) !important;
+    padding: 12px 14px !important;
+    border-radius: var(--radius-concentric) !important;
+}
+.goal-form-preview-card .goal-dash-ring svg {
+    width: 40px;
+    height: 40px;
+}
+.goal-form-preview-card .goal-dash-value {
+    font-size: var(--text-md);
+}
+.goal-form-preview-card .goal-dash-title {
+    font-size: var(--text-sm);
 }
 .goal-form-actions {
     display: flex;
