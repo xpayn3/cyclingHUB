@@ -13944,6 +13944,10 @@ function _initCalScrubbers() {
       applyStep(dragStartStep - delta / _CEV_PX_PER_STEP);
     });
 
+    // iOS Safari: explicitly block vertical scroll during drag
+    scrubber.addEventListener('touchstart', e => { e.preventDefault(); }, { passive: false });
+    scrubber.addEventListener('touchmove', e => { if (dragging) e.preventDefault(); }, { passive: false });
+
     const endDrag = () => {
       if (!dragging) return;
       dragging = false;
