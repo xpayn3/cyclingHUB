@@ -15931,16 +15931,12 @@ body:has(.act-sheet-mode) .topbar {
         display: block;
         padding-top: env(safe-area-inset-top, 0px);
     }
-    /* Floating close button — sticky zero-height row, button floats top-right */
+    /* Floating close button — fixed to top-right of viewport, always visible */
     .wxd-floating-close {
-        position: sticky;
+        position: fixed;
         top: calc(env(safe-area-inset-top, 0px) + 12px);
-        height: 0;
-        overflow: visible;
-        z-index: 10;
-        display: flex;
-        justify-content: flex-end;
-        padding-right: 16px;
+        right: 16px;
+        z-index: 10001;
         pointer-events: none;
     }
     .wxd-floating-close .modal-close {
