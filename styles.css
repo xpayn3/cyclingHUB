@@ -7521,11 +7521,11 @@ input[type="number"] {
 
 .cal-fab {
     position: fixed;
-    bottom: 24px;
-    right: 24px;
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
+    bottom: 20px;
+    right: 16px;
+    width: 64px;
+    height: 64px;
+    border-radius: 100px;
     background: var(--glass-bg);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
