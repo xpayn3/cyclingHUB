@@ -12577,8 +12577,12 @@ function _initSheetSwipeDismiss(overlay, id) {
   let startY = 0, currentY = 0, dragging = false;
 
   panel.addEventListener('touchstart', e => {
-    // Only start drag if at scroll top (can't scroll up further)
-    if (panel.scrollTop > 5) return;
+    // On mobile the panel itself has overflow:hidden so panel.scrollTop is
+    // always 0. Check the inner scrollable body instead — if it has scrolled
+    // down, let it keep scrolling rather than starting a dismiss drag.
+    const innerScroll = e.target.closest('.modal-body, .wxd-sheet-body, .cev-body');
+    const scrollTop = innerScroll ? innerScroll.scrollTop : panel.scrollTop;
+    if (scrollTop > 5) return;
     const t = e.touches[0];
     startY = t.clientY;
     currentY = startY;
