@@ -24869,7 +24869,7 @@ function _renderProfileRadar() {
   const n = dims.length;
 
   const dpr = window.devicePixelRatio || 1;
-  const size = 300;
+  const size = 360;
   canvas.width = size * dpr;
   canvas.height = size * dpr;
   canvas.style.width = size + 'px';
