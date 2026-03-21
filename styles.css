@@ -15905,6 +15905,31 @@ body:has(.act-sheet-mode) .topbar {
     padding-bottom: env(safe-area-inset-bottom, 20px);
     z-index: 1;
 }
+
+@media (max-width: 600px) {
+    .wxd-overlay {
+        align-items: stretch;
+    }
+    .wxd-sheet {
+        position: relative;
+        max-width: 100%;
+        max-height: none;
+        height: 100%;
+        border-radius: 0;
+        padding-top: env(safe-area-inset-top, 0px);
+        overflow-y: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+    /* Restore scroll on the inner body when full-screen */
+    .wxd-sheet .modal-body {
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        overscroll-behavior-y: contain !important;
+        flex: 1 !important;
+        min-height: 0 !important;
+    }
+}
 .wxd-sheet-body {
     padding: 0 var(--pad-card) 40px;
 }

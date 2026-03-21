@@ -12565,6 +12565,8 @@ function _openOverlaySheet(id) {
   sheet.classList.add('wxd-open');
   // Swipe-to-dismiss on the sheet panel
   _initSheetSwipeDismiss(sheet, id);
+  // Keyboard avoidance for full-screen overlay sheets on mobile
+  if (_isMobileSheet()) _startViewportTracking(sheet);
 }
 
 function _initSheetSwipeDismiss(overlay, id) {
@@ -12622,6 +12624,7 @@ function _closeOverlaySheet(id) {
   if (_sheetStack.length === 0) {
     document.documentElement.style.overflow = '';
     document.body.style.overflow = '';
+    _stopViewportTracking();
   }
   // Reset panel transform from swipe + scroll position
   const panel = sheet.querySelector('.wxd-sheet');
