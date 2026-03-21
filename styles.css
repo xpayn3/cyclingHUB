@@ -15184,7 +15184,6 @@ body:has(.act-sheet-mode) .topbar {
     position: relative;
     height: 24px;
     margin-top: 8px;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
     padding-top: 8px;
 }
 .aw-tcurve-time-mark {
@@ -15210,7 +15209,6 @@ body:has(.act-sheet-mode) .topbar {
     display: flex;
     align-items: flex-end;
     height: 100px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 .aw-rain-col {
     position: absolute;
