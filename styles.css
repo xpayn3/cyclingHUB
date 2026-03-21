@@ -20354,12 +20354,16 @@ body:has(.act-sheet-mode) .topbar {
 
 .goal-form-preview {
     margin-bottom: 20px;
+    display: flex;
+    justify-content: center;
 }
 .goal-form-preview-card {
     pointer-events: none;
     cursor: default;
     background: var(--bg-elevated) !important;
     border-radius: var(--radius-concentric) !important;
+    flex: 0 0 auto;
+    width: min(50%, 200px);
 }
 .goal-form-actions {
     display: flex;
