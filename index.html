@@ -481,7 +481,7 @@
         <!-- ============================================================  GEAR MODAL  ============================================================ -->
         <div class="wxd-overlay" id="gearModal" style="display:none">
             <div class="wxd-backdrop" onclick="closeGearModal()"></div>
-            <div class="wxd-sheet" style="max-width: 520px">
+            <div class="wxd-sheet" style="max-width:520px;display:flex;flex-direction:column;max-height:85vh">
                 <!-- Floating close button — sticky, zero height, floats above scrolling content -->
                 <div class="wxd-floating-close">
                     <button class="modal-close" onclick="closeGearModal()" aria-label="Close">
@@ -504,7 +504,7 @@
                     <div class="modal-title" id="gearModalTitle">Add Component</div>
                     <div class="modal-desc">Track a bike part — brand, install date, and when to replace it.</div>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body" style="overflow-y:auto;flex:1;min-height:0">
                     <input type="hidden" id="gearEditId" />
                     <div class="gear-form-grid">
                         <div class="field">
@@ -669,7 +669,7 @@
         <!-- Battery Modal -->
         <div class="wxd-overlay" id="batteryModal" style="display:none">
             <div class="wxd-backdrop" onclick="closeBatteryModal()"></div>
-            <div class="wxd-sheet" style="max-width:520px">
+            <div class="wxd-sheet" style="max-width:520px;display:flex;flex-direction:column;max-height:85vh">
                 <div class="wxd-floating-close">
                     <button class="modal-close" onclick="closeBatteryModal()" aria-label="Close">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -687,7 +687,7 @@
                     <div class="modal-title" id="batteryModalTitle">Add Battery</div>
                     <div class="modal-desc">Track an electronic shifting battery or power pack.</div>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body" style="overflow-y:auto;flex:1;min-height:0">
                     <input type="hidden" id="batteryEditId">
                     <div class="gear-form-grid">
                         <div class="field">
@@ -746,7 +746,7 @@
         <!-- ==================== SERVICE MODAL ==================== -->
         <div class="wxd-overlay" id="serviceModal" style="display:none">
             <div class="wxd-backdrop" onclick="closeServiceModal()"></div>
-            <div class="wxd-sheet" style="max-width:560px">
+            <div class="wxd-sheet" style="max-width:560px;display:flex;flex-direction:column;max-height:85vh">
                 <div class="wxd-floating-close">
                     <button class="modal-close" onclick="closeServiceModal()" aria-label="Close">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -762,7 +762,7 @@
                     <div class="modal-title" id="serviceModalTitle">Add Service</div>
                     <div class="modal-desc">Record a bike service — what was done, where, and when it's next due.</div>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body" style="overflow-y:auto;flex:1;min-height:0">
                     <input type="hidden" id="serviceEditId">
                     <div class="gear-form-grid">
                         <div class="field">
