@@ -4838,8 +4838,8 @@ function _renderDashBatteries() {
   }
 
   grid.innerHTML = activeBats.map(b => {
-    const pct = (typeof calcBatteryPercent === 'function') ? calcBatteryPercent(b) : null;
-    const pctVal = pct !== null ? Math.round(pct) : null;
+    const pctResult = (typeof calcBatteryPercent === 'function') ? calcBatteryPercent(b) : null;
+    const pctVal = pctResult !== null ? Math.round(typeof pctResult === 'object' ? pctResult.percent : pctResult) : null;
     const bike = gear.find(g => g.id === b.bikeId);
     const bikeName = bike ? bike.name : '';
 
