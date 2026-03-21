@@ -13168,34 +13168,36 @@ function showConfirmDialog(title, message, onConfirm) {
   // Remove any existing confirm dialog
   document.getElementById('confirmDialog')?.remove();
 
-  const backdrop = document.createElement('dialog');
-  backdrop.id = 'confirmDialog';
-  backdrop.className = 'modal-dialog confirm-dialog';
-  backdrop.innerHTML = `
-    <div class="modal confirm-modal" style="max-width:400px">
-      <div class="modal-header" style="padding:20px 24px 8px">
-        <div><div class="modal-title" style="font-size:var(--text-md)">${title}</div></div>
-        <button class="modal-close" id="confirmClose" aria-label="Close">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
-        </button>
-      </div>
-      <div style="padding:8px 24px 20px;color:var(--text-secondary);font-size:var(--text-sm);line-height:1.5">${message}</div>
-      <div style="display:flex;gap:10px;justify-content:flex-end;padding:0 24px 20px">
-        <button class="btn btn-ghost" id="confirmCancel">Cancel</button>
-        <button class="btn btn-primary" id="confirmOk" style="background:var(--red);border-color:var(--red)">Confirm</button>
+  const overlay = document.createElement('div');
+  overlay.id = 'confirmDialog';
+  overlay.className = 'wxd-overlay';
+  overlay.style.display = 'flex';
+  overlay.innerHTML = `
+    <div class="wxd-backdrop"></div>
+    <div class="wxd-sheet wxd-sheet--partial" style="max-width:400px">
+      <div class="modal-drag-indicator"></div>
+      <div class="wxd-sheet-body" style="padding:20px 24px 24px">
+        <div class="modal-title" style="font-size:var(--text-md);margin-bottom:8px">${title}</div>
+        <div style="color:var(--text-secondary);font-size:var(--text-sm);line-height:1.5;margin-bottom:20px">${message}</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn btn-primary" id="confirmOk" style="background:var(--red);border-color:var(--red);width:100%">Confirm</button>
+          <button class="btn btn-ghost" id="confirmCancel" style="width:100%">Cancel</button>
+        </div>
       </div>
     </div>`;
-  document.body.appendChild(backdrop);
-  backdrop.showModal();
+  document.body.appendChild(overlay);
 
   const close = () => {
-    backdrop.close();
-    setTimeout(() => backdrop.remove(), 200);
+    _closeOverlaySheet('confirmDialog');
+    setTimeout(() => overlay.remove(), 400);
   };
-  backdrop.querySelector('#confirmClose').onclick = close;
-  backdrop.querySelector('#confirmCancel').onclick = close;
-  backdrop.querySelector('#confirmOk').onclick = () => { close(); onConfirm(); };
-  backdrop.addEventListener('click', e => { if (e.target === backdrop) close(); });
+
+  // Open with slide-in animation
+  _openOverlaySheet('confirmDialog');
+
+  overlay.querySelector('.wxd-backdrop').onclick = close;
+  overlay.querySelector('#confirmCancel').onclick = close;
+  overlay.querySelector('#confirmOk').onclick = () => { close(); onConfirm(); };
 }
 
 function fmtDur(secs) {

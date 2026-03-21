@@ -18626,7 +18626,7 @@ body:has(.act-sheet-mode) .topbar {
     /* Full-screen sheet on mobile — eliminates all iOS keyboard black-bar issues.
        The modal fills the entire visual viewport; keyboard shrinks the space
        naturally so there is never a gap below for black to show through. */
-    .modal:not(.confirm-modal) {
+    .modal {
         position: absolute;
         top: 0; left: 0; right: 0; bottom: 0;
         max-width: 100% !important;
