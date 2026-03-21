@@ -1816,8 +1816,9 @@ function updateConnectionUI(connected) {
     if (iosName) iosName.textContent = aName;
     // Sidebar level badge
     const lvlBadge = document.getElementById('sidebarLvlBadge');
-    if (lvlBadge) {
-      const lvl = calcAthleteLevel?.() ?? '';
+    if (lvlBadge && state.activities?.length) {
+      const lvlInfo = getLevel(getTotalXP());
+      const lvl = lvlInfo?.level || '';
       lvlBadge.textContent = lvl ? `Lv ${lvl}` : '';
       lvlBadge.style.display = lvl ? '' : 'none';
     }
