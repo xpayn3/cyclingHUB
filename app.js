@@ -12531,13 +12531,9 @@ function _getBackdrop() {
 function _lockSheetScroll() {
   if (document.body.dataset.sheetLocked === '1') return;
   document.body.dataset.sheetLocked = '1';
-  // Simple overflow lock — no position:fixed on body.
-  // position:fixed on the body creates a new formatting context on iOS that
-  // interferes with fixed-position children (the dialog) during keyboard events,
-  // causing the sheet to visually shift and leave black gaps.
-  // This SPA never scrolls at body level so we don't need scroll restoration.
   document.documentElement.style.overflow = 'hidden';
   document.body.style.overflow = 'hidden';
+  document.body.classList.add('sheet-locked');
 }
 
 function _unlockSheetScroll() {
@@ -12545,6 +12541,7 @@ function _unlockSheetScroll() {
   delete document.body.dataset.sheetLocked;
   document.documentElement.style.overflow = '';
   document.body.style.overflow = '';
+  document.body.classList.remove('sheet-locked');
 }
 
 /* ── Overlay-sheet open/close helpers (replaces dialog.showModal/close) ── */
@@ -12558,6 +12555,7 @@ function _openOverlaySheet(id) {
   if (_sheetStack.length === 0) {
     document.documentElement.style.overflow = 'hidden';
     document.body.style.overflow = 'hidden';
+    document.body.classList.add('sheet-locked');
   }
   _sheetStack.push(id);
   sheet.style.display = '';
@@ -12624,6 +12622,7 @@ function _closeOverlaySheet(id) {
   if (_sheetStack.length === 0) {
     document.documentElement.style.overflow = '';
     document.body.style.overflow = '';
+    document.body.classList.remove('sheet-locked');
     _stopViewportTracking();
   }
   // Reset panel transform from swipe + scroll position
