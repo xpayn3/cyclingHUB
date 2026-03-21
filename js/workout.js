@@ -545,6 +545,19 @@ export function wrkMove(idx, dir) {
 export function wrkToggleEdit(idx) {
   wrkState.editIdx = wrkState.editIdx === idx ? null : idx;
   wrkRender();
+  // Scroll the selected card into view below the sticky chart
+  if (wrkState.editIdx !== null) {
+    requestAnimationFrame(() => {
+      const card = document.querySelector(`#wrkSegmentList .wrk-seg-wrap:nth-child(${idx + 1})`);
+      if (!card) return;
+      const chart = document.querySelector('.wrk-chart-card');
+      const offset = chart ? chart.getBoundingClientRect().bottom + 8 : 80;
+      const cardTop = card.getBoundingClientRect().top;
+      if (cardTop < offset || cardTop > window.innerHeight * 0.6) {
+        window.scrollBy({ top: cardTop - offset, behavior: 'smooth' });
+      }
+    });
+  }
 }
 
 export function wrkSet(idx, field, val) {
