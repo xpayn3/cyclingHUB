@@ -20352,6 +20352,13 @@ body:has(.act-sheet-mode) .topbar {
     stroke: var(--bg-base) !important;
 }
 
+.goal-form-preview {
+    margin-bottom: 20px;
+}
+.goal-form-preview-card {
+    pointer-events: none;
+    cursor: default;
+}
 .goal-form-actions {
     display: flex;
     flex-direction: column;

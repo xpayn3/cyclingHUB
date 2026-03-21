@@ -24765,6 +24765,45 @@ function goalNumStep(dir) {
   el.focus();
 }
 
+function _updateGoalPreview() {
+  const preview = document.getElementById('goalFormPreview');
+  if (!preview) return;
+  const metric = document.getElementById('goalFormMetric')?.value || 'distance';
+  const target = parseFloat(document.getElementById('goalFormTarget')?.value) || 0;
+  const period = document.getElementById('goalFormPeriod')?.value || 'week';
+  const m = GOAL_METRICS[metric];
+  if (!m) return;
+  const fakeGoal = { metric, target, period, id: 0 };
+  const p = computeGoalProgress(fakeGoal);
+  const pctClamped = target > 0 ? Math.min(p.pct, 100) : 0;
+  const statusCls = { ahead: 'green', 'on-track': 'green', caution: 'yellow', behind: 'red' };
+  const statusLabel = { ahead: 'Ahead', 'on-track': 'On Track', caution: 'Caution', behind: 'Behind' };
+  const statusColor = { green: 'var(--accent)', yellow: '#ffcc00', red: C_RED_IOS };
+  const ringColor = statusColor[statusCls[p.status]] || 'var(--accent)';
+  const r = 36, circ = 2 * Math.PI * r;
+  preview.innerHTML = `
+    <div class="goal-dash-card card goal-form-preview-card">
+      <div class="goal-dash-header">
+        <div class="goal-dash-title">${m.label}</div>
+        <div class="goal-dash-ring">
+          <svg viewBox="0 0 88 88" width="56" height="56">
+            <circle cx="44" cy="44" r="${r}" fill="none" stroke="${_isDark() ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)'}" stroke-width="8"/>
+            <circle cx="44" cy="44" r="${r}" fill="none" stroke="${ringColor}" stroke-width="8"
+              stroke-linecap="round" stroke-dasharray="${circ}"
+              stroke-dashoffset="${circ - (pctClamped / 100) * circ}"
+              transform="rotate(-90 44 44)" style="transition:stroke-dashoffset 0.4s ease"/>
+            <text x="44" y="49" text-anchor="middle" fill="var(--text-primary)" font-size="17" font-weight="700" font-family="var(--font-num)">${Math.round(pctClamped)}</text>
+          </svg>
+        </div>
+      </div>
+      <div class="goal-dash-value">${m.fmt(p.current)}<span class="goal-dash-unit"> / ${target > 0 ? m.fmt(target) : '—'} ${m.unit}</span></div>
+      <div class="goal-dash-footer">
+        <span class="goal-progress-badge goal-progress-badge--${statusCls[p.status]}">${statusLabel[p.status]}</span>
+        <span class="goal-dash-days">${p.remaining}d left</span>
+      </div>
+    </div>`;
+}
+
 function showGoalForm(editId) {
   _initGoalFormMetrics();
   _openOverlaySheet('goalFormOverlay');
@@ -24787,19 +24826,35 @@ function showGoalForm(editId) {
       periodEl.value = g.period;
       metricEl._cddRefresh?.();
       periodEl._cddRefresh?.();
-      return;
     }
+  } else {
+    titleEl.textContent = 'Add Goal';
+    idEl.value = '';
+    metricEl.value = 'distance';
+    targetEl.value = '';
+    periodEl.value = 'week';
+    metricEl._cddRefresh?.();
+    periodEl._cddRefresh?.();
   }
-  titleEl.textContent = 'Add Goal';
-  idEl.value = '';
-  metricEl.value = 'distance';
-  targetEl.value = '';
-  periodEl.value = 'week';
-  metricEl._cddRefresh?.();
-  periodEl._cddRefresh?.();
+
+  // Live preview — re-render on any field change
+  if (overlay._previewCtrl) overlay._previewCtrl.abort();
+  const ctrl = new AbortController();
+  overlay._previewCtrl = ctrl;
+  const { signal } = ctrl;
+  targetEl?.addEventListener('input', _updateGoalPreview, { signal });
+  metricEl?.addEventListener('change', _updateGoalPreview, { signal });
+  periodEl?.addEventListener('change', _updateGoalPreview, { signal });
+  // CDD clicks fire before the underlying select updates, so defer
+  overlay.addEventListener('click', e => {
+    if (e.target.closest('.cdd-option')) setTimeout(_updateGoalPreview, 0);
+  }, { signal });
+  _updateGoalPreview();
 }
 
 function hideGoalForm() {
+  const overlay = document.getElementById('goalFormOverlay');
+  if (overlay?._previewCtrl) { overlay._previewCtrl.abort(); delete overlay._previewCtrl; }
   _closeOverlaySheet('goalFormOverlay');
 }
 
