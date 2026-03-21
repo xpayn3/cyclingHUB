@@ -20661,7 +20661,7 @@ body:has(.act-sheet-mode) .topbar {
     pointer-events: none;
     cursor: default;
     background: var(--bg-elevated) !important;
-    border-radius: var(--radius-concentric) !important;
+    border-radius: var(--radius) !important;
     flex: 0 0 auto;
     width: min(50%, 200px);
 }
