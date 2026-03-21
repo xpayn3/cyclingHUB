@@ -198,7 +198,7 @@ export function wrkDrawChart() {
 
   // Final time label
   ctx.fillStyle = _isDark() ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.25)';
-  ctx.textAlign = 'center';
+  ctx.textAlign = 'right';
   ctx.font = '9px Inter, sans-serif';
   ctx.fillText(wrkFmtTime(Math.round(totalSecs)), PAD_L + cW, PAD_T + cH + 14);
 
