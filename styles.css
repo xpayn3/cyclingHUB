@@ -2745,9 +2745,10 @@ input[type="number"] {
     white-space: nowrap;
 }
 .hero-stat-unit {
-    font-size: var(--text-xs);
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.55);
+    font-size: 0.85em;
+    font-weight: 400;
+    font-family: var(--font-num);
+    color: inherit;
     letter-spacing: 0;
 }
 .hero-stat-lbl {

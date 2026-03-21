@@ -3816,10 +3816,10 @@ function buildZonesCardHTML(a, idx) {
     : '';
 
   const statItems = [
-    watts > 0 && { val: Math.round(watts) + 'w', lbl: 'Power' },
+    watts > 0 && { val: Math.round(watts) + '<span class="ra-stat-unit">w</span>', lbl: 'Power' },
     hr    > 0 && { val: Math.round(hr),          lbl: 'Avg HR' },
-    secs  > 0 && { val: fmtDur(secs),            lbl: 'Time' },
-    dFmt      && { val: dFmt.val + ' ' + dFmt.unit, lbl: 'Distance' },
+    secs  > 0 && { val: _fmtDurHTML(secs),            lbl: 'Time' },
+    dFmt      && { val: dFmt.val + '<span class="ra-stat-unit"> ' + dFmt.unit + '</span>', lbl: 'Distance' },
   ].filter(Boolean);
 
   const statsHTML = statItems.map(s =>
@@ -4146,7 +4146,7 @@ function buildHeroActCardHTML(a, idx) {
 
   const statItems = [
     dFmt && { val: dFmt.val, unit: dFmt.unit, lbl: 'Distance' },
-    secs && { val: fmtDur(secs), unit: '',    lbl: 'Time' },
+    secs && { val: _fmtDurHTML(secs), unit: '',    lbl: 'Time', raw: true },
     sFmt && { val: sFmt.val, unit: sFmt.unit, lbl: 'Avg Speed' },
   ].filter(Boolean);
 
@@ -4165,7 +4165,7 @@ function buildHeroActCardHTML(a, idx) {
 
   const statsHTML = statItems.map(s =>
     `<div class="hero-stat">
-      <span class="hero-stat-val">${s.val}${s.unit ? `<span class="hero-stat-unit"> ${s.unit}</span>` : ''}</span>
+      <span class="hero-stat-val">${s.raw ? s.val : (s.val + (s.unit ? `<span class="hero-stat-unit"> ${s.unit}</span>` : ''))}</span>
       <span class="hero-stat-lbl">${s.lbl}</span>
     </div>`
   ).join('');
@@ -4240,7 +4240,7 @@ function buildRecentActCardHTML(a, idx, idPrefix = 'recentActCard') {
 
   const statItems = [
     dFmt && { val: dFmt.val, unit: dFmt.unit, lbl: 'Distance' },
-    secs && { val: fmtDur(secs), unit: '',    lbl: 'Time' },
+    secs && { val: _fmtDurHTML(secs), unit: '',    lbl: 'Time', raw: true },
     sFmt && { val: sFmt.val, unit: sFmt.unit, lbl: 'Avg Speed' },
   ].filter(Boolean);
 
@@ -4260,7 +4260,7 @@ function buildRecentActCardHTML(a, idx, idPrefix = 'recentActCard') {
   const statsHTML = statItems.map(s =>
     `<div class="ra-stat">
       <div class="ra-stat-lbl">${s.lbl}</div>
-      <div class="ra-stat-val">${s.val}${s.unit ? `<span class="ra-stat-unit"> ${s.unit}</span>` : ''}</div>
+      <div class="ra-stat-val">${s.raw ? s.val : (s.val + (s.unit ? `<span class="ra-stat-unit"> ${s.unit}</span>` : ''))}</div>
     </div>`
   ).join('');
 
@@ -13459,6 +13459,12 @@ function fmtDur(secs) {
   const h = Math.floor(secs / 3600);
   const m = Math.floor((secs % 3600) / 60);
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+function _fmtDurHTML(secs) {
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  if (h > 0) return `${h}<span class="ra-stat-unit">h</span> ${m}<span class="ra-stat-unit">m</span>`;
+  return `${m}<span class="ra-stat-unit">m</span>`;
 }
 
 function fmtDate(str) {
