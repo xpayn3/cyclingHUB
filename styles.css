@@ -20341,7 +20341,7 @@ body:has(.act-sheet-mode) .topbar {
 /* ── Dashboard Goals – horizontal scroll ── */
 .goals-dash-scroll {
     display: flex;
-    gap: 12px;
+    gap: var(--gap-layout);
     overflow-x: auto;
     scroll-snap-type: x mandatory;
     -webkit-overflow-scrolling: touch;
@@ -20369,7 +20369,7 @@ body:has(.act-sheet-mode) .topbar {
 }
 
 .goal-dash-card {
-    flex: 0 0 calc(50% - 6px);
+    flex: 0 0 calc(50% - var(--gap-layout) / 2);
     max-width: 240px;
     aspect-ratio: 1;
     scroll-snap-align: none;
