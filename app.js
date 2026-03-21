@@ -1037,15 +1037,14 @@ async function fetchFitness() {
    MODAL
 ==================================================== */
 function openModal() {
-  const modal = document.getElementById('connectModal');
   if (state.athleteId) document.getElementById('inputAthleteId').value = state.athleteId;
   if (state.apiKey)    document.getElementById('inputApiKey').value    = state.apiKey;
   document.getElementById('modalCloseBtn').style.display = (state.athleteId && state.apiKey) ? 'flex' : 'none';
-  modal.showModal();
+  _openOverlaySheet('connectModal');
 }
 
 function closeModal() {
-  closeModalAnimated(document.getElementById('connectModal'));
+  _closeOverlaySheet('connectModal');
 }
 
 function toggleApiKeyVisibility() {
@@ -22378,8 +22377,7 @@ function applySetupLink(inputId) {
   const hasSettings = cfgObj && Object.keys(cfgObj).length > 0;
 
   // Close the connect modal if it's open (so confirm dialog is visible)
-  const connectModal = document.getElementById('connectModal');
-  if (connectModal?.open) closeModalAnimated(connectModal);
+  closeModal();
 
   showConfirmDialog(
     'Apply Setup Link',

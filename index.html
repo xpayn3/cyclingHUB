@@ -165,161 +165,93 @@
         </div>
 
         <!-- ============================================================  CONNECT MODAL  ============================================================ -->
-        <dialog class="modal-dialog" id="connectModal" aria-labelledby="connectModalTitle">
-            <div class="modal">
+        <div class="wxd-overlay" id="connectModal" style="display:none">
+            <div class="wxd-backdrop" onclick="closeModal()"></div>
+            <div class="wxd-sheet wxd-sheet--partial conn-modal" style="max-width:480px">
                 <div class="modal-drag-indicator"></div>
-                <div class="modal-header">
-                    <div>
-                        <div class="modal-header-icon">
-                            <svg
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                            >
-                                <path
-                                    d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
-                                />
-                                <path
-                                    d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
-                                />
-                            </svg>
-                        </div>
-                        <div class="modal-title" id="connectModalTitle">Connect to intervals.icu</div>
-                        <div class="modal-desc">
-                            Enter your Athlete ID and API key to sync your
-                            training data.
-                        </div>
-                    </div>
-                    <button
-                        class="modal-close"
-                        id="modalCloseBtn"
-                        onclick="closeModal()"
-                        aria-label="Close"
-                    >
-                        <svg
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2.5"
-                        >
-                            <line x1="18" y1="6" x2="6" y2="18" />
-                            <line x1="6" y1="6" x2="18" y2="18" />
+                <!-- Hero section with icon -->
+                <div class="conn-hero">
+                    <div class="conn-hero-icon">
+                        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
                         </svg>
+                    </div>
+                    <div class="conn-hero-title" id="connectModalTitle">Connect to intervals.icu</div>
+                    <div class="conn-hero-desc">Sync your training data automatically</div>
+                    <button class="modal-close" id="modalCloseBtn" onclick="closeModal()" aria-label="Close">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                     </button>
                 </div>
-                <div class="modal-body">
-                    <div class="callout">
-                        <strong>How to find your credentials:</strong>
-                        <ol>
-                            <li>
-                                Go to
-                                <a href="https://intervals.icu" target="_blank" rel="noopener noreferrer"
-                                    >intervals.icu</a
-                                >
-                                → Settings → API
-                            </li>
-                            <li>
-                                Copy your <strong>Athlete ID</strong> (starts
-                                with <code>i</code>, e.g. <code>i12345</code>)
-                            </li>
-                            <li>
-                                Click <strong>Show API Key</strong> and copy it
-                            </li>
-                        </ol>
-                    </div>
 
-                    <div class="field">
-                        <label for="inputAthleteId">Athlete ID</label>
-                        <input
-                            type="text"
-                            id="inputAthleteId"
-                            placeholder="e.g. i12345"
-                            autocomplete="off"
-                        />
-                        <div class="field-hint">
-                            Your profile ID from intervals.icu (visible in the
-                            URL)
+                <div class="modal-body conn-body">
+                    <!-- Steps callout -->
+                    <div class="conn-steps">
+                        <div class="conn-step">
+                            <span class="conn-step-num">1</span>
+                            <span>Go to <a href="https://intervals.icu" target="_blank" rel="noopener noreferrer">intervals.icu</a> → Settings → API</span>
                         </div>
-                        <div class="field-error" id="errAthleteId">
-                            Please enter your Athlete ID
+                        <div class="conn-step">
+                            <span class="conn-step-num">2</span>
+                            <span>Copy your <strong>Athlete ID</strong> (e.g. <code>i12345</code>)</span>
+                        </div>
+                        <div class="conn-step">
+                            <span class="conn-step-num">3</span>
+                            <span>Click <strong>Show API Key</strong> and copy it</span>
                         </div>
                     </div>
 
-                    <div class="field">
-                        <label for="inputApiKey">API Key</label>
-                        <div class="input-with-toggle">
-                            <input
-                                type="password"
-                                id="inputApiKey"
-                                placeholder="Paste your API key here"
-                                autocomplete="off"
-                            />
-                            <button
-                                class="toggle-visibility"
-                                onclick="toggleApiKeyVisibility()"
-                                id="apiKeyToggle"
-                                title="Show/hide API key"
-                            >
-                                <svg
-                                    id="eyeIcon"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                >
-                                    <path
-                                        d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"
-                                    />
-                                    <circle cx="12" cy="12" r="3" />
-                                </svg>
-                            </button>
+                    <!-- iOS grouped fields -->
+                    <div class="conn-fields">
+                        <div class="conn-field-group">
+                            <div class="conn-field">
+                                <label for="inputAthleteId">Athlete ID</label>
+                                <input type="text" id="inputAthleteId" placeholder="i12345" autocomplete="off">
+                            </div>
+                            <div class="conn-field-sep"></div>
+                            <div class="conn-field">
+                                <label for="inputApiKey">API Key</label>
+                                <div class="conn-field-input-wrap">
+                                    <input type="password" id="inputApiKey" placeholder="Paste your key" autocomplete="off">
+                                    <button class="conn-eye-btn" onclick="toggleApiKeyVisibility()" id="apiKeyToggle" title="Show/hide">
+                                        <svg id="eyeIcon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                        <div class="field-hint">
-                            Found in intervals.icu → Settings → API → Show API
-                            Key. Stored only in your browser.
-                        </div>
-                        <div class="field-error" id="errApiKey">
-                            Please enter your API key
-                        </div>
+                        <div class="conn-field-hint">Credentials are stored locally in your browser only.</div>
+                        <div class="field-error" id="errAthleteId" style="display:none">Please enter your Athlete ID</div>
+                        <div class="field-error" id="errApiKey" style="display:none">Please enter your API key</div>
                     </div>
 
-                    <div class="modal-footer">
-                        <button class="btn btn-ghost" onclick="closeModal()">
-                            Cancel
+                    <!-- CTA -->
+                    <button class="conn-cta" id="connectBtn" onclick="handleConnect()">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        Connect & Sync
+                    </button>
+                    <button class="conn-cancel" onclick="closeModal()">Cancel</button>
+
+                    <!-- Divider -->
+                    <div class="conn-divider">
+                        <div class="conn-divider-line"></div>
+                        <span>or use a setup link</span>
+                        <div class="conn-divider-line"></div>
+                    </div>
+
+                    <!-- Setup link section -->
+                    <div class="conn-link-section">
+                        <div class="conn-link-row">
+                            <input type="text" id="modalSetupLinkInput" class="conn-link-input" placeholder="Paste setup link...">
+                            <button class="conn-link-btn" onclick="applySetupLink('modalSetupLinkInput')">Apply</button>
+                        </div>
+                        <button class="conn-copy-link" id="connCopyLinkBtn" onclick="copySetupLink()">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                            Copy my setup link
                         </button>
-                        <button
-                            class="btn btn-primary"
-                            id="connectBtn"
-                            onclick="handleConnect()"
-                        >
-                            <svg
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2.5"
-                            >
-                                <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                            Connect &amp; Sync
-                        </button>
-                    </div>
-
-                    <!-- Setup Link shortcut -->
-                    <div style="display:flex;align-items:center;gap:12px;padding:0 0 16px;margin-top:-4px">
-                        <div style="flex:1;height:1px;background:var(--border)"></div>
-                        <span style="font-size:.78rem;color:var(--text-muted);white-space:nowrap">or use a setup link</span>
-                        <div style="flex:1;height:1px;background:var(--border)"></div>
-                    </div>
-                    <div style="display:flex;gap:6px;padding:0 0 20px">
-                        <input type="text" id="modalSetupLinkInput" class="stt-input" placeholder="Paste setup link here..." style="flex:1;min-width:0;font-size:var(--text-sm)">
-                        <button class="btn btn-accent btn-sm" onclick="applySetupLink('modalSetupLinkInput')">Apply</button>
                     </div>
                 </div>
             </div>
-        </dialog>
+        </div>
 
         <!-- ============================================================  GEAR PICKER SHEET  ============================================================ -->
         <div class="gear-picker-overlay" id="gearPickerOverlay" style="display:none" onclick="if(event.target===this)closeGearPicker()">
