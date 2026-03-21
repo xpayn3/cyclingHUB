@@ -2062,28 +2062,7 @@
                         <div id="forecastRail"></div>
                     </div>
 
-                    <!-- Training Load chart -->
-                    <div data-dash-section="trainingLoad">
-                        <div class="card">
-                            <div class="card-header">
-                                <div>
-                                    <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Training Load</div>
-                                </div>
-                                <div class="dash-range-pills" id="dashRangePill_training"></div>
-                            </div>
-                            <div class="chart-wrap chart-wrap--fitness">
-                                <canvas id="fitnessChart"></canvas>
-                            </div>
-                            <div class="chart-wrap chart-wrap--form" style="height:120px;margin-top:-4px">
-                                <canvas id="fitnessFormChart"></canvas>
-                            </div>
-                            <div class="chart-legend" style="padding:8px 0 0;justify-content:center">
-                                <span class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--accent)"></span>Fitness</span>
-                                <span class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--orange)"></span>Fatigue</span>
-                                <span class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--blue)"></span>Form</span>
-                            </div>
-                        </div>
-                    </div>
+                    <!-- Training Load chart — moved to Fitness page -->
 
                     <!-- Cycling Trends — energy system TSS breakdown -->
                     <div data-dash-section="cyclingTrends" style="display:none">
@@ -3724,48 +3703,24 @@
                         <div class="fit-rp-note" id="fitRacePredNote"></div>
                     </div>
 
-                    <!-- ── Training Load History chart ── -->
+                    <!-- ── Training Load chart (moved from dashboard) ── -->
                     <div class="card">
                         <div class="card-header">
                             <div>
-                                <div class="card-title">
-                                    Training Load History
-                                </div>
-                                <div class="card-subtitle">
-                                    Chronic (CTL) · Acute (ATL) · Form (TSB)
-                                </div>
+                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Training Load</div>
                             </div>
-                            <div class="card-header-controls">
-                                <div class="chart-legend">
-                                    <span class="chart-legend-item"
-                                        ><span
-                                            class="chart-legend-dot"
-                                            style="background: var(--accent)"
-                                        ></span
-                                        >CTL</span
-                                    >
-                                    <span class="chart-legend-item"
-                                        ><span
-                                            class="chart-legend-dot"
-                                            style="background: var(--orange)"
-                                        ></span
-                                        >ATL</span
-                                    >
-                                    <span class="chart-legend-item"
-                                        ><span
-                                            class="chart-legend-dot"
-                                            style="background: var(--blue)"
-                                        ></span
-                                        >TSB</span
-                                    >
-                                </div>
-                            </div>
+                            <div class="dash-range-pills" id="dashRangePill_training"></div>
                         </div>
                         <div class="chart-wrap chart-wrap--lg">
                             <canvas id="fitnessPageChart"></canvas>
                         </div>
                         <div class="chart-wrap" style="height:130px;margin-top:-4px">
                             <canvas id="fitnessPageFormChart"></canvas>
+                        </div>
+                        <div class="chart-legend" style="padding:8px 0 0;justify-content:center">
+                            <span class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--accent)"></span>Fitness</span>
+                            <span class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--orange)"></span>Fatigue</span>
+                            <span class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--blue)"></span>Form</span>
                         </div>
                     </div>
 

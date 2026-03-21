@@ -3296,7 +3296,7 @@ function setCardRange(cardKey, days) {
   const ftp = state.athlete?.ftp || state.athlete?.icu_ftp || 200;
   const weight = state.athlete?.weight || 70;
   try {
-    if (cardKey === 'training') { noChartAnim(() => renderFitnessChart(recent, days)); }
+    if (cardKey === 'training') { noChartAnim(() => renderFitnessHistoryChart(days)); }
     if (cardKey === 'zones') { renderZoneDist(recent); }
     if (cardKey === 'power') { const origRange = state.rangeDays; state.rangeDays = days; state.powerCurveRange = null; noChartAnim(() => renderPowerCurve()); state.rangeDays = origRange; }
     if (cardKey === 'trends') { noChartAnim(() => renderCyclingTrends(recent, days)); }
@@ -4705,7 +4705,6 @@ function renderDashboard() {
   renderVitality();
   renderTrainingStatus();
   renderTodaySuggestion();
-  lazyRenderChart('fitnessChart',   () => renderFitnessChart(recent, days));
   lazyRenderChart('weeklyTssChart', () => renderWeeklyChart(recent));
   lazyRenderChart('avgPowerChart',  () => renderAvgPowerChart(recent));
   renderZoneDist(recent);
@@ -10927,6 +10926,9 @@ function renderFitnessPage() {
   }
 
   const fd = state.fitnessRangeDays;
+  // Init training load range pills
+  const tlPill = document.getElementById('dashRangePill_training');
+  if (tlPill) tlPill.innerHTML = _inlineRangePill('training');
   renderFitnessStreak();
   renderFitnessWellness();
   renderFitInjuryRisk();
@@ -24782,7 +24784,6 @@ const DASH_SECTIONS = [
   { key: 'weeklyStats',       label: 'Weekly Stats',                 defaultOn: true },
   { key: 'weather',           label: 'Weather Forecast',             defaultOn: true },
   { key: 'todaySuggestion',   label: 'Today\'s Plan',                defaultOn: true },
-  { key: 'trainingLoad',      label: 'Training Load Chart',          defaultOn: true },
 ];
 
 function loadDashSectionPrefs() {
