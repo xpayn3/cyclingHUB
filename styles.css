@@ -12589,29 +12589,28 @@ body:has(.act-sheet-mode) .topbar {
     color: var(--text-muted);
 }
 
-/* ---- Segment list (iOS inset grouped) ---- */
+/* ---- Segment list ---- */
 .wrk-segment-list {
-    background: var(--bg-card);
-    border-radius: var(--radius);
-    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 .wrk-list-empty {
     text-align: center;
     color: var(--text-muted);
     font-size: var(--text-sm);
     padding: 32px 16px;
+    background: var(--bg-card);
+    border-radius: var(--radius);
 }
 .wrk-seg-wrap {
-    border: none;
-    border-radius: 0;
+    background: var(--bg-card);
+    border-radius: var(--radius);
     overflow: hidden;
     transition: background var(--transition);
 }
-.wrk-seg-wrap + .wrk-seg-wrap {
-    border-top: 1px solid var(--border);
-}
 .wrk-seg-wrap--active {
-    background: var(--bg-elevated);
+    background: var(--bg-card);
 }
 .wrk-seg-row {
     display: flex;
