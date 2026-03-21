@@ -17090,6 +17090,7 @@ body:has(.act-sheet-mode) .topbar {
     display: flex;
     align-items: flex-end;
     justify-content: center;
+    overscroll-behavior: contain;
 }
 .wxd-overlay.wxd-open .wxd-backdrop { opacity: 1; }
 .wxd-overlay.wxd-open .wxd-sheet { transform: translateY(0); }
