@@ -3104,7 +3104,7 @@ input[type="number"] {
     font-size: 0.85em;
     font-weight: 600;
     font-family: var(--font-num);
-    color: var(--text-secondary);
+    color: inherit;
     letter-spacing: 0;
 }
 .ra-tss {
