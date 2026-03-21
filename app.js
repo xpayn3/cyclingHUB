@@ -3832,10 +3832,15 @@ function buildZonesCardHTML(a, idx) {
     ? `<div class="zones-card-badges">${tssBadge}${platformTag ? `<span class="act-platform-tag">${platformTag}</span>` : ''}</div>`
     : '';
 
+  const achBadge = _heroAchBadge(a);
+
   return `<div class="card card--clickable zones-card" id="zonesCard_${idx}">
     <div class="zones-card-header">
       <div class="zones-card-date">${dateFmt}${timeFmt ? ' · ' + timeFmt : ''}</div>
-      <div class="zones-card-name">${name}</div>
+      <div class="zones-card-name-row">
+        <div class="zones-card-name">${name}</div>
+        ${achBadge}
+      </div>
       ${badgesHTML}
     </div>
     <div class="zones-card-graph" id="zonesCardGraph_${idx}"></div>
