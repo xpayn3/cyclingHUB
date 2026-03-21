@@ -4863,11 +4863,18 @@ function _renderDashBatteries() {
       ? (pctVal <= 10 ? 'rgba(255,69,58,0.15)' : 'rgba(255,149,0,0.15)')
       : 'rgba(0,229,160,0.1)';
 
-    // Battery icon with charge level fill
-    const batIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="${pctVal !== null && pctVal <= 25 ? barColor : 'var(--accent)'}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    // Battery icon — use SRAM shifter photos when applicable
+    let batIcon;
+    const isSramShifter = b.system === 'sram_axs' && (b.componentType === 'shifter_left' || b.componentType === 'shifter_right');
+    if (isSramShifter) {
+      const img = b.componentType === 'shifter_left' ? 'img/components/sram/rival-ed-left-front.webp' : 'img/components/sram/rival-ed-right-front.webp';
+      batIcon = `<img src="${img}" alt="${b.componentType === 'shifter_left' ? 'Left' : 'Right'} Shifter" style="width:100%;height:100%;object-fit:contain">`;
+    } else {
+      batIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="${pctVal !== null && pctVal <= 25 ? barColor : 'var(--accent)'}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
       <rect x="2" y="7" width="18" height="10" rx="2"/>
       <line x1="22" y1="11" x2="22" y2="13"/>
     </svg>`;
+    }
 
     // Charge date info
     let chargeInfo = '';
@@ -4878,7 +4885,7 @@ function _renderDashBatteries() {
 
     return `<div class="dash-bat-card" onclick="navigate('gear')">
       <div class="dash-bat-header">
-        <div class="dash-bat-icon" style="background:${iconBg}">${batIcon}</div>
+        <div class="dash-bat-icon" style="${isSramShifter ? 'background:transparent;border-radius:0' : 'background:' + iconBg}">${batIcon}</div>
         <div style="min-width:0">
           <div class="dash-bat-name">${b.name || b.componentType || 'Battery'}</div>
           ${bikeName ? `<div class="dash-bat-bike">${bikeName}</div>` : ''}
