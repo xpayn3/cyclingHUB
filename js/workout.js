@@ -161,6 +161,12 @@ export function wrkDrawChart() {
     const segW = (dur / totalSecs) * cW;
     const isSelected = idx === wrkState.editIdx;
 
+    // Selection highlight — behind bars
+    if (isSelected) {
+      ctx.fillStyle = 'rgba(0,229,160,0.12)';
+      ctx.fillRect(x, PAD_T, segW, cH);
+    }
+
     if (seg.type === 'warmup') {
       wrkDrawRamp(ctx, x, segW, seg.powerLow, seg.powerHigh, MAX_PCT, PAD_T, cH);
     } else if (seg.type === 'cooldown') {
@@ -177,12 +183,6 @@ export function wrkDrawChart() {
       }
     } else if (seg.type === 'free') {
       wrkDrawFree(ctx, x, segW, MAX_PCT, PAD_T, cH);
-    }
-
-    // Selection highlight — full-height overlay
-    if (isSelected) {
-      ctx.fillStyle = 'rgba(0,229,160,0.12)';
-      ctx.fillRect(x, PAD_T, segW, cH);
     }
 
     // Time label at segment start (skip first and very narrow ones)
