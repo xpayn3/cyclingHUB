@@ -4259,7 +4259,7 @@ function buildRecentActCardHTML(a, idx, idPrefix = 'recentActCard') {
         <div class="recent-act-stats">${statsHTML}</div>
         ${wxChip}
       </div>
-      <div class="recent-act-map" id="${idPrefix}Map_${idx}"></div>
+      <div class="recent-act-map" id="${idPrefix}Map_${idx}">${_heroAchBadge(a)}</div>
     </div>
   </div>`;
 }

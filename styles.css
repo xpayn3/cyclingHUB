@@ -2920,6 +2920,7 @@ input[type="number"] {
     letter-spacing: 0;
 }
 .recent-act-map {
+    position: relative;
     width: 160px;
     flex-shrink: 0;
     border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
