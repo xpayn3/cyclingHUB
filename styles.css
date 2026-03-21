@@ -704,19 +704,46 @@ code {
     height: 16px;
     stroke-width: 2;
 }
+.sidebar-footer-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
 .athlete-chip {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 10px 12px;
-    border-radius: var(--radius-sm);
+    padding: 8px 14px 8px 8px;
+    border-radius: 999px;
     background: var(--bg-elevated);
     border: 1px solid var(--border);
     cursor: pointer;
-    transition: border-color var(--transition);
+    transition: border-color var(--transition), background var(--transition);
+    flex: 1;
+    min-width: 0;
 }
 .athlete-chip:hover {
     border-color: var(--border-active);
+    background: var(--bg-card-hover);
+}
+.sidebar-settings-fab {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    border-radius: 50%;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color var(--transition), background var(--transition), color var(--transition);
+}
+.sidebar-settings-fab:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--bg-card-hover);
 }
 .sidebar-actions {
     display: flex;
