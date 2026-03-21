@@ -15931,20 +15931,21 @@ body:has(.act-sheet-mode) .topbar {
         display: block;
         padding-top: env(safe-area-inset-top, 0px);
     }
-    .wxd-sheet .modal-drag-indicator {
+    /* Floating close button — sticky zero-height row, button floats top-right */
+    .wxd-floating-close {
         position: sticky;
-        top: 0;
-        z-index: 2;
-        background: var(--bg-surface);
-        padding-top: 8px;
-        margin: 0;
+        top: calc(env(safe-area-inset-top, 0px) + 12px);
+        height: 0;
+        overflow: visible;
+        z-index: 10;
+        display: flex;
+        justify-content: flex-end;
+        padding-right: 16px;
+        pointer-events: none;
     }
-    .wxd-sheet .modal-header {
-        position: sticky;
-        top: 21px; /* below drag indicator */
-        z-index: 2;
-        background: var(--bg-surface);
-        border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.06));
+    .wxd-floating-close .modal-close {
+        pointer-events: auto;
+        background: var(--bg-elevated);
     }
 }
 .wxd-sheet-body {
