@@ -222,6 +222,37 @@ export function wrkDrawChart() {
       : (dk ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.35)');
     ctx.fillText(pct, PAD_L + 3, y - 3);
   });
+
+  // Message markers — draw on top of everything
+  curSec = 0;
+  segs.forEach(seg => {
+    const dur = wrkSegDuration(seg);
+    const segX = PAD_L + (curSec / totalSecs) * cW;
+    (seg.messages || []).forEach(m => {
+      if (!m.text) return;
+      const mx = segX + (m.offset / totalSecs) * cW;
+      // Dashed vertical line
+      ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(mx, PAD_T);
+      ctx.lineTo(mx, PAD_T + cH);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // Small dot at top
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(mx, PAD_T + 4, 3, 0, Math.PI * 2);
+      ctx.fill();
+      // Chat bubble icon
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.beginPath();
+      ctx.arc(mx, PAD_T + 4, 2, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    curSec += dur;
+  });
 }
 
 export function wrkDrawBlock(ctx, x, w, pct, maxPct, padT, cH) {
