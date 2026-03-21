@@ -1444,10 +1444,11 @@ code {
     flex-direction: column;
     gap: var(--gap-layout);
 }
-/* Prevent background scroll while any sheet is open */
+/* Prevent background scroll/interaction while any sheet is open */
 body.sheet-locked .page-content {
     overflow: hidden !important;
     touch-action: none;
+    pointer-events: none;
 }
 /* Leveling page hero card */
 .lvl-hero-card {
