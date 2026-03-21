@@ -15926,7 +15926,7 @@ body:has(.act-sheet-mode) .topbar {
     }
     /* Full-screen sheet: sheet itself is the scroll container.
        Drag indicator + header stay sticky at the top. */
-    .wxd-sheet {
+    .wxd-sheet:not(.wxd-sheet--partial) {
         position: relative;
         max-width: 100%;
         max-height: none;
@@ -15969,16 +15969,16 @@ body:has(.act-sheet-mode) .topbar {
     border-radius: var(--radius-concentric);
 }
 
-/* On desktop: sheet is a flex column, header is fixed, body scrolls */
+/* On desktop: full-screen sheets use flex column so body scrolls independently */
 @media (min-width: 601px) {
-    .wxd-sheet {
+    .wxd-sheet:not(.wxd-sheet--partial) {
         display: flex;
         flex-direction: column;
     }
-    .wxd-sheet .modal-header {
+    .wxd-sheet:not(.wxd-sheet--partial) .modal-header {
         flex-shrink: 0;
     }
-    .wxd-sheet .modal-body {
+    .wxd-sheet:not(.wxd-sheet--partial) .modal-body {
         flex: 1;
         overflow-y: auto;
         min-height: 0;
