@@ -24965,7 +24965,7 @@ function _renderProfileRadar() {
     ctx.font = '600 13px Inter, system-ui, sans-serif';
     ctx.fillStyle = lblPrimary;
     ctx.fillText(dims[i].label, p.x, p.y - 7);
-    ctx.font = '500 11px Inter, system-ui, sans-serif';
+    ctx.font = '600 13px Inter, system-ui, sans-serif';
     ctx.fillStyle = lblSecondary;
     ctx.fillText(dims[i].raw, p.x, p.y + 8);
   }
