@@ -1452,10 +1452,14 @@ code {
 /* Prevent background scroll while any sheet is open */
 body.sheet-locked .page-content {
     overflow: hidden !important;
-    touch-action: none;
+    touch-action: none !important;
     /* NOTE: do NOT add pointer-events:none here — dialogs live inside
        .page-content in the DOM and iOS breaks touch routing on their
        fixed-position children when a parent has pointer-events:none */
+}
+body.sheet-locked,
+html:has(body.sheet-locked) {
+    overflow: hidden !important;
 }
 /* Leveling page hero card */
 .lvl-hero-card {

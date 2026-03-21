@@ -12898,6 +12898,22 @@ function _openOverlaySheet(id) {
   sheet.style.display = '';
   sheet.offsetHeight;
   sheet.classList.add('wxd-open');
+  // Prevent background scroll on iOS — block touchmove on the overlay backdrop
+  if (!sheet._bgScrollLock) {
+    sheet._bgScrollLock = true;
+    sheet.addEventListener('touchmove', e => {
+      // Allow touchmove inside scrollable sheet body, but block on backdrop
+      const panel = sheet.querySelector('.wxd-sheet');
+      if (panel && !panel.contains(e.target)) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+    // Also block touchmove on the backdrop element itself
+    const backdrop = sheet.querySelector('.wxd-backdrop');
+    if (backdrop) {
+      backdrop.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+    }
+  }
   // Swipe-to-dismiss on the sheet panel
   _initSheetSwipeDismiss(sheet, id);
   // Keyboard avoidance for full-screen overlay sheets on mobile
@@ -25778,7 +25794,8 @@ function _initGoalScrubber() {
 
   const THRESHOLD = 10;
 
-  let touchStartX = 0, touchStartY = 0;
+  // Set touch-action directly to override global !important rule
+  scrubber.style.setProperty('touch-action', 'pan-y', 'important');
 
   scrubber.addEventListener('pointerdown', e => {
     if (e.button > 0) return;
@@ -25799,19 +25816,7 @@ function _initGoalScrubber() {
     applyStep(dragStartStep - (e.clientX - dragStartX) / PX);
   });
 
-  scrubber.addEventListener('touchstart', e => {
-    touchStartX = e.touches[0].clientX;
-    touchStartY = e.touches[0].clientY;
-  }, { passive: true });
-
-  scrubber.addEventListener('touchmove', e => {
-    if (dragging) { e.preventDefault(); return; }
-    if (pending) {
-      const dx = Math.abs(e.touches[0].clientX - touchStartX);
-      const dy = Math.abs(e.touches[0].clientY - touchStartY);
-      if (dx > dy && dx > 6) e.preventDefault();
-    }
-  }, { passive: false });
+  scrubber.addEventListener('touchmove', e => { if (dragging) e.preventDefault(); }, { passive: false });
 
   const endDrag = () => {
     if (pending) { pending = false; return; }
