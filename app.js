@@ -12669,20 +12669,25 @@ function _startViewportTracking(dialog) {
       inner.querySelector('.act-search-results')
     );
 
-    if (body) body.style.paddingBottom = kbHeight > 50 ? kbHeight + 'px' : '';
-
-    if (kbHeight <= 50) {
-      // Keyboard closed — re-anchor the body lock so iOS viewport drift
-      // doesn't leave a black strip at the bottom.
-      if (document.body.dataset.sheetLocked === '1') {
-        const savedY = parseInt(document.body.dataset.sheetScrollY || '0', 10);
-        document.body.style.top = `-${savedY}px`;
+    if (kbHeight > 50) {
+      // Keyboard opening — snap padding immediately so content shifts up at once
+      if (body) {
+        body.style.transition = 'none';
+        body.style.paddingBottom = kbHeight + 'px';
       }
-      // Force a compositor repaint on the dialog layer.
-      requestAnimationFrame(function() {
-        dialog.style.transform = 'translateZ(0)';
-        requestAnimationFrame(function() { dialog.style.transform = ''; });
-      });
+    } else {
+      // Keyboard closing — animate padding away to match the keyboard slide-out
+      // (clearing it instantly leaves black empty space at the bottom of the
+      // scroll container while the keyboard is still animating away)
+      if (body) {
+        body.style.transition = 'padding-bottom 0.32s ease';
+        body.style.paddingBottom = '0px';
+        clearTimeout(dialog._kbPadTimer);
+        dialog._kbPadTimer = setTimeout(function() {
+          body.style.transition = '';
+          body.style.paddingBottom = '';
+        }, 380);
+      }
     }
   }
 
@@ -12696,10 +12701,11 @@ function _stopViewportTracking() {
     _sheetVVHandler = null;
   }
   document.querySelectorAll('dialog.modal-dialog[open]').forEach(dlg => {
+    clearTimeout(dlg._kbPadTimer);
     const inner = dlg.querySelector('.modal');
     if (!inner) return;
     const body = inner.querySelector('.cev-body') || inner.querySelector('.modal-body') || inner.querySelector('.act-search-results');
-    if (body) body.style.paddingBottom = '';
+    if (body) { body.style.transition = ''; body.style.paddingBottom = ''; }
   });
 }
 
