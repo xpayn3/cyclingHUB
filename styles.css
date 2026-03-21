@@ -15202,13 +15202,13 @@ body:has(.act-sheet-mode) .topbar {
 /* Rain bar chart */
 .aw-rain-chart {
     position: relative;
-    padding-top: 8px;
+    padding-top: 16px;
 }
 .aw-rain-bars {
     position: relative;
     display: flex;
     align-items: flex-end;
-    height: 100px;
+    height: 80px; /* matches rBarMaxH in JS */
 }
 .aw-rain-col {
     position: absolute;
