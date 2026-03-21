@@ -8594,8 +8594,8 @@ body.show-save-fab #actSaveRouteFab {
     overflow: visible;
 }
 .prof-radar-wrap canvas {
+    aspect-ratio: 1 / 1;
     max-width: 100%;
-    height: auto;
 }
 
 /* Top rides list */

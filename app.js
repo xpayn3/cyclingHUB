@@ -24869,7 +24869,8 @@ function _renderProfileRadar() {
   const n = dims.length;
 
   const dpr = window.devicePixelRatio || 1;
-  const size = 400;
+  const containerW = canvas.parentElement?.clientWidth || 340;
+  const size = Math.min(400, containerW);
   canvas.width = size * dpr;
   canvas.height = size * dpr;
   canvas.style.width = size + 'px';
@@ -24879,7 +24880,7 @@ function _renderProfileRadar() {
   ctx.clearRect(0, 0, size, size);
 
   const cx = size / 2, cy = size / 2;
-  const maxR = 110;
+  const maxR = size * 0.275;
   const angleStep = (Math.PI * 2) / n;
   const startA = -Math.PI / 2;
 
