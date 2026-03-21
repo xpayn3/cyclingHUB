@@ -110,34 +110,34 @@ export function wmoLabel(code) {
 
 // Weather-based page gradient
 function wxPageGradient(code, isDay) {
-  // Gradient strategy: weather colour fills the hero/top area then fades
-  // to the app's pure-black background so scrolling down feels natural.
-  // Stops: [weather-top 0%] → [weather-mid 25%] → [#000 65%]
+  // Gradient strategy: weather colour covers the hero, fades to app black
+  // by the time the hourly strip ends (~30% of page height on mobile).
+  // Stops: [weather-top 0%] → [weather-mid 12%] → [#000 32%]
   // Night
   if (!isDay) {
-    if ([51,53,55,61,63,65,66,67,80,81,82].includes(code)) return 'linear-gradient(180deg, #1a2744 0%, #1e3352 25%, #000000 65%)';
-    if ([95,96,99].includes(code))                          return 'linear-gradient(180deg, #201840 0%, #2e2050 25%, #000000 65%)';
-    if ([71,73,75,77,85,86].includes(code))                 return 'linear-gradient(180deg, #2a3448 0%, #354260 25%, #000000 65%)';
-    if ([45,48].includes(code))                             return 'linear-gradient(180deg, #262640 0%, #32324e 25%, #000000 65%)';
-    if (code >= 2)                                          return 'linear-gradient(180deg, #182038 0%, #222e4a 25%, #000000 65%)';
-    return 'linear-gradient(180deg, #101840 0%, #1e2a5c 25%, #000000 65%)'; // clear night
+    if ([51,53,55,61,63,65,66,67,80,81,82].includes(code)) return 'linear-gradient(180deg, #1a2744 0%, #1e3352 12%, #000000 32%)';
+    if ([95,96,99].includes(code))                          return 'linear-gradient(180deg, #201840 0%, #2e2050 12%, #000000 32%)';
+    if ([71,73,75,77,85,86].includes(code))                 return 'linear-gradient(180deg, #2a3448 0%, #354260 12%, #000000 32%)';
+    if ([45,48].includes(code))                             return 'linear-gradient(180deg, #262640 0%, #32324e 12%, #000000 32%)';
+    if (code >= 2)                                          return 'linear-gradient(180deg, #182038 0%, #222e4a 12%, #000000 32%)';
+    return 'linear-gradient(180deg, #101840 0%, #1e2a5c 12%, #000000 32%)'; // clear night
   }
   // Thunderstorm
-  if ([95,96,99].includes(code))                           return 'linear-gradient(180deg, #2c2c3a 0%, #3d3552 25%, #000000 65%)';
+  if ([95,96,99].includes(code))                           return 'linear-gradient(180deg, #2c2c3a 0%, #3d3552 12%, #000000 32%)';
   // Rain / showers / drizzle
-  if ([51,53,55,61,63,65,66,67,80,81,82].includes(code))  return 'linear-gradient(180deg, #3a4a5c 0%, #4a5a6c 25%, #000000 65%)';
+  if ([51,53,55,61,63,65,66,67,80,81,82].includes(code))  return 'linear-gradient(180deg, #3a4a5c 0%, #4a5a6c 12%, #000000 32%)';
   // Snow
-  if ([71,73,75,77,85,86].includes(code))                  return 'linear-gradient(180deg, #6b7b8d 0%, #8a9aac 25%, #000000 65%)';
+  if ([71,73,75,77,85,86].includes(code))                  return 'linear-gradient(180deg, #6b7b8d 0%, #8a9aac 12%, #000000 32%)';
   // Fog
-  if ([45,48].includes(code))                              return 'linear-gradient(180deg, #4a5568 0%, #5a6578 25%, #000000 65%)';
+  if ([45,48].includes(code))                              return 'linear-gradient(180deg, #4a5568 0%, #5a6578 12%, #000000 32%)';
   // Overcast
-  if (code === 3)                                          return 'linear-gradient(180deg, #4a5a6c 0%, #5a6a7c 25%, #000000 65%)';
+  if (code === 3)                                          return 'linear-gradient(180deg, #4a5a6c 0%, #5a6a7c 12%, #000000 32%)';
   // Mostly cloudy
-  if (code === 2)                                          return 'linear-gradient(180deg, #3a5068 0%, #4a6078 25%, #000000 65%)';
+  if (code === 2)                                          return 'linear-gradient(180deg, #3a5068 0%, #4a6078 12%, #000000 32%)';
   // Partly cloudy
-  if (code === 1)                                          return 'linear-gradient(180deg, #2a4a6e 0%, #3a6a9e 25%, #000000 65%)';
+  if (code === 1)                                          return 'linear-gradient(180deg, #2a4a6e 0%, #3a6a9e 12%, #000000 32%)';
   // Clear sky
-  return 'linear-gradient(180deg, #1e3a5f 0%, #2a6cb5 25%, #000000 65%)';
+  return 'linear-gradient(180deg, #1e3a5f 0%, #2a6cb5 12%, #000000 32%)';
 }
 
 // Degrees → compass cardinal
