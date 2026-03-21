@@ -8003,8 +8003,8 @@ body.show-save-fab #actSaveRouteFab {
 
 /* ── Targets — card grid (Strava/Nike metric cards) ──── */
 .cev-targets {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    display: flex;
+    flex-direction: column;
     gap: 8px;
     margin-bottom: 12px;
 }
@@ -8049,6 +8049,141 @@ body.show-save-fab #actSaveRouteFab {
     font-size: 13px;
     color: var(--text-muted);
     font-weight: 500;
+}
+
+/* ── Metric scrubber (drag dial) ─────────────────────── */
+.cev-target-card {
+    /* re-declare to ensure column layout for scrubber */
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+.cev-undo-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+    border: 1.5px solid rgba(255,255,255,0.14);
+    color: var(--text-muted);
+    font-size: 15px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, transform 0.15s;
+    z-index: 1;
+    padding: 0;
+}
+.cev-undo-btn:active {
+    background: rgba(255,255,255,0.16);
+    color: var(--text-primary);
+    transform: rotate(-30deg);
+}
+[data-theme="light"] .cev-undo-btn {
+    background: rgba(0,0,0,0.06);
+    border-color: rgba(0,0,0,0.1);
+}
+[data-theme="light"] .cev-undo-btn:active {
+    background: rgba(0,0,0,0.12);
+}
+.cev-scrubber {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    cursor: ew-resize;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: pan-y;
+    padding: 2px 0 0;
+}
+.cev-scrubber-value {
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: var(--text-primary);
+    line-height: 1;
+    transition: color 0.1s;
+    min-height: 36px;
+}
+.cev-scrubber-value.is-zero {
+    color: rgba(255, 255, 255, 0.2);
+}
+[data-theme="light"] .cev-scrubber-value.is-zero {
+    color: rgba(0, 0, 0, 0.2);
+}
+.cev-scrubber-value-row {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+}
+.cev-scrubber-unit {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
+    pointer-events: none;
+}
+.cev-scrubber-track {
+    width: 100%;
+    height: 28px;
+    overflow: hidden;
+    position: relative;
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, black 22%, black 78%, transparent 100%);
+    mask-image: linear-gradient(to right, transparent 0%, black 22%, black 78%, transparent 100%);
+}
+.cev-scrubber-track::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 2px;
+    margin-left: -1px;
+    background: var(--accent);
+    border-radius: 1px;
+    pointer-events: none;
+}
+.cev-scrubber-ruler {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 6000px;
+    height: 100%;
+    background-image:
+        repeating-linear-gradient(
+            to right,
+            rgba(255, 255, 255, 0.5) 0, rgba(255, 255, 255, 0.5) 1.5px,
+            transparent 1.5px, transparent 30px
+        ),
+        repeating-linear-gradient(
+            to right,
+            rgba(255, 255, 255, 0.18) 0, rgba(255, 255, 255, 0.18) 1px,
+            transparent 1px, transparent 6px
+        );
+    background-size: 100% 22px, 100% 10px;
+    background-position: 0 center, 0 center;
+    background-repeat: repeat-x;
+    will-change: transform;
+}
+[data-theme="light"] .cev-scrubber-ruler {
+    background-image:
+        repeating-linear-gradient(
+            to right,
+            rgba(0, 0, 0, 0.4) 0, rgba(0, 0, 0, 0.4) 1.5px,
+            transparent 1.5px, transparent 30px
+        ),
+        repeating-linear-gradient(
+            to right,
+            rgba(0, 0, 0, 0.14) 0, rgba(0, 0, 0, 0.14) 1px,
+            transparent 1px, transparent 6px
+        );
 }
 
 /* ── Delete button ────────────────────────────────────── */

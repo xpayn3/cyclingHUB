@@ -13482,6 +13482,7 @@ function openCalEventModal(presetDateOrEvent) {
   _renderCalEvColors();
   _initModalControls();
   _syncModalControls();
+  _syncCalScrubbers();
   modal.showModal();
 }
 
@@ -13624,6 +13625,7 @@ function _applyCalEvPreset(key) {
   document.getElementById('calEvTss').value      = p.tss;
   _calEvCategoryChanged();
   _syncModalControls();
+  _syncCalScrubbers();
 }
 
 // Wire preset buttons
@@ -13818,6 +13820,151 @@ function _syncModalControls() {
     const sel = wrap.querySelector('select');
     const label = wrap.querySelector('.cdd-label');
     if (sel && label) label.textContent = sel.options[sel.selectedIndex]?.text || '';
+  });
+}
+
+// ── Calendar event metric scrubbers ─────────────────────────
+const _CEV_SCRUBBER_DEFS = {
+  duration: {
+    inputId: 'calEvDuration',
+    min: 0, max: 288, // steps of 5 min (0–1440 min total)
+    toStep(val) {
+      if (!val) return 0;
+      const secs = _parseDurationToSecs(val);
+      return Math.round(secs / 60 / 5);
+    },
+    fromStep(s) {
+      if (s === 0) return '';
+      const mins = s * 5;
+      const h = Math.floor(mins / 60), m = mins % 60;
+      return h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
+    },
+    display(s) {
+      if (s === 0) return { text: '—', zero: true, unit: '' };
+      const mins = s * 5;
+      const h = Math.floor(mins / 60), m = mins % 60;
+      if (h > 0 && m > 0) return { text: `${h}h ${m}`, zero: false, unit: 'm' };
+      if (h > 0) return { text: `${h}`, zero: false, unit: 'h' };
+      return { text: `${m}`, zero: false, unit: 'm' };
+    },
+  },
+  distance: {
+    inputId: 'calEvDistance',
+    min: 0, max: 600, // steps of 0.5 km (0–300 km total)
+    toStep(val) {
+      if (!val) return 0;
+      return Math.round(parseFloat(val) / 0.5);
+    },
+    fromStep(s) { return s === 0 ? '' : (s * 0.5).toFixed(1); },
+    display(s) {
+      return s === 0 ? { text: '—', zero: true } : { text: (s * 0.5).toFixed(1), zero: false };
+    },
+  },
+  tss: {
+    inputId: 'calEvTss',
+    min: 0, max: 999,
+    toStep(val) { return val ? Math.max(0, Math.min(999, parseInt(val) || 0)) : 0; },
+    fromStep(s) { return s === 0 ? '' : String(s); },
+    display(s) {
+      if (s === 0) return { text: '—', zero: true, color: '' };
+      const color = s < 50  ? 'var(--accent)'   // easy
+                  : s < 100 ? 'var(--yellow)'    // moderate
+                  : s < 150 ? 'var(--orange)'    // hard
+                  :           'var(--red)';       // very hard
+      return { text: String(s), zero: false, color };
+    },
+  },
+};
+
+const _CEV_PX_PER_STEP = 6; // pixels of drag per step
+let _cevScrubbersInited = false;
+
+function _initCalScrubbers() {
+  if (_cevScrubbersInited) return;
+  _cevScrubbersInited = true;
+
+  document.querySelectorAll('#calEvMetricsRow .cev-scrubber').forEach(scrubber => {
+    const metric = scrubber.dataset.metric;
+    const def = _CEV_SCRUBBER_DEFS[metric];
+    if (!def) return;
+
+    const input   = document.getElementById(def.inputId);
+    const ruler   = scrubber.querySelector('.cev-scrubber-ruler');
+    const valueEl = scrubber.querySelector('.cev-scrubber-value');
+    const unitEl  = scrubber.querySelector('.cev-scrubber-unit');
+    const undoBtn = scrubber.closest('.cev-target-card')?.querySelector('.cev-undo-btn');
+    let step = 0, history = [], dragStartX = 0, dragStartStep = 0, dragging = false;
+
+    function applyStep(s) {
+      step = Math.max(def.min, Math.min(def.max, Math.round(s)));
+      const trackW = scrubber.querySelector('.cev-scrubber-track').clientWidth || 80;
+      const offset = trackW / 2 - step * _CEV_PX_PER_STEP;
+      ruler.style.transform = `translateX(${offset}px)`;
+      const d = def.display(step);
+      valueEl.textContent = d.text;
+      valueEl.classList.toggle('is-zero', d.zero);
+      if (unitEl && d.unit !== undefined) unitEl.textContent = d.unit;
+      if (d.color !== undefined) valueEl.style.color = d.color;
+      input.value = def.fromStep(step);
+    }
+
+    function syncUndoBtn() {
+      if (undoBtn) undoBtn.style.display = history.length > 0 ? '' : 'none';
+    }
+
+    // Called by _syncCalScrubbers on modal open — resets history
+    scrubber._cevApplyStep = (s) => {
+      applyStep(s);
+      history = [];
+      syncUndoBtn();
+    };
+    scrubber._cevDef = def;
+
+    if (undoBtn) {
+      undoBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        if (!history.length) return;
+        applyStep(history.pop());
+        syncUndoBtn();
+      });
+    }
+
+    scrubber.addEventListener('pointerdown', e => {
+      if (e.button > 0) return;
+      dragStartX = e.clientX;
+      dragStartStep = step;
+      dragging = true;
+      scrubber.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+
+    scrubber.addEventListener('pointermove', e => {
+      if (!dragging) return;
+      const delta = e.clientX - dragStartX;
+      applyStep(dragStartStep + delta / _CEV_PX_PER_STEP);
+    });
+
+    const endDrag = () => {
+      if (!dragging) return;
+      dragging = false;
+      // Only push to history if the value actually changed from drag start
+      if (step !== dragStartStep) {
+        history.push(dragStartStep);
+        syncUndoBtn();
+      }
+    };
+    scrubber.addEventListener('pointerup', endDrag);
+    scrubber.addEventListener('pointercancel', endDrag);
+  });
+}
+
+function _syncCalScrubbers() {
+  _initCalScrubbers();
+  document.querySelectorAll('#calEvMetricsRow .cev-scrubber').forEach(scrubber => {
+    if (!scrubber._cevApplyStep) return;
+    const def = scrubber._cevDef;
+    const input = document.getElementById(def.inputId);
+    scrubber._cevApplyStep(def.toStep(input.value));
   });
 }
 
