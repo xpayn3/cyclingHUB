@@ -161,10 +161,10 @@ export function wrkDrawChart() {
     const segW = (dur / totalSecs) * cW;
     const isSelected = idx === wrkState.editIdx;
 
-    // Selection highlight — behind bars
+    // Selection highlight — behind bars, full height to top edge
     if (isSelected) {
       ctx.fillStyle = 'rgba(0,229,160,0.12)';
-      ctx.fillRect(x, PAD_T, segW, cH);
+      ctx.fillRect(x, 0, segW, PAD_T + cH);
     }
 
     if (seg.type === 'warmup') {
