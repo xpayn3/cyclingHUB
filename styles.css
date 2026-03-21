@@ -15969,7 +15969,25 @@ body:has(.act-sheet-mode) .topbar {
     border-radius: var(--radius-concentric);
 }
 
-/* Desktop sheet scroll: handled via inline styles on each sheet + modal-body */
+/* On desktop: full-screen sheets — explicit height so flex children can constrain */
+@media (min-width: 601px) {
+    .wxd-sheet:not(.wxd-sheet--partial) {
+        display: flex !important;
+        flex-direction: column !important;
+        height: 85vh !important;
+        max-height: 85vh !important;
+        overflow: hidden !important;
+    }
+    .wxd-sheet:not(.wxd-sheet--partial) .modal-header {
+        flex-shrink: 0 !important;
+    }
+    .wxd-sheet:not(.wxd-sheet--partial) .modal-body {
+        flex: 1 !important;
+        min-height: 0 !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+}
 
 /* ── Global Search Sheet ── */
 .gs-sheet {
