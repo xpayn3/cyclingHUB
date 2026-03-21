@@ -14871,32 +14871,17 @@ async function navigateToActivity(actKey, fromStep = false) {
     // Try for any activity that has power data (catches both single and dual-sided meters).
     if (!normStreams.left_platform_center_offset &&
         (normStreams.lrbalance?.some(v => v != null && v > 0) ||
+         normStreams.left_right_balance?.some(v => v != null && v > 0) ||
          normStreams.watts?.some(v => v != null && v > 0))) {
       try {
-        console.log('[PCO] Fetching FIT for activity', actId,
-          '| lrbalance[:3]:', normStreams.lrbalance?.slice(0, 3),
-          '| watts[:3]:', normStreams.watts?.slice(0, 3));
         const fitBufPCO = await fetchFitFile(actId);
-        console.log('[PCO] FIT buffer:', fitBufPCO ? fitBufPCO.byteLength + ' bytes' : 'null');
         if (fitBufPCO) {
           const fitRecsPCO = parseFitBuffer(fitBufPCO);
-          console.log('[PCO] FIT records parsed:', fitRecsPCO?.length,
-            '| first rec keys:', fitRecsPCO?.[0] ? Object.keys(fitRecsPCO[0]) : 'none',
-            '| first rec:', JSON.stringify(fitRecsPCO?.[0]).slice(0, 200));
           const fitStrPCO  = fitRecordsToStreams(fitRecsPCO);
-          console.log('[PCO] FIT streams keys:', Object.keys(fitStrPCO || {}),
-            '| left_pco[:5]:', fitStrPCO?.left_platform_center_offset?.slice(0, 5),
-            '| right_pco[:5]:', fitStrPCO?.right_platform_center_offset?.slice(0, 5));
           if (fitStrPCO?.left_platform_center_offset)  normStreams.left_platform_center_offset  = fitStrPCO.left_platform_center_offset;
           if (fitStrPCO?.right_platform_center_offset) normStreams.right_platform_center_offset = fitStrPCO.right_platform_center_offset;
         }
-      } catch (pcoErr) {
-        console.warn('[PCO] FIT fetch/parse error:', pcoErr);
-      }
-    } else {
-      console.log('[PCO] Skipped — no power data or PCO already present.',
-        'lrbal:', !!normStreams.lrbalance, 'watts:', !!normStreams.watts,
-        'already has PCO:', !!normStreams.left_platform_center_offset);
+      } catch (_) { /* FIT unavailable — PCO card will stay hidden */ }
     }
 
     // If icu_hr_zone_times still not present, compute it from the HR stream
@@ -15983,17 +15968,35 @@ async function fetchActivityStreams(activityId) {
    power, heart_rate, cadence, speed (m/s), altitude (m), timestamp.
 ==================================================== */
 async function fetchFitFile(activityId) {
-  // Try several URL patterns intervals.icu uses for FIT file export
-  const headers = { ...authHeader(), 'Accept': 'application/octet-stream' };
+  // Try several URL patterns intervals.icu uses for FIT file export.
+  // intervals.icu uses the numeric ID (no 'i' prefix) for file downloads.
+  const numId    = String(activityId).replace(/^i/, '');
+  const athId    = state.athleteId;
+  const headers  = { ...authHeader(), 'Accept': 'application/octet-stream' };
   const urls = [
-    ICU_BASE + `/activity/${activityId}.fit`,
-    ICU_BASE + `/athlete/${state.athleteId}/activities/${activityId}.fit`,
+    // Numeric ID variants (most likely to work)
+    ICU_BASE + `/athlete/${athId}/activities/${numId}/original`,
+    ICU_BASE + `/activity/${numId}/original`,
+    ICU_BASE + `/athlete/${athId}/activities/${numId}.fit`,
+    ICU_BASE + `/activity/${numId}.fit`,
+    // Original 'i'-prefixed variants as fallback
+    ICU_BASE + `/athlete/${athId}/activities/${activityId}/original`,
     ICU_BASE + `/activity/${activityId}/original`,
-    ICU_BASE + `/athlete/${state.athleteId}/activities/${activityId}/original`,
+    ICU_BASE + `/activity/${activityId}.fit`,
   ];
   for (const url of urls) {
-    const res = await fetch(url, { headers });
-    if (res.ok) { rlTrackRequest(); return res.arrayBuffer(); }
+    try {
+      const res = await fetch(url, { headers });
+      if (!res.ok) continue;
+      rlTrackRequest();
+      const buf = await res.arrayBuffer();
+      // Reject tiny responses — valid FIT files are at minimum ~32 bytes
+      // and start with ".FIT" magic at offset 8-11.
+      if (buf.byteLength < 32) continue;
+      const magic = String.fromCharCode(...new Uint8Array(buf, 8, 4));
+      if (magic !== '.FIT') continue;
+      return buf;
+    } catch (_) { /* network error — try next URL */ }
   }
   return null;
 }
