@@ -59,6 +59,10 @@ const WEATHER_SVGS = {
   checkmark: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="14" fill="#00e5a0" opacity="0.15"/><polyline points="13,20 18,26 28,14" stroke="#00e5a0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`,
 };
 
+function _radarPlayIcon() { return '<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><polygon points="6,4 20,12 6,20"/></svg>'; }
+function _radarPauseIcon() { return '<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><rect x="5" y="4" width="4" height="16" rx="1"/><rect x="15" y="4" width="4" height="16" rx="1"/></svg>'; }
+let _wxRadarMap = null, _wxRadarFrames = [], _wxRadarIdx = 0, _wxRadarTimer = null;
+
 // Map intervals.icu icon string → SVG
 export function weatherIconSvg(iconStr) {
   if (!iconStr) return WEATHER_SVGS.sun;
@@ -1337,6 +1341,19 @@ export async function renderWeatherPage(_restoreScrollY) {
 
     ${tempCurveHtml}
 
+    <!-- Radar Map -->
+    <div class="card aw-card aw-radar-card">
+      <div class="aw-card-label">${WEATHER_SVGS.cloud || ''} PRECIPITATION RADAR</div>
+      <div class="aw-radar-wrap">
+        <div id="wxRadarMap" class="aw-radar-map"></div>
+        <div class="aw-radar-controls">
+          <button class="aw-radar-btn aw-radar-play" id="wxRadarPlay" aria-label="Play">${_radarPlayIcon()}</button>
+          <div class="aw-radar-timeline" id="wxRadarTimeline"></div>
+          <span class="aw-radar-time" id="wxRadarTimeLabel">Now</span>
+        </div>
+      </div>
+    </div>
+
     <!-- 7-Day Forecast -->
     <div class="card aw-card">
       <div class="aw-card-label">7-DAY FORECAST</div>
@@ -1603,8 +1620,136 @@ export async function renderWeatherPage(_restoreScrollY) {
       document.removeEventListener('mousemove', wxHMove);
     });
   }
+  // Init radar map
+  _rIC(() => _initWxRadar(lat, lng));
   _rIC(() => { if (window.refreshGlow) refreshGlow(); });
   _rIC(() => renderWeatherPerformance());
+}
+
+async function _initWxRadar(lat, lng) {
+  const el = document.getElementById('wxRadarMap');
+  if (!el || !window.maplibregl) return;
+
+  // Cleanup previous
+  if (_wxRadarMap) { _wxRadarMap.remove(); _wxRadarMap = null; }
+  if (_wxRadarTimer) { clearInterval(_wxRadarTimer); _wxRadarTimer = null; }
+
+  // Fetch RainViewer radar timestamps
+  let frames;
+  try {
+    const res = await fetch('https://api.rainviewer.com/public/weather-maps.json');
+    const rv = await res.json();
+    frames = [...(rv.radar?.past || []), ...(rv.radar?.nowcast || [])];
+    _wxRadarFrames = frames;
+  } catch (_) { return; }
+  if (!frames.length) return;
+
+  _wxRadarIdx = frames.length - 1; // start at latest
+
+  // Create map
+  _wxRadarMap = new maplibregl.Map({
+    container: el,
+    style: 'https://tiles.openfreemap.org/styles/dark', // strava base
+    center: [lng, lat],
+    zoom: 9,
+    minZoom: 4,
+    maxZoom: 12,
+    attributionControl: false,
+    interactive: true,
+    dragRotate: false,
+    pitchWithRotate: false,
+    touchZoomRotate: true,
+  });
+
+  _wxRadarMap.on('load', () => {
+    // Remove ne2_shaded raster layer that shows "Zoom Level Not Supported" watermark
+    const layers = _wxRadarMap.getStyle().layers;
+    layers.forEach(l => {
+      if (l.source === 'ne2_shaded') _wxRadarMap.removeLayer(l.id);
+    });
+    if (_wxRadarMap.getSource('ne2_shaded')) _wxRadarMap.removeSource('ne2_shaded');
+    // Apply strava-style paint overrides
+    if (window._applyStravaOverrides) window._applyStravaOverrides(_wxRadarMap);
+    // Add all radar frames as sources + layers (hidden initially)
+    frames.forEach((f, i) => {
+      const id = 'radar-' + i;
+      _wxRadarMap.addSource(id, {
+        type: 'raster',
+        tiles: [`https://tilecache.rainviewer.com${f.path}/256/{z}/{x}/{y}/6/1_1.png`],
+        tileSize: 256,
+        maxzoom: 8
+      });
+      _wxRadarMap.addLayer({
+        id: id,
+        type: 'raster',
+        source: id,
+        paint: { 'raster-opacity': i === _wxRadarIdx ? 0.7 : 0 }
+      });
+    });
+
+    // Build timeline dots
+    _buildRadarTimeline(frames);
+  });
+
+  // Play/pause button
+  const playBtn = document.getElementById('wxRadarPlay');
+  if (playBtn) {
+    playBtn.addEventListener('click', () => {
+      if (_wxRadarTimer) {
+        clearInterval(_wxRadarTimer);
+        _wxRadarTimer = null;
+        playBtn.innerHTML = _radarPlayIcon();
+      } else {
+        playBtn.innerHTML = _radarPauseIcon();
+        _wxRadarTimer = setInterval(() => {
+          _wxRadarIdx = (_wxRadarIdx + 1) % _wxRadarFrames.length;
+          _showRadarFrame(_wxRadarIdx);
+        }, 500);
+      }
+    });
+  }
+
+  _pageCleanupFns.push(() => {
+    if (_wxRadarTimer) { clearInterval(_wxRadarTimer); _wxRadarTimer = null; }
+    if (_wxRadarMap) { _wxRadarMap.remove(); _wxRadarMap = null; }
+  });
+}
+
+function _showRadarFrame(idx) {
+  if (!_wxRadarMap) return;
+  _wxRadarFrames.forEach((_, i) => {
+    const id = 'radar-' + i;
+    if (_wxRadarMap.getLayer(id)) {
+      _wxRadarMap.setPaintProperty(id, 'raster-opacity', i === idx ? 0.7 : 0);
+    }
+  });
+  // Update time label
+  const lbl = document.getElementById('wxRadarTimeLabel');
+  if (lbl && _wxRadarFrames[idx]) {
+    const d = new Date(_wxRadarFrames[idx].time * 1000);
+    const h = d.getHours(), m = d.getMinutes();
+    const isPast = idx < _wxRadarFrames.length - 1;
+    const now = idx === _wxRadarFrames.length - 1;
+    lbl.textContent = now ? 'Now' : (h % 12 || 12) + ':' + String(m).padStart(2, '0') + (h < 12 ? 'am' : 'pm');
+  }
+  // Update timeline active dot
+  const dots = document.querySelectorAll('.aw-radar-dot');
+  dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+}
+
+function _buildRadarTimeline(frames) {
+  const el = document.getElementById('wxRadarTimeline');
+  if (!el) return;
+  el.innerHTML = frames.map((f, i) =>
+    `<span class="aw-radar-dot${i === _wxRadarIdx ? ' active' : ''}" data-idx="${i}"></span>`
+  ).join('');
+  el.addEventListener('click', e => {
+    const dot = e.target.closest('.aw-radar-dot');
+    if (dot) {
+      _wxRadarIdx = +dot.dataset.idx;
+      _showRadarFrame(_wxRadarIdx);
+    }
+  });
 }
 
 export function refreshWeatherPage() {

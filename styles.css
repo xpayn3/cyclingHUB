@@ -15077,6 +15077,67 @@ body:has(.act-sheet-mode) .topbar {
     opacity: 0.85;
 }
 
+/* Radar map card */
+.aw-radar-wrap {
+    border-radius: 8px;
+    overflow: hidden;
+}
+.aw-radar-map {
+    width: 100%;
+    height: 280px;
+    border-radius: 8px 8px 0 0;
+}
+.aw-radar-map .maplibregl-canvas { border-radius: 8px 8px 0 0; }
+.aw-radar-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 4px;
+}
+.aw-radar-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s;
+}
+.aw-radar-btn:hover { background: rgba(255, 255, 255, 0.2); }
+.aw-radar-timeline {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2px;
+    height: 20px;
+}
+.aw-radar-dot {
+    flex: 1;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.15);
+    cursor: pointer;
+    transition: background 0.15s, height 0.15s;
+}
+.aw-radar-dot.active {
+    background: #60A5FA;
+    height: 6px;
+}
+.aw-radar-time {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    white-space: nowrap;
+    min-width: 36px;
+    text-align: right;
+}
+
 .aw-hour {
     flex: 0 0 60px;
     display: flex;
