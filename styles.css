@@ -2217,6 +2217,82 @@ input[type="number"] {
     opacity: 1;
 }
 
+/* ── Battery Status Dashboard ── */
+.dash-bat-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--gap-card);
+}
+.dash-bat-card {
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.dash-bat-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.dash-bat-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.dash-bat-icon svg {
+    width: 16px;
+    height: 16px;
+}
+.dash-bat-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+}
+.dash-bat-bike {
+    font-size: 10px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.dash-bat-bar-wrap {
+    width: 100%;
+    height: 6px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.dash-bat-bar {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.4s ease;
+}
+.dash-bat-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+}
+.dash-bat-pct {
+    font-size: 18px;
+    font-weight: 700;
+    font-family: var(--font-num);
+    line-height: 1;
+}
+.dash-bat-charge {
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
 /* Route Builder map card */
 .dash-route-card {
     cursor: pointer;

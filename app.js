@@ -4724,6 +4724,7 @@ function renderDashboard() {
   _renderDashStreak();
   _renderDashNextWorkout();
   _renderDashGear();
+  _renderDashBatteries();
   _renderDashRouteMap();
   _rIC(() => { if (window.refreshGlow) refreshGlow(); });
 }
@@ -4813,6 +4814,72 @@ async function _renderDashGear() {
   } else if (dotsEl) {
     dotsEl.innerHTML = '';
   }
+}
+
+// ── Dashboard Battery Status ────────────
+function _renderDashBatteries() {
+  const section = document.getElementById('dashBatterySection');
+  const grid = document.getElementById('dashBatGrid');
+  if (!section || !grid) return;
+
+  const batteries = (typeof loadGearBatteries === 'function') ? loadGearBatteries() : [];
+  const activeBats = batteries.filter(b => !b.obsolete);
+  if (!activeBats.length) { section.style.display = 'none'; return; }
+
+  const gear = state.gearBikes || [];
+
+  grid.innerHTML = activeBats.map(b => {
+    const pct = (typeof calcBatteryPercent === 'function') ? calcBatteryPercent(b) : null;
+    const pctVal = pct !== null ? Math.round(pct) : null;
+    const bike = gear.find(g => g.id === b.bikeId);
+    const bikeName = bike ? bike.name : '';
+
+    // Color based on charge level
+    let barColor = 'var(--accent)';
+    let pctColor = 'var(--accent)';
+    if (pctVal !== null) {
+      if (pctVal <= 10) { barColor = '#FF453A'; pctColor = '#FF453A'; }
+      else if (pctVal <= 25) { barColor = '#FF9500'; pctColor = '#FF9500'; }
+      else if (pctVal <= 50) { barColor = '#FFD60A'; pctColor = '#FFD60A'; }
+    }
+
+    // Icon background tinted to match charge color
+    const iconBg = pctVal !== null && pctVal <= 25
+      ? (pctVal <= 10 ? 'rgba(255,69,58,0.15)' : 'rgba(255,149,0,0.15)')
+      : 'rgba(0,229,160,0.1)';
+
+    // Battery icon with charge level fill
+    const batIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="${pctVal !== null && pctVal <= 25 ? barColor : 'var(--accent)'}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="7" width="18" height="10" rx="2"/>
+      <line x1="22" y1="11" x2="22" y2="13"/>
+    </svg>`;
+
+    // Charge date info
+    let chargeInfo = '';
+    if (b.lastChargeDate) {
+      const days = Math.floor((Date.now() - new Date(b.lastChargeDate).getTime()) / 86400000);
+      chargeInfo = days === 0 ? 'Charged today' : days === 1 ? '1 day ago' : `${days}d ago`;
+    }
+
+    return `<div class="dash-bat-card" onclick="navigate('gear')">
+      <div class="dash-bat-header">
+        <div class="dash-bat-icon" style="background:${iconBg}">${batIcon}</div>
+        <div style="min-width:0">
+          <div class="dash-bat-name">${b.name || b.componentType || 'Battery'}</div>
+          ${bikeName ? `<div class="dash-bat-bike">${bikeName}</div>` : ''}
+        </div>
+      </div>
+      <div class="dash-bat-bar-wrap">
+        <div class="dash-bat-bar" style="width:${pctVal ?? 0}%;background:${barColor}"></div>
+      </div>
+      <div class="dash-bat-footer">
+        <span class="dash-bat-pct" style="color:${pctColor}">${pctVal !== null ? pctVal + '%' : '—'}</span>
+        <span class="dash-bat-charge">${chargeInfo}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  section.style.display = '';
 }
 
 let _dashRouteMapInst = null;
@@ -14484,8 +14551,8 @@ function _initCalScrubbers() {
       applyStep(dragStartStep - delta / _CEV_PX_PER_STEP);
     });
 
-    // Lock vertical scroll during pending + dragging
-    scrubber.addEventListener('touchmove', e => { if (dragging || pending) e.preventDefault(); }, { passive: false });
+    // Lock vertical scroll only after horizontal drag confirmed
+    scrubber.addEventListener('touchmove', e => { if (dragging) e.preventDefault(); }, { passive: false });
 
     const endDrag = () => {
       if (pending) { pending = false; return; }
@@ -25697,7 +25764,7 @@ function _initGoalScrubber() {
     applyStep(dragStartStep - (e.clientX - dragStartX) / PX);
   });
 
-  scrubber.addEventListener('touchmove', e => { if (dragging || pending) e.preventDefault(); }, { passive: false });
+  scrubber.addEventListener('touchmove', e => { if (dragging) e.preventDefault(); }, { passive: false });
 
   const endDrag = () => {
     if (pending) { pending = false; return; }

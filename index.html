@@ -1965,9 +1965,17 @@
                         </div>
                     </div>
 
+                    <!-- ── Battery Status ── -->
+                    <div data-dash-section="batteryStatus" id="dashBatterySection" style="display:none">
+                        <div class="dash-section-header">
+                            <div class="dash-section-title">Batteries</div>
+                        </div>
+                        <div class="dash-bat-grid" id="dashBatGrid"></div>
+                    </div>
+
                     <div data-dash-section="weeklyStats">
-                        <div class="stat-grid-label">
-                            This week <span id="statGridWeekRange"></span>
+                        <div class="dash-section-header">
+                            <div class="dash-section-title">This week <span id="statGridWeekRange"></span></div>
                         </div>
                         <div class="stat-grid">
                             <div class="stat-card">
@@ -2048,8 +2056,8 @@
 
                     <!-- Riding weather forecast (filled by renderWeatherForecast) -->
                     <div data-dash-section="weather" id="forecastSection" style="display:none">
-                        <div class="stat-grid-label" id="forecastHeader" onclick="navigate('weather')" style="cursor:pointer">
-                            Riding Forecast <span id="forecastLocation"></span>
+                        <div class="dash-section-header" id="forecastHeader" onclick="navigate('weather')" style="cursor:pointer">
+                            <div class="dash-section-title">Riding Forecast <span id="forecastLocation"></span></div>
                         </div>
                         <div id="forecastRail"></div>
                     </div>
@@ -3265,7 +3273,10 @@
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
                                 </button>
                                 <span class="cal-month-title" id="calMonthTitle"></span>
-                                <button class="cal-today-btn" onclick="calGoToday()">Today</button>
+                                <button class="cal-view-toggle" id="calViewToggle" onclick="toggleCalView()" title="Toggle grid/list view">
+                                    <svg class="cal-toggle-grid" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                                    <svg class="cal-toggle-list" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg>
+                                </button>
                                 <button class="cal-plan-btn" onclick="openTrainingPlanModal()" title="Training Plan Builder">
                                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="10" y1="14" x2="14" y2="14"/><line x1="12" y1="12" x2="12" y2="16"/></svg>
                                     Plan
@@ -3333,6 +3344,9 @@
                             <div class="cal-day-panel" id="calDayPanel">
                                 <div class="cal-day-panel-header" id="calDayPanelHeader">Select a day</div>
                                 <div class="cal-day-panel-list" id="calDayPanelList"></div>
+                            </div>
+                            <div class="cal-list-view" id="calListView">
+                                <div class="cal-list-view-scroll" id="calListViewScroll"></div>
                             </div>
                         </div>
 
