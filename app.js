@@ -13656,6 +13656,32 @@ function renderCalListView() {
     html += `</div>`; // close day-group
   }
   container.innerHTML = html;
+
+  // Update top month title while scrolling through list view
+  const listParent = document.getElementById('calListView');
+  const monthDividers = container.querySelectorAll('.cal-list-view-month');
+  if (listParent && monthDividers.length) {
+    const updateMonthTitle = () => {
+      const scrollTop = listParent.scrollTop;
+      let current = monthDividers[0];
+      for (const div of monthDividers) {
+        if (div.offsetTop <= scrollTop + 10) current = div;
+        else break;
+      }
+      if (current) {
+        const titleEl = document.getElementById('calMonthTitle');
+        if (titleEl) {
+          const parts = current.textContent.trim().split(' ');
+          const monthName = parts[0] || '';
+          const yearStr = parts[1] || '';
+          titleEl.innerHTML = `<span class="cal-month-name">${monthName}</span> <span class="cal-month-year">${yearStr}</span>`;
+        }
+      }
+    };
+    listParent.addEventListener('scroll', updateMonthTitle, { passive: true });
+    updateMonthTitle(); // set initial
+  }
+
   // Async-load mini interval graphs
   _loadCalListMiniGraphs(container);
 }
