@@ -25067,6 +25067,118 @@ function goalNumStep(dir) {
   _updateGoalPreview();
 }
 
+// ── Goal target scrubber ────────────────────────────────────
+const _GOAL_SCRUB_CFGS = {
+  distance:  { maxSteps: 100, stepVal: 5,   unit: 'km',  fmt: v => v % 1 ? v.toFixed(1) : String(v) },
+  time:      { maxSteps: 100, stepVal: 0.5, unit: 'h',   fmt: v => v.toFixed(1) },
+  tss:       { maxSteps: 200, stepVal: 10,  unit: 'TSS', fmt: v => String(v) },
+  elevation: { maxSteps: 200, stepVal: 100, unit: 'm',   fmt: v => v.toLocaleString() },
+  power:     { maxSteps: 100, stepVal: 5,   unit: 'w',   fmt: v => String(v) },
+  count:     { maxSteps: 50,  stepVal: 1,   unit: '',    fmt: v => String(v) },
+  heartrate: { maxSteps: 220, stepVal: 1,   unit: 'bpm', fmt: v => String(v) },
+};
+
+let _goalScrubInited = false;
+
+function _initGoalScrubber() {
+  if (_goalScrubInited) return;
+  _goalScrubInited = true;
+
+  const scrubber = document.getElementById('goalTargetScrubber');
+  const input    = document.getElementById('goalFormTarget');
+  const undoBtn  = document.getElementById('goalTargetCard')?.querySelector('.cev-undo-btn');
+  if (!scrubber || !input) return;
+
+  const ruler   = scrubber.querySelector('.cev-scrubber-ruler');
+  const valueEl = scrubber.querySelector('.cev-scrubber-value');
+  const unitEl  = scrubber.querySelector('.cev-scrubber-unit');
+
+  let step = 0, cfg = _GOAL_SCRUB_CFGS.distance;
+  let history = [], dragStartX = 0, dragStartStep = 0;
+  let pending = false, dragging = false, pendingPid = 0;
+  const PX = 6;
+
+  function applyStep(s) {
+    step = Math.max(0, Math.min(cfg.maxSteps, Math.round(s)));
+    const trackW = scrubber.querySelector('.cev-scrubber-track').clientWidth || 80;
+    ruler.style.transform = `translateX(${trackW / 2 - step * PX}px)`;
+    const val = step * cfg.stepVal;
+    const isZero = step === 0;
+    valueEl.textContent = isZero ? '—' : cfg.fmt(val);
+    valueEl.classList.toggle('is-zero', isZero);
+    if (unitEl) unitEl.textContent = isZero ? '' : cfg.unit;
+    input.value = isZero ? '' : val;
+    _updateGoalPreview();
+  }
+
+  function syncUndoBtn() {
+    if (undoBtn) undoBtn.style.display = history.length > 0 ? '' : 'none';
+  }
+
+  // Called on form open or metric change
+  scrubber._goalApply = (metric, val) => {
+    cfg = _GOAL_SCRUB_CFGS[metric] || _GOAL_SCRUB_CFGS.distance;
+    const numVal = parseFloat(val) || 0;
+    step = Math.round(numVal / cfg.stepVal);
+    history = [];
+    syncUndoBtn();
+    applyStep(step);
+  };
+
+  if (undoBtn) {
+    undoBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      if (!history.length) return;
+      applyStep(history.pop());
+      syncUndoBtn();
+    });
+  }
+
+  const THRESHOLD = 10;
+
+  scrubber.addEventListener('pointerdown', e => {
+    if (e.button > 0) return;
+    dragStartX = e.clientX;
+    dragStartStep = step;
+    pending = true;
+    pendingPid = e.pointerId;
+  });
+
+  scrubber.addEventListener('pointermove', e => {
+    if (pending) {
+      if (Math.abs(e.clientX - dragStartX) < THRESHOLD) return;
+      pending = false;
+      dragging = true;
+      scrubber.setPointerCapture(pendingPid);
+    }
+    if (!dragging) return;
+    applyStep(dragStartStep - (e.clientX - dragStartX) / PX);
+  });
+
+  scrubber.addEventListener('touchmove', e => { if (dragging) e.preventDefault(); }, { passive: false });
+
+  const endDrag = () => {
+    if (pending) { pending = false; return; }
+    if (!dragging) return;
+    dragging = false;
+    if (step !== dragStartStep) {
+      history.push(dragStartStep);
+      syncUndoBtn();
+    }
+  };
+  scrubber.addEventListener('pointerup', endDrag);
+  scrubber.addEventListener('pointercancel', endDrag);
+}
+
+function _syncGoalScrubber() {
+  _initGoalScrubber();
+  const scrubber = document.getElementById('goalTargetScrubber');
+  if (!scrubber?._goalApply) return;
+  const metric = document.getElementById('goalFormMetric')?.value || 'distance';
+  const val = document.getElementById('goalFormTarget')?.value || '';
+  scrubber._goalApply(metric, val);
+}
+
 function _updateGoalPreview() {
   const preview = document.getElementById('goalFormPreview');
   if (!preview) return;
@@ -25146,12 +25258,14 @@ function showGoalForm(editId) {
   const { signal } = ctrl;
   targetEl?.addEventListener('input', _updateGoalPreview, { signal });
   targetEl?.addEventListener('change', _updateGoalPreview, { signal });
-  metricEl?.addEventListener('change', _updateGoalPreview, { signal });
+  metricEl?.addEventListener('change', () => { _updateGoalPreview(); _syncGoalScrubber(); }, { signal });
   periodEl?.addEventListener('change', _updateGoalPreview, { signal });
   // CDD clicks fire before the underlying select updates, so defer
   overlay.addEventListener('click', e => {
-    if (e.target.closest('.cdd-option')) setTimeout(_updateGoalPreview, 0);
+    if (e.target.closest('.cdd-option')) setTimeout(() => { _updateGoalPreview(); _syncGoalScrubber(); }, 0);
   }, { signal });
+
+  _syncGoalScrubber();
   _updateGoalPreview();
 }
 
