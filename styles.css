@@ -25565,3 +25565,27 @@ html[data-theme="tdf"] {
     .splash-screen { transition-duration: 0.01ms; }
 }
 } /* end splash @layer components */
+
+
+/* ============================================================
+   UNLAYERED — beats all @layer rules, no !important needed
+   Desktop wxd-sheet scroll fix
+============================================================ */
+@media (min-width: 601px) {
+    .wxd-sheet:not(.wxd-sheet--partial) {
+        display: flex;
+        flex-direction: column;
+        height: 85vh;
+        overflow: hidden;
+    }
+    .wxd-sheet:not(.wxd-sheet--partial) .modal-drag-indicator,
+    .wxd-sheet:not(.wxd-sheet--partial) .wxd-floating-close,
+    .wxd-sheet:not(.wxd-sheet--partial) .modal-header {
+        flex-shrink: 0;
+    }
+    .wxd-sheet:not(.wxd-sheet--partial) .modal-body {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+    }
+}
