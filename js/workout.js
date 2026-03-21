@@ -310,110 +310,134 @@ export function wrkRender() {
       ${editPanel}
     </div>`;
   }).join('');
+
+  // Init scrubber interactions after DOM update
+  requestAnimationFrame(() => wrkInitScrubbers());
+}
+
+function _wrkScrub(idx, field, val, min, max, unit, isPower) {
+  const color = isPower ? `style="color:${wrkZoneColor(val, 1)}"` : '';
+  return `<div class="wrk-scrub" data-idx="${idx}" data-field="${field}" data-min="${min}" data-max="${max}" data-val="${val}" ${isPower ? 'data-power="1"' : ''}>
+      <div class="wrk-scrub-head">
+        <span class="wrk-scrub-val" ${color}>${val}</span>
+        <span class="wrk-scrub-unit">${unit}</span>
+      </div>
+      <div class="wrk-scrub-track"><div class="wrk-scrub-ruler"></div></div>
+    </div>`;
+}
+
+function _wrkDurRow(label, idx, fieldMin, fieldSec, m, s, maxMin) {
+  return `<div class="wrk-edit-row">
+      <label>${label}</label>
+      <div class="wrk-scrub-pair">
+        ${_wrkScrub(idx, fieldMin, m, 0, maxMin || 120, 'min')}
+        ${_wrkScrub(idx, fieldSec, s, 0, 59, 'sec')}
+      </div>
+    </div>`;
+}
+
+function _wrkPowerRow(label, idx, field, val, min, max) {
+  return `<div class="wrk-edit-row">
+      <label>${label}</label>
+      ${_wrkScrub(idx, field, val, min, max, '%', true)}
+    </div>`;
 }
 
 export function wrkBuildEditPanel(seg, idx) {
-  const fmtDur = (secs) => {
-    const m = Math.floor(secs / 60);
-    const s = secs % 60;
-    return { m, s };
-  };
+  const fmtDur = (secs) => ({ m: Math.floor(secs / 60), s: secs % 60 });
 
   let fields = '';
   if (seg.type === 'steady') {
     const { m, s } = fmtDur(seg.duration);
-    fields = `
-      <div class="wrk-edit-row">
-        <label>Duration</label>
-        <div class="wrk-dur-inputs">
-          <input type="number" min="0" max="600" value="${m}" oninput="wrkSet(${idx},'durationMin',+this.value)"> <span>min</span>
-          <input type="number" min="0" max="59"  value="${s}" oninput="wrkSet(${idx},'durationSec',+this.value)"> <span>sec</span>
-        </div>
-      </div>
-      <div class="wrk-edit-row">
-        <label>Power</label>
-        <div class="wrk-power-input">
-          <input type="range" min="40" max="160" value="${seg.power}" oninput="wrkSet(${idx},'power',+this.value);this.nextElementSibling.textContent=this.value+'%'">
-          <span class="wrk-power-badge" style="background:${wrkZoneColor(seg.power)}">${seg.power}%</span>
-        </div>
-      </div>`;
+    fields = _wrkDurRow('Duration', idx, 'durationMin', 'durationSec', m, s)
+           + _wrkPowerRow('Power', idx, 'power', seg.power, 40, 160);
   } else if (seg.type === 'warmup' || seg.type === 'cooldown') {
     const { m, s } = fmtDur(seg.duration);
-    fields = `
-      <div class="wrk-edit-row">
-        <label>Duration</label>
-        <div class="wrk-dur-inputs">
-          <input type="number" min="0" max="600" value="${m}" oninput="wrkSet(${idx},'durationMin',+this.value)"> <span>min</span>
-          <input type="number" min="0" max="59"  value="${s}" oninput="wrkSet(${idx},'durationSec',+this.value)"> <span>sec</span>
-        </div>
-      </div>
-      <div class="wrk-edit-row">
-        <label>Power from</label>
-        <div class="wrk-power-input">
-          <input type="range" min="30" max="130" value="${seg.powerLow}" oninput="wrkSet(${idx},'powerLow',+this.value);this.nextElementSibling.textContent=this.value+'%'">
-          <span class="wrk-power-badge" style="background:${wrkZoneColor(seg.powerLow)}">${seg.powerLow}%</span>
-        </div>
-      </div>
-      <div class="wrk-edit-row">
-        <label>Power to</label>
-        <div class="wrk-power-input">
-          <input type="range" min="30" max="130" value="${seg.powerHigh}" oninput="wrkSet(${idx},'powerHigh',+this.value);this.nextElementSibling.textContent=this.value+'%'">
-          <span class="wrk-power-badge" style="background:${wrkZoneColor(seg.powerHigh)}">${seg.powerHigh}%</span>
-        </div>
-      </div>`;
+    fields = _wrkDurRow('Duration', idx, 'durationMin', 'durationSec', m, s)
+           + _wrkPowerRow('Power from', idx, 'powerLow', seg.powerLow, 30, 130)
+           + _wrkPowerRow('Power to', idx, 'powerHigh', seg.powerHigh, 30, 130);
   } else if (seg.type === 'interval') {
     const { m: onM, s: onS } = fmtDur(seg.onDuration);
     const { m: offM, s: offS } = fmtDur(seg.offDuration);
-    fields = `
-      <div class="wrk-edit-row">
+    fields = `<div class="wrk-edit-row">
         <label>Repetitions</label>
         <div class="wrk-stepper">
           <button class="wrk-stepper-btn" onclick="wrkSet(${idx},'reps',Math.max(1,${seg.reps}-1));wrkRender()">−</button>
           <span class="wrk-stepper-val">${seg.reps}×</span>
           <button class="wrk-stepper-btn" onclick="wrkSet(${idx},'reps',Math.min(50,${seg.reps}+1));wrkRender()">+</button>
         </div>
-      </div>
-      <div class="wrk-edit-row">
-        <label>Work duration</label>
-        <div class="wrk-dur-inputs">
-          <input type="number" min="0" max="60" value="${onM}" oninput="wrkSet(${idx},'onDurMin',+this.value)"> <span>min</span>
-          <input type="number" min="0" max="59" value="${onS}" oninput="wrkSet(${idx},'onDurSec',+this.value)"> <span>sec</span>
-        </div>
-      </div>
-      <div class="wrk-edit-row">
-        <label>Work power</label>
-        <div class="wrk-power-input">
-          <input type="range" min="50" max="200" value="${seg.onPower}" oninput="wrkSet(${idx},'onPower',+this.value);this.nextElementSibling.textContent=this.value+'%'">
-          <span class="wrk-power-badge" style="background:${wrkZoneColor(seg.onPower)}">${seg.onPower}%</span>
-        </div>
-      </div>
-      <div class="wrk-edit-row">
-        <label>Rest duration</label>
-        <div class="wrk-dur-inputs">
-          <input type="number" min="0" max="60" value="${offM}" oninput="wrkSet(${idx},'offDurMin',+this.value)"> <span>min</span>
-          <input type="number" min="0" max="59" value="${offS}" oninput="wrkSet(${idx},'offDurSec',+this.value)"> <span>sec</span>
-        </div>
-      </div>
-      <div class="wrk-edit-row">
-        <label>Rest power</label>
-        <div class="wrk-power-input">
-          <input type="range" min="30" max="100" value="${seg.offPower}" oninput="wrkSet(${idx},'offPower',+this.value);this.nextElementSibling.textContent=this.value+'%'">
-          <span class="wrk-power-badge" style="background:${wrkZoneColor(seg.offPower)}">${seg.offPower}%</span>
-        </div>
-      </div>`;
+      </div>`
+           + _wrkDurRow('Work duration', idx, 'onDurMin', 'onDurSec', onM, onS, 60)
+           + _wrkPowerRow('Work power', idx, 'onPower', seg.onPower, 50, 200)
+           + _wrkDurRow('Rest duration', idx, 'offDurMin', 'offDurSec', offM, offS, 60)
+           + _wrkPowerRow('Rest power', idx, 'offPower', seg.offPower, 30, 100);
   } else if (seg.type === 'free') {
     const { m, s } = fmtDur(seg.duration);
-    fields = `
-      <div class="wrk-edit-row">
-        <label>Duration</label>
-        <div class="wrk-dur-inputs">
-          <input type="number" min="0" max="600" value="${m}" oninput="wrkSet(${idx},'durationMin',+this.value)"> <span>min</span>
-          <input type="number" min="0" max="59"  value="${s}" oninput="wrkSet(${idx},'durationSec',+this.value)"> <span>sec</span>
-        </div>
-      </div>`;
+    fields = _wrkDurRow('Duration', idx, 'durationMin', 'durationSec', m, s);
   }
 
   return `<div class="wrk-edit-panel">${fields}</div>`;
+}
+
+// ── Init scrubbers after wrkRender ──────────────────────────
+const _WRK_PX = 6;
+const _WRK_THRESHOLD = 10;
+
+export function wrkInitScrubbers() {
+  document.querySelectorAll('#wrkSegmentList .wrk-scrub').forEach(el => {
+    const idx   = +el.dataset.idx;
+    const field = el.dataset.field;
+    const min   = +el.dataset.min;
+    const max   = +el.dataset.max;
+    const isPow = el.dataset.power === '1';
+    let val     = +el.dataset.val;
+
+    const ruler   = el.querySelector('.wrk-scrub-ruler');
+    const valEl   = el.querySelector('.wrk-scrub-val');
+    const unitEl  = el.querySelector('.wrk-scrub-unit');
+    let dragStartX = 0, dragStartVal = 0;
+    let pending = false, dragging = false, pid = 0;
+
+    function apply(v) {
+      val = Math.max(min, Math.min(max, Math.round(v)));
+      const trackW = el.querySelector('.wrk-scrub-track').clientWidth || 60;
+      const step = val - min;
+      ruler.style.transform = `translateX(${trackW / 2 - step * _WRK_PX}px)`;
+      valEl.textContent = val;
+      if (isPow) valEl.style.color = wrkZoneColor(val, 1);
+      el.dataset.val = val;
+      wrkSet(idx, field, val);
+    }
+
+    // Set initial ruler position
+    const trackW = el.querySelector('.wrk-scrub-track').clientWidth || 60;
+    ruler.style.transform = `translateX(${trackW / 2 - (val - min) * _WRK_PX}px)`;
+
+    el.addEventListener('pointerdown', e => {
+      if (e.button > 0) return;
+      dragStartX = e.clientX;
+      dragStartVal = val;
+      pending = true;
+      pid = e.pointerId;
+    });
+
+    el.addEventListener('pointermove', e => {
+      if (pending) {
+        if (Math.abs(e.clientX - dragStartX) < _WRK_THRESHOLD) return;
+        pending = false;
+        dragging = true;
+        el.setPointerCapture(pid);
+      }
+      if (!dragging) return;
+      apply(dragStartVal - (e.clientX - dragStartX) / _WRK_PX);
+    });
+
+    el.addEventListener('touchmove', e => { if (dragging) e.preventDefault(); }, { passive: false });
+
+    const end = () => { pending = false; dragging = false; };
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+  });
 }
 
 /* ── Segment operations ───────────────────────── */
