@@ -24963,10 +24963,10 @@ function _renderProfileRadar() {
     const cosA = Math.cos(angle);
     ctx.textAlign = cosA < -0.15 ? 'right' : cosA > 0.15 ? 'left' : 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = '600 13px Inter, system-ui, sans-serif';
+    ctx.font = '400 11px Inter, system-ui, sans-serif';
     ctx.fillStyle = lblPrimary;
     ctx.fillText(dims[i].label, p.x, p.y - 7);
-    ctx.font = '600 13px Inter, system-ui, sans-serif';
+    ctx.font = '700 13px Inter, system-ui, sans-serif';
     ctx.fillStyle = lblSecondary;
     ctx.fillText(dims[i].raw, p.x, p.y + 8);
   }
