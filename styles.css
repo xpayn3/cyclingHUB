@@ -8591,11 +8591,11 @@ body.show-save-fab #actSaveRouteFab {
 .prof-radar-wrap {
     display: flex;
     justify-content: center;
-    max-height: 260px;
+    overflow: visible;
 }
 .prof-radar-wrap canvas {
-    max-width: 280px;
-    max-height: 260px;
+    max-width: 100%;
+    height: auto;
 }
 
 /* Top rides list */
