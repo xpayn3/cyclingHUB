@@ -19127,6 +19127,68 @@ body:has(.act-sheet-mode) .topbar {
     cursor: pointer;
     transition: background 0.2s;
 }
+/* New card-style battery rows */
+.gar-bat-card {
+    padding: 14px;
+    margin-bottom: 10px;
+}
+.gar-bat-card-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+.gar-bat-img {
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+.gar-bat-img--icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.gar-bat-card-info {
+    flex: 1;
+    min-width: 0;
+}
+.gar-bat-card-pct {
+    font-size: 22px;
+    font-weight: 700;
+    font-family: var(--font-num);
+    flex-shrink: 0;
+}
+.gar-bat-card-bar {
+    height: 6px;
+    background: var(--surface-2);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+.gar-bat-card-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s;
+}
+.gar-bat-card-fill.gar-bat-fill--green { background: var(--accent); }
+.gar-bat-card-fill.gar-bat-fill--yellow { background: #ffcc00; }
+.gar-bat-card-fill.gar-bat-fill--orange { background: #ff9500; }
+.gar-bat-card-fill.gar-bat-fill--red { background: var(--red); }
+.gar-bat-card-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.gar-bat-spark {
+    opacity: 0.6;
+}
+.gar-bat-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
 .gar-bat-charge-btn:hover { background: rgba(0, 229, 160, 0.2); }
 
 /* Service timeline */

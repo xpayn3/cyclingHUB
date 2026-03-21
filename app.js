@@ -23803,23 +23803,61 @@ function batteryCard(bat) {
   const sysLabel = BATTERY_SYSTEMS[bat.system]?.label || '';
   const bike = _gearBikeCache.find(b => b.id === bat.bikeId);
 
-  return `<div class="gar-bat-row${isObsolete ? ' gar-bat-row--obsolete' : ''}">
-    <div class="gar-bat-visual">
+  // Component image for SRAM AXS shifters/derailleurs
+  const isSramShifter = bat.system === 'sram_axs' && (bat.componentType === 'shifter_left' || bat.componentType === 'shifter_right');
+  const isSramDerailleur = bat.system === 'sram_axs' && (bat.componentType === 'rear_derailleur' || bat.componentType === 'front_derailleur' || bat.componentType === 'rear_derailleur_eagle');
+  let imgHtml;
+  if (isSramShifter) {
+    const src = bat.componentType === 'shifter_left' ? 'img/components/sram/rival-ed-left-front.webp' : 'img/components/sram/rival-ed-right-front.webp';
+    imgHtml = `<img src="${src}" alt="${bat.name}" style="width:100%;height:100%;object-fit:contain">`;
+  } else if (isSramDerailleur) {
+    imgHtml = `<img src="img/components/sram/sram-battery.webp" alt="${bat.name}" style="width:100%;height:100%;object-fit:contain">`;
+  } else {
+    imgHtml = `<div class="gar-bat-visual">
       <div class="gar-bat-terminal"></div>
       <div class="gar-bat-body"><div class="gar-bat-fill ${fillCls}" style="height:${Math.max(8, pct)}%"></div></div>
+    </div>`;
+  }
+
+  const hasComponentImg = isSramShifter || isSramDerailleur;
+
+  // Battery drain sparkline (last 5 charge events approximated)
+  const sparkW = 80, sparkH = 28;
+  let sparkSvg = '';
+  if (bat.chargeHistory?.length > 1) {
+    const pts = bat.chargeHistory.slice(-6).map((c, i, a) => {
+      const x = (i / (a.length - 1)) * sparkW;
+      const y = sparkH - (c.pct / 100) * sparkH;
+      return `${x},${y}`;
+    }).join(' ');
+    sparkSvg = `<svg width="${sparkW}" height="${sparkH}" viewBox="0 0 ${sparkW} ${sparkH}" class="gar-bat-spark">
+      <polyline points="${pts}" fill="none" stroke="${pctColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`;
+  }
+
+  return `<div class="gar-bat-card card${isObsolete ? ' gar-bat-row--obsolete' : ''}">
+    <div class="gar-bat-card-top">
+      <div class="gar-bat-img${hasComponentImg ? '' : ' gar-bat-img--icon'}">${imgHtml}</div>
+      <div class="gar-bat-card-info">
+        <div class="gar-bat-name">${bat.name || 'Battery'}</div>
+        <div class="gar-bat-sub">${[sysLabel, bike?.name].filter(Boolean).join(' · ')}</div>
+        <div class="gar-bat-sub">${sub}</div>
+      </div>
+      <div class="gar-bat-card-pct" style="color:${pctColor}">${pct}%</div>
     </div>
-    <div class="gar-bat-info">
-      <div class="gar-bat-name">${bat.name || 'Battery'}</div>
-      <div class="gar-bat-sub">${[sysLabel, bike?.name].filter(Boolean).join(' · ')}${sub ? ' · ' + sub : ''}</div>
+    <div class="gar-bat-card-bar">
+      <div class="gar-bat-card-fill ${fillCls}" style="width:${Math.max(2, pct)}%"></div>
     </div>
-    <div class="gar-bat-right">
-      <span class="gar-bat-pct" style="color:${pctColor}">${pct}%</span>
-      ${!isObsolete ? `<button class="gar-bat-charge-btn" title="Charge" onclick="chargeBattery('${bat.id}')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-      </button>` : ''}
-      <button class="gar-comp-action-btn" title="Edit" onclick="openBatteryModal('${bat.id}')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
-      </button>
+    <div class="gar-bat-card-bottom">
+      ${sparkSvg}
+      <div class="gar-bat-card-actions">
+        ${!isObsolete ? `<button class="gar-bat-charge-btn" title="Charge" onclick="chargeBattery('${bat.id}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        </button>` : ''}
+        <button class="gar-comp-action-btn" title="Edit" onclick="openBatteryModal('${bat.id}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+        </button>
+      </div>
     </div>
   </div>`;
 }
