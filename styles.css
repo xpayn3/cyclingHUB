@@ -1444,11 +1444,13 @@ code {
     flex-direction: column;
     gap: var(--gap-layout);
 }
-/* Prevent background scroll/interaction while any sheet is open */
+/* Prevent background scroll while any sheet is open */
 body.sheet-locked .page-content {
     overflow: hidden !important;
     touch-action: none;
-    pointer-events: none;
+    /* NOTE: do NOT add pointer-events:none here — dialogs live inside
+       .page-content in the DOM and iOS breaks touch routing on their
+       fixed-position children when a parent has pointer-events:none */
 }
 /* Leveling page hero card */
 .lvl-hero-card {
@@ -15893,6 +15895,7 @@ body:has(.act-sheet-mode) .topbar {
     inset: 0;
     background: rgba(0,0,0,0.75);
     opacity: 0;
+    touch-action: none;
     transition: opacity 0.3s ease;
 }
 .wxd-sheet {
@@ -17965,6 +17968,7 @@ body:has(.act-sheet-mode) .topbar {
 .sheet-backdrop.active {
     display: block;
     background: var(--scrim);
+    touch-action: none;
 }
 .sheet-backdrop.fading {
     background: rgba(0, 0, 0, 0);
