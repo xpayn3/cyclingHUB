@@ -20354,9 +20354,21 @@ body:has(.act-sheet-mode) .topbar {
 
 .goal-form-actions {
     display: flex;
-    gap: 8px;
-    justify-content: flex-end;
-    margin-top: 20px;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 24px;
+}
+.goal-form-actions .btn {
+    width: 100%;
+    justify-content: center;
+    height: 50px;
+    border-radius: 50px;
+    font-size: var(--text-md);
+    font-weight: 600;
+}
+.goal-form-actions .btn-ghost {
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
 }
 
 /* ── Dashboard section headers ── */
