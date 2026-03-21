@@ -12835,39 +12835,41 @@ body:has(.act-sheet-mode) .topbar {
 /* ---- Bottom FAB nav ---- */
 .wrk-fab-bar {
     position: fixed;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
-    left: var(--pad-page, 16px);
-    right: var(--pad-page, 16px);
+    bottom: 20px;
+    left: 16px;
+    right: 16px;
     display: flex;
     justify-content: space-between;
     pointer-events: none;
-    z-index: 100;
+    z-index: 1100;
 }
 .wrk-fab {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    border: none;
+    width: 64px;
+    height: 64px;
+    border-radius: 100px;
+    border: 1px solid var(--glass-border);
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    box-shadow: var(--glass-shadow);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     pointer-events: auto;
-    transition: transform 0.15s, background 0.15s;
-    backdrop-filter: var(--glass-blur);
-    -webkit-backdrop-filter: var(--glass-blur);
-}
-.wrk-fab:active { transform: scale(0.9); }
-.wrk-fab--back {
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
-    box-shadow: var(--glass-shadow);
     color: var(--text-primary);
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.2s ease;
+    will-change: transform;
+    transform: translateZ(0);
+}
+.wrk-fab:active { background: var(--glass-border); }
+.wrk-fab svg {
+    width: 22px;
+    height: 22px;
+    stroke-width: 2;
 }
 .wrk-fab--fav {
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
-    box-shadow: var(--glass-shadow);
     color: var(--text-muted);
 }
 .wrk-fab--fav.is-saved {
@@ -12875,12 +12877,6 @@ body:has(.act-sheet-mode) .topbar {
 }
 .wrk-fab--fav.is-saved svg {
     fill: var(--red);
-}
-[data-theme="light"] .wrk-fab--back,
-[data-theme="light"] .wrk-fab--fav {
-    background: var(--glass-bg);
-    border-color: var(--glass-border);
-    box-shadow: var(--glass-shadow);
 }
 
 /* ---- Save button (legacy) ---- */
