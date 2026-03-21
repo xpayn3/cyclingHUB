@@ -20338,6 +20338,7 @@ body:has(.act-sheet-mode) .topbar {
 }
 
 .goal-form-preview {
+    margin-top: 12px;
     margin-bottom: 20px;
     display: flex;
     justify-content: center;
