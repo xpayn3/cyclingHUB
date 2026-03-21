@@ -563,7 +563,15 @@ export function wrkSet(idx, field, val) {
 }
 
 export function wrkClear() {
-  if (wrkState.segments.length && !confirm('Start a new workout? Current workout will be lost.')) return;
+  if (!wrkState.segments.length) return _doWrkClear();
+  window.showConfirmDialog(
+    'New Workout',
+    'Start a new workout? Your current workout will be lost.',
+    _doWrkClear
+  );
+}
+
+function _doWrkClear() {
   wrkState.segments = [];
   wrkState.editIdx  = null;
   wrkState.name     = 'New Workout';
