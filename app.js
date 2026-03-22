@@ -2231,58 +2231,74 @@ function _peerShowQR() {
 }
 window._peerShowQR = _peerShowQR;
 
-/* ── QR Code scanning via camera ── */
+/* ── QR Code scanning via camera (jsQR — works on iOS Safari) ── */
 function _peerScanQR() {
-  // Check for BarcodeDetector API (Chrome/Edge) or fall back
-  if (!('BarcodeDetector' in window)) {
-    showToast('QR scanning not supported on this browser — enter the ID manually', 'info');
-    return;
-  }
-  // Create fullscreen camera overlay
   const overlay = document.createElement('div');
   overlay.id = 'qrScanOverlay';
   overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;';
   overlay.innerHTML = `
-    <div style="position:absolute;top:16px;left:16px;right:16px;display:flex;justify-content:space-between;align-items:center;z-index:2">
+    <div style="position:absolute;top:env(safe-area-inset-top,16px);left:16px;right:16px;padding-top:16px;display:flex;justify-content:space-between;align-items:center;z-index:2">
       <span style="color:#fff;font-size:17px;font-weight:600">Scan Peer QR Code</span>
-      <button onclick="document.getElementById('qrScanOverlay')?.remove();_qrScanStream?.getTracks().forEach(t=>t.stop())" style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.2);border:none;color:#fff;font-size:20px;cursor:pointer">×</button>
+      <button id="qrScanClose" style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.2);border:none;color:#fff;font-size:20px;cursor:pointer">×</button>
     </div>
-    <video id="qrScanVideo" autoplay playsinline style="width:100%;height:100%;object-fit:cover"></video>
+    <video id="qrScanVideo" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover"></video>
+    <canvas id="qrScanCanvas" style="display:none"></canvas>
     <div style="position:absolute;width:200px;height:200px;border:2px solid var(--accent);border-radius:12px;pointer-events:none"></div>
   `;
   document.body.appendChild(overlay);
 
   const video = document.getElementById('qrScanVideo');
-  const detector = new BarcodeDetector({ formats: ['qr_code'] });
+  const canvas = document.getElementById('qrScanCanvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  let scanning = true;
+
+  document.getElementById('qrScanClose').onclick = () => {
+    scanning = false;
+    if (window._qrScanStream) window._qrScanStream.getTracks().forEach(t => t.stop());
+    overlay.remove();
+  };
 
   navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
     .then(stream => {
       window._qrScanStream = stream;
       video.srcObject = stream;
-      // Scan loop
-      const scan = async () => {
-        if (!document.getElementById('qrScanOverlay')) return;
-        try {
-          const barcodes = await detector.detect(video);
-          if (barcodes.length > 0) {
-            const val = barcodes[0].rawValue.trim().toUpperCase();
-            if (val.startsWith('CIQ-')) {
-              stream.getTracks().forEach(t => t.stop());
-              overlay.remove();
-              const input = document.getElementById('syncJoinInput');
-              if (input) input.value = val;
-              _peerConnect(val);
-              return;
+      video.play();
+
+      const scan = () => {
+        if (!scanning || !document.getElementById('qrScanOverlay')) return;
+        if (video.readyState >= video.HAVE_ENOUGH_DATA) {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+          // Use jsQR if available, fallback to BarcodeDetector
+          if (typeof jsQR !== 'undefined') {
+            const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
+            if (code && code.data) {
+              const val = code.data.trim().toUpperCase();
+              if (val.startsWith('CIQ-')) {
+                scanning = false;
+                stream.getTracks().forEach(t => t.stop());
+                overlay.remove();
+                const input = document.getElementById('syncJoinInput');
+                if (input) input.value = val;
+                _peerConnect(val);
+                showToast('QR scanned: ' + val, 'success');
+                return;
+              }
             }
           }
-        } catch {}
+        }
         requestAnimationFrame(scan);
       };
-      video.onloadedmetadata = () => scan();
+      video.onloadedmetadata = () => { video.play(); requestAnimationFrame(scan); };
     })
     .catch(e => {
+      scanning = false;
       overlay.remove();
-      showToast('Camera access denied', 'error');
+      console.warn('[QR] Camera error:', e);
+      showToast('Camera access denied — enter the ID manually', 'error');
     });
 }
 window._peerScanQR = _peerScanQR;
