@@ -19476,6 +19476,32 @@ function renderDetailComparison(a) {
   rowsEl.innerHTML = html;
   card.style.display = '';
   unskeletonCard('detailCompareCard');
+
+  // Animate bars growing from zero when scrolled into view
+  requestAnimationFrame(() => {
+    const bars = rowsEl.querySelectorAll('.detail-cmp-bar-fill');
+    if (!bars.length) return;
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const bar = entry.target;
+          const targetWidth = bar.dataset.width;
+          if (targetWidth) {
+            bar.classList.add('cmp-bar-animate');
+            bar.style.setProperty('width', targetWidth, 'important');
+          }
+          observer.unobserve(bar);
+        }
+      });
+    }, { threshold: 0.1 });
+    bars.forEach(bar => {
+      // Store the target width and reset to 0
+      const inlineW = bar.style.width;
+      bar.dataset.width = inlineW;
+      bar.style.setProperty('width', '0', 'important');
+      observer.observe(bar);
+    });
+  });
 }
 
 function renderDetailSourceFooter(a) {
