@@ -16799,7 +16799,18 @@ function _injectActCardInfoBtns() {
       e.stopPropagation();
       _openActCardInfo(card.id, info);
     });
-    header.appendChild(btn);
+    // Append to the card-header's first-child div (title row)
+    // so it's inline with the title text
+    const titleRow = header.querySelector('.card-title');
+    if (titleRow) {
+      titleRow.style.flex = '1';
+      titleRow.parentElement.style.display = 'flex';
+      titleRow.parentElement.style.alignItems = 'center';
+      titleRow.parentElement.style.gap = '8px';
+      titleRow.parentElement.appendChild(btn);
+    } else {
+      header.appendChild(btn);
+    }
   });
 }
 
