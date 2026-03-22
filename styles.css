@@ -2712,32 +2712,38 @@ input[type="number"] {
 }
 .dash-route-map {
     width: 100%;
-    flex: 1;
-    min-height: 120px;
+    height: 100%;
+    min-height: 160px;
     overflow: hidden;
     cursor: pointer;
 }
 .dash-route-btn {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    right: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    width: 100%;
-    padding: 10px 12px;
+    padding: 8px 16px;
     border: none;
-    background: var(--surface-2);
-    color: var(--text-primary);
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: #fff;
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
-    border-radius: 0 0 var(--radius) var(--radius);
+    border-radius: 20px;
     transition: background 0.15s;
+    z-index: 2;
 }
 .dash-route-btn:active {
-    background: var(--surface-3);
+    background: rgba(255,255,255,0.25);
 }
 .dash-route-btn svg {
-    opacity: 0.7;
+    opacity: 0.8;
 }
 .dash-route-pin {
     width: 16px;
