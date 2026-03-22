@@ -16788,16 +16788,17 @@ function _injectActCardInfoBtns() {
 }
 
 function _openActCardInfo(cardId, info) {
-  // Create or reuse the info overlay
   let overlay = document.getElementById('actCardInfoOverlay');
   if (!overlay) {
     overlay = document.createElement('div');
     overlay.id = 'actCardInfoOverlay';
     overlay.className = 'act-card-info-overlay';
     overlay.innerHTML = `
-      <div class="act-card-info-page">
+      <div class="act-card-info-page" id="actCardInfoPage">
         <div class="act-card-info-chart" id="actCardInfoChart"></div>
+        <div class="act-card-info-controls" id="actCardInfoControls"></div>
         <div class="act-card-info-body" id="actCardInfoBody"></div>
+        <div class="act-card-info-data" id="actCardInfoData"></div>
       </div>
       <button class="fab-back act-card-info-back" onclick="_closeActCardInfo()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><polyline points="15 18 9 12 15 6"/></svg>
@@ -16805,44 +16806,81 @@ function _openActCardInfo(cardId, info) {
     document.body.appendChild(overlay);
   }
 
-  // Clone the chart from the card
   const chartArea = document.getElementById('actCardInfoChart');
+  const controlsArea = document.getElementById('actCardInfoControls');
   const body = document.getElementById('actCardInfoBody');
+  const dataArea = document.getElementById('actCardInfoData');
   chartArea.innerHTML = '';
+  controlsArea.innerHTML = '';
+  dataArea.innerHTML = '';
 
+  // Clone the card content (chart/graph)
   const sourceCard = document.getElementById(cardId);
   if (sourceCard) {
-    // Clone everything except the card-header
     const clone = sourceCard.cloneNode(true);
     const cloneHeader = clone.querySelector('.card-header');
     if (cloneHeader) cloneHeader.remove();
-    // Remove info button from clone if any
     clone.querySelectorAll('.act-card-info-btn').forEach(b => b.remove());
     clone.style.background = 'transparent';
     clone.style.padding = '0';
     clone.style.margin = '0';
     clone.id = '';
-    // Fix canvas — clone doesn't copy canvas content, so just show a message
+    // Canvas content doesn't clone — redraw if possible
     const canvases = clone.querySelectorAll('canvas');
-    canvases.forEach(c => {
-      const note = document.createElement('div');
-      note.style.cssText = 'padding:40px 0;text-align:center;color:var(--text-muted);font-size:13px';
-      note.textContent = 'Chart available in activity view';
-      c.replaceWith(note);
+    const origCanvases = sourceCard.querySelectorAll('canvas');
+    canvases.forEach((c, i) => {
+      if (origCanvases[i]) {
+        try {
+          const origW = origCanvases[i].width, origH = origCanvases[i].height;
+          c.width = origW; c.height = origH;
+          const ctx = c.getContext('2d');
+          ctx.drawImage(origCanvases[i], 0, 0);
+        } catch(e) { /* security */ }
+      }
     });
     chartArea.appendChild(clone);
   }
 
-  // Render the explanation
+  // Build controls section
+  const activity = state.activities[state.currentActivityIdx];
+  let ctrlHTML = '<div class="aci-controls-row">';
+
+  // View mode toggle
+  ctrlHTML += `<div class="aci-view-toggle">
+    <button class="aci-view-btn aci-view-btn--active" data-view="chart" onclick="_aciSwitchView('chart')">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Chart
+    </button>
+    <button class="aci-view-btn" data-view="table" onclick="_aciSwitchView('table')">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+      Data
+    </button>
+    <button class="aci-view-btn" data-view="info" onclick="_aciSwitchView('info')">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      Guide
+    </button>
+  </div>`;
+  ctrlHTML += '</div>';
+
+  // Stats summary for this card
+  if (activity) {
+    ctrlHTML += '<div class="aci-stats-row">';
+    const stats = _getCardStats(cardId, activity);
+    stats.forEach(s => {
+      ctrlHTML += `<div class="aci-stat"><span class="aci-stat-val">${s.val}</span><span class="aci-stat-lbl">${s.label}</span></div>`;
+    });
+    ctrlHTML += '</div>';
+  }
+  controlsArea.innerHTML = ctrlHTML;
+
+  // Render explanation (info tab)
   const lines = info.desc.split('\n').map(l => {
     l = l.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    if (l.startsWith('• ') || l.startsWith('  –') || l.startsWith('  –')) {
+    if (l.startsWith('• ') || l.startsWith('  –')) {
       return `<li>${l.replace(/^[•–]\s*/, '').replace(/^\s+[–]\s*/, '')}</li>`;
     }
     return l ? `<p>${l}</p>` : '';
   });
-
-  // Group consecutive <li> into <ul>
   let html = `<h2 class="act-info-title">${info.title}</h2>`;
   let inList = false;
   for (const line of lines) {
@@ -16857,10 +16895,118 @@ function _openActCardInfo(cardId, info) {
   if (inList) html += '</ul>';
   body.innerHTML = html;
 
-  // Show
+  // Build data table
+  if (activity) {
+    const tableData = _getCardTableData(cardId, activity);
+    if (tableData.length) {
+      let tbl = '<table class="aci-data-table"><thead><tr>';
+      Object.keys(tableData[0]).forEach(k => { tbl += `<th>${k}</th>`; });
+      tbl += '</tr></thead><tbody>';
+      tableData.slice(0, 50).forEach(row => {
+        tbl += '<tr>';
+        Object.values(row).forEach(v => { tbl += `<td>${v}</td>`; });
+        tbl += '</tr>';
+      });
+      tbl += '</tbody></table>';
+      if (tableData.length > 50) tbl += `<div class="aci-data-more">Showing 50 of ${tableData.length} rows</div>`;
+      dataArea.innerHTML = tbl;
+    } else {
+      dataArea.innerHTML = '<div class="aci-data-empty">No tabular data for this chart</div>';
+    }
+  }
+
+  // Default: show chart, hide data/info
+  body.style.display = 'none';
+  dataArea.style.display = 'none';
+  chartArea.style.display = '';
+
   overlay.style.display = 'flex';
   overlay.offsetHeight;
   overlay.classList.add('act-info-open');
+}
+
+// Switch view between chart/data/info in the card info page
+function _aciSwitchView(view) {
+  const chart = document.getElementById('actCardInfoChart');
+  const body = document.getElementById('actCardInfoBody');
+  const data = document.getElementById('actCardInfoData');
+  if (!chart) return;
+  chart.style.display = view === 'chart' ? '' : 'none';
+  body.style.display = view === 'info' ? '' : 'none';
+  data.style.display = view === 'table' ? '' : 'none';
+  // Toggle active button
+  document.querySelectorAll('.aci-view-btn').forEach(b => {
+    b.classList.toggle('aci-view-btn--active', b.dataset.view === view);
+  });
+}
+window._aciSwitchView = _aciSwitchView;
+
+// Get summary stats for a card
+function _getCardStats(cardId, a) {
+  const stats = [];
+  if (cardId.includes('Power') || cardId.includes('Histogram') || cardId === 'detailStreamsCard') {
+    if (a.weighted_average_watts) stats.push({ val: a.weighted_average_watts + 'w', label: 'NP' });
+    if (a.average_watts) stats.push({ val: a.average_watts + 'w', label: 'Avg' });
+    if (a.max_watts) stats.push({ val: a.max_watts + 'w', label: 'Max' });
+  }
+  if (cardId.includes('HR') || cardId.includes('Heart') || cardId.includes('hrZone')) {
+    if (a.average_heartrate) stats.push({ val: Math.round(a.average_heartrate) + ' bpm', label: 'Avg HR' });
+    if (a.max_heartrate) stats.push({ val: Math.round(a.max_heartrate) + ' bpm', label: 'Max HR' });
+  }
+  if (cardId.includes('Cadence') || cardId.includes('cadence')) {
+    if (a.average_cadence) stats.push({ val: Math.round(a.average_cadence) + ' rpm', label: 'Avg' });
+  }
+  if (cardId.includes('Speed') || cardId.includes('speed')) {
+    const avgSpd = a.average_speed ? (a.average_speed * 3.6).toFixed(1) : null;
+    const maxSpd = a.max_speed ? (a.max_speed * 3.6).toFixed(1) : null;
+    if (avgSpd) stats.push({ val: avgSpd + ' km/h', label: 'Avg' });
+    if (maxSpd) stats.push({ val: maxSpd + ' km/h', label: 'Max' });
+  }
+  if (cardId.includes('Elevation') || cardId.includes('Gradient') || cardId.includes('Climb')) {
+    if (a.total_elevation_gain) stats.push({ val: Math.round(a.total_elevation_gain) + ' m', label: 'Gain' });
+  }
+  if (cardId.includes('Temp') || cardId.includes('temp')) {
+    if (a.average_temp) stats.push({ val: a.average_temp + '°C', label: 'Avg' });
+  }
+  if (!stats.length) {
+    if (a.moving_time) stats.push({ val: fmtDur(a.moving_time), label: 'Time' });
+    if (a.distance) stats.push({ val: (a.distance / 1000).toFixed(1) + ' km', label: 'Distance' });
+  }
+  return stats;
+}
+
+// Get tabular data for a card
+function _getCardTableData(cardId, a) {
+  const ns = state.normStreams || {};
+  const rows = [];
+  // For zone cards — use the zone data
+  if (cardId.includes('Zone') || cardId.includes('zone')) {
+    const zoneEl = document.getElementById(cardId);
+    if (zoneEl) {
+      zoneEl.querySelectorAll('.detail-zone-row').forEach(r => {
+        const label = r.querySelector('.detail-zone-label')?.textContent?.trim() || '';
+        const bar = r.querySelector('.detail-zone-pct')?.textContent?.trim() || '';
+        const time = r.querySelector('.detail-zone-time')?.textContent?.trim() || '';
+        if (label) rows.push({ Zone: label, Percent: bar, Time: time });
+      });
+    }
+    return rows;
+  }
+  // For streams — sample every 30s
+  if (ns.time && (ns.watts || ns.heartrate || ns.cadence || ns.velocity_smooth)) {
+    const step = Math.max(1, Math.floor((ns.time?.length || 0) / 100));
+    for (let i = 0; i < (ns.time?.length || 0); i += step) {
+      const row = { Time: fmtDur(ns.time[i]) };
+      if (ns.watts) row['Power (w)'] = ns.watts[i] ?? '';
+      if (ns.heartrate) row['HR (bpm)'] = ns.heartrate[i] ?? '';
+      if (ns.cadence) row['Cadence'] = ns.cadence[i] ?? '';
+      if (ns.velocity_smooth) row['Speed (km/h)'] = ns.velocity_smooth[i] ? (ns.velocity_smooth[i] * 3.6).toFixed(1) : '';
+      if (ns.altitude) row['Altitude (m)'] = ns.altitude[i] != null ? Math.round(ns.altitude[i]) : '';
+      rows.push(row);
+    }
+    return rows;
+  }
+  return rows;
 }
 
 function _closeActCardInfo() {

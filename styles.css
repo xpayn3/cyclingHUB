@@ -11033,6 +11033,118 @@ body.show-save-fab #actSaveRouteFab {
     box-shadow: 0 4px 16px rgba(0,0,0,0.3);
     z-index: 10000;
 }
+/* Card info controls */
+.act-card-info-controls {
+    padding: 0 var(--pad-page) 16px;
+}
+.aci-controls-row {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.aci-view-toggle {
+    display: flex;
+    background: var(--surface-1);
+    border-radius: var(--radius-sm);
+    padding: 3px;
+    gap: 2px;
+}
+.aci-view-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 12px;
+    border: none;
+    border-radius: calc(var(--radius-sm) - 2px);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-height: 44px;
+}
+.aci-view-btn--active {
+    background: var(--surface-2);
+    color: var(--text-primary);
+}
+.aci-stats-row {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+}
+.aci-stats-row::-webkit-scrollbar { display: none; }
+.aci-stat {
+    flex: 0 0 auto;
+    background: var(--surface-1);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    min-width: 70px;
+}
+.aci-stat-val {
+    font-size: 17px;
+    font-weight: 700;
+    font-family: var(--font-num);
+    color: var(--text-primary);
+}
+.aci-stat-lbl {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+}
+/* Data table */
+.act-card-info-data {
+    padding: 0 var(--pad-page);
+}
+.aci-data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    font-family: var(--font-num);
+}
+.aci-data-table th {
+    text-align: left;
+    padding: 8px 10px;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--surface-2);
+    position: sticky;
+    top: 0;
+    background: var(--bg-base);
+}
+.aci-data-table td {
+    padding: 6px 10px;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--surface-1);
+    white-space: nowrap;
+}
+.aci-data-table tr:nth-child(even) td {
+    background: var(--surface-1);
+}
+.aci-data-more {
+    text-align: center;
+    padding: 12px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+.aci-data-empty {
+    text-align: center;
+    padding: 40px 16px;
+    color: var(--text-muted);
+    font-size: 14px;
+}
 .act-bottom-sheet.sheet-peek .act-sheet-scroll {
     overflow-y: hidden;
 }
