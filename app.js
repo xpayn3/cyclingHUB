@@ -21020,12 +21020,12 @@ function renderStreamCharts(streams, activity) {
   const subEl = document.getElementById('detailStreamsSubtitle');
   if (subEl) subEl.style.display = 'none';
 
-  // Toggle chips
+  // Toggle chips — altitude is always visible (not toggleable)
   const STREAM_META = { watts: ACCENT, heartrate: C_ORANGE, cadence: C_BLUE, velocity_smooth: C_YELLOW, altitude: C_PURPLE, lrbalance: C_PINK };
   const STREAM_LABEL = { watts: 'Power', heartrate: 'HR', cadence: 'Cadence', velocity_smooth: 'Speed', altitude: 'Altitude', lrbalance: 'L/R Bal' };
   const togContainer = document.getElementById('streamToggleChips');
   if (togContainer) {
-    togContainer.innerHTML = presentKeys.map(k =>
+    togContainer.innerHTML = presentKeys.filter(k => k !== 'altitude').map(k =>
       `<button class="stream-toggle-btn active" data-metric="${k}" style="--sc:${STREAM_META[k]}" onclick="toggleStreamLayer('${k}')">${STREAM_LABEL[k]}</button>`
     ).join('');
   }
@@ -21101,6 +21101,7 @@ function renderStreamCharts(streams, activity) {
 
 // Toggle a single stream dataset on/off via the chip buttons
 function toggleStreamLayer(metric) {
+  if (metric === 'altitude') return; // altitude is always visible
   const chart = state.activityStreamsChart;
   if (!chart) return;
   const dsIdx = chart.data.datasets.findIndex(d => d.streamKey === metric);
