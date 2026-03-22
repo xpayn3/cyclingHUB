@@ -10872,11 +10872,15 @@ body.show-save-fab #actSaveRouteFab {
 }
 /* Subtle dividers between activity detail cards */
 .act-card-divider {
-    border: none;
     height: 1px;
-    background: rgba(255,255,255,0.12);
-    margin: 8px var(--pad-page, 16px);
-    display: block !important;
+    min-height: 1px;
+    max-height: 1px;
+    background: rgba(255,255,255,0.1);
+    margin: 8px 16px;
+    border: none;
+    padding: 0;
+    display: block;
+    flex-shrink: 0;
 }
 
 /* Drag handle */

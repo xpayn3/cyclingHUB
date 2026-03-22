@@ -16793,22 +16793,28 @@ function _injectActCardDividers() {
   if (!scroll) return;
   // Remove old dividers
   scroll.querySelectorAll('.act-card-divider').forEach(d => d.remove());
-  // Get visible direct children that are cards or card-like sections
-  const children = [...scroll.children].filter(el => {
-    if (el.style.display === 'none') return false;
-    if (el.classList.contains('act-hero') || el.classList.contains('act-secondary-strip') || el.classList.contains('act-sheet-handle')) return false;
-    if (el.classList.contains('detail-charts-loading')) return false;
-    return el.classList.contains('card') || el.classList.contains('detail-zones-carousel-card') ||
-           el.classList.contains('detail-curves-row') || el.classList.contains('detail-charts-row') ||
-           el.classList.contains('ach-card') || el.classList.contains('act-gear-badge');
-  });
-  // Insert <hr> after each visible card except the last
-  children.forEach((el, i) => {
-    if (i < children.length - 1) {
-      const hr = document.createElement('hr');
-      hr.className = 'act-card-divider';
-      el.after(hr);
+  // Get ALL direct children, insert divider between visible ones
+  const kids = [...scroll.children];
+  kids.forEach(el => {
+    // Skip non-visible, skip hero area elements
+    if (el.offsetHeight === 0) return;
+    const tag = el.tagName;
+    if (tag === 'HR') return;
+    const cls = el.className || '';
+    if (cls.includes('act-hero') || cls.includes('act-secondary-strip') ||
+        cls.includes('act-sheet-handle') || cls.includes('detail-charts-loading') ||
+        cls.includes('act-card-divider')) return;
+    // Check if next visible sibling already has a divider
+    let next = el.nextElementSibling;
+    while (next && (next.offsetHeight === 0 || next.className?.includes('act-card-divider'))) {
+      if (next.className?.includes('act-card-divider')) return; // already has one
+      next = next.nextElementSibling;
     }
+    if (!next) return; // last visible element
+    // Insert divider
+    const div = document.createElement('div');
+    div.className = 'act-card-divider';
+    el.after(div);
   });
 }
 
