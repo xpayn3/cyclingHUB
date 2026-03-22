@@ -9052,7 +9052,7 @@ function renderRampRate(activities, days) {
       },
       scales: {
         x: { ticks: { ...C_TICK, maxTicksLimit: 8, maxRotation: 0, autoSkip: true }, grid: { display: false }, border: { display: false } },
-        y: { ticks: { ...C_TICK, callback: v => v + '%' }, grid: C_GRID, border: { display: false } },
+        y: { ticks: { ...C_TICK, callback: function(v, i) { return i === 0 ? '%' : v; } }, grid: C_GRID, border: { display: false } },
       },
     },
   });
@@ -10695,7 +10695,7 @@ function renderKjZoneChart(days, ftp) {
       },
       scales: {
         x: { stacked: true, ticks: { ...C_TICK, maxTicksLimit: 12 }, grid: { display: false }, border: { display: false } },
-        y: { stacked: true, ticks: { ...C_TICK, callback: v => v + ' kJ' }, grid: C_GRID, border: { display: false } },
+        y: { stacked: true, ticks: { ...C_TICK, callback: function(v, i) { return i === 0 ? 'kJ' : v; } }, grid: C_GRID, border: { display: false } },
       },
     },
   });
@@ -10771,7 +10771,7 @@ function renderKjIntensityChart(days) {
       },
       scales: {
         x: { grid: C_GRID, ticks: { ...C_TICK, maxRotation: 0, maxTicksLimit: 7 } },
-        y: { grid: C_GRID, ticks: { ...C_TICK, callback: v => v + ' kJ/hr' } },
+        y: { grid: C_GRID, ticks: { ...C_TICK, callback: function(v, i) { return i === 0 ? 'kJ/hr' : v; } } },
       },
     },
   });
@@ -10905,7 +10905,7 @@ function renderKjEfficiencyChart(days) {
       },
       scales: {
         x: { grid: C_GRID, ticks: { ...C_TICK, maxRotation: 0, maxTicksLimit: 7 } },
-        y: { grid: C_GRID, ticks: { ...C_TICK, callback: v => v + ' kJ/km' } },
+        y: { grid: C_GRID, ticks: { ...C_TICK, callback: function(v, i) { return i === 0 ? 'kJ/km' : v; } } },
       },
     },
   });
@@ -11188,7 +11188,7 @@ function renderKjMetabolicChart(days) {
       },
       scales: {
         x: { grid: C_GRID, ticks: { ...C_TICK, maxRotation: 0, maxTicksLimit: 7 } },
-        y: { grid: C_GRID, ticks: { ...C_TICK, callback: v => v + '%' } },
+        y: { grid: C_GRID, ticks: { ...C_TICK, callback: function(v, i) { return i === 0 ? '%' : v; } } },
       },
     },
   });
