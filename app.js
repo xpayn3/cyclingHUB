@@ -6139,14 +6139,17 @@ Chart.register({
 
 // Also hide the tooltip whenever the page scrolls (covers scrolling outside chart area)
 let _scrollTooltipRAF = 0;
-window.addEventListener('scroll', () => {
+function _hideTooltipOnScroll() {
   if (_scrollTooltipRAF) return;
   _scrollTooltipRAF = requestAnimationFrame(() => {
     _scrollTooltipRAF = 0;
     const tt = _getTooltipEl();
     if (tt.style.opacity !== '0') tt.style.opacity = '0';
   });
-}, { passive: true });
+}
+window.addEventListener('scroll', _hideTooltipOnScroll, { passive: true });
+// Also listen on common scroll containers (activity sheet, page content, etc.)
+document.addEventListener('scroll', _hideTooltipOnScroll, { passive: true, capture: true });
 
 // Vertical crosshair line drawn at the hovered x position
 Chart.register({
