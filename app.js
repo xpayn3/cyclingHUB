@@ -16663,6 +16663,9 @@ async function navigateToActivity(actKey, fromStep = false) {
     renderDetailCadenceHist(normStreams, richActivity);
     renderDetailCurve(actId, normStreams);   // async — shows/hides its own card
     renderDetailHRCurve(normStreams);        // async — shows/hides its own card
+
+    // Inject info buttons on all visible activity cards
+    setTimeout(() => _injectActCardInfoBtns(), 300);
   } catch (err) {
     console.error('[Activity detail] Unhandled error:', err);
     _loadingEl.style.display = 'none';
@@ -16673,6 +16676,200 @@ async function navigateToActivity(actKey, fromStep = false) {
 function navigateBack() {
   navigate(state.previousPage || 'activities');
 }
+
+/* ── Activity card info buttons + info subpage ── */
+const _ACT_CARD_INFO = {
+  detailStreamsCard: {
+    title: 'Activity Streams',
+    desc: `This chart shows your real-time data streams throughout the ride — power (watts), heart rate (bpm), cadence (rpm), speed, and elevation all plotted on the same timeline.\n\n**How to read it:**\n• The x-axis is ride duration\n• Each coloured line represents a different metric\n• Hover/tap any point to see exact values\n• Spikes in power indicate hard efforts; drops suggest coasting\n• Heart rate lag behind power is normal (30–60s delay)\n\n**What to look for:**\n• Consistent power = good pacing\n• HR drift (rising HR at same power) = cardiac drift / fatigue\n• Cadence drops on climbs may indicate gear choice issues`
+  },
+  detailPowerCard: {
+    title: 'Power Analysis',
+    desc: `Detailed breakdown of your power output during the ride.\n\n**Key metrics:**\n• **Average Power** — your mean wattage\n• **Normalized Power (NP)** — weighted average that accounts for variability\n• **Intensity Factor (IF)** — NP ÷ FTP, shows how hard the effort was\n• **Variability Index (VI)** — NP ÷ Avg Power, shows how steady your effort was\n\n**How to use:**\n• IF < 0.75 = easy recovery ride\n• IF 0.75–0.85 = endurance/tempo\n• IF 0.85–0.95 = threshold work\n• IF > 0.95 = race effort\n• VI close to 1.0 = very steady (time trial); VI > 1.1 = surgy/variable`
+  },
+  detailHRCard: {
+    title: 'Heart Rate Analysis',
+    desc: `Your cardiovascular response during the ride.\n\n**Key metrics:**\n• **Average HR** — mean heart rate\n• **Max HR** — peak value reached\n• **HRSS** — Heart Rate Stress Score (like TSS but HR-based)\n\n**How to read:**\n• Steady HR at moderate effort = good aerobic fitness\n• HR that keeps climbing at the same power = fatigue/dehydration\n• Quick HR recovery after efforts = good fitness\n• Compare avg HR across similar rides to track fitness changes`
+  },
+  detailPerfCard: {
+    title: 'Performance Metrics',
+    desc: `Advanced performance analysis combining power and heart rate data.\n\n**Efficiency Factor (EF):**\nNP ÷ Avg HR — measures how much power you produce per heartbeat. Rising EF over weeks = improving aerobic fitness.\n\n**Aerobic Decoupling:**\nCompares the power:HR ratio of the first half vs second half. Under 5% = good aerobic endurance. Over 5% = you faded.\n\n**How to use:**\n• Track EF on similar rides monthly\n• Do a 60–90 min steady ride at tempo and check decoupling\n• Decoupling < 3% means you're ready for longer events`
+  },
+  detailDecoupleCard: {
+    title: 'Aerobic Decoupling',
+    desc: `Shows how your power:HR ratio changed from the first half to the second half of the ride.\n\n**What it means:**\n• < 3% = excellent aerobic fitness at that intensity\n• 3–5% = good, but room to improve\n• > 5% = your aerobic system faded; the effort was too hard for your current fitness\n\n**How to improve:**\n• Do more long steady rides at Zone 2\n• Build duration gradually\n• Retest monthly to track progress`
+  },
+  detailLRBalanceCard: {
+    title: 'Left/Right Balance',
+    desc: `Power distribution between your left and right legs.\n\n**Ideal range:** 48–52% split is normal. Perfect 50/50 is rare.\n\n**What to watch for:**\n• Consistent imbalance > 54/46 may indicate:\n  – Bike fit issue (saddle height/position)\n  – Muscle weakness on one side\n  – Cleat alignment problem\n  – Previous injury compensation\n\n**How to improve:**\n• Single-leg drills on the trainer\n• Strength work targeting the weaker side\n• Professional bike fit assessment`
+  },
+  detailZonesCard: {
+    title: 'Power Zones',
+    desc: `Time spent in each power training zone.\n\n**The 7 zones:**\n• **Z1 (Recovery):** < 55% FTP — active recovery\n• **Z2 (Endurance):** 55–75% FTP — aerobic base building\n• **Z3 (Tempo):** 76–90% FTP — muscular endurance\n• **Z4 (Threshold):** 91–105% FTP — FTP improvement\n• **Z5 (VO2max):** 106–120% FTP — max aerobic capacity\n• **Z6 (Anaerobic):** 121–150% FTP — short power\n• **Z7 (Sprint):** > 150% FTP — neuromuscular power\n\n**Training tip:** 80% of your training time should be in Z1–Z2, with 20% in Z4+ (polarised training model).`
+  },
+  detailHRZonesCard: {
+    title: 'Heart Rate Zones',
+    desc: `Time spent in each heart rate training zone.\n\n**The 5 zones:**\n• **Z1 (Recovery):** < 60% max HR — very easy\n• **Z2 (Aerobic):** 60–70% max HR — fat burning, base\n• **Z3 (Tempo):** 70–80% max HR — moderate effort\n• **Z4 (Threshold):** 80–90% max HR — hard, lactate threshold\n• **Z5 (Max):** > 90% max HR — very hard, VO2max\n\n**How to use:**\n• Most endurance rides should stay in Z1–Z2\n• HR zones are useful when you don't have a power meter\n• HR is influenced by heat, caffeine, stress, and fatigue`
+  },
+  detailLapSplitsCard: {
+    title: 'Lap Splits',
+    desc: `Breakdown of each lap or segment with key metrics per split.\n\n**How to read:**\n• Each row is one lap (auto or manual)\n• Compare power, HR, and speed across laps\n• Declining power across laps = pacing issue or fatigue\n• Use this to check interval consistency\n\n**Tips:**\n• For intervals, check that work intervals are within 5% of target\n• For time trials, even splits (or slight negative split) is optimal`
+  },
+  detailIntervalsCard: {
+    title: 'Intervals',
+    desc: `Detected interval efforts from your ride.\n\n**What it shows:**\n• Each detected work interval with avg power, HR, duration\n• Rest intervals between work bouts\n• Colour-coded by intensity zone\n\n**How to use:**\n• Check consistency — are your intervals at similar power?\n• Compare prescribed vs actual targets\n• Monitor fatigue: are later intervals weaker?`
+  },
+  detailCurveCard: {
+    title: 'Power Curve',
+    desc: `Your best power output for every duration — from 1 second to the full ride length.\n\n**How to read:**\n• X-axis = duration (log scale)\n• Y-axis = best average power for that duration\n• Higher curve = more powerful rider\n\n**Key durations:**\n• **5s** — sprint/neuromuscular power\n• **1 min** — anaerobic capacity\n• **5 min** — VO2max / MAP\n• **20 min** — ~FTP estimate (×0.95)\n• **60 min** — true threshold power\n\n**Compare** this ride's curve to your all-time bests to see if you set any records.`
+  },
+  detailHRCurveCard: {
+    title: 'Heart Rate Curve',
+    desc: `Your peak sustained heart rate for every duration.\n\n**How to read:**\n• Shows the highest average HR you held for each time duration\n• Short durations (5–30s) show your peak HR ability\n• Longer durations (20–60 min) show sustained cardiovascular effort\n\n**Uses:**\n• Validate max HR from short all-out efforts\n• Track changes in peak HR over time (declining peak HR may indicate fatigue or overtraining)`
+  },
+  detailGradientCard: {
+    title: 'Elevation Profile',
+    desc: `The ride's elevation profile colour-coded by gradient steepness.\n\n**Colour coding:**\n• 🟢 Green = flat or gentle (0–3%)\n• 🟡 Yellow = moderate (3–6%)\n• 🟠 Orange = steep (6–10%)\n• 🔴 Red = very steep (10%+)\n• 🔵 Blue = descent\n\n**How to use:**\n• Identify where the hardest climbs are\n• Plan pacing strategy for repeated routes\n• Compare power output on different gradients`
+  },
+  detail3DElevCard: {
+    title: '3D Elevation',
+    desc: `A perspective view of your ride's elevation profile, colour-coded by gradient.\n\n**How to read:**\n• Height represents elevation gain\n• Colour shows gradient intensity\n• Gives a visual sense of the ride's terrain character\n\n**Uses:**\n• Quick visual overview of ride difficulty\n• Share-worthy visualization of mountain rides`
+  },
+  detailClimbsCard: {
+    title: 'Climb Detection',
+    desc: `Automatically detected climbs from your ride.\n\n**For each climb:**\n• Distance and elevation gain\n• Average and max gradient\n• Duration and average power/HR\n• VAM (Vertical Ascent Meters per hour)\n\n**VAM reference:**\n• < 800 m/h = recreational\n• 800–1000 m/h = competitive amateur\n• 1000–1400 m/h = elite / pro\n• > 1400 m/h = world-class (short climbs)`
+  },
+  detailCadenceCard: {
+    title: 'Cadence Distribution',
+    desc: `Histogram showing how much time you spent at each cadence (RPM).\n\n**Optimal ranges:**\n• **Flat road:** 85–95 RPM is efficient for most riders\n• **Climbing:** 70–85 RPM is common\n• **Sprinting:** 100–120+ RPM\n\n**What to look for:**\n• A tight peak around 85–95 = consistent pedalling\n• Bimodal distribution = mix of seated and climbing\n• Very low cadence (< 60) may indicate poor gear selection or grinding uphills`
+  },
+  detailHistogramCard: {
+    title: 'Power Distribution',
+    desc: `Histogram showing how much time you spent at each power level.\n\n**How to read:**\n• X-axis = power (watts)\n• Y-axis = time at each wattage\n• A tall spike near 0W = lots of coasting\n• The main hump shows your typical riding intensity\n\n**What to look for:**\n• Endurance rides should have one clean peak in Z2\n• Interval rides show multiple peaks (rest + work)\n• Large time at 0W suggests lots of descending or drafting`
+  },
+  detailTempCard: {
+    title: 'Temperature',
+    desc: `Ambient temperature recorded during your ride.\n\n**Why it matters:**\n• Heat impacts performance: HR increases ~5bpm per 5°C above 20°C\n• Cold reduces muscle efficiency and increases warm-up time\n• Temperature changes during the ride affect pacing and hydration needs\n\n**Tips:**\n• Compare HR data in hot vs cool rides at similar power\n• Adjust RPE expectations in extreme temperatures`
+  },
+  detailWeatherCard: {
+    title: 'Weather Conditions',
+    desc: `Weather data for this ride including temperature, wind, humidity, and conditions.\n\n**How to use:**\n• Headwind explains lower speed at same power\n• High humidity increases perceived effort\n• Use weather context when comparing ride performances`
+  },
+  detailMapCard: {
+    title: 'Route Map',
+    desc: `GPS route map of your ride.\n\n**Features:**\n• Tap/click to see location details\n• Route colour may indicate speed, power, or gradient\n• Compare routes across multiple rides`
+  },
+  detailCompareCard: {
+    title: 'Compare with Previous',
+    desc: `Side-by-side comparison with a similar previous ride or your personal bests.\n\n**How to use:**\n• Green = improvement over comparison\n• Red = decline\n• Look for trends across key metrics (power, speed, HR)\n• Useful for tracking fitness progression on repeated routes`
+  }
+};
+
+function _injectActCardInfoBtns() {
+  const scroll = document.getElementById('actSheetScroll');
+  if (!scroll) return;
+  // Find all .card elements inside the sheet
+  scroll.querySelectorAll('.card').forEach(card => {
+    if (!card.id || card.querySelector('.act-card-info-btn')) return;
+    const info = _ACT_CARD_INFO[card.id];
+    if (!info) return;
+    const header = card.querySelector('.card-header');
+    if (!header) return;
+    const btn = document.createElement('button');
+    btn.className = 'act-card-info-btn';
+    btn.title = 'More info';
+    btn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>';
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      _openActCardInfo(card.id, info);
+    });
+    header.appendChild(btn);
+  });
+}
+
+function _openActCardInfo(cardId, info) {
+  // Create or reuse the info overlay
+  let overlay = document.getElementById('actCardInfoOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'actCardInfoOverlay';
+    overlay.className = 'act-card-info-overlay';
+    overlay.innerHTML = `
+      <div class="act-card-info-page">
+        <div class="act-card-info-chart" id="actCardInfoChart"></div>
+        <div class="act-card-info-body" id="actCardInfoBody"></div>
+      </div>
+      <button class="fab-back act-card-info-back" onclick="_closeActCardInfo()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>`;
+    document.body.appendChild(overlay);
+  }
+
+  // Clone the chart from the card
+  const chartArea = document.getElementById('actCardInfoChart');
+  const body = document.getElementById('actCardInfoBody');
+  chartArea.innerHTML = '';
+
+  const sourceCard = document.getElementById(cardId);
+  if (sourceCard) {
+    // Clone everything except the card-header
+    const clone = sourceCard.cloneNode(true);
+    const cloneHeader = clone.querySelector('.card-header');
+    if (cloneHeader) cloneHeader.remove();
+    // Remove info button from clone if any
+    clone.querySelectorAll('.act-card-info-btn').forEach(b => b.remove());
+    clone.style.background = 'transparent';
+    clone.style.padding = '0';
+    clone.style.margin = '0';
+    clone.id = '';
+    // Fix canvas — clone doesn't copy canvas content, so just show a message
+    const canvases = clone.querySelectorAll('canvas');
+    canvases.forEach(c => {
+      const note = document.createElement('div');
+      note.style.cssText = 'padding:40px 0;text-align:center;color:var(--text-muted);font-size:13px';
+      note.textContent = 'Chart available in activity view';
+      c.replaceWith(note);
+    });
+    chartArea.appendChild(clone);
+  }
+
+  // Render the explanation
+  const lines = info.desc.split('\n').map(l => {
+    l = l.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    if (l.startsWith('• ') || l.startsWith('  –') || l.startsWith('  –')) {
+      return `<li>${l.replace(/^[•–]\s*/, '').replace(/^\s+[–]\s*/, '')}</li>`;
+    }
+    return l ? `<p>${l}</p>` : '';
+  });
+
+  // Group consecutive <li> into <ul>
+  let html = `<h2 class="act-info-title">${info.title}</h2>`;
+  let inList = false;
+  for (const line of lines) {
+    if (line.startsWith('<li>')) {
+      if (!inList) { html += '<ul class="act-info-list">'; inList = true; }
+      html += line;
+    } else {
+      if (inList) { html += '</ul>'; inList = false; }
+      html += line;
+    }
+  }
+  if (inList) html += '</ul>';
+  body.innerHTML = html;
+
+  // Show
+  overlay.style.display = 'flex';
+  overlay.offsetHeight;
+  overlay.classList.add('act-info-open');
+}
+
+function _closeActCardInfo() {
+  const overlay = document.getElementById('actCardInfoOverlay');
+  if (!overlay) return;
+  overlay.classList.remove('act-info-open');
+  setTimeout(() => { overlay.style.display = 'none'; }, 300);
+}
+window._closeActCardInfo = _closeActCardInfo;
 
 // Step to the adjacent activity in the sorted list.
 // delta = -1 → newer (toward index 0), delta = +1 → older (toward end of array)

@@ -10904,13 +10904,127 @@ body.show-save-fab #actSaveRouteFab {
     flex-shrink: 0;
 }
 /* Activity detail: chart cards edge-to-edge + transparent */
-.act-sheet-scroll > .card {
+.act-sheet-scroll .card {
     background: transparent;
+    border-radius: 0;
+}
+.act-sheet-scroll > .card {
     margin-left: calc(-1 * var(--pad-page));
     margin-right: calc(-1 * var(--pad-page));
     padding-left: var(--pad-page);
     padding-right: var(--pad-page);
-    border-radius: 0;
+}
+/* Zones carousel wrapper also edge-to-edge */
+.act-sheet-scroll > .detail-zones-carousel-card {
+    margin-left: calc(-1 * var(--pad-page));
+    margin-right: calc(-1 * var(--pad-page));
+    padding-left: var(--pad-page);
+    padding-right: var(--pad-page);
+}
+/* Info button on activity cards */
+.act-card-info-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: none;
+    background: var(--surface-2);
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s, color 0.15s;
+    padding: 0;
+}
+.act-card-info-btn:active {
+    background: var(--surface-3);
+    color: var(--text-primary);
+}
+/* Activity card info overlay page */
+.act-card-info-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: var(--bg-base);
+    flex-direction: column;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.act-card-info-overlay.act-info-open {
+    opacity: 1;
+    transform: translateY(0);
+}
+.act-card-info-page {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 0 0 100px;
+}
+.act-card-info-chart {
+    padding: var(--pad-page);
+    padding-top: max(16px, env(safe-area-inset-top));
+    border-bottom: 1px solid var(--surface-2);
+    margin-bottom: 20px;
+}
+.act-card-info-body {
+    padding: 0 var(--pad-page);
+}
+.act-info-title {
+    font-size: 24px;
+    font-weight: 700;
+    margin: 0 0 16px;
+    color: var(--text-primary);
+}
+.act-card-info-body p {
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    margin: 0 0 10px;
+}
+.act-card-info-body strong {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+.act-info-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 14px;
+}
+.act-info-list li {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    padding: 4px 0 4px 20px;
+    position: relative;
+}
+.act-info-list li::before {
+    content: '•';
+    position: absolute;
+    left: 4px;
+    color: var(--accent);
+    font-weight: 700;
+}
+.act-card-info-back {
+    position: fixed;
+    bottom: max(20px, env(safe-area-inset-bottom));
+    left: var(--pad-page);
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: none;
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    z-index: 10000;
 }
 .act-bottom-sheet.sheet-peek .act-sheet-scroll {
     overflow-y: hidden;
