@@ -23852,6 +23852,7 @@ function buildCurveFromStream(wattsArr) {
 }
 
 async function renderDetailCurve(actId, streams) {
+  console.log('[PowerCurve] renderDetailCurve called, actId:', actId, 'has streams:', !!streams, 'has watts:', !!(streams?.watts));
   const card = document.getElementById('detailCurveCard');
   if (!card) { console.warn('[PowerCurve] Card element not found'); return; }
 
@@ -23859,6 +23860,7 @@ async function renderDetailCurve(actId, streams) {
   // Always try local computation first (fastest, no network)
   let raw = null;
   if (streams) raw = buildCurveFromStream(streams.watts || streams.power);
+  console.log('[PowerCurve] local curve result:', raw ? `${raw.secs.length} points` : 'null');
 
   // If no local data, try API
   if (!raw) {
