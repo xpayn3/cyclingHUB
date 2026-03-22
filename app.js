@@ -5918,9 +5918,7 @@ function externalTooltipHandler(context) {
                        && !String(c).startsWith('rgba(0, 0, 0');
     const bg = candidates.find(isUsable) || 'transparent';
     if (!el._ttColor && isUsable(bg)) el._ttColor = bg;
-    html += `<div class="ctf-row">` +
-      lines.map(l => `<span>${l}</span>`).join('') +
-      `</div>`;
+    html += `<div class="ctf-row">${lines.join('<br>')}</div>`;
   });
   el.innerHTML = html;
 
