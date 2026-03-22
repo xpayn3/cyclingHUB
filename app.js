@@ -16839,6 +16839,11 @@ function _openActCardInfo(cardId, info) {
     chartArea.appendChild(clone);
   }
 
+  // For streams card: render individual metric charts below the main clone
+  if (cardId === 'detailStreamsCard' && state.normStreams) {
+    _renderStreamsBreakdown(chartArea, state.normStreams, state.activities[state.currentActivityIdx]);
+  }
+
   // Build controls section
   const activity = state.activities[state.currentActivityIdx];
   let ctrlHTML = '<div class="aci-controls-row">';
@@ -17236,6 +17241,143 @@ function _getCardTableData(cardId, a) {
     return rows;
   }
   return rows;
+}
+
+// Render individual stream metric charts for the streams info page
+function _renderStreamsBreakdown(container, streams, activity) {
+  const metrics = [
+    { key: 'watts', label: 'Power', unit: 'W', color: ACCENT,
+      avg: activity?.average_watts, max: activity?.max_watts },
+    { key: 'heartrate', label: 'Heart Rate', unit: 'bpm', color: C_ORANGE,
+      avg: activity?.average_heartrate, max: activity?.max_heartrate },
+    { key: 'cadence', label: 'Cadence', unit: 'rpm', color: C_BLUE,
+      avg: activity?.average_cadence, max: null },
+    { key: 'velocity_smooth', label: 'Speed', unit: 'km/h', color: C_YELLOW,
+      avg: activity?.average_speed ? +(activity.average_speed * 3.6).toFixed(1) : null,
+      max: activity?.max_speed ? +(activity.max_speed * 3.6).toFixed(1) : null },
+    { key: 'altitude', label: 'Elevation', unit: 'm', color: C_PURPLE,
+      avg: null, max: null },
+  ];
+
+  const time = streams?.time;
+  const movingSecs = activity?.moving_time || 0;
+  const elapsedSecs = activity?.elapsed_time || 0;
+
+  let html = '<div class="aci-streams-breakdown">';
+  metrics.forEach(m => {
+    const data = streams?.[m.key];
+    if (!Array.isArray(data) || !data.some(v => v != null && v > 0)) return;
+
+    // Compute stats from raw stream data
+    let sum = 0, count = 0, min = Infinity, max = -Infinity;
+    data.forEach(v => {
+      if (v == null) return;
+      sum += v; count++;
+      if (v < min) min = v;
+      if (v > max) max = v;
+    });
+    const avg = count > 0 ? sum / count : 0;
+    // For speed: convert m/s to km/h
+    const isSpeed = m.key === 'velocity_smooth';
+    const displayAvg = m.avg || (isSpeed ? +(avg * 3.6).toFixed(1) : Math.round(avg));
+    const displayMax = m.max || (isSpeed ? +(max * 3.6).toFixed(1) : Math.round(max));
+    const displayMin = isSpeed ? +(min * 3.6).toFixed(1) : Math.round(min);
+
+    // Downsample for chart
+    const step = Math.max(1, Math.floor(data.length / 300));
+    const ds = [];
+    const labels = [];
+    for (let i = 0; i < data.length; i += step) {
+      ds.push(data[i] != null ? (isSpeed ? +(data[i] * 3.6).toFixed(1) : data[i]) : null);
+      if (time && time[i] != null) {
+        const s = time[i];
+        const h = Math.floor(s / 3600), mn = Math.floor((s % 3600) / 60);
+        labels.push(h > 0 ? `${h}:${String(mn).padStart(2,'0')}` : `${mn}:${String(s % 60).padStart(2,'0')}`);
+      } else {
+        labels.push(i);
+      }
+    }
+
+    const canvasId = `aciStream_${m.key}`;
+    html += `<div class="aci-stream-section">
+      <div class="aci-stream-title" style="color:${m.color}">${m.label}</div>
+      <div class="aci-stream-chart-wrap"><canvas id="${canvasId}"></canvas></div>
+      <div class="aci-stream-stats">
+        <div class="aci-stream-stat">
+          <span class="aci-stream-stat-val">${displayAvg}</span>
+          <span class="aci-stream-stat-unit">${m.unit}</span>
+          <span class="aci-stream-stat-lbl">Average</span>
+        </div>
+        <div class="aci-stream-stat">
+          <span class="aci-stream-stat-val">${displayMax}</span>
+          <span class="aci-stream-stat-unit">${m.unit}</span>
+          <span class="aci-stream-stat-lbl">Max</span>
+        </div>
+        ${m.key !== 'altitude' ? `<div class="aci-stream-stat">
+          <span class="aci-stream-stat-val">${displayMin}</span>
+          <span class="aci-stream-stat-unit">${m.unit}</span>
+          <span class="aci-stream-stat-lbl">Min</span>
+        </div>` : `<div class="aci-stream-stat">
+          <span class="aci-stream-stat-val">+${Math.round(activity?.total_elevation_gain || 0)}</span>
+          <span class="aci-stream-stat-unit">m</span>
+          <span class="aci-stream-stat-lbl">Gain</span>
+        </div>`}
+        <div class="aci-stream-stat">
+          <span class="aci-stream-stat-val">${fmtDur(movingSecs)}</span>
+          <span class="aci-stream-stat-unit"></span>
+          <span class="aci-stream-stat-lbl">Moving</span>
+        </div>
+      </div>
+    </div>`;
+
+    // Render chart after DOM insert
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        new Chart(canvas.getContext('2d'), {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              data: ds,
+              borderColor: m.color,
+              backgroundColor: m.color + '18',
+              fill: true,
+              borderWidth: 1.5,
+              pointRadius: 0,
+              tension: 0.3,
+              spanGaps: true,
+            }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            animation: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                ...C_TOOLTIP,
+                callbacks: {
+                  label: ctx => ctx.parsed.y != null ? `${Math.round(ctx.parsed.y * 10) / 10} ${m.unit}` : null
+                }
+              }
+            },
+            scales: {
+              x: { display: false },
+              y: {
+                grid: C_GRID,
+                ticks: { ...C_TICK, maxTicksLimit: 4, callback: function(v, i) { return i === 0 ? m.unit : v; } },
+                border: { display: false },
+              }
+            }
+          }
+        });
+      });
+    });
+  });
+  html += '</div>';
+  container.insertAdjacentHTML('beforeend', html);
 }
 
 function _closeActCardInfo() {

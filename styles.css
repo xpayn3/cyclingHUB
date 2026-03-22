@@ -10996,6 +10996,57 @@ body.show-save-fab #actSaveRouteFab {
     z-index: 10;
     background: var(--bg-base);
 }
+/* Streams breakdown — individual metric charts */
+.aci-streams-breakdown {
+    padding: 0 var(--pad-page);
+}
+.aci-stream-section {
+    margin-bottom: 20px;
+    background: var(--surface-1);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+}
+.aci-stream-title {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 8px;
+}
+.aci-stream-chart-wrap {
+    height: 100px;
+    margin-bottom: 10px;
+}
+.aci-stream-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+}
+.aci-stream-stat {
+    text-align: center;
+}
+.aci-stream-stat-val {
+    font-size: 16px;
+    font-weight: 700;
+    font-family: var(--font-num);
+    color: var(--text-primary);
+    display: block;
+    line-height: 1.2;
+}
+.aci-stream-stat-unit {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+.aci-stream-stat-lbl {
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    margin-top: 2px;
+    display: block;
+}
 .act-card-info-body {
     padding: 0 var(--pad-page);
 }
