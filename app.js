@@ -5297,6 +5297,7 @@ async function _renderDashGear() {
     return `<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="18" r="3"/><circle cx="19" cy="18" r="3"/><path d="M5 18h3l2-5 2-5h4l2 5 1 2.5"/></svg>`;
   };
 
+  const bgColors = _gearLoadBgColors();
   scroll.innerHTML = gear.map(g => {
     const photo = photos[g.id];
     const imgHtml = photo
@@ -5310,9 +5311,11 @@ async function _renderDashGear() {
     if (partCount) tags.push(`${partCount} parts`);
     if (batList.length) tags.push(`${batList.length} bat`);
     if (tags.length) meta += ' · ' + tags.join(' · ');
+    const bgCol = bgColors[g.id] || '';
+    const slideStyle = photo ? `background:${bgCol || '#111'}` : '';
 
-    return `<div class="dash-gear-slide${photo ? ' dash-gear-slide--photo' : ''}" onclick="navigate('gear')" ${photo ? `style="background-image:url(${photo})"` : ''}>
-      ${photo ? '' : imgHtml}
+    return `<div class="dash-gear-slide${photo ? ' dash-gear-slide--photo' : ''}" onclick="navigate('gear')" ${slideStyle ? `style="${slideStyle}"` : ''}>
+      ${photo ? `<img class="dash-gear-photo" src="${photo}" alt="${g.name}">` : imgHtml}
       <div class="dash-gear-overlay">
         <div class="dash-gear-name">${g.name}</div>
         <div class="dash-gear-km">${meta}</div>
@@ -24067,10 +24070,13 @@ function renderBikeDetailPage() {
 
   const bikeSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" width="64" height="64" style="opacity:0.2"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5L9 11l-3.5 3.5M15 6l-4 5.5H5.5M15 6l3 5.5"/></svg>`;
 
+  const bgCol = _gearLoadBgColors()[bikeId] || '';
+  const heroPhotoStyle = bgCol ? `style="background:${bgCol}"` : '';
+
   el.innerHTML = `
     <!-- Hero -->
     <div class="bkd-hero">
-      <div class="bkd-hero-photo">
+      <div class="bkd-hero-photo" ${heroPhotoStyle}>
         ${photo ? `<img src="${photo}" alt="${bike.name}">` : bikeSvg}
         <button class="gar-bike-photo-upload" onclick="gearTriggerPhotoUpload('${bikeId}',event)" title="Upload photo">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
