@@ -2233,6 +2233,16 @@ window._peerShowQR = _peerShowQR;
 
 /* ── QR Code scanning via camera (jsQR — works on iOS Safari) ── */
 function _peerScanQR() {
+  // Ensure jsQR is loaded
+  if (typeof jsQR === 'undefined') {
+    showToast('Loading scanner...', 'info');
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
+    s.onload = () => _peerScanQR();
+    s.onerror = () => showToast('QR scanner failed to load — enter the ID manually', 'error');
+    document.head.appendChild(s);
+    return;
+  }
   const overlay = document.createElement('div');
   overlay.id = 'qrScanOverlay';
   overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;';
