@@ -408,39 +408,42 @@ export async function renderActivityIntervals(activityId) {
       ? `${workCount} work interval${workCount !== 1 ? 's' : ''} · ${intervals.length} total`
       : `${intervals.length} interval${intervals.length !== 1 ? 's' : ''}`;
 
-    // Zone column: API returns 1-indexed zone number; map to 0-indexed for ZONE_HEX/COGGAN_ZONES
-    const hasZones = intervals.some(iv => iv.zone > 0);
+    const typeColors = {
+      work: '#ff6b35', rest: 'rgba(0,229,160,0.5)', warmup: '#4a9eff', cooldown: '#9b59ff', '': 'rgba(255,255,255,0.15)'
+    };
 
-    let html = `<table class="act-ivl-table">
-      <thead><tr>
-        <th>#</th><th>Type</th><th>Duration</th>
-        <th>Avg Power</th><th>Avg HR</th><th>Avg Cad</th>
-        ${hasZones ? '<th>Zone</th>' : ''}
-      </tr></thead><tbody>`;
+    const maxWatts = Math.max(...intervals.map(iv => iv.average_watts || 0), 1);
+    const maxDur = Math.max(...intervals.map(iv => iv.moving_time || iv.elapsed_time || 0), 1);
 
+    let html = '<div class="act-ivl-bars">';
     intervals.forEach((ivl, i) => {
       const type  = classify(ivl);
       const secs  = ivl.moving_time || ivl.elapsed_time || 0;
       const watts = Math.round(ivl.average_watts || 0);
       const hr    = Math.round(ivl.average_heartrate || 0);
       const cad   = Math.round(ivl.average_cadence || 0);
-      const zIdx  = ivl.zone > 0 ? ivl.zone - 1 : null;  // API is 1-indexed
-      const typeCls = type ? `act-ivl-type act-ivl-type--${type}` : 'act-ivl-type';
-      const typeLabel = type || (ivl.type || '—').toLowerCase();
-      const name  = ivl.label || '';
+      const typeLabel = type || (ivl.type || '').toLowerCase() || 'interval';
+      const color = typeColors[type] || typeColors[''];
+      const barPct = maxWatts > 0 ? (watts / maxWatts * 100).toFixed(1) : 0;
+      const widthPct = maxDur > 0 ? Math.max((secs / maxDur * 100), 8).toFixed(1) : 20;
 
-      html += `<tr>
-        <td>${i + 1}</td>
-        <td><span class="${typeCls}">${typeLabel}</span>${name ? ` <span class="act-ivl-name">${name}</span>` : ''}</td>
-        <td>${secs > 0 ? fmtDur(secs) : '—'}</td>
-        <td>${watts > 0 ? watts + ' W' : '—'}</td>
-        <td>${hr > 0 ? hr + ' bpm' : '—'}</td>
-        <td>${cad > 0 ? cad + ' rpm' : '—'}</td>
-        ${hasZones ? `<td>${zIdx != null && window.COGGAN_ZONES[zIdx] ? `<span class="act-ivl-zone" style="background:${window.ZONE_HEX[zIdx]}"></span>${window.COGGAN_ZONES[zIdx].name}` : '—'}</td>` : ''}
-      </tr>`;
+      html += `<div class="act-ivl-bar-row">
+        <div class="act-ivl-bar-label">
+          <span class="act-ivl-bar-num">${i + 1}</span>
+          <span class="act-ivl-bar-type act-ivl-type--${type}">${typeLabel}</span>
+        </div>
+        <div class="act-ivl-bar-track">
+          <div class="act-ivl-bar-fill" style="width:${barPct}%;background:${color}"></div>
+          <span class="act-ivl-bar-val">${watts > 0 ? watts + 'w' : '—'}</span>
+        </div>
+        <div class="act-ivl-bar-meta">
+          <span class="act-ivl-bar-dur">${secs > 0 ? fmtDur(secs) : '—'}</span>
+          ${hr > 0 ? `<span class="act-ivl-bar-hr">${hr} bpm</span>` : ''}
+          ${cad > 0 ? `<span class="act-ivl-bar-cad">${cad} rpm</span>` : ''}
+        </div>
+      </div>`;
     });
-
-    html += '</tbody></table>';
+    html += '</div>';
     body.innerHTML = html;
     card.style.display = '';
     unskeletonCard('detailIntervalsCard');

@@ -16073,43 +16073,78 @@ body:has(.act-sheet-mode) .topbar {
     color: var(--accent);
 }
 
-/* ── Intervals table ── */
+/* ── Intervals bar chart ── */
 .act-intervals-wrap {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
 }
-.act-ivl-table {
-    min-width: 100%;
-    width: max-content;
-    border-collapse: collapse;
-    font-size: var(--text-xs);
+.act-ivl-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
-.act-ivl-table th,
-.act-ivl-table td {
-    white-space: nowrap;
+.act-ivl-bar-row {
+    display: grid;
+    grid-template-columns: 70px 1fr 60px;
+    align-items: center;
+    gap: 8px;
 }
-.act-ivl-table th {
-    text-align: left;
-    padding: 6px 8px;
-    font-size: 10px;
+.act-ivl-bar-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.act-ivl-bar-num {
+    font-size: 11px;
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--text-muted);
-    border-bottom: 1px solid var(--border);
-}
-.act-ivl-table td {
-    padding: 10px 8px;
     font-family: var(--font-num);
-    color: var(--text-secondary);
-    border-bottom: 1px solid var(--border-subtle, var(--overlay-faint));
+    color: var(--text-muted);
+    min-width: 14px;
+    text-align: right;
 }
-.act-ivl-table tr:last-child td {
-    border-bottom: none;
+.act-ivl-bar-track {
+    position: relative;
+    height: 26px;
+    background: var(--surface-2);
+    border-radius: 5px;
+    overflow: hidden;
 }
-.act-ivl-table tr:hover td {
-    background: var(--bg-elevated);
+.act-ivl-bar-fill {
+    height: 100%;
+    border-radius: 5px;
+    transition: width 0.3s ease;
 }
+.act-ivl-bar-val {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 11px;
+    font-weight: 700;
+    font-family: var(--font-num);
+    color: var(--text-primary);
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+.act-ivl-bar-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    text-align: right;
+}
+.act-ivl-bar-dur {
+    font-size: 11px;
+    font-weight: 600;
+    font-family: var(--font-num);
+    color: var(--text-primary);
+}
+.act-ivl-bar-hr,
+.act-ivl-bar-cad {
+    font-size: 9px;
+    font-family: var(--font-num);
+    color: var(--text-muted);
+}
+/* Keep old table styles for backward compat */
+.act-ivl-table { display: none; }
 .act-ivl-zone {
     display: inline-block;
     width: 8px;
