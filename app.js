@@ -23900,6 +23900,102 @@ function gearUploadPhoto(input) {
   input.value = '';
 }
 
+// Background color for bike photos
+function _gearLoadBgColors() {
+  try { return JSON.parse(localStorage.getItem('icu_bike_bg_colors') || '{}'); } catch { return {}; }
+}
+function _gearSaveBgColor(bikeId, color) {
+  const colors = _gearLoadBgColors();
+  if (color) colors[bikeId] = color; else delete colors[bikeId];
+  try { localStorage.setItem('icu_bike_bg_colors', JSON.stringify(colors)); } catch {}
+}
+
+// Primary bike
+function _gearTogglePrimary(bikeId, e) {
+  if (e) e.stopPropagation();
+  const current = localStorage.getItem('icu_primary_bike') || '';
+  if (current === bikeId) {
+    localStorage.removeItem('icu_primary_bike');
+    showToast('Primary bike removed', 'info');
+  } else {
+    localStorage.setItem('icu_primary_bike', bikeId);
+    showToast('Set as primary bike', 'success');
+  }
+  renderGearPage();
+}
+window._gearTogglePrimary = _gearTogglePrimary;
+
+// Background color picker for bike photo
+function _gearOpenBgColorPicker(bikeId, e) {
+  if (e) e.stopPropagation();
+  const current = _gearLoadBgColors()[bikeId] || '#1a1a1a';
+
+  const presets = [
+    { label: 'None', value: '' },
+    { label: 'Dark', value: '#1a1a1a' },
+    { label: 'Charcoal', value: '#2d2d2d' },
+    { label: 'Navy', value: '#0a1628' },
+    { label: 'Forest', value: '#0a2818' },
+    { label: 'Wine', value: '#2a0a14' },
+    { label: 'Slate', value: '#1e293b' },
+    { label: 'Midnight', value: '#0f172a' },
+    { label: 'Carbon', value: '#111111' },
+    { label: 'Graphite', value: '#374151' },
+  ];
+
+  // Gradient presets
+  const gradients = [
+    { label: 'Sunset', value: 'linear-gradient(135deg, #1a0a2e, #2d1b4e, #4a1942)' },
+    { label: 'Ocean', value: 'linear-gradient(135deg, #0a1628, #0d2847, #0a3d62)' },
+    { label: 'Forest', value: 'linear-gradient(135deg, #0a1a0a, #1a3a1a, #0d2d0d)' },
+    { label: 'Fire', value: 'linear-gradient(135deg, #1a0a0a, #3a1a0a, #2d0d0d)' },
+    { label: 'Steel', value: 'linear-gradient(135deg, #1a1a2e, #2a2a3e, #1a1a2e)' },
+    { label: 'Emerald', value: 'linear-gradient(135deg, #064e3b, #065f46, #047857)' },
+  ];
+
+  let html = `<div class="gar-bg-picker">
+    <div class="gar-bg-picker-title">Photo Background</div>
+    <div class="gar-bg-picker-section">Solid Colors</div>
+    <div class="gar-bg-picker-grid">
+      ${presets.map(p => `<button class="gar-bg-swatch${current === p.value ? ' gar-bg-swatch--active' : ''}"
+        style="background:${p.value || 'var(--surface-1)'}"
+        onclick="_gearSetBgColor('${bikeId}','${p.value}')">
+        ${p.value === '' ? '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="4" x2="20" y2="20"/></svg>' : ''}
+      </button>`).join('')}
+    </div>
+    <div class="gar-bg-picker-section">Gradients</div>
+    <div class="gar-bg-picker-grid">
+      ${gradients.map(g => `<button class="gar-bg-swatch${current === g.value ? ' gar-bg-swatch--active' : ''}"
+        style="background:${g.value}"
+        onclick="_gearSetBgColor('${bikeId}',\`${g.value}\`)">
+      </button>`).join('')}
+    </div>
+    <div class="gar-bg-picker-section">Custom</div>
+    <div class="gar-bg-picker-custom">
+      <input type="color" id="garBgCustomColor" value="${current.startsWith('#') ? current : '#1a1a1a'}"
+        onchange="_gearSetBgColor('${bikeId}', this.value)">
+      <span>Pick any color</span>
+    </div>
+  </div>`;
+
+  // Show in a sheet
+  const body = document.getElementById('compDetailBody');
+  const sheet = document.getElementById('compDetailSheet');
+  if (body && sheet) {
+    body.innerHTML = html;
+    _openOverlaySheet('compDetailSheet');
+  }
+}
+window._gearOpenBgColorPicker = _gearOpenBgColorPicker;
+
+function _gearSetBgColor(bikeId, color) {
+  _gearSaveBgColor(bikeId, color);
+  _closeOverlaySheet('compDetailSheet');
+  renderGearPage();
+  showToast(color ? 'Background updated' : 'Background removed', 'success');
+}
+window._gearSetBgColor = _gearSetBgColor;
+
 // Notification check
 function _gearCheckNotifications() {
   const alerts = [];
@@ -24135,16 +24231,31 @@ async function renderGearPage() {
 
   // Bike carousel
   const bikeSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" width="48" height="48" class="gar-bike-photo-placeholder"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5L9 11l-3.5 3.5M15 6l-4 5.5H5.5M15 6l3 5.5"/></svg>`;
+  const primaryBikeId = localStorage.getItem('icu_primary_bike') || '';
+  const bgColors = _gearLoadBgColors();
+
   const bikeCards = bikes.map(b => {
     const sel = '';
     const photo = photos[b.id];
     const kmFmt = b.km.toLocaleString();
+    const isPrimary = b.id === primaryBikeId;
+    const bgColor = bgColors[b.id] || '';
+    const bgStyle = bgColor ? `background:${bgColor}` : '';
     return `<div class="gar-bike-card${sel}" onclick="gearSelectBike('${b.id}')">
-      <div class="gar-bike-photo">
+      <div class="gar-bike-photo" ${bgStyle ? `style="${bgStyle}"` : ''}>
         ${photo ? `<img src="${photo}" alt="${b.name}">` : bikeSvg}
-        <button class="gar-bike-photo-upload" onclick="gearTriggerPhotoUpload('${b.id}',event)" title="Upload photo">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-        </button>
+        ${isPrimary ? '<span class="gar-bike-primary-tag">Primary</span>' : ''}
+        <div class="gar-bike-photo-actions">
+          <button class="gar-bike-photo-action-btn" onclick="gearTriggerPhotoUpload('${b.id}',event)" title="Upload photo">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          </button>
+          ${photo ? `<button class="gar-bike-photo-action-btn" onclick="_gearOpenBgColorPicker('${b.id}',event)" title="Background color">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="10.5" r="2.5"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="8.5" cy="10.5" r="2.5"/><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5C11.5 5 10 6.9 8 8.5S5 13 5 15a7 7 0 0 0 7 7z"/></svg>
+          </button>` : ''}
+          <button class="gar-bike-photo-action-btn${isPrimary ? ' gar-bike-photo-action-btn--active' : ''}" onclick="_gearTogglePrimary('${b.id}',event)" title="${isPrimary ? 'Remove primary' : 'Set as primary'}">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="${isPrimary ? 'var(--accent)' : 'none'}" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </button>
+        </div>
       </div>
       <div class="gar-bike-info">
         <div class="gar-bike-name">${b.name}</div>
