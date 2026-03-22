@@ -11013,44 +11013,53 @@ body.show-save-fab #actSaveRouteFab {
 .act-card-info-chart {
     padding: var(--pad-page);
     padding-top: max(16px, env(safe-area-inset-top));
-    border-bottom: 1px solid var(--surface-2);
-    margin-bottom: 20px;
-    position: sticky;
-    top: 0;
-    z-index: 10;
+    margin-bottom: 8px;
     background: var(--bg-base);
 }
-/* Streams breakdown — individual metric charts */
+/* Streams breakdown — individual metric charts (Apple Fitness style) */
 .aci-streams-breakdown {
     padding: 0 var(--pad-page);
 }
 .aci-stream-section {
-    margin-bottom: 20px;
+    margin-bottom: 16px;
     background: var(--surface-1);
-    border-radius: var(--radius-sm);
-    padding: 12px;
+    border-radius: var(--radius);
+    padding: 16px;
+    overflow: hidden;
 }
 .aci-stream-title {
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    margin-bottom: 8px;
+    letter-spacing: -0.01em;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.aci-stream-title::before {
+    content: '';
+    width: 4px;
+    height: 16px;
+    border-radius: 2px;
+    background: var(--stream-color, var(--accent));
+    flex-shrink: 0;
 }
 .aci-stream-chart-wrap {
-    height: 100px;
-    margin-bottom: 10px;
+    height: 120px;
+    margin: 0 -16px 12px;
+    padding: 0 8px;
 }
 .aci-stream-stats {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 4px;
+    gap: 2px;
 }
 .aci-stream-stat {
     text-align: center;
+    padding: 6px 0;
 }
 .aci-stream-stat-val {
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 700;
     font-family: var(--font-num);
     color: var(--text-primary);
@@ -11063,12 +11072,12 @@ body.show-save-fab #actSaveRouteFab {
     color: var(--text-muted);
 }
 .aci-stream-stat-lbl {
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--text-muted);
-    margin-top: 2px;
+    margin-top: 3px;
     display: block;
 }
 .act-card-info-body {
@@ -11128,73 +11137,76 @@ body.show-save-fab #actSaveRouteFab {
     box-shadow: 0 4px 16px rgba(0,0,0,0.3);
     z-index: 10000;
 }
-/* Card info controls */
+/* Card info controls — Apple-style segmented control */
 .act-card-info-controls {
-    padding: 0 var(--pad-page) 16px;
+    padding: 0 var(--pad-page) 12px;
 }
 .aci-controls-row {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 16px;
 }
 .aci-view-toggle {
     display: flex;
     background: var(--surface-1);
-    border-radius: var(--radius-sm);
+    border-radius: 10px;
     padding: 3px;
-    gap: 2px;
+    gap: 0;
 }
 .aci-view-btn {
     flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    padding: 10px 12px;
+    gap: 5px;
+    padding: 8px 10px;
     border: none;
-    border-radius: calc(var(--radius-sm) - 2px);
+    border-radius: 8px;
     background: transparent;
     color: var(--text-muted);
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
-    min-height: 44px;
+    min-height: 36px;
 }
 .aci-view-btn--active {
     background: var(--surface-2);
     color: var(--text-primary);
 }
+/* Stats pills — horizontal scroll */
 .aci-stats-row {
     display: flex;
     gap: 8px;
     overflow-x: auto;
     scrollbar-width: none;
-    padding-bottom: 2px;
+    padding: 0 var(--pad-page) 4px;
+    margin: 0 calc(-1 * var(--pad-page));
 }
 .aci-stats-row::-webkit-scrollbar { display: none; }
 .aci-stat {
-    flex: 0 0 auto;
+    flex: 1;
     background: var(--surface-1);
-    border-radius: var(--radius-sm);
-    padding: 10px 14px;
+    border-radius: var(--radius);
+    padding: 12px 14px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2px;
+    gap: 3px;
     min-width: 70px;
 }
 .aci-stat-val {
-    font-size: 17px;
+    font-size: 18px;
     font-weight: 700;
     font-family: var(--font-num);
     color: var(--text-primary);
 }
 .aci-stat-lbl {
-    font-size: 11px;
+    font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--text-muted);
+    font-weight: 600;
 }
 /* Data table */
 .act-card-info-data {
@@ -11243,18 +11255,18 @@ body.show-save-fab #actSaveRouteFab {
 /* Sections */
 .aci-section {
     padding: 0 var(--pad-page);
-    margin-top: 16px;
+    margin-top: 20px;
 }
 .aci-section-title {
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.05em;
     color: var(--text-muted);
-    margin-bottom: 10px;
+    margin-bottom: 12px;
 }
 /* Compare */
 .aci-compare-row { margin-bottom: 12px; }
@@ -11397,30 +11409,32 @@ body.show-save-fab #actSaveRouteFab {
 .aci-cmp-delta--neg .aci-cmp-delta-pct { color: #ff9500; }
 .aci-cmp-delta--neutral .aci-cmp-delta-arrow,
 .aci-cmp-delta--neutral .aci-cmp-delta-pct { color: var(--text-muted); }
-/* Tools grid */
+/* Tools grid — Apple-style icon buttons */
 .aci-tools-grid {
     display: flex;
-    gap: 8px;
+    gap: 10px;
+    justify-content: center;
 }
 .aci-tool-btn {
-    flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 6px;
-    padding: 14px 8px;
+    gap: 5px;
+    padding: 12px 16px;
     background: var(--surface-1);
     border: none;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius);
     color: var(--text-secondary);
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
     cursor: pointer;
-    transition: background 0.15s;
+    transition: background 0.15s, transform 0.1s;
+    min-width: 64px;
     min-height: 44px;
 }
 .aci-tool-btn:active {
     background: var(--surface-3);
+    transform: scale(0.95);
 }
 .act-bottom-sheet.sheet-peek .act-sheet-scroll {
     overflow-y: hidden;
