@@ -22589,7 +22589,7 @@ function renderClimbDetection(streams, activity) {
 
   const catEmoji = { 'HC': '🔴', 'Cat 1': '🟠', 'Cat 2': '🟡', 'Cat 3': '🟢', 'Cat 4': '⚪', 'Climb': '⚪' };
   const catBg = { 'HC': 'rgba(255,69,58,0.12)', 'Cat 1': 'rgba(255,149,0,0.12)', 'Cat 2': 'rgba(255,204,0,0.10)', 'Cat 3': 'rgba(0,229,160,0.10)', 'Cat 4': 'rgba(255,255,255,0.05)', 'Climb': 'rgba(255,255,255,0.05)' };
-  const catColor = { 'HC': 'var(--red)', 'Cat 1': '#ff9500', 'Cat 2': '#ffcc00', 'Cat 3': 'var(--accent)', 'Cat 4': 'var(--text-muted)', 'Climb': 'var(--text-muted)' };
+  const catColor = { 'HC': '#ff453a', 'Cat 1': '#ff9500', 'Cat 2': '#ffcc00', 'Cat 3': '#00e5a0', 'Cat 4': '#4a9eff', 'Climb': '#4a9eff' };
 
   body.innerHTML = climbs.map((c, i) => {
     // SVG sparkline profile
