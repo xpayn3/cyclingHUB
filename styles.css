@@ -10874,8 +10874,9 @@ body.show-save-fab #actSaveRouteFab {
 .act-card-divider {
     border: none;
     height: 1px;
-    background: rgba(255,255,255,0.08);
-    margin: 4px var(--pad-page, 16px);
+    background: rgba(255,255,255,0.12);
+    margin: 8px var(--pad-page, 16px);
+    display: block !important;
 }
 
 /* Drag handle */
