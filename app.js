@@ -14954,14 +14954,19 @@ function _acpUpdateCrosshair() {
 function _acpInitGradient() {
   const canvas = document.getElementById('acpGradient');
   if (!canvas) return;
+  let dragging = false;
   const pick = e => {
     const rect = canvas.getBoundingClientRect();
     _acpSat = Math.round(Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) * 100);
     _acpBri = Math.round((1 - Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height))) * 100);
     _acpApply();
   };
-  canvas.addEventListener('pointerdown', e => { canvas.setPointerCapture(e.pointerId); pick(e); });
+  canvas.addEventListener('pointerdown', e => { dragging = true; canvas.setPointerCapture(e.pointerId); pick(e); });
   canvas.addEventListener('pointermove', e => { if (e.buttons) pick(e); });
+  canvas.addEventListener('pointerup', () => { dragging = false; });
+  canvas.addEventListener('pointercancel', () => { dragging = false; });
+  canvas.addEventListener('touchmove', e => { if (dragging) e.preventDefault(); }, { passive: false });
+  canvas.style.touchAction = 'none';
 }
 
 function _acpDrawHueBar() {
@@ -14989,6 +14994,7 @@ function _acpInitHueBar() {
   const canvas = document.getElementById('acpHueCanvas');
   if (!canvas) return;
   _acpDrawHueBar();
+  let dragging = false;
   const pick = e => {
     const rect = canvas.getBoundingClientRect();
     _acpHue = Math.round(Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) * 360);
@@ -14996,8 +15002,12 @@ function _acpInitHueBar() {
     _acpUpdateHueThumb();
     _acpApply();
   };
-  canvas.addEventListener('pointerdown', e => { canvas.setPointerCapture(e.pointerId); pick(e); });
+  canvas.addEventListener('pointerdown', e => { dragging = true; canvas.setPointerCapture(e.pointerId); pick(e); });
   canvas.addEventListener('pointermove', e => { if (e.buttons) pick(e); });
+  canvas.addEventListener('pointerup', () => { dragging = false; });
+  canvas.addEventListener('pointercancel', () => { dragging = false; });
+  canvas.addEventListener('touchmove', e => { if (dragging) e.preventDefault(); }, { passive: false });
+  canvas.style.touchAction = 'none';
 }
 
 function _acpApply() {
