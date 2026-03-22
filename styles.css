@@ -12019,7 +12019,7 @@ body:has(.act-sheet-mode) .topbar {
 .detail-cmp-rows {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 22px;
     padding-top: 4px;
 }
 .detail-cmp-row {
