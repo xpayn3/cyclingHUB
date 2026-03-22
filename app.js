@@ -21534,7 +21534,7 @@ function renderDetailLRBalance(streams, activity) {
   const summEl  = document.getElementById('detailLRBalSummary');
 
   if (badgeEl) { badgeEl.textContent = `${leftPct}% / ${rightPct}%`; badgeEl.style.color = badgeColor; }
-  if (subEl) subEl.textContent = `Left vs Right pedal power · ${badgeLabel}`;
+  if (subEl) subEl.style.display = 'none';
 
   if (summEl) {
     summEl.innerHTML = `
