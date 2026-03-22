@@ -10875,7 +10875,7 @@ body.show-save-fab #actSaveRouteFab {
     width: calc(100% - 32px);
     margin: 0 auto;
     height: 1px;
-    background: rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.08);
     flex-shrink: 0;
 }
 
