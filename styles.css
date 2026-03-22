@@ -19337,12 +19337,11 @@ body:has(.act-sheet-mode) .topbar {
     overflow: hidden;
     cursor: pointer;
     transition: transform 0.2s, box-shadow 0.2s;
-    border: 2px solid transparent;
     position: relative;
 }
 .gar-bike-card:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
 .gar-bike-card:active { transform: scale(0.97); }
-.gar-bike-card--active { border-color: var(--accent); }
+.gar-bike-card--active { box-shadow: 0 0 0 2px var(--accent); }
 .gar-bike-card--all {
     flex: 0 0 100px;
     display: flex;
