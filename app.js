@@ -7715,7 +7715,7 @@ function renderWeeklyChart(activities) {
     type: 'bar',
     data: {
       labels: entries.map(([k]) => 'W' + k.slice(-2)),
-      datasets: [{ data: entries.map(([, v]) => Math.round(v)), backgroundColor: 'rgba(0,229,160,0.5)', hoverBackgroundColor: ACCENT, borderRadius: 4 }]
+      datasets: [{ data: entries.map(([, v]) => Math.round(v)), backgroundColor: ACCENT, borderColor: ACCENT, hoverBackgroundColor: ACCENT, borderRadius: 4 }]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
@@ -22268,8 +22268,9 @@ function renderDetailHistogram(activity, streams) {
         labels: entries.map(e => e.watts),
         datasets: [{
           data:  entries.map(e => e.mins),
-          backgroundColor: 'rgba(0,229,160,0.45)',
+          backgroundColor: ACCENT,
           hoverBackgroundColor: ACCENT,
+          borderColor: ACCENT,
           borderRadius: 2,
         }]
       },
@@ -23020,10 +23021,10 @@ function renderDetailCadenceHist(streams, activity) {
   // Find sweet spot (highest bin) to highlight
   const maxIdx = minutes.indexOf(Math.max(...minutes));
   const colors = minutes.map((_, i) =>
-    i === maxIdx ? ACCENT : 'rgba(74,158,255,0.5)'
+    i === maxIdx ? ACCENT : C_BLUE
   );
   const hoverColors = minutes.map((_, i) =>
-    i === maxIdx ? ACCENT : C_BLUE
+    i === maxIdx ? ACCENT : '#6bb3ff'
   );
 
   const sub = document.getElementById('detailCadenceSubtitle');
@@ -23050,6 +23051,7 @@ function renderDetailCadenceHist(streams, activity) {
         datasets: [{
           data: minutes,
           backgroundColor: colors,
+          borderColor: colors,
           hoverBackgroundColor: hoverColors,
           borderRadius: 4,
         }]
