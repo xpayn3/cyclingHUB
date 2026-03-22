@@ -12390,6 +12390,7 @@ body:has(.act-sheet-mode) .topbar {
     gap: 6px;
     flex-wrap: nowrap;
     justify-content: center;
+    width: 100%;
 }
 .stream-toggle-btn {
     flex: 1;
