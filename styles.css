@@ -12569,11 +12569,9 @@ body:has(.act-sheet-mode) .topbar {
 .detail-curves-row {
     display: flex;
     flex-direction: column;
-    gap: 14px;
-}
-.detail-curves-row > .card {
-    margin-left: 0;
-    margin-right: 0;
+    gap: 0;
+    margin-left: calc(-1 * var(--pad-page));
+    margin-right: calc(-1 * var(--pad-page));
 }
 .detail-curves-row > .card[style*="display:none"],
 .detail-curves-row > .card[style*="display: none"] {
