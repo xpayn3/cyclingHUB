@@ -2143,14 +2143,19 @@ function _peerUpdateUI(status, peerId) {
 
   const copyBtn = document.getElementById('syncCopyBtn');
   const genBtn = document.getElementById('syncGenBtn');
+  const sendRow = document.getElementById('syncSendRow');
+  const recvRow = document.getElementById('syncRecvRow');
   const isOn = status === 'ready' || status === 'connected';
-  if (dot) dot.className = 'sync-dot ' + (isOn ? 'sync-dot--on' : 'sync-dot--off');
-  if (text) text.textContent = status === 'connected' ? 'Peer connected' : status === 'ready' ? 'Waiting for peer...' : status === 'error' ? 'Connection failed' : 'Not connected';
+  const isPeerConnected = status === 'connected';
+  if (dot) dot.className = 'sync-dot ' + (isPeerConnected ? 'sync-dot--on' : isOn ? 'sync-dot--waiting' : 'sync-dot--off');
+  if (text) text.textContent = isPeerConnected ? 'Peer connected ✓' : status === 'ready' ? 'Waiting for peer...' : status === 'error' ? 'Connection failed' : 'Not connected';
   if (codeEl) codeEl.textContent = peerId || _peerMyId || '—';
   if (copyBtn) copyBtn.style.display = _peerMyId ? '' : 'none';
   if (genBtn) genBtn.textContent = _peerMyId ? 'Restart' : 'Start Hosting';
   if (discRow) discRow.style.display = isOn ? '' : 'none';
-  if (label) label.textContent = isOn ? 'Connected' : '';
+  if (sendRow) { sendRow.style.display = isPeerConnected ? '' : 'none'; }
+  if (recvRow) { recvRow.style.display = isPeerConnected ? '' : 'none'; }
+  if (label) label.textContent = isPeerConnected ? 'Connected' : isOn ? 'Hosting' : '';
   _peerUpdateLastSync();
 }
 

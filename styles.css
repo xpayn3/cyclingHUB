@@ -19303,9 +19303,18 @@ body:has(.act-sheet-mode) .topbar {
     box-shadow: 0 0 8px rgba(0, 229, 160, 0.6);
     animation: syncPulse 2s infinite;
 }
+.sync-dot--waiting {
+    background: #ffcc00;
+    box-shadow: 0 0 8px rgba(255, 204, 0, 0.5);
+    animation: syncPulseWait 1.5s infinite;
+}
 @keyframes syncPulse {
     0%, 100% { box-shadow: 0 0 6px rgba(0, 229, 160, 0.4); }
     50% { box-shadow: 0 0 14px rgba(0, 229, 160, 0.8); }
+}
+@keyframes syncPulseWait {
+    0%, 100% { box-shadow: 0 0 4px rgba(255, 204, 0, 0.3); }
+    50% { box-shadow: 0 0 12px rgba(255, 204, 0, 0.7); }
 }
 .sync-room-code {
     font-size: 32px;
