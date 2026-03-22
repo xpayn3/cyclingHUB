@@ -2196,6 +2196,39 @@ function _peerRenderDevices(peerName) {
   el.innerHTML = html;
 }
 
+function _peerShowProgress(current, total, sizeBytes) {
+  let bar = document.getElementById('syncProgressBar');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'syncProgressBar';
+    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:var(--surface-2);height:40px;display:flex;align-items:center;padding:0 16px;gap:10px;';
+    bar.innerHTML = `<div style="flex:1;height:6px;background:var(--surface-3);border-radius:3px;overflow:hidden"><div id="syncProgressFill" style="height:100%;background:var(--accent);border-radius:3px;transition:width 0.15s;width:0%"></div></div><span id="syncProgressText" style="font-size:12px;font-family:var(--font-num);color:var(--text-secondary);white-space:nowrap">0%</span>`;
+    document.body.appendChild(bar);
+  }
+  const pct = total > 0 ? Math.round((current / total) * 100) : 0;
+  const fill = document.getElementById('syncProgressFill');
+  const text = document.getElementById('syncProgressText');
+  if (fill) fill.style.width = pct + '%';
+  if (text) {
+    if (sizeBytes) {
+      text.textContent = `Receiving ${Math.round(sizeBytes / 1024)} KB...`;
+    } else {
+      text.textContent = pct + '%';
+    }
+  }
+}
+
+function _peerHideProgress() {
+  const bar = document.getElementById('syncProgressBar');
+  if (bar) {
+    const fill = document.getElementById('syncProgressFill');
+    if (fill) fill.style.width = '100%';
+    const text = document.getElementById('syncProgressText');
+    if (text) text.textContent = '✓ Complete';
+    setTimeout(() => bar.remove(), 1500);
+  }
+}
+
 function _peerHandleConn(conn) {
   _peerConn = conn;
   let _chunks = [];
@@ -2213,10 +2246,12 @@ function _peerHandleConn(conn) {
     } else if (data.type === 'snapshot_start') {
       _chunks = new Array(data.total);
       _chunkTotal = data.total;
-      showToast(`Receiving data (${Math.round(data.size / 1024)} KB)...`, 'info');
+      _peerShowProgress(0, data.total, data.size);
     } else if (data.type === 'snapshot_chunk') {
       _chunks[data.index] = data.data;
+      _peerShowProgress(data.index + 1, _chunkTotal);
     } else if (data.type === 'snapshot_end') {
+      _peerHideProgress();
       try {
         const json = _chunks.join('');
         const snapshot = JSON.parse(json);
@@ -2321,14 +2356,24 @@ window._peerConnect = _peerConnect;
 function _peerSendSnapshot(conn) {
   const snapshot = _peerBuildSnapshot();
   const json = JSON.stringify(snapshot);
-  // Chunk to 100KB pieces to avoid WebRTC buffer overflow
   const CHUNK = 100000;
   const total = Math.ceil(json.length / CHUNK);
+  _peerShowProgress(0, total, json.length);
   conn.send({ type: 'snapshot_start', total, size: json.length });
-  for (let i = 0; i < total; i++) {
-    conn.send({ type: 'snapshot_chunk', index: i, data: json.slice(i * CHUNK, (i + 1) * CHUNK) });
+  // Send chunks with small delays to avoid overwhelming the buffer
+  let i = 0;
+  function sendNext() {
+    if (i < total) {
+      conn.send({ type: 'snapshot_chunk', index: i, data: json.slice(i * CHUNK, (i + 1) * CHUNK) });
+      _peerShowProgress(i + 1, total);
+      i++;
+      setTimeout(sendNext, 20);
+    } else {
+      conn.send({ type: 'snapshot_end' });
+      _peerHideProgress();
+    }
   }
-  conn.send({ type: 'snapshot_end' });
+  sendNext();
 }
 
 function _peerSendData() {
