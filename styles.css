@@ -2444,14 +2444,23 @@ input[type="number"] {
     gap: var(--gap-layout);
 }
 .dash-quick-card {
-    padding: 10px 12px 12px !important;
+    padding: 0 !important;
     display: flex;
     flex-direction: column;
     min-height: 160px;
     overflow: hidden;
+    position: relative;
 }
 .dash-quick-card .card-header {
-    margin-bottom: 4px;
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    z-index: 3;
+    padding: 10px 12px;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, transparent 100%);
+    border-radius: var(--radius) var(--radius) 0 0;
+}
+.dash-quick-card .card-title {
+    color: #fff;
 }
 .dash-quick-card .card-title {
     font-size: 13px;
@@ -2465,6 +2474,7 @@ input[type="number"] {
     scroll-snap-type: x mandatory;
     scrollbar-width: none;
     gap: 0;
+    min-height: 160px;
 }
 .dash-gear-scroll::-webkit-scrollbar { display: none; }
 .dash-gear-slide {
@@ -2476,6 +2486,30 @@ input[type="number"] {
     justify-content: center;
     gap: 4px;
     cursor: pointer;
+    position: relative;
+    min-height: 120px;
+}
+.dash-gear-slide--photo {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    align-items: stretch;
+    justify-content: flex-end;
+}
+.dash-gear-overlay {
+    position: relative;
+    z-index: 2;
+    padding: 8px 10px;
+}
+.dash-gear-slide--photo .dash-gear-overlay {
+    background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.3) 60%, transparent 100%);
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    padding-bottom: 24px;
+}
+.dash-gear-slide--photo .dash-gear-name,
+.dash-gear-slide--photo .dash-gear-km {
+    text-align: left;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.6);
 }
 .dash-gear-photo {
     width: 56px;
@@ -2526,7 +2560,12 @@ input[type="number"] {
     display: flex;
     justify-content: center;
     gap: 5px;
-    padding-top: 6px;
+    padding: 6px 0 8px;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 3;
 }
 .dash-gear-dot {
     width: 5px;
@@ -2547,7 +2586,7 @@ input[type="number"] {
     gap: var(--gap-card);
 }
 .dash-bat-card {
-    background: var(--bg-card);
+    background: transparent;
     border-radius: var(--radius);
     padding: 12px 14px;
     display: flex;
@@ -8481,6 +8520,26 @@ body.show-save-fab #actSaveRouteFab {
     font-size: 16px;
     color: var(--text-muted);
     flex-shrink: 0;
+}
+.cev-group-row input[type="text"],
+.cev-group-row input[type="number"] {
+    text-align: right;
+    border: none;
+    background: none;
+    color: var(--text-primary);
+    font-size: 15px;
+    font-family: var(--font-num);
+    padding: 8px 0;
+    min-width: 0;
+    outline: none;
+}
+.cev-group-row input[type="text"]::placeholder,
+.cev-group-row input[type="number"]::placeholder {
+    color: var(--text-faint);
+}
+.cev-group-row input[type="text"] {
+    flex: 1;
+    font-family: inherit;
 }
 .cev-group-chevron {
     color: rgba(155, 155, 160, 0.4);
@@ -19160,6 +19219,440 @@ body:has(.act-sheet-mode) .topbar {
     position: relative;
     cursor: pointer;
 }
+/* Tire pressure calculator */
+.tire-pressure-result { margin: 8px 0; }
+.tire-pres-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+.tire-pres-card {
+    background: var(--bg-elevated);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    text-align: center;
+}
+.tire-pres-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+.tire-pres-val {
+    font-size: 28px;
+    font-weight: 700;
+    font-family: var(--font-num);
+    color: var(--accent);
+    line-height: 1.1;
+}
+.tire-pres-unit {
+    font-size: 14px;
+    font-weight: 500;
+    margin-left: 2px;
+    color: var(--text-muted);
+}
+.tire-pres-range {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin: 4px 0 6px;
+}
+.tire-pres-bar {
+    height: 4px;
+    background: var(--bg-card);
+    border-radius: 2px;
+    overflow: hidden;
+}
+.tire-pres-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.3s;
+}
+.tire-pres-note {
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-faint);
+    margin-top: 8px;
+}
+
+/* ── Service History Page (SwiftUI-style) ── */
+.svc-page { padding: 0 var(--pad-page) 100px; }
+.svc-hero { padding: 20px 0 12px; }
+.svc-hero-title { font-size: 28px; font-weight: 700; }
+.svc-hero-sub { font-size: 14px; color: var(--text-muted); margin-top: 2px; }
+
+.svc-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 20px;
+}
+.svc-stat-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-sm);
+    padding: 12px 8px;
+    text-align: center;
+}
+.svc-stat-val {
+    font-size: 20px;
+    font-weight: 700;
+    font-family: var(--font-num);
+    color: var(--text-primary);
+}
+.svc-stat-lbl {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.svc-section { margin-bottom: 16px; }
+.svc-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.svc-shops-scroll {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+}
+.svc-shops-scroll::-webkit-scrollbar { display: none; }
+.svc-shop-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: var(--bg-card);
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.svc-shop-chip--add {
+    border: 1px dashed var(--border);
+    background: transparent;
+    color: var(--text-muted);
+}
+
+.svc-month {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin: 14px 0 6px;
+}
+.svc-month:first-child { margin-top: 0; }
+
+.svc-group {
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+.svc-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.15s;
+}
+.svc-item:active { background: var(--bg-elevated); }
+.svc-item + .svc-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 38px;
+    right: 14px;
+    height: 0.5px;
+    background: var(--border);
+}
+.svc-item-left { flex-shrink: 0; }
+.svc-item-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+}
+.svc-dot--red { background: var(--red); }
+.svc-dot--orange { background: #ff9500; }
+.svc-item-body { flex: 1; min-width: 0; }
+.svc-item-title {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.svc-item-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 1px;
+}
+.svc-item-notes {
+    font-size: 12px;
+    color: var(--text-faint);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.svc-item-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+.svc-item-cost {
+    font-size: 14px;
+    font-weight: 600;
+    font-family: var(--font-num);
+    color: var(--accent);
+}
+.svc-item--overdue { border-left: 3px solid var(--red); }
+.svc-item--warn { border-left: 3px solid #ff9500; }
+
+.svc-empty {
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 15px;
+}
+
+.svc-add-btn {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: var(--radius);
+    background: var(--accent);
+    color: #000;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 16px;
+    transition: transform 0.1s;
+    box-shadow: 0 4px 14px rgba(0, 229, 160, 0.25);
+}
+.svc-add-btn:active { transform: scale(0.97); }
+
+/* Tire cards in gear panel */
+.tire-card {
+    padding: 14px;
+    margin-bottom: 10px;
+    cursor: pointer;
+}
+.tire-card-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+.tire-card-img {
+    width: 52px;
+    height: 52px;
+    flex-shrink: 0;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--bg-elevated);
+}
+.tire-card-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+.tire-card-info {
+    flex: 1;
+    min-width: 0;
+}
+.tire-card-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.tire-card-brand {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+.tire-card-tags {
+    display: flex;
+    gap: 4px;
+    margin-top: 4px;
+    flex-wrap: wrap;
+}
+.tire-card-tag {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+}
+.tire-card-pressure {
+    margin-bottom: 8px;
+}
+.tire-card-psi {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--text-muted);
+    font-family: var(--font-num);
+}
+.tire-card-psi strong {
+    color: var(--accent);
+    font-weight: 700;
+}
+.tire-card-psi-unit {
+    font-size: 11px;
+    color: var(--text-faint);
+}
+.tire-card-km {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-family: var(--font-num);
+    margin-bottom: 6px;
+}
+.tire-card-wear {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.tire-card-wear-bar {
+    flex: 1;
+    height: 4px;
+    background: var(--bg-elevated);
+    border-radius: 2px;
+    overflow: hidden;
+}
+.tire-card-wear-pct {
+    font-size: 12px;
+    font-weight: 600;
+    font-family: var(--font-num);
+    flex-shrink: 0;
+}
+
+/* Tire weight scrubber */
+.tire-weight-scrub {
+    background: var(--bg-elevated);
+    border-radius: 12px;
+    padding: 10px 0 8px;
+    margin-bottom: 12px;
+    touch-action: pan-y;
+}
+
+/* Tire sheet actions — iOS 26 SwiftUI style */
+.tire-sheet-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    padding-bottom: env(safe-area-inset-bottom, 8px);
+}
+.tire-cancel-btn {
+    flex: 1;
+    padding: 15px;
+    border: none;
+    border-radius: 14px;
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+}
+.tire-cancel-btn:active {
+    transform: scale(0.97);
+    background: var(--bg-tertiary);
+}
+.tire-save-btn {
+    flex: 2;
+    padding: 15px;
+    border: none;
+    border-radius: 14px;
+    background: var(--accent);
+    color: #000;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: background 0.15s, transform 0.1s;
+    box-shadow: 0 4px 14px rgba(0, 229, 160, 0.3);
+}
+.tire-save-btn:active {
+    transform: scale(0.97);
+    background: #00cc8e;
+}
+.tire-save-btn svg {
+    flex-shrink: 0;
+}
+
+/* Battery detail gauge */
+.cd-bat-gauge {
+    display: flex;
+    align-items: center;
+    margin: 16px auto;
+    max-width: 280px;
+}
+.cd-bat-gauge-body {
+    flex: 1;
+    display: flex;
+    gap: 3px;
+    height: 20px;
+    padding: 3px;
+    border: 2.5px solid var(--text-faint);
+    border-radius: 6px 3px 3px 6px;
+    position: relative;
+}
+.cd-bat-gauge-tip {
+    width: 4px;
+    height: 9px;
+    background: var(--text-faint);
+    border-radius: 0 4px 4px 0;
+    flex-shrink: 0;
+    align-self: center;
+}
+.cd-bat-gauge-seg {
+    flex: 1;
+    border-radius: 3px;
+    background: var(--bg-elevated);
+    transition: background 0.3s;
+}
+.cd-bat-gauge-seg--active {
+    background: var(--accent);
+}
+.cd-bat-gauge-pct {
+    font-size: 22px;
+    font-weight: 700;
+    font-family: var(--font-num);
+    margin-left: 14px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
 .gar-bat-charge-fab {
     position: absolute;
     top: 8px;

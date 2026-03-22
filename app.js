@@ -2841,6 +2841,7 @@ function navigate(page, opts) {
   }
   if (page === 'weather')  renderWeatherPage();
   if (page === 'gear')     renderGearPage();
+  if (page === 'service')  renderServicePage();
   if (page === 'guide')    { navigate('fitness'); return; } // merged into fitness
   if (page === 'import')   { initImportPage(); }
   if (page === 'routes')   renderRouteBuilderPage();
@@ -4803,11 +4804,13 @@ async function _renderDashGear() {
     if (batList.length) tags.push(`${batList.length} bat`);
     if (tags.length) meta += ' · ' + tags.join(' · ');
 
-    return `<div class="dash-gear-slide" onclick="navigate('gear')">
-      ${imgHtml}
-      <div class="dash-gear-name">${g.name}</div>
-      <div class="dash-gear-km">${meta}</div>
-      ${batLow ? '<div class="dash-gear-warn">Low battery</div>' : ''}
+    return `<div class="dash-gear-slide${photo ? ' dash-gear-slide--photo' : ''}" onclick="navigate('gear')" ${photo ? `style="background-image:url(${photo})"` : ''}>
+      ${photo ? '' : imgHtml}
+      <div class="dash-gear-overlay">
+        <div class="dash-gear-name">${g.name}</div>
+        <div class="dash-gear-km">${meta}</div>
+        ${batLow ? '<div class="dash-gear-warn">Low battery</div>' : ''}
+      </div>
     </div>`;
   }).join('');
 
@@ -22732,7 +22735,7 @@ if (elevEl) elevEl.textContent = state.units === 'imperial' ? 'feet' : 'metres';
 let _gearActiveTab = 'components';
 function gearSwitchTab(tab) {
   _gearActiveTab = tab;
-  const tabs = ['components', 'batteries', 'service'];
+  const tabs = ['components', 'batteries', 'tires'];
   const idx = tabs.indexOf(tab);
   document.querySelectorAll('#page-gear .gar-tab').forEach(t => t.classList.toggle('active', t.dataset.gear === tab));
   const indicator = document.querySelector('.gar-tab-indicator');
@@ -22918,7 +22921,7 @@ function renderBikeDetailPage() {
     <div class="gar-tabs" id="garTabs">
       <button class="gar-tab active" data-gear="components" onclick="gearSwitchTab('components')">Components</button>
       <button class="gar-tab" data-gear="batteries" onclick="gearSwitchTab('batteries')">Batteries</button>
-      <button class="gar-tab" data-gear="service" onclick="gearSwitchTab('service')">Service</button>
+      <button class="gar-tab" data-gear="tires" onclick="gearSwitchTab('tires')">Tires</button>
       <div class="gar-tab-indicator"></div>
     </div>
 
@@ -22950,7 +22953,19 @@ function renderBikeDetailPage() {
       </button>
     </div>
 
-    <!-- Service panel -->
+    <!-- Tires panel -->
+    <div class="gar-panel" id="gearPanelTires" style="display:none">
+      <div class="gar-panel-header">
+        <span class="gar-panel-title">Tires</span>
+      </div>
+      <div id="gearTiresGrid" class="gar-list"></div>
+      <button class="gar-add-full-btn" onclick="openTireSheet()">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Tire
+      </button>
+    </div>
+
+    <!-- Service panel (accessed from Garage page link) -->
     <div class="gar-panel" id="gearPanelService" style="display:none">
       <div class="gar-panel-header">
         <span class="gar-panel-title">Service History</span>
@@ -22969,8 +22984,37 @@ function renderBikeDetailPage() {
   gearSwitchTab('components');
   renderGearComponents();
   renderGearBatteries();
+  renderGearTires();
   renderGearServices();
 }
+
+function _openGearService() {
+  // Navigate to the first bike's detail page and show service tab
+  const bikes = state.gearBikes || [];
+  if (!bikes.length) { try { const g = JSON.parse(localStorage.getItem('icu_gear_bikes')) || []; if (g.length) { state.gearBikes = g; } } catch {} }
+  const bike = (state.gearBikes || [])[0];
+  if (bike) {
+    window._garActiveBike = bike.id;
+    window._gearSelectedBike = bike.id;
+  }
+  window._pendingGearTab = 'service';
+  navigate('bikedetail');
+  setTimeout(() => {
+    // Re-add service panel visibility
+    const svcPanel = document.getElementById('gearPanelService');
+    if (svcPanel) svcPanel.style.display = '';
+    // Hide other panels
+    ['gearPanelComponents', 'gearPanelBatteries', 'gearPanelTires'].forEach(id => {
+      const p = document.getElementById(id);
+      if (p) p.style.display = 'none';
+    });
+    // Update tab active states
+    document.querySelectorAll('.gar-tab').forEach(t => t.classList.remove('active'));
+    renderGearServices();
+    delete window._pendingGearTab;
+  }, 300);
+}
+window._openGearService = _openGearService;
 
 async function renderGearPage() {
   const carousel = document.getElementById('garCarouselScroll');
@@ -23103,9 +23147,10 @@ function renderGearComponents() {
   if (!grid) return;
 
   const allComps = loadGearComponents();
-  const filtered = _gearSelectedBike
+  const filtered = (_gearSelectedBike
     ? allComps.filter(c => c.bikeId === _gearSelectedBike)
-    : allComps;
+    : allComps
+  ).filter(c => c.category !== 'Tyres' && c.category !== 'Tires');
 
   if (filtered.length === 0) {
     grid.innerHTML = `<div class="gar-empty">No components tracked yet</div>`;
@@ -23964,6 +24009,11 @@ function submitGearForm() {
   saveGearComponents(all);
   closeGearModal();
   renderGearComponents();
+  if (typeof renderGearTires === 'function') renderGearTires();
+  // Switch to Tires tab if we just added/edited a tire
+  if (comp.category === 'Tyres' || comp.category === 'Tires') {
+    gearSwitchTab('tires');
+  }
 }
 
 function deleteGearComponent(id) {
@@ -24419,7 +24469,7 @@ function chargeBattery(id) {
     }, 1300);
   };
 }
-
+window.chargeBattery = chargeBattery;
 
 
 function openBatDetailSheet(id) {
@@ -24475,15 +24525,16 @@ function openBatDetailSheet(id) {
     <div class="comp-detail-name">${bat.name || 'Battery'}</div>
     ${system ? `<div class="comp-detail-brand">${system}</div>` : ''}
 
-    <div class="cd-stats">
-      <div class="cd-stat">
-        <span class="cd-stat-val" style="color:${pctColor}">${pct !== null ? pct : '—'}<span class="cd-stat-unit">%</span></span>
-        <span class="cd-stat-label">Charge</span>
+    <div class="cd-bat-gauge">
+      <div class="cd-bat-gauge-body">
+        ${[1,2,3,4,5].map(i => {
+          const segThreshold = i * 20;
+          const active = (pct || 0) >= segThreshold - 10;
+          return `<div class="cd-bat-gauge-seg${active ? ' cd-bat-gauge-seg--active' : ''}" style="${active ? 'background:' + pctColor : ''}"></div>`;
+        }).join('')}
       </div>
-    </div>
-
-    <div class="cd-bat-bar" style="height:6px;background:var(--bg-elevated);border-radius:3px;overflow:hidden;margin:0 0 16px">
-      <div style="height:100%;width:${Math.max(2, pct || 0)}%;border-radius:3px" class="${fillCls}"></div>
+      <div class="cd-bat-gauge-tip"></div>
+      <div class="cd-bat-gauge-pct" style="color:${pctColor}">${pct !== null ? pct + '%' : '—'}</div>
     </div>
 
     ${rows.length ? `<div class="cd-section-title">Details</div>
@@ -24512,6 +24563,8 @@ function openBatDetailSheet(id) {
 function closeBatDetailSheet() {
   _closeOverlaySheet('batDetailSheet');
 }
+window.openBatDetailSheet = openBatDetailSheet;
+window.closeBatDetailSheet = closeBatDetailSheet;
 
 function undoChargeBattery(id) {
   const all = loadGearBatteries();
@@ -24524,6 +24577,7 @@ function undoChargeBattery(id) {
   if (typeof _renderDashBatteries === 'function') _renderDashBatteries();
   showToast('Charge undone', 'success');
 }
+window.undoChargeBattery = undoChargeBattery;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GEAR — BIKE SERVICE TRACKING
@@ -24632,7 +24686,505 @@ function serviceCard(bikeId, services) {
     </div>`;
 }
 
-// ── Render service section ──────────────────────────────────────────────────
+// ── Tire Brand/Model Data ────────────────────────────────────────────────────
+const _TIRE_MODELS = {
+  'Continental': ['GP 5000 S TR', 'GP 5000', 'GP 5000 TT', 'GP 5000 AS TR', 'GP Urban', 'Gatorskin', 'Ultra Sport III', 'Grand Prix', 'Contact Speed', 'Terra Speed', 'Terra Trail'],
+  'Vittoria': ['Corsa Pro', 'Corsa', 'Corsa N.EXT', 'Corsa Control', 'Rubino Pro', 'Zaffiro Pro', 'Terreno Dry', 'Terreno Mix', 'Terreno Wet', 'Mezcal', 'Barzo'],
+  'Pirelli': ['P Zero Race TLR', 'P Zero Race', 'P Zero Road', 'P Zero Velo', 'Cinturato Velo TLR', 'Cinturato Gravel H', 'Cinturato Gravel M', 'Cinturato Gravel S', 'Scorpion XC RC'],
+  'Schwalbe': ['Pro One TT', 'Pro One', 'Pro One TLE', 'One', 'Lugano II', 'Durano DD', 'G-One Allround', 'G-One Speed', 'G-One R', 'G-One Bite', 'Marathon'],
+  'Michelin': ['Power Cup', 'Power Road', 'Power TT', 'Power Gravel', 'Power Adventure', 'Pro4 Endurance', 'Lithion 3', 'Dynamic Sport'],
+  'Maxxis': ['Receptor', 'Re-Fuse', 'Rambler', 'Ravager', 'Speed Terrane', 'Pursuer', 'High Road', 'Ardent', 'Minion DHF', 'Ikon'],
+  'Specialized': ['Turbo Cotton', 'Turbo Pro', 'Turbo RapidAir', 'S-Works Mondo', 'Pathfinder Pro', 'Tracer', 'Rhombus Pro', 'Roubaix Pro'],
+  'Goodyear': ['Eagle F1', 'Eagle F1 SuperSport', 'Eagle F1 Tubeless', 'Connector', 'Connector Ultimate', 'County Ultimate', 'Peak Ultimate'],
+  'Challenge': ['Strada Bianca Pro', 'Strada Pro', 'Gravel Grinder', 'Dune', 'Almanzo', 'Grifo'],
+  'Panaracer': ['Agilest', 'Agilest TLR', 'GravelKing SK', 'GravelKing SS', 'GravelKing', 'Race D Evo', 'Closer Plus'],
+  'WTB': ['Exposure', 'Riddler', 'Resolute', 'Venture', 'Byway', 'Raddler', 'Vulpine'],
+  'Hutchinson': ['Fusion 5 Performance', 'Fusion 5 All Season', 'Sector 32', 'Overide', 'Touareg', 'Tundra'],
+  'IRC': ['Aspite Pro', 'Formula Pro', 'Boken Plus'],
+  'Wolfpack': ['Race', 'Race TT', 'To The Moon', 'Trail'],
+  'Other': [],
+};
+
+function _tireUpdateModels() {
+  const brand = document.getElementById('tireBrand')?.value || '';
+  const modelSel = document.getElementById('tireName');
+  if (!modelSel) return;
+  const models = _TIRE_MODELS[brand] || [];
+  modelSel.innerHTML = '<option value="">Select model</option>' +
+    models.map(m => `<option value="${m}">${m}</option>`).join('') +
+    '<option value="_custom">Custom...</option>';
+  modelSel.onchange = function() {
+    if (this.value === '_custom') {
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.id = 'tireName';
+      inp.placeholder = 'Type tire name...';
+      this.replaceWith(inp);
+      inp.focus();
+    }
+  };
+}
+window._tireUpdateModels = _tireUpdateModels;
+
+// ── Tire Pressure Calculator ─────────────────────────────────────────────────
+// Three formulas: SRAM/Zipp, Silca, Berto 15% Drop
+function _calcPressureSRAM(weightKg, widthMm, surface, style, tubeless, tubeType) {
+  // P = (0.33 * W_kg) + (R * T), R = ride coefficient, T = 1000/width
+  const totalWeight = weightKg + 9; // bike ~9kg
+  const rideCoeff = style === 'performance' ? 1.25 : style === 'comfort' ? 1.0 : 1.15;
+  const tireFactor = 1000 / widthMm;
+  let rear = (0.33 * totalWeight) + (rideCoeff * tireFactor);
+  // Surface: mixed -8%, offroad -15%
+  if (surface === 'mixed') rear *= 0.92;
+  if (surface === 'offroad') rear *= 0.85;
+  // Tire type adjustment
+  if (tubeless) rear -= 10;
+  if (tubeType === 'tubular') rear *= 1.05;
+  const front = rear * 0.93;
+  return { front: Math.round(Math.max(20, Math.min(120, front))), rear: Math.round(Math.max(20, Math.min(120, rear))) };
+}
+
+function _calcPressureSilca(weightKg, widthMm, surface, style, tubeless, tubeType) {
+  // Base = (weight * weightFactor) / (width / refWidth)
+  const weightFactor = surface === 'offroad' ? 0.4 : surface === 'mixed' ? 0.5 : 0.6;
+  const refWidth = surface === 'offroad' ? 50 : surface === 'mixed' ? 30 : 25;
+  let base = (weightKg * weightFactor) / (widthMm / refWidth);
+  // Style
+  if (style === 'performance') base *= 1.05;
+  if (style === 'comfort') base *= 0.95;
+  // Tire type: tubeless -15%, tubular +10%
+  if (tubeless) base *= 0.85;
+  if (tubeType === 'tubular') base *= 1.10;
+  const rear = base;
+  const front = base * 0.90;
+  return { front: Math.round(Math.max(20, Math.min(120, front))), rear: Math.round(Math.max(20, Math.min(120, rear))) };
+}
+
+function _calcPressureBerto(weightKg, widthMm, surface, style, tubeless, tubeType) {
+  // Berto: P = 600 * L / (W^2) + 0.75 * W - 25
+  // L = single-wheel load in lbs
+  const totalLbs = (weightKg + 9) * 2.205; // +9kg bike
+  const rearLoad = totalLbs * 0.55;
+  const frontLoad = totalLbs * 0.45;
+  let rearPsi = 600 * rearLoad / (widthMm * widthMm) + 0.75 * widthMm - 25;
+  let frontPsi = 600 * frontLoad / (widthMm * widthMm) + 0.75 * widthMm - 25;
+  // Surface
+  if (surface === 'mixed') { rearPsi *= 0.92; frontPsi *= 0.92; }
+  if (surface === 'offroad') { rearPsi *= 0.82; frontPsi *= 0.82; }
+  // Style
+  if (style === 'performance') { rearPsi *= 1.05; frontPsi *= 1.05; }
+  if (style === 'comfort') { rearPsi *= 0.95; frontPsi *= 0.95; }
+  // Tire type: tubeless -10%, tubular +5%
+  if (tubeless) { rearPsi *= 0.90; frontPsi *= 0.90; }
+  if (tubeType === 'tubular') { rearPsi *= 1.05; frontPsi *= 1.05; }
+  return { front: Math.round(Math.max(20, Math.min(120, frontPsi))), rear: Math.round(Math.max(20, Math.min(120, rearPsi))) };
+}
+
+function _calcTirePressure() {
+  const width = parseInt(document.getElementById('tireWidth')?.value) || 25;
+  const weight = parseFloat(document.getElementById('tireRiderWeight')?.value) || 75;
+  const style = document.getElementById('tireRideStyle')?.value || 'balanced';
+  const surface = document.getElementById('tireSurface')?.value || 'road';
+  const tubeType = document.getElementById('tireTubeType')?.value || 'tubeless';
+  const tubeless = tubeType === 'tubeless';
+  const model = document.getElementById('tireCalcModel')?.value || 'sram';
+
+  let result;
+  if (model === 'silca') result = _calcPressureSilca(weight, width, surface, style, tubeless, tubeType);
+  else if (model === 'berto') result = _calcPressureBerto(weight, width, surface, style, tubeless, tubeType);
+  else result = _calcPressureSRAM(weight, width, surface, style, tubeless, tubeType);
+
+  const { front, rear } = result;
+
+  // Min/max range
+  const frontMin = Math.round(front * 0.92);
+  const frontMax = Math.round(front * 1.08);
+  const rearMin = Math.round(rear * 0.92);
+  const rearMax = Math.round(rear * 1.08);
+
+  const resultEl = document.getElementById('tirePressureResult');
+  if (!resultEl) return;
+
+  resultEl.innerHTML = `
+    <div class="tire-pres-cards">
+      <div class="tire-pres-card">
+        <div class="tire-pres-label">Front</div>
+        <div class="tire-pres-val">${front}<span class="tire-pres-unit">psi</span></div>
+        <div class="tire-pres-range">${frontMin}–${frontMax} psi</div>
+        <div class="tire-pres-bar"><div class="tire-pres-fill" style="width:${(front/120)*100}%;background:var(--accent)"></div></div>
+      </div>
+      <div class="tire-pres-card">
+        <div class="tire-pres-label">Rear</div>
+        <div class="tire-pres-val">${rear}<span class="tire-pres-unit">psi</span></div>
+        <div class="tire-pres-range">${rearMin}–${rearMax} psi</div>
+        <div class="tire-pres-bar"><div class="tire-pres-fill" style="width:${(rear/120)*100}%;background:var(--accent)"></div></div>
+      </div>
+    </div>
+    <div class="tire-pres-note">${model === 'sram' ? 'SRAM/Zipp' : model === 'silca' ? 'Silca' : 'Berto 15%'} · ${tubeType === 'tubeless' ? 'Tubeless' : tubeType === 'tubular' ? 'Tubular' : 'Clincher'} · ${width}mm · ${weight}kg</div>`;
+
+  // Auto-fill My Pressure if empty
+  const myFront = document.getElementById('tireMyFront');
+  const myRear = document.getElementById('tireMyRear');
+  if (myFront && !myFront.value) myFront.value = front;
+  if (myRear && !myRear.value) myRear.value = rear;
+}
+
+let _tireWeightScrubInited = false;
+function _initTireWeightScrubber(initVal) {
+  const el = document.getElementById('tireWeightScrub');
+  const input = document.getElementById('tireRiderWeight');
+  if (!el || !input) return;
+
+  const ruler = el.querySelector('.wrk-scrub-ruler');
+  const valEl = el.querySelector('.wrk-scrub-val');
+  const PX = 6, MIN = 40, MAX = 150, THRESHOLD = 10;
+  let val = Math.max(MIN, Math.min(MAX, initVal));
+  let pending = false, dragging = false, dragStartX = 0, dragStartVal = 0, pid = 0;
+
+  function apply(v) {
+    val = Math.max(MIN, Math.min(MAX, Math.round(v)));
+    const trackW = el.querySelector('.wrk-scrub-track')?.clientWidth || 100;
+    ruler.style.transform = `translateX(${trackW / 2 - (val - MIN) * PX}px)`;
+    valEl.textContent = val;
+    input.value = val;
+    _calcTirePressure();
+  }
+
+  // Remove old listeners if re-inited
+  if (el._twCleanup) el._twCleanup();
+
+  const onDown = e => {
+    if (e.button > 0) return;
+    dragStartX = e.clientX;
+    dragStartVal = val;
+    pending = true;
+    pid = e.pointerId;
+  };
+  const onMove = e => {
+    if (pending) {
+      if (Math.abs(e.clientX - dragStartX) < THRESHOLD) return;
+      pending = false;
+      dragging = true;
+      el.setPointerCapture(pid);
+    }
+    if (!dragging) return;
+    apply(dragStartVal - (e.clientX - dragStartX) / PX);
+  };
+  const onEnd = () => { pending = false; dragging = false; };
+  const onTouch = e => { if (dragging) e.preventDefault(); };
+
+  el.addEventListener('pointerdown', onDown);
+  el.addEventListener('pointermove', onMove);
+  el.addEventListener('pointerup', onEnd);
+  el.addEventListener('pointercancel', onEnd);
+  el.addEventListener('touchmove', onTouch, { passive: false });
+
+  el._twCleanup = () => {
+    el.removeEventListener('pointerdown', onDown);
+    el.removeEventListener('pointermove', onMove);
+    el.removeEventListener('pointerup', onEnd);
+    el.removeEventListener('pointercancel', onEnd);
+    el.removeEventListener('touchmove', onTouch);
+  };
+
+  apply(val);
+}
+
+function openTireSheet(editId) {
+  const title = document.getElementById('tireSheetTitle');
+  if (title) title.textContent = editId ? 'Edit Tire' : 'Add Tire';
+  document.getElementById('tireEditId').value = editId || '';
+  document.getElementById('tireBrand').value = '';
+  _tireUpdateModels();
+  document.getElementById('tireName').value = '';
+  document.getElementById('tireWidth').value = '25';
+  document.getElementById('tirePosition').value = 'both';
+  document.getElementById('tireRiderWeight').value = '75';
+  document.getElementById('tireRideStyle').value = 'balanced';
+  document.getElementById('tireSurface').value = 'road';
+  document.getElementById('tireTubeType').value = 'tubeless';
+  document.getElementById('tireMyFront').value = '';
+  document.getElementById('tireMyRear').value = '';
+
+  if (editId) {
+    const comps = loadGearComponents();
+    const c = comps.find(x => x.id === editId);
+    if (c) {
+      document.getElementById('tireBrand').value = c.brand || '';
+      _tireUpdateModels();
+      document.getElementById('tireName').value = c.name || '';
+      if (c.tireWidth) document.getElementById('tireWidth').value = c.tireWidth;
+      if (c.tirePosition) document.getElementById('tirePosition').value = c.tirePosition;
+      if (c.tireRiderWeight) document.getElementById('tireRiderWeight').value = c.tireRiderWeight;
+      if (c.tireRideStyle) document.getElementById('tireRideStyle').value = c.tireRideStyle;
+      if (c.tireSurface) document.getElementById('tireSurface').value = c.tireSurface;
+      if (c.tireTubeType) document.getElementById('tireTubeType').value = c.tireTubeType;
+      else if (c.tireTubeless !== undefined) document.getElementById('tireTubeType').value = c.tireTubeless ? 'tubeless' : 'clincher';
+      if (c.tireFrontPsi) document.getElementById('tireMyFront').value = c.tireFrontPsi;
+      if (c.tireRearPsi) document.getElementById('tireMyRear').value = c.tireRearPsi;
+    }
+  }
+
+  _openOverlaySheet('tireSheet');
+
+  // Initialize weight scrubber
+  _initTireWeightScrubber(parseInt(document.getElementById('tireRiderWeight').value) || 75);
+
+  _calcTirePressure();
+
+  // Live recalculate on input changes
+  ['tireWidth', 'tireRideStyle', 'tireSurface', 'tireTubeType', 'tireCalcModel'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.onchange = _calcTirePressure;
+  });
+}
+window.openTireSheet = openTireSheet;
+
+function closeTireSheet() { _closeOverlaySheet('tireSheet'); }
+window.closeTireSheet = closeTireSheet;
+
+function saveTire() {
+  const name = document.getElementById('tireName').value.trim();
+  if (!name) { document.getElementById('tireName').focus(); return; }
+
+  const editId = document.getElementById('tireEditId').value;
+  const comp = {
+    id: editId || ('g_' + Date.now() + '_' + Math.random().toString(36).slice(2,7)),
+    bikeId: _gearSelectedBike || '',
+    category: 'Tyres',
+    name,
+    brand: document.getElementById('tireBrand').value.trim(),
+    model: '',
+    tireWidth: document.getElementById('tireWidth').value,
+    tirePosition: document.getElementById('tirePosition').value,
+    tireRiderWeight: document.getElementById('tireRiderWeight').value,
+    tireRideStyle: document.getElementById('tireRideStyle').value,
+    tireSurface: document.getElementById('tireSurface').value,
+    tireTubeType: document.getElementById('tireTubeType').value,
+    tireFrontPsi: parseFloat(document.getElementById('tireMyFront').value) || 0,
+    tireRearPsi: parseFloat(document.getElementById('tireMyRear').value) || 0,
+    kmAtInstall: 0,
+    reminderKm: 0,
+    image: '',
+    oem: false,
+  };
+
+  let all = loadGearComponents();
+  if (editId) {
+    const existing = all.find(c => c.id === editId);
+    if (existing) { comp.kmAtInstall = existing.kmAtInstall; comp.image = existing.image; comp.oem = existing.oem; comp.purchaseDate = existing.purchaseDate; }
+    all = all.map(c => c.id === editId ? comp : c);
+  } else {
+    all.push(comp);
+  }
+  saveGearComponents(all);
+  closeTireSheet();
+  renderGearComponents();
+  if (typeof renderGearTires === 'function') renderGearTires();
+  gearSwitchTab('tires');
+  showToast(editId ? 'Tire updated' : 'Tire added', 'success');
+}
+window.saveTire = saveTire;
+
+// ── Render tires panel ──────────────────────────────────────────────────────
+function renderGearTires() {
+  const grid = document.getElementById('gearTiresGrid');
+  if (!grid) return;
+  const comps = loadGearComponents();
+  const bikeId = _gearSelectedBike;
+  const tires = comps.filter(c =>
+    (c.category === 'Tyres' || c.category === 'Tires') &&
+    (!bikeId || c.bikeId === bikeId)
+  );
+  if (!tires.length) {
+    grid.innerHTML = '<div class="gar-empty">No tires tracked yet — add one below</div>';
+    return;
+  }
+  grid.innerHTML = tires.map(c => _tireCard(c)).join('');
+}
+
+function _tireCard(c) {
+  const bike = _gearBikeCache.find(b => b.id === c.bikeId);
+  const bikeKm = bike ? bike.km : 0;
+  const ridden = Math.max(0, bikeKm - (parseFloat(c.kmAtInstall) || 0));
+  const remind = parseFloat(c.reminderKm) || 0;
+  const pct = remind > 0 ? Math.min(100, Math.round(ridden / remind * 100)) : null;
+  const warn = pct !== null && pct >= 90;
+  const overdue = pct !== null && pct >= 100;
+
+  const resolvedImg = c.image || _gearGetDefaultImage(c.brand, c.model, c.name, c.category) || '';
+  const imgHtml = resolvedImg
+    ? `<img src="${resolvedImg}" alt="${c.name}" onerror="_gearImgFallback(this,'${(c.name||'').replace(/'/g,'')}','${(c.category||'').replace(/'/g,'')}')">`
+    : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:var(--text-muted)">T</div>`;
+
+  const width = c.tireWidth ? c.tireWidth + 'mm' : '';
+  const tubeLabel = c.tireTubeType === 'tubeless' ? 'TL' : c.tireTubeType === 'tubular' ? 'TU' : 'CL';
+  const posLabel = c.tirePosition === 'front' ? 'Front' : c.tirePosition === 'rear' ? 'Rear' : '';
+
+  // Pressure display
+  const frontPsi = c.tireFrontPsi || 0;
+  const rearPsi = c.tireRearPsi || 0;
+  const hasPressure = frontPsi > 0 || rearPsi > 0;
+
+  // Wear bar
+  let wearHtml = '';
+  if (pct !== null) {
+    const barColor = overdue ? 'var(--red)' : warn ? '#ff9500' : 'var(--accent)';
+    wearHtml = `<div class="tire-card-wear">
+      <div class="tire-card-wear-bar"><div style="width:${Math.min(100, pct)}%;height:100%;background:${barColor};border-radius:2px"></div></div>
+      <span class="tire-card-wear-pct" style="color:${barColor}">${pct}%</span>
+    </div>`;
+  }
+
+  return `<div class="tire-card card" onclick="openTireSheet('${c.id}')">
+    <div class="tire-card-top">
+      <div class="tire-card-img">${imgHtml}</div>
+      <div class="tire-card-info">
+        <div class="tire-card-name">${c.name || 'Tire'}</div>
+        <div class="tire-card-brand">${c.brand || ''}</div>
+        <div class="tire-card-tags">
+          ${width ? `<span class="tire-card-tag">${width}</span>` : ''}
+          <span class="tire-card-tag">${tubeLabel}</span>
+          ${posLabel ? `<span class="tire-card-tag">${posLabel}</span>` : ''}
+        </div>
+      </div>
+    </div>
+    ${hasPressure ? `<div class="tire-card-pressure">
+      <div class="tire-card-psi">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 0 1 0 20 10 10 0 0 1 0-20z"/><path d="M12 6v6l4 2"/></svg>
+        <span>F: <strong>${frontPsi}</strong></span>
+        <span>R: <strong>${rearPsi}</strong></span>
+        <span class="tire-card-psi-unit">psi</span>
+      </div>
+    </div>` : ''}
+    <div class="tire-card-km">${Math.round(ridden).toLocaleString()} km</div>
+    ${wearHtml}
+  </div>`;
+}
+
+// ── Service History Page (SwiftUI-style) ─────────────────────────────────────
+function renderServicePage() {
+  const container = document.getElementById('servicePageContent');
+  if (!container) return;
+
+  const allServices = loadGearServices();
+  const bikes = state.gearBikes || [];
+  if (!bikes.length) { try { const g = JSON.parse(localStorage.getItem('icu_gear_bikes')) || []; state.gearBikes = g; } catch {} }
+  const gear = state.gearBikes || [];
+  const shops = loadServiceShops();
+
+  // Stats
+  const totalServices = allServices.length;
+  const totalCost = allServices.reduce((s, v) => s + (parseFloat(v.cost) || 0), 0);
+  const overdueCount = allServices.filter(s => {
+    const bike = gear.find(b => b.id === s.bikeId);
+    return _svcIsOverdue(s, bike) === 'over';
+  }).length;
+  const thisYear = allServices.filter(s => s.serviceDate && new Date(s.serviceDate).getFullYear() === new Date().getFullYear());
+  const yearCost = thisYear.reduce((s, v) => s + (parseFloat(v.cost) || 0), 0);
+
+  // Group by month
+  const grouped = {};
+  const sorted = [...allServices].sort((a, b) => new Date(b.serviceDate || 0) - new Date(a.serviceDate || 0));
+  sorted.forEach(s => {
+    const d = s.serviceDate ? new Date(s.serviceDate) : new Date();
+    const key = d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(s);
+  });
+
+  container.innerHTML = `
+    <div class="svc-page">
+      <!-- Hero -->
+      <div class="svc-hero">
+        <div class="svc-hero-title">Service History</div>
+        <div class="svc-hero-sub">Maintenance & repairs across all bikes</div>
+      </div>
+
+      <!-- Stats row -->
+      <div class="svc-stats">
+        <div class="svc-stat-card">
+          <div class="svc-stat-val">${totalServices}</div>
+          <div class="svc-stat-lbl">Total</div>
+        </div>
+        <div class="svc-stat-card">
+          <div class="svc-stat-val" style="color:var(--accent)">€${Math.round(yearCost).toLocaleString()}</div>
+          <div class="svc-stat-lbl">This Year</div>
+        </div>
+        <div class="svc-stat-card">
+          <div class="svc-stat-val" style="color:${overdueCount ? 'var(--red)' : 'var(--accent)'}">${overdueCount}</div>
+          <div class="svc-stat-lbl">Overdue</div>
+        </div>
+        <div class="svc-stat-card">
+          <div class="svc-stat-val">€${Math.round(totalCost).toLocaleString()}</div>
+          <div class="svc-stat-lbl">All Time</div>
+        </div>
+      </div>
+
+      <!-- Shops section -->
+      ${shops.length ? `
+      <div class="svc-section">
+        <div class="svc-section-title">My Shops</div>
+        <div class="svc-shops-scroll">
+          ${shops.map(sh => `
+            <div class="svc-shop-chip" onclick="openServiceShopModal('${sh.id}')">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              <span>${sh.name}</span>
+            </div>
+          `).join('')}
+          <div class="svc-shop-chip svc-shop-chip--add" onclick="openServiceShopModal()">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>Add</span>
+          </div>
+        </div>
+      </div>` : ''}
+
+      <!-- Service list -->
+      <div class="svc-section">
+        <div class="svc-section-title">History</div>
+        ${Object.keys(grouped).length ? Object.entries(grouped).map(([month, items]) => `
+          <div class="svc-month">${month}</div>
+          <div class="svc-group">
+            ${items.map(s => {
+              const bike = gear.find(b => b.id === s.bikeId);
+              const date = s.serviceDate ? new Date(s.serviceDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
+              const shopInfo = _resolveShop(s);
+              const status = _svcIsOverdue(s, bike);
+              const statusCls = status === 'over' ? 'svc-item--overdue' : status === 'warn' ? 'svc-item--warn' : '';
+              return `<div class="svc-item ${statusCls}" onclick="openServiceModal('${s.id}')">
+                <div class="svc-item-left">
+                  <div class="svc-item-dot${status === 'over' ? ' svc-dot--red' : status === 'warn' ? ' svc-dot--orange' : ''}"></div>
+                </div>
+                <div class="svc-item-body">
+                  <div class="svc-item-title">${s.workDone || 'Service'}</div>
+                  <div class="svc-item-meta">${[date, bike?.name, shopInfo.name].filter(Boolean).join(' · ')}</div>
+                  ${s.notes ? `<div class="svc-item-notes">${s.notes}</div>` : ''}
+                </div>
+                <div class="svc-item-right">
+                  ${s.cost ? `<div class="svc-item-cost">€${parseFloat(s.cost).toFixed(0)}</div>` : ''}
+                  <svg viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="var(--text-faint)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </div>
+              </div>`;
+            }).join('')}
+          </div>
+        `).join('') : `
+          <div class="svc-empty">
+            <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.3;margin-bottom:8px"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+            <div>No services tracked yet</div>
+            <div style="font-size:13px;color:var(--text-faint);margin-top:4px">Add your first service below</div>
+          </div>
+        `}
+      </div>
+
+      <!-- Add Service button -->
+      <button class="svc-add-btn" onclick="openServiceModal()">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Service
+      </button>
+    </div>`;
+}
+
+// ── Render service section (legacy, used in bikedetail) ─────────────────────
 function renderGearServices() {
   const grid = document.getElementById('gearServiceGrid');
   if (!grid) return;
