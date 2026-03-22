@@ -23871,17 +23871,18 @@ async function renderDetailCurve(actId, streams) {
   // No power for this activity → show NA
   if (!raw) {
     card.style.display = '';
+    const cr = document.getElementById('detailCurvesRow');
+    if (cr) cr.style.display = '';
     showCardNA('detailCurveCard');
     return;
   }
 
-  // Show card immediately — don't wait for year curve
+  // Show card and its parent row
   clearCardNA(card);
   card.style.display = '';
-  card.style.minHeight = '200px';
-  card.style.border = '1px solid red';
   unskeletonCard('detailCurveCard');
-  console.log('[PowerCurve] Card shown, display:', card.style.display, 'parent:', card.parentElement?.id, 'parentDisplay:', card.parentElement?.style.display);
+  const curvesRow = document.getElementById('detailCurvesRow');
+  if (curvesRow) curvesRow.style.display = '';
 
   // Fetch year best in background (non-blocking)
   let rawYear = null;
@@ -24064,9 +24065,11 @@ async function renderDetailHRCurve(streams) {
   const yearPromise = fetchRangeHRCurve(toDateStr(daysAgo(365)), toDateStr(new Date())).catch(() => null);
   const rawYear = await yearPromise;
 
-  if (!raw && !rawYear) { card.style.display = ''; showCardNA('detailHRCurveCard'); return; }
+  const _crHR = document.getElementById('detailCurvesRow');
+  if (!raw && !rawYear) { card.style.display = ''; if (_crHR) _crHR.style.display = ''; showCardNA('detailHRCurveCard'); return; }
   clearCardNA(card);
   card.style.display = '';
+  if (_crHR) _crHR.style.display = '';
   unskeletonCard('detailHRCurveCard');
 
   // Peak pills
