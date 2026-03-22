@@ -22105,13 +22105,14 @@ function renderDetailGradientProfile(streams, activity) {
     gradeDS.push(dDist > 0 ? +(dAlt / dDist * 100).toFixed(1) : 0);
   }
 
-  // Colour each segment by gradient steepness
+  // Colour each segment by climb difficulty (Tour de France style)
   const segColors = gradeDS.map(g => {
     const a = Math.abs(g);
-    if (a < 2)  return 'rgba(0,229,160,0.6)';    // flat — accent green
-    if (a < 5)  return 'rgba(240,196,41,0.7)';   // gentle — yellow
-    if (a < 10) return 'rgba(255,107,53,0.75)';  // moderate — orange
-    return 'rgba(255,71,87,0.85)';               // steep — red
+    if (a < 2)  return '#00e5a0';     // flat — Cat 4+ / green
+    if (a < 4)  return '#4a9eff';     // easy — Cat 3 / blue
+    if (a < 6)  return '#ffcc00';     // moderate — Cat 2 / yellow
+    if (a < 9)  return '#ff9500';     // hard — Cat 1 / orange
+    return '#ff453a';                 // very steep — HC / red
   });
 
   const sub = document.getElementById('detailGradientSubtitle');
@@ -22140,7 +22141,7 @@ function renderDetailGradientProfile(streams, activity) {
           data: altDS,
           borderColor: segmentColor,
           borderWidth: 2,
-          backgroundColor: 'rgba(0,229,160,0.15)',
+          backgroundColor: 'rgba(0,229,160,0.1)',
           fill: true,
           pointRadius: 0,
           pointHoverRadius: 4,
