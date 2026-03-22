@@ -16871,6 +16871,63 @@ function _openActCardInfo(cardId, info) {
     });
     ctrlHTML += '</div>';
   }
+
+  // Compare section
+  if (activity) {
+    const pool = (state.activities || []).filter(a => !isEmptyActivity(a) && a !== activity);
+    const prevRide = pool.length ? pool.find((a, i) => {
+      const curIdx = state.activities.indexOf(activity);
+      return state.activities.indexOf(a) === curIdx + 1;
+    }) || pool[0] : null;
+
+    ctrlHTML += `<div class="aci-section">
+      <div class="aci-section-title">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+        Compare
+      </div>
+      <div class="aci-compare-row">
+        <select class="aci-compare-select app-select" id="aciCompareSelect" onchange="_aciCompare('${cardId}')">
+          <option value="">Select ride to compare...</option>`;
+    pool.slice(0, 30).forEach(a => {
+      const name = a.name || 'Ride';
+      const date = a.start_date_local ? new Date(a.start_date_local).toLocaleDateString('en-GB', {day:'numeric',month:'short',year:'numeric'}) : '';
+      const id = a.id || a.icu_activity_id || '';
+      const sel = prevRide && (prevRide.id || prevRide.icu_activity_id) === id ? ' selected' : '';
+      ctrlHTML += `<option value="${id}"${sel}>${name} — ${date}</option>`;
+    });
+    ctrlHTML += `</select>
+      </div>
+      <div class="aci-compare-result" id="aciCompareResult"></div>
+    </div>`;
+
+    // Auto-compare with previous if available
+    if (prevRide) {
+      setTimeout(() => _aciCompare(cardId), 100);
+    }
+  }
+
+  // Tools section — extra features per card type
+  ctrlHTML += `<div class="aci-section">
+    <div class="aci-section-title">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+      Tools
+    </div>
+    <div class="aci-tools-grid">
+      <button class="aci-tool-btn" onclick="_aciExportCSV('${cardId}')">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export CSV
+      </button>
+      <button class="aci-tool-btn" onclick="_aciShareImage('${cardId}')">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        Share
+      </button>
+      <button class="aci-tool-btn" onclick="_aciFullscreen('${cardId}')">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+        Fullscreen
+      </button>
+    </div>
+  </div>`;
+
   controlsArea.innerHTML = ctrlHTML;
 
   // Render explanation (info tab)
@@ -16940,6 +16997,138 @@ function _aciSwitchView(view) {
   });
 }
 window._aciSwitchView = _aciSwitchView;
+
+// Compare current activity with selected one
+function _aciCompare(cardId) {
+  const select = document.getElementById('aciCompareSelect');
+  const result = document.getElementById('aciCompareResult');
+  if (!select || !result) return;
+  const compareId = select.value;
+  if (!compareId) { result.innerHTML = ''; return; }
+
+  const current = state.activities[state.currentActivityIdx];
+  const compare = (state.activities || []).find(a => (a.id || a.icu_activity_id) == compareId);
+  if (!current || !compare) { result.innerHTML = '<div class="aci-data-empty">Could not load comparison</div>'; return; }
+
+  const metrics = [];
+  // Common metrics
+  if (current.average_watts || compare.average_watts) {
+    metrics.push({ label: 'Avg Power', cur: current.average_watts || 0, cmp: compare.average_watts || 0, unit: 'w', higher: 'better' });
+  }
+  if (current.weighted_average_watts || compare.weighted_average_watts) {
+    metrics.push({ label: 'NP', cur: current.weighted_average_watts || 0, cmp: compare.weighted_average_watts || 0, unit: 'w', higher: 'better' });
+  }
+  if (current.average_heartrate || compare.average_heartrate) {
+    metrics.push({ label: 'Avg HR', cur: Math.round(current.average_heartrate || 0), cmp: Math.round(compare.average_heartrate || 0), unit: 'bpm', higher: 'neutral' });
+  }
+  if (current.average_speed || compare.average_speed) {
+    metrics.push({ label: 'Avg Speed', cur: +((current.average_speed || 0) * 3.6).toFixed(1), cmp: +((compare.average_speed || 0) * 3.6).toFixed(1), unit: 'km/h', higher: 'better' });
+  }
+  if (current.average_cadence || compare.average_cadence) {
+    metrics.push({ label: 'Cadence', cur: Math.round(current.average_cadence || 0), cmp: Math.round(compare.average_cadence || 0), unit: 'rpm', higher: 'neutral' });
+  }
+  if (current.distance || compare.distance) {
+    metrics.push({ label: 'Distance', cur: +((current.distance || 0) / 1000).toFixed(1), cmp: +((compare.distance || 0) / 1000).toFixed(1), unit: 'km', higher: 'neutral' });
+  }
+  if (current.moving_time || compare.moving_time) {
+    metrics.push({ label: 'Time', cur: current.moving_time || 0, cmp: compare.moving_time || 0, unit: '', higher: 'neutral', fmt: 'dur' });
+  }
+  if (current.icu_training_load || compare.icu_training_load) {
+    metrics.push({ label: 'TSS', cur: Math.round(current.icu_training_load || 0), cmp: Math.round(compare.icu_training_load || 0), unit: '', higher: 'neutral' });
+  }
+  if (current.total_elevation_gain || compare.total_elevation_gain) {
+    metrics.push({ label: 'Elevation', cur: Math.round(current.total_elevation_gain || 0), cmp: Math.round(compare.total_elevation_gain || 0), unit: 'm', higher: 'neutral' });
+  }
+
+  if (!metrics.length) { result.innerHTML = '<div class="aci-data-empty">No comparable data</div>'; return; }
+
+  const compareName = compare.name || 'Ride';
+  const compareDate = compare.start_date_local ? new Date(compare.start_date_local).toLocaleDateString('en-GB', {day:'numeric',month:'short'}) : '';
+
+  let html = `<div class="aci-compare-header">
+    <span class="aci-compare-vs">vs ${compareName} <span style="color:var(--text-muted)">${compareDate}</span></span>
+  </div>`;
+  html += '<div class="aci-compare-grid">';
+  metrics.forEach(m => {
+    const curVal = m.fmt === 'dur' ? fmtDur(m.cur) : m.cur;
+    const cmpVal = m.fmt === 'dur' ? fmtDur(m.cmp) : m.cmp;
+    const diff = m.cur - m.cmp;
+    const pctDiff = m.cmp > 0 ? ((diff / m.cmp) * 100).toFixed(1) : 0;
+    let diffClass = 'neutral';
+    if (m.higher === 'better' && diff > 0) diffClass = 'up';
+    else if (m.higher === 'better' && diff < 0) diffClass = 'down';
+    const diffStr = m.fmt === 'dur' ? (diff > 0 ? '+' : '') + fmtDur(Math.abs(diff)) : (diff > 0 ? '+' : '') + (m.fmt === 'dur' ? '' : diff) + (m.unit ? ' ' + m.unit : '');
+    const arrow = diffClass === 'up' ? '↑' : diffClass === 'down' ? '↓' : '';
+
+    html += `<div class="aci-compare-item">
+      <div class="aci-compare-label">${m.label}</div>
+      <div class="aci-compare-vals">
+        <span class="aci-compare-cur">${curVal}<span class="aci-compare-unit">${m.unit ? ' ' + m.unit : ''}</span></span>
+        <span class="aci-compare-cmp">${cmpVal}${m.unit ? ' ' + m.unit : ''}</span>
+      </div>
+      <div class="aci-compare-delta aci-compare-delta--${diffClass}">${arrow} ${Math.abs(pctDiff)}%</div>
+    </div>`;
+  });
+  html += '</div>';
+  result.innerHTML = html;
+}
+window._aciCompare = _aciCompare;
+
+// Export card data as CSV
+function _aciExportCSV(cardId) {
+  const activity = state.activities[state.currentActivityIdx];
+  if (!activity) return;
+  const tableData = _getCardTableData(cardId, activity);
+  if (!tableData.length) { showToast('No data to export', 'info'); return; }
+  const headers = Object.keys(tableData[0]);
+  let csv = headers.join(',') + '\n';
+  tableData.forEach(row => {
+    csv += headers.map(h => '"' + String(row[h] || '').replace(/"/g, '""') + '"').join(',') + '\n';
+  });
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${activity.name || 'activity'}_${cardId}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('CSV downloaded', 'success');
+}
+window._aciExportCSV = _aciExportCSV;
+
+// Share chart as image
+function _aciShareImage(cardId) {
+  const chartArea = document.getElementById('actCardInfoChart');
+  if (!chartArea) return;
+  const canvas = chartArea.querySelector('canvas');
+  if (!canvas) { showToast('No chart to share', 'info'); return; }
+  try {
+    canvas.toBlob(blob => {
+      if (!blob) { showToast('Could not capture chart', 'error'); return; }
+      if (navigator.share && navigator.canShare) {
+        const file = new File([blob], 'chart.png', { type: 'image/png' });
+        navigator.share({ files: [file], title: 'CycleIQ Chart' }).catch(() => {});
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'chart.png'; a.click();
+        URL.revokeObjectURL(url);
+        showToast('Chart saved', 'success');
+      }
+    }, 'image/png');
+  } catch(e) { showToast('Could not capture chart', 'error'); }
+}
+window._aciShareImage = _aciShareImage;
+
+// Fullscreen chart
+function _aciFullscreen(cardId) {
+  const chartArea = document.getElementById('actCardInfoChart');
+  if (!chartArea) return;
+  if (chartArea.requestFullscreen) chartArea.requestFullscreen();
+  else if (chartArea.webkitRequestFullscreen) chartArea.webkitRequestFullscreen();
+  else showToast('Fullscreen not supported', 'info');
+}
+window._aciFullscreen = _aciFullscreen;
 
 // Get summary stats for a card
 function _getCardStats(cardId, a) {
