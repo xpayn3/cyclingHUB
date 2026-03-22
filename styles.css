@@ -10870,6 +10870,15 @@ body.show-save-fab #actSaveRouteFab {
 .act-bottom-sheet.sheet-expanded .act-sheet-scroll {
     padding-top: calc(44px + max(12px, env(safe-area-inset-top)));
 }
+/* Subtle dividers between activity detail cards */
+.act-sheet-scroll > .card + .card,
+.act-sheet-scroll > .detail-zones-carousel-card,
+.act-sheet-scroll > .detail-curves-row,
+.act-sheet-scroll > .detail-charts-row {
+    border-top: 1px solid var(--surface-2);
+    padding-top: 16px;
+    margin-top: 4px;
+}
 
 /* Drag handle */
 .act-sheet-handle {
