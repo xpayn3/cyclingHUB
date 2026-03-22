@@ -11269,7 +11269,7 @@ function renderKjFuelingChart(days) {
       },
       scales: {
         x: { grid: { display: false }, ticks: { ...C_TICK, maxRotation: 0, maxTicksLimit: 10 }, border: { display: false } },
-        y: { grid: C_GRID, ticks: { ...C_TICK, callback: v => v + ' kJ/hr' }, border: { display: false } },
+        y: { grid: C_GRID, ticks: { ...C_TICK, callback: function(v, i) { return i === 0 ? 'kJ/hr' : v; } }, border: { display: false } },
       },
     },
   });
