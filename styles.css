@@ -2919,6 +2919,9 @@ input[type="number"] {
     color: var(--text-muted);
     margin-top: 2px;
 }
+#page-dashboard .card-subtitle {
+    display: none;
+}
 .card--narrow {
     max-width: 580px;
 }
