@@ -2259,10 +2259,13 @@ function _peerHandleConn(conn) {
         _peerRestoreSnapshot(snapshot);
         localStorage.setItem('icu_peer_last_sync', new Date().toISOString());
         _peerUpdateLastSync();
+        // Send acknowledgment back to sender
+        conn.send({ type: 'snapshot_ack', keys, device: _peerDeviceName() });
         showToast(`Received ${keys} keys — reloading...`, 'success');
         setTimeout(() => location.reload(), 1500);
       } catch (e) {
         console.warn('[PEER] snapshot parse error:', e);
+        conn.send({ type: 'snapshot_ack', error: true });
         showToast('Failed to parse received data', 'error');
       }
       _chunks = [];
@@ -2274,9 +2277,15 @@ function _peerHandleConn(conn) {
       _peerUpdateLastSync();
       showToast(`Received ${keys} keys — reloading...`, 'success');
       setTimeout(() => location.reload(), 1500);
+    } else if (data.type === 'snapshot_ack') {
+      if (data.error) {
+        showToast('Peer failed to restore data', 'error');
+      } else {
+        showToast(`${data.device || 'Peer'} received ${data.keys} keys ✓`, 'success');
+      }
     } else if (data.type === 'request') {
       _peerSendSnapshot(conn);
-      showToast('Data sent to peer', 'success');
+      showToast('Sending data to peer...', 'info');
     }
   });
   conn.on('close', () => {
