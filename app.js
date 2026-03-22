@@ -16895,7 +16895,7 @@ function _openActCardInfo(cardId, info) {
     pgEl.appendChild(hdr);
     _renderStreamsBreakdown(pgEl, state.normStreams, activity);
     overlay.style.display = 'flex';
-    requestAnimationFrame(() => overlay.classList.add('aci-open'));
+    requestAnimationFrame(() => overlay.classList.add('act-info-open'));
     return;
   }
 
