@@ -22142,8 +22142,18 @@ function renderDetailTempChart(streams, activity) {
   unavailable.style.display = 'none';
   canvas.style.opacity = '1';
 
+  // Smooth temperature data with a moving average to remove stepped sensor readings
+  const smoothed = [];
+  const SMOOTH_W = 15;
+  for (let i = 0; i < rawTemp.length; i++) {
+    let sum = 0, cnt = 0;
+    for (let j = Math.max(0, i - SMOOTH_W); j <= Math.min(rawTemp.length - 1, i + SMOOTH_W); j++) {
+      if (rawTemp[j] != null) { sum += rawTemp[j]; cnt++; }
+    }
+    smoothed.push(cnt > 0 ? Math.round(sum / cnt * 10) / 10 : null);
+  }
   // Downsample to at most 400 points
-  const ds = downsampleStreams({ temp: rawTemp, time: streams.time || [] }, 400);
+  const ds = downsampleStreams({ temp: smoothed, time: streams.time || [] }, 400);
   const temps = imperial
     ? ds.temp.map(v => v != null ? Math.round((v * 9/5 + 32) * 10) / 10 : null)
     : ds.temp;
