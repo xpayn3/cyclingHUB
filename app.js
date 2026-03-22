@@ -23888,26 +23888,9 @@ async function renderDetailCurve(actId, streams) {
   let rawYear = null;
   try { rawYear = await fetchRangePowerCurve(toDateStr(daysAgo(365)), toDateStr(new Date())); } catch (_) {}
 
-  // Peak stat pills (from this activity — raw is guaranteed non-null here)
+  // Hide old peak pills — we'll render summary rows after the chart instead
   const peaksEl = document.getElementById('detailCurvePeaks');
-  if (peaksEl) {
-    const lookup = {};
-    raw.secs.forEach((s, i) => { if (raw.watts[i]) lookup[s] = raw.watts[i]; });
-    const peakW = target => {
-      if (lookup[target]) return lookup[target];
-      let best = null, minDiff = Infinity;
-      raw.secs.forEach(s => { const d = Math.abs(s - target); if (d < minDiff && lookup[s]) { minDiff = d; best = lookup[s]; } });
-      return best;
-    };
-    peaksEl.innerHTML = CURVE_PEAKS.map(p => {
-      const w = Math.round(peakW(p.secs) || 0);
-      if (!w) return '';
-      return `<div class="curve-peak">
-        <div class="curve-peak-val">${w}<span class="curve-peak-unit">w</span></div>
-        <div class="curve-peak-dur">${p.label}</div>
-      </div>`;
-    }).join('');
-  }
+  if (peaksEl) peaksEl.style.display = 'none';
 
   // Legend
   const legendEl = document.getElementById('detailCurveLegend');
@@ -24000,6 +23983,29 @@ async function renderDetailCurve(actId, streams) {
       }
     }
   );
+
+  // Add summary rows below chart (matching other cards' style)
+  let summaryEl = card.querySelector('.detail-zone-summary');
+  if (!summaryEl) {
+    summaryEl = document.createElement('div');
+    summaryEl.className = 'detail-zone-summary';
+    card.appendChild(summaryEl);
+  }
+  const lookup = {};
+  raw.secs.forEach((s, i) => { if (raw.watts[i]) lookup[s] = raw.watts[i]; });
+  const peakW = target => {
+    if (lookup[target]) return lookup[target];
+    let best = null, minDiff = Infinity;
+    raw.secs.forEach(s => { const d = Math.abs(s - target); if (d < minDiff && lookup[s]) { minDiff = d; best = lookup[s]; } });
+    return best;
+  };
+  summaryEl.innerHTML = CURVE_PEAKS
+    .map(p => {
+      const w = Math.round(peakW(p.secs) || 0);
+      if (!w) return '';
+      return `<div class="detail-zone-summary-row"><span>${p.label} Peak</span><span class="detail-zone-summary-val">${w} W</span></div>`;
+    }).join('');
+
   } catch (err) { console.error('[PowerCurve] render error:', err); card.style.display = ''; showCardNA('detailCurveCard'); }
 }
 
