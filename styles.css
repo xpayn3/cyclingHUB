@@ -10981,6 +10981,10 @@ body.show-save-fab #actSaveRouteFab {
     padding-top: max(16px, env(safe-area-inset-top));
     border-bottom: 1px solid var(--surface-2);
     margin-bottom: 20px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--bg-base);
 }
 .act-card-info-body {
     padding: 0 var(--pad-page);
