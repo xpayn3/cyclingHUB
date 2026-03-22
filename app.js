@@ -22123,18 +22123,33 @@ function renderDetailGradientProfile(streams, activity) {
 
   card.style.display = '';
   unskeletonCard('detailGradientCard');
+  // Build gradient segments for the line chart
+  const ctx2d = document.getElementById('detailGradientChart').getContext('2d');
+
+  // Create a segment-colored line using Chart.js segment styling
+  const segmentColor = (ctx) => {
+    const i = ctx.p0DataIndex;
+    return segColors[i] || 'rgba(0,229,160,0.6)';
+  };
+
   state.activityGradientChart = destroyChart(state.activityGradientChart);
-  state.activityGradientChart = new Chart(
-    document.getElementById('detailGradientChart').getContext('2d'), {
-      type: 'bar',
+  state.activityGradientChart = new Chart(ctx2d, {
+      type: 'line',
       data: {
         labels: distDS,
         datasets: [{
           data: altDS,
-          backgroundColor: segColors,
-          borderWidth: 0,
-          barPercentage: 1.0,
-          categoryPercentage: 1.0,
+          borderColor: segmentColor,
+          borderWidth: 2,
+          backgroundColor: 'rgba(0,229,160,0.15)',
+          fill: true,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          tension: 0.3,
+          spanGaps: true,
+          segment: {
+            borderColor: ctx => segmentColor(ctx),
+          },
         }]
       },
       options: {
