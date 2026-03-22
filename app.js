@@ -19229,8 +19229,6 @@ function renderActivityBasic(a) {
   const decoupling = a.icu_power_hr_decoupling || a.decoupling || 0;
 
   let sec = '';
-  if (elev > 0)                  sec += sStat(elev.toLocaleString() + ' m', 'Elevation',   'elev',   'green',  pctElev, false);
-  if (speedKmh > 0.5)           sec += sStat(speedKmh.toFixed(1) + ' km/h','Avg Speed',   'speed',  'blue',   pctSpd,  true);
   if (avgW > 0 && np > 0)        sec += sStat(Math.round(avgW) + 'W',       'Avg Power',   'zap',    'orange', pctPow,  true);
   else if (powerEstimated)       sec += sStat(estAvgW + 'W',               'Est. Power',  'zap',    'orange', null,    false);
   if (maxW > 0)                  sec += sStat(Math.round(maxW) + 'W',       'Max Power',   'zap',    'orange', null,    false);

@@ -12302,6 +12302,7 @@ body:has(.act-sheet-mode) .topbar {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
+    justify-content: space-between;
     padding: 13px 14px 12px;
     background: var(--bg-card);
     border: none;
@@ -12311,6 +12312,7 @@ body:has(.act-sheet-mode) .topbar {
         border-color var(--transition),
         background var(--transition);
     position: relative;
+    min-height: 100px;
 }
 .act-sstat::before {
     content: "";
