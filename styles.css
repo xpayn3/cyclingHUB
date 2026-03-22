@@ -10951,14 +10951,24 @@ body.show-save-fab #actSaveRouteFab {
 }
 .act-sheet-scroll .card > .card-header {
     margin-bottom: 16px;
-    align-items: center;
-    text-align: left;
-    justify-content: flex-start;
+}
+/* Force left-align titles — the first-child div must stretch */
+.act-sheet-scroll .card > .card-header > div:first-child {
+    flex: 1;
+}
+/* Hide empty subtitles */
+.act-sheet-scroll .card-subtitle:empty,
+.act-sheet-scroll .card-subtitle[style*="display:none"],
+.act-sheet-scroll .card-subtitle[style*="display: none"] {
+    display: none !important;
+    margin: 0;
+    padding: 0;
+    height: 0;
 }
 .act-card-info-btn {
     position: absolute;
-    top: 0;
-    right: 0;
+    top: 2px;
+    right: var(--pad-page, 16px);
     width: 36px;
     height: 36px;
     border-radius: 50%;
