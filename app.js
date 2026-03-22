@@ -16896,6 +16896,8 @@ function _openActCardInfo(cardId, info) {
       <div class="aci-sp-subtitle">${activity?.name || 'Ride'} · ${fmtDur(activity?.moving_time || 0)}</div>`;
     pgEl.appendChild(hdr);
     _renderStreamsBreakdown(pgEl, state.normStreams, activity);
+    // Add guide section below breakdowns
+    _renderStreamsGuide(pgEl);
     overlay.style.display = 'flex';
     requestAnimationFrame(() => overlay.classList.add('act-info-open'));
     return;
@@ -17476,6 +17478,71 @@ function _renderStreamsBreakdown(container, streams, activity) {
   });
   html += '</div>';
   container.insertAdjacentHTML('beforeend', html);
+}
+
+function _renderStreamsGuide(container) {
+  const guide = document.createElement('div');
+  guide.className = 'aci-streams-guide';
+  guide.innerHTML = `
+    <div class="aci-guide-header">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+      <span>How to Read Your Data</span>
+    </div>
+
+    <div class="aci-guide-section">
+      <div class="aci-guide-title" style="color:#00e5a0">Power (Watts)</div>
+      <p>Power measures the force you apply to the pedals in real time. Higher spikes indicate harder efforts like sprints or climbs.</p>
+      <div class="aci-guide-tips">
+        <div class="aci-guide-tip"><span class="aci-guide-dot" style="background:#00e5a0"></span>Steady lines = consistent pacing (good for endurance)</div>
+        <div class="aci-guide-tip"><span class="aci-guide-dot" style="background:#f0c429"></span>Sharp spikes = hard efforts (intervals, attacks, climbs)</div>
+        <div class="aci-guide-tip"><span class="aci-guide-dot" style="background:#ff6b35"></span>Drops to zero = coasting or descending</div>
+      </div>
+    </div>
+
+    <div class="aci-guide-section">
+      <div class="aci-guide-title" style="color:#ff6b35">Heart Rate (BPM)</div>
+      <p>Heart rate shows your cardiovascular response. It lags behind power by 30-60 seconds — so HR rises after you start pushing hard.</p>
+      <div class="aci-guide-tips">
+        <div class="aci-guide-tip"><span class="aci-guide-dot" style="background:#4a9eff"></span>Gradual rise = warming up naturally</div>
+        <div class="aci-guide-tip"><span class="aci-guide-dot" style="background:#ff6b35"></span>Flat at high BPM = sustained threshold effort</div>
+        <div class="aci-guide-tip"><span class="aci-guide-dot" style="background:#ff453a"></span>Cardiac drift (rising HR, same power) = fatigue or dehydration</div>
+      </div>
+    </div>
+
+    <div class="aci-guide-section">
+      <div class="aci-guide-title" style="color:#4a9eff">Cadence (RPM)</div>
+      <p>Cadence is how fast you spin the pedals. Most efficient road cycling is 80-100 rpm. Lower cadence with high power means grinding big gears.</p>
+      <div class="aci-guide-tips">
+        <div class="aci-guide-tip"><span class="aci-guide-dot" style="background:#00e5a0"></span>80-95 rpm = efficient endurance spinning</div>
+        <div class="aci-guide-tip"><span class="aci-guide-dot" style="background:#f0c429"></span>100+ rpm = high cadence drill or sprint</div>
+        <div class="aci-guide-tip"><span class="aci-guide-dot" style="background:#ff6b35"></span>Below 60 rpm = grinding (can stress knees)</div>
+      </div>
+    </div>
+
+    <div class="aci-guide-section">
+      <div class="aci-guide-title" style="color:#f0c429">Speed (km/h)</div>
+      <p>Speed is affected by wind, gradient, and drafting — so it's less reliable than power for measuring effort. Use it to understand terrain effects.</p>
+      <div class="aci-guide-tips">
+        <div class="aci-guide-tip"><span class="aci-guide-dot" style="background:#00e5a0"></span>Speed drops + power steady = climbing or headwind</div>
+        <div class="aci-guide-tip"><span class="aci-guide-dot" style="background:#4a9eff"></span>Speed high + low power = descending or tailwind</div>
+      </div>
+    </div>
+
+    <div class="aci-guide-section">
+      <div class="aci-guide-title" style="color:#9b59ff">Elevation (m)</div>
+      <p>The elevation profile shows climbs and descents. Steep gradients appear as rapid changes in the line. Compare with power to see how you handled each climb.</p>
+    </div>
+
+    <div class="aci-guide-section aci-guide-interact">
+      <div class="aci-guide-title">Interactive Tips</div>
+      <div class="aci-guide-tips">
+        <div class="aci-guide-tip"><span class="aci-guide-icon">👆</span>Tap and drag on any chart to see values at that point</div>
+        <div class="aci-guide-tip"><span class="aci-guide-icon">🔘</span>Toggle metrics on/off with the buttons above the main chart</div>
+        <div class="aci-guide-tip"><span class="aci-guide-icon">🔍</span>Pinch or use Alt+Scroll to zoom into specific sections</div>
+      </div>
+    </div>
+  `;
+  container.appendChild(guide);
 }
 
 function _closeActCardInfo() {

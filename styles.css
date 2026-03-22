@@ -11093,6 +11093,65 @@ body.show-save-fab #actSaveRouteFab {
     margin-top: 3px;
     display: block;
 }
+/* Streams guide section */
+.aci-streams-guide {
+    padding: 24px var(--pad-page) 40px;
+}
+.aci-guide-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 17px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    color: var(--text-primary);
+}
+.aci-guide-section {
+    margin-bottom: 20px;
+    padding: 14px 16px;
+    background: var(--surface-1);
+    border-radius: var(--radius-sm);
+}
+.aci-guide-title {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+.aci-guide-section p {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    margin: 0 0 10px;
+}
+.aci-guide-tips {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.aci-guide-tip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+.aci-guide-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.aci-guide-icon {
+    font-size: 14px;
+    flex-shrink: 0;
+    width: 20px;
+    text-align: center;
+}
+.aci-guide-interact {
+    background: var(--surface-2);
+}
+
 .act-card-info-body {
     padding: 0 var(--pad-page);
 }
