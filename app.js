@@ -19385,8 +19385,8 @@ function renderDetailComparison(a) {
       <div class="detail-cmp-top">
         <div class="detail-cmp-label">${label}</div>
         <div class="detail-cmp-vals">
-          <div class="detail-cmp-this">${fmtFn(actual)}</div>
           <div class="detail-cmp-pct ${cls}">${pctLabel}</div>
+          <div class="detail-cmp-this">${fmtFn(actual)}</div>
         </div>
       </div>
       <div class="detail-cmp-bar-wrap">
