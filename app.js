@@ -12101,7 +12101,7 @@ function renderFtpHistoryChart(days) {
       scales: cScales({
         xExtra: { maxTicksLimit: 8 },
         yExtra: { suggestedMin: minV - pad, suggestedMax: maxV + pad,
-                  callback: v => v + 'W' }
+                  callback: function(v, i) { return i === 0 ? 'W' : v; } }
       })
     }
   });
@@ -13194,7 +13194,7 @@ function renderZnpDecoupleChart() {
         x: { grid: C_GRID, ticks: { ...C_TICK, maxRotation:0, maxTicksLimit:8, autoSkip:true } },
         y: {
           grid: C_GRID,
-          ticks: { ...C_TICK, callback: v => v+'%' },
+          ticks: { ...C_TICK, callback: function(v, i) { return i === 0 ? '%' : v; } },
           suggestedMin: -2,
           suggestedMax: 15,
         }
@@ -21163,7 +21163,7 @@ function renderActivityZoneCharts(activity) {
           legend: { display: false },
           tooltip: { ...C_TOOLTIP, callbacks: { label: c => `${c.raw} min` } }
         },
-        scales: cScales({ xGrid: false, yExtra: { callback: v => v + 'm' } })
+        scales: cScales({ xGrid: false, yExtra: { callback: function(v, i) { return i === 0 ? 'm' : v; } } })
       }
     };
   }
@@ -21618,7 +21618,7 @@ function renderDetailLRBalance(streams, activity) {
         y: {
           grid: C_GRID,
           min: 40, max: 60,
-          ticks: { ...C_TICK, callback: v => v === 50 ? '50%' : v + '%', stepSize: 2 },
+          ticks: { ...C_TICK, callback: function(v, i) { return i === 0 ? '%' : v; }, stepSize: 2 },
         }
       }
     }
@@ -22006,7 +22006,7 @@ function renderDetailHistogram(activity, streams) {
           legend: { display: false },
           tooltip: { ...C_TOOLTIP, callbacks: { label: c => `${c.raw} min` } }
         },
-        scales: cScales({ xGrid: false, xExtra: { maxTicksLimit: 12, maxRotation: 0 }, yExtra: { callback: v => v + 'm' } })
+        scales: cScales({ xGrid: false, xExtra: { maxTicksLimit: 12, maxRotation: 0 }, yExtra: { callback: function(v, i) { return i === 0 ? 'm' : v; } } })
       }
     }
   );
@@ -22156,13 +22156,13 @@ function renderDetailGradientProfile(streams, activity) {
         scales: {
           x: {
             ticks: { ...C_TICK, maxTicksLimit: 8,
-              callback: v => distDS[v] !== undefined ? distDS[v] + ' km' : '' },
+              callback: function(v, i, ticks) { return distDS[v] !== undefined ? (i === 0 ? 'km' : distDS[v]) : ''; } },
             grid: { display: false },
             border: { display: false },
           },
           y: {
             ticks: { ...C_TICK,
-              callback: v => v + 'm' },
+              callback: function(v, i, ticks) { return i === 0 ? 'm' : v; } },
             grid: C_GRID,
             border: { display: false },
           }
@@ -22741,7 +22741,7 @@ function renderDetailCadenceHist(streams, activity) {
           },
           y: {
             ticks: { ...C_TICK,
-              callback: v => v + ' min' },
+              callback: function(v, i) { return i === 0 ? 'min' : v; } },
             grid: C_GRID,
             border: { display: false },
           }
@@ -22846,7 +22846,7 @@ function renderZnpZoneTimeChart() {
         y: {
           stacked: true,
           ticks: { ...C_TICK,
-            callback: v => v + 'h' },
+            callback: function(v, i) { return i === 0 ? 'h' : v; } },
           grid: C_GRID,
           border: { display: false },
         }
