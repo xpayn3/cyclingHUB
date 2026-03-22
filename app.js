@@ -21797,7 +21797,7 @@ function renderDetailZones(activity) {
   document.getElementById('detailZonesSubtitle').textContent   = 'Time in power zone · this ride';
 
   document.getElementById('detailZoneList').innerHTML = totals.map((secs, i) => {
-    const pct   = totalSecs > 0 ? (secs / totalSecs * 100).toFixed(1) : '0.0';
+    const pct   = totalSecs > 0 ? Math.round(secs / totalSecs * 100) : 0;
     const color = ZONE_HEX[i];
     const dim   = secs === 0 ? ' style="opacity:0.35"' : '';
     return `<div class="detail-zone-row"${dim}>
@@ -21872,7 +21872,7 @@ function renderDetailHRZones(activity) {
     hintParts.length ? `Time in HR zone · ${hintParts.join(' · ')}` : 'Time in HR zone · this ride';
 
   document.getElementById('detailHRZoneList').innerHTML = totals.map((secs, i) => {
-    const pct   = totalSecs > 0 ? (secs / totalSecs * 100).toFixed(1) : '0.0';
+    const pct   = totalSecs > 0 ? Math.round(secs / totalSecs * 100) : 0;
     const color = ZONE_HEX[i] || ZONE_HEX[ZONE_HEX.length - 1];
     const tag   = `Z${i + 1}`;
     const name  = HR_ZONE_NAMES[i] || tag;
