@@ -11016,6 +11016,24 @@ body.show-save-fab #actSaveRouteFab {
     margin-bottom: 8px;
     background: var(--bg-base);
 }
+/* ── Streams dedicated page ── */
+.aci-streams-page {
+    padding: 0 0 100px !important;
+}
+.aci-sp-header {
+    padding: max(20px, env(safe-area-inset-top)) var(--pad-page) 16px;
+}
+.aci-sp-title {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
+}
+.aci-sp-subtitle {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
 /* Streams breakdown — individual metric charts (Apple Fitness style) */
 .aci-streams-breakdown {
     padding: 0 var(--pad-page);

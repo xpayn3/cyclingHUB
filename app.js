@@ -16885,15 +16885,29 @@ function _openActCardInfo(cardId, info) {
   controlsArea.innerHTML = '';
   dataArea.innerHTML = '';
 
-  // For streams card: render individual metric breakdowns instead of cloning
+  // For streams card: entirely separate page layout
   const isStreamsCard = cardId === 'detailStreamsCard' && state.normStreams;
   if (isStreamsCard) {
-    // Full breakdown layout — no cloned chart, no sticky
-    chartArea.style.position = 'relative';
-    chartArea.style.padding = '0';
-    chartArea.style.paddingTop = 'max(16px, env(safe-area-inset-top))';
-    _renderStreamsBreakdown(chartArea, state.normStreams, state.activities[state.currentActivityIdx]);
-  } else {
+    const activity = state.activities[state.currentActivityIdx];
+    const page = document.getElementById('actCardInfoPage');
+    page.className = 'act-card-info-page aci-streams-page';
+    page.innerHTML = '';
+    // Title header
+    const hdr = document.createElement('div');
+    hdr.className = 'aci-sp-header';
+    hdr.innerHTML = `<div class="aci-sp-title">Activity Data</div>
+      <div class="aci-sp-subtitle">${activity?.name || 'Ride'} · ${fmtDur(activity?.moving_time || 0)}</div>`;
+    page.appendChild(hdr);
+    // Render breakdowns
+    _renderStreamsBreakdown(page, state.normStreams, activity);
+    // Show overlay
+    overlay.style.display = 'flex';
+    requestAnimationFrame(() => overlay.classList.add('aci-open'));
+    return;
+  // Reset page class for non-streams cards
+  const page = document.getElementById('actCardInfoPage');
+  page.className = 'act-card-info-page';
+  {
     // Clone the card content (chart/graph)
     const sourceCard = document.getElementById(cardId);
     if (sourceCard) {
