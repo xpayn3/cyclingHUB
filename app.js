@@ -10905,7 +10905,7 @@ function renderKjEfficiencyChart(days) {
       },
       scales: {
         x: { grid: C_GRID, ticks: { ...C_TICK, maxRotation: 0, maxTicksLimit: 7 } },
-        y: { grid: C_GRID, ticks: { ...C_TICK, callback: function(v, i) { return i === 0 ? 'kJ/km' : v; } } },
+        y: { grid: C_GRID, ticks: C_TICK },
       },
     },
   });
