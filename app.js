@@ -2100,23 +2100,14 @@ async function _idbWriteAll(openFn, storeName, entries, outOfLineKeys) {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   GUN.JS P2P DEVICE SYNC
+   PEERJS P2P DEVICE SYNC
    ══════════════════════════════════════════════════════════════════════════════ */
 
-const _GUN_RELAYS = [
-  'https://relay.peer.ooo/gun',
-];
-let _gunInstance = null;
-let _gunRoom = null;
-let _gunListening = false;
-let _gunHeartbeatTimer = null;
-let _gunDeviceId = localStorage.getItem('icu_gun_device_id');
-if (!_gunDeviceId) {
-  _gunDeviceId = Math.random().toString(36).slice(2, 10);
-  localStorage.setItem('icu_gun_device_id', _gunDeviceId);
-}
+let _peerInstance = null;
+let _peerConn = null;
+let _peerMyId = '';
 
-function _gunDeviceName() {
+function _peerDeviceName() {
   const ua = navigator.userAgent;
   if (/iPhone/.test(ua)) return 'iPhone';
   if (/iPad/.test(ua)) return 'iPad';
@@ -2127,178 +2118,243 @@ function _gunDeviceName() {
   return 'Browser';
 }
 
-function _gunInit() {
-  const room = localStorage.getItem('icu_gun_room');
-  if (!room) return;
-  if (typeof GUN === 'undefined') {
-    console.warn('[GUN] Gun.js not loaded — CDN may be blocked');
-    const statusText = document.getElementById('syncStatusText');
-    if (statusText) statusText.textContent = 'Gun.js failed to load';
-    return;
-  }
-  try {
-    _gunInstance = GUN(_GUN_RELAYS);
-    _gunRoom = _gunInstance.get('cycleiq-' + room);
-    _gunUpdateUI(true);
-    _gunListen();
-    _gunAnnounce();
-    _gunWatchDevices();
-    // Heartbeat every 15s
-    clearInterval(_gunHeartbeatTimer);
-    _gunHeartbeatTimer = setInterval(_gunAnnounce, 15000);
-  } catch (e) {
-    console.warn('[GUN] init failed:', e);
-  }
-}
-
-function _gunAnnounce() {
-  if (!_gunRoom) return;
-  _gunRoom.get('devices').get(_gunDeviceId).put({
-    name: _gunDeviceName(),
-    id: _gunDeviceId,
-    ts: Date.now(),
-    athlete: localStorage.getItem('icu_athlete_id') || '',
-  });
-}
-
-const _gunDevices = {}; // live map of device id → data
-
-function _gunWatchDevices() {
-  if (!_gunRoom) return;
-  _gunRoom.get('devices').map().on((data, id) => {
-    if (!data || !data.ts) return;
-    _gunDevices[id] = { id, name: data.name, ts: data.ts };
-    _gunRenderDevices();
-  });
-  // Clean stale devices every 30s (2min timeout for slow relays)
-  setInterval(() => {
-    const now = Date.now();
-    for (const id of Object.keys(_gunDevices)) {
-      if (now - _gunDevices[id].ts > 120000) delete _gunDevices[id];
-    }
-    _gunRenderDevices();
-  }, 30000);
-}
-
-function _gunRenderDevices() {
-  const el = document.getElementById('syncDeviceList');
-  if (!el) return;
-
-  const now = Date.now();
-  const active = Object.values(_gunDevices).filter(d => now - d.ts < 120000);
-  const count = active.length;
-  const statusText = document.getElementById('syncStatusText');
-  if (statusText) statusText.textContent = count > 1 ? `${count} devices online` : count === 1 ? 'Connected (waiting for peer)' : 'Connected';
-
-  if (!active.length) {
-    el.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:12px;font-size:13px">No devices detected</div>';
-    return;
-  }
-
-  const phoneIcon = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>';
-  const pcIcon = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>';
-
-  el.innerHTML = active.map(d => {
-    const mine = d.id === _gunDeviceId;
-    const icon = (d.name === 'iPhone' || d.name === 'iPad' || d.name === 'Android') ? phoneIcon : pcIcon;
-    const secs = Math.round((now - d.ts) / 1000);
-    const timeLabel = mine ? 'You' : secs < 5 ? 'Just now' : secs + 's ago';
-    return `<div class="sync-device${mine ? ' sync-device--me' : ''}">
-      <div class="sync-device-icon">${icon}</div>
-      <div class="sync-device-info">
-        <div class="sync-device-name">${d.name}${mine ? ' (this device)' : ''}</div>
-        <div class="sync-device-time">${timeLabel}</div>
-      </div>
-      <div class="sync-device-dot${mine ? '' : ' sync-device-dot--peer'}"></div>
-    </div>`;
-  }).join('');
-}
-
-// Build a full localStorage snapshot (same keys as exportFullBackup)
-function _gunBuildSnapshot() {
+function _peerBuildSnapshot() {
   const ls = {};
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);
-    if (k.startsWith('icu_') || k.startsWith('strava_')) {
-      // Skip gun-internal keys and large activity caches to stay under size limits
-      if (k === 'icu_gun_room' || k === 'icu_gun_last_sync') continue;
-      ls[k] = localStorage.getItem(k);
-    }
+    if (k.startsWith('icu_') || k.startsWith('strava_')) ls[k] = localStorage.getItem(k);
   }
   return ls;
 }
 
-// Restore a snapshot to localStorage
-function _gunRestoreSnapshot(snapshot) {
+function _peerRestoreSnapshot(snapshot) {
   if (!snapshot || typeof snapshot !== 'object') return;
   for (const [k, v] of Object.entries(snapshot)) {
-    if (k.startsWith('icu_') || k.startsWith('strava_')) {
-      localStorage.setItem(k, v);
-    }
+    if (k.startsWith('icu_') || k.startsWith('strava_')) localStorage.setItem(k, v);
   }
 }
 
-function _gunGenRoom() {
-  const code = Array.from(crypto.getRandomValues(new Uint8Array(4)))
-    .map(b => b.toString(36).padStart(2, '0')).join('').slice(0, 8).toUpperCase();
-  localStorage.setItem('icu_gun_room', code);
-  _gunInit();
-  _gunPush();
-  _gunUpdateUI(true);
-  showToast('Room created — share the code with your other device', 'success');
-}
-window._gunGenRoom = _gunGenRoom;
-
-function _gunCopyRoom() {
-  const code = localStorage.getItem('icu_gun_room') || '';
-  if (!code) return;
-  navigator.clipboard?.writeText(code).then(() => showToast('Code copied', 'success'))
-    .catch(() => { prompt('Copy this code:', code); });
-}
-window._gunCopyRoom = _gunCopyRoom;
-
-function _gunJoinRoom(code) {
-  if (!code || code.length < 4) { showToast('Enter a valid room code', 'error'); return; }
-  const clean = code.trim().toUpperCase();
-  localStorage.setItem('icu_gun_room', clean);
-  // Reset device map
-  for (const k of Object.keys(_gunDevices)) delete _gunDevices[k];
-  _gunListening = false;
-  _gunInit();
-  // Show the connected UI immediately
+function _peerUpdateUI(status, peerId) {
+  const dot = document.querySelector('#syncStatusDot .sync-dot');
+  const text = document.getElementById('syncStatusText');
   const codeEl = document.getElementById('syncRoomCode');
-  if (codeEl) codeEl.textContent = clean;
-  _gunUpdateUI(true);
-  _gunRenderDevices();
-  showToast('Joined room ' + clean, 'success');
-}
-window._gunJoinRoom = _gunJoinRoom;
+  const discRow = document.getElementById('syncDisconnectRow');
+  const label = document.getElementById('syncStatusLabel');
 
-function _gunDisconnect() {
-  clearInterval(_gunHeartbeatTimer);
-  localStorage.removeItem('icu_gun_room');
-  _gunRoom = null;
-  _gunListening = false;
-  if (_gunInstance) { try { _gunInstance = null; } catch {} }
-  _gunUpdateUI(false);
-  const list = document.getElementById('syncDeviceList');
-  if (list) list.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:12px;font-size:13px">Not connected</div>';
-  showToast('Disconnected from sync room', 'success');
+  const copyBtn = document.getElementById('syncCopyBtn');
+  const genBtn = document.getElementById('syncGenBtn');
+  const isOn = status === 'ready' || status === 'connected';
+  if (dot) dot.className = 'sync-dot ' + (isOn ? 'sync-dot--on' : 'sync-dot--off');
+  if (text) text.textContent = status === 'connected' ? 'Peer connected' : status === 'ready' ? 'Waiting for peer...' : status === 'error' ? 'Connection failed' : 'Not connected';
+  if (codeEl) codeEl.textContent = peerId || _peerMyId || '—';
+  if (copyBtn) copyBtn.style.display = _peerMyId ? '' : 'none';
+  if (genBtn) genBtn.textContent = _peerMyId ? 'Restart' : 'Start Hosting';
+  if (discRow) discRow.style.display = isOn ? '' : 'none';
+  if (label) label.textContent = isOn ? 'Connected' : '';
+  _peerUpdateLastSync();
 }
-window._gunDisconnect = _gunDisconnect;
+
+function _peerUpdateLastSync() {
+  const el = document.getElementById('syncLastTime');
+  if (!el) return;
+  const ts = localStorage.getItem('icu_peer_last_sync');
+  if (ts) {
+    const d = new Date(ts);
+    el.textContent = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  } else {
+    el.textContent = 'Never';
+  }
+}
+
+function _peerRenderDevices(peerName) {
+  const el = document.getElementById('syncDeviceList');
+  if (!el) return;
+  const phoneIcon = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>';
+  const pcIcon = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>';
+  const myName = _peerDeviceName();
+  const myIcon = (myName === 'iPhone' || myName === 'iPad' || myName === 'Android') ? phoneIcon : pcIcon;
+
+  let html = `<div class="sync-device sync-device--me">
+    <div class="sync-device-icon">${myIcon}</div>
+    <div class="sync-device-info"><div class="sync-device-name">${myName} (this device)</div><div class="sync-device-time">You</div></div>
+    <div class="sync-device-dot"></div>
+  </div>`;
+
+  if (peerName) {
+    const peerIcon = (peerName === 'iPhone' || peerName === 'iPad' || peerName === 'Android') ? phoneIcon : pcIcon;
+    html += `<div class="sync-device">
+      <div class="sync-device-icon">${peerIcon}</div>
+      <div class="sync-device-info"><div class="sync-device-name">${peerName}</div><div class="sync-device-time">Connected</div></div>
+      <div class="sync-device-dot sync-device-dot--peer"></div>
+    </div>`;
+  }
+  el.innerHTML = html;
+}
+
+function _peerHandleConn(conn) {
+  _peerConn = conn;
+  conn.on('open', () => {
+    _peerUpdateUI('connected');
+    // Send our device name
+    conn.send({ type: 'hello', name: _peerDeviceName() });
+    _peerRenderDevices(null); // show self, peer name comes in hello
+    showToast('Peer connected!', 'success');
+  });
+  conn.on('data', data => {
+    if (!data || !data.type) return;
+    if (data.type === 'hello') {
+      _peerRenderDevices(data.name);
+    } else if (data.type === 'snapshot') {
+      const keys = Object.keys(data.payload || {}).length;
+      _peerRestoreSnapshot(data.payload);
+      localStorage.setItem('icu_peer_last_sync', new Date().toISOString());
+      _peerUpdateLastSync();
+      showToast(`Received ${keys} keys — reloading...`, 'success');
+      setTimeout(() => location.reload(), 1500);
+    } else if (data.type === 'request') {
+      // Peer is requesting our data
+      const snapshot = _peerBuildSnapshot();
+      conn.send({ type: 'snapshot', payload: snapshot });
+      showToast('Data sent to peer', 'success');
+    }
+  });
+  conn.on('close', () => {
+    _peerConn = null;
+    _peerUpdateUI('ready');
+    _peerRenderDevices(null);
+    showToast('Peer disconnected', 'info');
+  });
+  conn.on('error', e => {
+    console.warn('[PEER] conn error:', e);
+    showToast('Connection error', 'error');
+  });
+}
+
+function _peerStart() {
+  if (typeof Peer === 'undefined') {
+    showToast('PeerJS not loaded — check your connection', 'error');
+    _peerUpdateUI('error');
+    return;
+  }
+  // Generate a short human-readable ID
+  const shortId = 'CIQ-' + Array.from(crypto.getRandomValues(new Uint8Array(3)))
+    .map(b => b.toString(36)).join('').toUpperCase().slice(0, 6);
+  _peerMyId = shortId;
+
+  _peerInstance = new Peer(shortId, { debug: 0 });
+  _peerInstance.on('open', id => {
+    _peerMyId = id;
+    _peerUpdateUI('ready', id);
+    _peerRenderDevices(null);
+    const codeEl = document.getElementById('syncRoomCode');
+    if (codeEl) codeEl.textContent = id;
+  });
+  _peerInstance.on('connection', conn => {
+    _peerHandleConn(conn);
+  });
+  _peerInstance.on('error', e => {
+    console.warn('[PEER] error:', e);
+    if (e.type === 'unavailable-id') {
+      // ID taken, retry with different one
+      _peerInstance.destroy();
+      setTimeout(_peerStart, 500);
+    } else {
+      _peerUpdateUI('error');
+    }
+  });
+}
+
+function _peerConnect(peerId) {
+  if (!peerId || peerId.length < 4) { showToast('Enter a valid peer ID', 'error'); return; }
+  const clean = peerId.trim().toUpperCase();
+  if (!_peerInstance) {
+    // Start our own peer first, then connect
+    if (typeof Peer === 'undefined') { showToast('PeerJS not loaded', 'error'); return; }
+    const myId = 'CIQ-' + Array.from(crypto.getRandomValues(new Uint8Array(3)))
+      .map(b => b.toString(36)).join('').toUpperCase().slice(0, 6);
+    _peerInstance = new Peer(myId, { debug: 0 });
+    _peerInstance.on('open', () => {
+      _peerMyId = myId;
+      const conn = _peerInstance.connect(clean, { reliable: true });
+      _peerHandleConn(conn);
+      _peerUpdateUI('connected', _peerMyId);
+    });
+    _peerInstance.on('error', e => {
+      console.warn('[PEER] connect error:', e);
+      showToast('Could not connect: ' + (e.type || e.message), 'error');
+      _peerUpdateUI('error');
+    });
+  } else {
+    const conn = _peerInstance.connect(clean, { reliable: true });
+    _peerHandleConn(conn);
+  }
+  showToast('Connecting to ' + clean + '...', 'info');
+}
+window._peerConnect = _peerConnect;
+
+function _peerSendData() {
+  if (!_peerConn || !_peerConn.open) {
+    showToast('No peer connected', 'error');
+    return;
+  }
+  const snapshot = _peerBuildSnapshot();
+  _peerConn.send({ type: 'snapshot', payload: snapshot });
+  localStorage.setItem('icu_peer_last_sync', new Date().toISOString());
+  _peerUpdateLastSync();
+  showToast('Data sent to peer', 'success');
+}
+window._peerSendData = _peerSendData;
+
+function _peerRequestData() {
+  if (!_peerConn || !_peerConn.open) {
+    showToast('No peer connected', 'error');
+    return;
+  }
+  _peerConn.send({ type: 'request' });
+  showToast('Requesting data from peer...', 'info');
+}
+window._peerRequestData = _peerRequestData;
+
+function _peerDisconnect() {
+  if (_peerConn) { try { _peerConn.close(); } catch {} _peerConn = null; }
+  if (_peerInstance) { try { _peerInstance.destroy(); } catch {} _peerInstance = null; }
+  _peerMyId = '';
+  _peerUpdateUI('off');
+  _peerRenderDevices(null);
+  const el = document.getElementById('syncDeviceList');
+  if (el) el.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:12px;font-size:13px">Not connected</div>';
+  showToast('Disconnected', 'success');
+}
+window._peerDisconnect = _peerDisconnect;
+
+// Aliases for HTML onclick compatibility
+window._gunGenRoom = _peerStart;
+window._gunCopyRoom = function() {
+  if (!_peerMyId) return;
+  navigator.clipboard?.writeText(_peerMyId).then(() => showToast('Peer ID copied', 'success'))
+    .catch(() => { prompt('Copy this ID:', _peerMyId); });
+};
+window._gunJoinRoom = _peerConnect;
+window._gunDisconnect = _peerDisconnect;
+window._gunSyncNow = function() {
+  if (_peerConn && _peerConn.open) {
+    _peerSendData();
+  } else {
+    showToast('No peer connected — start hosting or connect to a peer first', 'error');
+  }
+};
 
 /* ── Clipboard-based transfer (reliable fallback) ── */
 async function _clipboardExport() {
   try {
-    const snapshot = _gunBuildSnapshot();
+    const snapshot = _peerBuildSnapshot();
     const json = JSON.stringify(snapshot);
     await navigator.clipboard.writeText(json);
     const keys = Object.keys(snapshot).length;
     const sizeKB = Math.round(json.length / 1024);
     showToast(`Copied ${keys} keys (${sizeKB} KB) — paste on other device`, 'success');
   } catch (e) {
-    // Fallback for iOS where clipboard API may be blocked
-    const snapshot = _gunBuildSnapshot();
+    const snapshot = _peerBuildSnapshot();
     const json = JSON.stringify(snapshot);
     const ta = document.createElement('textarea');
     ta.value = json;
@@ -2324,116 +2380,22 @@ async function _clipboardImport() {
     }
     const keys = Object.keys(snapshot).length;
     if (!confirm(`Restore ${keys} settings from clipboard? This will overwrite your current data.`)) return;
-    _gunRestoreSnapshot(snapshot);
+    _peerRestoreSnapshot(snapshot);
     showToast(`Restored ${keys} keys — reloading...`, 'success');
     setTimeout(() => location.reload(), 1500);
   } catch (e) {
-    // Clipboard read failed — prompt for paste
     const text = prompt('Paste the backup data here:');
     if (!text) return;
     let snapshot;
     try { snapshot = JSON.parse(text); } catch { showToast('Invalid backup data', 'error'); return; }
     if (typeof snapshot !== 'object') { showToast('Not a valid backup', 'error'); return; }
     const keys = Object.keys(snapshot).length;
-    _gunRestoreSnapshot(snapshot);
+    _peerRestoreSnapshot(snapshot);
     showToast(`Restored ${keys} keys — reloading...`, 'success');
     setTimeout(() => location.reload(), 1500);
   }
 }
 window._clipboardImport = _clipboardImport;
-
-function _gunPush() {
-  if (!_gunRoom) return;
-  const snapshot = _gunBuildSnapshot();
-  const json = JSON.stringify(snapshot);
-  // Gun has size limits per node — split into chunks of ~200KB
-  const CHUNK = 200000;
-  const chunks = [];
-  for (let i = 0; i < json.length; i += CHUNK) {
-    chunks.push(json.slice(i, i + CHUNK));
-  }
-  _gunRoom.get('meta').put({ ts: Date.now(), chunks: chunks.length, device: navigator.userAgent.slice(0, 30) });
-  chunks.forEach((c, i) => {
-    _gunRoom.get('chunk_' + i).put({ d: c });
-  });
-  localStorage.setItem('icu_gun_last_sync', new Date().toISOString());
-  _gunUpdateLastSync();
-}
-
-function _gunListen() {
-  if (_gunListening || !_gunRoom) return;
-  _gunListening = true;
-  let lastTs = 0;
-  _gunRoom.get('meta').on(meta => {
-    if (!meta || !meta.ts || meta.ts <= lastTs) return;
-    lastTs = meta.ts;
-    // New snapshot available — pull all chunks
-    const total = meta.chunks || 1;
-    const parts = [];
-    let received = 0;
-    for (let i = 0; i < total; i++) {
-      _gunRoom.get('chunk_' + i).once(chunk => {
-        if (chunk && chunk.d) parts[i] = chunk.d;
-        received++;
-        if (received >= total) {
-          try {
-            const json = parts.join('');
-            const snapshot = JSON.parse(json);
-            _gunRestoreSnapshot(snapshot);
-            localStorage.setItem('icu_gun_last_sync', new Date().toISOString());
-            _gunUpdateLastSync();
-            showToast('Sync received — reloading...', 'success');
-            setTimeout(() => location.reload(), 1000);
-          } catch (e) {
-            console.warn('[GUN] failed to parse snapshot:', e);
-          }
-        }
-      });
-    }
-  });
-}
-
-function _gunSyncNow() {
-  if (!_gunRoom) { showToast('Not connected — generate or join a room first', 'error'); return; }
-  _gunPush();
-  showToast('Data pushed to sync room', 'success');
-}
-window._gunSyncNow = _gunSyncNow;
-
-function _gunUpdateUI(connected) {
-  const dot = document.querySelector('#syncStatusDot .sync-dot');
-  const text = document.getElementById('syncStatusText');
-  const codeEl = document.getElementById('syncRoomCode');
-  const copyBtn = document.getElementById('syncCopyBtn');
-  const genBtn = document.getElementById('syncGenBtn');
-  const discRow = document.getElementById('syncDisconnectRow');
-  const label = document.getElementById('syncStatusLabel');
-  const room = localStorage.getItem('icu_gun_room') || '';
-
-  if (dot) { dot.className = 'sync-dot ' + (connected && room ? 'sync-dot--on' : 'sync-dot--off'); }
-  if (text) text.textContent = connected && room ? 'Connected' : 'Not connected';
-  if (codeEl) codeEl.textContent = room || '—';
-  if (copyBtn) copyBtn.style.display = room ? '' : 'none';
-  if (genBtn) genBtn.textContent = room ? 'New Code' : 'Generate';
-  if (discRow) discRow.style.display = room ? '' : 'none';
-  if (label) label.textContent = room ? 'Connected' : '';
-  _gunUpdateLastSync();
-}
-
-function _gunUpdateLastSync() {
-  const el = document.getElementById('syncLastTime');
-  if (!el) return;
-  const ts = localStorage.getItem('icu_gun_last_sync');
-  if (ts) {
-    const d = new Date(ts);
-    el.textContent = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-  } else {
-    el.textContent = 'Never';
-  }
-}
-
-// Auto-init on app load
-setTimeout(_gunInit, 3000);
 
 /* ── Full Backup Export ── */
 async function exportFullBackup() {

@@ -64,7 +64,7 @@
         <script defer src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" integrity="sha384-NElt3Op+9NBMCYaef5HxeJmU4Xeard/Lku8ek6hoPTvYkQPh3zLIrJP7KiRocsxO" crossorigin="anonymous"></script>
         <script defer src="https://unpkg.com/maplibre-gl@5.1.0/dist/maplibre-gl.js" crossorigin="anonymous"></script>
         <!-- FIT parser loaded on-demand in app.js (not needed at startup) -->
-        <script defer src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+        <script defer src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
         <script type="module" src="app.js?v=7"></script>
     </head>
     <body>
@@ -5761,13 +5761,13 @@
                             <div class="ios-group">
                                 <div class="ios-row" id="syncRoomRow" style="flex-direction:column;align-items:stretch;gap:10px;padding:14px 16px">
                                     <div style="display:flex;align-items:center;justify-content:space-between">
-                                        <span class="ios-row-label">Room Code</span>
-                                        <button class="btn btn-ghost btn-sm" id="syncGenBtn" onclick="_gunGenRoom()" style="font-size:13px">Generate</button>
+                                        <span class="ios-row-label">Your Peer ID</span>
+                                        <button class="btn btn-ghost btn-sm" id="syncGenBtn" onclick="_gunGenRoom()" style="font-size:13px">Start Hosting</button>
                                     </div>
                                     <div class="sync-room-code" id="syncRoomCode">—</div>
                                     <button class="btn btn-ghost btn-sm" id="syncCopyBtn" onclick="_gunCopyRoom()" style="display:none;width:100%">
                                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                                        Copy Code
+                                        Copy Peer ID
                                     </button>
                                 </div>
                             </div>
@@ -5777,8 +5777,8 @@
                             <div class="ios-group">
                                 <div class="ios-row" style="padding:12px 16px">
                                     <div class="sync-join-row">
-                                        <input type="text" id="syncJoinInput" placeholder="Enter room code" maxlength="8" style="flex:1;text-transform:uppercase;letter-spacing:0.15em;font-family:var(--font-num);font-size:16px;font-weight:600;text-align:center">
-                                        <button class="btn btn-accent btn-sm" onclick="_gunJoinRoom(document.getElementById('syncJoinInput').value)">Join</button>
+                                        <input type="text" id="syncJoinInput" placeholder="Enter peer ID" maxlength="12" style="flex:1;text-transform:uppercase;letter-spacing:0.15em;font-family:var(--font-num);font-size:16px;font-weight:600;text-align:center">
+                                        <button class="btn btn-accent btn-sm" onclick="_gunJoinRoom(document.getElementById('syncJoinInput').value)">Connect</button>
                                     </div>
                                 </div>
                             </div>
@@ -5792,10 +5792,14 @@
                             <!-- Actions -->
                             <div class="ios-group-label">Actions</div>
                             <div class="ios-group">
-                                <div class="ios-row" onclick="_gunSyncNow()">
-                                    <div class="ios-row-icon" style="background:var(--accent)"><svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></div>
-                                    <span class="ios-row-label">Sync Now</span>
+                                <div class="ios-row" onclick="_peerSendData()">
+                                    <div class="ios-row-icon" style="background:var(--accent)"><svg viewBox="0 0 24 24"><path d="M22 2L11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div>
+                                    <span class="ios-row-label">Send Data to Peer</span>
                                     <span class="ios-row-detail" id="syncLastTime" style="font-size:12px;color:var(--text-muted)"></span>
+                                </div>
+                                <div class="ios-row" onclick="_peerRequestData()">
+                                    <div class="ios-row-icon" style="background:#5ac8fa"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
+                                    <span class="ios-row-label">Receive Data from Peer</span>
                                 </div>
                                 <div class="ios-row" onclick="_gunDisconnect()" id="syncDisconnectRow" style="display:none">
                                     <div class="ios-row-icon" style="background:var(--red)"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
@@ -5833,8 +5837,8 @@
                             </div>
 
                             <div style="padding:16px;text-align:center;font-size:12px;color:var(--text-faint)">
-                                P2P sync via Gun.js relay — no server, no account needed.<br>
-                                Both devices must be online to sync.
+                                P2P sync via PeerJS WebRTC — direct device-to-device transfer.<br>
+                                Both devices must be online. No account needed.
                             </div>
                         </div>
 
