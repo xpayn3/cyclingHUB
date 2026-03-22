@@ -22176,14 +22176,10 @@ function renderDetailTempChart(streams, activity) {
       plugins: {
         legend: { display: false },
         tooltip: {
+          ...C_TOOLTIP,
           callbacks: {
             label: ctx => `${ctx.parsed.y}${deg}`,
           },
-          backgroundColor: _isDark() ? 'rgba(15,20,30,0.85)' : 'rgba(255,255,255,0.92)',
-          titleColor: _isDark() ? '#94a3b8' : '#555e72',
-          bodyColor: _isDark() ? '#f1f5f9' : '#1a1d24',
-          borderColor: _isDark() ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
-          borderWidth: 1,
         }
       },
       scales: {
@@ -22194,7 +22190,7 @@ function renderDetailTempChart(streams, activity) {
         y: {
           position: 'left',
           grid: C_GRID,
-          ticks: { ...C_TICK, maxTicksLimit: 5, callback: v => v + deg },
+          ticks: { ...C_TICK, maxTicksLimit: 5, callback: function(v, i) { return i === 0 ? deg : v; } },
           suggestedMin: minT - 2,
           suggestedMax: maxT + 2,
         }
