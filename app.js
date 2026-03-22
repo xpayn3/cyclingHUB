@@ -21991,7 +21991,7 @@ function renderDetailHistogram(activity, streams) {
     document.getElementById('activityHistogramChart').getContext('2d'), {
       type: 'bar',
       data: {
-        labels: entries.map(e => e.watts + 'w'),
+        labels: entries.map(e => e.watts),
         datasets: [{
           data:  entries.map(e => e.mins),
           backgroundColor: 'rgba(0,229,160,0.45)',
@@ -22006,7 +22006,7 @@ function renderDetailHistogram(activity, streams) {
           legend: { display: false },
           tooltip: { ...C_TOOLTIP, callbacks: { label: c => `${c.raw} min` } }
         },
-        scales: cScales({ xGrid: false, xExtra: { maxTicksLimit: 12, maxRotation: 0 }, yExtra: { callback: function(v, i) { return i === 0 ? 'm' : v; } } })
+        scales: cScales({ xGrid: false, xExtra: { maxTicksLimit: 12, maxRotation: 0, callback: function(v, i) { return i === 0 ? 'W' : this.getLabelForValue(v); } }, yExtra: { callback: function(v, i) { return i === 0 ? 'min' : v; } } })
       }
     }
   );
