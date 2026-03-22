@@ -2104,11 +2104,7 @@ async function _idbWriteAll(openFn, storeName, entries, outOfLineKeys) {
    ══════════════════════════════════════════════════════════════════════════════ */
 
 const _GUN_RELAYS = [
-  'https://gun-manhattan.herokuapp.com/gun',
-  'https://gun-us.herokuapp.com/gun',
-  'https://gun-eu.herokuapp.com/gun',
   'https://relay.peer.ooo/gun',
-  'https://peer.wallie.io/gun',
 ];
 let _gunInstance = null;
 let _gunRoom = null;
@@ -2290,6 +2286,61 @@ function _gunDisconnect() {
   showToast('Disconnected from sync room', 'success');
 }
 window._gunDisconnect = _gunDisconnect;
+
+/* ── Clipboard-based transfer (reliable fallback) ── */
+async function _clipboardExport() {
+  try {
+    const snapshot = _gunBuildSnapshot();
+    const json = JSON.stringify(snapshot);
+    await navigator.clipboard.writeText(json);
+    const keys = Object.keys(snapshot).length;
+    const sizeKB = Math.round(json.length / 1024);
+    showToast(`Copied ${keys} keys (${sizeKB} KB) — paste on other device`, 'success');
+  } catch (e) {
+    // Fallback for iOS where clipboard API may be blocked
+    const snapshot = _gunBuildSnapshot();
+    const json = JSON.stringify(snapshot);
+    const ta = document.createElement('textarea');
+    ta.value = json;
+    ta.style.cssText = 'position:fixed;left:-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('Copied to clipboard — paste on other device', 'success');
+  }
+}
+window._clipboardExport = _clipboardExport;
+
+async function _clipboardImport() {
+  try {
+    const text = await navigator.clipboard.readText();
+    if (!text || text.length < 10) { showToast('Clipboard is empty', 'error'); return; }
+    let snapshot;
+    try { snapshot = JSON.parse(text); } catch { showToast('Clipboard does not contain valid backup data', 'error'); return; }
+    if (typeof snapshot !== 'object' || !Object.keys(snapshot).some(k => k.startsWith('icu_'))) {
+      showToast('Not a valid CycleIQ backup', 'error');
+      return;
+    }
+    const keys = Object.keys(snapshot).length;
+    if (!confirm(`Restore ${keys} settings from clipboard? This will overwrite your current data.`)) return;
+    _gunRestoreSnapshot(snapshot);
+    showToast(`Restored ${keys} keys — reloading...`, 'success');
+    setTimeout(() => location.reload(), 1500);
+  } catch (e) {
+    // Clipboard read failed — prompt for paste
+    const text = prompt('Paste the backup data here:');
+    if (!text) return;
+    let snapshot;
+    try { snapshot = JSON.parse(text); } catch { showToast('Invalid backup data', 'error'); return; }
+    if (typeof snapshot !== 'object') { showToast('Not a valid backup', 'error'); return; }
+    const keys = Object.keys(snapshot).length;
+    _gunRestoreSnapshot(snapshot);
+    showToast(`Restored ${keys} keys — reloading...`, 'success');
+    setTimeout(() => location.reload(), 1500);
+  }
+}
+window._clipboardImport = _clipboardImport;
 
 function _gunPush() {
   if (!_gunRoom) return;
