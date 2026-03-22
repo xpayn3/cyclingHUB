@@ -2107,6 +2107,23 @@ const _GUN_RELAY = 'https://gun-manhattan.herokuapp.com/gun';
 let _gunInstance = null;
 let _gunRoom = null;
 let _gunListening = false;
+let _gunHeartbeatTimer = null;
+let _gunDeviceId = localStorage.getItem('icu_gun_device_id');
+if (!_gunDeviceId) {
+  _gunDeviceId = Math.random().toString(36).slice(2, 10);
+  localStorage.setItem('icu_gun_device_id', _gunDeviceId);
+}
+
+function _gunDeviceName() {
+  const ua = navigator.userAgent;
+  if (/iPhone/.test(ua)) return 'iPhone';
+  if (/iPad/.test(ua)) return 'iPad';
+  if (/Android/.test(ua)) return 'Android';
+  if (/Mac/.test(ua)) return 'Mac';
+  if (/Windows/.test(ua)) return 'Windows';
+  if (/Linux/.test(ua)) return 'Linux';
+  return 'Browser';
+}
 
 function _gunInit() {
   const room = localStorage.getItem('icu_gun_room');
@@ -2116,9 +2133,76 @@ function _gunInit() {
     _gunRoom = _gunInstance.get('cycleiq-' + room);
     _gunUpdateUI(true);
     _gunListen();
+    _gunAnnounce();
+    _gunWatchDevices();
+    // Heartbeat every 15s
+    clearInterval(_gunHeartbeatTimer);
+    _gunHeartbeatTimer = setInterval(_gunAnnounce, 15000);
   } catch (e) {
     console.warn('[GUN] init failed:', e);
   }
+}
+
+function _gunAnnounce() {
+  if (!_gunRoom) return;
+  _gunRoom.get('devices').get(_gunDeviceId).put({
+    name: _gunDeviceName(),
+    id: _gunDeviceId,
+    ts: Date.now(),
+    athlete: localStorage.getItem('icu_athlete_id') || '',
+  });
+}
+
+function _gunWatchDevices() {
+  if (!_gunRoom) return;
+  _gunRoom.get('devices').map().on((data, id) => {
+    if (!data || !data.ts) return;
+    _gunRenderDevices();
+  });
+  // Also poll to clean stale devices
+  setInterval(_gunRenderDevices, 10000);
+}
+
+function _gunRenderDevices() {
+  const list = document.getElementById('syncDeviceList');
+  if (!list || !_gunRoom) return;
+
+  const devices = [];
+  _gunRoom.get('devices').map().once((data, id) => {
+    if (!data || !data.ts) return;
+    const age = Date.now() - data.ts;
+    if (age < 60000) { // active in last 60s
+      devices.push({ id, name: data.name, ts: data.ts, mine: id === _gunDeviceId });
+    }
+  });
+
+  // Render after a brief collection window
+  setTimeout(() => {
+    const el = document.getElementById('syncDeviceList');
+    if (!el) return;
+    const count = devices.length;
+    const statusText = document.getElementById('syncStatusText');
+    if (statusText) statusText.textContent = count > 1 ? `${count} devices online` : count === 1 ? 'Connected (waiting for peer)' : 'Connected';
+
+    if (!devices.length) {
+      el.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:12px;font-size:13px">No devices detected</div>';
+      return;
+    }
+    el.innerHTML = devices.map(d => `
+      <div class="sync-device${d.mine ? ' sync-device--me' : ''}">
+        <div class="sync-device-icon">
+          ${d.name === 'iPhone' || d.name === 'iPad' ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>'
+          : d.name === 'Android' ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>'
+          : '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>'}
+        </div>
+        <div class="sync-device-info">
+          <div class="sync-device-name">${d.name}${d.mine ? ' (this device)' : ''}</div>
+          <div class="sync-device-time">${d.mine ? 'You' : 'Online now'}</div>
+        </div>
+        <div class="sync-device-dot${d.mine ? '' : ' sync-device-dot--peer'}"></div>
+      </div>
+    `).join('');
+  }, 500);
 }
 
 // Build a full localStorage snapshot (same keys as exportFullBackup)
@@ -2175,11 +2259,14 @@ function _gunJoinRoom(code) {
 window._gunJoinRoom = _gunJoinRoom;
 
 function _gunDisconnect() {
+  clearInterval(_gunHeartbeatTimer);
   localStorage.removeItem('icu_gun_room');
   _gunRoom = null;
   _gunListening = false;
   if (_gunInstance) { try { _gunInstance = null; } catch {} }
   _gunUpdateUI(false);
+  const list = document.getElementById('syncDeviceList');
+  if (list) list.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:12px;font-size:13px">Not connected</div>';
   showToast('Disconnected from sync room', 'success');
 }
 window._gunDisconnect = _gunDisconnect;

@@ -19330,6 +19330,60 @@ body:has(.act-sheet-mode) .topbar {
     padding: 10px 12px;
 }
 
+/* Sync device list */
+.sync-device {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    position: relative;
+}
+.sync-device + .sync-device::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 48px;
+    right: 16px;
+    height: 0.5px;
+    background: var(--border);
+}
+.sync-device-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--bg-elevated);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+.sync-device--me .sync-device-icon {
+    background: rgba(0, 229, 160, 0.1);
+    color: var(--accent);
+}
+.sync-device-info { flex: 1; min-width: 0; }
+.sync-device-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+.sync-device-time {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+.sync-device-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    flex-shrink: 0;
+}
+.sync-device-dot--peer {
+    background: #5ac8fa;
+    box-shadow: 0 0 6px rgba(90, 200, 250, 0.5);
+}
+
 /* ── Service History Page (SwiftUI-style) ── */
 .svc-page { padding: 0 var(--pad-page) 100px; }
 .svc-hero { padding: 20px 0 12px; }
