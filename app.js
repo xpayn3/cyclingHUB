@@ -21828,7 +21828,8 @@ function renderDetailZones(activity) {
   if (totalSecs === 0) { showCardNA('detailZonesCard'); return; }
   clearCardNA(card);
 
-  document.getElementById('detailZonesTotalBadge').textContent = fmtDur(totalSecs) + ' total';
+  const pwrBadge = document.getElementById('detailZonesTotalBadge');
+  if (pwrBadge) pwrBadge.style.display = 'none';
   const pwrSubEl = document.getElementById('detailZonesSubtitle');
   if (pwrSubEl) pwrSubEl.style.display = 'none';
 
@@ -21917,7 +21918,8 @@ function renderDetailHRZones(activity) {
   if (avgHR > 0) hintParts.push(`avg ${Math.round(avgHR)} bpm`);
   if (maxHR > 0) hintParts.push(`max ${Math.round(maxHR)} bpm`);
 
-  document.getElementById('detailHRZonesTotalBadge').textContent = fmtDur(totalSecs) + ' total';
+  const hrBadge = document.getElementById('detailHRZonesTotalBadge');
+  if (hrBadge) hrBadge.style.display = 'none';
   const hrSubEl = document.getElementById('detailHRZonesSubtitle');
   if (hrSubEl) hrSubEl.style.display = 'none';
 
