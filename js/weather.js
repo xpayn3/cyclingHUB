@@ -404,7 +404,8 @@ export async function renderActivityIntervals(activityId) {
     };
 
     const workCount = intervals.filter(iv => classify(iv) === 'work').length;
-    sub.textContent = workCount > 0
+    if (sub) sub.style.display = 'none';
+    const intervalsSummaryText = workCount > 0
       ? `${workCount} work interval${workCount !== 1 ? 's' : ''} · ${intervals.length} total`
       : `${intervals.length} interval${intervals.length !== 1 ? 's' : ''}`;
 
@@ -416,9 +417,19 @@ export async function renderActivityIntervals(activityId) {
     };
 
     // Build canvas chart — horizontal bar chart like workout builder
+    // Compute total duration and avg power for summary
+    const totalDur = intervals.reduce((s, iv) => s + (iv.moving_time || iv.elapsed_time || 0), 0);
+    const workIntervals = intervals.filter(iv => classify(iv) === 'work');
+    const avgWorkPower = workIntervals.length ? Math.round(workIntervals.reduce((s, iv) => s + (iv.average_watts || 0), 0) / workIntervals.length) : 0;
+
     body.innerHTML = `<div class="act-ivl-chart-wrap" style="position:relative;height:160px;margin-bottom:8px">
       <canvas id="actIvlCanvas" style="width:100%;height:100%"></canvas>
-    </div><div class="act-ivl-legend" id="actIvlLegend"></div>`;
+    </div><div class="act-ivl-legend" id="actIvlLegend"></div>
+    <div class="detail-zone-summary">
+      <div class="detail-zone-summary-row"><span>Intervals</span><span class="detail-zone-summary-val">${intervalsSummaryText}</span></div>
+      <div class="detail-zone-summary-row"><span>Total Duration</span><span class="detail-zone-summary-val">${fmtDur(totalDur)}</span></div>
+      ${avgWorkPower > 0 ? `<div class="detail-zone-summary-row"><span>Avg Work Power</span><span class="detail-zone-summary-val">${avgWorkPower} W</span></div>` : ''}
+    </div>`;
 
     requestAnimationFrame(() => {
       const canvas = document.getElementById('actIvlCanvas');
