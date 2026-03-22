@@ -10871,14 +10871,27 @@ body.show-save-fab #actSaveRouteFab {
     padding-top: calc(44px + max(12px, env(safe-area-inset-top)));
 }
 /* Subtle dividers between activity detail cards */
-.act-sheet-scroll > .card,
-.act-sheet-scroll > .detail-zones-carousel-card,
-.act-sheet-scroll > .detail-curves-row,
-.act-sheet-scroll > .detail-charts-row,
-.act-sheet-scroll > .ach-card {
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-    padding-bottom: 16px;
-    margin-bottom: 4px;
+#actSheetScroll > .card,
+#actSheetScroll > .detail-zones-carousel-card,
+#actSheetScroll > .detail-curves-row,
+#actSheetScroll > .detail-charts-row,
+#actSheetScroll > .ach-card,
+#actSheetScroll > .act-gear-badge {
+    position: relative;
+}
+#actSheetScroll > .card::after,
+#actSheetScroll > .detail-zones-carousel-card::after,
+#actSheetScroll > .detail-curves-row::after,
+#actSheetScroll > .detail-charts-row::after,
+#actSheetScroll > .ach-card::after,
+#actSheetScroll > .act-gear-badge::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: var(--pad-page, 16px);
+    right: var(--pad-page, 16px);
+    height: 1px;
+    background: rgba(255,255,255,0.08);
 }
 
 /* Drag handle */
