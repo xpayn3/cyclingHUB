@@ -6129,9 +6129,8 @@ Chart.register({
     ctx.beginPath();
     ctx.moveTo(x, top);
     ctx.lineTo(x, bottom);
-    ctx.lineWidth   = 1;
-    ctx.strokeStyle = _isDark() ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.35)';
-    ctx.setLineDash([3, 3]);
+    ctx.lineWidth   = 1.5;
+    ctx.strokeStyle = _isDark() ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.6)';
     ctx.stroke();
     ctx.restore();
   },
