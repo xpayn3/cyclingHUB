@@ -21526,7 +21526,8 @@ async function renderDetailPerformance(a, actId, streams) {
   gridEl.querySelectorAll('.perf-metric').forEach(el => {
     if (!el.dataset.glow) { el.dataset.glow = '1'; window.attachCardGlow && window.attachCardGlow(el); }
   });
-  document.getElementById('detailPerfSubtitle').textContent = 'Power & efficiency metrics · this ride';
+  const perfSub = document.getElementById('detailPerfSubtitle');
+  if (perfSub) perfSub.style.display = 'none';
   card.style.display = '';
   unskeletonCard('detailPerfCard');
 }
@@ -21588,7 +21589,7 @@ function renderDetailDecoupleChart(streams, activity) {
   const subEl    = document.getElementById('detailDecoupleSub');
 
   if (badgeEl)  { badgeEl.textContent = dcDisplay != null ? dcDisplay + '%' : '—'; badgeEl.style.color = dcColor; }
-  if (subEl)    subEl.textContent = 'Efficiency Factor (power ÷ HR) over time';
+  if (subEl)    subEl.style.display = 'none';
   if (halvesEl && ef1 && ef2) {
     halvesEl.innerHTML = `
       <div class="detail-decouple-half">
@@ -22097,7 +22098,15 @@ function renderDetailTempChart(streams, activity) {
   const maxT  = safeMax(valid);
   const avgT  = Math.round(valid.reduce((a, b) => a + b, 0) / valid.length * 10) / 10;
 
-  if (subtitle) subtitle.textContent = `Avg ${avgT}${deg} · Min ${minT}${deg} · Max ${maxT}${deg}`;
+  if (subtitle) subtitle.style.display = 'none';
+
+  // Add summary rows
+  let tempSummary = card.querySelector('.detail-zone-summary');
+  if (!tempSummary) { tempSummary = document.createElement('div'); tempSummary.className = 'detail-zone-summary'; card.appendChild(tempSummary); }
+  tempSummary.innerHTML = `
+    <div class="detail-zone-summary-row"><span>Average</span><span class="detail-zone-summary-val">${avgT}${deg}</span></div>
+    <div class="detail-zone-summary-row"><span>Min</span><span class="detail-zone-summary-val">${minT}${deg}</span></div>
+    <div class="detail-zone-summary-row"><span>Max</span><span class="detail-zone-summary-val">${maxT}${deg}</span></div>`;
 
   // Gradient fill — blue at cold end, orange-red at warm end
   const ctx = canvas.getContext('2d');
@@ -22818,7 +22827,7 @@ function renderClimbDetection(streams, activity) {
 
   // Step 5: Render — Tour de France style climb cards
   const totalGain = climbs.reduce((s, c) => s + c.elevGain, 0);
-  sub.textContent = `${climbs.length} climb${climbs.length !== 1 ? 's' : ''} · +${Math.round(totalGain)}m`;
+  if (sub) sub.style.display = 'none';
 
   const catEmoji = { 'HC': '🔴', 'Cat 1': '🟠', 'Cat 2': '🟡', 'Cat 3': '🟢', 'Cat 4': '⚪', 'Climb': '⚪' };
   const catBg = { 'HC': 'rgba(255,69,58,0.12)', 'Cat 1': 'rgba(255,149,0,0.12)', 'Cat 2': 'rgba(255,204,0,0.10)', 'Cat 3': 'rgba(0,229,160,0.10)', 'Cat 4': 'rgba(255,255,255,0.05)', 'Climb': 'rgba(255,255,255,0.05)' };
@@ -22895,7 +22904,7 @@ function renderLapSplits(activity) {
 
   const totalDist = laps.reduce((s, l) => s + (l.distance || 0), 0);
   const totalDistKm = (totalDist / 1000).toFixed(1);
-  sub.textContent = `${laps.length} laps · ${totalDistKm} km`;
+  if (sub) sub.style.display = 'none';
 
   // Find best lap (highest avg speed)
   let bestIdx = -1, bestSpd = 0;
@@ -22971,11 +22980,17 @@ function renderDetailCadenceHist(streams, activity) {
   );
 
   const sub = document.getElementById('detailCadenceSubtitle');
-  if (sub && totalSecs > 0) {
-    const avgCad = cad.filter(v => v > 0).reduce((s, v) => s + v, 0) /
-                   cad.filter(v => v > 0).length;
-    sub.textContent = `Avg ${Math.round(avgCad)} rpm · ${labels[maxIdx]} most common`;
-  }
+  if (sub) sub.style.display = 'none';
+  const cadValid = cad.filter(v => v > 0);
+  const avgCad = cadValid.length ? Math.round(cadValid.reduce((s, v) => s + v, 0) / cadValid.length) : 0;
+  const maxCad = cadValid.length ? Math.round(Math.max(...cadValid)) : 0;
+
+  let cadSummary = card.querySelector('.detail-zone-summary');
+  if (!cadSummary) { cadSummary = document.createElement('div'); cadSummary.className = 'detail-zone-summary'; card.appendChild(cadSummary); }
+  cadSummary.innerHTML = `
+    <div class="detail-zone-summary-row"><span>Average Cadence</span><span class="detail-zone-summary-val">${avgCad} rpm</span></div>
+    <div class="detail-zone-summary-row"><span>Max Cadence</span><span class="detail-zone-summary-val">${maxCad} rpm</span></div>
+    <div class="detail-zone-summary-row"><span>Most Common</span><span class="detail-zone-summary-val">${labels[maxIdx]} rpm</span></div>`;
 
   card.style.display = '';
   unskeletonCard('detailCadenceCard');
