@@ -5951,7 +5951,7 @@ function externalTooltipHandler(context) {
   if (left + tooltipW > vw - 8) left = vw - tooltipW - 8;
 
   el.style.left    = left + 'px';
-  el.style.top     = (cy - 8) + 'px';          // 8px gap above chartArea.top
+  el.style.top     = cy + 'px';                 // touch the chart top edge
   el.style.opacity = '1';
 }
 
