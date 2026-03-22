@@ -16666,8 +16666,8 @@ async function navigateToActivity(actKey, fromStep = false) {
     renderDetailCurve(actId, normStreams);   // async — shows/hides its own card
     renderDetailHRCurve(normStreams);        // async — shows/hides its own card
 
-    // Inject info buttons on all visible activity cards
-    setTimeout(() => _injectActCardInfoBtns(), 300);
+    // Inject info buttons and dividers on all visible activity cards
+    setTimeout(() => { _injectActCardInfoBtns(); _injectActCardDividers(); }, 300);
   } catch (err) {
     console.error('[Activity detail] Unhandled error:', err);
     _loadingEl.style.display = 'none';
@@ -16782,6 +16782,30 @@ function _injectActCardInfoBtns() {
       _openActCardInfo(card.id, info);
     });
     card.appendChild(btn);
+  });
+}
+
+function _injectActCardDividers() {
+  const scroll = document.getElementById('actSheetScroll');
+  if (!scroll) return;
+  // Remove old dividers
+  scroll.querySelectorAll('.act-card-divider').forEach(d => d.remove());
+  // Get visible direct children that are cards or card-like sections
+  const children = [...scroll.children].filter(el => {
+    if (el.style.display === 'none') return false;
+    if (el.classList.contains('act-hero') || el.classList.contains('act-secondary-strip') || el.classList.contains('act-sheet-handle')) return false;
+    if (el.classList.contains('detail-charts-loading')) return false;
+    return el.classList.contains('card') || el.classList.contains('detail-zones-carousel-card') ||
+           el.classList.contains('detail-curves-row') || el.classList.contains('detail-charts-row') ||
+           el.classList.contains('ach-card') || el.classList.contains('act-gear-badge');
+  });
+  // Insert <hr> after each visible card except the last
+  children.forEach((el, i) => {
+    if (i < children.length - 1) {
+      const hr = document.createElement('hr');
+      hr.className = 'act-card-divider';
+      el.after(hr);
+    }
   });
 }
 
