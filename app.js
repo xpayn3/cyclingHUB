@@ -23878,7 +23878,10 @@ async function renderDetailCurve(actId, streams) {
   // Show card immediately — don't wait for year curve
   clearCardNA(card);
   card.style.display = '';
+  card.style.minHeight = '200px';
+  card.style.border = '1px solid red';
   unskeletonCard('detailCurveCard');
+  console.log('[PowerCurve] Card shown, display:', card.style.display, 'parent:', card.parentElement?.id, 'parentDisplay:', card.parentElement?.style.display);
 
   // Fetch year best in background (non-blocking)
   let rawYear = null;
