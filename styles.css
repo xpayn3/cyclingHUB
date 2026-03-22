@@ -10949,10 +10949,14 @@ body.show-save-fab #actSaveRouteFab {
 .act-sheet-scroll .card {
     position: relative;
 }
+.act-sheet-scroll .card > .card-header {
+    margin-bottom: 16px;
+    align-items: center;
+}
 .act-card-info-btn {
     position: absolute;
-    top: var(--pad-card, 16px);
-    right: var(--pad-page, 16px);
+    top: 0;
+    right: 0;
     width: 36px;
     height: 36px;
     border-radius: 50%;
