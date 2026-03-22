@@ -10952,6 +10952,8 @@ body.show-save-fab #actSaveRouteFab {
 .act-sheet-scroll .card > .card-header {
     margin-bottom: 16px;
     align-items: center;
+    text-align: left;
+    justify-content: flex-start;
 }
 .act-card-info-btn {
     position: absolute;
