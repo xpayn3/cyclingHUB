@@ -10952,9 +10952,10 @@ body.show-save-fab #actSaveRouteFab {
 .act-sheet-scroll .card > .card-header {
     margin-bottom: 16px;
 }
-/* Force left-align titles — the first-child div must stretch */
+/* Force title row to stretch full width */
 .act-sheet-scroll .card > .card-header > div:first-child {
     flex: 1;
+    width: 100%;
 }
 /* Hide empty subtitles */
 .act-sheet-scroll .card-subtitle:empty,
