@@ -5886,7 +5886,8 @@ function externalTooltipHandler(context) {
   }
   const dataPoints = tooltip.dataPoints || [];
   bodyLines.forEach((body, i) => {
-    const text = (body.lines || []).join('');
+    const lines = body.lines || [];
+    const text = lines.join('');
     if (!text) return;
     // Best colour source: dataset.borderColor (always the vivid line/stroke colour).
     // Fall back through labelColors then backgroundColor; skip anything that is
@@ -5918,7 +5919,7 @@ function externalTooltipHandler(context) {
     const bg = candidates.find(isUsable) || 'transparent';
     if (!el._ttColor && isUsable(bg)) el._ttColor = bg;
     html += `<div class="ctf-row">` +
-      `<span>${text}</span>` +
+      lines.map(l => `<span>${l}</span>`).join('') +
       `</div>`;
   });
   el.innerHTML = html;
