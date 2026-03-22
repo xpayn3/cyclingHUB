@@ -23891,7 +23891,7 @@ function gearUploadPhoto(input) {
       if (h > MAX_H) { w *= MAX_H / h; h = MAX_H; }
       canvas.width = w; canvas.height = h;
       canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      _gearSavePhoto(_gearPhotoTargetBike, canvas.toDataURL('image/jpeg', 0.8));
+      _gearSavePhoto(_gearPhotoTargetBike, canvas.toDataURL('image/webp', 0.85));
       renderGearPage();
     };
     img.src = reader.result;
