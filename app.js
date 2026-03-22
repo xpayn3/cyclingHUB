@@ -22181,11 +22181,7 @@ function renderDetailTempChart(streams, activity) {
     <div class="detail-zone-summary-row"><span>Min</span><span class="detail-zone-summary-val">${minT}${deg}</span></div>
     <div class="detail-zone-summary-row"><span>Max</span><span class="detail-zone-summary-val">${maxT}${deg}</span></div>`;
 
-  // Gradient fill — blue at cold end, orange-red at warm end
   const ctx = canvas.getContext('2d');
-  const grad = ctx.createLinearGradient(0, 0, 0, 180);
-  grad.addColorStop(0,   'rgba(251,146,60,0.35)');  // warm top
-  grad.addColorStop(1,   'rgba(96,165,250,0.05)');  // cool bottom
 
   window._tempChart = destroyChart(window._tempChart);
   window._tempChart = new Chart(ctx, {
@@ -22196,8 +22192,8 @@ function renderDetailTempChart(streams, activity) {
         label: `Temp (${deg})`,
         data: temps,
         borderColor: C_ORANGE_LIGHT,
-        backgroundColor: grad,
-        fill: true,
+        backgroundColor: 'transparent',
+        fill: false,
         pointRadius: 0,
         pointHoverRadius: 5,
         borderWidth: 2,
