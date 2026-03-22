@@ -16551,6 +16551,9 @@ async function navigateToActivity(actKey, fromStep = false) {
     // But if they came from the FIT parser directly, assign them as-is.
     if (streams && !Object.keys(normStreams).length) normStreams = streams;
 
+    // Store on state so info pages can access it
+    state.normStreams = normStreams;
+
     // Derive grade_smooth from altitude + distance when the API didn't return it
     if (!normStreams.grade_smooth && normStreams.altitude && normStreams.distance) {
       normStreams.grade_smooth = computeGradeStream(normStreams.altitude, normStreams.distance);
