@@ -2104,17 +2104,9 @@ async function _idbWriteAll(openFn, storeName, entries, outOfLineKeys) {
    ══════════════════════════════════════════════════════════════════════════════ */
 
 const _GUN_RELAY = 'https://gun-manhattan.herokuapp.com/gun';
-const _GUN_SYNC_KEYS = [
-  'icu_gear_components', 'icu_gear_batteries', 'icu_gear_services',
-  'icu_gear_service_shops', 'icu_bike_photos', 'icu_goals',
-  'icu_dash_sections', 'icu_units', 'icu_theme', 'icu_map_theme',
-  'icu_app_font', 'icu_range_days', 'icu_fav_routes',
-  'icu_athlete_id', 'icu_api_key',
-];
 let _gunInstance = null;
 let _gunRoom = null;
 let _gunListening = false;
-let _gunSuppressIncoming = false;
 
 function _gunInit() {
   const room = localStorage.getItem('icu_gun_room');
@@ -2126,6 +2118,30 @@ function _gunInit() {
     _gunListen();
   } catch (e) {
     console.warn('[GUN] init failed:', e);
+  }
+}
+
+// Build a full localStorage snapshot (same keys as exportFullBackup)
+function _gunBuildSnapshot() {
+  const ls = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k.startsWith('icu_') || k.startsWith('strava_')) {
+      // Skip gun-internal keys and large activity caches to stay under size limits
+      if (k === 'icu_gun_room' || k === 'icu_gun_last_sync') continue;
+      ls[k] = localStorage.getItem(k);
+    }
+  }
+  return ls;
+}
+
+// Restore a snapshot to localStorage
+function _gunRestoreSnapshot(snapshot) {
+  if (!snapshot || typeof snapshot !== 'object') return;
+  for (const [k, v] of Object.entries(snapshot)) {
+    if (k.startsWith('icu_') || k.startsWith('strava_')) {
+      localStorage.setItem(k, v);
+    }
   }
 }
 
@@ -2153,9 +2169,8 @@ function _gunJoinRoom(code) {
   const clean = code.trim().toUpperCase();
   localStorage.setItem('icu_gun_room', clean);
   _gunInit();
-  // Pull data from the room first
-  _gunPull();
-  showToast('Joined room — syncing...', 'success');
+  // Pull full snapshot from the room
+  showToast('Joining room — waiting for data...', 'info');
 }
 window._gunJoinRoom = _gunJoinRoom;
 
@@ -2171,68 +2186,59 @@ window._gunDisconnect = _gunDisconnect;
 
 function _gunPush() {
   if (!_gunRoom) return;
-  _gunSuppressIncoming = true;
-  const ts = Date.now();
-  _GUN_SYNC_KEYS.forEach(key => {
-    const val = localStorage.getItem(key);
-    if (val !== null) {
-      _gunRoom.get(key).put({ v: val, ts });
-    }
-  });
-  localStorage.setItem('icu_gun_last_sync', new Date().toISOString());
-  setTimeout(() => { _gunSuppressIncoming = false; }, 2000);
-  _gunUpdateLastSync();
-}
-
-function _gunPull() {
-  if (!_gunRoom) return;
-  _GUN_SYNC_KEYS.forEach(key => {
-    _gunRoom.get(key).once(data => {
-      if (data && data.v !== undefined) {
-        const existing = localStorage.getItem(key);
-        if (data.v !== existing) {
-          localStorage.setItem(key, data.v);
-        }
-      }
-    });
+  const snapshot = _gunBuildSnapshot();
+  const json = JSON.stringify(snapshot);
+  // Gun has size limits per node — split into chunks of ~200KB
+  const CHUNK = 200000;
+  const chunks = [];
+  for (let i = 0; i < json.length; i += CHUNK) {
+    chunks.push(json.slice(i, i + CHUNK));
+  }
+  _gunRoom.get('meta').put({ ts: Date.now(), chunks: chunks.length, device: navigator.userAgent.slice(0, 30) });
+  chunks.forEach((c, i) => {
+    _gunRoom.get('chunk_' + i).put({ d: c });
   });
   localStorage.setItem('icu_gun_last_sync', new Date().toISOString());
   _gunUpdateLastSync();
-  // Reload after a brief delay to apply all pulled data
-  setTimeout(() => location.reload(), 1500);
 }
 
 function _gunListen() {
   if (_gunListening || !_gunRoom) return;
   _gunListening = true;
-  _GUN_SYNC_KEYS.forEach(key => {
-    _gunRoom.get(key).on(data => {
-      if (_gunSuppressIncoming) return;
-      if (!data || data.v === undefined) return;
-      const existing = localStorage.getItem(key);
-      if (data.v !== existing) {
-        localStorage.setItem(key, data.v);
-        localStorage.setItem('icu_gun_last_sync', new Date().toISOString());
-        _gunUpdateLastSync();
-        // Refresh relevant UI without full reload
-        if (key.includes('gear') || key.includes('batteries') || key.includes('services')) {
-          if (typeof renderGearComponents === 'function') renderGearComponents();
-          if (typeof renderGearBatteries === 'function') renderGearBatteries();
-          if (typeof _renderDashBatteries === 'function') _renderDashBatteries();
-          if (typeof _renderDashGear === 'function') _renderDashGear();
+  let lastTs = 0;
+  _gunRoom.get('meta').on(meta => {
+    if (!meta || !meta.ts || meta.ts <= lastTs) return;
+    lastTs = meta.ts;
+    // New snapshot available — pull all chunks
+    const total = meta.chunks || 1;
+    const parts = [];
+    let received = 0;
+    for (let i = 0; i < total; i++) {
+      _gunRoom.get('chunk_' + i).once(chunk => {
+        if (chunk && chunk.d) parts[i] = chunk.d;
+        received++;
+        if (received >= total) {
+          try {
+            const json = parts.join('');
+            const snapshot = JSON.parse(json);
+            _gunRestoreSnapshot(snapshot);
+            localStorage.setItem('icu_gun_last_sync', new Date().toISOString());
+            _gunUpdateLastSync();
+            showToast('Sync received — reloading...', 'success');
+            setTimeout(() => location.reload(), 1000);
+          } catch (e) {
+            console.warn('[GUN] failed to parse snapshot:', e);
+          }
         }
-        if (key === 'icu_theme' || key === 'icu_map_theme' || key === 'icu_app_font') {
-          location.reload(); // theme changes need full reload
-        }
-      }
-    });
+      });
+    }
   });
 }
 
 function _gunSyncNow() {
   if (!_gunRoom) { showToast('Not connected — generate or join a room first', 'error'); return; }
   _gunPush();
-  showToast('Synced', 'success');
+  showToast('Data pushed to sync room', 'success');
 }
 window._gunSyncNow = _gunSyncNow;
 
