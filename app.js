@@ -2163,56 +2163,57 @@ function _gunAnnounce() {
   });
 }
 
+const _gunDevices = {}; // live map of device id → data
+
 function _gunWatchDevices() {
   if (!_gunRoom) return;
   _gunRoom.get('devices').map().on((data, id) => {
     if (!data || !data.ts) return;
+    _gunDevices[id] = { id, name: data.name, ts: data.ts };
     _gunRenderDevices();
   });
-  // Also poll to clean stale devices
-  setInterval(_gunRenderDevices, 10000);
+  // Clean stale devices every 20s
+  setInterval(() => {
+    const now = Date.now();
+    for (const id of Object.keys(_gunDevices)) {
+      if (now - _gunDevices[id].ts > 45000) delete _gunDevices[id];
+    }
+    _gunRenderDevices();
+  }, 20000);
 }
 
 function _gunRenderDevices() {
-  const list = document.getElementById('syncDeviceList');
-  if (!list || !_gunRoom) return;
+  const el = document.getElementById('syncDeviceList');
+  if (!el) return;
 
-  const devices = [];
-  _gunRoom.get('devices').map().once((data, id) => {
-    if (!data || !data.ts) return;
-    const age = Date.now() - data.ts;
-    if (age < 60000) { // active in last 60s
-      devices.push({ id, name: data.name, ts: data.ts, mine: id === _gunDeviceId });
-    }
-  });
+  const now = Date.now();
+  const active = Object.values(_gunDevices).filter(d => now - d.ts < 45000);
+  const count = active.length;
+  const statusText = document.getElementById('syncStatusText');
+  if (statusText) statusText.textContent = count > 1 ? `${count} devices online` : count === 1 ? 'Connected (waiting for peer)' : 'Connected';
 
-  // Render after a brief collection window
-  setTimeout(() => {
-    const el = document.getElementById('syncDeviceList');
-    if (!el) return;
-    const count = devices.length;
-    const statusText = document.getElementById('syncStatusText');
-    if (statusText) statusText.textContent = count > 1 ? `${count} devices online` : count === 1 ? 'Connected (waiting for peer)' : 'Connected';
+  if (!active.length) {
+    el.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:12px;font-size:13px">No devices detected</div>';
+    return;
+  }
 
-    if (!devices.length) {
-      el.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:12px;font-size:13px">No devices detected</div>';
-      return;
-    }
-    el.innerHTML = devices.map(d => `
-      <div class="sync-device${d.mine ? ' sync-device--me' : ''}">
-        <div class="sync-device-icon">
-          ${d.name === 'iPhone' || d.name === 'iPad' ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>'
-          : d.name === 'Android' ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>'
-          : '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>'}
-        </div>
-        <div class="sync-device-info">
-          <div class="sync-device-name">${d.name}${d.mine ? ' (this device)' : ''}</div>
-          <div class="sync-device-time">${d.mine ? 'You' : 'Online now'}</div>
-        </div>
-        <div class="sync-device-dot${d.mine ? '' : ' sync-device-dot--peer'}"></div>
+  const phoneIcon = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>';
+  const pcIcon = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>';
+
+  el.innerHTML = active.map(d => {
+    const mine = d.id === _gunDeviceId;
+    const icon = (d.name === 'iPhone' || d.name === 'iPad' || d.name === 'Android') ? phoneIcon : pcIcon;
+    const secs = Math.round((now - d.ts) / 1000);
+    const timeLabel = mine ? 'You' : secs < 5 ? 'Just now' : secs + 's ago';
+    return `<div class="sync-device${mine ? ' sync-device--me' : ''}">
+      <div class="sync-device-icon">${icon}</div>
+      <div class="sync-device-info">
+        <div class="sync-device-name">${d.name}${mine ? ' (this device)' : ''}</div>
+        <div class="sync-device-time">${timeLabel}</div>
       </div>
-    `).join('');
-  }, 500);
+      <div class="sync-device-dot${mine ? '' : ' sync-device-dot--peer'}"></div>
+    </div>`;
+  }).join('');
 }
 
 // Build a full localStorage snapshot (same keys as exportFullBackup)
