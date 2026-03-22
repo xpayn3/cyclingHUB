@@ -22583,41 +22583,65 @@ function renderClimbDetection(streams, activity) {
 
   if (!climbs.length) { card.style.display = 'none'; return; }
 
-  // Step 5: Render
+  // Step 5: Render — Tour de France style climb cards
   const totalGain = climbs.reduce((s, c) => s + c.elevGain, 0);
-  sub.textContent = `${climbs.length} climb${climbs.length !== 1 ? 's' : ''} detected · +${Math.round(totalGain)}m total`;
+  sub.textContent = `${climbs.length} climb${climbs.length !== 1 ? 's' : ''} · +${Math.round(totalGain)}m`;
+
+  const catEmoji = { 'HC': '🔴', 'Cat 1': '🟠', 'Cat 2': '🟡', 'Cat 3': '🟢', 'Cat 4': '⚪', 'Climb': '⚪' };
+  const catBg = { 'HC': 'rgba(255,69,58,0.12)', 'Cat 1': 'rgba(255,149,0,0.12)', 'Cat 2': 'rgba(255,204,0,0.10)', 'Cat 3': 'rgba(0,229,160,0.10)', 'Cat 4': 'rgba(255,255,255,0.05)', 'Climb': 'rgba(255,255,255,0.05)' };
+  const catColor = { 'HC': 'var(--red)', 'Cat 1': '#ff9500', 'Cat 2': '#ffcc00', 'Cat 3': 'var(--accent)', 'Cat 4': 'var(--text-muted)', 'Climb': 'var(--text-muted)' };
 
   body.innerHTML = climbs.map((c, i) => {
-    // SVG sparkline
+    // SVG sparkline profile
     const pts = [];
-    const sparkN = Math.min(30, c.e - c.s);
+    const sparkN = Math.min(40, c.e - c.s);
     const step = Math.max(1, Math.floor((c.e - c.s) / sparkN));
     for (let j = c.s; j <= c.e; j += step) pts.push(smooth[j]);
     const mn = Math.min(...pts), mx = Math.max(...pts), rng = mx - mn || 1;
-    const W = 80, H = 32;
-    const path = pts.map((v, idx) => {
+    const W = 120, H = 40;
+    const linePath = pts.map((v, idx) => {
       const x = (idx / (pts.length - 1)) * W;
-      const y = H - ((v - mn) / rng) * (H - 4);
+      const y = H - 2 - ((v - mn) / rng) * (H - 6);
       return `${idx === 0 ? 'M' : 'L'}${x.toFixed(1)} ${y.toFixed(1)}`;
     }).join(' ');
+    const fillPath = linePath + ` L${W} ${H} L0 ${H} Z`;
 
-    const catColor = c.cat === 'HC' ? 'var(--red)' : c.cat === 'Cat 1' ? 'var(--orange)' : c.cat === 'Cat 2' ? 'var(--yellow)' : c.gc;
+    const cc = catColor[c.cat] || catColor['Climb'];
+    const maxG = c.maxGrade.toFixed(1);
 
-    return `<div class="act-climb-pill">
-      <div class="act-climb-pill-top">
-        <span class="act-climb-num">#${i + 1}</span>
-        <span class="act-climb-cat" style="color:${catColor}">${c.cat}</span>
+    return `<div class="act-climb-card" style="background:${catBg[c.cat] || catBg['Climb']}">
+      <div class="act-climb-header">
+        <div class="act-climb-left">
+          <span class="act-climb-badge" style="color:${cc};border-color:${cc}">${c.cat}</span>
+          <span class="act-climb-name">Climb #${i + 1}</span>
+        </div>
+        <svg class="act-climb-profile" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+          <path d="${fillPath}" fill="${cc}" opacity="0.15"/>
+          <path d="${linePath}" fill="none" stroke="${cc}" stroke-width="2" stroke-linecap="round"/>
+        </svg>
       </div>
-      <svg class="act-climb-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
-        <path d="${path}" fill="none" stroke="${c.gc}" stroke-width="2"/>
-      </svg>
-      <div class="act-climb-stats">
-        <div class="act-climb-stat"><span class="act-climb-stat-val">${(c.climbDist / 1000).toFixed(1)}</span><span class="act-climb-stat-lbl">km</span></div>
-        <div class="act-climb-stat"><span class="act-climb-stat-val">+${Math.round(c.elevGain)}</span><span class="act-climb-stat-lbl">m</span></div>
-        <div class="act-climb-stat"><span class="act-climb-stat-val">${c.avgGrade.toFixed(1)}</span><span class="act-climb-stat-lbl">% avg</span></div>
-        ${c.duration > 0 ? `<div class="act-climb-stat"><span class="act-climb-stat-val">${fmtDur(c.duration)}</span><span class="act-climb-stat-lbl">time</span></div>` : ''}
-        ${c.vam > 0 ? `<div class="act-climb-stat"><span class="act-climb-stat-val">${c.vam}</span><span class="act-climb-stat-lbl">VAM</span></div>` : ''}
-        ${c.avgPower > 0 ? `<div class="act-climb-stat"><span class="act-climb-stat-val">${c.avgPower}</span><span class="act-climb-stat-lbl">W</span></div>` : ''}
+      <div class="act-climb-metrics">
+        <div class="act-climb-metric">
+          <span class="act-climb-metric-val">${(c.climbDist / 1000).toFixed(1)}<span class="act-climb-metric-unit"> km</span></span>
+          <span class="act-climb-metric-lbl">Distance</span>
+        </div>
+        <div class="act-climb-metric">
+          <span class="act-climb-metric-val">+${Math.round(c.elevGain)}<span class="act-climb-metric-unit"> m</span></span>
+          <span class="act-climb-metric-lbl">Elevation</span>
+        </div>
+        <div class="act-climb-metric">
+          <span class="act-climb-metric-val" style="color:${cc}">${c.avgGrade.toFixed(1)}<span class="act-climb-metric-unit">%</span></span>
+          <span class="act-climb-metric-lbl">Avg Grade</span>
+        </div>
+        <div class="act-climb-metric">
+          <span class="act-climb-metric-val">${maxG}<span class="act-climb-metric-unit">%</span></span>
+          <span class="act-climb-metric-lbl">Max Grade</span>
+        </div>
+      </div>
+      <div class="act-climb-extras">
+        ${c.duration > 0 ? `<span class="act-climb-extra">${fmtDur(c.duration)}</span>` : ''}
+        ${c.vam > 0 ? `<span class="act-climb-extra">${c.vam} VAM</span>` : ''}
+        ${c.avgPower > 0 ? `<span class="act-climb-extra">${c.avgPower}w</span>` : ''}
       </div>
     </div>`;
   }).join('');
