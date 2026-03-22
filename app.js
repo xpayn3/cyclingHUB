@@ -2198,18 +2198,41 @@ function _peerRenderDevices(peerName) {
 
 function _peerHandleConn(conn) {
   _peerConn = conn;
+  let _chunks = [];
+  let _chunkTotal = 0;
   conn.on('open', () => {
     _peerUpdateUI('connected');
-    // Send our device name
     conn.send({ type: 'hello', name: _peerDeviceName() });
-    _peerRenderDevices(null); // show self, peer name comes in hello
+    _peerRenderDevices(null);
     showToast('Peer connected!', 'success');
   });
   conn.on('data', data => {
     if (!data || !data.type) return;
     if (data.type === 'hello') {
       _peerRenderDevices(data.name);
+    } else if (data.type === 'snapshot_start') {
+      _chunks = new Array(data.total);
+      _chunkTotal = data.total;
+      showToast(`Receiving data (${Math.round(data.size / 1024)} KB)...`, 'info');
+    } else if (data.type === 'snapshot_chunk') {
+      _chunks[data.index] = data.data;
+    } else if (data.type === 'snapshot_end') {
+      try {
+        const json = _chunks.join('');
+        const snapshot = JSON.parse(json);
+        const keys = Object.keys(snapshot).length;
+        _peerRestoreSnapshot(snapshot);
+        localStorage.setItem('icu_peer_last_sync', new Date().toISOString());
+        _peerUpdateLastSync();
+        showToast(`Received ${keys} keys — reloading...`, 'success');
+        setTimeout(() => location.reload(), 1500);
+      } catch (e) {
+        console.warn('[PEER] snapshot parse error:', e);
+        showToast('Failed to parse received data', 'error');
+      }
+      _chunks = [];
     } else if (data.type === 'snapshot') {
+      // Legacy non-chunked (small payloads)
       const keys = Object.keys(data.payload || {}).length;
       _peerRestoreSnapshot(data.payload);
       localStorage.setItem('icu_peer_last_sync', new Date().toISOString());
@@ -2217,9 +2240,7 @@ function _peerHandleConn(conn) {
       showToast(`Received ${keys} keys — reloading...`, 'success');
       setTimeout(() => location.reload(), 1500);
     } else if (data.type === 'request') {
-      // Peer is requesting our data
-      const snapshot = _peerBuildSnapshot();
-      conn.send({ type: 'snapshot', payload: snapshot });
+      _peerSendSnapshot(conn);
       showToast('Data sent to peer', 'success');
     }
   });
@@ -2297,16 +2318,28 @@ function _peerConnect(peerId) {
 }
 window._peerConnect = _peerConnect;
 
+function _peerSendSnapshot(conn) {
+  const snapshot = _peerBuildSnapshot();
+  const json = JSON.stringify(snapshot);
+  // Chunk to 100KB pieces to avoid WebRTC buffer overflow
+  const CHUNK = 100000;
+  const total = Math.ceil(json.length / CHUNK);
+  conn.send({ type: 'snapshot_start', total, size: json.length });
+  for (let i = 0; i < total; i++) {
+    conn.send({ type: 'snapshot_chunk', index: i, data: json.slice(i * CHUNK, (i + 1) * CHUNK) });
+  }
+  conn.send({ type: 'snapshot_end' });
+}
+
 function _peerSendData() {
   if (!_peerConn || !_peerConn.open) {
     showToast('No peer connected', 'error');
     return;
   }
-  const snapshot = _peerBuildSnapshot();
-  _peerConn.send({ type: 'snapshot', payload: snapshot });
+  _peerSendSnapshot(_peerConn);
   localStorage.setItem('icu_peer_last_sync', new Date().toISOString());
   _peerUpdateLastSync();
-  showToast('Data sent to peer', 'success');
+  showToast('Data sent to peer (' + Math.round(JSON.stringify(_peerBuildSnapshot()).length / 1024) + ' KB)', 'success');
 }
 window._peerSendData = _peerSendData;
 
