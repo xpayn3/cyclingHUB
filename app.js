@@ -2107,6 +2107,8 @@ const _GUN_RELAYS = [
   'https://gun-manhattan.herokuapp.com/gun',
   'https://gun-us.herokuapp.com/gun',
   'https://gun-eu.herokuapp.com/gun',
+  'https://relay.peer.ooo/gun',
+  'https://peer.wallie.io/gun',
 ];
 let _gunInstance = null;
 let _gunRoom = null;
@@ -2172,14 +2174,14 @@ function _gunWatchDevices() {
     _gunDevices[id] = { id, name: data.name, ts: data.ts };
     _gunRenderDevices();
   });
-  // Clean stale devices every 20s
+  // Clean stale devices every 30s (2min timeout for slow relays)
   setInterval(() => {
     const now = Date.now();
     for (const id of Object.keys(_gunDevices)) {
-      if (now - _gunDevices[id].ts > 45000) delete _gunDevices[id];
+      if (now - _gunDevices[id].ts > 120000) delete _gunDevices[id];
     }
     _gunRenderDevices();
-  }, 20000);
+  }, 30000);
 }
 
 function _gunRenderDevices() {
@@ -2187,7 +2189,7 @@ function _gunRenderDevices() {
   if (!el) return;
 
   const now = Date.now();
-  const active = Object.values(_gunDevices).filter(d => now - d.ts < 45000);
+  const active = Object.values(_gunDevices).filter(d => now - d.ts < 120000);
   const count = active.length;
   const statusText = document.getElementById('syncStatusText');
   if (statusText) statusText.textContent = count > 1 ? `${count} devices online` : count === 1 ? 'Connected (waiting for peer)' : 'Connected';
@@ -2263,9 +2265,16 @@ function _gunJoinRoom(code) {
   if (!code || code.length < 4) { showToast('Enter a valid room code', 'error'); return; }
   const clean = code.trim().toUpperCase();
   localStorage.setItem('icu_gun_room', clean);
+  // Reset device map
+  for (const k of Object.keys(_gunDevices)) delete _gunDevices[k];
+  _gunListening = false;
   _gunInit();
-  // Pull full snapshot from the room
-  showToast('Joining room — waiting for data...', 'info');
+  // Show the connected UI immediately
+  const codeEl = document.getElementById('syncRoomCode');
+  if (codeEl) codeEl.textContent = clean;
+  _gunUpdateUI(true);
+  _gunRenderDevices();
+  showToast('Joined room ' + clean, 'success');
 }
 window._gunJoinRoom = _gunJoinRoom;
 
