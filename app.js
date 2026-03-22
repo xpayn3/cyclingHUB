@@ -23768,12 +23768,8 @@ async function renderDetailCurve(actId, streams) {
     try {
       const rideRaw = await fetchActivityPowerCurve(actId);
       if (rideRaw && Array.isArray(rideRaw.secs) && rideRaw.secs.length) raw = rideRaw;
-    } catch (_) {}
+    } catch (e) { console.warn('[PowerCurve] API fetch failed:', e); }
   }
-
-  const yearPromise = fetchRangePowerCurve(toDateStr(daysAgo(365)), toDateStr(new Date())).catch(() => null);
-
-  const rawYear = await yearPromise;
 
   // No power for this activity → show NA
   if (!raw) {
@@ -23781,6 +23777,10 @@ async function renderDetailCurve(actId, streams) {
     showCardNA('detailCurveCard');
     return;
   }
+
+  // Fetch year best in background (don't block card render)
+  let rawYear = null;
+  try { rawYear = await fetchRangePowerCurve(toDateStr(daysAgo(365)), toDateStr(new Date())); } catch (_) {}
   clearCardNA(card);
   card.style.display = '';
   unskeletonCard('detailCurveCard');
