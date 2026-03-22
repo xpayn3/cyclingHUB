@@ -10903,6 +10903,15 @@ body.show-save-fab #actSaveRouteFab {
 .act-sheet-scroll > * {
     flex-shrink: 0;
 }
+/* Activity detail: chart cards edge-to-edge + transparent */
+.act-sheet-scroll > .card {
+    background: transparent;
+    margin-left: calc(-1 * var(--pad-page));
+    margin-right: calc(-1 * var(--pad-page));
+    padding-left: var(--pad-page);
+    padding-right: var(--pad-page);
+    border-radius: 0;
+}
 .act-bottom-sheet.sheet-peek .act-sheet-scroll {
     overflow-y: hidden;
 }
