@@ -2515,13 +2515,16 @@ input[type="number"] {
 }
 .dash-gear-slide--photo .dash-gear-photo {
     position: absolute;
-    inset: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 30px;
     width: 100%;
-    height: 100%;
+    height: calc(100% - 30px);
     border-radius: 0;
     border: none;
     object-fit: contain;
-    padding: 8px;
+    padding: 8px 8px 0;
 }
 .dash-gear-icon {
     width: 56px;
