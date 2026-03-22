@@ -23761,20 +23761,28 @@ async function renderDetailCurve(actId, streams) {
   const card = document.getElementById('detailCurveCard');
   if (!card) return;
 
-  // Fetch current activity curve and 1-year best in parallel
+  // Always try local computation first (fastest, no network)
   let raw = null;
-  const yearPromise = fetchRangePowerCurve(toDateStr(daysAgo(365)), toDateStr(new Date())).catch(() => null);
+  if (streams) raw = buildCurveFromStream(streams.watts || streams.power);
 
-  try {
-    const rideRaw = await fetchActivityPowerCurve(actId);
-    if (rideRaw && Array.isArray(rideRaw.secs) && rideRaw.secs.length) raw = rideRaw;
-  } catch (_) {}
-  if (!raw && streams) raw = buildCurveFromStream(streams.watts || streams.power);
+  // If no local data, try API
+  if (!raw) {
+    try {
+      const rideRaw = await fetchActivityPowerCurve(actId);
+      if (rideRaw && Array.isArray(rideRaw.secs) && rideRaw.secs.length) raw = rideRaw;
+    } catch (_) {}
+  }
+
+  const yearPromise = fetchRangePowerCurve(toDateStr(daysAgo(365)), toDateStr(new Date())).catch(() => null);
 
   const rawYear = await yearPromise;
 
-  // No power for this activity → always show NA, regardless of year history
-  if (!raw) { showCardNA('detailCurveCard'); return; }
+  // No power for this activity → show NA
+  if (!raw) {
+    card.style.display = '';
+    showCardNA('detailCurveCard');
+    return;
+  }
   clearCardNA(card);
   card.style.display = '';
   unskeletonCard('detailCurveCard');
@@ -23955,7 +23963,7 @@ async function renderDetailHRCurve(streams) {
   const yearPromise = fetchRangeHRCurve(toDateStr(daysAgo(365)), toDateStr(new Date())).catch(() => null);
   const rawYear = await yearPromise;
 
-  if (!raw && !rawYear) { showCardNA('detailHRCurveCard'); return; }
+  if (!raw && !rawYear) { card.style.display = ''; showCardNA('detailHRCurveCard'); return; }
   clearCardNA(card);
   card.style.display = '';
   unskeletonCard('detailHRCurveCard');
