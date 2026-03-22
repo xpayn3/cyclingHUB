@@ -11054,14 +11054,6 @@ body.show-save-fab #actSaveRouteFab {
     align-items: center;
     gap: 8px;
 }
-.aci-stream-title::before {
-    content: '';
-    width: 4px;
-    height: 16px;
-    border-radius: 2px;
-    background: var(--stream-color, var(--accent));
-    flex-shrink: 0;
-}
 .aci-stream-chart-wrap {
     height: 120px;
     margin: 0 -16px 12px;
