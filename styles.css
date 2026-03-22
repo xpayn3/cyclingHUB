@@ -12571,6 +12571,10 @@ body:has(.act-sheet-mode) .topbar {
     flex-direction: column;
     gap: 14px;
 }
+.detail-curves-row > .card {
+    margin-left: 0;
+    margin-right: 0;
+}
 .detail-curves-row > .card[style*="display:none"],
 .detail-curves-row > .card[style*="display: none"] {
     display: none !important;
