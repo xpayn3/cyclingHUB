@@ -15413,7 +15413,7 @@ body:has(.act-sheet-mode) .topbar {
 /* ── External floating chart tooltip ──────────────────────────────────── */
 #chartTooltipFloat {
     position: fixed;
-    z-index: 9999;
+    z-index: 99999;
     pointer-events: none;
     background: rgba(28, 28, 30, 0.82);
     backdrop-filter: blur(16px) saturate(1.4);
