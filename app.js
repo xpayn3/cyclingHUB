@@ -22413,14 +22413,8 @@ function renderDetailGradientProfile(streams, activity) {
 
   card.style.display = '';
   unskeletonCard('detailGradientCard');
-  // Build gradient segments for the line chart
+  // Build line chart
   const ctx2d = document.getElementById('detailGradientChart').getContext('2d');
-
-  // Create a segment-colored line using Chart.js segment styling
-  const segmentColor = (ctx) => {
-    const i = ctx.p0DataIndex;
-    return segColors[i] || 'rgba(0,229,160,0.6)';
-  };
 
   state.activityGradientChart = destroyChart(state.activityGradientChart);
   state.activityGradientChart = new Chart(ctx2d, {
@@ -22429,17 +22423,14 @@ function renderDetailGradientProfile(streams, activity) {
         labels: distDS,
         datasets: [{
           data: altDS,
-          borderColor: segmentColor,
+          borderColor: ACCENT,
           borderWidth: 2,
-          backgroundColor: 'rgba(0,229,160,0.1)',
+          backgroundColor: 'rgba(0,229,160,0.12)',
           fill: true,
           pointRadius: 0,
-          pointHoverRadius: 4,
+          pointHoverRadius: 5,
           tension: 0.3,
           spanGaps: true,
-          segment: {
-            borderColor: ctx => segmentColor(ctx),
-          },
         }]
       },
       options: {
@@ -22449,6 +22440,7 @@ function renderDetailGradientProfile(streams, activity) {
         plugins: {
           legend: { display: false },
           tooltip: {
+            ...C_TOOLTIP,
             callbacks: {
               title: items => `${items[0].label} km`,
               label: item => {
@@ -22456,7 +22448,6 @@ function renderDetailGradientProfile(streams, activity) {
                 return [`${Math.round(item.raw)}m elevation`, `${g > 0 ? '+' : ''}${g}% grade`];
               }
             },
-            ...C_TOOLTIP,
           }
         },
         scales: {
