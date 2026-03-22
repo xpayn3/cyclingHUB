@@ -23853,8 +23853,9 @@ function buildCurveFromStream(wattsArr) {
 
 async function renderDetailCurve(actId, streams) {
   const card = document.getElementById('detailCurveCard');
-  if (!card) return;
+  if (!card) { console.warn('[PowerCurve] Card element not found'); return; }
 
+  try {
   // Always try local computation first (fastest, no network)
   let raw = null;
   if (streams) raw = buildCurveFromStream(streams.watts || streams.power);
@@ -23993,6 +23994,7 @@ async function renderDetailCurve(actId, streams) {
       }
     }
   );
+  } catch (err) { console.error('[PowerCurve] render error:', err); card.style.display = ''; showCardNA('detailCurveCard'); }
 }
 
 // Build an HR curve {secs, heartrate} from a raw heartrate stream using sliding-window max.
