@@ -2150,7 +2150,9 @@ function _peerUpdateUI(status, peerId) {
   if (dot) dot.className = 'sync-dot ' + (isPeerConnected ? 'sync-dot--on' : isOn ? 'sync-dot--waiting' : 'sync-dot--off');
   if (text) text.textContent = isPeerConnected ? 'Peer connected ✓' : status === 'ready' ? 'Waiting for peer...' : status === 'error' ? 'Connection failed' : 'Not connected';
   if (codeEl) codeEl.textContent = peerId || _peerMyId || '—';
+  const qrBtn = document.getElementById('syncQrBtn');
   if (copyBtn) copyBtn.style.display = _peerMyId ? '' : 'none';
+  if (qrBtn) qrBtn.style.display = _peerMyId ? '' : 'none';
   if (genBtn) genBtn.textContent = _peerMyId ? 'Restart' : 'Start Hosting';
   if (discRow) discRow.style.display = isOn ? '' : 'none';
   if (sendRow) { sendRow.style.display = isPeerConnected ? '' : 'none'; }
@@ -2195,6 +2197,95 @@ function _peerRenderDevices(peerName) {
   }
   el.innerHTML = html;
 }
+
+/* ── QR Code generation (minimal, no library needed for short strings) ── */
+function _peerShowQR() {
+  const canvas = document.getElementById('syncQrCanvas');
+  if (!canvas || !_peerMyId) return;
+  const isVisible = canvas.style.display !== 'none';
+  if (isVisible) { canvas.style.display = 'none'; return; }
+  // Use QR code API as image
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => {
+    canvas.style.display = 'block';
+    canvas.width = 160;
+    canvas.height = 160;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, 160, 160);
+    ctx.drawImage(img, 8, 8, 144, 144);
+  };
+  img.onerror = () => {
+    // Fallback: show ID as large text
+    canvas.style.display = 'block';
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, 160, 160);
+    ctx.fillStyle = '#000000';
+    ctx.font = 'bold 20px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(_peerMyId, 80, 85);
+  };
+  img.src = `https://api.qrserver.com/v1/create-qr-code/?size=144x144&data=${encodeURIComponent(_peerMyId)}&bgcolor=ffffff&color=000000&margin=0`;
+}
+window._peerShowQR = _peerShowQR;
+
+/* ── QR Code scanning via camera ── */
+function _peerScanQR() {
+  // Check for BarcodeDetector API (Chrome/Edge) or fall back
+  if (!('BarcodeDetector' in window)) {
+    showToast('QR scanning not supported on this browser — enter the ID manually', 'info');
+    return;
+  }
+  // Create fullscreen camera overlay
+  const overlay = document.createElement('div');
+  overlay.id = 'qrScanOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;';
+  overlay.innerHTML = `
+    <div style="position:absolute;top:16px;left:16px;right:16px;display:flex;justify-content:space-between;align-items:center;z-index:2">
+      <span style="color:#fff;font-size:17px;font-weight:600">Scan Peer QR Code</span>
+      <button onclick="document.getElementById('qrScanOverlay')?.remove();_qrScanStream?.getTracks().forEach(t=>t.stop())" style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.2);border:none;color:#fff;font-size:20px;cursor:pointer">×</button>
+    </div>
+    <video id="qrScanVideo" autoplay playsinline style="width:100%;height:100%;object-fit:cover"></video>
+    <div style="position:absolute;width:200px;height:200px;border:2px solid var(--accent);border-radius:12px;pointer-events:none"></div>
+  `;
+  document.body.appendChild(overlay);
+
+  const video = document.getElementById('qrScanVideo');
+  const detector = new BarcodeDetector({ formats: ['qr_code'] });
+
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+    .then(stream => {
+      window._qrScanStream = stream;
+      video.srcObject = stream;
+      // Scan loop
+      const scan = async () => {
+        if (!document.getElementById('qrScanOverlay')) return;
+        try {
+          const barcodes = await detector.detect(video);
+          if (barcodes.length > 0) {
+            const val = barcodes[0].rawValue.trim().toUpperCase();
+            if (val.startsWith('CIQ-')) {
+              stream.getTracks().forEach(t => t.stop());
+              overlay.remove();
+              const input = document.getElementById('syncJoinInput');
+              if (input) input.value = val;
+              _peerConnect(val);
+              return;
+            }
+          }
+        } catch {}
+        requestAnimationFrame(scan);
+      };
+      video.onloadedmetadata = () => scan();
+    })
+    .catch(e => {
+      overlay.remove();
+      showToast('Camera access denied', 'error');
+    });
+}
+window._peerScanQR = _peerScanQR;
 
 function _peerShowProgress(current, total, sizeBytes) {
   let bar = document.getElementById('syncProgressBar');
