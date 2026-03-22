@@ -16751,10 +16751,6 @@ const _ACT_CARD_INFO = {
     title: 'Temperature',
     desc: `Ambient temperature recorded during your ride.\n\n**Why it matters:**\n• Heat impacts performance: HR increases ~5bpm per 5°C above 20°C\n• Cold reduces muscle efficiency and increases warm-up time\n• Temperature changes during the ride affect pacing and hydration needs\n\n**Tips:**\n• Compare HR data in hot vs cool rides at similar power\n• Adjust RPE expectations in extreme temperatures`
   },
-  detailWeatherCard: {
-    title: 'Weather Conditions',
-    desc: `Weather data for this ride including temperature, wind, humidity, and conditions.\n\n**How to use:**\n• Headwind explains lower speed at same power\n• High humidity increases perceived effort\n• Use weather context when comparing ride performances`
-  },
   detailMapCard: {
     title: 'Route Map',
     desc: `GPS route map of your ride.\n\n**Features:**\n• Tap/click to see location details\n• Route colour may indicate speed, power, or gradient\n• Compare routes across multiple rides`
@@ -17828,7 +17824,7 @@ const _DETAIL_CARD_IDS = [
   'detailMapCard', 'detailStreamsCard', 'detailChartsRow', 'detailZonesCard', 'detailHRZonesCard',
   'detailHistogramCard', 'detailCurveCard', 'detailHRCurveCard', 'detailPerfCard',
   'detailWeatherCard', 'detailTempCard', 'detailDecoupleCard', 'detailLRBalanceCard',
-  'detailGradientCard', 'detail3DElevCard', 'detailClimbsCard', 'detailCadenceCard', 'detailCompareCard',
+  'detailGradientCard', 'detailClimbsCard', 'detailCadenceCard', 'detailCompareCard',
   'detailZonesCarouselCard', 'detailCurvesRow', 'detailIntervalsCard', 'detailLapSplitsCard', 'detailNotesCard'];
 
 function skeletonCards(show) {
