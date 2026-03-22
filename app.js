@@ -16812,36 +16812,38 @@ function _openActCardInfo(cardId, info) {
   controlsArea.innerHTML = '';
   dataArea.innerHTML = '';
 
-  // Clone the card content (chart/graph)
-  const sourceCard = document.getElementById(cardId);
-  if (sourceCard) {
-    const clone = sourceCard.cloneNode(true);
-    const cloneHeader = clone.querySelector('.card-header');
-    if (cloneHeader) cloneHeader.remove();
-    clone.querySelectorAll('.act-card-info-btn').forEach(b => b.remove());
-    clone.style.background = 'transparent';
-    clone.style.padding = '0';
-    clone.style.margin = '0';
-    clone.id = '';
-    // Canvas content doesn't clone — redraw if possible
-    const canvases = clone.querySelectorAll('canvas');
-    const origCanvases = sourceCard.querySelectorAll('canvas');
-    canvases.forEach((c, i) => {
-      if (origCanvases[i]) {
-        try {
-          const origW = origCanvases[i].width, origH = origCanvases[i].height;
-          c.width = origW; c.height = origH;
-          const ctx = c.getContext('2d');
-          ctx.drawImage(origCanvases[i], 0, 0);
-        } catch(e) { /* security */ }
-      }
-    });
-    chartArea.appendChild(clone);
-  }
-
-  // For streams card: render individual metric charts below the main clone
+  // For streams card: render individual metric breakdowns instead of cloning
   if (cardId === 'detailStreamsCard' && state.normStreams) {
+    // Make chart area not sticky for streams breakdown (it scrolls)
+    chartArea.style.position = 'relative';
+    chartArea.style.borderBottom = 'none';
     _renderStreamsBreakdown(chartArea, state.normStreams, state.activities[state.currentActivityIdx]);
+  } else {
+    // Clone the card content (chart/graph)
+    const sourceCard = document.getElementById(cardId);
+    if (sourceCard) {
+      const clone = sourceCard.cloneNode(true);
+      const cloneHeader = clone.querySelector('.card-header');
+      if (cloneHeader) cloneHeader.remove();
+      clone.querySelectorAll('.act-card-info-btn').forEach(b => b.remove());
+      clone.style.background = 'transparent';
+      clone.style.padding = '0';
+      clone.style.margin = '0';
+      clone.id = '';
+      const canvases = clone.querySelectorAll('canvas');
+      const origCanvases = sourceCard.querySelectorAll('canvas');
+      canvases.forEach((c, i) => {
+        if (origCanvases[i]) {
+          try {
+            const origW = origCanvases[i].width, origH = origCanvases[i].height;
+            c.width = origW; c.height = origH;
+            const ctx = c.getContext('2d');
+            ctx.drawImage(origCanvases[i], 0, 0);
+          } catch(e) { /* security */ }
+        }
+      });
+      chartArea.appendChild(clone);
+    }
   }
 
   // Build controls section
