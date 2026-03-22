@@ -12047,7 +12047,7 @@ body:has(.act-sheet-mode) .topbar {
 .detail-cmp-bar-wrap {
     position: relative;
     height: 8px;
-    background: var(--surface-2);
+    background: rgba(255,255,255,0.12);
     border-radius: 4px;
     overflow: visible;
 }
