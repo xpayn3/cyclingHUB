@@ -22334,10 +22334,25 @@ function renderDetailGradientProfile(streams, activity) {
   });
 
   const sub = document.getElementById('detailGradientSubtitle');
-  if (sub && dist) {
-    const totalElev = activity?.total_elevation_gain || activity?.icu_total_elevation_gain;
-    sub.textContent = `${(dist[N-1]/1000).toFixed(1)} km${totalElev ? ` · +${Math.round(totalElev)}m` : ''}`;
+  if (sub) sub.style.display = 'none';
+
+  const totalDistKm = dist ? (dist[N-1] / 1000).toFixed(1) : '—';
+  const totalElev = Math.round(activity?.total_elevation_gain || activity?.icu_total_elevation_gain || 0);
+  const minAlt = Math.round(Math.min(...alt.filter(v => v != null)));
+  const maxAlt = Math.round(Math.max(...alt.filter(v => v != null)));
+
+  // Add summary rows after the chart
+  let summaryEl = card.querySelector('.detail-zone-summary');
+  if (!summaryEl) {
+    summaryEl = document.createElement('div');
+    summaryEl.className = 'detail-zone-summary';
+    card.appendChild(summaryEl);
   }
+  summaryEl.innerHTML = `
+    <div class="detail-zone-summary-row"><span>Distance</span><span class="detail-zone-summary-val">${totalDistKm} km</span></div>
+    <div class="detail-zone-summary-row"><span>Elevation Gain</span><span class="detail-zone-summary-val">+${totalElev} m</span></div>
+    <div class="detail-zone-summary-row"><span>Min Altitude</span><span class="detail-zone-summary-val">${minAlt} m</span></div>
+    <div class="detail-zone-summary-row"><span>Max Altitude</span><span class="detail-zone-summary-val">${maxAlt} m</span></div>`;
 
   card.style.display = '';
   unskeletonCard('detailGradientCard');
