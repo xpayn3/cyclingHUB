@@ -12575,8 +12575,8 @@ body:has(.act-sheet-mode) .topbar {
     display: flex;
     align-items: center;
     gap: 7px;
-    padding: 9px 0;
-    border-bottom: 1px solid var(--border);
+    padding: 5px 0;
+    border-bottom: none;
 }
 .detail-zone-row:last-child {
     border-bottom: none;
@@ -12592,17 +12592,18 @@ body:has(.act-sheet-mode) .topbar {
     font-size: var(--text-sm);
     color: var(--text-muted);
     min-width: 72px;
+    display: none;
 }
 .detail-zone-bar-track {
     flex: 1;
-    height: 14px;
+    height: 20px;
     background: var(--hover-overlay);
-    border-radius: 3px;
+    border-radius: 5px;
     overflow: hidden;
 }
 .detail-zone-bar-fill {
     height: 100%;
-    border-radius: 3px;
+    border-radius: 5px;
     transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .detail-zone-time {
