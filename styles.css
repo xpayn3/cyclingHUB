@@ -2712,9 +2712,32 @@ input[type="number"] {
 }
 .dash-route-map {
     width: 100%;
-    height: 100%;
-    min-height: 160px;
+    flex: 1;
+    min-height: 120px;
     overflow: hidden;
+    cursor: pointer;
+}
+.dash-route-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px 12px;
+    border: none;
+    background: var(--surface-2);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 0 0 var(--radius) var(--radius);
+    transition: background 0.15s;
+}
+.dash-route-btn:active {
+    background: var(--surface-3);
+}
+.dash-route-btn svg {
+    opacity: 0.7;
 }
 .dash-route-pin {
     width: 16px;

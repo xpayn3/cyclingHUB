@@ -2051,14 +2051,12 @@
                                 <div class="dash-gear-scroll" id="dashGearScroll"></div>
                                 <div class="dash-gear-dots" id="dashGearDots"></div>
                             </div>
-                            <div class="card dash-quick-card dash-route-card" onclick="navigate('routes')">
-                                <div class="card-header">
-                                    <div class="card-title">
-                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
-                                        Route Builder
-                                    </div>
-                                </div>
-                                <div class="dash-route-map" id="dashRouteMap"></div>
+                            <div class="card dash-quick-card dash-route-card">
+                                <div class="dash-route-map" id="dashRouteMap" onclick="navigate('routes')"></div>
+                                <button class="dash-route-btn" onclick="navigate('routes')">
+                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+                                    Route Builder
+                                </button>
                             </div>
                         </div>
                     </div>
