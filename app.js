@@ -1461,6 +1461,7 @@ const _iosSubpageNames = {
   dashsections: 'Dashboard Sections', actsections: 'Activity Sections',
   backup: 'Backup & Restore', routebuilder: 'Route Builder',
   share: 'Share CycleIQ', donate: 'Support CycleIQ',
+  accentcolor: 'Accent Color',
   defaultrange: 'Default Range', leveling: 'Leveling',
   apptheme: 'Theme', changelog: 'Changelog', feedback: 'Feedback',
   licenses: 'Licenses', navigation: 'Tab Bar & FAB'
@@ -1489,6 +1490,7 @@ const _STT_HERO_DATA = {
   donate:       { bg: 'linear-gradient(135deg,rgba(255,45,85,0.15),rgba(255,149,0,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="#ff2d55" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>', desc: 'Support development and keep CycleIQ free.' },
   mygarage:     { bg: 'linear-gradient(135deg,rgba(139,92,246,0.15),rgba(0,229,160,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5L9 11l-3.5 3.5M15 6l-4 5.5H5.5M15 6l3 5.5"/></svg>', desc: 'Manage your bike fleet, track components, and enable brand logos.' },
   navigation:   { bg: 'linear-gradient(135deg,rgba(88,86,214,0.15),rgba(0,229,160,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>', desc: 'Customize your tab bar order and quick action button.' },
+  accentcolor:  { bg: 'linear-gradient(135deg,rgba(0,229,160,0.15),rgba(175,82,222,0.15))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>', desc: 'Choose your app accent color.' },
 };
 
 function openSettingsSubpage(id) {
@@ -1532,6 +1534,7 @@ function openSettingsSubpage(id) {
 
   // Render dynamic subpage content
   if (id === 'navigation' && typeof renderNavSettings === 'function') renderNavSettings();
+  if (id === 'accentcolor') setTimeout(() => openAccentColorPicker(), 350);
 
   // Inject hero intro if not already present
   if (!sub.querySelector('.stt-hero') && _STT_HERO_DATA[id]) {
@@ -4843,6 +4846,15 @@ function _renderDashBatteries() {
     try { gear = JSON.parse(localStorage.getItem('icu_gear_bikes')) || []; } catch {}
   }
 
+  // Event delegation for battery card clicks
+  grid.onclick = e => {
+    const card = e.target.closest('.dash-bat-card');
+    if (!card) return;
+    const bikeId = card.dataset.bikeId || '';
+    const batId = card.dataset.batId || '';
+    _navToBattery(bikeId, batId);
+  };
+
   grid.innerHTML = activeBats.map(b => {
     const pctResult = (typeof calcBatteryPercent === 'function') ? calcBatteryPercent(b) : null;
     const pctVal = pctResult !== null ? Math.round(typeof pctResult === 'object' ? pctResult.percent : pctResult) : null;
@@ -4863,12 +4875,16 @@ function _renderDashBatteries() {
       ? (pctVal <= 10 ? 'rgba(255,69,58,0.15)' : 'rgba(255,149,0,0.15)')
       : 'rgba(0,229,160,0.1)';
 
-    // Battery icon — use SRAM shifter photos when applicable
+    // Battery icon — use SRAM component photos when applicable
     let batIcon;
     const isSramShifter = b.system === 'sram_axs' && (b.componentType === 'shifter_left' || b.componentType === 'shifter_right');
+    const isSramDerailleur = b.system === 'sram_axs' && (b.componentType === 'rear_derailleur' || b.componentType === 'front_derailleur' || b.componentType === 'rear_derailleur_eagle');
     if (isSramShifter) {
       const img = b.componentType === 'shifter_left' ? 'img/components/sram/rival-ed-left-front.webp' : 'img/components/sram/rival-ed-right-front.webp';
       batIcon = `<img src="${img}" alt="${b.componentType === 'shifter_left' ? 'Left' : 'Right'} Shifter" style="width:100%;height:100%;object-fit:contain">`;
+    } else if (isSramDerailleur) {
+      const img = b.componentType === 'front_derailleur' ? 'img/components/sram/front-derailleur.webp' : 'img/components/sram/rear-derailleur.webp';
+      batIcon = `<img src="${img}" alt="${b.name}" style="width:100%;height:100%;object-fit:contain">`;
     } else {
       batIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="${pctVal !== null && pctVal <= 25 ? barColor : 'var(--accent)'}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
       <rect x="2" y="7" width="18" height="10" rx="2"/>
@@ -4883,9 +4899,9 @@ function _renderDashBatteries() {
       chargeInfo = days === 0 ? 'Charged today' : days === 1 ? '1 day ago' : `${days}d ago`;
     }
 
-    return `<div class="dash-bat-card" onclick="navigate('gear')">
+    return `<div class="dash-bat-card" data-bike-id="${b.bikeId||''}" data-bat-id="${b.id}">
       <div class="dash-bat-header">
-        <div class="dash-bat-icon" style="${isSramShifter ? 'background:transparent;border-radius:0' : 'background:' + iconBg}">${batIcon}</div>
+        <div class="dash-bat-icon" style="${(isSramShifter || isSramDerailleur) ? 'background:transparent;border-radius:0' : 'background:' + iconBg}">${batIcon}</div>
         <div style="min-width:0">
           <div class="dash-bat-name">${b.name || b.componentType || 'Battery'}</div>
           ${bikeName ? `<div class="dash-bat-bike">${bikeName}</div>` : ''}
@@ -4902,6 +4918,37 @@ function _renderDashBatteries() {
   }).join('');
 
   section.style.display = '';
+}
+
+function _navToBattery(bikeId, batId) {
+  // Set the active bike so bikedetail page renders the right bike
+  if (bikeId) {
+    window._garActiveBike = bikeId;
+    window._gearSelectedBike = bikeId;
+  }
+  // Store pending battery tab + highlight
+  window._pendingBatHighlight = batId;
+  navigate('bikedetail');
+  // Wait for bike detail page to render, then switch to batteries tab
+  setTimeout(() => {
+    const batTab = document.querySelector('.gar-tab[data-tab="batteries"]');
+    if (batTab) batTab.click();
+    // Scroll to and highlight the specific battery card
+    setTimeout(() => {
+      const cards = document.querySelectorAll('.gar-bat-card');
+      let target = null;
+      cards.forEach(c => {
+        if (c.innerHTML && c.innerHTML.includes(batId)) target = c;
+      });
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        target.style.outline = '2px solid var(--accent)';
+        target.style.outlineOffset = '2px';
+        setTimeout(() => { target.style.outline = ''; target.style.outlineOffset = ''; }, 1500);
+      }
+      delete window._pendingBatHighlight;
+    }, 400);
+  }, 600);
 }
 
 let _dashRouteMapInst = null;
@@ -13034,6 +13081,35 @@ function _closeOverlaySheet(id) {
   if (backdrop) backdrop.style.opacity = '';
 }
 
+/* ── Reusable confirmation sheet ── */
+function _confirmSheet(msg, actionLabel, onConfirm, destructive) {
+  let overlay = document.getElementById('_confirmSheetOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = '_confirmSheetOverlay';
+    overlay.className = 'wxd-overlay';
+    overlay.innerHTML = `<div class="wxd-backdrop" onclick="_closeOverlaySheet('_confirmSheetOverlay')"></div>
+      <div class="wxd-sheet wxd-sheet--partial" style="max-width:400px">
+        <div class="modal-drag-indicator"></div>
+        <div class="wxd-sheet-body" style="padding:24px 20px 28px;text-align:center">
+          <div id="_confirmMsg" class="confirm-sheet-msg"></div>
+          <div class="confirm-sheet-btns">
+            <button id="_confirmAction" class="confirm-sheet-action"></button>
+            <button class="confirm-sheet-cancel" onclick="_closeOverlaySheet('_confirmSheetOverlay')">Cancel</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+  }
+  overlay.querySelector('#_confirmMsg').textContent = msg;
+  const btn = overlay.querySelector('#_confirmAction');
+  btn.textContent = actionLabel || 'Confirm';
+  btn.style.background = destructive ? 'var(--red)' : 'var(--accent)';
+  btn.style.color = destructive ? '#fff' : '#000';
+  btn.onclick = () => { _closeOverlaySheet('_confirmSheetOverlay'); onConfirm(); };
+  _openOverlaySheet('_confirmSheetOverlay');
+}
+
 function _cleanSheet(inner) {
   if (!inner) return;
   inner.classList.remove('sheet-enter', 'sheet-dismiss', 'dragging');
@@ -14212,6 +14288,220 @@ function _ccpHexInput(val) {
     _ccpRenderSwatches();
   }
 }
+
+// ── Accent Color Picker ─────────────────────────────────────
+const _accentPresets = ['#00e5a0','#4a9eff','#ff6b35','#ff4d6a','#9b59ff','#f5c542','#5ac8fa','#ff2d55','#34c759','#ff9500','#00c7be','#af52de'];
+let _acpHue = 158, _acpSat = 100, _acpBri = 45;
+let _acpGradInited = false;
+
+function openAccentColorPicker() {
+  // Now handled as settings subpage — init gradient when subpage becomes visible
+  _acpRenderSwatches();
+  const current = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+  _acpSyncUI(current || '#00e5a0');
+  if (!_acpGradInited) {
+    _acpGradInited = true;
+    _acpInitGradient();
+    _acpInitHueBar();
+  }
+  setTimeout(() => { _acpDrawGradient(); _acpDrawHueBar(); }, 50);
+}
+
+function _acpPickPreset(hex) {
+  _setAccentColor(hex);
+  _acpSyncUI(hex);
+  _acpRenderSwatches();
+}
+
+function _setAccentFromPicker() {
+  const hex = '#' + (document.getElementById('acpHexInput')?.value || '00e5a0');
+  _setAccentColor(hex);
+}
+
+function _acpRenderSwatches() {
+  const el = document.getElementById('acpSwatches');
+  if (!el) return;
+  const current = localStorage.getItem('icu_accent_color') || '#00e5a0';
+  el.innerHTML = _accentPresets.map(c => {
+    const isActive = current.toLowerCase() === c.toLowerCase();
+    return `<div class="ccp-dot${isActive ? ' ccp-dot--active' : ''}" style="background:${c}" data-color="${c}"></div>`;
+  }).join('');
+  // Event delegation for preset clicks
+  el.onclick = e => {
+    const dot = e.target.closest('.ccp-dot');
+    if (!dot?.dataset.color) return;
+    _acpPickPreset(dot.dataset.color);
+  };
+}
+
+// HSB ↔ Hex for accent color picker (gradient is HSB, not HSL)
+function _hexToHSB(hex) {
+  hex = hex.replace('#', '');
+  if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+  const r = parseInt(hex.slice(0,2),16)/255, g = parseInt(hex.slice(2,4),16)/255, b = parseInt(hex.slice(4,6),16)/255;
+  const max = Math.max(r,g,b), min = Math.min(r,g,b), d = max - min;
+  let h = 0, s = max === 0 ? 0 : d / max, v = max;
+  if (d > 0) {
+    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) * 60;
+    else if (max === g) h = ((b - r) / d + 2) * 60;
+    else h = ((r - g) / d + 4) * 60;
+  }
+  return { h: Math.round(h), s: Math.round(s * 100), b: Math.round(v * 100) };
+}
+
+function _hsbToHex(h, s, b) {
+  s /= 100; b /= 100;
+  const c = b * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = b - c;
+  let r1, g1, b1;
+  if (h < 60) { r1 = c; g1 = x; b1 = 0; }
+  else if (h < 120) { r1 = x; g1 = c; b1 = 0; }
+  else if (h < 180) { r1 = 0; g1 = c; b1 = x; }
+  else if (h < 240) { r1 = 0; g1 = x; b1 = c; }
+  else if (h < 300) { r1 = x; g1 = 0; b1 = c; }
+  else { r1 = c; g1 = 0; b1 = x; }
+  const toHex = v => Math.round((v + m) * 255).toString(16).padStart(2, '0');
+  return '#' + toHex(r1) + toHex(g1) + toHex(b1);
+}
+
+function _acpSyncUI(hex) {
+  if (hex) {
+    const hsb = _hexToHSB(hex);
+    _acpHue = hsb.h; _acpSat = hsb.s; _acpBri = hsb.b;
+  }
+  _acpDrawGradient();
+  _acpUpdateCrosshair();
+  _acpUpdateHueThumb();
+  _acpUpdatePreview();
+  const inp = document.getElementById('acpHexInput');
+  if (inp && hex) inp.value = hex.replace('#', '');
+}
+
+function _acpDrawGradient() {
+  const canvas = document.getElementById('acpGradient');
+  if (!canvas || !canvas.clientWidth) return;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.fillStyle = `hsl(${_acpHue}, 100%, 50%)`;
+  ctx.fillRect(0, 0, w, h);
+  const white = ctx.createLinearGradient(0, 0, w, 0);
+  white.addColorStop(0, 'rgba(255,255,255,1)');
+  white.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = white; ctx.fillRect(0, 0, w, h);
+  const black = ctx.createLinearGradient(0, 0, 0, h);
+  black.addColorStop(0, 'rgba(0,0,0,0)');
+  black.addColorStop(1, 'rgba(0,0,0,1)');
+  ctx.fillStyle = black; ctx.fillRect(0, 0, w, h);
+}
+
+function _acpUpdateCrosshair() {
+  const canvas = document.getElementById('acpGradient');
+  const ch = document.getElementById('acpCrosshair');
+  if (!canvas || !ch) return;
+  ch.style.left = (_acpSat / 100 * canvas.clientWidth) + 'px';
+  ch.style.top = ((100 - _acpBri) / 100 * canvas.clientHeight) + 'px';
+  ch.style.borderColor = _acpBri > 50 ? '#000' : '#fff';
+}
+
+function _acpInitGradient() {
+  const canvas = document.getElementById('acpGradient');
+  if (!canvas) return;
+  const pick = e => {
+    const rect = canvas.getBoundingClientRect();
+    _acpSat = Math.round(Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) * 100);
+    _acpBri = Math.round((1 - Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height))) * 100);
+    _acpApply();
+  };
+  canvas.addEventListener('pointerdown', e => { canvas.setPointerCapture(e.pointerId); pick(e); });
+  canvas.addEventListener('pointermove', e => { if (e.buttons) pick(e); });
+}
+
+function _acpDrawHueBar() {
+  const canvas = document.getElementById('acpHueCanvas');
+  if (!canvas || !canvas.clientWidth) return;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const grad = ctx.createLinearGradient(0, 0, w, 0);
+  for (let i = 0; i <= 360; i += 30) grad.addColorStop(i / 360, `hsl(${i},100%,50%)`);
+  ctx.fillStyle = grad; ctx.fillRect(0, 0, w, h);
+}
+
+function _acpUpdateHueThumb() {
+  const canvas = document.getElementById('acpHueCanvas');
+  const thumb = document.getElementById('acpHueThumb');
+  if (!canvas || !thumb) return;
+  thumb.style.left = (_acpHue / 360 * canvas.clientWidth) + 'px';
+  thumb.style.background = `hsl(${_acpHue},100%,50%)`;
+}
+
+function _acpInitHueBar() {
+  const canvas = document.getElementById('acpHueCanvas');
+  if (!canvas) return;
+  _acpDrawHueBar();
+  const pick = e => {
+    const rect = canvas.getBoundingClientRect();
+    _acpHue = Math.round(Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) * 360);
+    _acpDrawGradient();
+    _acpUpdateHueThumb();
+    _acpApply();
+  };
+  canvas.addEventListener('pointerdown', e => { canvas.setPointerCapture(e.pointerId); pick(e); });
+  canvas.addEventListener('pointermove', e => { if (e.buttons) pick(e); });
+}
+
+function _acpApply() {
+  const hex = _hsbToHex(_acpHue, _acpSat, _acpBri);
+  _setAccentColor(hex);
+  _acpUpdateCrosshair();
+  _acpUpdatePreview();
+  const inp = document.getElementById('acpHexInput');
+  if (inp) inp.value = hex.replace('#', '');
+  _acpRenderSwatches();
+}
+
+function _acpUpdatePreview() {
+  const el = document.getElementById('acpPreview');
+  if (el) el.style.background = _hsbToHex(_acpHue, _acpSat, _acpBri);
+}
+
+function _acpHexInput(val) {
+  val = val.replace(/[^0-9a-fA-F]/g, '');
+  if (val.length === 6) {
+    _setAccentColor('#' + val);
+    const hsb = _hexToHSB(val);
+    _acpHue = hsb.h; _acpSat = hsb.s; _acpBri = hsb.b;
+    _acpDrawGradient();
+    _acpUpdateCrosshair();
+    _acpUpdateHueThumb();
+    _acpUpdatePreview();
+    _acpRenderSwatches();
+  }
+}
+
+function _setAccentColor(hex) {
+  document.documentElement.style.setProperty('--accent', hex);
+  // Compute hover & dim variants
+  const hsl = _hexToHSL(hex);
+  const hover = _hslToHex(hsl.h, Math.min(100, hsl.s + 5), Math.min(100, hsl.l + 8));
+  const dim = hex + '1a';
+  document.documentElement.style.setProperty('--accent-hover', hover);
+  document.documentElement.style.setProperty('--accent-dim', dim);
+  localStorage.setItem('icu_accent_color', hex);
+  // Update preview dot in settings
+  const preview = document.getElementById('accentColorPreview');
+  if (preview) preview.style.background = hex;
+}
+
+// Restore saved accent color on load
+(function _restoreAccentColor() {
+  const saved = localStorage.getItem('icu_accent_color');
+  if (saved) _setAccentColor(saved);
+})();
 
 // ── Calendar Event Date Picker ──
 let _cevDateMonth = null; // { year, month }
@@ -22653,7 +22943,7 @@ function renderBikeDetailPage() {
           <span>Retired</span>
         </label>
       </div>
-      <div id="gearBatteriesGrid" class="gar-list"></div>
+      <div id="gearBatteriesGrid" class="gar-bat-grid"></div>
       <button class="gar-add-full-btn" onclick="openBatteryModal()">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Add Battery
@@ -22846,14 +23136,15 @@ function gearComponentCard(c) {
   const warn = pct !== null && pct >= 90;
   const overdue = pct !== null && pct >= 100;
 
-  const sub = [c.brand, c.model].filter(Boolean).join(' ') || (bike ? bike.name : '');
+  const subParts = [c.brand, c.model].filter(Boolean).join(' ') || (bike ? bike.name : '');
+  const sub = c.oem ? (subParts ? subParts + ' · OEM' : 'OEM') : subParts;
   const pctCls = overdue ? 'gar-comp-pct--over' : warn ? 'gar-comp-pct--warn' : 'gar-comp-pct--ok';
   const barColor = overdue ? 'var(--red)' : warn ? '#ff9500' : color;
 
-  const resolvedImg = c.image || _gearGetDefaultImage(c.brand, c.model) || _gearBrandLogoUrl(c.brand);
+  const resolvedImg = c.image || _gearGetDefaultImage(c.brand, c.model, c.name, c.category) || _gearBrandLogoUrl(c.brand);
   const hasImg = !!resolvedImg;
   const imgHtml = hasImg
-    ? `<img src="${resolvedImg}" alt="${c.name || ''}">`
+    ? `<img src="${resolvedImg}" alt="${c.name || ''}" onerror="_gearImgFallback(this,'${(c.name||'').replace(/'/g,'')}','${(c.category||'').replace(/'/g,'')}')">`
     : (c.category || 'O')[0];
 
   const kmStr = ridden > 0 ? `${Math.round(ridden).toLocaleString()} km` : '';
@@ -22891,10 +23182,10 @@ function openCompDetail(compId) {
   const ridden = Math.max(0, bikeKm - (parseFloat(c.kmAtInstall) || 0));
   const remind = parseFloat(c.reminderKm) || 0;
   const pct = remind > 0 ? Math.min(100, Math.round(ridden / remind * 100)) : null;
-  const resolvedImg = c.image || _gearGetDefaultImage(c.brand, c.model) || _gearBrandLogoUrl(c.brand);
+  const resolvedImg = c.image || _gearGetDefaultImage(c.brand, c.model, c.name, c.category) || _gearBrandLogoUrl(c.brand);
 
   const imgHtml = resolvedImg
-    ? `<div class="comp-detail-img"><img src="${resolvedImg}" alt="${c.name}"></div>`
+    ? `<div class="comp-detail-img"><img src="${resolvedImg}" alt="${c.name}" onerror="_gearImgFallback(this,'${(c.name||'').replace(/'/g,'')}','${(c.category||'').replace(/'/g,'')}')"></div>`
     : `<div class="comp-detail-img" style="background:${color};display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;color:#fff">${(c.category || 'O')[0]}</div>`;
 
   const pctColor = pct >= 100 ? 'var(--red)' : pct >= 90 ? '#ff9500' : 'var(--accent)';
@@ -22928,6 +23219,7 @@ function openCompDetail(compId) {
   const rows = [];
   if (c.category) rows.push(['Category', `<span style="color:${color}">${c.category}</span>`]);
   if (bike) rows.push(['Bike', bike.name]);
+  if (c.oem) rows.push(['Origin', '<span style="color:var(--text-muted)">Came with bike</span>']);
   if (purchaseDate) rows.push(['Purchased', purchaseDate]);
   if (c.kmAtInstall) rows.push(['Installed at', `${parseFloat(c.kmAtInstall).toLocaleString()} km`]);
 
@@ -23013,10 +23305,10 @@ function openGearPicker(selectEl) {
         imgHtml = `<img class="gp-opt-img" src="img/components/sram/rival-ed-left-front.webp" alt="Left Shifter" onerror="_gpImgFail(this)">`;
       } else if (batSys === 'sram_axs' && opt.value === 'shifter_right') {
         imgHtml = `<img class="gp-opt-img" src="img/components/sram/rival-ed-right-front.webp" alt="Right Shifter" onerror="_gpImgFail(this)">`;
-      } else if (batSys === 'sram_axs' && opt.value === 'rear_derailleur') {
-        imgHtml = `<img class="gp-opt-img" src="img/components/sram/sram-battery.webp" alt="Derailleur" onerror="_gpImgFail(this)">`;
-      } else if (batSys === 'sram_axs' && (opt.value === 'rear_derailleur_eagle' || opt.value === 'front_derailleur')) {
-        imgHtml = `<img class="gp-opt-img" src="img/components/sram/sram-battery.webp" alt="Derailleur" onerror="_gpImgFail(this)">`;
+      } else if (batSys === 'sram_axs' && (opt.value === 'rear_derailleur' || opt.value === 'rear_derailleur_eagle')) {
+        imgHtml = `<img class="gp-opt-img" src="img/components/sram/rear-derailleur.webp" alt="Rear Derailleur" onerror="_gpImgFail(this)">`;
+      } else if (batSys === 'sram_axs' && opt.value === 'front_derailleur') {
+        imgHtml = `<img class="gp-opt-img" src="img/components/sram/front-derailleur.webp" alt="Front Derailleur" onerror="_gpImgFail(this)">`;
       } else {
         imgHtml = defaultIcon;
       }
@@ -23232,6 +23524,7 @@ function openGearModal(editId) {
   document.getElementById('gearFormKmAtInstall').value= '';
   document.getElementById('gearFormReminderKm').value = '';
   if (document.getElementById('gearFormImage')) document.getElementById('gearFormImage').value = '';
+  if (document.getElementById('gearFormOEM')) document.getElementById('gearFormOEM').checked = false;
   document.getElementById('gearFormBike').value       = _gearSelectedBike || '';
   document.getElementById('gearFormCategory').value   = 'Drivetrain';
 
@@ -23250,6 +23543,7 @@ function openGearModal(editId) {
       document.getElementById('gearFormBike').value        = comp.bikeId      || '';
       document.getElementById('gearFormCategory').value    = comp.category    || 'Drivetrain';
       if (document.getElementById('gearFormImage')) document.getElementById('gearFormImage').value = comp.image || '';
+      if (document.getElementById('gearFormOEM')) document.getElementById('gearFormOEM').checked = !!comp.oem;
       const preview = document.getElementById('gearFormImagePreview');
       if (preview && comp.image) {
         preview.innerHTML = `<img src="${comp.image}" alt="preview">`;
@@ -23344,19 +23638,7 @@ const _GEAR_DEFAULT_IMAGES = {
   'shimano|claris r2000':      'img/components/shimano/claris-r2000.webp',
   'shimano|deore xt m8100':    'img/components/shimano/deore-xt-m8100.webp',
   'shimano|xtr m9100':         'img/components/shimano/xtr-m9100.webp',
-  // SRAM Drivetrain
-  'sram|red axs':              'img/components/sram/red-axs.webp',
-  'sram|red etap':             'img/components/sram/red-etap.webp',
-  'sram|force axs':            'img/components/sram/force-axs.webp',
-  'sram|force etap':           'img/components/sram/force-etap.webp',
-  'sram|rival axs':            'img/components/sram/rival-axs.webp',
-  'sram|rival etap':           'img/components/sram/rival-etap.webp',
-  'sram|apex axs':             'img/components/sram/apex-axs.webp',
-  'sram|red xplr axs':         'img/components/sram/red-xplr-axs.webp',
-  'sram|xx sl axs':            'img/components/sram/xx-sl-axs.webp',
-  'sram|xx axs':               'img/components/sram/xx-axs.webp',
-  'sram|x0 axs':               'img/components/sram/x0-axs.webp',
-  'sram|gx axs':               'img/components/sram/gx-axs.webp',
+  // SRAM — resolved by component name via _GEAR_CATEGORY_IMAGES fallback
   // Campagnolo
   'campagnolo|super record eps':'img/components/campagnolo/super-record-eps.webp',
   'campagnolo|super record':   'img/components/campagnolo/super-record.webp',
@@ -23530,14 +23812,67 @@ function _gearBrandLogoUrl(brand) {
   return `https://img.logo.dev/${domain}?token=${key}&size=64&format=png`;
 }
 
-function _gearGetDefaultImage(brand, model) {
-  if (!brand) return null;
-  const b = brand.toLowerCase();
-  const m = (model || '').toLowerCase();
+// Category fallback images (when no brand/model match)
+const _GEAR_CATEGORY_IMAGES = {
+  // Order matters — more specific keys first
+  'rear derailleur':  'img/components/categories/rear-derailleur.webp',
+  'front derailleur': 'img/components/categories/front-derailleur.webp',
+  'left shifter':     'img/components/categories/hoods.webp',
+  'right shifter':    'img/components/categories/hoods.webp',
+  'shifter':          'img/components/categories/hoods.webp',
+  'hood':             'img/components/categories/hoods.webp',
+  'derailleur':       'img/components/categories/rear-derailleur.webp',
+  'crankset':         'img/components/categories/crankset.webp',
+  'crank':            'img/components/categories/crankset.webp',
+  'chainring':        'img/components/categories/crankset.webp',
+  'cassette':         'img/components/categories/cassette.webp',
+  'chain':            'img/components/categories/cassette.webp',
+  'bottom bracket':   'img/components/categories/crankset.webp',
+  'disc brake':       'img/components/categories/disc-brakes.webp',
+  'brake':            'img/components/categories/disc-brakes.webp',
+  'pedal':            'img/components/categories/pedals.webp',
+  'wheelset':         'img/components/categories/wheels.webp',
+  'wheel':            'img/components/categories/wheels.webp',
+  'rim':              'img/components/categories/wheels.webp',
+  'hub':              'img/components/categories/wheels.webp',
+  'spoke':            'img/components/categories/wheels.webp',
+  'tyre':             'img/components/categories/tyres.webp',
+  'tire':             'img/components/categories/tyres.webp',
+  'handlebar':        'img/components/categories/handlebars.webp',
+  'stem':             'img/components/categories/handlebars.webp',
+  'bar tape':         'img/components/categories/handlebars.webp',
+  'bartape':          'img/components/categories/handlebars.webp',
+  'battery':          'img/components/sram/sram-battery.webp',
+};
+
+function _gearImgFallback(img, compName, category) {
+  img.onerror = null; // prevent infinite loop
+  const fb = _gearGetCategoryImage(compName, category);
+  if (fb) { img.src = fb; }
+  else { img.style.display = 'none'; }
+}
+
+function _gearGetCategoryImage(compName, category) {
+  const texts = [compName, category].filter(Boolean).map(s => s.toLowerCase());
+  if (!texts.length) return null;
+  for (const [key, img] of Object.entries(_GEAR_CATEGORY_IMAGES)) {
+    for (const t of texts) {
+      if (t.includes(key)) return img;
+    }
+  }
+  return null;
+}
+
+function _gearGetDefaultImage(brand, model, compName, category) {
+  // Try category fallback first — matches component type from name or category
+  const catImg = _gearGetCategoryImage(compName, category);
+  if (catImg) return catImg;
   // Try exact brand|model match
-  if (m && _GEAR_DEFAULT_IMAGES[b + '|' + m]) return _GEAR_DEFAULT_IMAGES[b + '|' + m];
+  const b = (brand || '').toLowerCase();
+  const m = (model || '').toLowerCase();
+  if (b && m && _GEAR_DEFAULT_IMAGES[b + '|' + m]) return _GEAR_DEFAULT_IMAGES[b + '|' + m];
   // Try brand-only fallback
-  if (_GEAR_DEFAULT_IMAGES[b + '|']) return _GEAR_DEFAULT_IMAGES[b + '|'];
+  if (b && _GEAR_DEFAULT_IMAGES[b + '|']) return _GEAR_DEFAULT_IMAGES[b + '|'];
   return null;
 }
 
@@ -23614,6 +23949,7 @@ function submitGearForm() {
     kmAtInstall:  parseFloat(document.getElementById('gearFormKmAtInstall').value)  || 0,
     reminderKm:   parseFloat(document.getElementById('gearFormReminderKm').value)   || 0,
     image:        document.getElementById('gearFormImage')?.value.trim() || '',
+    oem:          document.getElementById('gearFormOEM')?.checked || false,
   };
 
   let all = loadGearComponents();
@@ -23811,7 +24147,8 @@ function batteryCard(bat) {
     const src = bat.componentType === 'shifter_left' ? 'img/components/sram/rival-ed-left-front.webp' : 'img/components/sram/rival-ed-right-front.webp';
     imgHtml = `<img src="${src}" alt="${bat.name}" style="width:100%;height:100%;object-fit:contain">`;
   } else if (isSramDerailleur) {
-    imgHtml = `<img src="img/components/sram/sram-battery.webp" alt="${bat.name}" style="width:100%;height:100%;object-fit:contain">`;
+    const dSrc = bat.componentType === 'front_derailleur' ? 'img/components/sram/front-derailleur.webp' : 'img/components/sram/rear-derailleur.webp';
+    imgHtml = `<img src="${dSrc}" alt="${bat.name}" style="width:100%;height:100%;object-fit:contain">`;
   } else {
     imgHtml = `<div class="gar-bat-visual">
       <div class="gar-bat-terminal"></div>
@@ -23835,12 +24172,20 @@ function batteryCard(bat) {
     </svg>`;
   }
 
-  return `<div class="gar-bat-card card${isObsolete ? ' gar-bat-row--obsolete' : ''}">
+  const hasUndo = !!bat._prevChargeDate;
+  return `<div class="gar-bat-card card card--clickable${isObsolete ? ' gar-bat-row--obsolete' : ''}" onclick="openBatDetailSheet('${bat.id}')">
+    ${!isObsolete ? (hasUndo
+      ? `<button class="gar-bat-charge-fab gar-bat-charge-fab--undo" title="Undo charge" onclick="event.stopPropagation();undoChargeBattery('${bat.id}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><path d="M3 10h10a5 5 0 0 1 0 10H12"/><polyline points="7 6 3 10 7 14"/></svg>
+        </button>`
+      : `<button class="gar-bat-charge-fab" title="Charge" onclick="event.stopPropagation();chargeBattery('${bat.id}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        </button>`) : ''}
     <div class="gar-bat-card-top">
       <div class="gar-bat-img${hasComponentImg ? '' : ' gar-bat-img--icon'}">${imgHtml}</div>
       <div class="gar-bat-card-info">
         <div class="gar-bat-name">${bat.name || 'Battery'}</div>
-        <div class="gar-bat-sub">${[sysLabel, bike?.name].filter(Boolean).join(' · ')}</div>
+        ${bike?.name ? `<span class="gar-bat-bike-pill">${bike.name}</span>` : ''}
         <div class="gar-bat-sub">${sub}</div>
       </div>
       <div class="gar-bat-card-pct" style="color:${pctColor}">${pct}%</div>
@@ -23848,17 +24193,7 @@ function batteryCard(bat) {
     <div class="gar-bat-card-bar">
       <div class="gar-bat-card-fill ${fillCls}" style="width:${Math.max(2, pct)}%"></div>
     </div>
-    <div class="gar-bat-card-bottom">
-      ${sparkSvg}
-      <div class="gar-bat-card-actions">
-        ${!isObsolete ? `<button class="gar-bat-charge-btn" title="Charge" onclick="chargeBattery('${bat.id}')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-        </button>` : ''}
-        <button class="gar-comp-action-btn" title="Edit" onclick="openBatteryModal('${bat.id}')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
-        </button>
-      </div>
-    </div>
+    ${sparkSvg ? `<div class="gar-bat-card-bottom">${sparkSvg}</div>` : ''}
   </div>`;
 }
 
@@ -24006,13 +24341,189 @@ function chargeBattery(id) {
   const all = loadGearBatteries();
   const bat = all.find(b => b.id === id);
   if (!bat) return;
-  bat.lastChargeDate = new Date().toISOString().split('T')[0];
-  saveGearBatteries(all);
-  renderGearBatteries();
-  showToast(bat.batteryType === 'coin_cell' ? 'Battery marked as replaced' : 'Battery marked as charged', 'success');
+  const calc = calcBatteryPercent(bat);
+  const pct = calc ? calc.percent : 50;
+  const isCoin = bat.batteryType === 'coin_cell';
+  const fillCls = pct > 60 ? 'green' : pct > 30 ? 'yellow' : pct > 15 ? 'orange' : 'red';
+  const fillColors = { green: 'var(--accent)', yellow: '#ffcc00', orange: '#ff9500', red: 'var(--red)' };
+
+  // Create overlay
+  let ov = document.getElementById('_batChargeOverlay');
+  if (ov) ov.remove();
+  ov = document.createElement('div');
+  ov.id = '_batChargeOverlay';
+  ov.className = 'bat-charge-overlay';
+  ov.innerHTML = `
+    <div class="bat-charge-backdrop"></div>
+    <div class="bat-charge-popup">
+      <div class="bat-charge-name">${bat.name}</div>
+      <div class="bat-charge-battery">
+        <div class="bat-charge-terminal"></div>
+        <div class="bat-charge-body">
+          <div class="bat-charge-fill" style="height:${Math.max(8, pct)}%;background:${fillColors[fillCls]}"></div>
+        </div>
+        <div class="bat-charge-pct">${pct}%</div>
+      </div>
+      <div class="bat-charge-bolt">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      </div>
+      <button class="bat-charge-btn" id="_batChargeBtn">${isCoin ? 'Replace Battery' : 'Charge Now'}</button>
+      <button class="bat-charge-cancel" onclick="document.getElementById('_batChargeOverlay')?.remove()">Cancel</button>
+    </div>`;
+  document.body.appendChild(ov);
+  requestAnimationFrame(() => ov.classList.add('bat-charge-open'));
+
+  document.getElementById('_batChargeBtn').onclick = () => {
+    const fill = ov.querySelector('.bat-charge-fill');
+    const pctEl = ov.querySelector('.bat-charge-pct');
+    const body = ov.querySelector('.bat-charge-body');
+    const btn = document.getElementById('_batChargeBtn');
+    btn.disabled = true;
+    btn.textContent = 'Charging...';
+
+    // Animate fill to 100%
+    fill.style.transition = 'height 1.2s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.5s';
+    fill.style.height = '100%';
+    fill.style.background = 'var(--accent)';
+
+    // Animate percentage count-up
+    let cur = pct;
+    const step = Math.max(1, Math.round((100 - pct) / 24));
+    const countUp = setInterval(() => {
+      cur = Math.min(100, cur + step);
+      pctEl.textContent = cur + '%';
+      if (cur >= 100) {
+        clearInterval(countUp);
+        pctEl.textContent = '100%';
+      }
+    }, 50);
+
+    // After fill completes — glow effect
+    setTimeout(() => {
+      body.classList.add('bat-charge-glow');
+      pctEl.style.color = 'var(--accent)';
+      btn.textContent = isCoin ? 'Replaced!' : 'Charged!';
+
+      // Save and close — store previous charge date for undo
+      setTimeout(() => {
+        bat._prevChargeDate = bat.lastChargeDate || null;
+        bat.lastChargeDate = new Date().toISOString().split('T')[0];
+        saveGearBatteries(all);
+        ov.classList.remove('bat-charge-open');
+        setTimeout(() => {
+          ov.remove();
+          renderGearBatteries();
+          if (typeof _renderDashBatteries === 'function') _renderDashBatteries();
+        }, 300);
+      }, 800);
+    }, 1300);
+  };
 }
 
 
+
+function openBatDetailSheet(id) {
+  const all = loadGearBatteries();
+  const bat = all.find(b => b.id === id);
+  if (!bat) return;
+  const body = document.getElementById('batDetailBody');
+  if (!body) return;
+
+  const calc = (typeof calcBatteryPercent === 'function') ? calcBatteryPercent(bat) : null;
+  const pct = calc ? Math.round(typeof calc === 'object' ? calc.percent : calc) : null;
+  const pctColor = pct === null ? 'var(--text-muted)' : pct > 60 ? 'var(--accent)' : pct > 30 ? '#ffcc00' : pct > 15 ? '#ff9500' : 'var(--red)';
+  const fillCls = pct > 60 ? 'gar-bat-fill--green' : pct > 30 ? 'gar-bat-fill--yellow' : pct > 15 ? 'gar-bat-fill--orange' : 'gar-bat-fill--red';
+
+  // Image
+  const isSramShifter = bat.system === 'sram_axs' && (bat.componentType === 'shifter_left' || bat.componentType === 'shifter_right');
+  const isSramDerailleur = bat.system === 'sram_axs' && (bat.componentType === 'rear_derailleur' || bat.componentType === 'front_derailleur' || bat.componentType === 'rear_derailleur_eagle');
+  let imgSrc = '';
+  if (isSramShifter) imgSrc = bat.componentType === 'shifter_left' ? 'img/components/sram/rival-ed-left-front.webp' : 'img/components/sram/rival-ed-right-front.webp';
+  else if (isSramDerailleur) imgSrc = bat.componentType === 'front_derailleur' ? 'img/components/sram/front-derailleur.webp' : 'img/components/sram/rear-derailleur.webp';
+  else imgSrc = _gearGetCategoryImage(bat.name, bat.componentType) || '';
+
+  const imgHtml = imgSrc
+    ? `<div class="comp-detail-img"><img src="${imgSrc}" alt="${bat.name}" style="object-fit:contain"></div>`
+    : `<div class="comp-detail-img" style="background:rgba(0,229,160,0.1);display:flex;align-items:center;justify-content:center">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" width="40" height="40"><rect x="2" y="7" width="18" height="10" rx="2"/><line x1="22" y1="11" x2="22" y2="13"/></svg>
+      </div>`;
+
+  // Info
+  const gear = state.gearBikes || [];
+  const bike = gear.find(g => g.id === bat.bikeId);
+  const system = bat.system === 'sram_axs' ? 'SRAM AXS' : bat.system === 'shimano_di2' ? 'Shimano Di2' : bat.system || '';
+  const batType = bat.batteryType === 'coin_cell' ? 'Coin Cell (CR2032)' : bat.batteryType === 'rechargeable' ? 'Rechargeable' : bat.batteryType || '';
+
+  // Rows
+  const rows = [];
+  if (system) rows.push(['System', system]);
+  if (bike) rows.push(['Bike', bike.name]);
+  if (batType) rows.push(['Type', batType]);
+  if (bat.lastChargeDate) {
+    const d = new Date(bat.lastChargeDate);
+    rows.push(['Last Charged', d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })]);
+  }
+  if (bat.installDate) {
+    const d = new Date(bat.installDate);
+    rows.push(['Installed', d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })]);
+  }
+  if (bat.ratedLifeHours) rows.push(['Rated Life', bat.ratedLifeHours + ' hours']);
+  if (bat.notes) rows.push(['Notes', bat.notes]);
+
+  body.innerHTML = `
+    ${imgHtml}
+    <div class="comp-detail-name">${bat.name || 'Battery'}</div>
+    ${system ? `<div class="comp-detail-brand">${system}</div>` : ''}
+
+    <div class="cd-stats">
+      <div class="cd-stat">
+        <span class="cd-stat-val" style="color:${pctColor}">${pct !== null ? pct : '—'}<span class="cd-stat-unit">%</span></span>
+        <span class="cd-stat-label">Charge</span>
+      </div>
+    </div>
+
+    <div class="cd-bat-bar" style="height:6px;background:var(--bg-elevated);border-radius:3px;overflow:hidden;margin:0 0 16px">
+      <div style="height:100%;width:${Math.max(2, pct || 0)}%;border-radius:3px" class="${fillCls}"></div>
+    </div>
+
+    ${rows.length ? `<div class="cd-section-title">Details</div>
+    <div class="comp-detail-rows">
+      ${rows.map(([l, v]) => `<div class="comp-detail-row"><span class="comp-detail-label">${l}</span><span class="comp-detail-val">${v}</span></div>`).join('')}
+    </div>` : ''}
+
+    <div class="comp-detail-actions">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeBatDetailSheet();chargeBattery('${bat.id}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        Charge
+      </button>
+      <button class="btn btn-ghost" style="flex:1" onclick="closeBatDetailSheet();openBatteryModal('${bat.id}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
+        Edit
+      </button>
+      <button class="btn btn-ghost" style="flex:1;color:var(--red)" onclick="closeBatDetailSheet();deleteBattery('${bat.id}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        Delete
+      </button>
+    </div>`;
+
+  _openOverlaySheet('batDetailSheet');
+}
+
+function closeBatDetailSheet() {
+  _closeOverlaySheet('batDetailSheet');
+}
+
+function undoChargeBattery(id) {
+  const all = loadGearBatteries();
+  const bat = all.find(b => b.id === id);
+  if (!bat || !bat._prevChargeDate) return;
+  bat.lastChargeDate = bat._prevChargeDate;
+  delete bat._prevChargeDate;
+  saveGearBatteries(all);
+  renderGearBatteries();
+  if (typeof _renderDashBatteries === 'function') _renderDashBatteries();
+  showToast('Charge undone', 'success');
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GEAR — BIKE SERVICE TRACKING

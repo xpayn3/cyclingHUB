@@ -2547,12 +2547,16 @@ input[type="number"] {
     gap: var(--gap-card);
 }
 .dash-bat-card {
-    background: var(--card-bg);
+    background: var(--bg-card);
     border-radius: var(--radius);
     padding: 12px 14px;
     display: flex;
     flex-direction: column;
     gap: 8px;
+    cursor: pointer;
+    position: relative;
+    z-index: 1;
+    -webkit-tap-highlight-color: transparent;
 }
 .dash-bat-header {
     display: flex;
@@ -3336,7 +3340,7 @@ input[type="number"] {
     flex-direction: column;
     gap: 4px;
     justify-content: space-between;
-    padding: 10px 10px 10px 12px; /* padding lives here, not on the card */
+    padding: 10px 10px 6px 12px; /* padding lives here, not on the card */
 }
 .recent-act-header {
     display: flex;
@@ -3523,7 +3527,7 @@ input[type="number"] {
         order: -1;
     }
     .recent-act-stats {
-        padding: 12px 0 14px;
+        padding: 8px 0 6px;
         width: 100%;
     }
     .ra-stat {
@@ -8521,6 +8525,16 @@ body.show-save-fab #actSaveRouteFab {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
+}
+.ccp-swatches--grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 12px;
+}
+.ccp-swatches--grid .ccp-dot {
+    width: 100%;
+    aspect-ratio: 1;
+    height: auto;
 }
 .ccp-dot {
     width: 36px;
@@ -15847,30 +15861,35 @@ body:has(.act-sheet-mode) .topbar {
 }
 
 /* ── Forecast scroll rail (new standalone layout) ── */
-/* Desktop: cards fill full width, no scroll */
+/* Desktop: cards fill full width inside container */
 @media (min-width: 601px) {
     #forecastRail {
-        overflow-x: visible;
+        overflow-x: auto;
         flex-wrap: nowrap;
     }
     #forecastRail .wx-day-card {
         flex: 1 1 0;
-        min-width: 0;
+        min-width: 100px;
+        border-radius: var(--radius-sm);
     }
 }
 #forecastRail {
     display: flex;
-    gap: var(--gap-layout);
+    gap: 10px;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     scroll-snap-type: x mandatory;
-    padding-bottom: 4px;
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    padding: 14px;
 }
 #forecastRail::-webkit-scrollbar { display: none; }
 .wx-day-card {
-    flex: 0 0 120px;
+    flex: 0 0 110px;
     scroll-snap-align: start;
+    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
 }
 .wx-day-card::before {
     content: "";
@@ -19127,20 +19146,55 @@ body:has(.act-sheet-mode) .topbar {
     cursor: pointer;
     transition: background 0.2s;
 }
-/* New card-style battery rows */
+/* Battery grid — 2-column layout */
+.gar-bat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+/* New card-style battery cards */
 .gar-bat-card {
-    padding: 14px;
-    margin-bottom: 10px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    cursor: pointer;
+}
+.gar-bat-charge-fab {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0, 229, 160, 0.15);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 1;
+    transition: background 0.15s;
+}
+.gar-bat-charge-fab--undo {
+    background: rgba(255, 149, 0, 0.15);
+    color: #ff9500;
+}
+.gar-bat-charge-fab:hover {
+    background: rgba(0, 229, 160, 0.3);
 }
 .gar-bat-card-top {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 10px;
+    text-align: center;
+    gap: 6px;
+    margin-bottom: 8px;
 }
 .gar-bat-img {
-    width: 48px;
-    height: 48px;
+    width: 80px;
+    height: 80px;
     flex-shrink: 0;
     border-radius: var(--radius-sm);
     overflow: hidden;
@@ -19151,21 +19205,46 @@ body:has(.act-sheet-mode) .topbar {
     justify-content: center;
 }
 .gar-bat-card-info {
-    flex: 1;
     min-width: 0;
+    width: 100%;
+}
+.gar-bat-card-info .gar-bat-name {
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.gar-bat-card-info .gar-bat-sub {
+    font-size: 11px;
+}
+.gar-bat-bike-pill {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 2px 8px;
+    border-radius: 20px;
+    background: var(--surface-2);
+    color: var(--text-secondary);
+    margin-top: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
 }
 .gar-bat-card-pct {
-    font-size: 22px;
+    font-size: 28px;
     font-weight: 700;
     font-family: var(--font-num);
-    flex-shrink: 0;
+    margin-top: 2px;
 }
 .gar-bat-card-bar {
-    height: 6px;
+    height: 5px;
     background: var(--surface-2);
     border-radius: 3px;
     overflow: hidden;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
 }
 .gar-bat-card-fill {
     height: 100%;
@@ -19179,7 +19258,9 @@ body:has(.act-sheet-mode) .topbar {
 .gar-bat-card-bottom {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
+    gap: 8px;
+    margin-top: auto;
 }
 .gar-bat-spark {
     opacity: 0.6;
@@ -19190,6 +19271,179 @@ body:has(.act-sheet-mode) .topbar {
     gap: 6px;
 }
 .gar-bat-charge-btn:hover { background: rgba(0, 229, 160, 0.2); }
+
+/* ── Battery charge popup ── */
+.bat-charge-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+}
+.bat-charge-overlay.bat-charge-open {
+    opacity: 1;
+    pointer-events: auto;
+}
+.bat-charge-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+.bat-charge-popup {
+    position: relative;
+    background: var(--surface-1);
+    border-radius: 24px;
+    padding: 28px 24px;
+    width: 260px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    transform: scale(0.9);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.bat-charge-open .bat-charge-popup {
+    transform: scale(1);
+}
+.bat-charge-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 20px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+.bat-charge-battery {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 16px;
+}
+.bat-charge-terminal {
+    width: 20px;
+    height: 6px;
+    background: var(--text-faint);
+    border-radius: 3px 3px 0 0;
+}
+.bat-charge-body {
+    width: 64px;
+    height: 100px;
+    background: var(--surface-2);
+    border-radius: 8px;
+    border: 2px solid var(--border);
+    overflow: hidden;
+    display: flex;
+    align-items: flex-end;
+    position: relative;
+    transition: box-shadow 0.4s;
+}
+.bat-charge-fill {
+    width: 100%;
+    border-radius: 0 0 6px 6px;
+    transition: height 0.3s;
+}
+.bat-charge-body.bat-charge-glow {
+    box-shadow: 0 0 20px rgba(0, 229, 160, 0.6), 0 0 40px rgba(0, 229, 160, 0.3);
+    border-color: var(--accent);
+}
+.bat-charge-pct {
+    font-size: 20px;
+    font-weight: 700;
+    font-family: var(--font-num);
+    color: var(--text-secondary);
+    margin-top: 8px;
+    transition: color 0.3s;
+}
+.bat-charge-bolt {
+    color: var(--accent);
+    margin-bottom: 16px;
+    animation: chargeBoltPulse 1.5s ease-in-out infinite;
+}
+@keyframes chargeBoltPulse {
+    0%, 100% { opacity: 0.5; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.15); }
+}
+.bat-charge-btn {
+    width: 100%;
+    height: 50px;
+    border: none;
+    border-radius: 14px;
+    font-size: 17px;
+    font-weight: 600;
+    font-family: var(--font);
+    background: var(--accent);
+    color: #000;
+    cursor: pointer;
+    margin-bottom: 10px;
+    transition: transform 0.12s, opacity 0.12s;
+    -webkit-tap-highlight-color: transparent;
+}
+.bat-charge-btn:active { transform: scale(0.97); opacity: 0.85; }
+.bat-charge-btn:disabled { opacity: 0.7; cursor: default; }
+.bat-charge-cancel {
+    width: 100%;
+    height: 50px;
+    border: none;
+    border-radius: 14px;
+    font-size: 17px;
+    font-weight: 600;
+    font-family: var(--font);
+    background: var(--surface-2);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: transform 0.12s, opacity 0.12s;
+    -webkit-tap-highlight-color: transparent;
+}
+.bat-charge-cancel:active { transform: scale(0.97); opacity: 0.85; }
+
+/* ── Confirm sheet — iOS 26 style ── */
+.confirm-sheet-msg {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 24px;
+    line-height: 1.4;
+}
+.confirm-sheet-btns {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.confirm-sheet-action,
+.confirm-sheet-cancel {
+    width: 100%;
+    height: 50px;
+    border: none;
+    border-radius: 14px;
+    font-size: 17px;
+    font-weight: 600;
+    font-family: var(--font);
+    cursor: pointer;
+    transition: transform 0.12s, opacity 0.12s;
+    -webkit-tap-highlight-color: transparent;
+}
+.confirm-sheet-action:active,
+.confirm-sheet-cancel:active {
+    transform: scale(0.97);
+    opacity: 0.85;
+}
+.confirm-sheet-action {
+    background: var(--accent);
+    color: #000;
+}
+.confirm-sheet-cancel {
+    background: var(--surface-2);
+    color: var(--text-primary);
+}
 
 /* Service timeline */
 .gar-svc-row {
@@ -21975,7 +22229,7 @@ body:has(.act-sheet-mode) .topbar {
 }
 .dash-section-link {
     font-size: var(--text-xs);
-    color: var(--accent);
+    color: var(--text-secondary);
     text-decoration: none;
     font-weight: 500;
 }
@@ -22003,7 +22257,6 @@ body:has(.act-sheet-mode) .topbar {
        item inset at the normal content gutter. */
     .goals-dash-scroll,
     .wxp-week-scroll,
-    #forecastRail,
     .stat-grid {
         margin-left: calc(-1 * var(--pad-page));
         margin-right: calc(-1 * var(--pad-page));

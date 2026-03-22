@@ -304,7 +304,7 @@
         <!-- ============================================================  COMPONENT DETAIL SHEET  ============================================================ -->
         <div class="wxd-overlay" id="compDetailSheet" style="display:none">
             <div class="wxd-backdrop" onclick="closeCompDetailSheet()"></div>
-            <div class="wxd-sheet" style="max-width:480px">
+            <div class="wxd-sheet wxd-sheet--partial" style="max-width:480px">
                 <div class="modal-drag-indicator"></div>
                 <div style="display:flex;justify-content:flex-end;padding:8px 16px 0">
                     <button class="modal-close" onclick="closeCompDetailSheet()">
@@ -312,6 +312,20 @@
                     </button>
                 </div>
                 <div class="wxd-sheet-body" id="compDetailBody"></div>
+            </div>
+        </div>
+
+        <!-- ============================================================  BATTERY DETAIL SHEET  ============================================================ -->
+        <div class="wxd-overlay" id="batDetailSheet" style="display:none">
+            <div class="wxd-backdrop" onclick="closeBatDetailSheet()"></div>
+            <div class="wxd-sheet wxd-sheet--partial" style="max-width:480px">
+                <div class="modal-drag-indicator"></div>
+                <div style="display:flex;justify-content:flex-end;padding:8px 16px 0">
+                    <button class="modal-close" onclick="closeBatDetailSheet()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+                <div class="wxd-sheet-body" id="batDetailBody"></div>
             </div>
         </div>
 
@@ -370,6 +384,8 @@
                 </div>
             </div>
         </div>
+
+        <!-- Accent color picker is now in settings subpage -->
 
         <!-- ============================================================  COLOR PICKER SHEET  ============================================================ -->
         <div class="wxd-overlay" id="calEvColorSheet" style="display:none">
@@ -592,6 +608,18 @@
                             <div class="field-hint">
                                 Get a warning badge when this component reaches
                                 this km threshold.
+                            </div>
+                        </div>
+                        <div class="field" style="grid-column: 1/-1">
+                            <div style="display:flex;align-items:center;justify-content:space-between">
+                                <div>
+                                    <label for="gearFormOEM" style="margin-bottom:0">Came with bike</label>
+                                    <div class="field-hint" style="margin-top:2px">Pre-installed, not purchased separately</div>
+                                </div>
+                                <label class="settings-ios-toggle">
+                                    <input type="checkbox" id="gearFormOEM">
+                                    <span class="settings-ios-slider"></span>
+                                </label>
                             </div>
                         </div>
                         <div class="field" style="grid-column: 1/-1">
@@ -1881,13 +1909,6 @@
                         </div>
                     </div>
 
-                    <!-- ── Battery Status ── -->
-                    <div data-dash-section="batteryStatus" id="dashBatterySection" style="display:none">
-                        <div class="dash-section-header">
-                            <div class="dash-section-title">Batteries</div>
-                        </div>
-                        <div class="dash-bat-grid" id="dashBatGrid"></div>
-                    </div>
 
                     <div data-dash-section="weeklyStats">
                         <div class="dash-section-header">
@@ -2196,6 +2217,14 @@
                                 <span class="pwr-hr-temp-label">Hot</span>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- ── Battery Status ── -->
+                    <div data-dash-section="batteryStatus" id="dashBatterySection" style="display:none">
+                        <div class="dash-section-header">
+                            <div class="dash-section-title">Batteries</div>
+                        </div>
+                        <div class="dash-bat-grid" id="dashBatGrid"></div>
                     </div>
 
                     <!-- recentTable removed — carousel already shows recent rides -->
@@ -4998,6 +5027,40 @@
                                         <svg class="app-theme-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                                     </button>
                                 </div>
+                            </div>
+
+                            <div class="ios-group-label" style="margin-top:20px">Accent Color</div>
+                            <div class="ios-group">
+                                <div class="ios-row" onclick="openSettingsSubpage('accentcolor')" style="cursor:pointer">
+                                    <span class="ios-row-label">Accent Color</span>
+                                    <div style="display:flex;align-items:center;gap:8px">
+                                        <div id="accentColorPreview" style="width:24px;height:24px;border-radius:50%;background:var(--accent)"></div>
+                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--text-faint)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="ios-subpage" id="iosSubpage-accentcolor">
+                            <div class="ccp-section-label">Presets</div>
+                            <div class="ccp-swatches ccp-swatches--grid" id="acpSwatches"></div>
+
+                            <div class="ccp-section-label" style="margin-top:24px">Custom Color</div>
+                            <div class="ccp-canvas-wrap">
+                                <canvas id="acpGradient" class="ccp-gradient" width="320" height="200"></canvas>
+                                <div class="ccp-crosshair" id="acpCrosshair"></div>
+                            </div>
+                            <div class="ccp-hue-bar">
+                                <canvas id="acpHueCanvas" class="ccp-hue-canvas" width="320" height="20"></canvas>
+                                <div class="ccp-hue-thumb" id="acpHueThumb"></div>
+                            </div>
+                            <div class="ccp-bottom-row">
+                                <div class="ccp-preview" id="acpPreview"></div>
+                                <div class="ccp-hex-wrap">
+                                    <span class="ccp-hex-hash">#</span>
+                                    <input class="ccp-hex-input" id="acpHexInput" maxlength="6" placeholder="00e5a0" oninput="_acpHexInput(this.value)">
+                                </div>
+                                <button class="ccp-done-btn" onclick="_setAccentFromPicker()">Apply</button>
                             </div>
                         </div>
 
