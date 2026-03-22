@@ -12269,29 +12269,27 @@ body:has(.act-sheet-mode) .topbar {
 /* ── Activity streams combined chart ─────────────────────────────────────── */
 .stream-toggles {
     display: flex;
-    gap: 5px;
+    gap: 8px;
     flex-wrap: wrap;
-    justify-content: flex-end;
+    justify-content: center;
 }
 .stream-toggle-btn {
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    padding: 3px 9px;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    padding: 8px 18px;
     border-radius: 999px;
-    border: 1.5px solid var(--sc, var(--border));
-    background: transparent;
-    color: var(--sc, var(--text-muted));
+    border: none;
+    background: var(--surface-2);
+    color: var(--text-muted);
     cursor: pointer;
-    transition:
-        opacity 0.15s,
-        background 0.15s;
-    opacity: 0.38;
+    transition: all 0.2s ease;
     white-space: nowrap;
+    min-height: 44px;
 }
 .stream-toggle-btn.active {
-    opacity: 1;
-    background: var(--hover-overlay);
+    background: color-mix(in srgb, var(--sc, var(--accent)) 25%, transparent);
+    color: var(--sc, var(--accent));
 }
 
 .detail-charts-loading {

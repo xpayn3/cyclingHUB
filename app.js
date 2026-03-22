@@ -20640,7 +20640,8 @@ function renderStreamCharts(streams, activity) {
     const avg = Math.round(activity.average_heartrate || 0);
     if (avg > 0) subtitleParts.push(`Avg HR ${avg} bpm`);
   }
-  document.getElementById('detailStreamsSubtitle').textContent = subtitleParts.join(' · ');
+  const subEl = document.getElementById('detailStreamsSubtitle');
+  if (subEl) subEl.style.display = 'none';
 
   // Toggle chips
   const STREAM_META = { watts: ACCENT, heartrate: C_ORANGE, cadence: C_BLUE, velocity_smooth: C_YELLOW, altitude: C_PURPLE, lrbalance: C_PINK };
