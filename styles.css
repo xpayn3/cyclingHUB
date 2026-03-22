@@ -16143,6 +16143,27 @@ body:has(.act-sheet-mode) .topbar {
     font-family: var(--font-num);
     color: var(--text-muted);
 }
+/* Interval legend */
+.act-ivl-legend {
+    display: flex;
+    gap: 14px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+.act-ivl-leg-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: capitalize;
+    color: var(--text-muted);
+}
+.act-ivl-leg-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
 /* Keep old table styles for backward compat */
 .act-ivl-table { display: none; }
 .act-ivl-zone {

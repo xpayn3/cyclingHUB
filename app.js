@@ -20997,7 +20997,7 @@ function renderStreamCharts(streams, activity) {
       grid:  C_GRID,
       ticks: { ...C_TICK, maxTicksLimit: 8 },
     },
-    yPower:   { display: hasPower,  position: 'left',  min: 0,  grid: C_GRID,              ticks: { ...C_TICK, maxTicksLimit: 5, callback: function(v, i, ticks) { return i === 0 ? 'W' : v; } } },
+    yPower:   { display: hasPower,  position: 'left',  min: 0,  grid: C_GRID,              ticks: { ...C_TICK, maxTicksLimit: 5, padding: 2, callback: function(v, i, ticks) { return i === 0 ? 'W' : v; } }, afterFit: axis => { axis.width = 30; } },
     yHR:      { display: hasHR,     position: 'right', min: 30, grid: { display: false },   ticks: { ...C_TICK, maxTicksLimit: 5, callback: function(v, i, ticks) { return i === 0 ? 'BPM' : v; } } },
     yCadence: { display: false, min: 0  },
     ySpeed:   { display: false, min: 0  },
@@ -21041,6 +21041,7 @@ function renderStreamCharts(streams, activity) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      layout: { padding: { left: 0, right: 0 } },
       interaction: { mode: 'indexEager', intersect: false },
       plugins: {
         legend: { display: false },

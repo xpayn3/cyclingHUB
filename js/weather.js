@@ -409,42 +409,108 @@ export async function renderActivityIntervals(activityId) {
       : `${intervals.length} interval${intervals.length !== 1 ? 's' : ''}`;
 
     const typeColors = {
-      work: '#ff6b35', rest: 'rgba(0,229,160,0.5)', warmup: '#4a9eff', cooldown: '#9b59ff', '': 'rgba(255,255,255,0.15)'
+      work: '#ff6b35', rest: 'rgba(0,229,160,0.7)', warmup: '#4a9eff', cooldown: '#9b59ff', '': 'rgba(255,255,255,0.15)'
+    };
+    const typeSolid = {
+      work: '#ff6b35', rest: '#00e5a0', warmup: '#4a9eff', cooldown: '#9b59ff', '': '#555'
     };
 
-    const maxWatts = Math.max(...intervals.map(iv => iv.average_watts || 0), 1);
-    const maxDur = Math.max(...intervals.map(iv => iv.moving_time || iv.elapsed_time || 0), 1);
+    // Build canvas chart — horizontal bar chart like workout builder
+    body.innerHTML = `<div class="act-ivl-chart-wrap" style="position:relative;height:160px;margin-bottom:8px">
+      <canvas id="actIvlCanvas" style="width:100%;height:100%"></canvas>
+    </div><div class="act-ivl-legend" id="actIvlLegend"></div>`;
 
-    let html = '<div class="act-ivl-bars">';
-    intervals.forEach((ivl, i) => {
-      const type  = classify(ivl);
-      const secs  = ivl.moving_time || ivl.elapsed_time || 0;
-      const watts = Math.round(ivl.average_watts || 0);
-      const hr    = Math.round(ivl.average_heartrate || 0);
-      const cad   = Math.round(ivl.average_cadence || 0);
-      const typeLabel = type || (ivl.type || '').toLowerCase() || 'interval';
-      const color = typeColors[type] || typeColors[''];
-      const barPct = maxWatts > 0 ? (watts / maxWatts * 100).toFixed(1) : 0;
-      const widthPct = maxDur > 0 ? Math.max((secs / maxDur * 100), 8).toFixed(1) : 20;
+    requestAnimationFrame(() => {
+      const canvas = document.getElementById('actIvlCanvas');
+      if (!canvas) return;
+      const wrap = canvas.parentElement;
+      const W = wrap.clientWidth;
+      const H = wrap.clientHeight;
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = W * dpr;
+      canvas.height = H * dpr;
+      canvas.style.width = W + 'px';
+      canvas.style.height = H + 'px';
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
 
-      html += `<div class="act-ivl-bar-row">
-        <div class="act-ivl-bar-label">
-          <span class="act-ivl-bar-num">${i + 1}</span>
-          <span class="act-ivl-bar-type act-ivl-type--${type}">${typeLabel}</span>
-        </div>
-        <div class="act-ivl-bar-track">
-          <div class="act-ivl-bar-fill" style="width:${barPct}%;background:${color}"></div>
-          <span class="act-ivl-bar-val">${watts > 0 ? watts + 'w' : '—'}</span>
-        </div>
-        <div class="act-ivl-bar-meta">
-          <span class="act-ivl-bar-dur">${secs > 0 ? fmtDur(secs) : '—'}</span>
-          ${hr > 0 ? `<span class="act-ivl-bar-hr">${hr} bpm</span>` : ''}
-          ${cad > 0 ? `<span class="act-ivl-bar-cad">${cad} rpm</span>` : ''}
-        </div>
-      </div>`;
+      const PAD_L = 35, PAD_R = 8, PAD_T = 8, PAD_B = 24;
+      const chartW = W - PAD_L - PAD_R;
+      const chartH = H - PAD_T - PAD_B;
+
+      const totalSecs = intervals.reduce((s, iv) => s + (iv.moving_time || iv.elapsed_time || 0), 0) || 1;
+      const maxPower = Math.max(...intervals.map(iv => iv.average_watts || 0), 50);
+      const yMax = Math.ceil(maxPower / 25) * 25;
+
+      // Grid lines
+      ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+      ctx.lineWidth = 1;
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.font = '10px Inter, system-ui, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      const gridSteps = 4;
+      for (let i = 0; i <= gridSteps; i++) {
+        const val = Math.round(yMax * i / gridSteps);
+        const y = PAD_T + chartH - (val / yMax * chartH);
+        ctx.beginPath();
+        ctx.moveTo(PAD_L, y);
+        ctx.lineTo(W - PAD_R, y);
+        ctx.stroke();
+        ctx.fillText(i === 0 ? 'W' : val, PAD_L - 4, y);
+      }
+
+      // Draw bars
+      let x = PAD_L;
+      let cumTime = 0;
+      intervals.forEach((ivl, i) => {
+        const secs = ivl.moving_time || ivl.elapsed_time || 0;
+        const watts = ivl.average_watts || 0;
+        const type = classify(ivl);
+        const barW = Math.max(chartW * (secs / totalSecs), 2);
+        const barH = Math.max(chartH * (watts / yMax), 2);
+        const barY = PAD_T + chartH - barH;
+
+        ctx.fillStyle = typeColors[type] || typeColors[''];
+        ctx.beginPath();
+        ctx.roundRect(x, barY, Math.max(barW - 1, 1), barH, [3, 3, 0, 0]);
+        ctx.fill();
+
+        // Power label inside bar if wide enough
+        if (barW > 28 && watts > 0) {
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 10px Inter, system-ui, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(Math.round(watts), x + barW / 2, barY + Math.min(barH / 2, barH - 8));
+        }
+
+        x += barW;
+        cumTime += secs;
+      });
+
+      // Time axis labels
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.font = '10px Inter, system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      const timeSteps = Math.min(6, intervals.length);
+      for (let i = 0; i <= timeSteps; i++) {
+        const t = Math.round(totalSecs * i / timeSteps);
+        const tx = PAD_L + chartW * (i / timeSteps);
+        const m = Math.floor(t / 60), s = t % 60;
+        ctx.fillText(m > 0 ? `${m}:${String(s).padStart(2,'0')}` : `0:${String(s).padStart(2,'0')}`, tx, H - PAD_B + 6);
+      }
+
+      // Legend
+      const legend = document.getElementById('actIvlLegend');
+      if (legend) {
+        const types = [...new Set(intervals.map(classify))].filter(Boolean);
+        legend.innerHTML = types.map(t =>
+          `<span class="act-ivl-leg-item"><span class="act-ivl-leg-dot" style="background:${typeSolid[t]}"></span>${t}</span>`
+        ).join('');
+      }
     });
-    html += '</div>';
-    body.innerHTML = html;
     card.style.display = '';
     unskeletonCard('detailIntervalsCard');
   } catch (e) {
