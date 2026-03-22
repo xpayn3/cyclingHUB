@@ -21840,8 +21840,8 @@ function renderDetailZones(activity) {
   let pwrZoneHTML = totals.map((secs, i) => {
     const pct   = totalSecs > 0 ? Math.round(secs / totalSecs * 100) : 0;
     const color = ZONE_HEX[i];
-    const dim   = secs === 0 ? ' style="opacity:0.35"' : '';
-    return `<div class="detail-zone-row"${dim}>
+    if (secs === 0) return '';
+    return `<div class="detail-zone-row">
       <span class="detail-zone-tag" style="color:${color}">${ZONE_TAGS[i]}</span>
       <span class="detail-zone-name">${ZONE_NAMES[i]}</span>
       <div class="detail-zone-bar-track">
@@ -21928,8 +21928,8 @@ function renderDetailHRZones(activity) {
     const color = ZONE_HEX[i] || ZONE_HEX[ZONE_HEX.length - 1];
     const tag   = `Z${i + 1}`;
     const name  = HR_ZONE_NAMES[i] || tag;
-    const dim   = secs === 0 ? ' style="opacity:0.35"' : '';
-    return `<div class="detail-zone-row"${dim}>
+    if (secs === 0) return '';
+    return `<div class="detail-zone-row">
       <span class="detail-zone-tag" style="color:${color}">${tag}</span>
       <span class="detail-zone-name">${name}</span>
       <div class="detail-zone-bar-track">

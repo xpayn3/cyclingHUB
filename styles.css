@@ -12640,11 +12640,12 @@ body:has(.act-sheet-mode) .topbar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 6px 0;
-    font-size: 13px;
+    padding: 8px 0;
+    font-size: 15px;
     color: var(--text-muted);
 }
 .detail-zone-summary-val {
+    font-size: 16px;
     font-weight: 700;
     font-family: var(--font-num);
     color: var(--text-primary);
