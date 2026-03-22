@@ -12387,15 +12387,16 @@ body:has(.act-sheet-mode) .topbar {
 /* ── Activity streams combined chart ─────────────────────────────────────── */
 .stream-toggles {
     display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
+    gap: 6px;
+    flex-wrap: nowrap;
     justify-content: center;
 }
 .stream-toggle-btn {
-    font-size: 14px;
+    flex: 1;
+    font-size: 13px;
     font-weight: 600;
     letter-spacing: 0.01em;
-    padding: 8px 18px;
+    padding: 8px 6px;
     border-radius: 999px;
     border: none;
     background: var(--surface-2);
