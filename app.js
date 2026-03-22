@@ -23875,12 +23875,14 @@ async function renderDetailCurve(actId, streams) {
     return;
   }
 
-  // Fetch year best in background (don't block card render)
-  let rawYear = null;
-  try { rawYear = await fetchRangePowerCurve(toDateStr(daysAgo(365)), toDateStr(new Date())); } catch (_) {}
+  // Show card immediately — don't wait for year curve
   clearCardNA(card);
   card.style.display = '';
   unskeletonCard('detailCurveCard');
+
+  // Fetch year best in background (non-blocking)
+  let rawYear = null;
+  try { rawYear = await fetchRangePowerCurve(toDateStr(daysAgo(365)), toDateStr(new Date())); } catch (_) {}
 
   // Peak stat pills (from this activity — raw is guaranteed non-null here)
   const peaksEl = document.getElementById('detailCurvePeaks');
