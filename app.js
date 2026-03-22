@@ -11730,8 +11730,8 @@ function _renderFitMonotony(acts, days) {
   if (!ctx) return true;
   if (state._fitMonoChart) state._fitMonoChart.destroy();
   state._fitMonoChart = new Chart(ctx.getContext('2d'), {
-    type: 'bar', data: { labels: weekTSS.map((_, i) => 'W' + (i + 1)), datasets: [{ data: weekTSS, backgroundColor: mono > 2 ? 'rgba(255,71,87,0.5)' : 'rgba(0,229,160,0.5)', borderRadius: 4 }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { ...cScales({}) } }
+    type: 'bar', data: { labels: weekTSS.map((_, i) => 'W' + (i + 1)), datasets: [{ data: weekTSS, backgroundColor: mono > 2 ? '#ff4757' : '#00e5a0', borderRadius: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP } }, scales: { ...cScales({}) } }
   });
   return true;
 }
@@ -11779,8 +11779,8 @@ function _renderFitRampRate(acts, days) {
   if (!ctx) return true;
   if (state._fitRampChart) state._fitRampChart.destroy();
   state._fitRampChart = new Chart(ctx.getContext('2d'), {
-    type: 'bar', data: { labels: changes.map((_, i) => 'W' + (i + 2)), datasets: [{ data: changes, backgroundColor: changes.map(v => v > 0 ? 'rgba(0,229,160,0.5)' : 'rgba(255,71,87,0.5)'), borderRadius: 4 }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { ...cScales({}) } }
+    type: 'bar', data: { labels: changes.map((_, i) => 'W' + (i + 2)), datasets: [{ data: changes, backgroundColor: changes.map(v => v > 0 ? '#00e5a0' : '#ff4757'), borderRadius: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP } }, scales: { ...cScales({}) } }
   });
   return true;
 }
