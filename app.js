@@ -2099,6 +2099,178 @@ async function _idbWriteAll(openFn, storeName, entries, outOfLineKeys) {
   } catch (_) {}
 }
 
+/* ══════════════════════════════════════════════════════════════════════════════
+   GUN.JS P2P DEVICE SYNC
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+const _GUN_RELAY = 'https://gun-manhattan.herokuapp.com/gun';
+const _GUN_SYNC_KEYS = [
+  'icu_gear_components', 'icu_gear_batteries', 'icu_gear_services',
+  'icu_gear_service_shops', 'icu_bike_photos', 'icu_goals',
+  'icu_dash_sections', 'icu_units', 'icu_theme', 'icu_map_theme',
+  'icu_app_font', 'icu_range_days', 'icu_fav_routes',
+  'icu_athlete_id', 'icu_api_key',
+];
+let _gunInstance = null;
+let _gunRoom = null;
+let _gunListening = false;
+let _gunSuppressIncoming = false;
+
+function _gunInit() {
+  const room = localStorage.getItem('icu_gun_room');
+  if (!room || typeof GUN === 'undefined') return;
+  try {
+    _gunInstance = GUN([_GUN_RELAY]);
+    _gunRoom = _gunInstance.get('cycleiq-' + room);
+    _gunUpdateUI(true);
+    _gunListen();
+  } catch (e) {
+    console.warn('[GUN] init failed:', e);
+  }
+}
+
+function _gunGenRoom() {
+  const code = Array.from(crypto.getRandomValues(new Uint8Array(4)))
+    .map(b => b.toString(36).padStart(2, '0')).join('').slice(0, 8).toUpperCase();
+  localStorage.setItem('icu_gun_room', code);
+  _gunInit();
+  _gunPush();
+  _gunUpdateUI(true);
+  showToast('Room created — share the code with your other device', 'success');
+}
+window._gunGenRoom = _gunGenRoom;
+
+function _gunCopyRoom() {
+  const code = localStorage.getItem('icu_gun_room') || '';
+  if (!code) return;
+  navigator.clipboard?.writeText(code).then(() => showToast('Code copied', 'success'))
+    .catch(() => { prompt('Copy this code:', code); });
+}
+window._gunCopyRoom = _gunCopyRoom;
+
+function _gunJoinRoom(code) {
+  if (!code || code.length < 4) { showToast('Enter a valid room code', 'error'); return; }
+  const clean = code.trim().toUpperCase();
+  localStorage.setItem('icu_gun_room', clean);
+  _gunInit();
+  // Pull data from the room first
+  _gunPull();
+  showToast('Joined room — syncing...', 'success');
+}
+window._gunJoinRoom = _gunJoinRoom;
+
+function _gunDisconnect() {
+  localStorage.removeItem('icu_gun_room');
+  _gunRoom = null;
+  _gunListening = false;
+  if (_gunInstance) { try { _gunInstance = null; } catch {} }
+  _gunUpdateUI(false);
+  showToast('Disconnected from sync room', 'success');
+}
+window._gunDisconnect = _gunDisconnect;
+
+function _gunPush() {
+  if (!_gunRoom) return;
+  _gunSuppressIncoming = true;
+  const ts = Date.now();
+  _GUN_SYNC_KEYS.forEach(key => {
+    const val = localStorage.getItem(key);
+    if (val !== null) {
+      _gunRoom.get(key).put({ v: val, ts });
+    }
+  });
+  localStorage.setItem('icu_gun_last_sync', new Date().toISOString());
+  setTimeout(() => { _gunSuppressIncoming = false; }, 2000);
+  _gunUpdateLastSync();
+}
+
+function _gunPull() {
+  if (!_gunRoom) return;
+  _GUN_SYNC_KEYS.forEach(key => {
+    _gunRoom.get(key).once(data => {
+      if (data && data.v !== undefined) {
+        const existing = localStorage.getItem(key);
+        if (data.v !== existing) {
+          localStorage.setItem(key, data.v);
+        }
+      }
+    });
+  });
+  localStorage.setItem('icu_gun_last_sync', new Date().toISOString());
+  _gunUpdateLastSync();
+  // Reload after a brief delay to apply all pulled data
+  setTimeout(() => location.reload(), 1500);
+}
+
+function _gunListen() {
+  if (_gunListening || !_gunRoom) return;
+  _gunListening = true;
+  _GUN_SYNC_KEYS.forEach(key => {
+    _gunRoom.get(key).on(data => {
+      if (_gunSuppressIncoming) return;
+      if (!data || data.v === undefined) return;
+      const existing = localStorage.getItem(key);
+      if (data.v !== existing) {
+        localStorage.setItem(key, data.v);
+        localStorage.setItem('icu_gun_last_sync', new Date().toISOString());
+        _gunUpdateLastSync();
+        // Refresh relevant UI without full reload
+        if (key.includes('gear') || key.includes('batteries') || key.includes('services')) {
+          if (typeof renderGearComponents === 'function') renderGearComponents();
+          if (typeof renderGearBatteries === 'function') renderGearBatteries();
+          if (typeof _renderDashBatteries === 'function') _renderDashBatteries();
+          if (typeof _renderDashGear === 'function') _renderDashGear();
+        }
+        if (key === 'icu_theme' || key === 'icu_map_theme' || key === 'icu_app_font') {
+          location.reload(); // theme changes need full reload
+        }
+      }
+    });
+  });
+}
+
+function _gunSyncNow() {
+  if (!_gunRoom) { showToast('Not connected — generate or join a room first', 'error'); return; }
+  _gunPush();
+  showToast('Synced', 'success');
+}
+window._gunSyncNow = _gunSyncNow;
+
+function _gunUpdateUI(connected) {
+  const dot = document.querySelector('#syncStatusDot .sync-dot');
+  const text = document.getElementById('syncStatusText');
+  const codeEl = document.getElementById('syncRoomCode');
+  const copyBtn = document.getElementById('syncCopyBtn');
+  const genBtn = document.getElementById('syncGenBtn');
+  const discRow = document.getElementById('syncDisconnectRow');
+  const label = document.getElementById('syncStatusLabel');
+  const room = localStorage.getItem('icu_gun_room') || '';
+
+  if (dot) { dot.className = 'sync-dot ' + (connected && room ? 'sync-dot--on' : 'sync-dot--off'); }
+  if (text) text.textContent = connected && room ? 'Connected' : 'Not connected';
+  if (codeEl) codeEl.textContent = room || '—';
+  if (copyBtn) copyBtn.style.display = room ? '' : 'none';
+  if (genBtn) genBtn.textContent = room ? 'New Code' : 'Generate';
+  if (discRow) discRow.style.display = room ? '' : 'none';
+  if (label) label.textContent = room ? 'Connected' : '';
+  _gunUpdateLastSync();
+}
+
+function _gunUpdateLastSync() {
+  const el = document.getElementById('syncLastTime');
+  if (!el) return;
+  const ts = localStorage.getItem('icu_gun_last_sync');
+  if (ts) {
+    const d = new Date(ts);
+    el.textContent = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  } else {
+    el.textContent = 'Never';
+  }
+}
+
+// Auto-init on app load
+setTimeout(_gunInit, 3000);
+
 /* ── Full Backup Export ── */
 async function exportFullBackup() {
   showToast('Building full backup…', 'info');

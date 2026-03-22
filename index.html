@@ -64,6 +64,7 @@
         <script defer src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" integrity="sha384-NElt3Op+9NBMCYaef5HxeJmU4Xeard/Lku8ek6hoPTvYkQPh3zLIrJP7KiRocsxO" crossorigin="anonymous"></script>
         <script defer src="https://unpkg.com/maplibre-gl@5.1.0/dist/maplibre-gl.js" crossorigin="anonymous"></script>
         <!-- FIT parser loaded on-demand in app.js (not needed at startup) -->
+        <script defer src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
         <script type="module" src="app.js?v=7"></script>
     </head>
     <body>
@@ -4897,6 +4898,12 @@
                                     <span class="ios-row-label">Backup &amp; Restore</span>
                                     <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                 </div>
+                                <div class="ios-row" data-nav onclick="openSettingsSubpage('sync')">
+                                    <div class="ios-row-icon" style="background:#5ac8fa"><svg viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/><path d="M8 18h.01M12 18h.01M16 18h.01"/></svg></div>
+                                    <span class="ios-row-label">Device Sync</span>
+                                    <span class="ios-row-detail" id="syncStatusLabel" style="font-size:12px"></span>
+                                    <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                </div>
                                 <div class="ios-row" data-nav onclick="openSettingsSubpage('routebuilder')">
                                     <div class="ios-row-icon" style="background:#30d158"><svg viewBox="0 0 24 24"><path d="M3 17l4-8 4 4 4-8 4 8"/></svg></div>
                                     <span class="ios-row-label">Route Builder API</span>
@@ -5736,6 +5743,74 @@
                                     <span class="ios-row-label">Open Route Builder</span>
                                     <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- Device Sync subpage -->
+                        <div class="ios-subpage" id="iosSubpage-sync">
+                            <!-- Status -->
+                            <div class="sync-hero">
+                                <div class="sync-status" id="syncStatusDot">
+                                    <div class="sync-dot sync-dot--off"></div>
+                                    <span id="syncStatusText">Not connected</span>
+                                </div>
+                            </div>
+
+                            <!-- Room Code -->
+                            <div class="ios-group-label">Sync Room</div>
+                            <div class="ios-group">
+                                <div class="ios-row" id="syncRoomRow" style="flex-direction:column;align-items:stretch;gap:10px;padding:14px 16px">
+                                    <div style="display:flex;align-items:center;justify-content:space-between">
+                                        <span class="ios-row-label">Room Code</span>
+                                        <button class="btn btn-ghost btn-sm" id="syncGenBtn" onclick="_gunGenRoom()" style="font-size:13px">Generate</button>
+                                    </div>
+                                    <div class="sync-room-code" id="syncRoomCode">—</div>
+                                    <button class="btn btn-ghost btn-sm" id="syncCopyBtn" onclick="_gunCopyRoom()" style="display:none;width:100%">
+                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                                        Copy Code
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Join Room -->
+                            <div class="ios-group-label">Join Another Device</div>
+                            <div class="ios-group">
+                                <div class="ios-row" style="padding:12px 16px">
+                                    <div class="sync-join-row">
+                                        <input type="text" id="syncJoinInput" placeholder="Enter room code" maxlength="8" style="flex:1;text-transform:uppercase;letter-spacing:0.15em;font-family:var(--font-num);font-size:16px;font-weight:600;text-align:center">
+                                        <button class="btn btn-accent btn-sm" onclick="_gunJoinRoom(document.getElementById('syncJoinInput').value)">Join</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Actions -->
+                            <div class="ios-group-label">Actions</div>
+                            <div class="ios-group">
+                                <div class="ios-row" onclick="_gunSyncNow()">
+                                    <div class="ios-row-icon" style="background:var(--accent)"><svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></div>
+                                    <span class="ios-row-label">Sync Now</span>
+                                    <span class="ios-row-detail" id="syncLastTime" style="font-size:12px;color:var(--text-muted)"></span>
+                                </div>
+                                <div class="ios-row" onclick="_gunDisconnect()" id="syncDisconnectRow" style="display:none">
+                                    <div class="ios-row-icon" style="background:var(--red)"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+                                    <span class="ios-row-label" style="color:var(--red)">Disconnect</span>
+                                </div>
+                            </div>
+
+                            <!-- What syncs -->
+                            <div class="ios-group-label">What Syncs</div>
+                            <div class="ios-group">
+                                <div class="ios-row"><span class="ios-row-label">Gear & Components</span><span class="ios-row-detail" style="color:var(--accent)">Yes</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Batteries</span><span class="ios-row-detail" style="color:var(--accent)">Yes</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Services & Shops</span><span class="ios-row-detail" style="color:var(--accent)">Yes</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Goals & Settings</span><span class="ios-row-detail" style="color:var(--accent)">Yes</span></div>
+                                <div class="ios-row"><span class="ios-row-label">API Credentials</span><span class="ios-row-detail" style="color:var(--accent)">Yes</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Activity Data</span><span class="ios-row-detail" style="color:var(--text-muted)">No (re-syncs from API)</span></div>
+                            </div>
+
+                            <div style="padding:16px;text-align:center;font-size:12px;color:var(--text-faint)">
+                                P2P sync via Gun.js relay — no server, no account needed.<br>
+                                Both devices must be online to sync.
                             </div>
                         </div>
 

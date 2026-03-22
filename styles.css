@@ -19276,6 +19276,60 @@ body:has(.act-sheet-mode) .topbar {
     margin-top: 8px;
 }
 
+/* ── Device Sync UI ── */
+.sync-hero {
+    text-align: center;
+    padding: 20px 0 16px;
+}
+.sync-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 500;
+}
+.sync-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.sync-dot--off {
+    background: var(--text-faint);
+}
+.sync-dot--on {
+    background: var(--accent);
+    box-shadow: 0 0 8px rgba(0, 229, 160, 0.6);
+    animation: syncPulse 2s infinite;
+}
+@keyframes syncPulse {
+    0%, 100% { box-shadow: 0 0 6px rgba(0, 229, 160, 0.4); }
+    50% { box-shadow: 0 0 14px rgba(0, 229, 160, 0.8); }
+}
+.sync-room-code {
+    font-size: 32px;
+    font-weight: 800;
+    font-family: var(--font-num);
+    letter-spacing: 0.2em;
+    text-align: center;
+    color: var(--accent);
+    padding: 8px 0;
+    user-select: all;
+}
+.sync-join-row {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+}
+.sync-join-row input {
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+}
+
 /* ── Service History Page (SwiftUI-style) ── */
 .svc-page { padding: 0 var(--pad-page) 100px; }
 .svc-hero { padding: 20px 0 12px; }
