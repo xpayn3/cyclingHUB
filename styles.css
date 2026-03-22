@@ -15333,10 +15333,20 @@ body:has(.act-sheet-mode) .topbar {
     line-height: 1.7;
 }
 .ctf-swatch {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    flex-shrink: 0;
+    display: none;
+}
+/* Colored tooltip — bg is dataset color, text is black */
+#chartTooltipFloat.ctf-colored {
+    border-color: transparent;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+#chartTooltipFloat.ctf-colored .ctf-title {
+    color: rgba(0,0,0,0.6);
+    border-bottom-color: rgba(0,0,0,0.15);
+}
+#chartTooltipFloat.ctf-colored .ctf-row {
+    color: #000;
+    font-weight: 600;
 }
 
 /* ============================================================

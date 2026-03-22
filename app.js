@@ -5916,12 +5916,27 @@ function externalTooltipHandler(context) {
                        && !String(c).startsWith('rgba(0,0,0')
                        && !String(c).startsWith('rgba(0, 0, 0');
     const bg = candidates.find(isUsable) || 'transparent';
+    if (!el._ttColor && isUsable(bg)) el._ttColor = bg;
     html += `<div class="ctf-row">` +
-      `<span class="ctf-swatch" style="background:${bg}"></span>` +
       `<span>${text}</span>` +
       `</div>`;
   });
   el.innerHTML = html;
+
+  // Set tooltip background to the primary dataset color
+  const ttColor = el._ttColor || (dataPoints[0]?.dataset?.borderColor) || '';
+  if (ttColor && ttColor !== 'transparent') {
+    el.style.background = ttColor;
+    el.style.backdropFilter = 'none';
+    el.style.webkitBackdropFilter = 'none';
+    el.classList.add('ctf-colored');
+  } else {
+    el.style.background = '';
+    el.style.backdropFilter = '';
+    el.style.webkitBackdropFilter = '';
+    el.classList.remove('ctf-colored');
+  }
+  el._ttColor = null;
 
   // Position: centered on the crosshair x, bottom edge just above chartArea.top
   const rect = chart.canvas.getBoundingClientRect();
