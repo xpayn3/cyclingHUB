@@ -11995,11 +11995,26 @@ body:has(.act-sheet-mode) .topbar {
 
 /* ── "How You Compare" card ─────────────────────────────────────────────── */
 .detail-cmp-badge {
+    display: none;
+}
+.detail-cmp-footer {
+    text-align: center;
+    margin-top: 14px;
+    padding-top: 10px;
+    border-top: 1px solid var(--surface-2);
+}
+.detail-cmp-badge-inline {
     font-size: var(--text-xs);
     font-weight: 600;
     padding: 4px 12px;
     border-radius: var(--radius-pill, 20px);
     white-space: nowrap;
+    display: inline-block;
+}
+.detail-cmp-footer-sub {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 6px;
 }
 .detail-cmp-rows {
     display: flex;

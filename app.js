@@ -19341,8 +19341,9 @@ function renderDetailComparison(a) {
   const avgs = a._avgs || {};
   if (!avgs.peerCount || avgs.peerCount < 3) { showCardNA('detailCompareCard'); return; }
 
+  if (subtEl) subtEl.style.display = 'none';
+  if (badgeEl) badgeEl.style.display = 'none';
   const thisType = (a.sport_type || a.type || '');
-  subtEl.textContent = `vs. your last ${avgs.peerCount} ${thisType.toLowerCase()} averages`;
 
   // Determine overall vibe for the badge
   const allPcts = [];
@@ -19445,6 +19446,15 @@ function renderDetailComparison(a) {
       badgeEl.style.color = 'var(--accent)';
     }
   }
+
+  // Add summary footer below rows: badge + subtitle text
+  const badgeLabel = badgeEl?.textContent || '';
+  const badgeBg = badgeEl?.style.background || 'var(--bg-elevated)';
+  const badgeColor = badgeEl?.style.color || 'var(--text-muted)';
+  html += `<div class="detail-cmp-footer">
+    <span class="detail-cmp-badge-inline" style="background:${badgeBg};color:${badgeColor}">${badgeLabel}</span>
+    <div class="detail-cmp-footer-sub">vs. your last ${avgs.peerCount} ${thisType.toLowerCase()} averages</div>
+  </div>`;
 
   rowsEl.innerHTML = html;
   card.style.display = '';
