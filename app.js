@@ -24078,30 +24078,9 @@ async function renderDetailHRCurve(streams) {
   if (_crHR) _crHR.style.display = '';
   unskeletonCard('detailHRCurveCard');
 
-  // Peak pills
+  // Hide old peak pills
   const peaksEl = document.getElementById('detailHRCurvePeaks');
-  if (peaksEl) {
-    if (raw) {
-      const lookup = {};
-      raw.secs.forEach((s, i) => { if (raw.heartrate[i]) lookup[s] = raw.heartrate[i]; });
-      const peakHR = target => {
-        if (lookup[target]) return lookup[target];
-        let best = null, minDiff = Infinity;
-        raw.secs.forEach(s => { const d = Math.abs(s - target); if (d < minDiff && lookup[s]) { minDiff = d; best = lookup[s]; } });
-        return best;
-      };
-      peaksEl.innerHTML = HR_CURVE_PEAKS.map(p => {
-        const bpm = Math.round(peakHR(p.secs) || 0);
-        if (!bpm) return '';
-        return `<div class="curve-peak">
-          <div class="curve-peak-val" style="color:#f87171">${bpm}<span class="curve-peak-unit">bpm</span></div>
-          <div class="curve-peak-dur">${p.label}</div>
-        </div>`;
-      }).join('');
-    } else {
-      peaksEl.innerHTML = '';
-    }
-  }
+  if (peaksEl) peaksEl.style.display = 'none';
 
   // Legend
   const legendEl = document.getElementById('detailHRCurveLegend');
@@ -24183,6 +24162,30 @@ async function renderDetailHRCurve(streams) {
       }
     }
   );
+
+  // Add summary rows below chart (matching other cards)
+  if (raw) {
+    let summaryEl = card.querySelector('.detail-zone-summary');
+    if (!summaryEl) {
+      summaryEl = document.createElement('div');
+      summaryEl.className = 'detail-zone-summary';
+      card.appendChild(summaryEl);
+    }
+    const lookup = {};
+    raw.secs.forEach((s, i) => { if (raw.heartrate[i]) lookup[s] = raw.heartrate[i]; });
+    const peakHR = target => {
+      if (lookup[target]) return lookup[target];
+      let best = null, minDiff = Infinity;
+      raw.secs.forEach(s => { const d = Math.abs(s - target); if (d < minDiff && lookup[s]) { minDiff = d; best = lookup[s]; } });
+      return best;
+    };
+    summaryEl.innerHTML = HR_CURVE_PEAKS
+      .map(p => {
+        const bpm = Math.round(peakHR(p.secs) || 0);
+        if (!bpm) return '';
+        return `<div class="detail-zone-summary-row"><span>${p.label} Peak</span><span class="detail-zone-summary-val">${bpm} bpm</span></div>`;
+      }).join('');
+  }
 }
 
 /* ====================================================
