@@ -5298,14 +5298,14 @@ async function _renderDashGear() {
     return `<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="18" r="3"/><circle cx="19" cy="18" r="3"/><path d="M5 18h3l2-5 2-5h4l2 5 1 2.5"/></svg>`;
   };
 
-  // Add bike count badge to card header
-  const cardHeader = scroll.parentElement?.querySelector('.card-title');
-  if (cardHeader) {
-    let badge = cardHeader.querySelector('.dash-gear-count');
+  // Add bike count badge to card (top-right corner)
+  const card = scroll.parentElement;
+  if (card) {
+    let badge = card.querySelector('.dash-gear-count');
     if (!badge) {
       badge = document.createElement('span');
       badge.className = 'dash-gear-count';
-      cardHeader.appendChild(badge);
+      card.appendChild(badge);
     }
     badge.textContent = gear.length;
   }
