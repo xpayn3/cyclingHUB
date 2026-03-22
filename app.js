@@ -17045,28 +17045,70 @@ function _aciCompare(cardId) {
   const compareName = compare.name || 'Ride';
   const compareDate = compare.start_date_local ? new Date(compare.start_date_local).toLocaleDateString('en-GB', {day:'numeric',month:'short'}) : '';
 
-  let html = `<div class="aci-compare-header">
-    <span class="aci-compare-vs">vs ${compareName} <span style="color:var(--text-muted)">${compareDate}</span></span>
+  const currentName = current.name || 'This ride';
+  const currentDate = current.start_date_local ? new Date(current.start_date_local).toLocaleDateString('en-GB', {day:'numeric',month:'short'}) : '';
+
+  let html = `<div class="aci-cmp-header">
+    <div class="aci-cmp-ride aci-cmp-ride--cur">
+      <div class="aci-cmp-dot" style="background:var(--accent)"></div>
+      <div class="aci-cmp-ride-info">
+        <div class="aci-cmp-ride-name">${currentName}</div>
+        <div class="aci-cmp-ride-date">${currentDate}</div>
+      </div>
+    </div>
+    <div class="aci-cmp-vs">VS</div>
+    <div class="aci-cmp-ride aci-cmp-ride--prev">
+      <div class="aci-cmp-dot" style="background:var(--text-muted)"></div>
+      <div class="aci-cmp-ride-info">
+        <div class="aci-cmp-ride-name">${compareName}</div>
+        <div class="aci-cmp-ride-date">${compareDate}</div>
+      </div>
+    </div>
   </div>`;
-  html += '<div class="aci-compare-grid">';
+
+  html += '<div class="aci-cmp-list">';
   metrics.forEach(m => {
     const curVal = m.fmt === 'dur' ? fmtDur(m.cur) : m.cur;
     const cmpVal = m.fmt === 'dur' ? fmtDur(m.cmp) : m.cmp;
     const diff = m.cur - m.cmp;
-    const pctDiff = m.cmp > 0 ? ((diff / m.cmp) * 100).toFixed(1) : 0;
+    const absPct = m.cmp > 0 ? Math.abs((diff / m.cmp) * 100) : 0;
+    const pctCapped = Math.min(absPct, 100);
     let diffClass = 'neutral';
     if (m.higher === 'better' && diff > 0) diffClass = 'up';
     else if (m.higher === 'better' && diff < 0) diffClass = 'down';
-    const diffStr = m.fmt === 'dur' ? (diff > 0 ? '+' : '') + fmtDur(Math.abs(diff)) : (diff > 0 ? '+' : '') + (m.fmt === 'dur' ? '' : diff) + (m.unit ? ' ' + m.unit : '');
-    const arrow = diffClass === 'up' ? '↑' : diffClass === 'down' ? '↓' : '';
+    else if (diff > 0) diffClass = 'pos';
+    else if (diff < 0) diffClass = 'neg';
 
-    html += `<div class="aci-compare-item">
-      <div class="aci-compare-label">${m.label}</div>
-      <div class="aci-compare-vals">
-        <span class="aci-compare-cur">${curVal}<span class="aci-compare-unit">${m.unit ? ' ' + m.unit : ''}</span></span>
-        <span class="aci-compare-cmp">${cmpVal}${m.unit ? ' ' + m.unit : ''}</span>
+    const sign = diff > 0 ? '+' : '';
+    const diffDisplay = m.fmt === 'dur' ? (sign + fmtDur(Math.abs(diff))) : (sign + diff + (m.unit ? ' ' + m.unit : ''));
+    const arrow = diffClass === 'up' || diffClass === 'pos' ? '↑' : diffClass === 'down' || diffClass === 'neg' ? '↓' : '';
+
+    // Bar widths: normalize both values to max of the two
+    const maxVal = Math.max(m.cur, m.cmp, 1);
+    const curPct = (m.cur / maxVal * 100).toFixed(1);
+    const cmpPct = (m.cmp / maxVal * 100).toFixed(1);
+
+    html += `<div class="aci-cmp-row">
+      <div class="aci-cmp-label">${m.label}</div>
+      <div class="aci-cmp-bars">
+        <div class="aci-cmp-bar-row">
+          <span class="aci-cmp-val aci-cmp-val--cur">${curVal}<span class="aci-cmp-unit">${m.unit ? ' ' + m.unit : ''}</span></span>
+          <div class="aci-cmp-bar-track">
+            <div class="aci-cmp-bar-fill aci-cmp-bar--cur" style="width:${curPct}%"></div>
+          </div>
+        </div>
+        <div class="aci-cmp-bar-row">
+          <span class="aci-cmp-val aci-cmp-val--cmp">${cmpVal}<span class="aci-cmp-unit">${m.unit ? ' ' + m.unit : ''}</span></span>
+          <div class="aci-cmp-bar-track">
+            <div class="aci-cmp-bar-fill aci-cmp-bar--cmp" style="width:${cmpPct}%"></div>
+          </div>
+        </div>
       </div>
-      <div class="aci-compare-delta aci-compare-delta--${diffClass}">${arrow} ${Math.abs(pctDiff)}%</div>
+      <div class="aci-cmp-delta aci-cmp-delta--${diffClass}">
+        <span class="aci-cmp-delta-arrow">${arrow}</span>
+        <span class="aci-cmp-delta-pct">${absPct.toFixed(1)}%</span>
+        <span class="aci-cmp-delta-abs">${diffDisplay}</span>
+      </div>
     </div>`;
   });
   html += '</div>';

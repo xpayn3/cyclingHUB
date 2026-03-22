@@ -11177,62 +11177,141 @@ body.show-save-fab #actSaveRouteFab {
     width: 100%;
     font-size: 14px;
 }
-.aci-compare-header {
-    margin-bottom: 10px;
-}
-.aci-compare-vs {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text-primary);
-}
-.aci-compare-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-}
-.aci-compare-item {
+/* Compare header — two rides side by side */
+.aci-cmp-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding: 12px;
     background: var(--surface-1);
     border-radius: var(--radius-sm);
-    padding: 10px 12px;
 }
-.aci-compare-label {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--text-muted);
-    margin-bottom: 4px;
-}
-.aci-compare-vals {
+.aci-cmp-ride {
+    flex: 1;
     display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 6px;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
 }
-.aci-compare-cur {
-    font-size: 18px;
-    font-weight: 700;
-    font-family: var(--font-num);
-    color: var(--text-primary);
+.aci-cmp-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
 }
-.aci-compare-unit {
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--text-muted);
-}
-.aci-compare-cmp {
+.aci-cmp-ride-name {
     font-size: 13px;
-    color: var(--text-muted);
-    font-family: var(--font-num);
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
-.aci-compare-delta {
+.aci-cmp-ride-date {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+.aci-cmp-vs {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    color: var(--text-faint);
+    flex-shrink: 0;
+}
+/* Compare rows */
+.aci-cmp-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.aci-cmp-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 70px;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--surface-1);
+    border-radius: var(--radius-sm);
+}
+.aci-cmp-label {
     font-size: 12px;
     font-weight: 600;
-    font-family: var(--font-num);
-    margin-top: 4px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
 }
-.aci-compare-delta--up { color: var(--accent); }
-.aci-compare-delta--down { color: var(--red); }
-.aci-compare-delta--neutral { color: var(--text-muted); }
+.aci-cmp-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.aci-cmp-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.aci-cmp-val {
+    font-size: 13px;
+    font-weight: 700;
+    font-family: var(--font-num);
+    min-width: 55px;
+    text-align: right;
+    flex-shrink: 0;
+}
+.aci-cmp-val--cur { color: var(--accent); }
+.aci-cmp-val--cmp { color: var(--text-muted); }
+.aci-cmp-unit {
+    font-size: 10px;
+    font-weight: 500;
+    opacity: 0.7;
+}
+.aci-cmp-bar-track {
+    flex: 1;
+    height: 6px;
+    background: var(--surface-2);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.aci-cmp-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.4s ease;
+}
+.aci-cmp-bar--cur { background: var(--accent); }
+.aci-cmp-bar--cmp { background: var(--text-faint); }
+/* Delta badge */
+.aci-cmp-delta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1px;
+}
+.aci-cmp-delta-arrow {
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1;
+}
+.aci-cmp-delta-pct {
+    font-size: 13px;
+    font-weight: 700;
+    font-family: var(--font-num);
+}
+.aci-cmp-delta-abs {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-family: var(--font-num);
+}
+.aci-cmp-delta--up .aci-cmp-delta-arrow,
+.aci-cmp-delta--up .aci-cmp-delta-pct { color: var(--accent); }
+.aci-cmp-delta--down .aci-cmp-delta-arrow,
+.aci-cmp-delta--down .aci-cmp-delta-pct { color: var(--red); }
+.aci-cmp-delta--pos .aci-cmp-delta-arrow,
+.aci-cmp-delta--pos .aci-cmp-delta-pct { color: var(--accent); }
+.aci-cmp-delta--neg .aci-cmp-delta-arrow,
+.aci-cmp-delta--neg .aci-cmp-delta-pct { color: #ff9500; }
+.aci-cmp-delta--neutral .aci-cmp-delta-arrow,
+.aci-cmp-delta--neutral .aci-cmp-delta-pct { color: var(--text-muted); }
 /* Tools grid */
 .aci-tools-grid {
     display: flex;
