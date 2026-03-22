@@ -12622,6 +12622,25 @@ body:has(.act-sheet-mode) .topbar {
     flex-shrink: 0;
     text-align: right;
 }
+/* Zone summary stats */
+.detail-zone-summary {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--surface-2);
+}
+.detail-zone-summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+.detail-zone-summary-val {
+    font-weight: 700;
+    font-family: var(--font-num);
+    color: var(--text-primary);
+}
 @media (max-width: 480px) {
     .detail-zone-name {
         display: none;

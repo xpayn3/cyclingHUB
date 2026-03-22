@@ -21796,9 +21796,14 @@ function renderDetailZones(activity) {
   clearCardNA(card);
 
   document.getElementById('detailZonesTotalBadge').textContent = fmtDur(totalSecs) + ' total';
-  document.getElementById('detailZonesSubtitle').textContent   = 'Time in power zone · this ride';
+  const pwrSubEl = document.getElementById('detailZonesSubtitle');
+  if (pwrSubEl) pwrSubEl.style.display = 'none';
 
-  document.getElementById('detailZoneList').innerHTML = totals.map((secs, i) => {
+  const avgPwr = Math.round(activity?.average_watts || activity?.icu_weighted_avg_watts || 0);
+  const maxPwr = Math.round(activity?.max_watts || 0);
+  const np = Math.round(activity?.icu_weighted_avg_watts || 0);
+
+  let pwrZoneHTML = totals.map((secs, i) => {
     const pct   = totalSecs > 0 ? Math.round(secs / totalSecs * 100) : 0;
     const color = ZONE_HEX[i];
     const dim   = secs === 0 ? ' style="opacity:0.35"' : '';
@@ -21812,6 +21817,16 @@ function renderDetailZones(activity) {
       <span class="detail-zone-pct" style="color:${color}">${pct}%</span>
     </div>`;
   }).join('');
+
+  // Power summary stats below zones
+  pwrZoneHTML += '<div class="detail-zone-summary">';
+  if (avgPwr > 0) pwrZoneHTML += `<div class="detail-zone-summary-row"><span>Average Power</span><span class="detail-zone-summary-val">${avgPwr} W</span></div>`;
+  if (np > 0) pwrZoneHTML += `<div class="detail-zone-summary-row"><span>Normalized Power</span><span class="detail-zone-summary-val">${np} W</span></div>`;
+  if (maxPwr > 0) pwrZoneHTML += `<div class="detail-zone-summary-row"><span>Max Power</span><span class="detail-zone-summary-val">${maxPwr} W</span></div>`;
+  pwrZoneHTML += `<div class="detail-zone-summary-row"><span>Total Time</span><span class="detail-zone-summary-val">${fmtDur(totalSecs)}</span></div>`;
+  pwrZoneHTML += '</div>';
+
+  document.getElementById('detailZoneList').innerHTML = pwrZoneHTML;
 
   card.style.display = '';
   unskeletonCard('detailZonesCard');
@@ -21870,10 +21885,10 @@ function renderDetailHRZones(activity) {
   if (maxHR > 0) hintParts.push(`max ${Math.round(maxHR)} bpm`);
 
   document.getElementById('detailHRZonesTotalBadge').textContent = fmtDur(totalSecs) + ' total';
-  document.getElementById('detailHRZonesSubtitle').textContent   =
-    hintParts.length ? `Time in HR zone · ${hintParts.join(' · ')}` : 'Time in HR zone · this ride';
+  const hrSubEl = document.getElementById('detailHRZonesSubtitle');
+  if (hrSubEl) hrSubEl.style.display = 'none';
 
-  document.getElementById('detailHRZoneList').innerHTML = totals.map((secs, i) => {
+  let hrZoneHTML = totals.map((secs, i) => {
     const pct   = totalSecs > 0 ? Math.round(secs / totalSecs * 100) : 0;
     const color = ZONE_HEX[i] || ZONE_HEX[ZONE_HEX.length - 1];
     const tag   = `Z${i + 1}`;
@@ -21889,6 +21904,15 @@ function renderDetailHRZones(activity) {
       <span class="detail-zone-pct" style="color:${color}">${pct}%</span>
     </div>`;
   }).join('');
+
+  // Add HR summary stats as rows below the zones
+  hrZoneHTML += '<div class="detail-zone-summary">';
+  if (avgHR > 0) hrZoneHTML += `<div class="detail-zone-summary-row"><span>Average HR</span><span class="detail-zone-summary-val">${Math.round(avgHR)} bpm</span></div>`;
+  if (maxHR > 0) hrZoneHTML += `<div class="detail-zone-summary-row"><span>Max HR</span><span class="detail-zone-summary-val">${Math.round(maxHR)} bpm</span></div>`;
+  hrZoneHTML += `<div class="detail-zone-summary-row"><span>Total Time</span><span class="detail-zone-summary-val">${fmtDur(totalSecs)}</span></div>`;
+  hrZoneHTML += '</div>';
+
+  document.getElementById('detailHRZoneList').innerHTML = hrZoneHTML;
 
   card.style.display = '';
   unskeletonCard('detailHRZonesCard');
