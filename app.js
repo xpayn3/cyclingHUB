@@ -5161,13 +5161,14 @@ function renderDashboard() {
     el.className = `stat-icon ${cls}`;
   }
 
-  // ── Update stat values (this week) ─────────────────────────────────────────
-  document.getElementById('statTSS').innerHTML   = `${Math.round(tw.tss)}<span class="unit"> tss</span>`;
-  document.getElementById('statDist').innerHTML  = `${tw.dist.toFixed(1)}<span class="unit"> km</span>`;
-  document.getElementById('statTime').innerHTML  = `${tw.time.toFixed(1)}<span class="unit"> h</span>`;
-  document.getElementById('statElev').innerHTML  = `${Math.round(tw.elev).toLocaleString()}<span class="unit"> m</span>`;
-  document.getElementById('statCount').textContent = tw.count;
-  document.getElementById('statPower').innerHTML = tw.powN
+  // ── Update stat values (this week) — elements may not exist if section removed
+  const _s = id => document.getElementById(id);
+  if (_s('statTSS'))   _s('statTSS').innerHTML   = `${Math.round(tw.tss)}<span class="unit"> tss</span>`;
+  if (_s('statDist'))  _s('statDist').innerHTML  = `${tw.dist.toFixed(1)}<span class="unit"> km</span>`;
+  if (_s('statTime'))  _s('statTime').innerHTML  = `${tw.time.toFixed(1)}<span class="unit"> h</span>`;
+  if (_s('statElev'))  _s('statElev').innerHTML  = `${Math.round(tw.elev).toLocaleString()}<span class="unit"> m</span>`;
+  if (_s('statCount')) _s('statCount').textContent = tw.count;
+  if (_s('statPower')) _s('statPower').innerHTML = tw.powN
     ? `${tw.pow}<span class="unit"> w</span>`
     : `—<span class="unit"> w</span>`;
 
@@ -5580,7 +5581,8 @@ function resetDashboard() {
     const el = document.getElementById(id);
     if (el) { const u = el.querySelector('.unit'); el.innerHTML = '—'; if (u) el.appendChild(u); }
   });
-  document.getElementById('statCount').textContent = '—';
+  const _sc = document.getElementById('statCount');
+  if (_sc) _sc.textContent = '—';
   ['statTSSDelta','statDistDelta','statTimeDelta','statElevDelta','statCountDelta','statPowerDelta'].forEach(id => {
     const el = document.getElementById(id);
     if (el) { el.textContent = 'Sync to load'; el.className = 'stat-delta neutral'; }
