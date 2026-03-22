@@ -22213,6 +22213,21 @@ function renderDetailHistogram(activity, streams) {
   card.style.display = '';
   unskeletonCard('detailHistogramCard');
 
+  // Hide subtitle
+  const histSub = card.querySelector('.card-subtitle');
+  if (histSub) histSub.style.display = 'none';
+
+  // Add summary rows
+  const avgPwr = Math.round(activity?.average_watts || 0);
+  const maxPwr = Math.round(activity?.max_watts || 0);
+  const np = Math.round(activity?.icu_weighted_avg_watts || 0);
+  let histSummary = card.querySelector('.detail-zone-summary');
+  if (!histSummary) { histSummary = document.createElement('div'); histSummary.className = 'detail-zone-summary'; card.appendChild(histSummary); }
+  histSummary.innerHTML = `
+    ${avgPwr > 0 ? `<div class="detail-zone-summary-row"><span>Average Power</span><span class="detail-zone-summary-val">${avgPwr} W</span></div>` : ''}
+    ${np > 0 ? `<div class="detail-zone-summary-row"><span>Normalized Power</span><span class="detail-zone-summary-val">${np} W</span></div>` : ''}
+    ${maxPwr > 0 ? `<div class="detail-zone-summary-row"><span>Max Power</span><span class="detail-zone-summary-val">${maxPwr} W</span></div>` : ''}`;
+
   state.activityHistogramChart = destroyChart(state.activityHistogramChart);
   state.activityHistogramChart = new Chart(
     document.getElementById('activityHistogramChart').getContext('2d'), {
