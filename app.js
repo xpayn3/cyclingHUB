@@ -6007,9 +6007,9 @@ function _chartTick() {
 }
 function _chartGrid() {
   const cs = getComputedStyle(document.documentElement);
-  return cs.getPropertyValue('--chart-grid').trim() || (_isDark() ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)');
+  return cs.getPropertyValue('--chart-grid').trim() || (_isDark() ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)');
 }
-function _chartSubgrid() { return _isDark() ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)'; }
+function _chartSubgrid() { return _isDark() ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)'; }
 // Keep C_TICK/C_GRID as live-updating objects for backward compat
 let C_TICK  = { color: _chartTick(), font: { size: 10 } };
 let C_GRID  = { color: _chartGrid() };
