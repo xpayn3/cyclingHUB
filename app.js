@@ -16877,36 +16877,36 @@ function _openActCardInfo(cardId, info) {
     document.body.appendChild(overlay);
   }
 
-  const chartArea = document.getElementById('actCardInfoChart');
-  const controlsArea = document.getElementById('actCardInfoControls');
-  const body = document.getElementById('actCardInfoBody');
-  const dataArea = document.getElementById('actCardInfoData');
-  chartArea.innerHTML = '';
-  controlsArea.innerHTML = '';
-  dataArea.innerHTML = '';
+  const pgEl = document.getElementById('actCardInfoPage');
 
   // For streams card: entirely separate page layout
   const isStreamsCard = cardId === 'detailStreamsCard' && state.normStreams;
   if (isStreamsCard) {
     const activity = state.activities[state.currentActivityIdx];
-    const page = document.getElementById('actCardInfoPage');
-    page.className = 'act-card-info-page aci-streams-page';
-    page.innerHTML = '';
-    // Title header
+    pgEl.className = 'act-card-info-page aci-streams-page';
+    pgEl.innerHTML = '';
     const hdr = document.createElement('div');
     hdr.className = 'aci-sp-header';
     hdr.innerHTML = `<div class="aci-sp-title">Activity Data</div>
       <div class="aci-sp-subtitle">${activity?.name || 'Ride'} · ${fmtDur(activity?.moving_time || 0)}</div>`;
-    page.appendChild(hdr);
-    // Render breakdowns
-    _renderStreamsBreakdown(page, state.normStreams, activity);
-    // Show overlay
+    pgEl.appendChild(hdr);
+    _renderStreamsBreakdown(pgEl, state.normStreams, activity);
     overlay.style.display = 'flex';
     requestAnimationFrame(() => overlay.classList.add('aci-open'));
     return;
-  // Reset page class for non-streams cards
-  const page = document.getElementById('actCardInfoPage');
-  page.className = 'act-card-info-page';
+  }
+
+  // Non-streams cards: standard layout
+  pgEl.className = 'act-card-info-page';
+  pgEl.innerHTML = `
+    <div class="act-card-info-chart" id="actCardInfoChart"></div>
+    <div class="act-card-info-controls" id="actCardInfoControls"></div>
+    <div class="act-card-info-body" id="actCardInfoBody"></div>
+    <div class="act-card-info-data" id="actCardInfoData"></div>`;
+  const chartArea = document.getElementById('actCardInfoChart');
+  const controlsArea = document.getElementById('actCardInfoControls');
+  const body = document.getElementById('actCardInfoBody');
+  const dataArea = document.getElementById('actCardInfoData');
   {
     // Clone the card content (chart/graph)
     const sourceCard = document.getElementById(cardId);
@@ -16939,10 +16939,8 @@ function _openActCardInfo(cardId, info) {
   const activity = state.activities[state.currentActivityIdx];
   let ctrlHTML = '';
 
-  // Skip view toggle for streams — individual charts are the content
-  if (!isStreamsCard) {
-    ctrlHTML += '<div class="aci-controls-row">';
-    ctrlHTML += `<div class="aci-view-toggle">
+  ctrlHTML += '<div class="aci-controls-row">';
+  ctrlHTML += `<div class="aci-view-toggle">
       <button class="aci-view-btn aci-view-btn--active" data-view="chart" onclick="_aciSwitchView('chart')">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         Chart
@@ -16956,11 +16954,10 @@ function _openActCardInfo(cardId, info) {
         Guide
       </button>
     </div>`;
-    ctrlHTML += '</div>';
-  }
+  ctrlHTML += '</div>';
 
-  // Stats summary for this card (skip for streams — stats are in each breakdown)
-  if (activity && !isStreamsCard) {
+  // Stats summary for this card
+  if (activity) {
     ctrlHTML += '<div class="aci-stats-row">';
     const stats = _getCardStats(cardId, activity);
     stats.forEach(s => {
@@ -16969,8 +16966,8 @@ function _openActCardInfo(cardId, info) {
     ctrlHTML += '</div>';
   }
 
-  // Compare section (skip for streams)
-  if (activity && !isStreamsCard) {
+  // Compare section
+  if (activity) {
     const pool = (state.activities || []).filter(a => !isEmptyActivity(a) && a !== activity);
     const prevRide = pool.length ? pool.find((a, i) => {
       const curIdx = state.activities.indexOf(activity);
@@ -17003,8 +17000,8 @@ function _openActCardInfo(cardId, info) {
     }
   }
 
-  // Tools section — extra features per card type (skip for streams)
-  if (!isStreamsCard) {
+  // Tools section
+  {
     ctrlHTML += `<div class="aci-section">
       <div class="aci-section-title">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
@@ -17028,12 +17025,6 @@ function _openActCardInfo(cardId, info) {
   }
 
   controlsArea.innerHTML = ctrlHTML;
-
-  // For streams card, hide body/data areas — all content is in the breakdown
-  if (isStreamsCard) {
-    body.style.display = 'none';
-    dataArea.style.display = 'none';
-  }
 
   // Render explanation (info tab)
   const lines = info.desc.split('\n').map(l => {
