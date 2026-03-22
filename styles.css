@@ -10914,10 +10914,16 @@ body.show-save-fab #actSaveRouteFab {
     padding-left: var(--pad-page);
     padding-right: var(--pad-page);
 }
-/* Zones carousel wrapper also edge-to-edge */
+/* Zones carousel wrapper — match other cards */
 .act-sheet-scroll > .detail-zones-carousel-card {
     margin-left: calc(-1 * var(--pad-page));
     margin-right: calc(-1 * var(--pad-page));
+    padding-left: 0;
+    padding-right: 0;
+}
+.act-sheet-scroll > .detail-zones-carousel-card .card {
+    background: transparent;
+    margin: 0;
     padding-left: var(--pad-page);
     padding-right: var(--pad-page);
 }
