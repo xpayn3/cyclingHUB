@@ -2452,11 +2452,7 @@ input[type="number"] {
     position: relative;
 }
 .dash-quick-card .card-header {
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    z-index: 3;
-    padding: 10px 12px;
-    background: linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, transparent 100%);
+    display: none;
     border-radius: var(--radius) var(--radius) 0 0;
 }
 .dash-quick-card .card-title {
@@ -2506,9 +2502,8 @@ input[type="number"] {
     border-radius: 0 0 var(--radius-sm) var(--radius-sm);
     padding-bottom: 24px;
 }
-.dash-gear-slide--photo .dash-gear-name,
-.dash-gear-slide--photo .dash-gear-km {
-    text-align: left;
+.dash-gear-slide--photo .dash-gear-name {
+    text-align: center;
     text-shadow: 0 1px 4px rgba(0,0,0,0.6);
 }
 .dash-gear-photo {
@@ -2576,6 +2571,13 @@ input[type="number"] {
     left: 0;
     right: 0;
     z-index: 3;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+.dash-quick-card:hover .dash-gear-dots,
+.dash-quick-card:active .dash-gear-dots,
+.dash-gear-dots.dots-visible {
+    opacity: 1;
 }
 .dash-gear-dot {
     width: 5px;

@@ -5318,8 +5318,6 @@ async function _renderDashGear() {
       ${photo ? `<img class="dash-gear-photo" src="${photo}" alt="${g.name}">` : imgHtml}
       <div class="dash-gear-overlay">
         <div class="dash-gear-name">${g.name}</div>
-        <div class="dash-gear-km">${meta}</div>
-        ${batLow ? '<div class="dash-gear-warn">Low battery</div>' : ''}
       </div>
     </div>`;
   }).join('');
@@ -5329,9 +5327,13 @@ async function _renderDashGear() {
     dotsEl.innerHTML = gear.map((_, i) =>
       `<span class="dash-gear-dot${i === 0 ? ' active' : ''}"></span>`
     ).join('');
+    let _dotTimer = 0;
     scroll.addEventListener('scroll', () => {
       const idx = Math.round(scroll.scrollLeft / scroll.clientWidth);
       dotsEl.querySelectorAll('.dash-gear-dot').forEach((d, i) => d.classList.toggle('active', i === idx));
+      dotsEl.classList.add('dots-visible');
+      clearTimeout(_dotTimer);
+      _dotTimer = setTimeout(() => dotsEl.classList.remove('dots-visible'), 2000);
     }, { passive: true });
   } else if (dotsEl) {
     dotsEl.innerHTML = '';
