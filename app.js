@@ -5923,8 +5923,23 @@ function externalTooltipHandler(context) {
   });
   el.innerHTML = html;
 
-  // Set tooltip background to the primary dataset color
-  const ttColor = el._ttColor || (dataPoints[0]?.dataset?.borderColor) || '';
+  // Set tooltip background to the primary dataset's solid color
+  const _isSolid = c => {
+    if (!c || c === 'transparent' || c === '#000' || c === '#000000' || c === 'black') return false;
+    if (c.startsWith('rgba(0,0,0') || c.startsWith('rgba(0, 0, 0')) return false;
+    // Reject rgba with alpha < 0.5
+    const rgbaMatch = c.match(/rgba?\(\s*\d+.*,\s*([\d.]+)\s*\)$/);
+    if (rgbaMatch && parseFloat(rgbaMatch[1]) < 0.5) return false;
+    return true;
+  };
+  let ttColor = '';
+  for (const dp of dataPoints) {
+    const ds = dp?.dataset || {};
+    const bc = Array.isArray(ds.borderColor) ? ds.borderColor[dp.dataIndex] : ds.borderColor;
+    if (_isSolid(bc)) { ttColor = bc; break; }
+  }
+  if (!ttColor) ttColor = el._ttColor || '';
+
   if (ttColor && ttColor !== 'transparent') {
     el.style.background = ttColor;
     el.style.backdropFilter = 'none';
