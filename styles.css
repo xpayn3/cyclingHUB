@@ -12565,10 +12565,10 @@ body:has(.act-sheet-mode) .topbar {
     }
 }
 
-/* Power curve + HR curve side by side */
+/* Power curve + HR curve — stacked on mobile, side by side on desktop */
 .detail-curves-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: flex;
+    flex-direction: column;
     gap: 14px;
 }
 .detail-curves-row > .card[style*="display:none"],
@@ -12581,9 +12581,13 @@ body:has(.act-sheet-mode) .topbar {
 .detail-curves-row:has(> .card[style*="display:none"]:last-child) {
     grid-template-columns: 1fr;
 }
-@media (max-width: 700px) {
+@media (min-width: 701px) {
     .detail-curves-row {
-        grid-template-columns: 1fr;
+        flex-direction: row;
+    }
+    .detail-curves-row > .card {
+        flex: 1;
+        min-width: 0;
     }
 }
 
