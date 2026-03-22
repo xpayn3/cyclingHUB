@@ -16783,7 +16783,7 @@ function _injectActCardInfoBtns() {
       e.stopPropagation();
       _openActCardInfo(card.id, info);
     });
-    header.appendChild(btn);
+    card.appendChild(btn);
   });
 }
 

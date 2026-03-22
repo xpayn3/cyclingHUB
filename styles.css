@@ -10922,7 +10922,13 @@ body.show-save-fab #actSaveRouteFab {
     padding-right: var(--pad-page);
 }
 /* Info button on activity cards */
+.act-sheet-scroll .card {
+    position: relative;
+}
 .act-card-info-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
     width: 28px;
     height: 28px;
     border-radius: 50%;
@@ -10936,6 +10942,7 @@ body.show-save-fab #actSaveRouteFab {
     flex-shrink: 0;
     transition: background 0.15s, color 0.15s;
     padding: 0;
+    z-index: 2;
 }
 .act-card-info-btn:active {
     background: var(--surface-3);
