@@ -19383,16 +19383,18 @@ function renderDetailComparison(a) {
     const pctLabel = pctAbs < 1 ? '≈ avg' : `${up ? '+' : '-'}${pctAbs}%`;
     allPcts.push(positive ? pct : -Math.abs(pct));
     return `<div class="detail-cmp-row">
-      <div class="detail-cmp-label">${label}</div>
+      <div class="detail-cmp-top">
+        <div class="detail-cmp-label">${label}</div>
+        <div class="detail-cmp-vals">
+          <div class="detail-cmp-this">${fmtFn(actual)}</div>
+          <div class="detail-cmp-pct ${cls}">${pctLabel}</div>
+        </div>
+      </div>
       <div class="detail-cmp-bar-wrap">
         <div class="detail-cmp-bar-fill" style="width:${fillPct.toFixed(1)}%;background:${fillColor}"></div>
         <div class="detail-cmp-bar-avg" style="left:${avgLinePct}%">
           <div class="detail-cmp-avg-val">avg ${fmtFn(avg)}</div>
         </div>
-      </div>
-      <div class="detail-cmp-vals">
-        <div class="detail-cmp-this">${fmtFn(actual)}</div>
-        <div class="detail-cmp-pct ${cls}">${pctLabel}</div>
       </div>
     </div>`;
   };
