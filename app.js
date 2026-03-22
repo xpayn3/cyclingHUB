@@ -21503,7 +21503,6 @@ function showCardNA(cardId) {
   const card = document.getElementById(cardId);
   if (!card) return;
   unskeletonCard(cardId);
-  // If the user prefers hidden empty cards, just hide and bail
   if (localStorage.getItem('icu_hide_empty_cards') === 'true') {
     card.style.display = 'none';
     return;
@@ -21511,14 +21510,31 @@ function showCardNA(cardId) {
   card.style.display = '';
   card.classList.add('card--na');
   card.querySelectorAll('.detail-na-inject').forEach(e => e.remove());
-  // Hide chart/map/peaks areas so they don't leave blank whitespace below the message
+  // Hide existing chart/map areas
   card.querySelectorAll('.chart-wrap, .map-container, .activity-map, .curve-peaks').forEach(e => { e.dataset.naHidden = '1'; e.style.display = 'none'; });
+  // Create placeholder with faded demo wave
   const el = document.createElement('div');
-  el.className = 'detail-na-inject';
-  el.innerHTML = _NA_HTML;
+  el.className = 'detail-na-inject detail-na-wave';
+  el.innerHTML = `<canvas class="detail-na-canvas" width="300" height="80"></canvas>
+    <div class="detail-na-overlay">${_NA_HTML}</div>`;
   const header = card.querySelector('.card-header');
   if (header) header.insertAdjacentElement('afterend', el);
   else card.appendChild(el);
+  // Draw faded sine wave on the canvas
+  const cvs = el.querySelector('.detail-na-canvas');
+  if (cvs) {
+    const w = cvs.parentElement.clientWidth || 300;
+    cvs.width = w; cvs.height = 60;
+    const cx = cvs.getContext('2d');
+    cx.strokeStyle = 'rgba(255,255,255,0.08)';
+    cx.lineWidth = 1.5;
+    cx.beginPath();
+    for (let x = 0; x <= w; x++) {
+      const y = 30 + Math.sin(x / 25) * 15 + Math.sin(x / 11) * 5;
+      x === 0 ? cx.moveTo(x, y) : cx.lineTo(x, y);
+    }
+    cx.stroke();
+  }
 }
 
 function setHideEmptyCards(enabled) {

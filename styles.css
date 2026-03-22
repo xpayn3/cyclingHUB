@@ -16017,6 +16017,26 @@ body:has(.act-sheet-mode) .topbar {
     color: var(--text-muted);
     font-size: var(--text-sm);
 }
+.detail-na-wave {
+    position: relative;
+    flex-direction: column;
+    padding: 0 0 16px;
+    gap: 0;
+}
+.detail-na-canvas {
+    width: 100%;
+    height: 60px;
+    display: block;
+}
+.detail-na-overlay {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 0;
+    color: var(--text-faint);
+    font-size: var(--text-sm);
+}
 
 /* ── Outside temperature chart card ── */
 .detail-temp-wrap {
