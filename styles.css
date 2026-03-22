@@ -10927,8 +10927,8 @@ body.show-save-fab #actSaveRouteFab {
 }
 .act-card-info-btn {
     position: absolute;
-    top: 10px;
-    right: 10px;
+    top: var(--pad-card, 16px);
+    right: var(--pad-page, 16px);
     width: 36px;
     height: 36px;
     border-radius: 50%;
