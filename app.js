@@ -2103,7 +2103,11 @@ async function _idbWriteAll(openFn, storeName, entries, outOfLineKeys) {
    GUN.JS P2P DEVICE SYNC
    ══════════════════════════════════════════════════════════════════════════════ */
 
-const _GUN_RELAY = 'https://gun-manhattan.herokuapp.com/gun';
+const _GUN_RELAYS = [
+  'https://gun-manhattan.herokuapp.com/gun',
+  'https://gun-us.herokuapp.com/gun',
+  'https://gun-eu.herokuapp.com/gun',
+];
 let _gunInstance = null;
 let _gunRoom = null;
 let _gunListening = false;
@@ -2127,9 +2131,15 @@ function _gunDeviceName() {
 
 function _gunInit() {
   const room = localStorage.getItem('icu_gun_room');
-  if (!room || typeof GUN === 'undefined') return;
+  if (!room) return;
+  if (typeof GUN === 'undefined') {
+    console.warn('[GUN] Gun.js not loaded — CDN may be blocked');
+    const statusText = document.getElementById('syncStatusText');
+    if (statusText) statusText.textContent = 'Gun.js failed to load';
+    return;
+  }
   try {
-    _gunInstance = GUN([_GUN_RELAY]);
+    _gunInstance = GUN(_GUN_RELAYS);
     _gunRoom = _gunInstance.get('cycleiq-' + room);
     _gunUpdateUI(true);
     _gunListen();
