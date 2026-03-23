@@ -11181,7 +11181,6 @@ body.show-save-fab #actSaveRouteFab {
     font-size: 11px;
     font-weight: 500;
     color: var(--text-muted);
-    margin-left: 2px;
 }
 .aci-stream-stat-lbl {
     font-size: 10px;

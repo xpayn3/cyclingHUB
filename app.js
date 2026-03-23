@@ -18136,8 +18136,8 @@ function _renderStreamsBreakdown(container, streams, activity) {
           <span class="aci-stream-stat-lbl">Gain</span>
         </div>`}
         <div class="aci-stream-stat">
-          <span class="aci-stream-stat-val">${fmtDur(movingSecs)}</span>
-          <span class="aci-stream-stat-unit"></span>
+          <span class="aci-stream-stat-val">${Math.round(movingSecs / 60)}</span>
+          <span class="aci-stream-stat-unit">min</span>
           <span class="aci-stream-stat-lbl">Moving</span>
         </div>
       </div>
