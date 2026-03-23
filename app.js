@@ -27837,6 +27837,138 @@ function _gearHookDatePickers(modalEl) {
   });
 }
 
+/* ── Gear form scrubber definitions ── */
+const _GEAR_SCRUBBER_DEFS = {
+  gearPrice: {
+    inputId: 'gearFormPrice', min: 0, max: 500,
+    toStep(val) { return val ? Math.round(parseFloat(val) / 5) : 0; },
+    fromStep(s) { return s === 0 ? '' : String(s * 5); },
+    display(s) {
+      if (s === 0) return { text: '—', zero: true, unit: '€', color: '' };
+      return { text: String(s * 5), zero: false, unit: '€', color: 'var(--text-primary)' };
+    }
+  },
+  gearBikeKm: {
+    inputId: 'gearFormKmAtInstall', min: 0, max: 500,
+    toStep(val) { return val ? Math.round(parseInt(val) / 100) : 0; },
+    fromStep(s) { return s === 0 ? '' : String(s * 100); },
+    display(s) {
+      if (s === 0) return { text: '—', zero: true, unit: 'km', color: '' };
+      return { text: (s * 100).toLocaleString(), zero: false, unit: 'km', color: 'var(--text-primary)' };
+    }
+  },
+  gearMaintKm: {
+    inputId: 'gearFormReminderKm', min: 0, max: 200,
+    toStep(val) { return val ? Math.round(parseInt(val) / 100) : 0; },
+    fromStep(s) { return s === 0 ? '' : String(s * 100); },
+    display(s) {
+      if (s === 0) return { text: '—', zero: true, unit: 'km', color: '' };
+      const km = s * 100;
+      const color = km <= 2000 ? 'var(--accent)' : km <= 5000 ? '#f0c429' : '#ff9500';
+      return { text: km.toLocaleString(), zero: false, unit: 'km', color };
+    }
+  },
+};
+
+let _gearScrubbersInited = false;
+function _initGearScrubbers() {
+  if (_gearScrubbersInited) return;
+  _gearScrubbersInited = true;
+
+  document.querySelectorAll('#gearModal .cev-scrubber').forEach(scrubber => {
+    const metric = scrubber.dataset.metric;
+    const def = _GEAR_SCRUBBER_DEFS[metric];
+    if (!def) return;
+
+    const input   = document.getElementById(def.inputId);
+    const ruler   = scrubber.querySelector('.cev-scrubber-ruler');
+    const valueEl = scrubber.querySelector('.cev-scrubber-value');
+    const unitEl  = scrubber.querySelector('.cev-scrubber-unit');
+    const undoBtn = scrubber.closest('.cev-target-card')?.querySelector('.cev-undo-btn');
+
+    // Generate ticks
+    let ticks = '';
+    for (let i = -200; i <= 200; i++) ticks += `<div class="cev-tick${i % 5 === 0 ? ' cev-tick--major' : ''}"></div>`;
+    ruler.innerHTML = ticks;
+
+    let step = 0, history = [], dragStartX = 0, dragStartStep = 0, dragging = false;
+
+    function applyStep(s) {
+      step = Math.max(def.min, Math.min(def.max, Math.round(s)));
+      const trackW = scrubber.querySelector('.cev-scrubber-track').clientWidth || 80;
+      ruler.style.transform = `translateX(${trackW / 2 - step * _CEV_PX_PER_STEP}px)`;
+      const d = def.display(step);
+      valueEl.textContent = d.text;
+      valueEl.classList.toggle('is-zero', d.zero);
+      if (unitEl && d.unit !== undefined) unitEl.textContent = d.unit;
+      if (d.color !== undefined) valueEl.style.color = d.color;
+      input.value = def.fromStep(step);
+    }
+
+    function syncUndoBtn() {
+      if (undoBtn) undoBtn.style.display = history.length > 0 ? '' : 'none';
+    }
+
+    scrubber._cevApplyStep = (s) => { applyStep(s); history = []; syncUndoBtn(); };
+    scrubber._cevDef = def;
+
+    if (undoBtn) {
+      undoBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        if (!history.length) return;
+        applyStep(history.pop());
+        syncUndoBtn();
+      });
+    }
+
+    let pending = false, pendingPid = 0, lockScroll = false;
+    const DRAG_THRESHOLD = 10;
+    scrubber.style.setProperty('touch-action', 'pan-y', 'important');
+
+    scrubber.addEventListener('pointerdown', e => {
+      if (e.button > 0) return;
+      dragStartX = e.clientX;
+      dragStartStep = step;
+      pending = true;
+      pendingPid = e.pointerId;
+    });
+
+    scrubber.addEventListener('pointermove', e => {
+      if (pending) {
+        if (Math.abs(e.clientX - dragStartX) < DRAG_THRESHOLD) return;
+        pending = false;
+        dragging = true;
+        lockScroll = true;
+        scrubber.setPointerCapture(pendingPid);
+      }
+      if (!dragging) return;
+      applyStep(dragStartStep - (e.clientX - dragStartX) / _CEV_PX_PER_STEP);
+    });
+
+    scrubber.addEventListener('touchmove', e => { if (dragging || lockScroll) e.preventDefault(); }, { passive: false });
+    scrubber.addEventListener('touchend', () => { lockScroll = false; });
+    scrubber.addEventListener('touchcancel', () => { lockScroll = false; });
+
+    const endDrag = () => {
+      if (pending) { pending = false; return; }
+      if (!dragging) return;
+      dragging = false;
+      if (step !== dragStartStep) { history.push(dragStartStep); syncUndoBtn(); }
+    };
+    scrubber.addEventListener('pointerup', endDrag);
+    scrubber.addEventListener('pointercancel', endDrag);
+  });
+}
+
+function _syncGearScrubbers() {
+  document.querySelectorAll('#gearModal .cev-scrubber').forEach(scrubber => {
+    if (!scrubber._cevApplyStep || !scrubber._cevDef) return;
+    const input = document.getElementById(scrubber._cevDef.inputId);
+    const step = scrubber._cevDef.toStep(input?.value);
+    scrubber._cevApplyStep(step);
+  });
+}
+
 function openGearModal(editId) {
   const modal = document.getElementById('gearModal');
   const titleEl = document.getElementById('gearModalTitle');
@@ -27885,6 +28017,8 @@ function openGearModal(editId) {
   }
 
   _openOverlaySheet('gearModal');
+  _initGearScrubbers();
+  _syncGearScrubbers();
   initCustomDropdowns(modal);
   document.getElementById('gearFormBike')?._cddRefresh?.();
   document.getElementById('gearFormCategory')?._cddRefresh?.();

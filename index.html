@@ -760,43 +760,43 @@
                             <label for="gearFormDate">Purchase Date</label>
                             <input type="date" id="gearFormDate" />
                         </div>
-                        <div class="field">
-                            <label for="gearFormPrice">Price (€)</label>
-                            <input
-                                type="number"
-                                id="gearFormPrice"
-                                placeholder="0"
-                                min="0"
-                                step="0.01"
-                            />
-                        </div>
-                        <div class="field">
-                            <label for="gearFormKmAtInstall">Bike km at Install</label>
-                            <input
-                                type="number"
-                                id="gearFormKmAtInstall"
-                                placeholder="0"
-                                min="0"
-                                step="1"
-                            />
-                            <div class="field-hint">
-                                Total km on the bike when this component was
-                                installed.
+                        <div class="cev-target-card" style="grid-column:1/-1">
+                            <label>Price</label>
+                            <button class="cev-undo-btn" style="display:none" aria-label="Undo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
+                            <input type="hidden" id="gearFormPrice">
+                            <div class="cev-scrubber" data-metric="gearPrice">
+                                <div class="cev-scrubber-value-row">
+                                    <div class="cev-scrubber-value">—</div>
+                                    <span class="cev-scrubber-unit">€</span>
+                                </div>
+                                <div class="cev-scrubber-track"><div class="cev-scrubber-ruler"></div></div>
                             </div>
                         </div>
-                        <div class="field" style="grid-column: 1/-1">
-                            <label for="gearFormReminderKm">Maintenance Reminder (km)</label>
-                            <input
-                                type="number"
-                                id="gearFormReminderKm"
-                                placeholder="e.g. 2000 for chain"
-                                min="0"
-                                step="100"
-                            />
-                            <div class="field-hint">
-                                Get a warning badge when this component reaches
-                                this km threshold.
+                        <div class="cev-target-card" style="grid-column:1/-1">
+                            <label>Bike km at Install</label>
+                            <button class="cev-undo-btn" style="display:none" aria-label="Undo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
+                            <input type="hidden" id="gearFormKmAtInstall">
+                            <div class="cev-scrubber" data-metric="gearBikeKm">
+                                <div class="cev-scrubber-value-row">
+                                    <div class="cev-scrubber-value">—</div>
+                                    <span class="cev-scrubber-unit">km</span>
+                                </div>
+                                <div class="cev-scrubber-track"><div class="cev-scrubber-ruler"></div></div>
                             </div>
+                            <div class="field-hint">Total km on the bike when this component was installed.</div>
+                        </div>
+                        <div class="cev-target-card" style="grid-column:1/-1">
+                            <label>Maintenance Reminder</label>
+                            <button class="cev-undo-btn" style="display:none" aria-label="Undo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
+                            <input type="hidden" id="gearFormReminderKm">
+                            <div class="cev-scrubber" data-metric="gearMaintKm">
+                                <div class="cev-scrubber-value-row">
+                                    <div class="cev-scrubber-value">—</div>
+                                    <span class="cev-scrubber-unit">km</span>
+                                </div>
+                                <div class="cev-scrubber-track"><div class="cev-scrubber-ruler"></div></div>
+                            </div>
+                            <div class="field-hint">Warning badge when this component reaches this km.</div>
                         </div>
                         <div class="field" style="grid-column: 1/-1">
                             <div style="display:flex;align-items:center;justify-content:space-between">
@@ -1183,6 +1183,51 @@
                 </div>
                 <div class="wxd-sheet-body">
                     <div id="similarRidesList" class="sim-rides-list"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== FUELING PLAN SHEET ==================== -->
+        <div class="wxd-overlay" id="fuelPlanSheet" style="display:none">
+            <div class="wxd-backdrop" onclick="_closeFuelPlan()"></div>
+            <div class="wxd-sheet" style="max-width:520px">
+                <div class="modal-drag-indicator"></div>
+                <div class="modal-header">
+                    <div class="modal-title">Fueling Plan</div>
+                    <button class="modal-close" onclick="_closeFuelPlan()"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+                </div>
+                <div class="wxd-sheet-body" id="fuelPlanBody">
+                    <div id="fuelPlanForm">
+                        <div class="fuel-form-section"><label class="fuel-label">Ride Duration</label><div class="fuel-row"><input type="number" id="fuelDurationH" class="fuel-input" placeholder="0" min="0" max="24" value="3"><span class="fuel-input-unit">h</span><input type="number" id="fuelDurationM" class="fuel-input" placeholder="0" min="0" max="59" value="0"><span class="fuel-input-unit">m</span></div></div>
+                        <div class="fuel-form-section"><label class="fuel-label">Intensity</label><select id="fuelIntensity" class="app-select fuel-select"><option value="0.55">Z1 — Recovery (IF 0.55)</option><option value="0.65">Z2 — Endurance (IF 0.65)</option><option value="0.76" selected>Z3 — Tempo (IF 0.76)</option><option value="0.88">Z4 — Threshold (IF 0.88)</option><option value="0.95">Z5 — VO2max (IF 0.95)</option><option value="1.05">Z6 — Anaerobic (IF 1.05)</option></select></div>
+                        <div class="fuel-form-section"><label class="fuel-label">Body Weight (kg)</label><input type="number" id="fuelWeight" class="fuel-input fuel-input--wide" placeholder="70" min="30" max="200"></div>
+                        <div class="fuel-form-section"><label class="fuel-label">Fuel Types</label><div class="fuel-toggles"><label class="fuel-toggle"><input type="checkbox" value="gel" checked><span>Gels</span></label><label class="fuel-toggle"><input type="checkbox" value="bar"><span>Bars</span></label><label class="fuel-toggle"><input type="checkbox" value="drink" checked><span>Drink Mix</span></label><label class="fuel-toggle"><input type="checkbox" value="banana"><span>Bananas</span></label><label class="fuel-toggle"><input type="checkbox" value="rice"><span>Rice Cakes</span></label></div></div>
+                        <div class="fuel-form-section"><label class="fuel-label">Conditions</label><div class="fuel-toggles"><label class="fuel-toggle"><input type="checkbox" id="fuelHot" value="hot"><span>Hot (&gt;30°C)</span></label><label class="fuel-toggle"><input type="checkbox" id="fuelHigh" value="high"><span>High Altitude</span></label></div></div>
+                        <button class="fuel-generate-btn" onclick="_fuelGenerate()">Generate Plan</button>
+                    </div>
+                    <div id="fuelPlanOutput" style="display:none"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== TAPERING WIZARD ==================== -->
+        <div class="wxd-overlay" id="taperWizardSheet" style="display:none">
+            <div class="wxd-backdrop" onclick="_closeTaperWizard()"></div>
+            <div class="wxd-sheet" style="max-width:520px">
+                <div class="modal-drag-indicator"></div>
+                <div class="modal-header">
+                    <div class="modal-title">Tapering Wizard</div>
+                    <button class="modal-close" onclick="_closeTaperWizard()"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+                </div>
+                <div class="wxd-sheet-body" id="taperWizardBody">
+                    <div id="taperStep1">
+                        <p class="taper-desc">Plan a science-based taper for peak race-day performance using the Mujika &amp; Padilla exponential decay model.</p>
+                        <div class="taper-form-section"><label class="taper-label">Race Date</label><input type="date" id="taperRaceDate" class="taper-input"></div>
+                        <div class="taper-form-section"><label class="taper-label">Event Type</label><select id="taperEventType" class="app-select taper-select"><option value="crit">Criterium (7-day taper)</option><option value="road_race">Road Race (10-day taper)</option><option value="tt">Time Trial (10-day taper)</option><option value="gran_fondo" selected>Gran Fondo (14-day taper)</option><option value="stage_race">Stage Race (14-day taper)</option></select></div>
+                        <div class="taper-form-section"><label class="taper-label">Current CTL (Fitness)</label><input type="number" id="taperCTL" class="taper-input" placeholder="Auto-detected"></div>
+                        <button class="taper-gen-btn" onclick="_taperGenerate()">Generate Taper Plan</button>
+                    </div>
+                    <div id="taperStep2" style="display:none"></div>
                 </div>
             </div>
         </div>
@@ -3569,6 +3614,18 @@
                         <div class="fit-rp-note" id="fitRacePredNote"></div>
                     </div>
 
+                    <!-- ── Race Tools ── -->
+                    <div class="fit-race-tools">
+                        <button class="fit-race-tool-btn" onclick="openFuelPlanSheet()">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+                            <span>Fueling Plan</span>
+                        </button>
+                        <button class="fit-race-tool-btn" onclick="openTaperWizard()">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                            <span>Tapering Wizard</span>
+                        </button>
+                    </div>
+
                     <!-- ── Training Load chart (moved from dashboard) ── -->
                     <div class="card">
                         <div class="card-header">
@@ -3906,6 +3963,18 @@
                             </div>
                         </div>
                         <div class="chart-wrap" style="height:200px"><canvas id="fitStrainRecovChart"></canvas></div>
+                    </div>
+
+                    <!-- Weather-Performance Correlation -->
+                    <div class="card" id="fitWeatherCorrCard" style="display:none">
+                        <div class="card-header"><div style="display:flex;align-items:center;gap:8px"><div class="card-title" style="flex:1 1 0%"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>Weather Impact</div></div></div>
+                        <div class="fit-wx-tabs" id="fitWxTabs">
+                            <button class="fit-wx-tab active" data-wxplot="temp-power" onclick="_fitWxSwitch('temp-power')">Temp vs Power</button>
+                            <button class="fit-wx-tab" data-wxplot="temp-hr" onclick="_fitWxSwitch('temp-hr')">Temp vs HR</button>
+                            <button class="fit-wx-tab" data-wxplot="wind-speed" onclick="_fitWxSwitch('wind-speed')">Wind vs Speed</button>
+                        </div>
+                        <div class="chart-wrap" style="height:240px;margin:0 calc(-1 * var(--pad-card))"><canvas id="fitWxCorrChart"></canvas></div>
+                        <div class="fit-wx-insights" id="fitWxInsights"></div>
                     </div>
 
                     <!-- Training Guide (merged) -->
