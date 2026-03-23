@@ -3585,6 +3585,7 @@ function navigate(page, opts) {
   if (_sgnFab) { _sgnFab.style.visibility = page === 'suggestion' ? '' : 'hidden'; _sgnFab.style.pointerEvents = page === 'suggestion' ? '' : 'none'; }
   const _bikeFab = document.getElementById('bikeBackFab');
   if (_bikeFab) { _bikeFab.style.visibility = page === 'bikedetail' ? '' : 'hidden'; _bikeFab.style.pointerEvents = page === 'bikedetail' ? '' : 'none'; }
+  if (page !== 'bikedetail') _bkdHidePill();
   const _settFab = document.getElementById('settingsBackFab');
   if (_settFab) { _settFab.style.visibility = page === 'settings' ? '' : 'hidden'; _settFab.style.pointerEvents = page === 'settings' ? '' : 'none'; }
   const _settSearch = document.getElementById('settingsSearchFab');
@@ -27085,13 +27086,7 @@ function renderBikeDetailPage() {
       </div>
     </div>
 
-    <!-- Floating sticky pill — bike switcher -->
-    <div class="bkd-sticky-pill" id="bkdStickyPill" onclick="_bkdToggleSwitcher(event)">
-      <div class="bkd-pill-count">${_gearBikeCache.length}</div>
-      <span class="bkd-sticky-name">${bike.name}</span>
-      <svg class="bkd-pill-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-    </div>
-    <div class="bkd-bike-dropdown" id="bkdBikeDropdown" style="display:none"></div>
+    <!-- Pill + dropdown injected on body by _bkdShowPill -->
 
     <!-- Stats -->
     <div class="gar-stats">
@@ -27171,8 +27166,30 @@ function renderBikeDetailPage() {
   renderGearTires();
   renderGearServices();
 
-  // Close bike switcher dropdown when re-rendering
-  _bkdCloseSwitcher();
+  // Show bike switcher pill on body
+  _bkdShowPill(bike.name, _gearBikeCache.length);
+}
+
+/* ── Bike switcher pill (appended to body for correct fixed positioning) ── */
+function _bkdShowPill(bikeName, bikeCount) {
+  _bkdHidePill(); // remove any existing
+  const pill = document.createElement('div');
+  pill.className = 'bkd-sticky-pill';
+  pill.id = 'bkdStickyPill';
+  pill.onclick = _bkdToggleSwitcher;
+  pill.innerHTML = `<div class="bkd-pill-count">${bikeCount}</div><span class="bkd-sticky-name">${bikeName}</span><svg class="bkd-pill-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
+  document.body.appendChild(pill);
+
+  const dd = document.createElement('div');
+  dd.className = 'bkd-bike-dropdown';
+  dd.id = 'bkdBikeDropdown';
+  dd.style.display = 'none';
+  document.body.appendChild(dd);
+}
+
+function _bkdHidePill() {
+  document.getElementById('bkdStickyPill')?.remove();
+  document.getElementById('bkdBikeDropdown')?.remove();
 }
 
 /* ── Bike switcher dropdown ── */
