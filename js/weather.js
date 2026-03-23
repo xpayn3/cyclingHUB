@@ -576,7 +576,7 @@ export async function renderWeatherForecast() {
     const tUnit = state.units === 'imperial' ? 'fahrenheit' : 'celsius';
     const wUnit = state.units === 'imperial' ? 'mph' : 'kmh';
     const wxModel = localStorage.getItem('icu_wx_model') || 'best_match';
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lng.toFixed(4)}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode,windspeed_10m_max&hourly=weathercode&timezone=auto&forecast_days=7&temperature_unit=${tUnit}&wind_speed_unit=${wUnit}&models=${wxModel}`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lng.toFixed(4)}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode,windspeed_10m_max&hourly=weathercode,temperature_2m&timezone=auto&forecast_days=7&temperature_unit=${tUnit}&wind_speed_unit=${wUnit}&models=${wxModel}`;
     try {
       const res = await fetch(url);
       if (res.ok) {
