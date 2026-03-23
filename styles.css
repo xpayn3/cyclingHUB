@@ -19271,6 +19271,7 @@ body:has(.act-sheet-mode) .topbar {
     flex-shrink: 0;
     align-self: center;
 }
+.card--na .detail-decouple-wrap { display: none; }
 .detail-decouple-halves {
     display: flex;
     align-items: center;
