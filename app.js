@@ -23304,9 +23304,9 @@ function renderDetailGradientProfile(streams, activity) {
         labels: distDS,
         datasets: [{
           data: altDS,
-          borderColor: ACCENT,
+          borderColor: C_PURPLE,
           borderWidth: 2,
-          backgroundColor: 'rgba(0,229,160,0.12)',
+          backgroundColor: 'rgba(155,89,255,0.12)',
           fill: true,
           pointRadius: 0,
           pointHoverRadius: 5,
