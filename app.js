@@ -3092,6 +3092,8 @@ if (window.visualViewport) {
 }
 
 function navigate(page, opts) {
+  // Redirect zones to power page with zones tab
+  if (page === 'zones') { navigate('power'); setTimeout(() => _switchPwrTab('zones'), 50); return; }
   if (opts?.settingsSubpage) window._pendingSettingsSubpage = opts.settingsSubpage;
   // Route Builder: confirm before leaving if there's an unsaved route
   if (state.currentPage === 'routes' && page !== 'routes' && window._rb && window._rb.waypoints && window._rb.waypoints.length > 0) {
@@ -13472,6 +13474,23 @@ function setZnpRange(days) {
   });
   noChartAnim(() => renderZonesPage());
 }
+
+// ── Power/Zones page tab switcher ──
+function _switchPwrTab(tab) {
+  const powerDiv = document.getElementById('pwrTabPower');
+  const zonesDiv = document.getElementById('pwrTabZones');
+  if (!powerDiv || !zonesDiv) return;
+
+  powerDiv.style.display = tab === 'power' ? '' : 'none';
+  zonesDiv.style.display = tab === 'zones' ? '' : 'none';
+
+  document.querySelectorAll('.pwr-page-tab').forEach(b => {
+    b.classList.toggle('active', b.dataset.ptab === tab);
+  });
+
+  if (tab === 'zones') renderZonesPage();
+}
+window._switchPwrTab = _switchPwrTab;
 
 function renderZonesPage() {
   if (!state.synced) return;

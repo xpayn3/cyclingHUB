@@ -4095,6 +4095,12 @@
                 <!-- /page-fitness -->
 
                 <div class="page" id="page-power">
+                    <!-- ── Training page tabs ── -->
+                    <div class="pwr-page-tabs" id="pwrPageTabs">
+                        <button class="pwr-page-tab active" data-ptab="power" onclick="_switchPwrTab('power')">Power</button>
+                        <button class="pwr-page-tab" data-ptab="zones" onclick="_switchPwrTab('zones')">Zones</button>
+                    </div>
+                    <div id="pwrTabPower">
                     <!-- ── Hero stat row ── -->
                     <div class="pwr-hero-row" id="pwrHeroRow"></div>
 
@@ -4431,9 +4437,9 @@
                         </div>
                         <div class="fit-zone-balance" id="fitZoneBalance"></div>
                     </div>
-                </div>
-
-                <div class="page" id="page-zones">
+                    </div><!-- /pwrTabPower -->
+                    <div id="pwrTabZones" style="display:none">
+                    <!-- ═══ ZONES CONTENT (merged) ═══ -->
                     <!-- ── KPI hero strip ── -->
                     <div class="znp-kpi-row" id="znpKpiRow"></div>
 
@@ -4547,7 +4553,11 @@
 
                     <!-- ── Training insights ── -->
                     <div id="znpInsightsRow" class="znp-insights-row"></div>
+                    </div><!-- /pwrTabZones -->
                 </div>
+
+                <!-- page-zones kept as hidden redirect target -->
+                <div class="page" id="page-zones" style="display:none"></div>
 
                 <!-- (Streaks page merged into Goals) -->
 
