@@ -2181,9 +2181,11 @@ function _peerUpdateUI(status, peerId) {
   if (zoneActive) zoneActive.style.display = isPeerConnected ? '' : 'none';
 
   // Host sub-state within connect zone
+  const hostSection = document.getElementById('syncHostSection');
   const startRow = document.getElementById('syncStartRow');
   const hostActive = document.getElementById('syncHostActive');
-  if (startRow) startRow.style.display = (isHosting || isConnecting) ? 'none' : '';
+  if (hostSection) hostSection.style.display = isConnecting ? 'none' : '';
+  if (startRow) startRow.style.display = isHosting ? 'none' : '';
   if (hostActive) hostActive.style.display = isHosting ? '' : 'none';
 
   _peerUpdateLastSync();
