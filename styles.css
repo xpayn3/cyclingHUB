@@ -11157,8 +11157,8 @@ body.show-save-fab #actSaveRouteFab {
 }
 .aci-stream-chart-wrap {
     height: 160px;
-    margin: 0 -16px 12px;
-    padding: 0 8px;
+    margin: 0 calc(-1 * var(--pad-page, 16px)) 12px;
+    padding: 0;
 }
 .aci-stream-stats {
     display: grid;
