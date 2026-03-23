@@ -728,22 +728,97 @@ export async function renderWeatherForecast() {
       </div>`;
   }).join('');
 
-  if (section && rail) {
-    // New scroll rail layout
-    section.style.display = '';
-    if (locEl) locEl.textContent = location;
-    rail.innerHTML = days;
-  } else if (card) {
-    // Fallback to old card layout
-    card.style.display = '';
-    card.innerHTML = `
-      <div class="card-header">
-        <div>
-          <div class="card-title">Riding Forecast</div>
-          <div class="card-subtitle">${location}</div>
+  // Build today-focused detailed card
+  const todayScore = ridingScore(0);
+  const todayHi = Math.round(highs[0]);
+  const todayLo = Math.round(lows[0]);
+  const todayWind = Math.round(winds?.[0] ?? 0);
+  const todayPrecip = Math.round(precips?.[0] ?? 0);
+  const todayCode = codes[0];
+  const todayLabel = wmoLabel(todayCode);
+  const todayIcon = wmoIcon(todayCode);
+  const windUnit = state.units === 'imperial' ? 'mph' : 'km/h';
+  const scoreColors = { good: 'var(--accent)', fair: '#f0c429', poor: 'var(--red)' };
+  const scoreTexts = { good: 'Great day to ride', fair: 'Rideable with caution', poor: 'Consider staying indoor' };
+  const scoreBg = { good: 'rgba(0,229,160,0.08)', fair: 'rgba(240,196,41,0.08)', poor: 'rgba(255,69,58,0.08)' };
+
+  // Hourly temps for sparkline (next 12 hours)
+  const hTemps = forecast.hourly?.temperature_2m;
+  const hCodes = forecast.hourly?.weathercode;
+  const nowHour = new Date().getHours();
+  const hoursAhead = [];
+  for (let h = nowHour; h < Math.min(nowHour + 12, 24); h++) {
+    hoursAhead.push({
+      hour: h,
+      temp: hTemps ? Math.round(hTemps[h]) : null,
+      code: hCodes ? hCodes[h] : todayCode
+    });
+  }
+  const hourlyHTML = hoursAhead.map(h => {
+    const label = h.hour === nowHour ? 'Now' : `${h.hour}:00`;
+    const miniIcon = wmoIcon(h.code, 20);
+    return `<div class="wx-today-hour">
+      <span class="wx-today-hour-lbl">${label}</span>
+      <span class="wx-today-hour-icon">${miniIcon}</span>
+      <span class="wx-today-hour-temp">${h.temp != null ? h.temp + '°' : '—'}</span>
+    </div>`;
+  }).join('');
+
+  // Gear suggestions
+  const gearTips = [];
+  if (todayPrecip > 40) gearTips.push({ icon: '💧', text: 'Rain jacket' });
+  if (todayHi < (state.units === 'imperial' ? 50 : 10)) gearTips.push({ icon: '🧤', text: 'Warm gloves' });
+  if (todayHi < (state.units === 'imperial' ? 42 : 6)) gearTips.push({ icon: '🧣', text: 'Thermal layers' });
+  if (todayWind > (state.units === 'imperial' ? 15 : 25)) gearTips.push({ icon: '🌬', text: 'Wind vest' });
+  if (todayHi > (state.units === 'imperial' ? 85 : 30)) gearTips.push({ icon: '☀️', text: 'Sunscreen + bottles' });
+  if (todayPrecip < 20 && todayHi > (state.units === 'imperial' ? 60 : 16)) gearTips.push({ icon: '😎', text: 'Sunglasses' });
+  const gearHTML = gearTips.length ? `<div class="wx-today-gear">
+    <div class="wx-today-gear-title">What to bring</div>
+    <div class="wx-today-gear-list">${gearTips.map(g => `<span class="wx-today-gear-item"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>${g.text}</span>`).join('')}</div>
+  </div>` : '';
+
+  const todayHTML = `<div class="wx-today-card card" onclick="navigate('weather')" style="cursor:pointer;background:${scoreBg[todayScore]}">
+    <div class="wx-today-top">
+      <div class="wx-today-main">
+        <div class="wx-today-icon">${todayIcon}</div>
+        <div class="wx-today-info">
+          <div class="wx-today-condition">${todayLabel}</div>
+          <div class="wx-today-temp">${todayHi}°<span class="wx-today-lo"> / ${todayLo}°</span></div>
         </div>
       </div>
-      <div class="wx-forecast-row">${days}</div>`;
+      <div class="wx-today-verdict" style="color:${scoreColors[todayScore]}">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="${todayScore === 'good' ? 'M8 14s1.5 2 4 2 4-2 4-2' : todayScore === 'fair' ? 'M8 15h8' : 'M8 17s1.5-2 4-2 4 2 4 2'}"></path><circle cx="9" cy="9" r="1" fill="currentColor" stroke="none"></circle><circle cx="15" cy="9" r="1" fill="currentColor" stroke="none"></circle></svg>
+        <span>${scoreTexts[todayScore]}</span>
+      </div>
+    </div>
+    <div class="wx-today-metrics">
+      <div class="wx-today-metric">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"></path></svg>
+        <span class="wx-today-metric-val">${todayWind}</span>
+        <span class="wx-today-metric-unit">${windUnit}</span>
+      </div>
+      <div class="wx-today-metric">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C8 8 5 12.5 5 15.5a7 7 0 0 0 14 0C19 12.5 16 8 12 2z"></path></svg>
+        <span class="wx-today-metric-val">${todayPrecip}</span>
+        <span class="wx-today-metric-unit">%</span>
+      </div>
+      <div class="wx-today-metric">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"></path></svg>
+        <span class="wx-today-metric-val">${todayHi}°</span>
+        <span class="wx-today-metric-unit">feels ${Math.round(todayHi - (todayWind > 15 ? 3 : 0))}°</span>
+      </div>
+    </div>
+    <div class="wx-today-hours">${hourlyHTML}</div>
+    ${gearHTML}
+    <div class="wx-today-location">${location}</div>
+  </div>`;
+
+  if (section && rail) {
+    section.style.display = '';
+    rail.innerHTML = todayHTML;
+  } else if (card) {
+    card.style.display = '';
+    card.innerHTML = todayHTML;
   }
 }
 
