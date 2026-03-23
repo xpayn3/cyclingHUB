@@ -18140,10 +18140,10 @@ function _renderStreamsBreakdown(container, streams, activity) {
           }
           chartDatasets.push({
             data: altDs,
-            borderColor: 'rgba(255,255,255,0.06)',
-            backgroundColor: 'rgba(255,255,255,0.03)',
+            borderColor: 'rgba(255,255,255,0.12)',
+            backgroundColor: 'rgba(255,255,255,0.06)',
             fill: true,
-            borderWidth: 0.5,
+            borderWidth: 1,
             pointRadius: 0,
             tension: 0.3,
             spanGaps: true,
