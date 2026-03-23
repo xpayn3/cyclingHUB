@@ -2735,13 +2735,6 @@ window._gunCopyRoom = function() {
 };
 window._gunJoinRoom = _peerConnect;
 window._gunDisconnect = _peerDisconnect;
-window._gunSyncNow = function() {
-  if (_peerConn && _peerConn.open) {
-    _peerSendData();
-  } else {
-    showToast('No peer connected — start hosting or connect to a peer first', 'error');
-  }
-};
 
 // Auto-reconnect on app startup if we have a saved pairing
 (function _peerAutoStart() {
@@ -2859,7 +2852,9 @@ function _peerConfirmTransfer(mode) {
 window._peerConfirmTransfer = _peerConfirmTransfer;
 
 /* ── Incoming data request approval ── */
-function _peerShowIncomingRequest(deviceName, conn) {
+/* ── Unified sync confirmation sheet (request + send offer) ── */
+function _peerShowSyncConfirm(cfg) {
+  // cfg: { title, desc, btnText, btnColor, onApprove, onDecline, sizeBytes?, keyCount?, showItemBreakdown? }
   const titleEl = document.getElementById('syncConfirmTitle');
   const descEl = document.getElementById('syncConfirmDesc');
   const itemsEl = document.getElementById('syncConfirmItems');
@@ -2867,111 +2862,77 @@ function _peerShowIncomingRequest(deviceName, conn) {
   const btnEl = document.getElementById('syncConfirmBtn');
   if (!titleEl || !btnEl) return;
 
-  titleEl.textContent = 'Data Request';
-  descEl.textContent = `${deviceName || 'A device'} is requesting your data. This will send your local data to them.`;
+  titleEl.textContent = cfg.title;
+  descEl.textContent = cfg.desc;
 
-  // Build data summary
-  const snapshot = _peerBuildSnapshot();
-  const keys = Object.keys(snapshot);
-  const sizeBytes = JSON.stringify(snapshot).length;
-  const sizeMB = (sizeBytes / 1048576).toFixed(1);
-  const sizeKB = Math.round(sizeBytes / 1024);
-  sizeEl.textContent = sizeBytes > 1048576 ? `${sizeMB} MB` : `${sizeKB} KB`;
+  // Size display
+  const bytes = cfg.sizeBytes || 0;
+  sizeEl.textContent = bytes > 1048576 ? (bytes / 1048576).toFixed(1) + ' MB' : Math.round(bytes / 1024) + ' KB';
 
-  const cats = { gear: 0, batteries: 0, services: 0, goals: 0, settings: 0, strava: 0, other: 0 };
-  for (const k of keys) {
-    if (k.includes('gear') || k.includes('component') || k.includes('bike')) cats.gear++;
-    else if (k.includes('batter')) cats.batteries++;
-    else if (k.includes('service') || k.includes('shop')) cats.services++;
-    else if (k.includes('goal')) cats.goals++;
-    else if (k.startsWith('strava_')) cats.strava++;
-    else if (k.includes('setting') || k.includes('range') || k.includes('widget') || k.includes('theme') || k.includes('notif')) cats.settings++;
-    else cats.other++;
+  // Items breakdown
+  if (cfg.showItemBreakdown) {
+    const snapshot = _peerBuildSnapshot();
+    const keys = Object.keys(snapshot);
+    const cats = { gear: 0, batteries: 0, services: 0, goals: 0, settings: 0, strava: 0, other: 0 };
+    for (const k of keys) {
+      if (k.includes('gear') || k.includes('component') || k.includes('bike')) cats.gear++;
+      else if (k.includes('batter')) cats.batteries++;
+      else if (k.includes('service') || k.includes('shop')) cats.services++;
+      else if (k.includes('goal')) cats.goals++;
+      else if (k.startsWith('strava_')) cats.strava++;
+      else if (k.includes('setting') || k.includes('range') || k.includes('widget') || k.includes('theme') || k.includes('notif')) cats.settings++;
+      else cats.other++;
+    }
+    const catList = [
+      ['Gear & Components', cats.gear, 'var(--accent)'], ['Batteries', cats.batteries, '#f0c429'],
+      ['Services & Shops', cats.services, '#5ac8fa'], ['Goals', cats.goals, '#ff9500'],
+      ['Settings & Preferences', cats.settings, '#af52de'], ['Strava Data', cats.strava, '#fc4c02'],
+      ['Other Data', cats.other, 'var(--text-muted)'],
+    ];
+    if (itemsEl) itemsEl.innerHTML = catList.filter(([,c]) => c > 0)
+      .map(([l, c, col]) => `<div class="ios-row" style="min-height:36px"><span class="ios-row-label">${l}</span><span class="ios-row-detail" style="color:${col};font-weight:600">${c} keys</span></div>`).join('');
+  } else {
+    if (itemsEl) itemsEl.innerHTML = `<div class="ios-row" style="min-height:36px"><span class="ios-row-label">Data keys</span><span class="ios-row-detail" style="color:var(--accent);font-weight:600">${cfg.keyCount || '?'}</span></div>`;
   }
-  let itemsHtml = '';
-  const catList = [
-    ['Gear & Components', cats.gear, 'var(--accent)'],
-    ['Batteries', cats.batteries, '#f0c429'],
-    ['Services & Shops', cats.services, '#5ac8fa'],
-    ['Goals', cats.goals, '#ff9500'],
-    ['Settings & Preferences', cats.settings, '#af52de'],
-    ['Strava Data', cats.strava, '#fc4c02'],
-    ['Other Data', cats.other, 'var(--text-muted)'],
-  ];
-  for (const [label, count, color] of catList) {
-    if (count === 0) continue;
-    itemsHtml += `<div class="ios-row" style="min-height:36px"><span class="ios-row-label">${label}</span><span class="ios-row-detail" style="color:${color};font-weight:600">${count} keys</span></div>`;
-  }
-  if (itemsEl) itemsEl.innerHTML = itemsHtml;
 
   // Approve button
-  btnEl.textContent = 'Approve & Send';
-  btnEl.style.background = 'var(--accent)';
+  btnEl.textContent = cfg.btnText;
+  btnEl.style.background = cfg.btnColor || 'var(--accent)';
   btnEl.style.color = '#000';
-  btnEl.onclick = () => {
-    _closeOverlaySheet('syncConfirmSheet');
-    _peerSendSnapshot(conn);
-    _peerLog('Approved request — sending data');
-    showToast('Sending data...', 'info');
-  };
+  btnEl.onclick = () => { _closeOverlaySheet('syncConfirmSheet'); cfg.onApprove(); };
 
-  // Add a decline handler on the backdrop/close button
-  const _origClose = () => {
-    conn.send({ type: 'request_declined', device: _peerDeviceName() });
-    _peerLog('Declined data request');
-  };
+  // Decline on dismiss
   const overlay = document.getElementById('syncConfirmSheet');
   const backdrop = overlay?.querySelector('.wxd-backdrop');
   const closeBtn = overlay?.querySelector('.modal-close');
-  // One-time handlers — clean up after sheet closes
-  const _onClose = () => { _origClose(); backdrop?.removeEventListener('click', _onClose); closeBtn?.removeEventListener('click', _onClose); };
+  const _onClose = () => { cfg.onDecline?.(); backdrop?.removeEventListener('click', _onClose); closeBtn?.removeEventListener('click', _onClose); };
   backdrop?.addEventListener('click', _onClose, { once: true });
   closeBtn?.addEventListener('click', _onClose, { once: true });
 
   _openOverlaySheet('syncConfirmSheet');
 }
 
-/* ── Incoming send offer (peer wants to push data to us) ── */
+function _peerShowIncomingRequest(deviceName, conn) {
+  const snapshot = _peerBuildSnapshot();
+  _peerShowSyncConfirm({
+    title: 'Data Request',
+    desc: `${deviceName || 'A device'} is requesting your data. This will send your local data to them.`,
+    btnText: 'Approve & Send', btnColor: 'var(--accent)',
+    sizeBytes: JSON.stringify(snapshot).length, showItemBreakdown: true,
+    onApprove: () => { _peerSendSnapshot(conn); _peerLog('Approved request — sending data'); showToast('Sending data...', 'info'); },
+    onDecline: () => { conn.send({ type: 'request_declined', device: _peerDeviceName() }); _peerLog('Declined data request'); },
+  });
+}
+
 function _peerShowIncomingSendOffer(deviceName, sizeBytes, keyCount, conn) {
-  const titleEl = document.getElementById('syncConfirmTitle');
-  const descEl = document.getElementById('syncConfirmDesc');
-  const itemsEl = document.getElementById('syncConfirmItems');
-  const sizeEl = document.getElementById('syncConfirmSize');
-  const btnEl = document.getElementById('syncConfirmBtn');
-  if (!titleEl || !btnEl) return;
-
-  titleEl.textContent = 'Incoming Data';
-  descEl.textContent = `${deviceName || 'A device'} wants to send you their data. Your local data will be overwritten.`;
-
-  if (itemsEl) itemsEl.innerHTML = `<div class="ios-row" style="min-height:36px"><span class="ios-row-label">Data keys</span><span class="ios-row-detail" style="color:var(--accent);font-weight:600">${keyCount || '?'}</span></div>`;
-
-  const sizeMB = ((sizeBytes || 0) / 1048576).toFixed(1);
-  const sizeKB = Math.round((sizeBytes || 0) / 1024);
-  sizeEl.textContent = (sizeBytes || 0) > 1048576 ? `${sizeMB} MB` : `${sizeKB} KB`;
-
-  btnEl.textContent = 'Accept & Receive';
-  btnEl.style.background = '#5ac8fa';
-  btnEl.style.color = '#000';
-  btnEl.onclick = () => {
-    _closeOverlaySheet('syncConfirmSheet');
-    conn._receiveApproved = true;
-    conn.send({ type: 'send_accepted', device: _peerDeviceName() });
-    _peerLog('Accepted incoming data');
-    showToast('Accepted — waiting for data...', 'info');
-  };
-
-  const _decline = () => {
-    conn.send({ type: 'send_declined', device: _peerDeviceName() });
-    _peerLog('Declined incoming data');
-  };
-  const overlay = document.getElementById('syncConfirmSheet');
-  const backdrop = overlay?.querySelector('.wxd-backdrop');
-  const closeBtn = overlay?.querySelector('.modal-close');
-  const _onClose = () => { _decline(); backdrop?.removeEventListener('click', _onClose); closeBtn?.removeEventListener('click', _onClose); };
-  backdrop?.addEventListener('click', _onClose, { once: true });
-  closeBtn?.addEventListener('click', _onClose, { once: true });
-
-  _openOverlaySheet('syncConfirmSheet');
+  _peerShowSyncConfirm({
+    title: 'Incoming Data',
+    desc: `${deviceName || 'A device'} wants to send you their data. Your local data will be overwritten.`,
+    btnText: 'Accept & Receive', btnColor: '#5ac8fa',
+    sizeBytes, keyCount,
+    onApprove: () => { conn._receiveApproved = true; conn.send({ type: 'send_accepted', device: _peerDeviceName() }); _peerLog('Accepted incoming data'); showToast('Accepted — waiting for data...', 'info'); },
+    onDecline: () => { conn.send({ type: 'send_declined', device: _peerDeviceName() }); _peerLog('Declined incoming data'); },
+  });
 }
 
 /* ── Clipboard-based transfer (reliable fallback) ── */
@@ -6162,37 +6123,6 @@ function _renderDashBatteries() {
   }).join('');
 
   section.style.display = '';
-}
-
-function _navToBattery(bikeId, batId) {
-  // Set the active bike so bikedetail page renders the right bike
-  if (bikeId) {
-    window._garActiveBike = bikeId;
-    window._gearSelectedBike = bikeId;
-  }
-  // Store pending battery tab + highlight
-  window._pendingBatHighlight = batId;
-  navigate('bikedetail');
-  // Wait for bike detail page to render, then switch to batteries tab
-  setTimeout(() => {
-    const batTab = document.querySelector('.gar-tab[data-tab="batteries"]');
-    if (batTab) batTab.click();
-    // Scroll to and highlight the specific battery card
-    setTimeout(() => {
-      const cards = document.querySelectorAll('.gar-bat-card');
-      let target = null;
-      cards.forEach(c => {
-        if (c.innerHTML && c.innerHTML.includes(batId)) target = c;
-      });
-      if (target) {
-        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        target.style.outline = '2px solid var(--accent)';
-        target.style.outlineOffset = '2px';
-        setTimeout(() => { target.style.outline = ''; target.style.outlineOffset = ''; }, 1500);
-      }
-      delete window._pendingBatHighlight;
-    }, 400);
-  }, 600);
 }
 
 let _dashRouteMapInst = null;

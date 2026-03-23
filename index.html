@@ -5504,9 +5504,9 @@
                                     <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                 </div>
                                 <div class="ios-row" style="padding:10px 16px">
-                                    <div style="display:flex;align-items:center;gap:8px;background:var(--surface-1);border-radius:10px;padding:0 4px 0 14px;height:40px;flex:1;min-width:0">
+                                    <div style="display:flex;align-items:center;gap:8px;background:var(--surface-1);border-radius:var(--radius-sm);padding:0 4px 0 14px;height:40px;flex:1;min-width:0">
                                         <input type="text" id="setupLinkInput" placeholder="Paste setup link..." style="flex:1;background:none;border:none;outline:none;color:#fff;font-size:14px;padding:0;min-width:0" aria-label="Setup link">
-                                        <button class="btn" onclick="applySetupLink()" style="height:32px;padding:0 14px;background:var(--accent);color:#000;font-weight:600;font-size:13px;border-radius:8px;border:none;flex-shrink:0">Apply</button>
+                                        <button class="btn" onclick="applySetupLink()" style="height:32px;padding:0 14px;background:var(--accent);color:#000;font-weight:600;font-size:13px;border-radius:var(--radius-sm);border:none;flex-shrink:0">Apply</button>
                                     </div>
                                 </div>
                                 <div class="ios-row" onclick="_clipboardExport()" style="cursor:pointer">
@@ -5627,7 +5627,7 @@
                                                 <button class="btn btn-ghost btn-sm" id="syncGenBtn" onclick="_peerResetId()" style="font-size:12px;color:var(--text-muted)">New ID</button>
                                             </div>
                                             <div class="sync-room-code" id="syncRoomCode">—</div>
-                                            <canvas id="syncQrCanvas" width="160" height="160" style="display:none;width:100%;aspect-ratio:1;border-radius:12px;background:#fff;padding:12px;box-sizing:border-box"></canvas>
+                                            <canvas id="syncQrCanvas" width="160" height="160" style="display:none;width:100%;aspect-ratio:1;border-radius:var(--radius);background:#fff;padding:12px;box-sizing:border-box"></canvas>
                                             <div style="display:flex;gap:8px">
                                                 <button class="btn btn-ghost btn-sm" id="syncCopyBtn" onclick="_gunCopyRoom()" style="flex:1">
                                                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
@@ -5650,9 +5650,9 @@
                                 <div class="ios-group-label">Join</div>
                                 <div class="ios-group">
                                     <div class="ios-row" style="padding:10px 12px">
-                                        <div style="display:flex;align-items:center;gap:8px;background:var(--surface-1);border-radius:10px;padding:0 4px 0 14px;height:44px;flex:1;min-width:0">
-                                            <input type="text" id="syncJoinInput" placeholder="Peer ID" maxlength="12" style="flex:1;background:none;border:none;outline:none;color:#fff;text-transform:uppercase;letter-spacing:0.15em;font-family:var(--font-num);font-size:15px;font-weight:600;padding:0;min-width:0" aria-label="Peer ID">
-                                            <button class="btn" onclick="_gunJoinRoom(document.getElementById('syncJoinInput').value)" style="height:36px;padding:0 16px;background:var(--accent);color:#000;font-weight:600;font-size:14px;border-radius:8px;border:none;flex-shrink:0">Connect</button>
+                                        <div style="display:flex;align-items:center;gap:8px;background:var(--surface-1);border-radius:var(--radius-sm);padding:0 4px 0 14px;height:44px;flex:1;min-width:0">
+                                            <input type="text" id="syncJoinInput" placeholder="Peer ID" maxlength="12" style="flex:1;background:none;border:none;outline:none;color:var(--text-primary);text-transform:uppercase;letter-spacing:0.15em;font-family:var(--font-num);font-size:15px;font-weight:600;padding:0;min-width:0" aria-label="Peer ID">
+                                            <button class="btn" onclick="_gunJoinRoom(document.getElementById('syncJoinInput').value)" style="height:36px;padding:0 16px;background:var(--accent);color:#000;font-weight:600;font-size:14px;border-radius:var(--radius-sm);border:none;flex-shrink:0">Connect</button>
                                         </div>
                                     </div>
                                     <div class="ios-row" onclick="_peerScanQR()" style="cursor:pointer;justify-content:center;gap:8px;color:var(--accent)">
@@ -5673,8 +5673,8 @@
                                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
                                     <span>Show Log</span>
                                 </button>
-                                <div id="syncLogCard" style="display:none;margin:0 16px;background:#0a0a0a;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px;max-height:180px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch">
-                                    <div id="syncLogContent" style="font-family:'SF Mono',SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;line-height:1.6;color:rgba(255,255,255,0.55);white-space:pre-wrap;word-break:break-all"></div>
+                                <div id="syncLogCard" style="display:none;margin:0 16px;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);padding:12px;max-height:180px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch">
+                                    <div id="syncLogContent" style="font-family:'SF Mono',SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;line-height:1.6;color:var(--text-muted);white-space:pre-wrap;word-break:break-all"></div>
                                 </div>
                             </div>
 

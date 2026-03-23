@@ -20509,19 +20509,6 @@ body:has(.act-sheet-mode) .topbar {
     padding: 8px 0;
     user-select: all;
 }
-.sync-join-row {
-    display: flex;
-    gap: 8px;
-    width: 100%;
-}
-.sync-join-row input {
-    border: 1px solid var(--border);
-    background: var(--bg-elevated);
-    color: var(--text-primary);
-    border-radius: var(--radius-sm);
-    padding: 10px 12px;
-}
-
 /* Sync device list */
 .sync-device {
     display: flex;
