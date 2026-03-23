@@ -2136,9 +2136,9 @@ const _peerOpts = {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'stun:stun2.l.google.com:19302' },
-      { urls: 'stun:stun3.l.google.com:19302' },
-      { urls: 'stun:stun4.l.google.com:19302' }
+      { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+      { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+      { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
     ]
   }
 };
@@ -2414,9 +2414,15 @@ function _peerHandleConn(conn) {
   _peerManualDisconnect = false;
   let _chunks = [];
   let _chunkTotal = 0;
+  // Log ICE state changes for debugging
+  const _pc = conn.peerConnection;
+  if (_pc) {
+    _pc.oniceconnectionstatechange = () => _peerLog('ICE: ' + _pc.iceConnectionState);
+    _pc.onconnectionstatechange = () => _peerLog('Conn state: ' + _pc.connectionState);
+  }
   conn.on('open', () => {
     _peerRemoteId = conn.peer;
-    _peerLog('Connected to: ' + conn.peer);
+    _peerLog('Data channel open with: ' + conn.peer);
     _peerReconnecting = false;
     _peerUpdateUI('connected');
     conn.send({ type: 'hello', name: _peerDeviceName() });
