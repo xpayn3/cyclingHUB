@@ -23253,7 +23253,7 @@ function renderDetailGradientProfile(streams, activity) {
   const altDS = [], distDS = [], gradeDS = [];
   for (let i = 0; i < N; i += step) {
     altDS.push(alt[i]);
-    distDS.push(dist ? +(dist[i] / 1000).toFixed(3) : i);
+    distDS.push(dist ? +(dist[i] / 1000).toFixed(1) : i);
     // gradient = rise/run over ~10 samples (smoothed)
     const prev = Math.max(0, i - 10 * step);
     const dAlt = alt[i] - alt[prev];
@@ -23334,7 +23334,7 @@ function renderDetailGradientProfile(streams, activity) {
         scales: {
           x: {
             ticks: { ...C_TICK, maxTicksLimit: 8,
-              callback: function(v, i, ticks) { return distDS[v] !== undefined ? (i === 0 ? 'km' : distDS[v]) : ''; } },
+              callback: function(v, i, ticks) { const d = distDS[v]; return d !== undefined ? (i === 0 ? 'km' : Math.round(d)) : ''; } },
             grid: { display: false },
             border: { display: false },
           },
