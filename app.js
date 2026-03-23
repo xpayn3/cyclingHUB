@@ -2110,6 +2110,8 @@ let _peerMyId = '';
 let _peerRemoteId = '';
 let _peerReconnecting = false;
 let _peerManualDisconnect = false;
+let _peerAutoStarting = false; // guard against auto-start + manual conflicts
+let _peerReconnectTimer = null; // single reconnect timer (prevents cascading)
 
 function _peerLog(msg, level) {
   const ts = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -2126,6 +2128,12 @@ function _peerLog(msg, level) {
   if (level === 'error' || level === 'warn') console.warn('[PEER]', msg);
   else console.log('[PEER]', msg);
 }
+function _peerDestroyInstance() {
+  if (_peerConn) { try { _peerConn.close(); } catch {} _peerConn = null; }
+  if (_peerInstance) { try { _peerInstance.destroy(); } catch {} _peerInstance = null; }
+  if (_peerReconnectTimer) { clearTimeout(_peerReconnectTimer); _peerReconnectTimer = null; }
+}
+
 const _peerOpts = {
   debug: 1,
   host: '0.peerjs.com',
@@ -2410,28 +2418,33 @@ function _peerHideProgress() {
 }
 
 function _peerHandleConn(conn) {
+  // Close previous connection if still open
+  if (_peerConn && _peerConn !== conn) { try { _peerConn.close(); } catch {} }
   _peerConn = conn;
   _peerManualDisconnect = false;
   let _chunks = [];
   let _chunkTotal = 0;
-  conn._receiveApproved = false; // guard: only accept snapshot data after user approval
-  // Log ICE state changes for debugging
-  const _pc = conn.peerConnection;
-  if (_pc) {
-    _pc.oniceconnectionstatechange = () => _peerLog('ICE: ' + _pc.iceConnectionState);
-    _pc.onconnectionstatechange = () => _peerLog('Conn state: ' + _pc.connectionState);
-  }
+  conn._receiveApproved = false;
   conn.on('open', () => {
     _peerRemoteId = conn.peer;
-    _peerLog('Data channel open with: ' + conn.peer);
+    const wasReconnecting = _peerReconnecting;
     _peerReconnecting = false;
+    if (_peerReconnectTimer) { clearTimeout(_peerReconnectTimer); _peerReconnectTimer = null; }
     _peerUpdateUI('connected');
     conn.send({ type: 'hello', name: _peerDeviceName() });
     _peerRenderDevices(null);
-    // Save pairing for reconnect
     localStorage.setItem('icu_peer_remote', _peerRemoteId);
     localStorage.setItem('icu_peer_my_id', _peerMyId);
-    showToast(_peerReconnecting ? 'Reconnected!' : 'Peer connected!', 'success');
+    _peerLog('Data channel open with: ' + conn.peer);
+    showToast(wasReconnecting ? 'Reconnected!' : 'Peer connected!', 'success');
+    // Attach ICE listeners AFTER open (peerConnection now available)
+    try {
+      const _pc = conn.peerConnection;
+      if (_pc) {
+        _pc.oniceconnectionstatechange = () => _peerLog('ICE: ' + _pc.iceConnectionState);
+        _pc.onconnectionstatechange = () => _peerLog('Conn state: ' + _pc.connectionState);
+      }
+    } catch {}
   });
   conn.on('data', data => {
     if (!data || !data.type) return;
@@ -2504,21 +2517,19 @@ function _peerHandleConn(conn) {
     }
   });
   conn.on('close', () => {
-    _peerConn = null;
-    if (_peerManualDisconnect) {
-      // User clicked Disconnect — full teardown
-      return;
-    }
-    // Auto-reconnect
+    if (_peerConn === conn) _peerConn = null;
+    if (_peerManualDisconnect) return;
+    if (_peerReconnecting) return; // already reconnecting, don't stack
     const remoteId = _peerRemoteId || conn.peer;
     if (remoteId && _peerInstance && !_peerInstance.destroyed) {
       _peerReconnecting = true;
       _peerUpdateUI('connecting');
-      _peerLog('Connection lost — auto-reconnecting to ' + remoteId, 'warn');
+      _peerLog('Connection lost — reconnecting in 2s...', 'warn');
       showToast('Connection lost — reconnecting...', 'info');
-      _peerAutoReconnect(remoteId, 0);
+      // Debounce: wait 2s before first reconnect attempt (both sides may close simultaneously)
+      _peerReconnectTimer = setTimeout(() => _peerAutoReconnect(remoteId, 0), 2000);
     } else {
-      _peerUpdateUI('ready', _peerMyId);
+      _peerUpdateUI('off');
       _peerRenderDevices(null);
       showToast('Peer disconnected', 'info');
     }
@@ -2533,27 +2544,35 @@ function _peerHandleConn(conn) {
 
 function _peerAutoReconnect(remoteId, attempt) {
   if (_peerManualDisconnect || !_peerInstance || _peerInstance.destroyed) return;
-  if (attempt >= 10) {
+  if (_peerConn && _peerConn.open) { _peerReconnecting = false; return; } // already connected
+  if (attempt >= 5) {
     _peerReconnecting = false;
+    _peerReconnectTimer = null;
     _peerUpdateUI('off');
+    _peerLog('Gave up after 5 reconnect attempts', 'error');
     showToast('Could not reconnect — peer may be offline', 'error');
     return;
   }
-  const delay = Math.min(2000 * Math.pow(1.5, attempt), 30000); // 2s, 3s, 4.5s... max 30s
-  setTimeout(() => {
+  const delay = Math.min(3000 * Math.pow(1.5, attempt), 20000); // 3s, 4.5s, 6.75s... max 20s
+  // Add jitter (0-1s) to avoid both peers reconnecting at the exact same time
+  const jitter = Math.random() * 1000;
+  _peerLog(`Reconnect attempt ${attempt + 1} in ${Math.round((delay + jitter) / 1000)}s...`);
+  _peerReconnectTimer = setTimeout(() => {
     if (_peerManualDisconnect || !_peerInstance || _peerInstance.destroyed) return;
-    if (_peerConn && _peerConn.open) return; // already reconnected (e.g. peer reconnected to us)
-    _peerLog(`Reconnect attempt ${attempt + 1} → ${remoteId}`);
-    const conn = _peerInstance.connect(remoteId, { reliable: true });
+    if (_peerConn && _peerConn.open) { _peerReconnecting = false; return; }
+    // Close any lingering old connection
+    if (_peerConn) { try { _peerConn.close(); } catch {} _peerConn = null; }
+    const conn = _peerInstance.connect(remoteId, { ordered: true });
     _peerHandleConn(conn);
-    // If this attempt doesn't open within 10s, try again
+    // If doesn't open in 10s, try next attempt
     const timeout = setTimeout(() => {
       if (!conn.open && !_peerManualDisconnect) {
+        try { conn.close(); } catch {} // clean up failed attempt
         _peerAutoReconnect(remoteId, attempt + 1);
       }
     }, 10000);
-    conn.on('open', () => clearTimeout(timeout));
-  }, delay);
+    conn.on('open', () => { clearTimeout(timeout); _peerReconnectTimer = null; });
+  }, delay + jitter);
 }
 
 function _peerStart() {
@@ -2562,6 +2581,10 @@ function _peerStart() {
     _peerUpdateUI('error');
     return;
   }
+  _peerAutoStarting = false; // cancel auto-start if running
+  _peerDestroyInstance();
+  _peerManualDisconnect = false;
+
   // Reuse saved host ID, or generate a new one
   const savedHostId = localStorage.getItem('icu_peer_host_id');
   const shortId = savedHostId || ('CIQ-' + Array.from(crypto.getRandomValues(new Uint8Array(3)))
@@ -2602,13 +2625,14 @@ function _peerStart() {
 
 function _peerConnect(peerId) {
   if (!peerId || peerId.length < 4) { showToast('Enter a valid peer ID', 'error'); return; }
+  _peerAutoStarting = false; // cancel auto-start
   const clean = peerId.trim().toUpperCase();
   _peerUpdateUI('connecting');
   _peerLog('Connecting to ' + clean + '...');
   showToast('Connecting to ' + clean + '...', 'info');
 
   const _doConnect = () => {
-    const conn = _peerInstance.connect(clean, { reliable: true });
+    const conn = _peerInstance.connect(clean, { ordered: true });
     _peerHandleConn(conn);
     // Timeout: if conn doesn't open in 15s, show error
     const timeout = setTimeout(() => {
@@ -2622,9 +2646,9 @@ function _peerConnect(peerId) {
     conn.on('error', () => clearTimeout(timeout));
   };
 
-  // If no instance or instance is destroyed, create a fresh one
-  if (!_peerInstance || _peerInstance.destroyed) {
-    if (_peerInstance) { _peerInstance = null; }
+  // If no instance, destroyed, or stuck — create a fresh one
+  if (!_peerInstance || _peerInstance.destroyed || !_peerInstance.open) {
+    _peerDestroyInstance();
     if (typeof Peer === 'undefined') { showToast('PeerJS not loaded', 'error'); return; }
     const myId = 'CIQ-' + Array.from(crypto.getRandomValues(new Uint8Array(3)))
       .map(b => b.toString(36)).join('').toUpperCase().slice(0, 6);
@@ -2645,12 +2669,9 @@ function _peerConnect(peerId) {
         _peerUpdateUI('off');
       }
     });
-  } else if (_peerInstance.open) {
-    // Instance exists and is connected to signaling server
-    _doConnect();
   } else {
-    // Instance exists but hasn't opened yet — wait for it
-    _peerInstance.on('open', () => _doConnect());
+    // Instance exists and is open — connect directly
+    _doConnect();
   }
 }
 window._peerConnect = _peerConnect;
@@ -2708,11 +2729,11 @@ function _peerDisconnect() {
   _peerLog('Manual disconnect');
   _peerManualDisconnect = true;
   _peerReconnecting = false;
+  _peerAutoStarting = false;
   _peerRemoteId = '';
   localStorage.removeItem('icu_peer_remote');
   localStorage.removeItem('icu_peer_my_id');
-  if (_peerConn) { try { _peerConn.close(); } catch {} _peerConn = null; }
-  if (_peerInstance) { try { _peerInstance.destroy(); } catch {} _peerInstance = null; }
+  _peerDestroyInstance();
   _peerMyId = '';
   _peerUpdateUI('off');
   _peerRenderDevices(null);
@@ -2723,7 +2744,7 @@ window._peerDisconnect = _peerDisconnect;
 // Aliases for HTML onclick compatibility
 window._gunGenRoom = _peerStart;
 window._peerResetId = function() {
-  if (_peerInstance) { try { _peerInstance.destroy(); } catch {} _peerInstance = null; }
+  _peerDestroyInstance();
   localStorage.removeItem('icu_peer_host_id');
   _peerMyId = '';
   _peerStart();
@@ -2741,42 +2762,51 @@ window._gunDisconnect = _peerDisconnect;
   const savedRemote = localStorage.getItem('icu_peer_remote');
   const savedMyId = localStorage.getItem('icu_peer_my_id');
   if (!savedRemote || !savedMyId) return;
-  // Wait for PeerJS library to load
+  // Guard: if user manually starts/connects before auto-start fires, bail out
+  _peerAutoStarting = true;
+  let _retries = 0;
   const _tryStart = () => {
+    if (_peerManualDisconnect || (!_peerAutoStarting)) return; // user took manual action
+    if (_peerInstance && !_peerInstance.destroyed) return; // instance already created manually
     if (typeof Peer === 'undefined') { setTimeout(_tryStart, 1000); return; }
+    if (_retries >= 3) { _peerAutoStarting = false; _peerLog('Auto-start gave up after 3 ID retries', 'warn'); return; }
+
     _peerInstance = new Peer(savedMyId, _peerOpts);
     _peerInstance.on('open', id => {
+      _peerAutoStarting = false;
       _peerMyId = id;
       _peerRemoteId = savedRemote;
       _peerReconnecting = true;
       _peerUpdateUI('connecting');
-      const conn = _peerInstance.connect(savedRemote, { reliable: true });
+      _peerLog('Auto-reconnecting to ' + savedRemote + '...');
+      const conn = _peerInstance.connect(savedRemote, { ordered: true });
       _peerHandleConn(conn);
-      // Timeout for initial auto-reconnect
-      setTimeout(() => {
+      const timeout = setTimeout(() => {
         if (!conn.open && !_peerManualDisconnect) {
+          try { conn.close(); } catch {}
           _peerAutoReconnect(savedRemote, 1);
         }
       }, 10000);
+      conn.on('open', () => clearTimeout(timeout));
     });
     _peerInstance.on('connection', conn => _peerHandleConn(conn));
     _peerInstance.on('error', e => {
       _peerLog('Auto-start error: ' + (e.type || e.message || e), 'warn');
       if (e.type === 'unavailable-id') {
-        // Our saved ID is still registered — retry with a new ID
-        if (_peerInstance) { try { _peerInstance.destroy(); } catch {} _peerInstance = null; }
+        _peerDestroyInstance();
+        _retries++;
         const newId = 'CIQ-' + Array.from(crypto.getRandomValues(new Uint8Array(3)))
           .map(b => b.toString(36)).join('').toUpperCase().slice(0, 6);
         localStorage.setItem('icu_peer_my_id', newId);
-        _peerLog('ID taken, retrying as ' + newId);
-        setTimeout(_tryStart, 1500);
+        _peerLog('ID taken, retrying as ' + newId + ' (attempt ' + _retries + ')');
+        setTimeout(_tryStart, 2000);
       } else if (e.type === 'peer-unavailable') {
-        _peerLog('Peer offline — will keep listening', 'warn');
-        _peerUpdateUI('ready', _peerMyId);
+        _peerAutoStarting = false;
+        _peerLog('Peer offline — listening for incoming connections', 'warn');
       }
     });
   };
-  setTimeout(_tryStart, 2000); // delay to not block app init
+  setTimeout(_tryStart, 3000); // delay to not block app init
 })();
 
 /* ── Sync transfer confirmation sheet ── */
@@ -26743,7 +26773,7 @@ if (elevEl) elevEl.textContent = state.units === 'imperial' ? 'feet' : 'metres';
 let _gearActiveTab = 'components';
 function gearSwitchTab(tab) {
   _gearActiveTab = tab;
-  const tabs = ['components', 'batteries', 'tires'];
+  const tabs = ['components', 'batteries', 'tires', 'roi'];
   const idx = tabs.indexOf(tab);
   document.querySelectorAll('#page-gear .gar-tab').forEach(t => t.classList.toggle('active', t.dataset.gear === tab));
   const indicator = document.querySelector('.gar-tab-indicator');
@@ -26752,6 +26782,7 @@ function gearSwitchTab(tab) {
     const p = document.getElementById('gearPanel' + k.charAt(0).toUpperCase() + k.slice(1));
     if (p) p.style.display = k === tab ? '' : 'none';
   });
+  if (tab === 'roi') renderGearRoi();
 }
 
 const GEAR_STORE_KEY = 'icu_gear_components';
@@ -27031,6 +27062,7 @@ function renderBikeDetailPage() {
       <button class="gar-tab active" data-gear="components" onclick="gearSwitchTab('components')">Components</button>
       <button class="gar-tab" data-gear="batteries" onclick="gearSwitchTab('batteries')">Batteries</button>
       <button class="gar-tab" data-gear="tires" onclick="gearSwitchTab('tires')">Tires</button>
+      <button class="gar-tab" data-gear="roi" onclick="gearSwitchTab('roi')">ROI</button>
       <div class="gar-tab-indicator"></div>
     </div>
 
@@ -27072,6 +27104,14 @@ function renderBikeDetailPage() {
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Add Tire
       </button>
+    </div>
+
+    <!-- ROI panel -->
+    <div class="gar-panel" id="gearPanelRoi" style="display:none">
+      <div class="gar-panel-header">
+        <span class="gar-panel-title">Cost & ROI</span>
+      </div>
+      <div id="gearRoiContent"></div>
     </div>
 
     <!-- Service panel (accessed from Garage page link) -->
