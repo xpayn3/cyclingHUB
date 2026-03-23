@@ -11209,8 +11209,8 @@ body.show-save-fab #actSaveRouteFab {
     border-radius: 0;
     margin: 16px 0 0;
 }
-.aci-custom-page .aci-streams-guide,
-.aci-streams-page > .aci-streams-guide:last-child {
+/* Full-width guide on custom info pages */
+.aci-custom-page .aci-streams-guide {
     margin-left: calc(-1 * var(--pad-page, 16px));
     margin-right: calc(-1 * var(--pad-page, 16px));
     margin-bottom: -100px;
@@ -11218,6 +11218,11 @@ body.show-save-fab #actSaveRouteFab {
     padding-right: var(--pad-page, 16px);
     padding-bottom: calc(100px + env(safe-area-inset-bottom, 20px));
     border-radius: 0;
+}
+/* Activity Data page: guide already has correct padding from .aci-streams-guide base */
+.aci-streams-page > .aci-streams-guide:last-child {
+    margin-bottom: -100px;
+    padding-bottom: calc(100px + env(safe-area-inset-bottom, 20px));
 }
 .aci-guide-header {
     display: flex;
