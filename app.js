@@ -17509,37 +17509,17 @@ function _aciAppendGuide(page, info) {
 // ── Power Zones ──
 _ACT_CARD_INFO.detailZonesCard.customRender = function(page, activity, streams) {
   const ftp = state.ftp || activity?.icu_ftp || 200;
+  const weight = state.weight || state.athlete?.weight || 70;
+  const wkg = ftp && weight ? (ftp / weight).toFixed(2) : '—';
   const zt = activity?.icu_zone_times;
   const zones = Array.isArray(zt) ? zt : [];
   const total = zones.reduce((s, z) => s + (z?.secs || 0), 0);
+  const totalMin = Math.round(total / 60);
   const zNames = ['Recovery','Endurance','Tempo','Threshold','VO₂max','Anaerobic'];
   const zColors = ['#4a9eff','#00e5a0','#f0c429','#ff9500','#ff6b35','#ff453a'];
+  const zRanges = ['< 55%','55–75%','76–90%','91–105%','106–120%','> 120%'];
 
-  let html = `<div class="aci-sp-header"><div class="aci-sp-title">Power Zones</div></div>`;
-
-  // Donut chart
-  html += `<div style="display:flex;justify-content:center;padding:16px 0"><canvas id="aciZoneDonut" width="200" height="200" style="width:200px;height:200px"></canvas></div>`;
-
-  // Zone bars with % and time
-  html += '<div style="padding:0 16px">';
-  zones.forEach((z, i) => {
-    if (i >= 6) return;
-    const secs = z?.secs || 0;
-    const pct = total > 0 ? Math.round(secs / total * 100) : 0;
-    const mins = Math.round(secs / 60);
-    html += `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
-      <span style="color:${zColors[i]};font-weight:700;min-width:24px;font-size:13px">Z${i+1}</span>
-      <span style="color:var(--text-muted);font-size:12px;min-width:70px">${zNames[i]}</span>
-      <div style="flex:1;height:8px;background:var(--surface-2);border-radius:4px;overflow:hidden">
-        <div style="width:${pct}%;height:100%;background:${zColors[i]};border-radius:0 4px 4px 0"></div>
-      </div>
-      <span style="font-family:var(--font-num);font-weight:600;font-size:13px;min-width:30px;text-align:right">${pct}%</span>
-      <span style="font-family:var(--font-num);font-size:11px;color:var(--text-muted);min-width:35px;text-align:right">${mins}m</span>
-    </div>`;
-  });
-  html += '</div>';
-
-  // Training type classification
+  // Training type
   const z12pct = zones.slice(0, 2).reduce((s, z) => s + (z?.secs || 0), 0) / (total || 1);
   const z45pct = zones.slice(3, 6).reduce((s, z) => s + (z?.secs || 0), 0) / (total || 1);
   let style = 'Mixed', styleColor = 'var(--text-muted)';
@@ -17547,48 +17527,98 @@ _ACT_CARD_INFO.detailZonesCard.customRender = function(page, activity, streams) 
   else if (z12pct > 0.6) { style = 'Pyramidal'; styleColor = '#4a9eff'; }
   else if (zones[2]?.secs / (total || 1) > 0.3) { style = 'Sweet Spot'; styleColor = '#f0c429'; }
 
-  html += `<div style="text-align:center;padding:20px 16px">
-    <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin-bottom:4px">Training Style</div>
-    <div style="font-size:20px;font-weight:700;color:${styleColor}">${style}</div>
-  </div>`;
+  // Hero: large donut with center stats
+  let html = `<div class="aci-sp-header"><div class="aci-sp-title">Power Zones</div></div>
+    <div style="position:relative;display:flex;justify-content:center;padding:24px 0">
+      <canvas id="aciZoneDonut" width="260" height="260" style="width:260px;height:260px"></canvas>
+      <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center">
+        <div style="font-size:36px;font-weight:800;font-family:var(--font-num);color:#fff;line-height:1">${totalMin}</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.05em;margin-top:2px">minutes</div>
+        <div style="font-size:14px;font-weight:600;color:${styleColor};margin-top:6px">${style}</div>
+      </div>
+    </div>`;
 
-  // FTP reference
-  html += `<div style="padding:8px 16px;display:flex;justify-content:space-between;font-size:13px;color:var(--text-muted);border-top:1px solid rgba(255,255,255,0.04)">
-    <span>FTP</span><span style="font-weight:700;color:var(--text-primary)">${ftp}W</span>
+  // Stacked zone balance bar
+  html += `<div style="display:flex;height:6px;border-radius:3px;overflow:hidden;margin:0 0 20px">`;
+  zones.forEach((z, i) => {
+    if (i >= 6) return;
+    const pct = total > 0 ? (z?.secs || 0) / total * 100 : 0;
+    html += `<div style="width:${pct}%;background:${zColors[i]}"></div>`;
+  });
+  html += `</div>`;
+
+  // Zone list — iOS grouped inset style
+  html += `<div style="background:rgba(255,255,255,0.04);border-radius:var(--radius);overflow:hidden;margin-bottom:16px">`;
+  zones.forEach((z, i) => {
+    if (i >= 6) return;
+    const secs = z?.secs || 0;
+    const pct = total > 0 ? Math.round(secs / total * 100) : 0;
+    const mins = Math.round(secs / 60);
+    const watts = Math.round(ftp * [0.55, 0.75, 0.9, 1.05, 1.2, 1.5][i]);
+    html += `<div style="display:flex;align-items:center;padding:12px 14px;${i < 5 ? 'border-bottom:1px solid rgba(255,255,255,0.04)' : ''}">
+      <div style="width:28px;height:28px;border-radius:8px;background:${zColors[i]}20;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-right:10px">
+        <span style="color:${zColors[i]};font-weight:800;font-size:11px">Z${i+1}</span>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:600;color:var(--text-primary)">${zNames[i]}</div>
+        <div style="font-size:11px;color:var(--text-muted)">${zRanges[i]} FTP · ${watts}W</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:16px;font-weight:700;font-family:var(--font-num);color:${zColors[i]}">${pct}%</div>
+        <div style="font-size:11px;color:var(--text-muted);font-family:var(--font-num)">${mins}m</div>
+      </div>
+    </div>`;
+  });
+  html += `</div>`;
+
+  // FTP + W/kg row
+  html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;margin-bottom:16px">
+    <div style="background:rgba(255,255,255,0.04);border-radius:var(--radius-sm);padding:14px;text-align:center">
+      <div style="font-size:24px;font-weight:800;font-family:var(--font-num)">${ftp}<span style="font-size:12px;color:var(--text-muted)">W</span></div>
+      <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase">FTP</div>
+    </div>
+    <div style="background:rgba(255,255,255,0.04);border-radius:var(--radius-sm);padding:14px;text-align:center">
+      <div style="font-size:24px;font-weight:800;font-family:var(--font-num)">${wkg}<span style="font-size:12px;color:var(--text-muted)">w/kg</span></div>
+      <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase">Power/Weight</div>
+    </div>
   </div>`;
 
   page.innerHTML = html;
 
-  // Draw donut
+  // Draw donut — thicker, with gaps
   requestAnimationFrame(() => {
     const c = document.getElementById('aciZoneDonut');
     if (!c) return;
     const ctx = c.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
-    c.width = 200 * dpr; c.height = 200 * dpr;
+    const size = 260;
+    c.width = size * dpr; c.height = size * dpr;
     ctx.scale(dpr, dpr);
-    const cx = 100, cy = 100, r = 75, w = 18;
+    const cx = size/2, cy = size/2, r = 105, w = 22;
+    const gap = 0.03;
+
+    // Background ring
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.lineWidth = w;
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.stroke();
+
+    // Zone arcs
     let angle = -Math.PI / 2;
     zones.forEach((z, i) => {
       if (i >= 6) return;
       const pct = (z?.secs || 0) / (total || 1);
-      const sweep = pct * Math.PI * 2;
+      if (pct < 0.005) { angle += pct * Math.PI * 2 + gap; return; }
+      const sweep = pct * Math.PI * 2 - gap;
       ctx.beginPath();
       ctx.arc(cx, cy, r, angle, angle + sweep);
       ctx.lineWidth = w;
       ctx.strokeStyle = zColors[i];
       ctx.lineCap = 'round';
       ctx.stroke();
-      angle += sweep + 0.02;
+      angle += sweep + gap;
     });
-    // Center text
-    ctx.fillStyle = '#fff';
-    ctx.font = '700 24px var(--font-num)';
-    ctx.textAlign = 'center';
-    ctx.fillText(Math.round(total / 60) + 'm', cx, cy + 8);
-    ctx.font = '500 11px Inter';
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.fillText('total', cx, cy + 24);
   });
 };
 
