@@ -1383,8 +1383,11 @@ export function _updateChartColors() {
   const cs = getComputedStyle(document.documentElement);
   const tickColor = cs.getPropertyValue('--chart-tick').trim() || (_isDark() ? '#62708a' : '#8892a6');
   const gridColor = cs.getPropertyValue('--chart-grid').trim() || (_isDark() ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)');
-  window.C_TICK = { color: tickColor, font: { size: 10 } };
-  window.C_GRID = { color: gridColor };
+  // Mutate existing objects so all references (local vars + window) stay in sync
+  if (window.C_TICK) { window.C_TICK.color = tickColor; if (!window.C_TICK.font) window.C_TICK.font = {}; window.C_TICK.font.size = 10; }
+  else window.C_TICK = { color: tickColor, font: { size: 10 } };
+  if (window.C_GRID) { window.C_GRID.color = gridColor; }
+  else window.C_GRID = { color: gridColor };
 }
 
 function _resolveTheme(mode) {
@@ -1430,19 +1433,22 @@ export function setTheme(mode) {
     themeLabel.textContent = labels[mode] || mode;
   }
 
-  // Re-render charts on the current page
+  // Re-render charts after computed styles have updated
   const pg = state.currentPage;
   if (pg) {
     cleanupPageCharts(pg);
-    if (pg === 'dashboard')   renderDashboard();
-    else if (pg === 'fitness')  renderFitnessPage();
-    else if (pg === 'power')    renderPowerPage();
-    else if (pg === 'compare')  { if (window._compare) window._compare._cachedPeriods = null; updateComparePage(); }
-    else if (pg === 'calendar') renderCalendar();
-    else if (pg === 'activity' && state.currentActivity) renderActivityBasic(state.currentActivity);
-    else if (pg === 'weather')  renderWeatherPage();
-    else if (pg === 'heatmap')  renderHeatmapPage();
-    else if (pg === 'zones')    renderZonesPage();
+    requestAnimationFrame(() => {
+      _updateChartColors(); // re-read computed styles after repaint
+      if (pg === 'dashboard')   renderDashboard();
+      else if (pg === 'fitness')  renderFitnessPage();
+      else if (pg === 'power')    renderPowerPage();
+      else if (pg === 'compare')  { if (window._compare) window._compare._cachedPeriods = null; updateComparePage(); }
+      else if (pg === 'calendar') renderCalendar();
+      else if (pg === 'activity' && state.currentActivity) renderActivityBasic(state.currentActivity);
+      else if (pg === 'weather')  renderWeatherPage();
+      else if (pg === 'heatmap')  renderHeatmapPage();
+      else if (pg === 'zones')    renderZonesPage();
+    });
   }
 }
 
