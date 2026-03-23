@@ -4735,6 +4735,15 @@
                                 </div>
                             </div>
 
+                            <div class="ios-group-label">Developer</div>
+                            <div class="ios-group">
+                                <div class="ios-row">
+                                    <div class="ios-row-icon" style="background:#ff453a"><svg viewBox="0 0 24 24"><path d="M12 20V10M18 20V4M6 20v-4"/></svg></div>
+                                    <span class="ios-row-label">Performance Monitor</span>
+                                    <label class="ios-switch"><input type="checkbox" id="perfMonToggle" onchange="_togglePerfMon(this.checked)"><span class="ios-switch-slider"></span></label>
+                                </div>
+                            </div>
+
                             <div class="ios-group-label">About</div>
                             <div class="ios-group">
                                 <div class="ios-row" data-nav onclick="openSettingsSubpage('changelog')">
@@ -5563,7 +5572,7 @@
 
                         <!-- Device Sync subpage -->
                         <div class="ios-subpage" id="iosSubpage-sync">
-                            <!-- Status -->
+                            <!-- Status hero -->
                             <div class="sync-hero">
                                 <div class="sync-status" id="syncStatusDot">
                                     <div class="sync-dot sync-dot--off"></div>
@@ -5571,78 +5580,99 @@
                                 </div>
                             </div>
 
-                            <!-- Room Code -->
-                            <div class="ios-group-label">Sync Room</div>
-                            <div class="ios-group">
-                                <div class="ios-row" id="syncRoomRow" style="flex-direction:column;align-items:stretch;gap:10px;padding:14px 16px">
-                                    <div style="display:flex;align-items:center;justify-content:space-between">
-                                        <span class="ios-row-label">Your Peer ID</span>
-                                        <button class="btn btn-ghost btn-sm" id="syncGenBtn" onclick="_gunGenRoom()" style="font-size:13px">Start Hosting</button>
+                            <!-- ═══ Zone A: Connect (visible when NOT connected to peer) ═══ -->
+                            <div id="syncZoneConnect">
+                                <!-- Host sub-section -->
+                                <div class="ios-group-label">Host</div>
+                                <div class="ios-group">
+                                    <!-- Pre-host: start button -->
+                                    <div class="ios-row" id="syncStartRow" onclick="_gunGenRoom()" style="cursor:pointer">
+                                        <div class="ios-row-icon" style="background:var(--accent)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg></div>
+                                        <span class="ios-row-label">Start Hosting</span>
+                                        <span class="ios-row-detail" style="color:var(--text-muted);font-size:12px">Share your ID with a peer</span>
                                     </div>
-                                    <div class="sync-room-code" id="syncRoomCode">—</div>
-                                    <canvas id="syncQrCanvas" width="160" height="160" style="display:none;margin:8px auto;border-radius:8px;background:#fff;padding:8px"></canvas>
-                                    <div style="display:flex;gap:8px">
-                                        <button class="btn btn-ghost btn-sm" id="syncCopyBtn" onclick="_gunCopyRoom()" style="display:none;flex:1">
-                                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                                            Copy ID
-                                        </button>
-                                        <button class="btn btn-ghost btn-sm" id="syncQrBtn" onclick="_peerShowQR()" style="display:none;flex:1">
-                                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="8" height="8" rx="1"/><rect x="14" y="2" width="8" height="8" rx="1"/><rect x="2" y="14" width="8" height="8" rx="1"/><rect x="14" y="14" width="4" height="4"/></svg>
-                                            Show QR
-                                        </button>
+                                    <!-- Hosting active: code + share (hidden until hosting) -->
+                                    <div id="syncHostActive" style="display:none">
+                                        <div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+                                            <div style="display:flex;align-items:center;justify-content:space-between">
+                                                <span style="font-size:13px;color:var(--text-muted);font-weight:500">Your Room Code</span>
+                                                <button class="btn btn-ghost btn-sm" id="syncGenBtn" onclick="_gunGenRoom()" style="font-size:12px;color:var(--text-muted)">Restart</button>
+                                            </div>
+                                            <div class="sync-room-code" id="syncRoomCode">—</div>
+                                            <canvas id="syncQrCanvas" width="160" height="160" style="display:none;margin:4px auto;border-radius:8px;background:#fff;padding:8px"></canvas>
+                                            <div style="display:flex;gap:8px">
+                                                <button class="btn btn-ghost btn-sm" id="syncCopyBtn" onclick="_gunCopyRoom()" style="flex:1">
+                                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                                                    Copy ID
+                                                </button>
+                                                <button class="btn btn-ghost btn-sm" id="syncQrBtn" onclick="_peerShowQR()" style="flex:1">
+                                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="8" height="8" rx="1"/><rect x="14" y="2" width="8" height="8" rx="1"/><rect x="2" y="14" width="8" height="8" rx="1"/><rect x="14" y="14" width="4" height="4"/></svg>
+                                                    Show QR
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="ios-row" onclick="_gunDisconnect()" style="cursor:pointer;justify-content:center;color:var(--red);font-weight:500;font-size:14px">
+                                            Stop Hosting
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Join sub-section -->
+                                <div class="ios-group-label">Join</div>
+                                <div class="ios-group">
+                                    <div class="ios-row" style="padding:12px 16px">
+                                        <div class="sync-join-row">
+                                            <input type="text" id="syncJoinInput" placeholder="Enter peer ID" maxlength="12" style="flex:1;text-transform:uppercase;letter-spacing:0.15em;font-family:var(--font-num);font-size:16px;font-weight:600;text-align:center">
+                                            <button class="btn btn-accent btn-sm" onclick="_gunJoinRoom(document.getElementById('syncJoinInput').value)">Connect</button>
+                                        </div>
+                                    </div>
+                                    <div class="ios-row" onclick="_peerScanQR()" style="cursor:pointer;justify-content:center;gap:8px;color:var(--accent)">
+                                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 3H4a1 1 0 0 0-1 1v3"/><path d="M17 3h3a1 1 0 0 1 1 1v3"/><path d="M21 17v3a1 1 0 0 1-1 1h-3"/><path d="M3 17v3a1 1 0 0 0 1 1h3"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+                                        <span style="font-weight:600;font-size:15px">Scan QR Code</span>
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- Join Room -->
-                            <div class="ios-group-label">Join Another Device</div>
-                            <div class="ios-group">
-                                <div class="ios-row" style="padding:12px 16px">
-                                    <div class="sync-join-row">
-                                        <input type="text" id="syncJoinInput" placeholder="Enter peer ID" maxlength="12" style="flex:1;text-transform:uppercase;letter-spacing:0.15em;font-family:var(--font-num);font-size:16px;font-weight:600;text-align:center">
-                                        <button class="btn btn-accent btn-sm" onclick="_gunJoinRoom(document.getElementById('syncJoinInput').value)">Connect</button>
+                            <!-- ═══ Zone B: Active Connection (visible when CONNECTED) ═══ -->
+                            <div id="syncZoneActive" style="display:none">
+                                <!-- Device pair -->
+                                <div class="ios-group-label">Connected Devices</div>
+                                <div class="ios-group" id="syncDeviceList">
+                                </div>
+
+                                <!-- Transfer actions -->
+                                <div class="ios-group-label">Transfer</div>
+                                <div class="ios-group">
+                                    <div class="ios-row" id="syncSendRow" onclick="_peerSendData()" style="cursor:pointer">
+                                        <div class="ios-row-icon" style="background:var(--accent)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div>
+                                        <span class="ios-row-label">Send Data to Peer</span>
+                                        <span class="ios-row-detail" id="syncLastTime" style="font-size:12px;color:var(--text-muted)"></span>
+                                    </div>
+                                    <div class="ios-row" id="syncRecvRow" onclick="_peerRequestData()" style="cursor:pointer">
+                                        <div class="ios-row-icon" style="background:#5ac8fa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
+                                        <span class="ios-row-label">Receive Data from Peer</span>
                                     </div>
                                 </div>
-                                <div class="ios-row" onclick="_peerScanQR()" style="cursor:pointer;justify-content:center;gap:8px;color:var(--accent)">
-                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 3H4a1 1 0 0 0-1 1v3"/><path d="M17 3h3a1 1 0 0 1 1 1v3"/><path d="M21 17v3a1 1 0 0 1-1 1h-3"/><path d="M3 17v3a1 1 0 0 0 1 1h3"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
-                                    <span style="font-weight:600;font-size:15px">Scan QR Code</span>
+
+                                <!-- Disconnect -->
+                                <div class="ios-group" style="margin-top:24px">
+                                    <div class="ios-row" onclick="_gunDisconnect()" id="syncDisconnectRow" style="cursor:pointer;justify-content:center">
+                                        <span style="color:var(--red);font-weight:500;font-size:15px">Disconnect</span>
+                                    </div>
                                 </div>
                             </div>
 
-                            <!-- Connected Devices -->
-                            <div class="ios-group-label">Devices</div>
-                            <div class="ios-group" id="syncDeviceList" style="min-height:44px">
-                                <div style="text-align:center;color:var(--text-faint);padding:12px;font-size:13px">Not connected</div>
-                            </div>
-
-                            <!-- Actions -->
-                            <div class="ios-group-label">Actions</div>
-                            <div class="ios-group">
-                                <div class="ios-row" id="syncSendRow" onclick="_peerSendData()" style="display:none">
-                                    <div class="ios-row-icon" style="background:var(--accent)"><svg viewBox="0 0 24 24"><path d="M22 2L11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div>
-                                    <span class="ios-row-label">Send Data to Peer</span>
-                                    <span class="ios-row-detail" id="syncLastTime" style="font-size:12px;color:var(--text-muted)"></span>
-                                </div>
-                                <div class="ios-row" id="syncRecvRow" onclick="_peerRequestData()" style="display:none">
-                                    <div class="ios-row-icon" style="background:#5ac8fa"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
-                                    <span class="ios-row-label">Receive Data from Peer</span>
-                                </div>
-                                <div class="ios-row" onclick="_gunDisconnect()" id="syncDisconnectRow" style="display:none">
-                                    <div class="ios-row-icon" style="background:var(--red)"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
-                                    <span class="ios-row-label" style="color:var(--red)">Disconnect</span>
-                                </div>
-                            </div>
-
+                            <!-- ═══ Zone C: Always visible ═══ -->
                             <!-- Quick Transfer (clipboard fallback) -->
                             <div class="ios-group-label">Quick Transfer</div>
                             <div class="ios-group">
                                 <div class="ios-row" onclick="_clipboardExport()">
-                                    <div class="ios-row-icon" style="background:#5ac8fa"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></div>
+                                    <div class="ios-row-icon" style="background:#5ac8fa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></div>
                                     <span class="ios-row-label">Copy Backup to Clipboard</span>
                                     <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                 </div>
                                 <div class="ios-row" onclick="_clipboardImport()">
-                                    <div class="ios-row-icon" style="background:#ff9500"><svg viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg></div>
+                                    <div class="ios-row-icon" style="background:#ff9500"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg></div>
                                     <span class="ios-row-label">Paste Backup from Clipboard</span>
                                     <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                 </div>
@@ -6959,6 +6989,14 @@
                 <div class="kb-keys"><kbd>?</kbd></div><span>Show this help</span>
             </div>
         </div>
+    </div>
+    <!-- Performance Monitor Overlay -->
+    <div id="perfMonOverlay" style="display:none;position:fixed;top:env(safe-area-inset-top,0);right:8px;z-index:99999;background:rgba(0,0,0,0.85);backdrop-filter:blur(10px);border-radius:10px;padding:8px 12px;font:11px/1.4 var(--font-num),monospace;color:#fff;pointer-events:none;min-width:140px">
+      <div style="display:flex;justify-content:space-between;gap:12px"><span style="color:var(--accent)">FPS</span><span id="perfFps">—</span></div>
+      <div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#4a9eff">Heap</span><span id="perfHeap">—</span></div>
+      <div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#f0c429">DOM</span><span id="perfDom">—</span></div>
+      <div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#9b59ff">Charts</span><span id="perfCharts">—</span></div>
+      <div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#ff6b35">Storage</span><span id="perfStorage">—</span></div>
     </div>
     </body>
 </html>

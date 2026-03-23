@@ -2138,26 +2138,32 @@ function _peerUpdateUI(status, peerId) {
   const dot = document.querySelector('#syncStatusDot .sync-dot');
   const text = document.getElementById('syncStatusText');
   const codeEl = document.getElementById('syncRoomCode');
-  const discRow = document.getElementById('syncDisconnectRow');
   const label = document.getElementById('syncStatusLabel');
 
-  const copyBtn = document.getElementById('syncCopyBtn');
-  const genBtn = document.getElementById('syncGenBtn');
-  const sendRow = document.getElementById('syncSendRow');
-  const recvRow = document.getElementById('syncRecvRow');
   const isOn = status === 'ready' || status === 'connected';
   const isPeerConnected = status === 'connected';
+  const isHosting = status === 'ready';
+
+  // Hero status dot + text
   if (dot) dot.className = 'sync-dot ' + (isPeerConnected ? 'sync-dot--on' : isOn ? 'sync-dot--waiting' : 'sync-dot--off');
-  if (text) text.textContent = isPeerConnected ? 'Peer connected ✓' : status === 'ready' ? 'Waiting for peer...' : status === 'error' ? 'Connection failed' : 'Not connected';
+  if (text) text.textContent = isPeerConnected ? 'Connected' : isHosting ? 'Waiting for peer...' : status === 'error' ? 'Connection failed' : 'Not connected';
   if (codeEl) codeEl.textContent = peerId || _peerMyId || '—';
-  const qrBtn = document.getElementById('syncQrBtn');
-  if (copyBtn) copyBtn.style.display = _peerMyId ? '' : 'none';
-  if (qrBtn) qrBtn.style.display = _peerMyId ? '' : 'none';
-  if (genBtn) genBtn.textContent = _peerMyId ? 'Restart' : 'Start Hosting';
-  if (discRow) discRow.style.display = isOn ? '' : 'none';
-  if (sendRow) { sendRow.style.display = isPeerConnected ? '' : 'none'; }
-  if (recvRow) { recvRow.style.display = isPeerConnected ? '' : 'none'; }
+
+  // Settings row label
   if (label) label.textContent = isPeerConnected ? 'Connected' : isOn ? 'Hosting' : '';
+
+  // Zone visibility: connect zone vs active zone
+  const zoneConnect = document.getElementById('syncZoneConnect');
+  const zoneActive = document.getElementById('syncZoneActive');
+  if (zoneConnect) zoneConnect.style.display = isPeerConnected ? 'none' : '';
+  if (zoneActive) zoneActive.style.display = isPeerConnected ? '' : 'none';
+
+  // Host sub-state within connect zone
+  const startRow = document.getElementById('syncStartRow');
+  const hostActive = document.getElementById('syncHostActive');
+  if (startRow) startRow.style.display = isHosting ? 'none' : '';
+  if (hostActive) hostActive.style.display = isHosting ? '' : 'none';
+
   _peerUpdateLastSync();
 }
 
@@ -33982,4 +33988,72 @@ navigate(_startPage);
 if (_initRoute && _initRoute.type === 'activity' && _initRoute.actId) {
   const _restoredAct = (state.activities || []).find(a => String(a.id) === String(_initRoute.actId));
   if (_restoredAct) navigateToActivity(_restoredAct);
+}
+
+/* ── Performance Monitor ── */
+let _perfMonRAF = 0, _perfFrames = 0, _perfLastTs = 0;
+function _perfMonLoop(ts) {
+  _perfFrames++;
+  if (ts - _perfLastTs >= 1000) {
+    const fps = Math.round(_perfFrames * 1000 / (ts - _perfLastTs));
+    _perfFrames = 0;
+    _perfLastTs = ts;
+    const fpsEl = document.getElementById('perfFps');
+    const heapEl = document.getElementById('perfHeap');
+    const domEl = document.getElementById('perfDom');
+    const chartsEl = document.getElementById('perfCharts');
+    const storageEl = document.getElementById('perfStorage');
+    if (fpsEl) {
+      fpsEl.textContent = fps;
+      fpsEl.style.color = fps >= 55 ? 'var(--accent)' : fps >= 30 ? '#f0c429' : '#ff453a';
+    }
+    if (heapEl && performance.memory) {
+      const mb = (performance.memory.usedJSHeapSize / 1048576).toFixed(1);
+      const limit = (performance.memory.jsHeapSizeLimit / 1048576).toFixed(0);
+      heapEl.textContent = `${mb} / ${limit} MB`;
+    } else if (heapEl) {
+      heapEl.textContent = 'N/A';
+    }
+    if (domEl) domEl.textContent = document.querySelectorAll('*').length.toLocaleString();
+    if (chartsEl) {
+      const chartCount = Object.values(Chart.instances || {}).length;
+      chartsEl.textContent = chartCount;
+    }
+    if (storageEl) {
+      try {
+        let total = 0;
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          total += (k.length + (localStorage.getItem(k) || '').length) * 2;
+        }
+        storageEl.textContent = (total / 1048576).toFixed(1) + ' MB';
+      } catch (_) { storageEl.textContent = '?'; }
+    }
+  }
+  _perfMonRAF = requestAnimationFrame(_perfMonLoop);
+}
+
+function _togglePerfMon(on) {
+  const overlay = document.getElementById('perfMonOverlay');
+  if (!overlay) return;
+  localStorage.setItem('icu_perf_mon', on ? '1' : '0');
+  if (on) {
+    overlay.style.display = '';
+    _perfLastTs = performance.now();
+    _perfFrames = 0;
+    _perfMonRAF = requestAnimationFrame(_perfMonLoop);
+  } else {
+    overlay.style.display = 'none';
+    if (_perfMonRAF) { cancelAnimationFrame(_perfMonRAF); _perfMonRAF = 0; }
+  }
+}
+window._togglePerfMon = _togglePerfMon;
+
+// Restore perf monitor state on load
+if (localStorage.getItem('icu_perf_mon') === '1') {
+  requestAnimationFrame(() => {
+    const toggle = document.getElementById('perfMonToggle');
+    if (toggle) toggle.checked = true;
+    _togglePerfMon(true);
+  });
 }
