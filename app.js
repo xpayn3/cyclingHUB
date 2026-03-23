@@ -34442,7 +34442,7 @@ function _fuelShowForm() { const f = document.getElementById('fuelPlanForm'), o 
 // TAPERING WIZARD
 // ─────────────────────────────────────────────────────────────────────────────
 const TAPER_PROFILES = { crit: { days: 7, vr: 0.40, tau: 4 }, road_race: { days: 10, vr: 0.50, tau: 5 }, tt: { days: 10, vr: 0.45, tau: 5 }, gran_fondo: { days: 14, vr: 0.55, tau: 6 }, stage_race: { days: 14, vr: 0.50, tau: 7 } };
-function openTaperWizard(rd) { const ci = document.getElementById('taperCTL'); if (ci && state.fitness?.ctl) ci.value = Math.round(state.fitness.ctl); if (rd) { const d = document.getElementById('taperRaceDate'); if (d) d.value = rd; } const s1 = document.getElementById('taperStep1'), s2 = document.getElementById('taperStep2'); if (s1) s1.style.display = ''; if (s2) s2.style.display = 'none'; _openOverlaySheet('taperWizardSheet'); }
+function openTaperWizard(rd) { const ci = document.getElementById('taperCTL'); if (ci && state.fitness?.ctl) ci.value = Math.round(state.fitness.ctl); if (rd) { const d = document.getElementById('taperRaceDate'); if (d) d.value = rd; } const s1 = document.getElementById('taperStep1'), s2 = document.getElementById('taperStep2'); if (s1) s1.style.display = ''; if (s2) s2.style.display = 'none'; _openOverlaySheet('taperWizardSheet'); _gearHookDatePickers(document.getElementById('taperWizardSheet')); }
 function _closeTaperWizard() { _closeOverlaySheet('taperWizardSheet'); }
 function _taperGenerate() {
   const rd = document.getElementById('taperRaceDate').value; if (!rd) { showToast('Select a race date', 'error'); return; }
