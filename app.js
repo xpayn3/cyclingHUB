@@ -18061,7 +18061,38 @@ function _renderStreamsBreakdown(container, streams, activity) {
     const isSpeed = m.key === 'velocity_smooth';
     const displayAvg = m.avg || (isSpeed ? +(avg * 3.6).toFixed(1) : Math.round(avg));
     const displayMax = m.max || (isSpeed ? +(max * 3.6).toFixed(1) : Math.round(max));
-    const displayMin = isSpeed ? +(min * 3.6).toFixed(1) : Math.round(min);
+
+    // 3rd stat: metric-specific (not min — min is always 0 for cadence/speed/power)
+    let stat3Val, stat3Unit, stat3Lbl;
+    if (m.key === 'watts') {
+      // Normalized Power
+      const np = activity?.icu_weighted_avg_watts || activity?.weighted_average_watts;
+      stat3Val = np ? Math.round(np) : '—';
+      stat3Unit = 'W';
+      stat3Lbl = 'NP';
+    } else if (m.key === 'cadence') {
+      // % time pedaling (non-zero cadence)
+      const pedaling = data.filter(v => v != null && v > 0).length;
+      const pct = count > 0 ? Math.round(pedaling / data.length * 100) : 0;
+      stat3Val = pct;
+      stat3Unit = '%';
+      stat3Lbl = 'Pedaling';
+    } else if (m.key === 'velocity_smooth') {
+      // Distance
+      const dist = activity?.distance ? +(activity.distance / 1000).toFixed(1) : '—';
+      stat3Val = dist;
+      stat3Unit = 'km';
+      stat3Lbl = 'Distance';
+    } else if (m.key === 'heartrate') {
+      // Min HR (actually useful for HR)
+      stat3Val = Math.round(min);
+      stat3Unit = 'bpm';
+      stat3Lbl = 'Min';
+    } else {
+      stat3Val = '—';
+      stat3Unit = '';
+      stat3Lbl = '';
+    }
 
     // Downsample for chart
     const step = Math.max(1, Math.floor(data.length / 300));
@@ -18094,9 +18125,9 @@ function _renderStreamsBreakdown(container, streams, activity) {
           <span class="aci-stream-stat-lbl">Max</span>
         </div>
         ${m.key !== 'altitude' ? `<div class="aci-stream-stat">
-          <span class="aci-stream-stat-val">${displayMin}</span>
-          <span class="aci-stream-stat-unit">${m.unit}</span>
-          <span class="aci-stream-stat-lbl">Min</span>
+          <span class="aci-stream-stat-val">${stat3Val}</span>
+          <span class="aci-stream-stat-unit">${stat3Unit}</span>
+          <span class="aci-stream-stat-lbl">${stat3Lbl}</span>
         </div>` : `<div class="aci-stream-stat">
           <span class="aci-stream-stat-val">+${Math.round(activity?.total_elevation_gain || 0)}</span>
           <span class="aci-stream-stat-unit">m</span>
