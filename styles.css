@@ -29336,10 +29336,13 @@ html[data-theme="tdf"] {
 .dash-edit-widgets-btn:active { background: var(--surface-2); }
 /* Widget editor */
 .widget-editor-list {
-    padding: 0 16px;
+    padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 0;
+}
+.widget-editor-item + .widget-editor-item {
+    border-top: 1px solid rgba(255,255,255,0.06);
 }
 .widget-editor-item {
     display: flex;
@@ -29359,6 +29362,9 @@ html[data-theme="tdf"] {
     flex-shrink: 0;
     opacity: 0.4;
     cursor: grab;
+    padding: 8px 12px 8px 4px;
+    margin: -8px 0 -8px -4px;
+    touch-action: none;
 }
 .widget-editor-icon {
     flex-shrink: 0;

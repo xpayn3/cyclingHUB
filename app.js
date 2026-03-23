@@ -2110,14 +2110,21 @@ let _peerMyId = '';
 let _peerRemoteId = '';
 let _peerReconnecting = false;
 let _peerManualDisconnect = false;
-const _peerIceConfig = {
-  iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
-    { urls: 'stun:stun3.l.google.com:19302' },
-    { urls: 'stun:stun4.l.google.com:19302' }
-  ]
+const _peerOpts = {
+  debug: 1,
+  host: '0.peerjs.com',
+  port: 443,
+  secure: true,
+  path: '/',
+  config: {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun3.l.google.com:19302' },
+      { urls: 'stun:stun4.l.google.com:19302' }
+    ]
+  }
 };
 
 function _peerDeviceName() {
@@ -2514,10 +2521,7 @@ function _peerStart() {
     .map(b => b.toString(36)).join('').toUpperCase().slice(0, 6);
   _peerMyId = shortId;
 
-  _peerInstance = new Peer(shortId, {
-    debug: 2,
-    config: _peerIceConfig
-  });
+  _peerInstance = new Peer(shortId, _peerOpts);
   _peerInstance.on('open', id => {
     _peerMyId = id;
     console.log('[PEER] Host registered with ID:', id);
@@ -2572,9 +2576,10 @@ function _peerConnect(peerId) {
     if (typeof Peer === 'undefined') { showToast('PeerJS not loaded', 'error'); return; }
     const myId = 'CIQ-' + Array.from(crypto.getRandomValues(new Uint8Array(3)))
       .map(b => b.toString(36)).join('').toUpperCase().slice(0, 6);
-    _peerInstance = new Peer(myId, { debug: 0, config: _peerIceConfig });
+    _peerInstance = new Peer(myId, _peerOpts);
     _peerInstance.on('open', () => {
       _peerMyId = myId;
+      console.log('[PEER] Joiner registered as:', myId);
       _doConnect();
     });
     _peerInstance.on('connection', conn => _peerHandleConn(conn));
@@ -2683,7 +2688,7 @@ window._gunSyncNow = function() {
   // Wait for PeerJS library to load
   const _tryStart = () => {
     if (typeof Peer === 'undefined') { setTimeout(_tryStart, 1000); return; }
-    _peerInstance = new Peer(savedMyId, { debug: 0, config: _peerIceConfig });
+    _peerInstance = new Peer(savedMyId, _peerOpts);
     _peerInstance.on('open', id => {
       _peerMyId = id;
       _peerRemoteId = savedRemote;
@@ -5393,7 +5398,7 @@ function openWidgetEditor() {
     if (!def) return;
     const isHidden = hidden.has(id);
     html += `<div class="widget-editor-item" data-widget-id="${id}">
-      <div class="widget-editor-drag"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--text-muted)" stroke-width="2"><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="18" x2="16" y2="18"/></svg></div>
+      <div class="widget-editor-drag"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--text-muted)" stroke-width="2"><line x1="5" y1="6" x2="19" y2="6"/><line x1="5" y1="12" x2="19" y2="12"/><line x1="5" y1="18" x2="19" y2="18"/></svg></div>
       <div class="widget-editor-icon">${def.icon}</div>
       <div class="widget-editor-label">${def.label}</div>
       <label class="widget-editor-toggle">
@@ -5402,7 +5407,13 @@ function openWidgetEditor() {
       </label>
     </div>`;
   });
-  html += '</div>';
+  html += `</div>
+  <div style="padding:16px">
+    <button class="btn btn-ghost" onclick="_resetWidgetLayout()" style="width:100%;height:44px;font-size:14px;font-weight:500;color:var(--red);border-radius:12px">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+      Reset Layout
+    </button>
+  </div>`;
 
   // Create or reuse a dedicated widget overlay
   let overlay = document.getElementById('widgetEditorOverlay');
@@ -5433,6 +5444,16 @@ function closeWidgetEditor() {
 }
 window.closeWidgetEditor = closeWidgetEditor;
 
+function _resetWidgetLayout() {
+  localStorage.removeItem('icu_widget_order');
+  localStorage.removeItem('icu_widget_hidden');
+  _applyWidgetOrder();
+  // Re-render the editor list in place
+  openWidgetEditor();
+  showToast('Widget layout reset to default', 'success');
+}
+window._resetWidgetLayout = _resetWidgetLayout;
+
 function _renderSettingsWidgets() {
   const list = document.getElementById('settingsWidgetList');
   if (!list) return;
@@ -5444,7 +5465,7 @@ function _renderSettingsWidgets() {
     if (!def) return;
     const isHidden = hidden.has(id);
     html += `<div class="ios-row widget-editor-item" data-widget-id="${id}" draggable="true">
-      <div class="widget-editor-drag"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--text-muted)" stroke-width="2"><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="18" x2="16" y2="18"/></svg></div>
+      <div class="widget-editor-drag"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--text-muted)" stroke-width="2"><line x1="5" y1="6" x2="19" y2="6"/><line x1="5" y1="12" x2="19" y2="12"/><line x1="5" y1="18" x2="19" y2="18"/></svg></div>
       <div class="widget-editor-icon">${def.icon}</div>
       <span class="ios-row-label" style="flex:1">${def.label}</span>
       <label class="widget-editor-toggle">
@@ -5476,6 +5497,8 @@ window._toggleWidget = _toggleWidget;
 function _initWidgetDragReorder() {
   const list = document.getElementById('widgetEditorList');
   if (!list) return;
+
+  // ── HTML5 drag (desktop) ──
   let dragItem = null;
   list.querySelectorAll('.widget-editor-item').forEach(item => {
     item.setAttribute('draggable', 'true');
@@ -5487,7 +5510,6 @@ function _initWidgetDragReorder() {
     item.addEventListener('dragend', () => {
       item.classList.remove('widget-dragging');
       dragItem = null;
-      // Save new order
       const newOrder = [...list.querySelectorAll('.widget-editor-item')].map(el => el.dataset.widgetId);
       _saveWidgetOrder(newOrder);
       _applyWidgetOrder();
@@ -5501,6 +5523,60 @@ function _initWidgetDragReorder() {
       else list.insertBefore(dragItem, item.nextSibling);
     });
   });
+
+  // ── Touch drag (mobile) ──
+  let touchItem = null;
+  let touchClone = null;
+  let touchStartY = 0;
+  let touchOffsetY = 0;
+
+  list.addEventListener('touchstart', e => {
+    const handle = e.target.closest('.widget-editor-drag');
+    if (!handle) return;
+    const item = handle.closest('.widget-editor-item');
+    if (!item) return;
+    touchItem = item;
+    const rect = item.getBoundingClientRect();
+    touchStartY = e.touches[0].clientY;
+    touchOffsetY = touchStartY - rect.top;
+
+    // Create floating clone
+    touchClone = item.cloneNode(true);
+    touchClone.classList.add('widget-dragging-clone');
+    touchClone.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;z-index:10002;pointer-events:none;opacity:0.9;background:var(--surface-2);border-radius:var(--radius);box-shadow:0 8px 32px rgba(0,0,0,0.5);`;
+    document.body.appendChild(touchClone);
+
+    item.classList.add('widget-dragging');
+  }, { passive: true });
+
+  list.addEventListener('touchmove', e => {
+    if (!touchItem || !touchClone) return;
+    e.preventDefault();
+    const y = e.touches[0].clientY;
+    touchClone.style.top = (y - touchOffsetY) + 'px';
+
+    // Find item under finger and reorder
+    const items = [...list.querySelectorAll('.widget-editor-item')];
+    for (const sibling of items) {
+      if (sibling === touchItem) continue;
+      const rect = sibling.getBoundingClientRect();
+      const mid = rect.top + rect.height / 2;
+      if (y < mid) { list.insertBefore(touchItem, sibling); break; }
+      if (y > mid && sibling === items[items.length - 1]) { list.appendChild(touchItem); }
+    }
+  }, { passive: false });
+
+  const _touchEnd = () => {
+    if (!touchItem) return;
+    touchItem.classList.remove('widget-dragging');
+    if (touchClone) { touchClone.remove(); touchClone = null; }
+    const newOrder = [...list.querySelectorAll('.widget-editor-item')].map(el => el.dataset.widgetId);
+    _saveWidgetOrder(newOrder);
+    _applyWidgetOrder();
+    touchItem = null;
+  };
+  list.addEventListener('touchend', _touchEnd);
+  list.addEventListener('touchcancel', _touchEnd);
 }
 
 /* ====================================================
@@ -5832,9 +5908,10 @@ function _renderDashBatteries() {
   grid.onclick = e => {
     const card = e.target.closest('.dash-bat-card');
     if (!card) return;
-    const bikeId = card.dataset.bikeId || '';
     const batId = card.dataset.batId || '';
-    _navToBattery(bikeId, batId);
+    if (batId && typeof openBatDetailSheet === 'function') {
+      openBatDetailSheet(batId);
+    }
   };
 
   grid.innerHTML = activeBats.map(b => {
