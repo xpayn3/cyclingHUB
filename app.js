@@ -2184,7 +2184,7 @@ function _peerUpdateUI(status, peerId) {
   const startRow = document.getElementById('syncStartRow');
   const hostActive = document.getElementById('syncHostActive');
   if (startRow) startRow.style.display = (isHosting || isConnecting) ? 'none' : '';
-  if (hostActive) hostActive.style.display = (isHosting || isConnecting) ? '' : 'none';
+  if (hostActive) hostActive.style.display = isHosting ? '' : 'none';
 
   _peerUpdateLastSync();
 }
@@ -2247,15 +2247,9 @@ function _peerShowQR() {
     canvas.width = _qrSize;
     canvas.height = _qrSize;
     const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, _qrSize, _qrSize);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, _qrSize, _qrSize);
     ctx.drawImage(img, 0, 0, _qrSize, _qrSize);
-    // Make black pixels transparent
-    const imgData = ctx.getImageData(0, 0, _qrSize, _qrSize);
-    const d = imgData.data;
-    for (let i = 0; i < d.length; i += 4) {
-      if (d[i] < 30 && d[i+1] < 30 && d[i+2] < 30) d[i+3] = 0;
-    }
-    ctx.putImageData(imgData, 0, 0);
     if (btn) btn.innerHTML = _qrShownLabel;
   };
   img.onerror = () => {
@@ -2263,14 +2257,15 @@ function _peerShowQR() {
     canvas.width = _qrSize;
     canvas.height = _qrSize;
     const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, _qrSize, _qrSize);
     ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, _qrSize, _qrSize);
+    ctx.fillStyle = '#000000';
     ctx.font = 'bold 48px monospace';
     ctx.textAlign = 'center';
     ctx.fillText(_peerMyId, _qrSize / 2, _qrSize / 2 + 16);
     if (btn) btn.innerHTML = _qrShownLabel;
   };
-  img.src = `https://api.qrserver.com/v1/create-qr-code/?size=${_qrSize}x${_qrSize}&data=${encodeURIComponent(_peerMyId)}&bgcolor=000000&color=ffffff&margin=0`;
+  img.src = `https://api.qrserver.com/v1/create-qr-code/?size=${_qrSize}x${_qrSize}&data=${encodeURIComponent(_peerMyId)}&bgcolor=ffffff&color=000000&margin=0`;
 }
 window._peerShowQR = _peerShowQR;
 
@@ -2518,26 +2513,31 @@ function _peerStart() {
   _peerMyId = shortId;
 
   _peerInstance = new Peer(shortId, {
-    debug: 0,
+    debug: 2,
     config: _peerIceConfig
   });
   _peerInstance.on('open', id => {
     _peerMyId = id;
+    console.log('[PEER] Host registered with ID:', id);
     _peerUpdateUI('ready', id);
     _peerRenderDevices(null);
     const codeEl = document.getElementById('syncRoomCode');
     if (codeEl) codeEl.textContent = id;
   });
   _peerInstance.on('connection', conn => {
+    console.log('[PEER] Incoming connection from:', conn.peer);
     _peerHandleConn(conn);
   });
   _peerInstance.on('error', e => {
-    console.warn('[PEER] error:', e);
+    console.warn('[PEER] error:', e.type, e);
     if (e.type === 'unavailable-id') {
-      // ID taken, retry with different one
       _peerInstance.destroy();
       setTimeout(_peerStart, 500);
+    } else if (e.type === 'peer-unavailable') {
+      showToast('Peer not found — check the ID and try again', 'error');
+      _peerUpdateUI('ready', _peerMyId);
     } else {
+      showToast('Connection error: ' + (e.type || ''), 'error');
       _peerUpdateUI('error');
     }
   });
@@ -2564,7 +2564,9 @@ function _peerConnect(peerId) {
     conn.on('error', () => clearTimeout(timeout));
   };
 
-  if (!_peerInstance) {
+  // If no instance or instance is destroyed, create a fresh one
+  if (!_peerInstance || _peerInstance.destroyed) {
+    if (_peerInstance) { _peerInstance = null; }
     if (typeof Peer === 'undefined') { showToast('PeerJS not loaded', 'error'); return; }
     const myId = 'CIQ-' + Array.from(crypto.getRandomValues(new Uint8Array(3)))
       .map(b => b.toString(36)).join('').toUpperCase().slice(0, 6);
@@ -2575,12 +2577,21 @@ function _peerConnect(peerId) {
     });
     _peerInstance.on('connection', conn => _peerHandleConn(conn));
     _peerInstance.on('error', e => {
-      console.warn('[PEER] connect error:', e);
-      showToast('Could not connect: ' + (e.type || e.message), 'error');
-      _peerUpdateUI('error');
+      console.warn('[PEER] connect error:', e.type, e);
+      if (e.type === 'peer-unavailable') {
+        showToast('Peer not found — check the ID and try again', 'error');
+        _peerUpdateUI('ready', _peerMyId);
+      } else {
+        showToast('Could not connect: ' + (e.type || e.message), 'error');
+        _peerUpdateUI('error');
+      }
     });
-  } else {
+  } else if (_peerInstance.open) {
+    // Instance exists and is connected to signaling server
     _doConnect();
+  } else {
+    // Instance exists but hasn't opened yet — wait for it
+    _peerInstance.on('open', () => _doConnect());
   }
 }
 window._peerConnect = _peerConnect;
