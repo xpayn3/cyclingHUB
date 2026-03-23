@@ -887,6 +887,20 @@ code {
     transform: translateY(-6px) rotate(-45deg);
 }
 
+/* ── Dashboard top fade gradient ── */
+.dash-top-fade {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 72px;
+    background: linear-gradient(180deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 100%);
+    z-index: 14;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
 /* ── Floating top row: profile + pill ── */
 .floating-top-row {
     position: fixed;
@@ -20468,6 +20482,11 @@ body:has(.act-sheet-mode) .topbar {
     box-shadow: 0 0 8px rgba(255, 204, 0, 0.5);
     animation: syncPulseWait 1.5s infinite;
 }
+.sync-dot--connecting {
+    background: #4a9eff;
+    box-shadow: 0 0 8px rgba(74, 158, 255, 0.5);
+    animation: syncPulseConnect 1s infinite;
+}
 @keyframes syncPulse {
     0%, 100% { box-shadow: 0 0 6px rgba(0, 229, 160, 0.4); }
     50% { box-shadow: 0 0 14px rgba(0, 229, 160, 0.8); }
@@ -20475,6 +20494,10 @@ body:has(.act-sheet-mode) .topbar {
 @keyframes syncPulseWait {
     0%, 100% { box-shadow: 0 0 4px rgba(255, 204, 0, 0.3); }
     50% { box-shadow: 0 0 12px rgba(255, 204, 0, 0.7); }
+}
+@keyframes syncPulseConnect {
+    0%, 100% { box-shadow: 0 0 4px rgba(74, 158, 255, 0.3); }
+    50% { box-shadow: 0 0 14px rgba(74, 158, 255, 0.8); }
 }
 .sync-room-code {
     font-size: 32px;
@@ -20551,6 +20574,37 @@ body:has(.act-sheet-mode) .topbar {
 .sync-device-dot--peer {
     background: #5ac8fa;
     box-shadow: 0 0 6px rgba(90, 200, 250, 0.5);
+}
+
+/* Sync transfer buttons */
+.sync-transfer-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 16px 12px;
+    border-radius: var(--radius);
+    background: rgba(0, 229, 160, 0.12);
+    color: var(--accent);
+    border: none;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    transition: transform 0.15s, opacity 0.15s;
+}
+.sync-transfer-btn:active {
+    transform: scale(0.96);
+    opacity: 0.8;
+}
+.sync-transfer-btn--recv {
+    background: rgba(90, 200, 250, 0.12);
+    color: #5ac8fa;
+}
+.sync-transfer-sub {
+    font-size: 11px;
+    font-weight: 400;
+    opacity: 0.6;
 }
 
 /* ── Service History Page (SwiftUI-style) ── */

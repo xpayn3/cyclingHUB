@@ -2106,6 +2106,15 @@ async function _idbWriteAll(openFn, storeName, entries, outOfLineKeys) {
 let _peerInstance = null;
 let _peerConn = null;
 let _peerMyId = '';
+const _peerIceConfig = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' }
+  ]
+};
 
 function _peerDeviceName() {
   const ua = navigator.userAgent;
@@ -2140,17 +2149,26 @@ function _peerUpdateUI(status, peerId) {
   const codeEl = document.getElementById('syncRoomCode');
   const label = document.getElementById('syncStatusLabel');
 
-  const isOn = status === 'ready' || status === 'connected';
+  const isOn = status === 'ready' || status === 'connected' || status === 'connecting';
   const isPeerConnected = status === 'connected';
   const isHosting = status === 'ready';
+  const isConnecting = status === 'connecting';
 
   // Hero status dot + text
-  if (dot) dot.className = 'sync-dot ' + (isPeerConnected ? 'sync-dot--on' : isOn ? 'sync-dot--waiting' : 'sync-dot--off');
-  if (text) text.textContent = isPeerConnected ? 'Connected' : isHosting ? 'Waiting for peer...' : status === 'error' ? 'Connection failed' : 'Not connected';
+  if (dot) {
+    dot.className = 'sync-dot ' + (isPeerConnected ? 'sync-dot--on' : isConnecting ? 'sync-dot--connecting' : isOn ? 'sync-dot--waiting' : 'sync-dot--off');
+  }
+  if (text) {
+    text.textContent = isPeerConnected ? 'Connected'
+      : isConnecting ? 'Connecting...'
+      : isHosting ? 'Waiting for peer...'
+      : status === 'error' ? 'Connection failed'
+      : 'Not connected';
+  }
   if (codeEl) codeEl.textContent = peerId || _peerMyId || '—';
 
   // Settings row label
-  if (label) label.textContent = isPeerConnected ? 'Connected' : isOn ? 'Hosting' : '';
+  if (label) label.textContent = isPeerConnected ? 'Connected' : isConnecting ? 'Connecting...' : isOn ? 'Hosting' : '';
 
   // Zone visibility: connect zone vs active zone
   const zoneConnect = document.getElementById('syncZoneConnect');
@@ -2161,8 +2179,8 @@ function _peerUpdateUI(status, peerId) {
   // Host sub-state within connect zone
   const startRow = document.getElementById('syncStartRow');
   const hostActive = document.getElementById('syncHostActive');
-  if (startRow) startRow.style.display = isHosting ? 'none' : '';
-  if (hostActive) hostActive.style.display = isHosting ? '' : 'none';
+  if (startRow) startRow.style.display = (isHosting || isConnecting) ? 'none' : '';
+  if (hostActive) hostActive.style.display = (isHosting || isConnecting) ? '' : 'none';
 
   _peerUpdateLastSync();
 }
@@ -2413,7 +2431,9 @@ function _peerHandleConn(conn) {
   });
   conn.on('close', () => {
     _peerConn = null;
-    _peerUpdateUI('ready');
+    if (_peerInstance) { try { _peerInstance.destroy(); } catch {} _peerInstance = null; }
+    _peerMyId = '';
+    _peerUpdateUI('off');
     _peerRenderDevices(null);
     showToast('Peer disconnected', 'info');
   });
@@ -2434,7 +2454,10 @@ function _peerStart() {
     .map(b => b.toString(36)).join('').toUpperCase().slice(0, 6);
   _peerMyId = shortId;
 
-  _peerInstance = new Peer(shortId, { debug: 0 });
+  _peerInstance = new Peer(shortId, {
+    debug: 0,
+    config: _peerIceConfig
+  });
   _peerInstance.on('open', id => {
     _peerMyId = id;
     _peerUpdateUI('ready', id);
@@ -2460,28 +2483,42 @@ function _peerStart() {
 function _peerConnect(peerId) {
   if (!peerId || peerId.length < 4) { showToast('Enter a valid peer ID', 'error'); return; }
   const clean = peerId.trim().toUpperCase();
+  _peerUpdateUI('connecting');
+  showToast('Connecting to ' + clean + '...', 'info');
+
+  const _doConnect = () => {
+    const conn = _peerInstance.connect(clean, { reliable: true });
+    _peerHandleConn(conn);
+    // Timeout: if conn doesn't open in 15s, show error
+    const timeout = setTimeout(() => {
+      if (!conn.open) {
+        console.warn('[PEER] connection timeout');
+        showToast('Connection timed out — peer may be offline', 'error');
+        _peerUpdateUI('ready', _peerMyId);
+      }
+    }, 15000);
+    conn.on('open', () => clearTimeout(timeout));
+    conn.on('error', () => clearTimeout(timeout));
+  };
+
   if (!_peerInstance) {
-    // Start our own peer first, then connect
     if (typeof Peer === 'undefined') { showToast('PeerJS not loaded', 'error'); return; }
     const myId = 'CIQ-' + Array.from(crypto.getRandomValues(new Uint8Array(3)))
       .map(b => b.toString(36)).join('').toUpperCase().slice(0, 6);
-    _peerInstance = new Peer(myId, { debug: 0 });
+    _peerInstance = new Peer(myId, { debug: 0, config: _peerIceConfig });
     _peerInstance.on('open', () => {
       _peerMyId = myId;
-      const conn = _peerInstance.connect(clean, { reliable: true });
-      _peerHandleConn(conn);
-      _peerUpdateUI('connected', _peerMyId);
+      _doConnect();
     });
+    _peerInstance.on('connection', conn => _peerHandleConn(conn));
     _peerInstance.on('error', e => {
       console.warn('[PEER] connect error:', e);
       showToast('Could not connect: ' + (e.type || e.message), 'error');
       _peerUpdateUI('error');
     });
   } else {
-    const conn = _peerInstance.connect(clean, { reliable: true });
-    _peerHandleConn(conn);
+    _doConnect();
   }
-  showToast('Connecting to ' + clean + '...', 'info');
 }
 window._peerConnect = _peerConnect;
 
@@ -2558,6 +2595,78 @@ window._gunSyncNow = function() {
     showToast('No peer connected — start hosting or connect to a peer first', 'error');
   }
 };
+
+/* ── Sync transfer confirmation sheet ── */
+function _peerConfirmTransfer(mode) {
+  if (mode === 'send' && (!_peerConn || !_peerConn.open)) {
+    showToast('No peer connected', 'error'); return;
+  }
+  if (mode === 'receive' && (!_peerConn || !_peerConn.open)) {
+    showToast('No peer connected', 'error'); return;
+  }
+
+  const titleEl = document.getElementById('syncConfirmTitle');
+  const descEl = document.getElementById('syncConfirmDesc');
+  const itemsEl = document.getElementById('syncConfirmItems');
+  const sizeEl = document.getElementById('syncConfirmSize');
+  const btnEl = document.getElementById('syncConfirmBtn');
+  if (!titleEl || !btnEl) return;
+
+  const isSend = mode === 'send';
+  titleEl.textContent = isSend ? 'Send Data' : 'Receive Data';
+  descEl.textContent = isSend
+    ? 'This will send your local data to the connected peer. Their data will be overwritten.'
+    : 'This will request data from the connected peer. Your local data will be overwritten.';
+
+  // Build data summary
+  const snapshot = _peerBuildSnapshot();
+  const keys = Object.keys(snapshot);
+  const sizeBytes = JSON.stringify(snapshot).length;
+  const sizeMB = (sizeBytes / 1048576).toFixed(1);
+  const sizeKB = Math.round(sizeBytes / 1024);
+  sizeEl.textContent = sizeBytes > 1048576 ? `${sizeMB} MB` : `${sizeKB} KB`;
+
+  // Categorize keys for summary
+  const cats = { gear: 0, batteries: 0, services: 0, goals: 0, settings: 0, strava: 0, other: 0 };
+  for (const k of keys) {
+    if (k.includes('gear') || k.includes('component') || k.includes('bike')) cats.gear++;
+    else if (k.includes('batter')) cats.batteries++;
+    else if (k.includes('service') || k.includes('shop')) cats.services++;
+    else if (k.includes('goal')) cats.goals++;
+    else if (k.startsWith('strava_')) cats.strava++;
+    else if (k.includes('setting') || k.includes('range') || k.includes('widget') || k.includes('theme') || k.includes('notif')) cats.settings++;
+    else cats.other++;
+  }
+
+  let itemsHtml = '';
+  const catList = [
+    ['Gear & Components', cats.gear, 'var(--accent)'],
+    ['Batteries', cats.batteries, '#f0c429'],
+    ['Services & Shops', cats.services, '#5ac8fa'],
+    ['Goals', cats.goals, '#ff9500'],
+    ['Settings & Preferences', cats.settings, '#af52de'],
+    ['Strava Data', cats.strava, '#fc4c02'],
+    ['Other Data', cats.other, 'var(--text-muted)'],
+  ];
+  for (const [label, count, color] of catList) {
+    if (count === 0) continue;
+    itemsHtml += `<div class="ios-row" style="min-height:36px"><span class="ios-row-label">${label}</span><span class="ios-row-detail" style="color:${color};font-weight:600">${count} keys</span></div>`;
+  }
+  if (itemsEl) itemsEl.innerHTML = itemsHtml;
+
+  // Confirm button
+  btnEl.textContent = isSend ? 'Send Now' : 'Request Now';
+  btnEl.style.background = isSend ? 'var(--accent)' : '#5ac8fa';
+  btnEl.style.color = '#000';
+  btnEl.onclick = () => {
+    _closeOverlaySheet('syncConfirmSheet');
+    if (isSend) _peerSendData();
+    else _peerRequestData();
+  };
+
+  _openOverlaySheet('syncConfirmSheet');
+}
+window._peerConfirmTransfer = _peerConfirmTransfer;
 
 /* ── Clipboard-based transfer (reliable fallback) ── */
 async function _clipboardExport() {
@@ -3131,8 +3240,8 @@ function navigate(page, opts) {
   clearTimeout(_actSearchDebounce);
   clearTimeout(_h2hDebounce);
 
-  // Clear weather gradient when leaving weather page
-  if (state.currentPage === 'weather' && page !== 'weather') {
+  // Clear page gradient when leaving weather or dashboard
+  if ((state.currentPage === 'weather' || state.currentPage === 'dashboard') && page !== state.currentPage) {
     const _pc = document.getElementById('pageContent');
     if (_pc) _pc.style.background = '';
   }
@@ -3250,6 +3359,13 @@ function navigate(page, opts) {
     if (page === 'dashboard') _notifRefreshBell();
   }
 
+  // Dashboard top fade gradient — visible only on dashboard, fades in on scroll
+  const dashFade = document.getElementById('dashTopFade');
+  if (dashFade) {
+    dashFade.style.display = (page === 'dashboard') ? '' : 'none';
+    dashFade.style.opacity = '0';
+  }
+
   // Floating range pill visibility — not on dashboard (bell replaces it)
   const pill = document.getElementById('dateRangePill');
   if (pill) {
@@ -3283,8 +3399,8 @@ function navigate(page, opts) {
       if (ab) requestAnimationFrame(() => ab.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'instant' }));
     }
   }
-  // Toggle scroll edge gradient for pages with floating pills
-  const _pillPages = ['dashboard', 'power', 'fitness'];
+  // Toggle scroll edge gradient for pages with floating pills (dashboard uses its own scroll-triggered fade)
+  const _pillPages = ['power', 'fitness'];
   document.getElementById('pageContent')?.classList.toggle('has-scroll-edge', _pillPages.includes(page));
 
   // Swap active page — use View Transitions API for smooth cross-fade if available
@@ -5439,7 +5555,23 @@ function renderDashboard() {
   _applyWidgetOrder();
   // Add edit widgets button at bottom
   _injectEditWidgetsBtn();
+  _applyDashGradient();
   _rIC(() => { if (window.refreshGlow) refreshGlow(); });
+}
+
+function _applyDashGradient() {
+  const pc = document.getElementById('pageContent');
+  if (!pc) return;
+  const tsb = state.fitness?.tsb ?? (state.fitness ? (state.fitness.ctl - state.fitness.atl) : null);
+  let top, mid;
+  if (tsb == null)   { top = '#0f170f'; mid = '#0b120b'; }  // no data — barely-there green
+  else if (tsb > 15) { top = '#081f18'; mid = '#051912'; }  // peak/race ready — deep accent green
+  else if (tsb > 5)  { top = '#0a1c14'; mid = '#071610'; }  // fresh — muted green
+  else if (tsb > -5) { top = '#1a1a0c'; mid = '#14140a'; }  // neutral — dark amber
+  else if (tsb > -15){ top = '#1a180c'; mid = '#14120a'; }  // training — warm yellow-brown
+  else if (tsb > -25){ top = '#1e1408'; mid = '#181006'; }  // deep training — dark orange
+  else               { top = '#1e0c0c'; mid = '#180a0a'; }  // overreaching — dark red
+  pc.style.background = `linear-gradient(180deg, ${top} 0%, ${mid} 12%, #000000 32%)`;
 }
 
 function _injectEditWidgetsBtn() {
@@ -6369,6 +6501,25 @@ function _hideTooltipOnScroll() {
 window.addEventListener('scroll', _hideTooltipOnScroll, { passive: true });
 // Also listen on common scroll containers (activity sheet, page content, etc.)
 document.addEventListener('scroll', _hideTooltipOnScroll, { passive: true, capture: true });
+
+// ── Dashboard top fade: opacity tracks scroll position ──
+(function() {
+  let _dtfTicking = false;
+  window.addEventListener('scroll', () => {
+    if (_dtfTicking) return;
+    _dtfTicking = true;
+    requestAnimationFrame(() => {
+      _dtfTicking = false;
+      if (state.currentPage !== 'dashboard') return;
+      const el = document.getElementById('dashTopFade');
+      if (!el) return;
+      const y = window.scrollY;
+      // Fade in over the first 60px of scroll
+      const opacity = Math.min(1, y / 60);
+      el.style.opacity = opacity;
+    });
+  }, { passive: true });
+})();
 
 // Vertical crosshair line drawn at the hovered x position
 Chart.register({
