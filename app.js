@@ -24609,6 +24609,14 @@ function renderBikeDetailPage() {
       </div>
     </div>
 
+    <!-- Floating sticky pill -->
+    <div class="bkd-sticky-pill" id="bkdStickyPill">
+      <span class="bkd-sticky-name">${bike.name}</span>
+      <button class="bkd-sticky-menu" onclick="event.stopPropagation()">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+      </button>
+    </div>
+
     <!-- Stats -->
     <div class="gar-stats">
       <div class="gar-stat-pill"><span class="gar-stat-val">${kmFmt}</span><span class="gar-stat-lbl">km</span></div>
@@ -24686,6 +24694,18 @@ function renderBikeDetailPage() {
   renderGearBatteries();
   renderGearTires();
   renderGearServices();
+
+  // Floating sticky pill — show when hero photo scrolls out of view
+  const heroPhoto = el.querySelector('.bkd-hero-photo');
+  const stickyPill = document.getElementById('bkdStickyPill');
+  if (heroPhoto && stickyPill) {
+    const pageContent = document.getElementById('pageContent');
+    const scrollRoot = pageContent || window;
+    const obs = new IntersectionObserver(entries => {
+      stickyPill.classList.toggle('bkd-sticky-visible', !entries[0].isIntersecting);
+    }, { root: pageContent, threshold: 0 });
+    obs.observe(heroPhoto);
+  }
 }
 
 function _openGearService() {

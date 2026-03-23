@@ -21014,6 +21014,53 @@ body:has(.act-sheet-mode) .topbar {
     margin: calc(-1 * (env(safe-area-inset-top) + 96px + var(--gap-layout))) calc(-1 * var(--pad-page)) 16px;
     overflow: hidden;
 }
+/* Floating sticky pill — bike name */
+.bkd-sticky-pill {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 8px);
+    right: var(--pad-page, 16px);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 6px 6px 14px;
+    background: rgba(30,30,30,0.85);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    border-radius: 100px;
+    z-index: 90;
+    opacity: 0;
+    transform: translateY(-10px);
+    pointer-events: none;
+    transition: opacity 0.25s, transform 0.25s;
+}
+.bkd-sticky-pill.bkd-sticky-visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+.bkd-sticky-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.bkd-sticky-menu {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.1);
+    border: none;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+.bkd-sticky-menu:active { background: rgba(255,255,255,0.2); }
+
 .bkd-hero-photo {
     width: 100%;
     min-height: 420px;
