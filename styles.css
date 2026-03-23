@@ -11206,8 +11206,15 @@ body.show-save-fab #actSaveRouteFab {
 .aci-streams-guide {
     padding: 24px var(--pad-page) 40px;
     background: rgba(255,255,255,0.08);
-    border-radius: var(--radius);
-    margin: 16px 0;
+    border-radius: 0;
+    margin: 16px 0 0;
+}
+.aci-custom-page .aci-streams-guide {
+    margin-left: calc(-1 * var(--pad-page, 16px));
+    margin-right: calc(-1 * var(--pad-page, 16px));
+    padding-left: var(--pad-page, 16px);
+    padding-right: var(--pad-page, 16px);
+    border-radius: 0;
 }
 .aci-guide-header {
     display: flex;
