@@ -26812,7 +26812,7 @@ function gearSwitchTab(tab) {
     const p = document.getElementById('gearPanel' + k.charAt(0).toUpperCase() + k.slice(1));
     if (p) p.style.display = k === tab ? '' : 'none';
   });
-  if (tab === 'roi') renderGearRoi();
+  if (tab === 'components') renderGearRoi();
 }
 
 const GEAR_STORE_KEY = 'icu_gear_components';
@@ -27074,6 +27074,16 @@ function renderBikeDetailPage() {
           <span class="gar-bike-km">${kmFmt} km</span>
           <span class="gar-bike-type">${bike.type}</span>
         </div>
+        <div class="bkd-hero-actions">
+          <button class="bkd-action-btn" onclick="gearTriggerPhotoUpload('${bikeId}',event)">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            Photo
+          </button>
+          <button class="bkd-action-btn" onclick="_gearOpenBgColorPicker('${bikeId}')">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20 7 7 0 0 1 0-14 3 3 0 0 1 0 6"/></svg>
+            Background
+          </button>
+        </div>
       </div>
     </div>
 
@@ -27092,7 +27102,6 @@ function renderBikeDetailPage() {
       <button class="gar-tab active" data-gear="components" onclick="gearSwitchTab('components')">Components</button>
       <button class="gar-tab" data-gear="batteries" onclick="gearSwitchTab('batteries')">Batteries</button>
       <button class="gar-tab" data-gear="tires" onclick="gearSwitchTab('tires')">Tires</button>
-      <button class="gar-tab" data-gear="roi" onclick="gearSwitchTab('roi')">ROI</button>
       <div class="gar-tab-indicator"></div>
     </div>
 
@@ -27106,6 +27115,8 @@ function renderBikeDetailPage() {
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Add Component
       </button>
+      <!-- ROI section (below components) -->
+      <div id="gearRoiContent" style="margin-top:16px"></div>
     </div>
 
     <!-- Batteries panel -->
@@ -27136,14 +27147,6 @@ function renderBikeDetailPage() {
       </button>
     </div>
 
-    <!-- ROI panel -->
-    <div class="gar-panel" id="gearPanelRoi" style="display:none">
-      <div class="gar-panel-header">
-        <span class="gar-panel-title">Cost & ROI</span>
-      </div>
-      <div id="gearRoiContent"></div>
-    </div>
-
     <!-- Service panel (accessed from Garage page link) -->
     <div class="gar-panel" id="gearPanelService" style="display:none">
       <div class="gar-panel-header">
@@ -27165,6 +27168,7 @@ function renderBikeDetailPage() {
   renderGearBatteries();
   renderGearTires();
   renderGearServices();
+  renderGearRoi();
 
   // Show bike switcher pill on body
   _bkdShowPill(bike.name, _gearBikeCache.length);

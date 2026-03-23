@@ -1755,15 +1755,15 @@ html:has(body.sheet-locked) {
     margin: 8px auto 0;
 }
 .modal-header {
-    padding: 16px 20px 0;
+    padding: 16px 20px 12px;
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
 }
 .wxd-sheet:not(.wxd-sheet--partial) .modal-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
 }
 .modal-header-icon {
     width: 44px;
@@ -1815,7 +1815,7 @@ html:has(body.sheet-locked) {
 .modal-title {
     font-size: var(--text-lg);
     font-weight: 700;
-    margin-bottom: 6px;
+    margin-bottom: 0;
 }
 .modal-desc {
     font-size: var(--text-base);
@@ -8985,7 +8985,7 @@ body.show-save-fab #actSaveRouteFab {
     height: 28px;
     border-radius: 50%;
     background: rgba(255,255,255,0.08);
-    border: 1.5px solid rgba(255,255,255,0.14);
+    border: none;
     color: var(--text-muted);
     font-size: 15px;
     line-height: 1;
@@ -9004,7 +9004,6 @@ body.show-save-fab #actSaveRouteFab {
 }
 [data-theme="light"] .cev-undo-btn {
     background: rgba(0,0,0,0.06);
-    border-color: rgba(0,0,0,0.1);
 }
 [data-theme="light"] .cev-undo-btn:active {
     background: rgba(0,0,0,0.12);
@@ -9053,8 +9052,8 @@ body.show-save-fab #actSaveRouteFab {
     height: 28px;
     overflow: hidden;
     position: relative;
-    -webkit-mask-image: linear-gradient(to right, transparent 0%, black 22%, black 78%, transparent 100%);
-    mask-image: linear-gradient(to right, transparent 0%, black 22%, black 78%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, black 32%, black 68%, transparent 100%);
+    mask-image: linear-gradient(to right, transparent 0%, black 32%, black 68%, transparent 100%);
 }
 .cev-scrubber-track::after {
     content: '';
@@ -14333,8 +14332,8 @@ body:has(.act-sheet-mode) .topbar {
     height: 18px;
     overflow: hidden;
     position: relative;
-    -webkit-mask-image: linear-gradient(to right, transparent 0%, black 22%, black 78%, transparent 100%);
-    mask-image: linear-gradient(to right, transparent 0%, black 22%, black 78%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, black 32%, black 68%, transparent 100%);
+    mask-image: linear-gradient(to right, transparent 0%, black 32%, black 68%, transparent 100%);
 }
 .wrk-scrub-track::after {
     content: '';
@@ -21337,15 +21336,10 @@ body:has(.act-sheet-mode) .topbar {
     align-items: center;
     gap: 8px;
     padding: 5px 12px 5px 5px;
-    background: rgba(40, 42, 48, 0.42);
-    backdrop-filter: blur(48px) saturate(220%) brightness(1.1);
-    -webkit-backdrop-filter: blur(48px) saturate(220%) brightness(1.1);
-    box-shadow:
-        0 0.5px 0 0 rgba(255,255,255,0.20) inset,
-        0 0 0 0.5px rgba(255,255,255,0.10) inset,
-        0 -0.5px 0 0 rgba(0,0,0,0.15) inset,
-        0 12px 40px rgba(0,0,0,0.50),
-        0 4px 12px rgba(0,0,0,0.30);
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
     border-radius: 100px;
     z-index: 90;
     cursor: pointer;
@@ -21387,14 +21381,10 @@ body:has(.act-sheet-mode) .topbar {
     right: var(--pad-page, 16px);
     min-width: 220px;
     max-width: 280px;
-    background: rgba(40, 42, 48, 0.75);
-    backdrop-filter: blur(48px) saturate(220%) brightness(1.1);
-    -webkit-backdrop-filter: blur(48px) saturate(220%) brightness(1.1);
-    box-shadow:
-        0 0.5px 0 0 rgba(255,255,255,0.15) inset,
-        0 0 0 0.5px rgba(255,255,255,0.08) inset,
-        0 16px 48px rgba(0,0,0,0.6),
-        0 4px 16px rgba(0,0,0,0.35);
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
     border-radius: 16px;
     z-index: 91;
     overflow: hidden;
@@ -21487,6 +21477,26 @@ body:has(.act-sheet-mode) .topbar {
     gap: 8px;
     margin-top: 4px;
 }
+.bkd-hero-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+.bkd-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: var(--surface-1);
+    border: none;
+    border-radius: 100px;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.bkd-action-btn:active { background: var(--surface-2); }
 
 /* Keep old gear-section-header for backwards compat */
 .gear-section-header {
@@ -21852,7 +21862,7 @@ body:has(.act-sheet-mode) .topbar {
         to   { transform: translateY(100%); }
     }
     .modal-header {
-        padding: 18px 18px 0;
+        padding: 18px 18px 12px;
         flex-shrink: 0;
     }
     .modal-body {
