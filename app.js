@@ -5192,6 +5192,37 @@ function closeWidgetEditor() {
 }
 window.closeWidgetEditor = closeWidgetEditor;
 
+function _renderSettingsWidgets() {
+  const list = document.getElementById('settingsWidgetList');
+  if (!list) return;
+  const order = _getWidgetOrder();
+  const hidden = _getWidgetHidden();
+  let html = '';
+  order.forEach(id => {
+    const def = _WIDGET_DEFS.find(w => w.id === id);
+    if (!def) return;
+    const isHidden = hidden.has(id);
+    html += `<div class="ios-row widget-editor-item" data-widget-id="${id}" draggable="true">
+      <div class="widget-editor-drag"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--text-muted)" stroke-width="2"><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="18" x2="16" y2="18"/></svg></div>
+      <div class="widget-editor-icon">${def.icon}</div>
+      <span class="ios-row-label" style="flex:1">${def.label}</span>
+      <label class="widget-editor-toggle">
+        <input type="checkbox" ${isHidden ? '' : 'checked'} onchange="_toggleWidget('${id}',this.checked)">
+        <span class="widget-editor-slider"></span>
+      </label>
+    </div>`;
+  });
+  list.innerHTML = html;
+  // Init drag reorder on settings list
+  let dragItem = null;
+  list.querySelectorAll('.widget-editor-item').forEach(item => {
+    item.addEventListener('dragstart', e => { dragItem = item; item.classList.add('widget-dragging'); e.dataTransfer.effectAllowed = 'move'; });
+    item.addEventListener('dragend', () => { item.classList.remove('widget-dragging'); dragItem = null; const newOrder = [...list.querySelectorAll('.widget-editor-item')].map(el => el.dataset.widgetId); _saveWidgetOrder(newOrder); _applyWidgetOrder(); });
+    item.addEventListener('dragover', e => { e.preventDefault(); if (!dragItem || dragItem === item) return; const rect = item.getBoundingClientRect(); if (e.clientY < rect.top + rect.height / 2) list.insertBefore(dragItem, item); else list.insertBefore(dragItem, item.nextSibling); });
+  });
+}
+window._renderSettingsWidgets = _renderSettingsWidgets;
+
 function _toggleWidget(id, visible) {
   const hidden = _getWidgetHidden();
   if (visible) hidden.delete(id);

@@ -4563,7 +4563,7 @@
                                     <span class="ios-row-value" id="iosCurrentTheme">Dark</span>
                                     <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                 </div>
-                                <div class="ios-row" data-nav onclick="openWidgetEditor()">
+                                <div class="ios-row" data-nav onclick="openSettingsSubpage('widgets');_renderSettingsWidgets()">
                                     <div class="ios-row-icon" style="background:#34c759"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>
                                     <span class="ios-row-label">Dashboard Widgets</span>
                                     <svg class="ios-row-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -5415,7 +5415,11 @@
 
                         </div><!-- close strava subpage -->
 
-                        <!-- Dashboard Sections subpage removed — replaced by widget editor -->
+                        <!-- Dashboard Widgets subpage -->
+                        <div class="ios-subpage" id="iosSubpage-widgets">
+                            <p style="color:var(--text-muted);font-size:13px;padding:8px 0 12px">Drag to reorder. Toggle to show or hide widgets on your dashboard.</p>
+                            <div class="ios-group" id="settingsWidgetList"></div>
+                        </div>
 
                         <!-- Activity Sections subpage -->
                         <div class="ios-subpage" id="iosSubpage-actsections">                            <div class="ios-group" style="margin-top:8px">
