@@ -22199,6 +22199,27 @@ function toggleStreamLayer(metric) {
   if (dsIdx === -1) return;
   const meta = chart.getDatasetMeta(dsIdx);
   meta.hidden = !meta.hidden;
+
+  // Update y-axis visibility based on which datasets are visible
+  const visibleKeys = chart.data.datasets
+    .filter((d, i) => !chart.getDatasetMeta(i).hidden && d.streamKey !== 'altitude')
+    .map(d => d.streamKey);
+
+  const hasPwr = visibleKeys.includes('watts');
+  const hasHR  = visibleKeys.includes('heartrate');
+  const hasCad = visibleKeys.includes('cadence');
+  const hasSpd = visibleKeys.includes('velocity_smooth');
+
+  // Left axis: power > cadence > speed (first available visible)
+  const showPwrLeft = hasPwr;
+  const showCadLeft = !hasPwr && hasCad;
+  const showSpdLeft = !hasPwr && !hasCad && hasSpd;
+
+  if (chart.options.scales.yPower)   chart.options.scales.yPower.display   = showPwrLeft;
+  if (chart.options.scales.yCadence) chart.options.scales.yCadence.display = showCadLeft;
+  if (chart.options.scales.ySpeed)   chart.options.scales.ySpeed.display   = showSpdLeft;
+  if (chart.options.scales.yHR)      chart.options.scales.yHR.display      = hasHR;
+
   chart.update('none');
   document.querySelectorAll(`.stream-toggle-btn[data-metric="${metric}"]`).forEach(btn => {
     btn.classList.toggle('active', !meta.hidden);
