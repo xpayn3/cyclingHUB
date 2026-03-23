@@ -26962,7 +26962,8 @@ function _gearOpenBgColorPicker(bikeId, e) {
     <div class="gar-bg-picker-section">Custom</div>
     <div class="gar-bg-picker-custom">
       <input type="color" id="garBgCustomColor" value="${current.startsWith('#') ? current : '#1a1a1a'}"
-        onchange="_gearSetBgColor('${bikeId}', this.value)">
+        oninput="_gearPreviewBgColor('${bikeId}', this.value)"
+        onchange="_gearCommitBgColor('${bikeId}', this.value)">
       <span>Pick any color</span>
     </div>
   </div>`;
@@ -26980,10 +26981,32 @@ window._gearOpenBgColorPicker = _gearOpenBgColorPicker;
 function _gearSetBgColor(bikeId, color) {
   _gearSaveBgColor(bikeId, color);
   _closeOverlaySheet('compDetailSheet');
+  // Re-render the hero photo if on bike detail page
+  const heroPhoto = document.querySelector('.bkd-hero-photo');
+  if (heroPhoto) heroPhoto.style.background = color || '';
   renderGearPage();
   showToast(color ? 'Background updated' : 'Background removed', 'success');
 }
 window._gearSetBgColor = _gearSetBgColor;
+
+// Live preview while dragging custom color (no save, no close, no toast)
+function _gearPreviewBgColor(bikeId, color) {
+  const heroPhoto = document.querySelector('.bkd-hero-photo');
+  if (heroPhoto) heroPhoto.style.background = color;
+  // Also preview on garage carousel
+  const slide = document.querySelector(`.dash-gear-slide[onclick*="${bikeId}"] .dash-gear-bg, .gar-bike-card[data-id="${bikeId}"] .gar-bike-photo`);
+  if (slide) slide.style.background = color;
+}
+window._gearPreviewBgColor = _gearPreviewBgColor;
+
+// Commit custom color on picker close (save + toast, no sheet close)
+function _gearCommitBgColor(bikeId, color) {
+  _gearSaveBgColor(bikeId, color);
+  const heroPhoto = document.querySelector('.bkd-hero-photo');
+  if (heroPhoto) heroPhoto.style.background = color;
+  showToast('Background updated', 'success');
+}
+window._gearCommitBgColor = _gearCommitBgColor;
 
 // Notification check
 function _gearCheckNotifications() {
