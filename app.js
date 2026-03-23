@@ -3228,13 +3228,13 @@ function navigate(page, opts) {
     pc.classList.toggle('page-content--calendar', page === 'calendar');
     pc.classList.toggle('page-content--heatmap', page === 'heatmap');
     pc.classList.toggle('page-content--routes', page === 'routes');
-    pc.classList.toggle('page-content--has-pill', page === 'dashboard' || page === 'zones' || page === 'power' || page === 'fitness');
+    pc.classList.toggle('page-content--has-pill', page === 'dashboard' || page === 'power' || page === 'fitness');
   }
 
   // Floating top row (profile icon) — show on dashboard only (mobile)
   const floatingTopRow = document.getElementById('floatingTopRow');
   if (floatingTopRow) {
-    floatingTopRow.style.display = (page === 'dashboard' || page === 'power' || page === 'zones' || page === 'fitness') ? 'flex' : 'none';
+    floatingTopRow.style.display = (page === 'dashboard' || page === 'power' || page === 'fitness') ? 'flex' : 'none';
   }
 
   // Notification bell (dashboard only)
@@ -3278,7 +3278,7 @@ function navigate(page, opts) {
     }
   }
   // Toggle scroll edge gradient for pages with floating pills
-  const _pillPages = ['dashboard', 'zones', 'power', 'fitness'];
+  const _pillPages = ['dashboard', 'power', 'fitness'];
   document.getElementById('pageContent')?.classList.toggle('has-scroll-edge', _pillPages.includes(page));
 
   // Swap active page — use View Transitions API for smooth cross-fade if available
@@ -3315,7 +3315,6 @@ function navigate(page, opts) {
   if (page === 'calendar') { renderCalendar(); refreshCalendarEvents(); }
   if (page === 'fitness')  { renderFitnessPage(); _renderGuideInline(); }
   if (page === 'power')    renderPowerPage();
-  if (page === 'zones')    renderZonesPage();
   if (page === 'compare')  { ensureLifetimeLoaded(); renderComparePage(); }
   if (page === 'heatmap')  { ensureLifetimeLoaded(); renderHeatmapPage(); }
   if (page === 'goals')    { renderStreaksPage(); renderGoalsPage(); }
