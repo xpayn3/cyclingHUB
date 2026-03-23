@@ -17596,7 +17596,7 @@ _ACT_CARD_INFO.detailGradientCard.customRender = function(page, activity, stream
   </div>`;
 
   // Main elevation chart
-  html += `<div style="height:220px;margin:0 -16px"><canvas id="aciElevChart"></canvas></div>`;
+  html += `<div style="height:220px;margin:0"><canvas id="aciElevChart"></canvas></div>`;
 
   // Stats rows
   html += `<div style="padding:12px 16px">
@@ -17806,7 +17806,7 @@ _ACT_CARD_INFO.detailLRBalanceCard.customRender = function(page, activity, strea
         <div style="width:${right}%;background:#ff6b35"></div>
       </div>
     </div>
-    <div style="height:120px;margin:0 -16px"><canvas id="aciLRChart"></canvas></div>`;
+    <div style="height:120px;margin:0"><canvas id="aciLRChart"></canvas></div>`;
 
   requestAnimationFrame(() => {
     const c = document.getElementById('aciLRChart');
@@ -17886,7 +17886,7 @@ _ACT_CARD_INFO.detailCurveCard.customRender = function(page, activity, streams) 
     </div>`;
   });
   html += `</div>`;
-  html += `<div style="height:200px;margin:0 -16px"><canvas id="aciPwrCurve"></canvas></div>`;
+  html += `<div style="height:200px;margin:0"><canvas id="aciPwrCurve"></canvas></div>`;
   page.innerHTML = html;
 
   requestAnimationFrame(() => {
@@ -17922,7 +17922,7 @@ _ACT_CARD_INFO.detailHRCurveCard.customRender = function(page, activity, streams
       <div style="font-size:10px;color:var(--text-muted)">${lbl}</div>
     </div>`;
   });
-  html += `</div><div style="height:200px;margin:0 -16px"><canvas id="aciHRCurve"></canvas></div>`;
+  html += `</div><div style="height:200px;margin:0"><canvas id="aciHRCurve"></canvas></div>`;
   page.innerHTML = html;
 
   requestAnimationFrame(() => {
@@ -17952,7 +17952,7 @@ _ACT_CARD_INFO.detailCadenceCard.customRender = function(page, activity, streams
       <div style="background:var(--surface-1);border-radius:var(--radius-sm);padding:14px;text-align:center"><div style="font-size:28px;font-weight:800;font-family:var(--font-num);color:var(--accent)">${pedaling}<span style="font-size:12px;color:var(--text-muted)">%</span></div><div style="font-size:11px;color:var(--text-muted)">PEDALING</div></div>
       <div style="background:var(--surface-1);border-radius:var(--radius-sm);padding:14px;text-align:center"><div style="font-size:28px;font-weight:800;font-family:var(--font-num);color:${optPct >= 60 ? 'var(--accent)' : '#f0c429'}">${optPct}<span style="font-size:12px;color:var(--text-muted)">%</span></div><div style="font-size:11px;color:var(--text-muted)">80-100 RPM</div></div>
     </div>
-    <div style="height:180px;margin:0 -16px"><canvas id="aciCadHist"></canvas></div>`;
+    <div style="height:180px;margin:0"><canvas id="aciCadHist"></canvas></div>`;
 
   requestAnimationFrame(() => {
     const c = document.getElementById('aciCadHist');
@@ -17980,7 +17980,7 @@ _ACT_CARD_INFO.detailHistogramCard.customRender = function(page, activity, strea
       <div style="text-align:center"><div style="font-size:28px;font-weight:800;font-family:var(--font-num)">${np}<span style="font-size:12px;color:var(--text-muted)">W</span></div><div style="font-size:11px;color:var(--text-muted)">NP</div></div>
       <div style="text-align:center"><div style="font-size:28px;font-weight:800;font-family:var(--font-num);color:${coasting > 30 ? '#f0c429' : 'var(--text-muted)'}">${coasting}<span style="font-size:12px;color:var(--text-muted)">%</span></div><div style="font-size:11px;color:var(--text-muted)">COASTING</div></div>
     </div>
-    <div style="height:200px;margin:0 -16px"><canvas id="aciPwrHist"></canvas></div>`;
+    <div style="height:200px;margin:0"><canvas id="aciPwrHist"></canvas></div>`;
 
   requestAnimationFrame(() => {
     const c = document.getElementById('aciPwrHist');
@@ -18014,7 +18014,7 @@ _ACT_CARD_INFO.detailTempCard.customRender = function(page, activity, streams) {
       <div style="text-align:center"><div style="font-size:20px;font-weight:700;font-family:var(--font-num);color:#4a9eff">${min}°</div><div style="font-size:11px;color:var(--text-muted)">MIN</div></div>
       <div style="text-align:center"><div style="font-size:20px;font-weight:700;font-family:var(--font-num);color:#ff453a">${max}°</div><div style="font-size:11px;color:var(--text-muted)">MAX</div></div>
     </div>
-    ${valid.length > 10 ? '<div style="height:160px;margin:0 -16px"><canvas id="aciTempChart"></canvas></div>' : ''}
+    ${valid.length > 10 ? '<div style="height:160px;margin:0"><canvas id="aciTempChart"></canvas></div>' : ''}
     <div style="padding:16px;font-size:13px;color:var(--text-muted);line-height:1.6">${hrImpact}</div>`;
 
   if (valid.length > 10) {

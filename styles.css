@@ -11117,7 +11117,10 @@ body.show-save-fab #actSaveRouteFab {
     padding: 0 0 100px;
 }
 .act-card-info-page.aci-custom-page {
-    padding: 0 16px 100px;
+    padding: 0 var(--pad-page, 16px) 100px;
+}
+.act-card-info-page.aci-custom-page canvas {
+    max-width: 100%;
 }
 .act-card-info-chart {
     padding: var(--pad-page);
