@@ -18901,6 +18901,32 @@ body:has(.act-sheet-mode) .topbar {
     border-color: var(--accent);
 }
 
+/* Polarization Index */
+.znp-pi-gauge { position: relative; width: 120px; height: 70px; margin: 0 auto 6px; }
+.znp-pi-arc { width: 100%; height: 100%; }
+.znp-pi-num { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); font-size: 28px; font-weight: 800; font-family: var(--font-num); }
+.znp-pi-label { text-align: center; font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+.znp-pi-breakdown { display: flex; justify-content: center; gap: 16px; font-size: 11px; color: var(--text-muted); }
+
+/* Zone Sparklines */
+.znp-spark-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.znp-spark-zone { font-size: 12px; font-weight: 700; min-width: 24px; }
+.znp-spark-svg { width: 60px; height: 20px; flex-shrink: 0; }
+.znp-spark-trend { font-size: 12px; font-family: var(--font-num); margin-left: auto; }
+
+/* kJ Collapse Header */
+.pwr-kj-header { display: flex; align-items: center; justify-content: space-between; padding: 12px var(--pad-page); cursor: pointer; }
+.pwr-kj-title { font-size: 14px; font-weight: 700; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.04em; }
+.pwr-kj-chevron { transition: transform 0.3s; color: var(--text-muted); }
+
+/* Rider Type */
+.pwr-rider-badge { text-align: center; padding: 16px; border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-sm); margin-bottom: 12px; }
+.pwr-rider-type { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+.pwr-rider-desc { font-size: 12px; color: var(--text-muted); }
+.pwr-rider-dims { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.pwr-rider-dim { display: flex; justify-content: space-between; padding: 8px 12px; background: var(--surface-1); border-radius: var(--radius-sm); font-size: 13px; color: var(--text-muted); }
+.pwr-rider-dim span:last-child { font-weight: 700; font-family: var(--font-num); }
+
 /* KPI strip */
 .znp-kpi-row {
     display: grid;

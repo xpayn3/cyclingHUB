@@ -9900,14 +9900,111 @@ async function renderPowerPage() {
   try {
     const cutoff = daysAgo(days);
     const recent = state.activities.filter(a => new Date(a.start_date_local || a.start_date) >= cutoff && !isEmptyActivity(a));
-    // Render Power Profile using the original function targeting Power page elements
     renderPowerProfileRadar('pwrPageProfileCard', 'pwrPageProfileRadar', 'pwrPageProfileSub');
     _renderPwrPageAvgPower(recent);
     _renderPwrPageScatter(recent);
     renderBestEfforts();
     renderPrWall();
     renderFitnessZoneDist(days);
+    _renderRiderType(ftp, weight);
+    _renderRollingCurveOverlay(days, ftp);
   } catch(e) { console.warn('Power page extras:', e); }
+
+  // Collapsible kJ section
+  _initKjCollapse();
+}
+
+// ── Rider Type Classification (Wahoo 4DP-inspired) ──
+function _renderRiderType(ftp, weight) {
+  const el = document.getElementById('pwrRiderType');
+  if (!el) return;
+  const pc = state.powerPageCurve || state.powerCurve;
+  if (!pc?.secs || !weight) { el.style.display = 'none'; return; }
+
+  // Get peak values at key durations
+  const getPeak = (dur) => {
+    const idx = pc.secs.findIndex(s => s >= dur);
+    return idx >= 0 ? (pc.watts?.[idx] || 0) : 0;
+  };
+  const p5s = getPeak(5), p1m = getPeak(60), p5m = getPeak(300), p20m = getPeak(1200);
+
+  // Ratios relative to FTP
+  const sprint = ftp > 0 ? p5s / ftp : 0;
+  const anaerobic = ftp > 0 ? p1m / ftp : 0;
+  const vo2 = ftp > 0 ? p5m / ftp : 0;
+
+  let type = 'All-Rounder', color = 'var(--accent)', desc = 'Balanced across all durations';
+  if (sprint > 3.5 && anaerobic < 1.6) { type = 'Sprinter'; color = '#ff6b35'; desc = 'Explosive short power, neuromuscular strength'; }
+  else if (anaerobic > 1.8) { type = 'Pursuiter'; color = '#9b59ff'; desc = 'Strong 1-minute power, anaerobic capacity'; }
+  else if (vo2 > 1.2 && sprint < 2.5) { type = 'Time Trialist'; color = '#4a9eff'; desc = 'Sustained threshold power, aerobic engine'; }
+  else if (p20m > ftp * 1.05) { type = 'Climber'; color = '#f0c429'; desc = 'High power-to-weight at threshold'; }
+
+  el.innerHTML = `
+    <div class="pwr-rider-badge" style="border-color:${color}">
+      <div class="pwr-rider-type" style="color:${color}">${type}</div>
+      <div class="pwr-rider-desc">${desc}</div>
+    </div>
+    <div class="pwr-rider-dims">
+      <div class="pwr-rider-dim"><span>Sprint</span><span style="color:#ff6b35">${p5s}w</span></div>
+      <div class="pwr-rider-dim"><span>1 min</span><span style="color:#9b59ff">${p1m}w</span></div>
+      <div class="pwr-rider-dim"><span>5 min</span><span style="color:#4a9eff">${p5m}w</span></div>
+      <div class="pwr-rider-dim"><span>20 min</span><span style="color:#f0c429">${p20m}w</span></div>
+    </div>`;
+  el.style.display = '';
+}
+
+// ── Rolling Power Curve Overlay (30d vs 90d vs all-time) ──
+function _renderRollingCurveOverlay(days, ftp) {
+  const card = document.getElementById('pwrCurveOverlayCard');
+  const canvas = document.getElementById('pwrCurveOverlayChart');
+  if (!card || !canvas) return;
+
+  const pc90 = state.powerPageCurve || state.powerCurve;
+  if (!pc90?.secs?.length) { card.style.display = 'none'; return; }
+
+  // Use the current curve as the primary; we'll mark it as "Current period"
+  const labels = pc90.secs.map(s => s < 60 ? s + 's' : s < 3600 ? Math.round(s/60) + 'm' : (s/3600).toFixed(1) + 'h');
+  const datasets = [
+    { label: `${days}d`, data: pc90.watts, borderColor: 'var(--accent)', borderWidth: 2.5, pointRadius: 0, tension: 0.3 },
+  ];
+
+  // If we have all-time curve cached, add it
+  if (state.allTimeCurve?.watts) {
+    datasets.push({ label: 'All-time', data: state.allTimeCurve.watts.slice(0, pc90.secs.length), borderColor: 'rgba(255,255,255,0.2)', borderWidth: 1.5, pointRadius: 0, tension: 0.3, borderDash: [4,4] });
+  }
+
+  // FTP line
+  if (ftp > 0) {
+    datasets.push({ label: 'FTP', data: pc90.secs.map(() => ftp), borderColor: 'rgba(255,255,255,0.15)', borderWidth: 1, pointRadius: 0, borderDash: [8,4] });
+  }
+
+  if (state._pwrCurveOverlay) state._pwrCurveOverlay.destroy();
+  state._pwrCurveOverlay = new Chart(canvas, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: true, labels: { color: 'rgba(255,255,255,0.5)', font: { size: 10 }, boxWidth: 8 } }, tooltip: { ...C_TOOLTIP } },
+      scales: {
+        x: { type: 'category', ticks: { color: 'rgba(255,255,255,0.3)', font: { size: 9 }, maxTicksLimit: 8 }, grid: { display: false } },
+        y: { ticks: { color: 'rgba(255,255,255,0.3)', font: { size: 10 }, callback: (v,i) => i === 0 ? 'W' : v }, grid: { color: 'rgba(255,255,255,0.05)' } }
+      }
+    }
+  });
+  card.style.display = '';
+}
+
+// ── Collapsible kJ/Energy Section ──
+function _initKjCollapse() {
+  const toggle = document.getElementById('pwrKjToggle');
+  const section = document.getElementById('pwrKjSection');
+  if (!toggle || !section || toggle._inited) return;
+  toggle._inited = true;
+  toggle.addEventListener('click', () => {
+    const open = section.style.display !== 'none';
+    section.style.display = open ? 'none' : '';
+    toggle.querySelector('.pwr-kj-chevron').style.transform = open ? '' : 'rotate(180deg)';
+  });
 }
 
 function _renderPwrPageScatter(activities) {
@@ -13397,6 +13494,147 @@ function renderZonesPage() {
   renderZnpDecoupleChart();
   renderZnpZoneTimeChart();
   renderZnpInsights(recent, prev);
+  _renderPolarizationIndex(recent);
+  _renderZoneSparklines(recent, days);
+  _renderTrainingStyleEvolution();
+}
+
+// ── Polarization Index (0-100 gauge) ──
+function _renderPolarizationIndex(recent) {
+  const el = document.getElementById('znpPolarIdx');
+  if (!el) return;
+
+  const pwrTotals = znpSumPwrZones(recent);
+  const total = pwrTotals.reduce((s,v) => s+v, 0);
+  if (total < 60) { el.style.display = 'none'; return; }
+
+  // Polarization = % time in Z1-Z2 + % time in Z5-Z6, penalize middle
+  const lowPct = (pwrTotals[0] + pwrTotals[1]) / total;
+  const midPct = (pwrTotals[2] + pwrTotals[3]) / total;
+  const highPct = (pwrTotals[4] + (pwrTotals[5]||0)) / total;
+
+  // Seiler Polarization Index: higher = more polarized
+  const pi = Math.round(Math.max(0, Math.min(100, (lowPct + highPct - midPct) * 100)));
+
+  let label = 'Mixed', color = 'var(--text-muted)';
+  if (pi >= 70) { label = 'Highly Polarized'; color = 'var(--accent)'; }
+  else if (pi >= 50) { label = 'Polarized'; color = '#4a9eff'; }
+  else if (pi >= 30) { label = 'Sweet Spot'; color = '#f0c429'; }
+
+  el.innerHTML = `
+    <div class="znp-pi-gauge">
+      <svg viewBox="0 0 100 60" class="znp-pi-arc">
+        <path d="M10 55 A40 40 0 0 1 90 55" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8" stroke-linecap="round"/>
+        <path d="M10 55 A40 40 0 0 1 90 55" fill="none" stroke="${color}" stroke-width="8" stroke-linecap="round"
+          stroke-dasharray="${pi * 1.26} 126" style="transition:stroke-dasharray 0.8s ease"/>
+      </svg>
+      <div class="znp-pi-num" style="color:${color}">${pi}</div>
+    </div>
+    <div class="znp-pi-label" style="color:${color}">${label}</div>
+    <div class="znp-pi-breakdown">
+      <span>Low ${Math.round(lowPct*100)}%</span>
+      <span>Mid ${Math.round(midPct*100)}%</span>
+      <span>High ${Math.round(highPct*100)}%</span>
+    </div>`;
+  el.style.display = '';
+}
+
+// ── Zone Trend Sparklines ──
+function _renderZoneSparklines(recent, days) {
+  const el = document.getElementById('znpZoneSparklines');
+  if (!el) return;
+
+  // Group by week, compute zone percentages per week
+  const weeks = {};
+  recent.forEach(a => {
+    const d = new Date(a.start_date_local || a.start_date);
+    const wk = _isoWeek(d);
+    if (!weeks[wk]) weeks[wk] = new Array(6).fill(0);
+    const zt = a.icu_zone_times;
+    if (Array.isArray(zt)) zt.forEach(z => {
+      const m = z?.id?.match(/^Z(\d)$/);
+      if (m) { const idx = +m[1]-1; if (idx < 6) weeks[wk][idx] += (z.secs||0); }
+    });
+  });
+
+  const wkKeys = Object.keys(weeks).sort().slice(-8);
+  if (wkKeys.length < 3) { el.style.display = 'none'; return; }
+
+  const zoneNames = ['Z1','Z2','Z3','Z4','Z5','Z6'];
+  const zoneColors = ['#4a9eff','#00e5a0','#f0c429','#ff9500','#ff6b35','#ff453a'];
+
+  let html = '';
+  zoneNames.forEach((name, zi) => {
+    const vals = wkKeys.map(k => weeks[k][zi] / 60); // minutes
+    const max = Math.max(...vals, 1);
+    const trend = vals.length >= 2 ? vals[vals.length-1] - vals[0] : 0;
+    const arrow = trend > 5 ? '↑' : trend < -5 ? '↓' : '→';
+    const sparkW = 60, sparkH = 20;
+    const points = vals.map((v, i) => `${i * sparkW / (vals.length-1)},${sparkH - (v/max) * sparkH}`).join(' ');
+
+    html += `<div class="znp-spark-row">
+      <span class="znp-spark-zone" style="color:${zoneColors[zi]}">${name}</span>
+      <svg class="znp-spark-svg" viewBox="0 0 ${sparkW} ${sparkH}" preserveAspectRatio="none">
+        <polyline points="${points}" fill="none" stroke="${zoneColors[zi]}" stroke-width="1.5"/>
+      </svg>
+      <span class="znp-spark-trend" style="color:${trend > 5 ? 'var(--accent)' : trend < -5 ? 'var(--red)' : 'var(--text-muted)'}">${arrow} ${Math.round(vals[vals.length-1])}m</span>
+    </div>`;
+  });
+
+  el.innerHTML = `<div class="card-header"><div><div class="card-title">Zone Trends</div></div></div>` + html;
+  el.style.display = '';
+}
+
+function _isoWeek(d) {
+  const t = new Date(d); t.setDate(t.getDate() - (t.getDay() || 7) + 1);
+  return t.toISOString().slice(0,10);
+}
+
+// ── Training Style Evolution ──
+function _renderTrainingStyleEvolution() {
+  const el = document.getElementById('znpStyleEvolution');
+  const canvas = document.getElementById('znpStyleChart');
+  if (!el || !canvas) return;
+
+  // Group activities by month, classify each month's style
+  const months = {};
+  state.activities.forEach(a => {
+    const d = new Date(a.start_date_local || a.start_date);
+    const key = d.toISOString().slice(0,7); // YYYY-MM
+    if (!months[key]) months[key] = new Array(6).fill(0);
+    const zt = a.icu_zone_times;
+    if (Array.isArray(zt)) zt.forEach(z => {
+      const m = z?.id?.match(/^Z(\d)$/);
+      if (m) { const idx = +m[1]-1; if (idx < 6) months[key][idx] += (z.secs||0); }
+    });
+  });
+
+  const keys = Object.keys(months).sort().slice(-6);
+  if (keys.length < 3) { el.style.display = 'none'; return; }
+
+  const zoneColors = ['#4a9eff','#00e5a0','#f0c429','#ff9500','#ff6b35','#ff453a'];
+  const datasets = zoneColors.map((c, i) => ({
+    label: 'Z' + (i+1),
+    data: keys.map(k => Math.round(months[k][i] / 60)),
+    backgroundColor: c,
+    borderRadius: 2,
+  }));
+
+  if (state._znpStyleChart) state._znpStyleChart.destroy();
+  state._znpStyleChart = new Chart(canvas, {
+    type: 'bar',
+    data: { labels: keys.map(k => { const [y,m] = k.split('-'); return new Date(+y, +m-1).toLocaleDateString('en-GB',{month:'short'}); }), datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: true, labels: { color: 'rgba(255,255,255,0.4)', font: { size: 9 }, boxWidth: 6 } }, tooltip: { ...C_TOOLTIP } },
+      scales: {
+        x: { stacked: true, ticks: { color: 'rgba(255,255,255,0.3)', font: { size: 10 } }, grid: { display: false } },
+        y: { stacked: true, ticks: { color: 'rgba(255,255,255,0.3)', font: { size: 10 }, callback: (v,i) => i === 0 ? 'min' : v }, grid: { color: 'rgba(255,255,255,0.05)' } }
+      }
+    }
+  });
+
+  el.style.display = '';
 }
 
 // Sum icu_hr_zone_times (plain number array) across activities

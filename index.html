@@ -4209,8 +4209,28 @@
                         </div>
                     </div>
 
+                    <!-- ── Rider Type Classification ── -->
+                    <div class="card" id="pwrRiderType" style="display:none"></div>
+
+                    <!-- ── Rolling Power Curve Overlay ── -->
+                    <div class="card" id="pwrCurveOverlayCard" style="display:none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 20h18"/><path d="M3 20C3 8 8 4 12 4s9 4 9 16"/></svg>Power Curve Overlay</div>
+                            </div>
+                        </div>
+                        <div class="chart-wrap" style="height:220px"><canvas id="pwrCurveOverlayChart"></canvas></div>
+                    </div>
+
                     <!-- ── Insights / Encouragement ── -->
                     <div class="pwr-insights-row" id="pwrInsightsRow"></div>
+
+                    <!-- ── Energy (kJ) Analysis — Collapsible ── -->
+                    <div class="pwr-kj-header" id="pwrKjToggle">
+                        <span class="pwr-kj-title">Energy Analysis</span>
+                        <svg class="pwr-kj-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
+                    <div id="pwrKjSection" style="display:none">
 
                     <!-- ── Energy (kJ) Analysis ── -->
                     <div class="card" id="kjZoneCard">
@@ -4329,6 +4349,7 @@
                             <canvas id="kjFuelingChart"></canvas>
                         </div>
                     </div>
+                    </div><!-- /pwrKjSection -->
                     <!-- Power Profile Radar (moved from dashboard) -->
                     <div class="card" id="pwrPageProfileCard" style="display:none">
                         <div class="card-header">
@@ -4510,6 +4531,18 @@
                         <div class="chart-wrap" style="height: 220px">
                             <canvas id="znpZoneTimeChart"></canvas>
                         </div>
+                    </div>
+
+                    <!-- ── Polarization Index ── -->
+                    <div class="card" id="znpPolarIdx" style="display:none"></div>
+
+                    <!-- ── Zone Trend Sparklines ── -->
+                    <div class="card" id="znpZoneSparklines" style="display:none"></div>
+
+                    <!-- ── Training Style Evolution ── -->
+                    <div class="card" id="znpStyleEvolution" style="display:none">
+                        <div class="card-header"><div><div class="card-title">Training Style Evolution</div></div></div>
+                        <div class="chart-wrap" style="height:200px"><canvas id="znpStyleChart"></canvas></div>
                     </div>
 
                     <!-- ── Training insights ── -->
