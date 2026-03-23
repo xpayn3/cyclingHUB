@@ -17872,36 +17872,122 @@ _ACT_CARD_INFO.detailLRBalanceCard.customRender = function(page, activity, strea
 };
 
 // ── HR Zones ──
-_ACT_CARD_INFO.detailHRZonesCard.customRender = function(page, activity) {
+_ACT_CARD_INFO.detailHRZonesCard.customRender = function(page, activity, streams) {
   const zt = activity?.icu_hr_zone_times;
   const zones = Array.isArray(zt) ? zt : [];
   const total = zones.reduce((s, z) => s + (typeof z === 'number' ? z : (z?.secs || 0)), 0);
+  const totalMin = Math.round(total / 60);
   const zNames = ['Recovery','Easy','Moderate','Hard','Max'];
+  const zDescs = ['< 60% HRmax','60–70%','70–80%','80–90%','> 90%'];
   const zColors = ['#4a9eff','#00e5a0','#f0c429','#ff6b35','#ff453a'];
   const avgHR = Math.round(activity?.average_heartrate || 0);
   const maxHR = Math.round(activity?.max_heartrate || 0);
 
+  // Cardio load assessment
+  const highPct = zones.slice(3).reduce((s, z) => s + (typeof z === 'number' ? z : (z?.secs || 0)), 0) / (total || 1);
+  let load = 'Light', loadColor = '#4a9eff';
+  if (highPct > 0.4) { load = 'Very Hard'; loadColor = '#ff453a'; }
+  else if (highPct > 0.2) { load = 'Hard'; loadColor = '#ff6b35'; }
+  else if (highPct > 0.1) { load = 'Moderate'; loadColor = '#f0c429'; }
+
+  // Hero: donut with center stats
   let html = `<div class="aci-sp-header"><div class="aci-sp-title">Heart Rate Zones</div></div>
-    <div style="display:flex;justify-content:center;gap:20px;padding:20px 16px">
-      <div style="text-align:center"><div style="font-size:32px;font-weight:800;font-family:var(--font-num);color:#ff6b35">${avgHR}</div><div style="font-size:11px;color:var(--text-muted)">AVG BPM</div></div>
-      <div style="text-align:center"><div style="font-size:32px;font-weight:800;font-family:var(--font-num);color:#ff453a">${maxHR}</div><div style="font-size:11px;color:var(--text-muted)">MAX BPM</div></div>
+    <div style="position:relative;display:flex;justify-content:center;padding:24px 0">
+      <canvas id="aciHRZoneDonut" width="260" height="260" style="width:260px;height:260px"></canvas>
+      <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center">
+        <div style="font-size:36px;font-weight:800;font-family:var(--font-num);color:#fff;line-height:1">${totalMin}</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.05em;margin-top:2px">minutes</div>
+        <div style="font-size:14px;font-weight:600;color:${loadColor};margin-top:6px">${load}</div>
+      </div>
     </div>`;
 
-  html += '<div style="padding:0 16px">';
+  // Balance bar
+  html += `<div style="display:flex;height:6px;border-radius:3px;overflow:hidden;margin:0 0 20px">`;
+  zones.forEach((z, i) => {
+    if (i >= 5) return;
+    const secs = typeof z === 'number' ? z : (z?.secs || 0);
+    html += `<div style="width:${total > 0 ? secs/total*100 : 0}%;background:${zColors[i]}"></div>`;
+  });
+  html += `</div>`;
+
+  // Avg/Max hero stats
+  html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;margin-bottom:16px">
+    <div style="background:rgba(255,255,255,0.04);border-radius:var(--radius-sm);padding:14px;text-align:center">
+      <div style="font-size:28px;font-weight:800;font-family:var(--font-num);color:#ff6b35">${avgHR}<span style="font-size:12px;color:var(--text-muted)">bpm</span></div>
+      <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase">Average HR</div>
+    </div>
+    <div style="background:rgba(255,255,255,0.04);border-radius:var(--radius-sm);padding:14px;text-align:center">
+      <div style="font-size:28px;font-weight:800;font-family:var(--font-num);color:#ff453a">${maxHR}<span style="font-size:12px;color:var(--text-muted)">bpm</span></div>
+      <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase">Max HR</div>
+    </div>
+  </div>`;
+
+  // Zone list — iOS grouped inset
+  html += `<div style="background:rgba(255,255,255,0.04);border-radius:var(--radius);overflow:hidden;margin-bottom:16px">`;
   zones.forEach((z, i) => {
     if (i >= 5) return;
     const secs = typeof z === 'number' ? z : (z?.secs || 0);
     const pct = total > 0 ? Math.round(secs / total * 100) : 0;
-    html += `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
-      <span style="color:${zColors[i]};font-weight:700;min-width:24px;font-size:13px">Z${i+1}</span>
-      <span style="color:var(--text-muted);font-size:12px;min-width:60px">${zNames[i]}</span>
-      <div style="flex:1;height:8px;background:var(--surface-2);border-radius:4px;overflow:hidden"><div style="width:${pct}%;height:100%;background:${zColors[i]};border-radius:0 4px 4px 0"></div></div>
-      <span style="font-family:var(--font-num);font-weight:600;font-size:13px;min-width:30px;text-align:right">${pct}%</span>
-      <span style="font-family:var(--font-num);font-size:11px;color:var(--text-muted);min-width:35px;text-align:right">${Math.round(secs/60)}m</span>
+    const mins = Math.round(secs / 60);
+    html += `<div style="display:flex;align-items:center;padding:12px 14px;${i < 4 ? 'border-bottom:1px solid rgba(255,255,255,0.04)' : ''}">
+      <div style="width:28px;height:28px;border-radius:8px;background:${zColors[i]}20;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-right:10px">
+        <span style="color:${zColors[i]};font-weight:800;font-size:11px">Z${i+1}</span>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:600;color:var(--text-primary)">${zNames[i]}</div>
+        <div style="font-size:11px;color:var(--text-muted)">${zDescs[i]} HRmax</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:16px;font-weight:700;font-family:var(--font-num);color:${zColors[i]}">${pct}%</div>
+        <div style="font-size:11px;color:var(--text-muted);font-family:var(--font-num)">${mins}m</div>
+      </div>
     </div>`;
   });
-  html += '</div>';
+  html += `</div>`;
+
+  // HR timeline chart from streams
+  if (streams?.heartrate?.length > 10) {
+    html += `<div style="height:140px;margin:0"><canvas id="aciHRZoneTimeline"></canvas></div>`;
+  }
+
   page.innerHTML = html;
+
+  // Draw donut
+  requestAnimationFrame(() => {
+    const c = document.getElementById('aciHRZoneDonut');
+    if (c) {
+      const ctx = c.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const size = 260;
+      c.width = size * dpr; c.height = size * dpr;
+      ctx.scale(dpr, dpr);
+      const cx = size/2, cy = size/2, r = 105, w = 22, gap = 0.03;
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.lineWidth = w; ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.stroke();
+      let angle = -Math.PI / 2;
+      zones.forEach((z, i) => {
+        if (i >= 5) return;
+        const secs = typeof z === 'number' ? z : (z?.secs || 0);
+        const pct = secs / (total || 1);
+        if (pct < 0.005) { angle += pct * Math.PI * 2 + gap; return; }
+        const sweep = pct * Math.PI * 2 - gap;
+        ctx.beginPath(); ctx.arc(cx, cy, r, angle, angle + sweep);
+        ctx.lineWidth = w; ctx.strokeStyle = zColors[i]; ctx.lineCap = 'round'; ctx.stroke();
+        angle += sweep + gap;
+      });
+    }
+
+    // HR timeline
+    const tc = document.getElementById('aciHRZoneTimeline');
+    if (tc && streams?.heartrate?.length) {
+      const hr = streams.heartrate;
+      const step = Math.max(1, Math.floor(hr.length / 200));
+      const data = [], labels = [];
+      for (let i = 0; i < hr.length; i += step) { data.push(hr[i]); labels.push(i); }
+      new Chart(tc, { type: 'line', data: { labels, datasets: [{ data, borderColor: '#ff6b35', borderWidth: 1.5, pointRadius: 0, fill: false, tension: 0.3 }] },
+        options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP } },
+          scales: { x: { display: false }, y: { ticks: { ...C_TICK, callback: (v,i) => i === 0 ? 'bpm' : v }, grid: C_GRID } } } });
+    }
+  });
 };
 
 // ── Power Curve ──
