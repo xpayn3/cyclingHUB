@@ -18115,20 +18115,48 @@ function _renderStreamsBreakdown(container, streams, activity) {
       requestAnimationFrame(() => {
         const canvas = document.getElementById(canvasId);
         if (!canvas) return;
+
+        // Build datasets — main metric + optional elevation background
+        const mainDs = {
+          data: ds,
+          borderColor: m.color,
+          backgroundColor: m.color + '18',
+          fill: true,
+          borderWidth: 1.5,
+          pointRadius: 0,
+          tension: 0.3,
+          spanGaps: true,
+          yAxisID: 'y',
+          order: 1,
+        };
+        const chartDatasets = [mainDs];
+
+        // Add elevation background for non-elevation charts
+        if (m.key !== 'altitude' && streams?.altitude?.length) {
+          const altData = streams.altitude;
+          const altDs = [];
+          for (let j = 0; j < altData.length; j += step) {
+            altDs.push(altData[j] != null ? altData[j] : null);
+          }
+          chartDatasets.push({
+            data: altDs,
+            borderColor: 'rgba(255,255,255,0.06)',
+            backgroundColor: 'rgba(255,255,255,0.03)',
+            fill: true,
+            borderWidth: 0.5,
+            pointRadius: 0,
+            tension: 0.3,
+            spanGaps: true,
+            yAxisID: 'yAlt',
+            order: 2,
+          });
+        }
+
         new Chart(canvas.getContext('2d'), {
           type: 'line',
           data: {
             labels,
-            datasets: [{
-              data: ds,
-              borderColor: m.color,
-              backgroundColor: m.color + '18',
-              fill: true,
-              borderWidth: 1.5,
-              pointRadius: 0,
-              tension: 0.3,
-              spanGaps: true,
-            }]
+            datasets: chartDatasets,
           },
           options: {
             responsive: true, maintainAspectRatio: false,
@@ -18149,7 +18177,10 @@ function _renderStreamsBreakdown(container, streams, activity) {
                 grid: C_GRID,
                 ticks: { ...C_TICK, maxTicksLimit: 4, callback: function(v, i) { return i === 0 ? m.unit : v; } },
                 border: { display: false },
-              }
+              },
+              ...(m.key !== 'altitude' && streams?.altitude?.length ? {
+                yAlt: { display: false, position: 'right' }
+              } : {})
             }
           }
         });
