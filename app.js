@@ -22073,26 +22073,24 @@ function renderStreamCharts(streams, activity) {
       : `${m}:${String(sec).padStart(2, '0')}`;
   });
 
-  // Y-axis config — show left axis for first available metric, HR on right
-  const hasPower   = presentKeys.includes('watts');
-  const hasHR      = presentKeys.includes('heartrate');
-  const hasCadence = presentKeys.includes('cadence');
-  const hasSpeed   = presentKeys.includes('velocity_smooth');
-
-  // Determine which axis shows on the left when power is missing
-  const showCadenceLeft = !hasPower && hasCadence;
-  const showSpeedLeft   = !hasPower && !hasCadence && hasSpeed;
+  // Y-axis config — simplified: all left-side metrics share yLeft, HR uses yRight
+  // No unit labels on axes (chips already indicate which metric is shown)
+  // This prevents axis width jumps when toggling datasets
+  const hasPower = presentKeys.includes('watts');
+  const hasHR    = presentKeys.includes('heartrate');
+  const hasLeftMetric = hasPower || presentKeys.includes('cadence') || presentKeys.includes('velocity_smooth');
 
   const scales = {
     x: {
       grid:  C_GRID,
       ticks: { ...C_TICK, maxTicksLimit: 8 },
+      border: { display: false },
     },
-    yPower:   { display: hasPower,       position: 'left',  min: 0, grid: C_GRID,            ticks: { ...C_TICK, maxTicksLimit: 5, padding: 0, callback: function(v, i) { return i === 0 ? 'W' : v; } }, afterFit: a => { a.width = 24; } },
-    yHR:      { display: hasHR,          position: 'right', min: 30, grid: { display: false }, ticks: { ...C_TICK, maxTicksLimit: 5, padding: 0, callback: function(v, i) { return i === 0 ? 'BPM' : v; } }, afterFit: a => { a.width = 28; } },
-    yCadence: { display: showCadenceLeft, position: 'left', min: 0, grid: showCadenceLeft ? C_GRID : { display: false }, ticks: { ...C_TICK, maxTicksLimit: 5, padding: 0, callback: function(v, i) { return i === 0 ? 'rpm' : v; } }, afterFit: a => { a.width = 24; } },
-    ySpeed:   { display: showSpeedLeft,   position: 'left', min: 0, grid: showSpeedLeft ? C_GRID : { display: false },   ticks: { ...C_TICK, maxTicksLimit: 5, padding: 0, callback: function(v, i) { return i === 0 ? 'kph' : v; } }, afterFit: a => { a.width = 24; } },
-    yAlt:     { display: false        },
+    yPower:   { display: hasPower,     position: 'left',  min: 0, grid: C_GRID, ticks: { ...C_TICK, maxTicksLimit: 5, padding: 0 }, border: { display: false } },
+    yHR:      { display: hasHR,        position: 'right', min: 30, grid: { display: false }, ticks: { ...C_TICK, maxTicksLimit: 5, padding: 0 }, border: { display: false } },
+    yCadence: { display: false, min: 0 },
+    ySpeed:   { display: false, min: 0 },
+    yAlt:     { display: false },
     yLRBal:   { display: false, min: 40, max: 60 },
   };
 
@@ -22192,7 +22190,7 @@ function renderStreamCharts(streams, activity) {
 
 // Toggle a single stream dataset on/off via the chip buttons
 function toggleStreamLayer(metric) {
-  if (metric === 'altitude') return; // altitude is always visible
+  if (metric === 'altitude') return;
   const chart = state.activityStreamsChart;
   if (!chart) return;
   const dsIdx = chart.data.datasets.findIndex(d => d.streamKey === metric);
@@ -22200,25 +22198,13 @@ function toggleStreamLayer(metric) {
   const meta = chart.getDatasetMeta(dsIdx);
   meta.hidden = !meta.hidden;
 
-  // Update y-axis visibility based on which datasets are visible
-  const visibleKeys = chart.data.datasets
+  // Update axis visibility: power left, HR right
+  const vis = chart.data.datasets
     .filter((d, i) => !chart.getDatasetMeta(i).hidden && d.streamKey !== 'altitude')
     .map(d => d.streamKey);
 
-  const hasPwr = visibleKeys.includes('watts');
-  const hasHR  = visibleKeys.includes('heartrate');
-  const hasCad = visibleKeys.includes('cadence');
-  const hasSpd = visibleKeys.includes('velocity_smooth');
-
-  // Left axis: power > cadence > speed (first available visible)
-  const showPwrLeft = hasPwr;
-  const showCadLeft = !hasPwr && hasCad;
-  const showSpdLeft = !hasPwr && !hasCad && hasSpd;
-
-  if (chart.options.scales.yPower)   chart.options.scales.yPower.display   = showPwrLeft;
-  if (chart.options.scales.yCadence) chart.options.scales.yCadence.display = showCadLeft;
-  if (chart.options.scales.ySpeed)   chart.options.scales.ySpeed.display   = showSpdLeft;
-  if (chart.options.scales.yHR)      chart.options.scales.yHR.display      = hasHR;
+  if (chart.options.scales.yPower) chart.options.scales.yPower.display = vis.includes('watts');
+  if (chart.options.scales.yHR)    chart.options.scales.yHR.display    = vis.includes('heartrate');
 
   chart.update('none');
   document.querySelectorAll(`.stream-toggle-btn[data-metric="${metric}"]`).forEach(btn => {

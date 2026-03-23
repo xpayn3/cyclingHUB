@@ -3664,8 +3664,8 @@ input[type="number"] {
     flex: 1;
 }
 #detailStreamsCard .chart-wrap {
-    margin-left: calc(-1 * var(--pad-card, 16px));
-    margin-right: calc(-1 * var(--pad-card, 16px));
+    margin-left: -8px;
+    margin-right: -8px;
 }
 @media (max-width: 900px) {
     .card-row {
