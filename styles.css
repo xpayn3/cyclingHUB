@@ -11202,9 +11202,12 @@ body.show-save-fab #actSaveRouteFab {
     margin-top: 3px;
     display: block;
 }
-/* Streams guide section */
+/* Streams guide section — Apple Health "About" style */
 .aci-streams-guide {
     padding: 24px var(--pad-page) 40px;
+    background: rgba(255,255,255,0.04);
+    border-radius: var(--radius);
+    margin: 16px 0;
 }
 .aci-guide-header {
     display: flex;
