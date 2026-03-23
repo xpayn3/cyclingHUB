@@ -5163,20 +5163,34 @@ function openWidgetEditor() {
   });
   html += '</div>';
 
-  // Use the actCardInfoOverlay for the editor
-  const overlay = document.getElementById('actCardInfoOverlay');
-  if (!overlay) return;
-  const page = document.getElementById('actCardInfoPage');
-  if (!page) return;
-  page.className = 'act-card-info-page aci-custom-page';
-  page.innerHTML = html;
-  overlay.style.display = 'flex';
-  requestAnimationFrame(() => overlay.classList.add('aci-open'));
+  // Create or reuse a dedicated widget overlay
+  let overlay = document.getElementById('widgetEditorOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'widgetEditorOverlay';
+    overlay.className = 'wxd-overlay';
+    overlay.style.display = 'none';
+    overlay.innerHTML = `<div class="wxd-backdrop" onclick="closeWidgetEditor()"></div>
+      <div class="wxd-sheet wxd-sheet--partial" style="max-width:480px">
+        <div class="modal-drag-indicator"></div>
+        <div class="wxd-sheet-body" id="widgetEditorBody" style="overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain"></div>
+      </div>`;
+    document.body.appendChild(overlay);
+  }
+  const body = document.getElementById('widgetEditorBody');
+  if (!body) return;
+  body.innerHTML = html;
+  _openOverlaySheet('widgetEditorOverlay');
 
   // Simple drag reorder
   _initWidgetDragReorder();
 }
 window.openWidgetEditor = openWidgetEditor;
+
+function closeWidgetEditor() {
+  _closeOverlaySheet('widgetEditorOverlay');
+}
+window.closeWidgetEditor = closeWidgetEditor;
 
 function _toggleWidget(id, visible) {
   const hidden = _getWidgetHidden();
