@@ -29352,3 +29352,10 @@ html[data-theme="tdf"] {
 .widget-editor-toggle input:checked + .widget-editor-slider::before {
     transform: translateX(18px);
 }
+
+/* Battery optimization: pause all animations when tab hidden */
+.tab-hidden *,
+.tab-hidden *::before,
+.tab-hidden *::after {
+    animation-play-state: paused !important;
+}

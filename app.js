@@ -7,7 +7,7 @@ import { state, ICU_BASE, STRAVA_API_BASE, STRAVA_AUTH_BASE, STRAVA_AUTH_URL,
 import { weatherIconSvg, wmoIcon, wmoLabel, windDir, fmtTempC, fmtWindMs,
          renderActivityWeather, renderActivityNotes, renderActivityIntervals,
          renderWeatherForecast, renderWeatherPage, renderWeatherDayDetail,
-         refreshWeatherPage } from './js/weather.js';
+         refreshWeatherPage, pauseWeatherRadar } from './js/weather.js';
 
 import { openShareModal, closeShareModal, shareUpdateSetting, shareRender,
          shareImageDownload, shareImageCopy } from './js/share.js';
@@ -7135,7 +7135,7 @@ function _vitalityAnimLoop() {
   // Do NOT gate on canvas.offsetWidth — during a startViewTransition the canvas
   // is temporarily 0-wide even though we're navigating TO the dashboard, which
   // would kill the loop before the page finishes appearing.
-  if (state.currentPage === 'dashboard') {
+  if (state.currentPage === 'dashboard' && !document.hidden) {
     _vitalityRAF = requestAnimationFrame(_vitalityAnimLoop);
   } else {
     _vitalityRAF = null;
@@ -32288,9 +32288,18 @@ let _pollIdleThrottled = 0;
 document.addEventListener('visibilitychange', () => {
   if (_poll.enabled) pollUpdateStatusUI();
   if (document.hidden) {
-    _rlStopTick(); // stop settings countdown
+    _rlStopTick();
+    // Stop vitality RAF loop
+    if (typeof _stopVitality === 'function') _stopVitality();
+    // Stop weather radar animation
+    pauseWeatherRadar();
+    // Pause CSS animations globally
+    document.documentElement.classList.add('tab-hidden');
   } else {
     if (state.currentPage === 'settings') _rlStartTick();
+    // Restart vitality if on dashboard
+    if (state.currentPage === 'dashboard' && typeof _startVitality === 'function') _startVitality();
+    document.documentElement.classList.remove('tab-hidden');
   }
 });
 

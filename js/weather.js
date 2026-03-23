@@ -63,6 +63,11 @@ function _radarPlayIcon() { return '<svg viewBox="0 0 24 24" fill="currentColor"
 function _radarPauseIcon() { return '<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><rect x="5" y="4" width="4" height="16" rx="1"/><rect x="15" y="4" width="4" height="16" rx="1"/></svg>'; }
 let _wxRadarMap = null, _wxRadarFrames = [], _wxRadarIdx = 0, _wxRadarTimer = null;
 
+/** Pause radar animation — called on tab hide for battery savings */
+export function pauseWeatherRadar() {
+  if (_wxRadarTimer) { clearInterval(_wxRadarTimer); _wxRadarTimer = null; }
+}
+
 // Map intervals.icu icon string → SVG
 export function weatherIconSvg(iconStr) {
   if (!iconStr) return WEATHER_SVGS.sun;
