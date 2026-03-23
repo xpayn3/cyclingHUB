@@ -1535,6 +1535,7 @@ function openSettingsSubpage(id) {
   // Render dynamic subpage content
   if (id === 'navigation' && typeof renderNavSettings === 'function') renderNavSettings();
   if (id === 'accentcolor') setTimeout(() => openAccentColorPicker(), 350);
+  if (id === 'sync') _peerRenderDevices(null);
 
   // Inject hero intro if not already present
   if (!sub.querySelector('.stt-hero') && _STT_HERO_DATA[id]) {
@@ -2226,32 +2227,47 @@ function _peerRenderDevices(peerName) {
 function _peerShowQR() {
   const canvas = document.getElementById('syncQrCanvas');
   if (!canvas || !_peerMyId) return;
+  const btn = document.getElementById('syncQrBtn');
   const isVisible = canvas.style.display !== 'none';
-  if (isVisible) { canvas.style.display = 'none'; return; }
+  if (isVisible) {
+    canvas.style.display = 'none';
+    if (btn) btn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="3" height="3"/><line x1="20" y1="14" x2="20" y2="20"/><line x1="14" y1="20" x2="20" y2="20"/></svg> Show QR';
+    return;
+  }
   // Use QR code API as image
   const img = new Image();
   img.crossOrigin = 'anonymous';
+  const _qrShownLabel = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Hide QR';
+  const _qrSize = 400;
   img.onload = () => {
     canvas.style.display = 'block';
-    canvas.width = 160;
-    canvas.height = 160;
+    canvas.width = _qrSize;
+    canvas.height = _qrSize;
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, 160, 160);
-    ctx.drawImage(img, 8, 8, 144, 144);
+    ctx.clearRect(0, 0, _qrSize, _qrSize);
+    ctx.drawImage(img, 0, 0, _qrSize, _qrSize);
+    // Make black pixels transparent
+    const imgData = ctx.getImageData(0, 0, _qrSize, _qrSize);
+    const d = imgData.data;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i] < 30 && d[i+1] < 30 && d[i+2] < 30) d[i+3] = 0;
+    }
+    ctx.putImageData(imgData, 0, 0);
+    if (btn) btn.innerHTML = _qrShownLabel;
   };
   img.onerror = () => {
-    // Fallback: show ID as large text
     canvas.style.display = 'block';
+    canvas.width = _qrSize;
+    canvas.height = _qrSize;
     const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, _qrSize, _qrSize);
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, 160, 160);
-    ctx.fillStyle = '#000000';
-    ctx.font = 'bold 20px monospace';
+    ctx.font = 'bold 48px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText(_peerMyId, 80, 85);
+    ctx.fillText(_peerMyId, _qrSize / 2, _qrSize / 2 + 16);
+    if (btn) btn.innerHTML = _qrShownLabel;
   };
-  img.src = `https://api.qrserver.com/v1/create-qr-code/?size=144x144&data=${encodeURIComponent(_peerMyId)}&bgcolor=ffffff&color=000000&margin=0`;
+  img.src = `https://api.qrserver.com/v1/create-qr-code/?size=${_qrSize}x${_qrSize}&data=${encodeURIComponent(_peerMyId)}&bgcolor=000000&color=ffffff&margin=0`;
 }
 window._peerShowQR = _peerShowQR;
 
