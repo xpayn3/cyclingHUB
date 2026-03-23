@@ -200,22 +200,91 @@
 
 ## iOS/Mobile Edge Cases
 
-### Keyboard Black Bar Fix
-- NEVER use `position: fixed` on body for scroll-lock
-- Always use `overflow: hidden` only
+### Keyboard Black Bar Fix (CRITICAL)
+**Problem:** On iOS Safari PWA, opening the virtual keyboard while a sheet/modal is open causes a persistent black bar at the bottom. The bar stays even after the keyboard closes.
 
-### Sheet Scroll Containment
-- NEVER use `overflow: hidden` on slide-in sheets
-- Use `overflow-y: auto` + `overscroll-behavior: contain`
+**Root Cause:** Using `body { position: fixed; top: -scrollY }` for scroll-locking creates a new CSS formatting context. iOS Safari repositions fixed children (the sheet) incorrectly when the keyboard animates.
+
+**The ONLY working fix:**
+```javascript
+// CORRECT — overflow lock only, NO position:fixed
+document.documentElement.style.overflow = 'hidden';
+document.body.style.overflow = 'hidden';
+
+// On close — just clear them
+document.documentElement.style.overflow = '';
+document.body.style.overflow = '';
+```
+
+**Rules:**
+- NEVER use `position: fixed` on `<body>` for scroll-lock
+- NEVER use `top: -scrollY` trick on body
+- NEVER use `width: 100%` + `position: fixed` on body
+- Both `_lockSheetScroll()` and `_openOverlaySheet()` must use overflow-only
+- This SPA never scrolls at body level, so no scroll position save/restore needed
+
+### Sheet Scroll Containment (CRITICAL)
+**Problem:** Background page scrolls when user drags inside a slide-in sheet on iOS.
+
+**Root Cause:** `overflow: hidden` on a sheet kills its scroll container behavior, so `overscroll-behavior: contain` has no effect and touch events pass through.
+
+**The fix:**
+- NEVER set `overflow: hidden` on `.wxd-sheet` or any slide-in sheet
+- ALWAYS use `overflow-y: auto` + `overscroll-behavior: contain` on the scrollable sheet element
+- The `.wxd-overlay` container should also have `overscroll-behavior: contain`
+- Reference the profile sheet (`.prof-scroll`) as the gold standard
+- For goal/calendar sheets: add touchmove handler on overlay backdrop that calls `e.preventDefault()`
+
+### Sheet Background Scroll Lock
+**Problem:** Even with `overflow: hidden` on body, iOS Safari still scrolls the page behind sheets.
+
+**Fix:** Add touchmove prevention on the overlay element:
+```javascript
+sheet.addEventListener('touchmove', e => {
+  const panel = sheet.querySelector('.wxd-sheet');
+  if (panel && !panel.contains(e.target)) e.preventDefault();
+}, { passive: false });
+```
+Also add `e.preventDefault()` on the backdrop's touchmove.
+
+### Scrubber Scroll Lock
+**Problem:** Horizontal drag scrubbers accidentally trigger page scroll, especially on iOS.
+
+**Fix:**
+- Use `touch-action: pan-y` (let browser handle vertical, JS handles horizontal)
+- Add 10px horizontal movement threshold before committing to drag
+- During pending state, check if `abs(dx) > threshold` before `setPointerCapture`
+- If vertical movement wins first, let it scroll (browser sends `pointercancel`)
+- `touchmove` handler: only `e.preventDefault()` when `dragging === true`, NOT during `pending`
+- Keep `lockScroll` flag true until `touchend` (not `pointerup`) to prevent late scroll leaks
 
 ### Touch Scrubber Direction
 - Delta is NEGATED: `applyStep(dragStartStep - delta / PX_PER_STEP)`
-- Drag left = increase value (like scrolling a number line)
+- Drag left = ruler moves left = bigger values come into view
+- This feels natural like panning a number line
 
 ### Safe Areas
 - Use `env(safe-area-inset-*)` for all fixed elements
-- Bottom nav accounts for gesture bar
-- Sheets add `padding-bottom: env(safe-area-inset-bottom)`
+- Bottom nav: `padding-bottom: env(safe-area-inset-bottom)`
+- Sheets: `padding-bottom: env(safe-area-inset-bottom, 20px)`
+- Top bar: `padding-top: env(safe-area-inset-top)`
+- Keep primary touch targets away from notch, Dynamic Island, gesture bar
+
+### PWA Cache Refresh
+- iOS PWA caches aggressively — users may need to delete and re-add the app from Home Screen
+- Always bump SW cache version (`icu-app-shell-vNNN`) on every deploy
+- GitHub Pages can take 1-2 minutes to propagate changes
+- If user reports stale content: tell them to force-close app, or unregister SW in DevTools
+
+### iOS Input Zoom Prevention
+- Inputs with `font-size < 16px` trigger iOS Safari auto-zoom on focus
+- All form inputs must be `font-size: 16px` minimum
+- Or use `<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">`
+
+### Bounce/Overscroll
+- iOS Safari has rubber-band overscroll on the `<body>`
+- Use `overscroll-behavior: none` on page containers to prevent
+- But NOT on sheet bodies (they need `contain` for scroll containment)
 
 ## Service Worker
 
