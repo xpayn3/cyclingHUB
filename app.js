@@ -5119,25 +5119,27 @@ function _applyWidgetOrder() {
   container.querySelectorAll('[data-dash-section]').forEach(el => {
     sections[el.dataset.dashSection] = el;
   });
-  // Reorder: move sections in order, appending after the last non-section child
-  const anchor = container.querySelector('[data-dash-section]');
-  if (!anchor) return;
-  const parent = anchor.parentNode;
+  // Find insert point — before the version footer or edit button
+  const footer = container.querySelector('.page-version') || container.querySelector('.dash-edit-widgets-btn');
+  const parent = container;
   // Collect all section elements and remove from DOM
-  const allSections = [];
-  Object.values(sections).forEach(el => { allSections.push(el); el.remove(); });
-  // Re-insert in order
+  Object.values(sections).forEach(el => el.remove());
+  // Re-insert in order, before footer
   order.forEach(id => {
     const el = sections[id];
     if (el) {
       if (hidden.has(id)) el.classList.add('widget-hidden');
       else el.classList.remove('widget-hidden');
-      parent.appendChild(el);
+      if (footer) parent.insertBefore(el, footer);
+      else parent.appendChild(el);
     }
   });
   // Append any sections not in the order (new widgets)
   Object.entries(sections).forEach(([id, el]) => {
-    if (!order.includes(id)) parent.appendChild(el);
+    if (!order.includes(id)) {
+      if (footer) parent.insertBefore(el, footer);
+      else parent.appendChild(el);
+    }
   });
 }
 
