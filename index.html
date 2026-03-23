@@ -1250,7 +1250,16 @@
                         <p class="taper-desc">Plan a science-based taper for peak race-day performance using the Mujika &amp; Padilla exponential decay model.</p>
                         <div class="taper-form-section"><label class="taper-label">Race Date</label><input type="date" id="taperRaceDate" class="taper-input"></div>
                         <div class="taper-form-section"><label class="taper-label">Event Type</label><select id="taperEventType" class="app-select taper-select"><option value="crit">Criterium (7-day taper)</option><option value="road_race">Road Race (10-day taper)</option><option value="tt">Time Trial (10-day taper)</option><option value="gran_fondo" selected>Gran Fondo (14-day taper)</option><option value="stage_race">Stage Race (14-day taper)</option></select></div>
-                        <div class="taper-form-section"><label class="taper-label">Current CTL (Fitness)</label><input type="number" id="taperCTL" class="taper-input" placeholder="Auto-detected"></div>
+                        <div class="taper-form-section"><label class="taper-label">Current CTL (Fitness)</label>
+                            <div class="cev-target-card" style="margin-top:4px">
+                                <button class="cev-undo-btn" style="display:none" aria-label="Undo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
+                                <input type="hidden" id="taperCTL" value="">
+                                <div class="cev-scrubber" data-metric="taperCTL">
+                                    <div class="cev-scrubber-value-row"><div class="cev-scrubber-value">—</div><span class="cev-scrubber-unit">CTL</span></div>
+                                    <div class="cev-scrubber-track"><div class="cev-scrubber-ruler"></div></div>
+                                </div>
+                            </div>
+                        </div>
                         <button class="taper-gen-btn" onclick="_taperGenerate()">Generate Taper Plan</button>
                     </div>
                     <div id="taperStep2" style="display:none"></div>

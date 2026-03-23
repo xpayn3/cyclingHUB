@@ -29619,6 +29619,15 @@ html[data-theme="tdf"] {
 .taper-form-section{margin-bottom:16px}
 .taper-label{display:block;font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
 .taper-input,.taper-select{width:100%;background:var(--surface-1);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);padding:10px 12px;color:var(--text-primary);font-size:16px}
+/* Taper scrubbers: overlay layout */
+.taper-form-section .cev-target-card{display:grid;grid-template:1fr/1fr;min-height:48px;padding:0;overflow:visible}
+.taper-form-section .cev-target-card>*{grid-area:1/1}
+.taper-form-section .cev-scrubber{display:grid;grid-template:1fr/1fr;align-items:center}
+.taper-form-section .cev-scrubber>*{grid-area:1/1}
+.taper-form-section .cev-scrubber-value-row{z-index:2;pointer-events:none;padding-left:12px;display:flex;align-items:center;gap:4px}
+.taper-form-section .cev-scrubber-value{font-size:22px;line-height:1;min-height:0;display:flex;align-items:center}
+.taper-form-section .cev-scrubber-track{height:48px;border-radius:12px}
+.taper-form-section .cev-undo-btn{z-index:3;justify-self:end;align-self:center;margin-right:8px;position:static}
 .taper-gen-btn{width:100%;padding:14px;background:var(--accent);color:#000;font-weight:700;font-size:15px;border:none;border-radius:var(--radius-sm);cursor:pointer;margin-top:8px}
 .taper-projection{background:var(--surface-1);border-radius:var(--radius);padding:16px;margin-bottom:16px}
 .taper-proj-title{font-size:13px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}

@@ -34442,7 +34442,76 @@ function _fuelShowForm() { const f = document.getElementById('fuelPlanForm'), o 
 // TAPERING WIZARD
 // ─────────────────────────────────────────────────────────────────────────────
 const TAPER_PROFILES = { crit: { days: 7, vr: 0.40, tau: 4 }, road_race: { days: 10, vr: 0.50, tau: 5 }, tt: { days: 10, vr: 0.45, tau: 5 }, gran_fondo: { days: 14, vr: 0.55, tau: 6 }, stage_race: { days: 14, vr: 0.50, tau: 7 } };
-function openTaperWizard(rd) { const ci = document.getElementById('taperCTL'); if (ci && state.fitness?.ctl) ci.value = Math.round(state.fitness.ctl); if (rd) { const d = document.getElementById('taperRaceDate'); if (d) d.value = rd; } const s1 = document.getElementById('taperStep1'), s2 = document.getElementById('taperStep2'); if (s1) s1.style.display = ''; if (s2) s2.style.display = 'none'; _openOverlaySheet('taperWizardSheet'); _gearHookDatePickers(document.getElementById('taperWizardSheet')); }
+/* ── Taper wizard scrubber ── */
+const _TAPER_SCRUBBER_DEFS = {
+  taperCTL: {
+    inputId: 'taperCTL', min: 0, max: 200,
+    toStep(val) { return val ? Math.round(parseFloat(val)) : 0; },
+    fromStep(s) { return s === 0 ? '' : String(s); },
+    display(s) {
+      if (s === 0) return { text: '—', zero: true, unit: 'CTL', color: '' };
+      const color = s < 40 ? 'var(--text-muted)' : s < 70 ? 'var(--accent)' : s < 100 ? '#f0c429' : '#ff9500';
+      return { text: String(s), zero: false, unit: 'CTL', color };
+    }
+  },
+};
+let _taperScrubbersInited = false;
+function _initTaperScrubbers() {
+  if (_taperScrubbersInited) return;
+  _taperScrubbersInited = true;
+  document.querySelectorAll('#taperWizardSheet .cev-scrubber').forEach(scrubber => {
+    const metric = scrubber.dataset.metric;
+    const def = _TAPER_SCRUBBER_DEFS[metric];
+    if (!def) return;
+    const input = document.getElementById(def.inputId);
+    const ruler = scrubber.querySelector('.cev-scrubber-ruler');
+    const valueEl = scrubber.querySelector('.cev-scrubber-value');
+    const unitEl = scrubber.querySelector('.cev-scrubber-unit');
+    const undoBtn = scrubber.closest('.cev-target-card')?.querySelector('.cev-undo-btn');
+    let ticks = '';
+    for (let i = -200; i <= 200; i++) ticks += `<div class="cev-tick${i % 5 === 0 ? ' cev-tick--major' : ''}"></div>`;
+    ruler.innerHTML = ticks;
+    let step = 0, history = [], dragStartX = 0, dragStartStep = 0, dragging = false;
+    function applyStep(s) {
+      step = Math.max(def.min, Math.min(def.max, Math.round(s)));
+      const trackW = scrubber.querySelector('.cev-scrubber-track').clientWidth || 80;
+      ruler.style.transform = `translateX(${trackW / 2 - step * _CEV_PX_PER_STEP}px)`;
+      const d = def.display(step);
+      valueEl.textContent = d.text;
+      valueEl.classList.toggle('is-zero', d.zero);
+      if (unitEl && d.unit !== undefined) unitEl.textContent = d.unit;
+      if (d.color !== undefined) valueEl.style.color = d.color;
+      input.value = def.fromStep(step);
+    }
+    function syncUndoBtn() { if (undoBtn) undoBtn.style.display = history.length > 0 ? '' : 'none'; }
+    scrubber._cevApplyStep = (s) => { applyStep(s); history = []; syncUndoBtn(); };
+    scrubber._cevDef = def;
+    if (undoBtn) undoBtn.addEventListener('click', e => { e.stopPropagation(); if (!history.length) return; applyStep(history.pop()); syncUndoBtn(); });
+    let pending = false, pendingPid = 0, lockScroll = false;
+    scrubber.style.setProperty('touch-action', 'pan-y', 'important');
+    scrubber.addEventListener('pointerdown', e => { if (e.button > 0) return; dragStartX = e.clientX; dragStartStep = step; pending = true; pendingPid = e.pointerId; });
+    scrubber.addEventListener('pointermove', e => {
+      if (pending) { if (Math.abs(e.clientX - dragStartX) < 10) return; pending = false; dragging = true; lockScroll = true; scrubber.setPointerCapture(pendingPid); }
+      if (!dragging) return;
+      applyStep(dragStartStep - (e.clientX - dragStartX) / _CEV_PX_PER_STEP);
+    });
+    scrubber.addEventListener('touchmove', e => { if (dragging || lockScroll) e.preventDefault(); }, { passive: false });
+    scrubber.addEventListener('touchend', () => { lockScroll = false; });
+    scrubber.addEventListener('touchcancel', () => { lockScroll = false; });
+    const endDrag = () => { if (pending) { pending = false; return; } if (!dragging) return; dragging = false; if (step !== dragStartStep) { history.push(dragStartStep); syncUndoBtn(); } };
+    scrubber.addEventListener('pointerup', endDrag);
+    scrubber.addEventListener('pointercancel', endDrag);
+  });
+}
+function _syncTaperScrubbers() {
+  document.querySelectorAll('#taperWizardSheet .cev-scrubber').forEach(scrubber => {
+    if (!scrubber._cevApplyStep || !scrubber._cevDef) return;
+    const input = document.getElementById(scrubber._cevDef.inputId);
+    scrubber._cevApplyStep(scrubber._cevDef.toStep(input?.value));
+  });
+}
+
+function openTaperWizard(rd) { const ci = document.getElementById('taperCTL'); if (ci && state.fitness?.ctl) ci.value = Math.round(state.fitness.ctl); if (rd) { const d = document.getElementById('taperRaceDate'); if (d) d.value = rd; } const s1 = document.getElementById('taperStep1'), s2 = document.getElementById('taperStep2'); if (s1) s1.style.display = ''; if (s2) s2.style.display = 'none'; _openOverlaySheet('taperWizardSheet'); _gearHookDatePickers(document.getElementById('taperWizardSheet')); _initTaperScrubbers(); _syncTaperScrubbers(); }
 function _closeTaperWizard() { _closeOverlaySheet('taperWizardSheet'); }
 function _taperGenerate() {
   const rd = document.getElementById('taperRaceDate').value; if (!rd) { showToast('Select a race date', 'error'); return; }
