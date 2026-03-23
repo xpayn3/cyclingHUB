@@ -17484,6 +17484,28 @@ const _ACT_CARD_INFO = {
 // UNIQUE INFO PAGE RENDERERS
 // ══════════════════════════════════════════════════════════════
 
+// Helper: append guide section to a custom info page from the card's desc text
+function _aciAppendGuide(page, info) {
+  if (!info?.desc) return;
+  const lines = info.desc.split('\n').filter(l => l.trim());
+  let html = `<div class="aci-streams-guide" style="margin-top:24px">
+    <div class="aci-guide-header">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <span>How to Use This Data</span>
+    </div>
+    <div class="aci-guide-section"><div style="font-size:13px;color:var(--text-secondary);line-height:1.6">`;
+  lines.forEach(l => {
+    l = l.replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--text-primary)">$1</strong>');
+    if (l.startsWith('• ')) {
+      html += `<div style="display:flex;gap:8px;margin:4px 0"><span style="color:var(--accent);flex-shrink:0">•</span><span>${l.slice(2)}</span></div>`;
+    } else {
+      html += `<p style="margin:8px 0">${l}</p>`;
+    }
+  });
+  html += '</div></div></div>';
+  page.insertAdjacentHTML('beforeend', html);
+}
+
 // ── Power Zones ──
 _ACT_CARD_INFO.detailZonesCard.customRender = function(page, activity, streams) {
   const ftp = state.ftp || activity?.icu_ftp || 200;
@@ -18202,6 +18224,7 @@ function _openActCardInfo(cardId, info) {
     pgEl.className = 'act-card-info-page aci-custom-page';
     pgEl.innerHTML = '';
     info.customRender(pgEl, activity, state.normStreams, info);
+    _aciAppendGuide(pgEl, info);
     overlay.style.display = 'flex';
     requestAnimationFrame(() => overlay.classList.add('act-info-open'));
     return;
