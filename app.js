@@ -11566,7 +11566,404 @@ function renderFitnessPage() {
   _renderFitCyclingTrends(fd);
   _renderFitInsights(fd);
   renderYTDDistance();
+  _renderTrainingReadiness(fd);
+  _renderTrainingPacer(fd);
+  _renderWeeklyLoadTarget(fd);
+  _renderProgressionLevels(fd);
+  _renderVO2maxEstimate(fd);
+  _renderStrainRecovery(fd);
   _rIC(() => { if (window.refreshGlow) refreshGlow(); });
+}
+
+// ══════════════════════════════════════════════════════════════
+// TRAINING READINESS SCORE (Garmin-inspired, 0-100)
+// ══════════════════════════════════════════════════════════════
+function _renderTrainingReadiness(fd) {
+  const row = document.getElementById('fitReadyPacerRow');
+  const card = document.getElementById('fitReadinessCard');
+  if (!card || !state.fitness) return;
+
+  const ctl = state.fitness.ctl ?? 0;
+  const atl = state.fitness.atl ?? 0;
+  const tsb = state.fitness.tsb ?? (ctl - atl);
+  const ramp = state.fitness.rampRate ?? 0;
+
+  // Get wellness data
+  const wellness = JSON.parse(localStorage.getItem('icu_wellness_cache') || '[]');
+  const latest = wellness[0] || {};
+  const hrv = latest.rMSSD || latest.hrv || 0;
+  const rhr = latest.restingHR || 0;
+  const sleepH = (latest.sleepSecs || 0) / 3600;
+
+  // Score components (0-100 each)
+  const formScore = Math.max(0, Math.min(100, 50 + tsb * 2)); // TSB -25 to +25 → 0-100
+  const rampScore = Math.max(0, Math.min(100, 100 - Math.abs(ramp) * 10)); // flat ramp = good
+  const hrvScore = hrv > 0 ? Math.min(100, hrv * 1.5) : 60; // higher HRV = better
+  const sleepScore = sleepH > 0 ? Math.min(100, sleepH * 14) : 60; // 7h = 98
+  const fatigueScore = Math.max(0, Math.min(100, 100 - (atl - ctl) * 3)); // ATL >> CTL = bad
+
+  // Weighted composite
+  const score = Math.round(
+    formScore * 0.30 +
+    fatigueScore * 0.25 +
+    hrvScore * 0.20 +
+    sleepScore * 0.15 +
+    rampScore * 0.10
+  );
+
+  // Update gauge
+  const arc = document.getElementById('fitReadyArc');
+  const numEl = document.getElementById('fitReadyScore');
+  if (arc) {
+    const circ = 2 * Math.PI * 52; // 326.7
+    arc.style.strokeDashoffset = circ - (circ * score / 100);
+    arc.style.stroke = score >= 70 ? 'var(--accent)' : score >= 40 ? '#ffcc00' : 'var(--red)';
+    arc.style.transition = 'stroke-dashoffset 1s ease, stroke 0.3s';
+  }
+  if (numEl) {
+    numEl.textContent = score;
+    numEl.style.color = score >= 70 ? 'var(--accent)' : score >= 40 ? '#ffcc00' : 'var(--red)';
+  }
+
+  // Factors
+  const factors = document.getElementById('fitReadyFactors');
+  if (factors) {
+    const items = [
+      { name: 'Form', val: Math.round(formScore), icon: '◎' },
+      { name: 'Fatigue', val: Math.round(fatigueScore), icon: '⚡' },
+      { name: 'HRV', val: Math.round(hrvScore), icon: '♥' },
+      { name: 'Sleep', val: Math.round(sleepScore), icon: '🌙' },
+    ];
+    factors.innerHTML = items.map(f => `<div class="fit-ready-factor">
+      <span class="fit-ready-factor-name">${f.name}</span>
+      <div class="fit-ready-factor-bar"><div class="fit-ready-factor-fill" style="width:${f.val}%;background:${f.val >= 70 ? 'var(--accent)' : f.val >= 40 ? '#ffcc00' : 'var(--red)'}"></div></div>
+    </div>`).join('');
+  }
+
+  if (row) row.style.display = '';
+}
+
+// ══════════════════════════════════════════════════════════════
+// TRAINING PACER (Xert-inspired)
+// ══════════════════════════════════════════════════════════════
+function _renderTrainingPacer(fd) {
+  const card = document.getElementById('fitPacerCard');
+  if (!card || !fd.activities?.length) return;
+
+  const ctl = state.fitness?.ctl ?? 0;
+  const ramp = state.fitness?.rampRate ?? 0;
+
+  // Calculate this week's TSS so far
+  const now = new Date();
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - now.getDay() + 1);
+  weekStart.setHours(0,0,0,0);
+
+  let weekTSS = 0;
+  fd.activities.forEach(a => {
+    const d = new Date(a.start_date_local || a.start_date);
+    if (d >= weekStart) weekTSS += (a.icu_training_load || 0);
+  });
+
+  // Target: maintain current CTL → need ~CTL * 7 / 6 TSS per week
+  const weeklyTarget = Math.round(ctl * 7 / 6);
+  const dayOfWeek = Math.max(1, now.getDay() || 7); // Mon=1, Sun=7
+  const expectedByNow = Math.round(weeklyTarget * dayOfWeek / 7);
+  const pct = expectedByNow > 0 ? weekTSS / expectedByNow : 1;
+
+  // Position needle: 0% = far left (behind), 50% = center (on track), 100% = far right (ahead)
+  const needlePos = Math.max(5, Math.min(95, pct * 50));
+  const needle = document.getElementById('fitPacerNeedle');
+  if (needle) needle.style.left = needlePos + '%';
+
+  const statEl = document.getElementById('fitPacerStat');
+  if (statEl) {
+    const diff = weekTSS - expectedByNow;
+    statEl.innerHTML = `<span style="font-size:22px;font-weight:700;font-family:var(--font-num);color:${diff >= 0 ? 'var(--accent)' : 'var(--red)'}">${weekTSS}</span> <span style="color:var(--text-muted);font-size:13px">/ ${weeklyTarget} TSS</span>`;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// WEEKLY LOAD TARGET BAR
+// ══════════════════════════════════════════════════════════════
+function _renderWeeklyLoadTarget(fd) {
+  const card = document.getElementById('fitWeekTargetCard');
+  if (!card || !state.fitness) return;
+
+  const ctl = state.fitness.ctl ?? 0;
+  const weeklyTarget = Math.round(ctl * 7 / 6);
+  if (weeklyTarget < 1) return;
+
+  const now = new Date();
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - now.getDay() + 1);
+  weekStart.setHours(0,0,0,0);
+
+  let weekTSS = 0;
+  (fd.activities || []).forEach(a => {
+    const d = new Date(a.start_date_local || a.start_date);
+    if (d >= weekStart) weekTSS += (a.icu_training_load || 0);
+  });
+
+  const pct = Math.min(150, (weekTSS / weeklyTarget) * 100);
+  const fill = document.getElementById('fitWtBarFill');
+  const target = document.getElementById('fitWtBarTarget');
+  const vals = document.getElementById('fitWtVals');
+  const hint = document.getElementById('fitWtHint');
+
+  if (fill) {
+    fill.style.width = Math.min(100, pct) + '%';
+    fill.style.background = pct >= 100 ? 'var(--accent)' : pct >= 70 ? '#ffcc00' : 'var(--text-muted)';
+  }
+  if (target) target.style.left = '100%';
+  if (vals) vals.innerHTML = `<span style="font-weight:700">${weekTSS}</span> / ${weeklyTarget} TSS`;
+  if (hint) {
+    const remaining = Math.max(0, weeklyTarget - weekTSS);
+    const daysLeft = 7 - (now.getDay() || 7) + 1;
+    hint.textContent = remaining > 0 ? `${remaining} TSS remaining · ${daysLeft}d left` : 'Weekly target reached ✓';
+    hint.style.color = remaining > 0 ? 'var(--text-muted)' : 'var(--accent)';
+  }
+
+  card.style.display = '';
+}
+
+// ══════════════════════════════════════════════════════════════
+// PROGRESSION LEVELS RADAR (TrainerRoad-inspired)
+// ══════════════════════════════════════════════════════════════
+function _renderProgressionLevels(fd) {
+  const card = document.getElementById('fitProgressionCard');
+  const canvas = document.getElementById('fitProgRadar');
+  const listEl = document.getElementById('fitProgList');
+  if (!card || !canvas || !fd.activities?.length) return;
+
+  // Get power curve data (best efforts over 90 days)
+  const acts90 = fd.activities.filter(a => {
+    const d = new Date(a.start_date_local || a.start_date);
+    return (Date.now() - d.getTime()) < 90 * 86400000 && a.icu_weighted_avg_watts > 0;
+  });
+  if (acts90.length < 3) return;
+
+  // Compute best efforts from activity data
+  const ftp = state.ftp || 200;
+  const weight = state.weight || 70;
+
+  // Use power curve if available, else estimate from activities
+  const zones = [
+    { name: 'Sprint', dur: '5s', ref: ftp * 3, best: 0 },
+    { name: '1 min', dur: '1m', ref: ftp * 1.5, best: 0 },
+    { name: '5 min', dur: '5m', ref: ftp * 1.15, best: 0 },
+    { name: 'FTP', dur: '20m', ref: ftp, best: 0 },
+    { name: 'Endurance', dur: '60m', ref: ftp * 0.75, best: 0 },
+  ];
+
+  // Estimate from max powers in activities
+  acts90.forEach(a => {
+    const w = a.icu_weighted_avg_watts || a.average_watts || 0;
+    const maxW = a.max_watts || w * 1.5;
+    if (maxW > zones[0].best) zones[0].best = maxW;
+    if (w * 1.3 > zones[1].best) zones[1].best = w * 1.3;
+    if (w * 1.1 > zones[2].best) zones[2].best = w * 1.1;
+    if (w > zones[3].best) zones[3].best = w;
+    if (a.moving_time > 3600 && w > zones[4].best) zones[4].best = w;
+  });
+
+  // Convert to 1-10 levels
+  const levels = zones.map(z => ({
+    name: z.name,
+    level: Math.max(1, Math.min(10, Math.round((z.best / z.ref) * 5))),
+    watts: Math.round(z.best),
+  }));
+
+  // Draw radar
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const w = 280, h = 280;
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, w, h);
+
+  const cx = w/2, cy = h/2, r = 100;
+  const n = levels.length;
+  const angleStep = (Math.PI * 2) / n;
+
+  // Grid rings
+  for (let ring = 2; ring <= 10; ring += 2) {
+    ctx.beginPath();
+    const rr = r * ring / 10;
+    for (let i = 0; i <= n; i++) {
+      const a = -Math.PI/2 + i * angleStep;
+      const x = cx + Math.cos(a) * rr;
+      const y = cy + Math.sin(a) * rr;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  // Spokes
+  for (let i = 0; i < n; i++) {
+    const a = -Math.PI/2 + i * angleStep;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.stroke();
+  }
+
+  // Data polygon
+  ctx.beginPath();
+  levels.forEach((l, i) => {
+    const a = -Math.PI/2 + i * angleStep;
+    const lr = r * l.level / 10;
+    const x = cx + Math.cos(a) * lr;
+    const y = cy + Math.sin(a) * lr;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(0,229,160,0.15)';
+  ctx.fill();
+  ctx.strokeStyle = 'var(--accent)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Labels
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.font = '11px Inter, sans-serif';
+  ctx.textAlign = 'center';
+  levels.forEach((l, i) => {
+    const a = -Math.PI/2 + i * angleStep;
+    const lx = cx + Math.cos(a) * (r + 18);
+    const ly = cy + Math.sin(a) * (r + 18);
+    ctx.fillText(l.name, lx, ly + 4);
+  });
+
+  // List
+  if (listEl) {
+    listEl.innerHTML = levels.map(l => `<div class="fit-prog-item">
+      <span class="fit-prog-name">${l.name}</span>
+      <span class="fit-prog-level" style="color:${l.level >= 7 ? 'var(--accent)' : l.level >= 4 ? '#ffcc00' : 'var(--red)'}">${l.level}/10</span>
+      <span class="fit-prog-watts">${l.watts}w</span>
+    </div>`).join('');
+  }
+
+  card.style.display = '';
+}
+
+// ══════════════════════════════════════════════════════════════
+// VO2MAX ESTIMATION
+// ══════════════════════════════════════════════════════════════
+function _renderVO2maxEstimate(fd) {
+  const card = document.getElementById('fitVo2Card');
+  if (!card) return;
+
+  const ftp = state.ftp || 0;
+  const weight = state.weight || 0;
+  if (!ftp || !weight) return;
+
+  // Estimate: VO2max ≈ (FTP / weight) * 10.8 + 7 (Storer et al. approximation)
+  const vo2 = ((ftp / weight) * 10.8 + 7).toFixed(1);
+
+  const numEl = document.getElementById('fitVo2Num');
+  const classEl = document.getElementById('fitVo2Class');
+  if (numEl) numEl.textContent = vo2;
+
+  // Classification (male, approximate)
+  let cls = 'Superior', clsColor = 'var(--accent)';
+  const v = parseFloat(vo2);
+  if (v < 30) { cls = 'Very Poor'; clsColor = 'var(--red)'; }
+  else if (v < 38) { cls = 'Poor'; clsColor = '#ff6b35'; }
+  else if (v < 45) { cls = 'Average'; clsColor = '#ffcc00'; }
+  else if (v < 52) { cls = 'Good'; clsColor = '#4a9eff'; }
+  else if (v < 60) { cls = 'Excellent'; clsColor = 'var(--accent)'; }
+
+  if (classEl) {
+    classEl.innerHTML = `<span style="color:${clsColor};font-weight:600">${cls}</span>`;
+  }
+
+  // Trend chart — estimate VO2max per ride from power/HR data
+  const chartCanvas = document.getElementById('fitVo2Chart');
+  if (chartCanvas && fd.activities?.length) {
+    const rides = fd.activities
+      .filter(a => a.icu_weighted_avg_watts > 0 && a.average_heartrate > 0)
+      .slice(0, 60)
+      .reverse();
+
+    if (rides.length >= 3) {
+      const labels = rides.map(a => new Date(a.start_date_local).toLocaleDateString('en-GB', {day:'numeric',month:'short'}));
+      const data = rides.map(a => {
+        const w = a.icu_weighted_avg_watts || a.average_watts || 0;
+        return +((w / weight) * 10.8 + 7).toFixed(1);
+      });
+
+      if (state._fitVo2Chart) state._fitVo2Chart.destroy();
+      state._fitVo2Chart = new Chart(chartCanvas, {
+        type: 'line',
+        data: { labels, datasets: [{ data, borderColor: '#4a9eff', borderWidth: 2, pointRadius: 2, fill: false, tension: 0.3 }] },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP } },
+          scales: {
+            x: { ticks: { color: 'rgba(255,255,255,0.3)', font: { size: 10 }, maxTicksLimit: 6 }, grid: { display: false } },
+            y: { ticks: { color: 'rgba(255,255,255,0.3)', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } }
+          }
+        }
+      });
+    }
+  }
+
+  card.style.display = '';
+}
+
+// ══════════════════════════════════════════════════════════════
+// STRAIN VS RECOVERY (WHOOP-inspired)
+// ══════════════════════════════════════════════════════════════
+function _renderStrainRecovery(fd) {
+  const card = document.getElementById('fitStrainRecovCard');
+  const canvas = document.getElementById('fitStrainRecovChart');
+  if (!card || !canvas || !fd.activities?.length) return;
+
+  // Last 30 days: daily TSS (strain) vs estimated recovery
+  const now = new Date();
+  const days = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(now); d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    const dayActs = fd.activities.filter(a => (a.start_date_local || a.start_date || '').startsWith(key));
+    const tss = dayActs.reduce((s, a) => s + (a.icu_training_load || 0), 0);
+    days.push({ date: d, tss, label: d.toLocaleDateString('en-GB', {day:'numeric',month:'short'}) });
+  }
+
+  // Simple recovery model: recovery = 100 - (rolling 3-day avg TSS * 0.8)
+  const recovery = days.map((d, i) => {
+    const prev3 = days.slice(Math.max(0, i-2), i+1);
+    const avg = prev3.reduce((s, x) => s + x.tss, 0) / prev3.length;
+    return Math.max(0, Math.min(100, 100 - avg * 0.8));
+  });
+
+  if (state._fitStrainRecovChart) state._fitStrainRecovChart.destroy();
+  state._fitStrainRecovChart = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels: days.map(d => d.label),
+      datasets: [
+        { label: 'Strain (TSS)', data: days.map(d => d.tss), backgroundColor: 'rgba(255,107,53,0.7)', borderRadius: 4, yAxisID: 'y', order: 2 },
+        { label: 'Recovery', data: recovery, borderColor: 'var(--accent)', borderWidth: 2, pointRadius: 0, type: 'line', fill: false, tension: 0.4, yAxisID: 'y1', order: 1 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: true, labels: { color: 'rgba(255,255,255,0.5)', font: { size: 10 }, boxWidth: 8 } }, tooltip: { ...C_TOOLTIP } },
+      scales: {
+        x: { ticks: { color: 'rgba(255,255,255,0.3)', font: { size: 9 }, maxTicksLimit: 8 }, grid: { display: false } },
+        y: { position: 'left', ticks: { color: 'rgba(255,255,255,0.3)', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' }, title: { display: false } },
+        y1: { position: 'right', min: 0, max: 100, ticks: { color: 'rgba(255,255,255,0.3)', font: { size: 10 } }, grid: { display: false } }
+      }
+    }
+  });
+
+  card.style.display = '';
 }
 
 function renderFitInjuryRisk() {

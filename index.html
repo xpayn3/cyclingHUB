@@ -3620,6 +3620,47 @@
                         </div>
                     </div>
 
+                    <!-- ── Training Readiness + Pacer row ── -->
+                    <div class="fit-ready-pacer-row" id="fitReadyPacerRow" style="display:none">
+                        <div class="card fit-readiness-card" id="fitReadinessCard">
+                            <div class="fit-ready-gauge">
+                                <svg viewBox="0 0 120 120" class="fit-ready-ring">
+                                    <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="10"/>
+                                    <circle cx="60" cy="60" r="52" fill="none" stroke="var(--accent)" stroke-width="10" stroke-linecap="round" stroke-dasharray="326.7" stroke-dashoffset="326.7" transform="rotate(-90 60 60)" id="fitReadyArc"/>
+                                </svg>
+                                <div class="fit-ready-num" id="fitReadyScore">—</div>
+                                <div class="fit-ready-lbl">Readiness</div>
+                            </div>
+                            <div class="fit-ready-factors" id="fitReadyFactors"></div>
+                        </div>
+                        <div class="card fit-pacer-card" id="fitPacerCard">
+                            <div class="fit-pacer-gauge">
+                                <div class="fit-pacer-arrow" id="fitPacerArrow"></div>
+                                <div class="fit-pacer-track">
+                                    <div class="fit-pacer-zone fit-pacer-zone--behind">Behind</div>
+                                    <div class="fit-pacer-zone fit-pacer-zone--on">On Track</div>
+                                    <div class="fit-pacer-zone fit-pacer-zone--ahead">Ahead</div>
+                                    <div class="fit-pacer-needle" id="fitPacerNeedle"></div>
+                                </div>
+                            </div>
+                            <div class="fit-pacer-stat" id="fitPacerStat"></div>
+                            <div class="fit-pacer-sub" id="fitPacerSub">Weekly load target</div>
+                        </div>
+                    </div>
+
+                    <!-- ── Weekly Load Target Bar ── -->
+                    <div class="card fit-week-target-card" id="fitWeekTargetCard" style="display:none">
+                        <div class="fit-wt-header">
+                            <span class="fit-wt-title">This Week</span>
+                            <span class="fit-wt-vals" id="fitWtVals"></span>
+                        </div>
+                        <div class="fit-wt-bar-wrap">
+                            <div class="fit-wt-bar-fill" id="fitWtBarFill"></div>
+                            <div class="fit-wt-bar-target" id="fitWtBarTarget"></div>
+                        </div>
+                        <div class="fit-wt-hint" id="fitWtHint"></div>
+                    </div>
+
                     <!-- ── Wellness Pills ── -->
                     <div class="fit-wellness-pills-row" id="fitWellnessPillsRow" style="display:none">
                         <div class="fit-wpill" id="fitWcardHRV" style="display:none">
@@ -4006,6 +4047,46 @@
                         <div class="chart-wrap" style="height:180px">
                             <canvas id="ytdDistChart"></canvas>
                         </div>
+                    </div>
+
+                    <!-- ── Progression Levels Radar ── -->
+                    <div class="card" id="fitProgressionCard" style="display:none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>Progression Levels</div>
+                            </div>
+                        </div>
+                        <div class="fit-prog-body">
+                            <canvas id="fitProgRadar" width="280" height="280"></canvas>
+                            <div class="fit-prog-list" id="fitProgList"></div>
+                        </div>
+                    </div>
+
+                    <!-- ── VO2max Estimation ── -->
+                    <div class="card" id="fitVo2Card" style="display:none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>VO₂max Estimate</div>
+                            </div>
+                        </div>
+                        <div class="fit-vo2-body">
+                            <div class="fit-vo2-hero">
+                                <span class="fit-vo2-num" id="fitVo2Num">—</span>
+                                <span class="fit-vo2-unit">ml/kg/min</span>
+                            </div>
+                            <div class="fit-vo2-class" id="fitVo2Class"></div>
+                            <div class="chart-wrap" style="height:160px"><canvas id="fitVo2Chart"></canvas></div>
+                        </div>
+                    </div>
+
+                    <!-- ── Strain vs Recovery ── -->
+                    <div class="card" id="fitStrainRecovCard" style="display:none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M12 6v6l4 2"/></svg>Strain vs Recovery</div>
+                            </div>
+                        </div>
+                        <div class="chart-wrap" style="height:200px"><canvas id="fitStrainRecovChart"></canvas></div>
                     </div>
 
                     <!-- Training Guide (merged) -->

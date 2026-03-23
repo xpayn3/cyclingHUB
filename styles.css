@@ -5591,6 +5591,55 @@ input[type="number"] {
 /* ============================================================
    FITNESS PAGE — TRAINING STATUS HERO CARD
 ============================================================ */
+/* ── Readiness + Pacer Row ── */
+.fit-ready-pacer-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap-layout); margin-bottom: 0; }
+@media (max-width: 420px) { .fit-ready-pacer-row { grid-template-columns: 1fr; } }
+.fit-readiness-card { text-align: center; padding: 16px !important; }
+.fit-ready-gauge { position: relative; width: 120px; height: 120px; margin: 0 auto 10px; }
+.fit-ready-ring { width: 100%; height: 100%; }
+.fit-ready-num { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-55%); font-size: 32px; font-weight: 800; font-family: var(--font-num); }
+.fit-ready-lbl { position: absolute; top: 50%; left: 50%; transform: translate(-50%, 60%); font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.fit-ready-factors { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.fit-ready-factor { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); }
+.fit-ready-factor-name { width: 50px; text-align: right; }
+.fit-ready-factor-bar { flex: 1; height: 4px; background: var(--surface-2); border-radius: 2px; overflow: hidden; }
+.fit-ready-factor-fill { height: 100%; border-radius: 2px; transition: width 0.6s ease; }
+
+.fit-pacer-card { padding: 16px !important; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.fit-pacer-gauge { width: 100%; position: relative; }
+.fit-pacer-track { display: flex; height: 32px; border-radius: 16px; overflow: hidden; position: relative; }
+.fit-pacer-zone { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+.fit-pacer-zone--behind { background: rgba(255,69,58,0.2); color: var(--red); }
+.fit-pacer-zone--on { background: rgba(0,229,160,0.15); color: var(--accent); }
+.fit-pacer-zone--ahead { background: rgba(74,158,255,0.15); color: #4a9eff; }
+.fit-pacer-needle { position: absolute; top: -4px; width: 3px; height: 40px; background: #fff; border-radius: 2px; transform: translateX(-50%); transition: left 0.5s ease; box-shadow: 0 0 8px rgba(255,255,255,0.5); }
+.fit-pacer-sub { font-size: 11px; color: var(--text-muted); }
+
+/* Weekly Load Target */
+.fit-week-target-card { padding: 14px 16px !important; }
+.fit-wt-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.fit-wt-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.fit-wt-vals { font-size: 13px; font-family: var(--font-num); color: var(--text-muted); }
+.fit-wt-bar-wrap { height: 8px; background: var(--surface-2); border-radius: 4px; overflow: hidden; position: relative; }
+.fit-wt-bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+.fit-wt-bar-target { position: absolute; top: -2px; width: 2px; height: 12px; background: rgba(255,255,255,0.5); border-radius: 1px; transform: translateX(-50%); }
+.fit-wt-hint { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
+
+/* Progression Levels */
+.fit-prog-body { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.fit-prog-list { width: 100%; display: flex; flex-direction: column; gap: 4px; }
+.fit-prog-item { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 13px; }
+.fit-prog-name { flex: 1; color: var(--text-muted); }
+.fit-prog-level { font-weight: 700; font-family: var(--font-num); min-width: 40px; text-align: right; }
+.fit-prog-watts { font-size: 12px; color: var(--text-faint); font-family: var(--font-num); min-width: 50px; text-align: right; }
+
+/* VO2max */
+.fit-vo2-body { text-align: center; }
+.fit-vo2-hero { margin-bottom: 4px; }
+.fit-vo2-num { font-size: 36px; font-weight: 800; font-family: var(--font-num); color: #4a9eff; }
+.fit-vo2-unit { font-size: 13px; color: var(--text-muted); margin-left: 4px; }
+.fit-vo2-class { font-size: 13px; margin-bottom: 12px; }
+
 .fit-status-card { container-type: inline-size; }
 
 .fit-status-body {
