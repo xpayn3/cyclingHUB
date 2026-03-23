@@ -760,41 +760,47 @@
                             <label for="gearFormDate">Purchase Date</label>
                             <input type="date" id="gearFormDate" />
                         </div>
-                        <div class="cev-target-card" style="grid-column:1/-1">
-                            <label>Price</label>
-                            <button class="cev-undo-btn" style="display:none" aria-label="Undo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
-                            <input type="hidden" id="gearFormPrice">
-                            <div class="cev-scrubber" data-metric="gearPrice">
-                                <div class="cev-scrubber-value-row">
-                                    <div class="cev-scrubber-value">—</div>
-                                    <span class="cev-scrubber-unit">€</span>
+                        <div class="field" style="grid-column:1/-1">
+                            <label>Price (€)</label>
+                            <div class="cev-target-card">
+                                <button class="cev-undo-btn" style="display:none" aria-label="Undo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
+                                <input type="hidden" id="gearFormPrice">
+                                <div class="cev-scrubber" data-metric="gearPrice">
+                                    <div class="cev-scrubber-value-row">
+                                        <div class="cev-scrubber-value">—</div>
+                                        <span class="cev-scrubber-unit">€</span>
+                                    </div>
+                                    <div class="cev-scrubber-track"><div class="cev-scrubber-ruler"></div></div>
                                 </div>
-                                <div class="cev-scrubber-track"><div class="cev-scrubber-ruler"></div></div>
                             </div>
                         </div>
-                        <div class="cev-target-card" style="grid-column:1/-1">
+                        <div class="field" style="grid-column:1/-1">
                             <label>Bike km at Install</label>
-                            <button class="cev-undo-btn" style="display:none" aria-label="Undo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
-                            <input type="hidden" id="gearFormKmAtInstall">
-                            <div class="cev-scrubber" data-metric="gearBikeKm">
-                                <div class="cev-scrubber-value-row">
-                                    <div class="cev-scrubber-value">—</div>
-                                    <span class="cev-scrubber-unit">km</span>
+                            <div class="cev-target-card">
+                                <button class="cev-undo-btn" style="display:none" aria-label="Undo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
+                                <input type="hidden" id="gearFormKmAtInstall">
+                                <div class="cev-scrubber" data-metric="gearBikeKm">
+                                    <div class="cev-scrubber-value-row">
+                                        <div class="cev-scrubber-value">—</div>
+                                        <span class="cev-scrubber-unit">km</span>
+                                    </div>
+                                    <div class="cev-scrubber-track"><div class="cev-scrubber-ruler"></div></div>
                                 </div>
-                                <div class="cev-scrubber-track"><div class="cev-scrubber-ruler"></div></div>
                             </div>
                             <div class="field-hint">Total km on the bike when this component was installed.</div>
                         </div>
-                        <div class="cev-target-card" style="grid-column:1/-1">
-                            <label>Maintenance Reminder</label>
-                            <button class="cev-undo-btn" style="display:none" aria-label="Undo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
-                            <input type="hidden" id="gearFormReminderKm">
-                            <div class="cev-scrubber" data-metric="gearMaintKm">
-                                <div class="cev-scrubber-value-row">
-                                    <div class="cev-scrubber-value">—</div>
-                                    <span class="cev-scrubber-unit">km</span>
+                        <div class="field" style="grid-column:1/-1">
+                            <label>Maintenance Reminder (km)</label>
+                            <div class="cev-target-card">
+                                <button class="cev-undo-btn" style="display:none" aria-label="Undo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
+                                <input type="hidden" id="gearFormReminderKm">
+                                <div class="cev-scrubber" data-metric="gearMaintKm">
+                                    <div class="cev-scrubber-value-row">
+                                        <div class="cev-scrubber-value">—</div>
+                                        <span class="cev-scrubber-unit">km</span>
+                                    </div>
+                                    <div class="cev-scrubber-track"><div class="cev-scrubber-ruler"></div></div>
                                 </div>
-                                <div class="cev-scrubber-track"><div class="cev-scrubber-ruler"></div></div>
                             </div>
                             <div class="field-hint">Warning badge when this component reaches this km.</div>
                         </div>
@@ -1198,9 +1204,29 @@
                 </div>
                 <div class="wxd-sheet-body" id="fuelPlanBody">
                     <div id="fuelPlanForm">
-                        <div class="fuel-form-section"><label class="fuel-label">Ride Duration</label><div class="fuel-row"><input type="number" id="fuelDurationH" class="fuel-input" placeholder="0" min="0" max="24" value="3"><span class="fuel-input-unit">h</span><input type="number" id="fuelDurationM" class="fuel-input" placeholder="0" min="0" max="59" value="0"><span class="fuel-input-unit">m</span></div></div>
+                        <div class="fuel-form-section"><label class="fuel-label">Ride Duration</label>
+                            <div class="cev-target-card" style="margin-top:4px">
+                                <button class="cev-undo-btn" style="display:none" aria-label="Undo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
+                                <input type="hidden" id="fuelDurationH" value="3">
+                                <input type="hidden" id="fuelDurationM" value="0">
+                                <input type="hidden" id="fuelDurationTotal" value="180">
+                                <div class="cev-scrubber" data-metric="fuelDuration">
+                                    <div class="cev-scrubber-value-row"><div class="cev-scrubber-value">3h</div><span class="cev-scrubber-unit"></span></div>
+                                    <div class="cev-scrubber-track"><div class="cev-scrubber-ruler"></div></div>
+                                </div>
+                            </div>
+                        </div>
                         <div class="fuel-form-section"><label class="fuel-label">Intensity</label><select id="fuelIntensity" class="app-select fuel-select"><option value="0.55">Z1 — Recovery (IF 0.55)</option><option value="0.65">Z2 — Endurance (IF 0.65)</option><option value="0.76" selected>Z3 — Tempo (IF 0.76)</option><option value="0.88">Z4 — Threshold (IF 0.88)</option><option value="0.95">Z5 — VO2max (IF 0.95)</option><option value="1.05">Z6 — Anaerobic (IF 1.05)</option></select></div>
-                        <div class="fuel-form-section"><label class="fuel-label">Body Weight (kg)</label><input type="number" id="fuelWeight" class="fuel-input fuel-input--wide" placeholder="70" min="30" max="200"></div>
+                        <div class="fuel-form-section"><label class="fuel-label">Body Weight (kg)</label>
+                            <div class="cev-target-card" style="margin-top:4px">
+                                <button class="cev-undo-btn" style="display:none" aria-label="Undo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
+                                <input type="hidden" id="fuelWeight" value="">
+                                <div class="cev-scrubber" data-metric="fuelWeight">
+                                    <div class="cev-scrubber-value-row"><div class="cev-scrubber-value">—</div><span class="cev-scrubber-unit">kg</span></div>
+                                    <div class="cev-scrubber-track"><div class="cev-scrubber-ruler"></div></div>
+                                </div>
+                            </div>
+                        </div>
                         <div class="fuel-form-section"><label class="fuel-label">Fuel Types</label><div class="fuel-toggles"><label class="fuel-toggle"><input type="checkbox" value="gel" checked><span>Gels</span></label><label class="fuel-toggle"><input type="checkbox" value="bar"><span>Bars</span></label><label class="fuel-toggle"><input type="checkbox" value="drink" checked><span>Drink Mix</span></label><label class="fuel-toggle"><input type="checkbox" value="banana"><span>Bananas</span></label><label class="fuel-toggle"><input type="checkbox" value="rice"><span>Rice Cakes</span></label></div></div>
                         <div class="fuel-form-section"><label class="fuel-label">Conditions</label><div class="fuel-toggles"><label class="fuel-toggle"><input type="checkbox" id="fuelHot" value="hot"><span>Hot (&gt;30°C)</span></label><label class="fuel-toggle"><input type="checkbox" id="fuelHigh" value="high"><span>High Altitude</span></label></div></div>
                         <button class="fuel-generate-btn" onclick="_fuelGenerate()">Generate Plan</button>

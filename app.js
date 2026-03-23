@@ -34306,11 +34306,114 @@ function _gearEstYearKm(bid) { try { const a = state.activities || [], ya = Date
 // FUELING PLAN GENERATOR
 // ─────────────────────────────────────────────────────────────────────────────
 const FUEL_PRODUCTS = { gel: { label: 'Energy Gel', carbsG: 25, cals: 100 }, bar: { label: 'Energy Bar', carbsG: 40, cals: 200 }, drink: { label: 'Drink Mix (500ml)', carbsG: 40, cals: 160 }, banana: { label: 'Banana', carbsG: 27, cals: 105 }, rice: { label: 'Rice Cake', carbsG: 30, cals: 120 } };
+
+/* ── Fuel plan scrubber defs ── */
+const _FUEL_SCRUBBER_DEFS = {
+  fuelDuration: {
+    inputId: 'fuelDurationTotal', min: 0, max: 144, // steps of 5 min (0–720 min / 12h)
+    toStep(val) { return val ? Math.round(parseInt(val) / 5) : 0; },
+    fromStep(s) {
+      if (s === 0) return '';
+      const mins = s * 5;
+      // Also update the H/M hidden inputs for backward compat
+      const hEl = document.getElementById('fuelDurationH'), mEl = document.getElementById('fuelDurationM');
+      if (hEl) hEl.value = Math.floor(mins / 60);
+      if (mEl) mEl.value = mins % 60;
+      return String(mins);
+    },
+    display(s) {
+      if (s === 0) return { text: '—', zero: true, unit: '', color: '' };
+      const mins = s * 5, h = Math.floor(mins / 60), m = mins % 60;
+      const color = mins < 60 ? 'var(--accent)' : mins < 180 ? '#f0c429' : '#ff9500';
+      if (h > 0 && m > 0) return { text: `${h}h ${m}`, zero: false, unit: 'm', color };
+      if (h > 0) return { text: `${h}`, zero: false, unit: 'h', color };
+      return { text: `${m}`, zero: false, unit: 'm', color };
+    }
+  },
+  fuelWeight: {
+    inputId: 'fuelWeight', min: 0, max: 170, // steps of 1 kg (0–170 kg)
+    toStep(val) { return val ? Math.round(parseFloat(val)) : 0; },
+    fromStep(s) { return s === 0 ? '' : String(s); },
+    display(s) {
+      if (s === 0) return { text: '—', zero: true, unit: 'kg', color: '' };
+      return { text: String(s), zero: false, unit: 'kg', color: 'var(--text-primary)' };
+    }
+  },
+};
+
+let _fuelScrubbersInited = false;
+function _initFuelScrubbers() {
+  if (_fuelScrubbersInited) return;
+  _fuelScrubbersInited = true;
+  document.querySelectorAll('#fuelPlanSheet .cev-scrubber').forEach(scrubber => {
+    const metric = scrubber.dataset.metric;
+    const def = _FUEL_SCRUBBER_DEFS[metric];
+    if (!def) return;
+    const input = document.getElementById(def.inputId);
+    const ruler = scrubber.querySelector('.cev-scrubber-ruler');
+    const valueEl = scrubber.querySelector('.cev-scrubber-value');
+    const unitEl = scrubber.querySelector('.cev-scrubber-unit');
+    const undoBtn = scrubber.closest('.cev-target-card')?.querySelector('.cev-undo-btn');
+    let ticks = '';
+    for (let i = -200; i <= 200; i++) ticks += `<div class="cev-tick${i % 5 === 0 ? ' cev-tick--major' : ''}"></div>`;
+    ruler.innerHTML = ticks;
+    let step = 0, history = [], dragStartX = 0, dragStartStep = 0, dragging = false;
+    function applyStep(s) {
+      step = Math.max(def.min, Math.min(def.max, Math.round(s)));
+      const trackW = scrubber.querySelector('.cev-scrubber-track').clientWidth || 80;
+      ruler.style.transform = `translateX(${trackW / 2 - step * _CEV_PX_PER_STEP}px)`;
+      const d = def.display(step);
+      valueEl.textContent = d.text;
+      valueEl.classList.toggle('is-zero', d.zero);
+      if (unitEl && d.unit !== undefined) unitEl.textContent = d.unit;
+      if (d.color !== undefined) valueEl.style.color = d.color;
+      input.value = def.fromStep(step);
+    }
+    function syncUndoBtn() { if (undoBtn) undoBtn.style.display = history.length > 0 ? '' : 'none'; }
+    scrubber._cevApplyStep = (s) => { applyStep(s); history = []; syncUndoBtn(); };
+    scrubber._cevDef = def;
+    if (undoBtn) undoBtn.addEventListener('click', e => { e.stopPropagation(); if (!history.length) return; applyStep(history.pop()); syncUndoBtn(); });
+    let pending = false, pendingPid = 0, lockScroll = false;
+    scrubber.style.setProperty('touch-action', 'pan-y', 'important');
+    scrubber.addEventListener('pointerdown', e => { if (e.button > 0) return; dragStartX = e.clientX; dragStartStep = step; pending = true; pendingPid = e.pointerId; });
+    scrubber.addEventListener('pointermove', e => {
+      if (pending) { if (Math.abs(e.clientX - dragStartX) < 10) return; pending = false; dragging = true; lockScroll = true; scrubber.setPointerCapture(pendingPid); }
+      if (!dragging) return;
+      applyStep(dragStartStep - (e.clientX - dragStartX) / _CEV_PX_PER_STEP);
+    });
+    scrubber.addEventListener('touchmove', e => { if (dragging || lockScroll) e.preventDefault(); }, { passive: false });
+    scrubber.addEventListener('touchend', () => { lockScroll = false; });
+    scrubber.addEventListener('touchcancel', () => { lockScroll = false; });
+    const endDrag = () => { if (pending) { pending = false; return; } if (!dragging) return; dragging = false; if (step !== dragStartStep) { history.push(dragStartStep); syncUndoBtn(); } };
+    scrubber.addEventListener('pointerup', endDrag);
+    scrubber.addEventListener('pointercancel', endDrag);
+  });
+}
+function _syncFuelScrubbers() {
+  document.querySelectorAll('#fuelPlanSheet .cev-scrubber').forEach(scrubber => {
+    if (!scrubber._cevApplyStep || !scrubber._cevDef) return;
+    const input = document.getElementById(scrubber._cevDef.inputId);
+    scrubber._cevApplyStep(scrubber._cevDef.toStep(input?.value));
+  });
+}
+
 function openFuelPlanSheet(ev) {
   const wi = document.getElementById('fuelWeight'); if (wi && !wi.value) { const w = state.athlete?.weight || localStorage.getItem('icu_athlete_weight'); if (w) wi.value = Math.round(parseFloat(w)); }
-  if (ev?.moving_time) { const m = Math.round(ev.moving_time / 60); const hE = document.getElementById('fuelDurationH'), mE = document.getElementById('fuelDurationM'); if (hE) hE.value = Math.floor(m / 60); if (mE) mE.value = m % 60; }
+  if (ev?.moving_time) {
+    const m = Math.round(ev.moving_time / 60);
+    const hE = document.getElementById('fuelDurationH'), mE = document.getElementById('fuelDurationM'), tE = document.getElementById('fuelDurationTotal');
+    if (hE) hE.value = Math.floor(m / 60);
+    if (mE) mE.value = m % 60;
+    if (tE) tE.value = String(m);
+  } else {
+    // Default: set total from H/M inputs
+    const hE = document.getElementById('fuelDurationH'), mE = document.getElementById('fuelDurationM'), tE = document.getElementById('fuelDurationTotal');
+    if (tE) tE.value = String((parseInt(hE?.value) || 0) * 60 + (parseInt(mE?.value) || 0));
+  }
   const f = document.getElementById('fuelPlanForm'), o = document.getElementById('fuelPlanOutput'); if (f) f.style.display = ''; if (o) o.style.display = 'none';
   _openOverlaySheet('fuelPlanSheet');
+  _initFuelScrubbers();
+  _syncFuelScrubbers();
 }
 function _closeFuelPlan() { _closeOverlaySheet('fuelPlanSheet'); }
 function _fuelGenerate() {
