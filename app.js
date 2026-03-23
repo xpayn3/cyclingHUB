@@ -5943,6 +5943,8 @@ function renderDashboard() {
 function _applyDashGradient() {
   const pc = document.getElementById('pageContent');
   if (!pc) return;
+  // Only apply gradient when dashboard is the active page
+  if (state.currentPage !== 'dashboard') return;
   const theme = document.documentElement.dataset.theme || 'dark';
   const isLight = theme === 'light';
   const tsb = state.fitness?.tsb ?? (state.fitness ? (state.fitness.ctl - state.fitness.atl) : null);
