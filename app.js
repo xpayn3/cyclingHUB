@@ -18112,8 +18112,15 @@ function _renderStreamsBreakdown(container, streams, activity) {
     }
 
     const canvasId = `aciStream_${m.key}`;
+    const icons = {
+      watts: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="${m.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
+      heartrate: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="${m.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.42 4.58a5.4 5.4 0 0 0-7.65 0L12 5.34l-.77-.76a5.4 5.4 0 0 0-7.65 7.65l.77.77L12 20.65l7.65-7.65.77-.77a5.4 5.4 0 0 0 0-7.65z"/></svg>`,
+      cadence: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="${m.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>`,
+      velocity_smooth: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="${m.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>`,
+      altitude: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="${m.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20l5-10 4 6 3-4 6 8H3z"/></svg>`,
+    };
     html += `<div class="aci-stream-section">
-      <div class="aci-stream-title" style="color:${m.color}">${m.label}</div>
+      <div class="aci-stream-title card-title" style="color:${m.color}">${icons[m.key] || ''}${m.label}</div>
       <div class="aci-stream-chart-wrap"><canvas id="${canvasId}"></canvas></div>
       <div class="aci-stream-stats">
         <div class="aci-stream-stat">
