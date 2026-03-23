@@ -18914,6 +18914,16 @@ body:has(.act-sheet-mode) .topbar {
 .znp-spark-svg { width: 60px; height: 20px; flex-shrink: 0; }
 .znp-spark-trend { font-size: 12px; font-family: var(--font-num); margin-left: auto; }
 
+/* Power/Zones tab content — uniform spacing */
+#pwrTabPower, #pwrTabZones {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-layout);
+}
+#pwrTabPower[style*="none"], #pwrTabZones[style*="none"] {
+    display: none !important;
+}
+
 /* Power/Zones page tabs */
 .pwr-page-tabs {
     display: flex;
