@@ -17379,6 +17379,9 @@ async function navigateToActivity(actKey, fromStep = false) {
     renderDetailCadenceHist(normStreams, richActivity);
     renderDetailCurve(actId, normStreams);   // async — shows/hides its own card
     renderDetailHRCurve(normStreams);        // async — shows/hides its own card
+    _renderDetailPwrHR(normStreams, richActivity);
+    _renderDetailNPTimeline(normStreams, richActivity);
+    _renderDetailSpeedGrade(normStreams, richActivity);
 
     // Inject info buttons and dividers on all visible activity cards
     setTimeout(() => { _injectActCardInfoBtns(); _injectActCardDividers(); }, 300);
@@ -17394,6 +17397,168 @@ async function navigateToActivity(actKey, fromStep = false) {
 
 function navigateBack() {
   navigate(state.previousPage || 'activities');
+}
+
+// ══════════════════════════════════════════════════════════════
+// NEW ACTIVITY CHARTS: Power/HR Scatter, NP Timeline, Speed/Grade
+// ══════════════════════════════════════════════════════════════
+
+function _renderDetailPwrHR(streams, activity) {
+  const card = document.getElementById('detailPwrHRCard');
+  if (!card) return;
+  const watts = streams?.watts, hr = streams?.heartrate;
+  if (!watts?.length || !hr?.length) { card.style.display = 'none'; return; }
+
+  // Build scatter points from 30s rolling averages
+  const windowSize = 30;
+  const points = [];
+  for (let i = windowSize; i < Math.min(watts.length, hr.length); i += windowSize) {
+    let wSum = 0, hSum = 0, cnt = 0;
+    for (let j = i - windowSize; j < i; j++) {
+      if (watts[j] > 0 && hr[j] > 0) { wSum += watts[j]; hSum += hr[j]; cnt++; }
+    }
+    if (cnt > 10) points.push({ x: Math.round(hSum / cnt), y: Math.round(wSum / cnt) });
+  }
+  if (points.length < 5) { card.style.display = 'none'; return; }
+
+  card.style.display = '';
+  unskeletonCard('detailPwrHRCard');
+  const canvas = document.getElementById('detailPwrHRChart');
+  if (!canvas) return;
+
+  state._detailPwrHRChart = destroyChart(state._detailPwrHRChart);
+  state._detailPwrHRChart = new Chart(canvas, {
+    type: 'scatter',
+    data: { datasets: [{ data: points, backgroundColor: 'rgba(0,229,160,0.5)', pointRadius: 3, pointHoverRadius: 6 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP, callbacks: { label: ctx => `${ctx.raw.y}W @ ${ctx.raw.x}bpm` } } },
+      scales: {
+        x: { ticks: { ...C_TICK, callback: (v,i) => i === 0 ? 'bpm' : v }, grid: C_GRID, border: { display: false } },
+        y: { ticks: { ...C_TICK, callback: (v,i) => i === 0 ? 'W' : v }, grid: C_GRID, border: { display: false } }
+      }
+    }
+  });
+
+  // Add summary row
+  let sumEl = card.querySelector('.detail-zone-summary');
+  if (!sumEl) { sumEl = document.createElement('div'); sumEl.className = 'detail-zone-summary'; card.appendChild(sumEl); }
+  const avgEF = activity?.icu_weighted_avg_watts && activity?.average_heartrate
+    ? (activity.icu_weighted_avg_watts / activity.average_heartrate).toFixed(2) : '—';
+  sumEl.innerHTML = `<div class="detail-zone-summary-row"><span>Efficiency Factor</span><span class="detail-zone-summary-val">${avgEF} W/bpm</span></div>`;
+}
+
+function _renderDetailNPTimeline(streams, activity) {
+  const card = document.getElementById('detailNPTimelineCard');
+  if (!card) return;
+  const watts = streams?.watts, time = streams?.time;
+  if (!watts?.length) { card.style.display = 'none'; return; }
+
+  // 30-second rolling NP
+  const window = 30;
+  const np30 = [];
+  const labels = [];
+  for (let i = window; i < watts.length; i += window) {
+    let sum4 = 0, cnt = 0;
+    for (let j = i - window; j < i; j++) {
+      const w = watts[j] || 0;
+      sum4 += Math.pow(w, 4); cnt++;
+    }
+    const npVal = cnt > 0 ? Math.round(Math.pow(sum4 / cnt, 0.25)) : 0;
+    np30.push(npVal);
+    if (time?.[i]) {
+      const s = time[i];
+      const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+      labels.push(h > 0 ? `${h}:${String(m).padStart(2,'0')}` : `${m}m`);
+    } else {
+      labels.push(Math.round(i / 60) + 'm');
+    }
+  }
+  if (np30.length < 3) { card.style.display = 'none'; return; }
+
+  card.style.display = '';
+  unskeletonCard('detailNPTimelineCard');
+  const canvas = document.getElementById('detailNPTimelineChart');
+  if (!canvas) return;
+
+  const ftp = state.ftp || activity?.icu_ftp || 0;
+  const datasets = [
+    { data: np30, borderColor: ACCENT, borderWidth: 1.5, pointRadius: 0, fill: false, tension: 0.3, label: 'Rolling NP' }
+  ];
+  if (ftp > 0) {
+    datasets.push({ data: np30.map(() => ftp), borderColor: 'rgba(255,255,255,0.15)', borderWidth: 1, borderDash: [6,4], pointRadius: 0, label: 'FTP' });
+  }
+
+  state._detailNPTimeline = destroyChart(state._detailNPTimeline);
+  state._detailNPTimeline = new Chart(canvas, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP } },
+      scales: {
+        x: { ticks: { ...C_TICK, maxTicksLimit: 8 }, grid: { display: false }, border: { display: false } },
+        y: { ticks: { ...C_TICK, callback: (v,i) => i === 0 ? 'W' : v }, grid: C_GRID, border: { display: false } }
+      }
+    }
+  });
+
+  // Summary
+  let sumEl = card.querySelector('.detail-zone-summary');
+  if (!sumEl) { sumEl = document.createElement('div'); sumEl.className = 'detail-zone-summary'; card.appendChild(sumEl); }
+  const overFTP = ftp > 0 ? np30.filter(v => v > ftp).length : 0;
+  const overPct = np30.length > 0 ? Math.round(overFTP / np30.length * 100) : 0;
+  const peakNP = Math.max(...np30);
+  sumEl.innerHTML = `
+    <div class="detail-zone-summary-row"><span>Peak 30s NP</span><span class="detail-zone-summary-val">${peakNP} W</span></div>
+    ${ftp > 0 ? `<div class="detail-zone-summary-row"><span>Time above FTP</span><span class="detail-zone-summary-val">${overPct}%</span></div>` : ''}`;
+}
+
+function _renderDetailSpeedGrade(streams, activity) {
+  const card = document.getElementById('detailSpeedGradeCard');
+  if (!card) return;
+  const speed = streams?.velocity_smooth, grade = streams?.grade_smooth;
+  if (!speed?.length || !grade?.length) { card.style.display = 'none'; return; }
+
+  // Build scatter: grade vs speed (10s averages)
+  const window = 10;
+  const points = [];
+  for (let i = window; i < Math.min(speed.length, grade.length); i += window) {
+    let sSum = 0, gSum = 0, cnt = 0;
+    for (let j = i - window; j < i; j++) {
+      if (speed[j] > 0) { sSum += speed[j] * 3.6; gSum += (grade[j] || 0); cnt++; }
+    }
+    if (cnt > 5) points.push({ x: +(gSum / cnt).toFixed(1), y: +(sSum / cnt).toFixed(1) });
+  }
+  if (points.length < 5) { card.style.display = 'none'; return; }
+
+  // Color by speed
+  const maxSpd = Math.max(...points.map(p => p.y));
+  const colors = points.map(p => {
+    const t = p.y / (maxSpd || 1);
+    if (t > 0.7) return 'rgba(0,229,160,0.6)';
+    if (t > 0.4) return 'rgba(74,158,255,0.6)';
+    return 'rgba(255,107,53,0.6)';
+  });
+
+  card.style.display = '';
+  unskeletonCard('detailSpeedGradeCard');
+  const canvas = document.getElementById('detailSpeedGradeChart');
+  if (!canvas) return;
+
+  state._detailSpeedGrade = destroyChart(state._detailSpeedGrade);
+  state._detailSpeedGrade = new Chart(canvas, {
+    type: 'scatter',
+    data: { datasets: [{ data: points, backgroundColor: colors, pointRadius: 3, pointHoverRadius: 6 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP, callbacks: { label: ctx => `${ctx.raw.y} km/h @ ${ctx.raw.x}% grade` } } },
+      scales: {
+        x: { ticks: { ...C_TICK, callback: (v,i) => i === 0 ? '%' : v }, grid: C_GRID, border: { display: false }, title: { display: false } },
+        y: { ticks: { ...C_TICK, callback: (v,i) => i === 0 ? 'kph' : v }, grid: C_GRID, border: { display: false } }
+      }
+    }
+  });
 }
 
 /* ── Activity card info buttons + info subpage ── */
@@ -17473,6 +17638,18 @@ const _ACT_CARD_INFO = {
   detailMapCard: {
     title: 'Route Map',
     desc: `GPS route map of your ride.\n\n**Features:**\n• Tap/click to see location details\n• Route colour may indicate speed, power, or gradient\n• Compare routes across multiple rides`
+  },
+  detailPwrHRCard: {
+    title: 'Power vs Heart Rate',
+    desc: `Scatter plot showing the relationship between power output and heart rate.\n\n**How to read:**\n• Each dot is a 30-second average\n• A tight cluster = steady effort\n• Points drifting right over time = cardiac drift (fatigue)\n• Steeper slope = better aerobic efficiency\n\n**Efficiency Factor (EF):**\n• EF = NP ÷ Avg HR\n• Higher EF = more watts per heartbeat\n• Track EF across similar rides to monitor fitness`
+  },
+  detailNPTimelineCard: {
+    title: 'Rolling Normalized Power',
+    desc: `30-second rolling Normalized Power over the ride duration.\n\n**How to read:**\n• Shows intensity distribution over time\n• Flat line = even pacing\n• Spikes above FTP line = threshold/VO2max efforts\n• Drops to zero = coasting/descending\n\n**Pacing insight:**\n• Even NP = efficient pacing\n• Highly variable NP = more metabolic cost (higher VI)`
+  },
+  detailSpeedGradeCard: {
+    title: 'Speed vs Gradient',
+    desc: `How your speed changes with road gradient.\n\n**How to read:**\n• X-axis = gradient (negative = downhill, positive = uphill)\n• Y-axis = speed\n• Green dots = fast, orange dots = slow\n• Shows your climbing vs flat speed relationship\n\n**Uses:**\n• Identify optimal climbing speed\n• Compare flat vs hill performance\n• Detect where you slow down most`
   },
   detailCompareCard: {
     title: 'Compare with Previous',
