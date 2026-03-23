@@ -2110,6 +2110,22 @@ let _peerMyId = '';
 let _peerRemoteId = '';
 let _peerReconnecting = false;
 let _peerManualDisconnect = false;
+
+function _peerLog(msg, level) {
+  const ts = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const prefix = level === 'error' ? '✗' : level === 'warn' ? '!' : '›';
+  const color = level === 'error' ? '#ff453a' : level === 'warn' ? '#f0c429' : 'rgba(255,255,255,0.55)';
+  const el = document.getElementById('syncLogContent');
+  if (el) {
+    const line = document.createElement('div');
+    line.style.color = color;
+    line.textContent = `${ts} ${prefix} ${msg}`;
+    el.appendChild(line);
+    el.parentElement.scrollTop = el.parentElement.scrollHeight;
+  }
+  if (level === 'error' || level === 'warn') console.warn('[PEER]', msg);
+  else console.log('[PEER]', msg);
+}
 const _peerOpts = {
   debug: 1,
   host: '0.peerjs.com',
@@ -2400,6 +2416,7 @@ function _peerHandleConn(conn) {
   let _chunkTotal = 0;
   conn.on('open', () => {
     _peerRemoteId = conn.peer;
+    _peerLog('Connected to: ' + conn.peer);
     _peerReconnecting = false;
     _peerUpdateUI('connected');
     conn.send({ type: 'hello', name: _peerDeviceName() });
@@ -2434,7 +2451,7 @@ function _peerHandleConn(conn) {
         showToast(`Received ${keys} keys — reloading...`, 'success');
         setTimeout(() => location.reload(), 1500);
       } catch (e) {
-        console.warn('[PEER] snapshot parse error:', e);
+        _peerLog('Snapshot parse error: ' + e.message, 'error');
         conn.send({ type: 'snapshot_ack', error: true });
         showToast('Failed to parse received data', 'error');
       }
@@ -2469,6 +2486,7 @@ function _peerHandleConn(conn) {
     if (remoteId && _peerInstance && !_peerInstance.destroyed) {
       _peerReconnecting = true;
       _peerUpdateUI('connecting');
+      _peerLog('Connection lost — auto-reconnecting to ' + remoteId, 'warn');
       showToast('Connection lost — reconnecting...', 'info');
       _peerAutoReconnect(remoteId, 0);
     } else {
@@ -2478,7 +2496,7 @@ function _peerHandleConn(conn) {
     }
   });
   conn.on('error', e => {
-    console.warn('[PEER] conn error:', e);
+    _peerLog('Connection error: ' + (e.type || e.message || e), 'error');
     if (!_peerManualDisconnect) {
       showToast('Connection error — will retry...', 'error');
     }
@@ -2489,7 +2507,7 @@ function _peerAutoReconnect(remoteId, attempt) {
   if (_peerManualDisconnect || !_peerInstance || _peerInstance.destroyed) return;
   if (attempt >= 10) {
     _peerReconnecting = false;
-    _peerUpdateUI('ready', _peerMyId);
+    _peerUpdateUI('off');
     showToast('Could not reconnect — peer may be offline', 'error');
     return;
   }
@@ -2497,7 +2515,7 @@ function _peerAutoReconnect(remoteId, attempt) {
   setTimeout(() => {
     if (_peerManualDisconnect || !_peerInstance || _peerInstance.destroyed) return;
     if (_peerConn && _peerConn.open) return; // already reconnected (e.g. peer reconnected to us)
-    console.log(`[PEER] reconnect attempt ${attempt + 1} to ${remoteId}`);
+    _peerLog(`Reconnect attempt ${attempt + 1} → ${remoteId}`);
     const conn = _peerInstance.connect(remoteId, { reliable: true });
     _peerHandleConn(conn);
     // If this attempt doesn't open within 10s, try again
@@ -2524,27 +2542,27 @@ function _peerStart() {
   _peerInstance = new Peer(shortId, _peerOpts);
   _peerInstance.on('open', id => {
     _peerMyId = id;
-    console.log('[PEER] Host registered with ID:', id);
+    _peerLog('Host registered: ' + id);
     _peerUpdateUI('ready', id);
     _peerRenderDevices(null);
     const codeEl = document.getElementById('syncRoomCode');
     if (codeEl) codeEl.textContent = id;
   });
   _peerInstance.on('connection', conn => {
-    console.log('[PEER] Incoming connection from:', conn.peer);
+    _peerLog('Incoming connection from: ' + conn.peer);
     _peerHandleConn(conn);
   });
   _peerInstance.on('error', e => {
-    console.warn('[PEER] error:', e.type, e);
+    _peerLog('Peer error: ' + e.type + ' — ' + (e.message || ''), 'error');
     if (e.type === 'unavailable-id') {
       _peerInstance.destroy();
       setTimeout(_peerStart, 500);
     } else if (e.type === 'peer-unavailable') {
       showToast('Peer not found — check the ID and try again', 'error');
-      _peerUpdateUI('ready', _peerMyId);
+      _peerUpdateUI('off');
     } else {
       showToast('Connection error: ' + (e.type || ''), 'error');
-      _peerUpdateUI('error');
+      _peerUpdateUI('off');
     }
   });
 }
@@ -2553,6 +2571,7 @@ function _peerConnect(peerId) {
   if (!peerId || peerId.length < 4) { showToast('Enter a valid peer ID', 'error'); return; }
   const clean = peerId.trim().toUpperCase();
   _peerUpdateUI('connecting');
+  _peerLog('Connecting to ' + clean + '...');
   showToast('Connecting to ' + clean + '...', 'info');
 
   const _doConnect = () => {
@@ -2561,9 +2580,9 @@ function _peerConnect(peerId) {
     // Timeout: if conn doesn't open in 15s, show error
     const timeout = setTimeout(() => {
       if (!conn.open) {
-        console.warn('[PEER] connection timeout');
+        _peerLog('Connection timeout — peer may be offline', 'warn');
         showToast('Connection timed out — peer may be offline', 'error');
-        _peerUpdateUI('ready', _peerMyId);
+        _peerUpdateUI('off');
       }
     }, 15000);
     conn.on('open', () => clearTimeout(timeout));
@@ -2579,18 +2598,18 @@ function _peerConnect(peerId) {
     _peerInstance = new Peer(myId, _peerOpts);
     _peerInstance.on('open', () => {
       _peerMyId = myId;
-      console.log('[PEER] Joiner registered as:', myId);
+      _peerLog('Joiner registered: ' + myId);
       _doConnect();
     });
     _peerInstance.on('connection', conn => _peerHandleConn(conn));
     _peerInstance.on('error', e => {
-      console.warn('[PEER] connect error:', e.type, e);
+      _peerLog('Connect error: ' + e.type + ' — ' + (e.message || ''), 'error');
       if (e.type === 'peer-unavailable') {
         showToast('Peer not found — check the ID and try again', 'error');
-        _peerUpdateUI('ready', _peerMyId);
+        _peerUpdateUI('off');
       } else {
         showToast('Could not connect: ' + (e.type || e.message), 'error');
-        _peerUpdateUI('error');
+        _peerUpdateUI('off');
       }
     });
   } else if (_peerInstance.open) {
@@ -2649,6 +2668,7 @@ function _peerRequestData() {
 window._peerRequestData = _peerRequestData;
 
 function _peerDisconnect() {
+  _peerLog('Manual disconnect');
   _peerManualDisconnect = true;
   _peerReconnecting = false;
   _peerRemoteId = '';
@@ -2705,7 +2725,7 @@ window._gunSyncNow = function() {
     });
     _peerInstance.on('connection', conn => _peerHandleConn(conn));
     _peerInstance.on('error', e => {
-      console.warn('[PEER] auto-start error:', e);
+      _peerLog('Auto-start error: ' + (e.type || e.message || e), 'error');
       if (e.type === 'unavailable-id') {
         // Our saved ID is taken — clear pairing, user can reconnect manually
         localStorage.removeItem('icu_peer_remote');
