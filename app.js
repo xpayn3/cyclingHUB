@@ -2414,6 +2414,7 @@ function _peerHandleConn(conn) {
   _peerManualDisconnect = false;
   let _chunks = [];
   let _chunkTotal = 0;
+  conn._receiveApproved = false; // guard: only accept snapshot data after user approval
   // Log ICE state changes for debugging
   const _pc = conn.peerConnection;
   if (_pc) {
@@ -2437,13 +2438,16 @@ function _peerHandleConn(conn) {
     if (data.type === 'hello') {
       _peerRenderDevices(data.name);
     } else if (data.type === 'snapshot_start') {
+      if (!conn._receiveApproved) { _peerLog('Blocked unapproved snapshot_start', 'warn'); return; }
       _chunks = new Array(data.total);
       _chunkTotal = data.total;
       _peerShowProgress(0, data.total, data.size);
     } else if (data.type === 'snapshot_chunk') {
+      if (!conn._receiveApproved) return;
       _chunks[data.index] = data.data;
       _peerShowProgress(data.index + 1, _chunkTotal);
     } else if (data.type === 'snapshot_end') {
+      if (!conn._receiveApproved) { _peerLog('Blocked unapproved snapshot_end', 'warn'); return; }
       _peerHideProgress();
       try {
         const json = _chunks.join('');
@@ -2453,6 +2457,7 @@ function _peerHandleConn(conn) {
         localStorage.setItem('icu_peer_last_sync', new Date().toISOString());
         _peerUpdateLastSync();
         conn.send({ type: 'snapshot_ack', keys, device: _peerDeviceName() });
+        conn._receiveApproved = false; // reset guard after successful receive
         _peerLog('Received ' + keys + ' keys from peer');
         showToast(`Received ${keys} keys ✓`, 'success');
       } catch (e) {
@@ -2462,7 +2467,7 @@ function _peerHandleConn(conn) {
       }
       _chunks = [];
     } else if (data.type === 'snapshot') {
-      // Legacy non-chunked (small payloads)
+      if (!conn._receiveApproved) { _peerLog('Blocked unapproved snapshot', 'warn'); return; }
       const keys = Object.keys(data.payload || {}).length;
       _peerRestoreSnapshot(data.payload);
       localStorage.setItem('icu_peer_last_sync', new Date().toISOString());
@@ -2692,6 +2697,7 @@ function _peerRequestData() {
     showToast('No peer connected', 'error');
     return;
   }
+  _peerConn._receiveApproved = true; // we initiated the request, so we approve incoming data
   _peerConn.send({ type: 'request', device: _peerDeviceName() });
   _peerLog('Requesting data from peer...');
   showToast('Requesting data from peer — waiting for approval...', 'info');
@@ -2948,6 +2954,7 @@ function _peerShowIncomingSendOffer(deviceName, sizeBytes, keyCount, conn) {
   btnEl.style.color = '#000';
   btnEl.onclick = () => {
     _closeOverlaySheet('syncConfirmSheet');
+    conn._receiveApproved = true;
     conn.send({ type: 'send_accepted', device: _peerDeviceName() });
     _peerLog('Accepted incoming data');
     showToast('Accepted — waiting for data...', 'info');
