@@ -301,6 +301,80 @@ Also add `e.preventDefault()` on the backdrop's touchmove.
 - Co-authored-by: Claude Opus 4.6
 - Never use `--no-verify` or `--force`
 
+## Common Gotchas & Lessons Learned
+
+### Chart.js Tooltip Not Showing
+- Charts inside info subpages or dynamically created containers need `C_TOOLTIP` with `external: externalTooltipHandler`
+- The tooltip element (`#chartjs-tooltip`) is shared globally — only one exists
+- Charts that use Chart.js default tooltip (no `external`) will show transparent/ugly tooltips
+
+### Chart Axis Jumping/Deforming
+- When toggling datasets on the streams chart, hidden axes still reserve space
+- Fix: dynamically show/hide axes in `toggleStreamLayer` and call `chart.update('none')`
+- Use `afterFit: axis => { axis.width = N }` to constrain axis width
+- The streams chart was rewritten from scratch to fix persistent deformation issues
+
+### Canvas Charts Not Appearing
+- If a canvas is inside a `display: none` container when Chart.js initializes, the chart renders at 0x0
+- Always ensure the container is visible before creating the chart
+- Use `requestAnimationFrame` to delay chart creation if the container animates in
+
+### Tooltips Not Disappearing on Scroll
+- Chart.js tooltips stay visible when scrolling the page
+- Fix: add scroll listener on the sheet/page that hides the tooltip element
+- `_tooltipScrollHide` listens for scroll and sets tooltip opacity to 0
+
+### Line Dividers Between Cards
+- `::after` pseudo-elements and `border-bottom` approaches failed due to card backgrounds/overflow
+- Working solution: inject actual `<div class="act-card-divider">` elements between cards via JS
+- `_injectActCardDividers()` runs after all cards render (with 300ms delay for async cards)
+
+### Numbers Formatting
+- No decimals on chart axes — always `Math.round()`
+- Cadence average from API (`average_cadence`) comes with 5 decimal places — must round
+- Distance on elevation chart x-axis: use `Math.round()` not `.toFixed(3)`
+- Speed values: 1 decimal place (e.g., "21.6 km/h")
+- Power/HR/Cadence: whole numbers only
+
+### Zone Percentage Rounding
+- Zone percentages should show whole numbers (e.g., "27%" not "27.9%")
+- Use `Math.round()` before display
+
+### Power Curve Card Visibility
+- `detailCurveCard` lives inside `detailCurvesRow` (a flex container)
+- If both cards inside start hidden, the row collapses to 0 height
+- The render function must show the row container too, not just the card
+
+### Bike Photo Transparency
+- Photos uploaded as JPEG lose transparency (black background)
+- Must save as WebP: `canvas.toDataURL('image/webp', 0.85)`
+- Background color picker sets `--bike-bg-color` CSS variable on the card
+
+### localStorage Keys Naming
+- All app keys prefixed with `icu_` (e.g., `icu_activities_cache`, `icu_gear_components`)
+- Widget system: `icu_widget_order`, `icu_widget_hidden`
+- Full backup export includes ALL `icu_*` keys
+
+### Global Function Exposure
+- Functions called from `onclick` in HTML must be on `window`
+- Pattern: `window.myFunction = myFunction;` after function declaration
+- Common mistake: function works in dev but not in production because it's module-scoped
+
+### Pill Nav Bounce Animation
+- Original: CSS class toggle + `void element.offsetWidth` forced reflow (low FPS)
+- Fix: Web Animations API `element.animate()` — runs on compositor thread, no layout reflow
+- Duration: 320ms, easing: `cubic-bezier(0.34, 1.56, 0.64, 1)`
+
+### Map Tiles Not Loading
+- MapLibre map inside a card that's `display: none` when initialized won't load tiles
+- Call `map.resize()` after the container becomes visible
+- Dashboard route map: init only when the card is in viewport
+
+### Confirmation Sheets
+- Use `_openOverlaySheet` system, not `confirm()` or custom dialogs
+- iOS 26 SwiftUI style: rounded buttons, accent/destructive colors
+- Always provide cancel option
+
 ## Data Export/Sync
 
 - Full backup: all localStorage keys → JSON file
