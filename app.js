@@ -1493,6 +1493,17 @@ const _STT_HERO_DATA = {
   accentcolor:  { bg: 'linear-gradient(135deg,rgba(0,229,160,0.15),rgba(175,82,222,0.15))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>', desc: 'Choose your app accent color.' },
 };
 
+function _syncThemePicker() {
+  const current = localStorage.getItem('icu_theme') || 'dark';
+  document.querySelectorAll('#appThemePicker .app-theme-card').forEach(c =>
+    c.classList.toggle('active', c.dataset.themeVal === current)
+  );
+  const mapCurrent = localStorage.getItem('icu_map_theme') || 'liberty';
+  document.querySelectorAll('#mapThemePicker .app-theme-card').forEach(c =>
+    c.classList.toggle('active', c.dataset.theme === mapCurrent)
+  );
+}
+
 function openSettingsSubpage(id) {
   if (_iosNavLocked) return;
   const main = document.getElementById('iosSettingsMain');
@@ -1536,6 +1547,7 @@ function openSettingsSubpage(id) {
   if (id === 'navigation' && typeof renderNavSettings === 'function') renderNavSettings();
   if (id === 'accentcolor') setTimeout(() => openAccentColorPicker(), 350);
   if (id === 'sync') _peerRenderDevices(null);
+  if (id === 'apptheme' || id === 'maptheme') _syncThemePicker();
 
   // Inject hero intro if not already present
   if (!sub.querySelector('.stt-hero') && _STT_HERO_DATA[id]) {
