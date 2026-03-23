@@ -22073,19 +22073,25 @@ function renderStreamCharts(streams, activity) {
       : `${m}:${String(sec).padStart(2, '0')}`;
   });
 
-  // Y-axis config — power (left) and HR (right) show tick labels; others are hidden but still scale correctly
-  const hasPower = presentKeys.includes('watts');
-  const hasHR    = presentKeys.includes('heartrate');
+  // Y-axis config — show left axis for first available metric, HR on right
+  const hasPower   = presentKeys.includes('watts');
+  const hasHR      = presentKeys.includes('heartrate');
+  const hasCadence = presentKeys.includes('cadence');
+  const hasSpeed   = presentKeys.includes('velocity_smooth');
+
+  // Determine which axis shows on the left when power is missing
+  const showCadenceLeft = !hasPower && hasCadence;
+  const showSpeedLeft   = !hasPower && !hasCadence && hasSpeed;
 
   const scales = {
     x: {
       grid:  C_GRID,
       ticks: { ...C_TICK, maxTicksLimit: 8 },
     },
-    yPower:   { display: hasPower,  position: 'left',  min: 0,  grid: C_GRID,              ticks: { ...C_TICK, maxTicksLimit: 5, padding: 2, callback: function(v, i, ticks) { return i === 0 ? 'W' : v; } }, afterFit: axis => { axis.width = 30; } },
-    yHR:      { display: hasHR,     position: 'right', min: 30, grid: { display: false },   ticks: { ...C_TICK, maxTicksLimit: 5, callback: function(v, i, ticks) { return i === 0 ? 'BPM' : v; } } },
-    yCadence: { display: false, min: 0  },
-    ySpeed:   { display: false, min: 0  },
+    yPower:   { display: hasPower,      position: 'left',  min: 0,  grid: C_GRID,              ticks: { ...C_TICK, maxTicksLimit: 5, padding: 2, callback: function(v, i) { return i === 0 ? 'W' : v; } }, afterFit: axis => { axis.width = 30; } },
+    yHR:      { display: hasHR,         position: 'right', min: 30, grid: { display: false },   ticks: { ...C_TICK, maxTicksLimit: 5, callback: function(v, i) { return i === 0 ? 'BPM' : v; } } },
+    yCadence: { display: showCadenceLeft, position: 'left', min: 0, grid: showCadenceLeft ? C_GRID : { display: false }, ticks: { ...C_TICK, maxTicksLimit: 5, callback: function(v, i) { return i === 0 ? 'rpm' : v; } }, afterFit: showCadenceLeft ? (axis => { axis.width = 30; }) : undefined },
+    ySpeed:   { display: showSpeedLeft,   position: 'left', min: 0, grid: showSpeedLeft ? C_GRID : { display: false },   ticks: { ...C_TICK, maxTicksLimit: 5, callback: function(v, i) { return i === 0 ? 'km/h' : v; } }, afterFit: showSpeedLeft ? (axis => { axis.width = 30; }) : undefined },
     yAlt:     { display: false        },
     yLRBal:   { display: false, min: 40, max: 60 },
   };
