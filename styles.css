@@ -16833,7 +16833,7 @@ body:has(.act-sheet-mode) .topbar {
     }
 }
 #forecastRail {
-    margin: 0 var(--pad-page);
+    margin: 0;
 }
 /* Today weather card */
 .wx-today-card {
