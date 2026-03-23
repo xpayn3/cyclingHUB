@@ -5931,16 +5931,31 @@ function renderDashboard() {
 function _applyDashGradient() {
   const pc = document.getElementById('pageContent');
   if (!pc) return;
+  const theme = document.documentElement.dataset.theme || 'dark';
+  const isLight = theme === 'light';
   const tsb = state.fitness?.tsb ?? (state.fitness ? (state.fitness.ctl - state.fitness.atl) : null);
+  const base = isLight ? '#f2f3f5' : '#000000';
   let top, mid;
-  if (tsb == null)   { top = '#0f170f'; mid = '#0b120b'; }  // no data — barely-there green
-  else if (tsb > 15) { top = '#081f18'; mid = '#051912'; }  // peak/race ready — deep accent green
-  else if (tsb > 5)  { top = '#0a1c14'; mid = '#071610'; }  // fresh — muted green
-  else if (tsb > -5) { top = '#1a1a0c'; mid = '#14140a'; }  // neutral — dark amber
-  else if (tsb > -15){ top = '#1a180c'; mid = '#14120a'; }  // training — warm yellow-brown
-  else if (tsb > -25){ top = '#1e1408'; mid = '#181006'; }  // deep training — dark orange
-  else               { top = '#1e0c0c'; mid = '#180a0a'; }  // overreaching — dark red
-  pc.style.background = `linear-gradient(180deg, ${top} 0%, ${mid} 12%, #000000 32%)`;
+  if (isLight) {
+    // Light theme: soft pastel tints
+    if (tsb == null)   { top = '#e8f5e8'; mid = '#edf2ed'; }
+    else if (tsb > 15) { top = '#d4f0e4'; mid = '#e2f2ea'; }  // peak — soft green
+    else if (tsb > 5)  { top = '#daf0e6'; mid = '#e6f3ec'; }  // fresh — light green
+    else if (tsb > -5) { top = '#f5f0d4'; mid = '#f2eedf'; }  // neutral — soft amber
+    else if (tsb > -15){ top = '#f5ecd0'; mid = '#f2ebdd'; }  // training — warm
+    else if (tsb > -25){ top = '#f5e2c8'; mid = '#f3e8d6'; }  // deep — light orange
+    else               { top = '#f5d4d4'; mid = '#f3e0e0'; }  // overreaching — soft red
+  } else {
+    // Dark theme (default + TdF)
+    if (tsb == null)   { top = '#0f170f'; mid = '#0b120b'; }
+    else if (tsb > 15) { top = '#081f18'; mid = '#051912'; }  // peak/race ready
+    else if (tsb > 5)  { top = '#0a1c14'; mid = '#071610'; }  // fresh
+    else if (tsb > -5) { top = '#1a1a0c'; mid = '#14140a'; }  // neutral
+    else if (tsb > -15){ top = '#1a180c'; mid = '#14120a'; }  // training
+    else if (tsb > -25){ top = '#1e1408'; mid = '#181006'; }  // deep training
+    else               { top = '#1e0c0c'; mid = '#180a0a'; }  // overreaching
+  }
+  pc.style.background = `linear-gradient(180deg, ${top} 0%, ${mid} 12%, ${base} 32%)`;
 }
 
 function _injectEditWidgetsBtn() {
@@ -12364,6 +12379,7 @@ function renderFitnessPage() {
   _renderProgressionLevels(fd);
   _renderVO2maxEstimate(fd);
   _renderStrainRecovery(fd);
+  renderWeatherCorrelation();
   _rIC(() => { if (window.refreshGlow) refreshGlow(); });
 }
 
@@ -34117,6 +34133,110 @@ Object.assign(window, { wrkRender, wrkRefreshStats, wrkSetName, wrkAddSegment, w
   _isDark, _updateChartColors, setTheme, loadPhysicsScroll, setPhysicsScroll,
   loadSmoothFlyover, toggleSmoothFlyover, toggleTerrain3d });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// GEAR — COST & ROI ANALYSIS
+// ─────────────────────────────────────────────────────────────────────────────
+function renderGearRoi() {
+  const panel = document.getElementById('gearRoiContent'); if (!panel) return;
+  const bikeId = window._garActiveBike, bike = _gearBikeCache.find(b => b.id === bikeId);
+  if (!bike || !bike.km) { panel.innerHTML = '<div class="gar-empty">No distance data available</div>'; return; }
+  const comps = loadGearComponents().filter(c => c.bikeId === bikeId && c.price > 0);
+  if (!comps.length) { panel.innerHTML = '<div class="gar-empty">Add prices to your components to see ROI analysis</div>'; return; }
+  const bikeKm = bike.km, totalInv = comps.reduce((s, c) => s + (c.price || 0), 0), cpk = bikeKm > 0 ? totalInv / bikeKm : 0;
+  const yearlyKm = _gearEstYearKm(bikeId), annualCost = yearlyKm > 0 ? cpk * yearlyKm : 0, cur = '\u20AC';
+  const cd = comps.map(c => { const km = Math.max(1, bikeKm - (c.kmAtInstall || 0)); return { ...c, compKm: km, costPerKm: c.price / km }; }).sort((a, b) => b.costPerKm - a.costPerKm);
+  let h = `<div class="gar-roi-summary"><div class="gar-stat-pill"><span class="gar-stat-val">${cur}${totalInv.toLocaleString()}</span><span class="gar-stat-lbl">Total Investment</span></div><div class="gar-stat-pill"><span class="gar-stat-val">${cur}${cpk.toFixed(3)}</span><span class="gar-stat-lbl">Cost / km</span></div><div class="gar-stat-pill"><span class="gar-stat-val">${yearlyKm > 0 ? cur + Math.round(annualCost).toLocaleString() : '\u2014'}</span><span class="gar-stat-lbl">Est. Annual</span></div><div class="gar-stat-pill"><span class="gar-stat-val">${bikeKm.toLocaleString()}</span><span class="gar-stat-lbl">Total km</span></div></div><div class="gar-roi-chart-wrap"><canvas id="gearRoiChart"></canvas></div><div class="gar-roi-list">`;
+  cd.forEach(c => { const col = GEAR_CATEGORY_COLORS[c.category] || '#94a3b8', pct = totalInv > 0 ? Math.round(c.price / totalInv * 100) : 0; h += `<div class="gar-roi-row"><div class="gar-roi-row-left"><div class="gar-roi-dot" style="background:${col}"></div><div><div class="gar-roi-comp-name">${c.name || c.category}</div><div class="gar-roi-comp-meta">${c.brand ? c.brand + ' ' : ''}${c.model || ''} \u00B7 ${c.compKm.toLocaleString()} km</div></div></div><div class="gar-roi-row-right"><div class="gar-roi-cost">${cur}${c.costPerKm.toFixed(3)}<span class="gar-roi-unit">/km</span></div><div class="gar-roi-pct">${pct}%</div></div></div>`; });
+  h += '</div>'; panel.innerHTML = h;
+  const cv = document.getElementById('gearRoiChart'); if (!cv) return;
+  if (state._gearRoiChart) { state._gearRoiChart.destroy(); state._gearRoiChart = null; }
+  state._gearRoiChart = new Chart(cv, { type: 'bar', data: { labels: cd.map(c => c.name || c.category), datasets: [{ data: cd.map(c => parseFloat(c.costPerKm.toFixed(4))), backgroundColor: cd.map(c => GEAR_CATEGORY_COLORS[c.category] || '#94a3b8'), borderRadius: 4, borderSkipped: false }] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP, callbacks: { label: ctx => `${cur}${ctx.raw.toFixed(4)} / km` } } }, scales: { x: { grid: C_GRID, ticks: { ...C_TICK, callback: v => cur + v.toFixed(3) } }, y: { grid: { display: false }, ticks: { ...C_TICK, font: { size: 11 } } } } } });
+}
+function _gearEstYearKm(bid) { try { const a = state.activities || [], ya = Date.now() - 365 * 86400000; let k = 0; a.forEach(x => { if (x.start_date_local && new Date(x.start_date_local).getTime() > ya && (x.gear_id === bid || (!x.gear_id && x.type === 'Ride'))) k += (x.distance || 0) / 1000; }); return Math.round(k); } catch (e) { return 0; } }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FUELING PLAN GENERATOR
+// ─────────────────────────────────────────────────────────────────────────────
+const FUEL_PRODUCTS = { gel: { label: 'Energy Gel', carbsG: 25, cals: 100 }, bar: { label: 'Energy Bar', carbsG: 40, cals: 200 }, drink: { label: 'Drink Mix (500ml)', carbsG: 40, cals: 160 }, banana: { label: 'Banana', carbsG: 27, cals: 105 }, rice: { label: 'Rice Cake', carbsG: 30, cals: 120 } };
+function openFuelPlanSheet(ev) {
+  const wi = document.getElementById('fuelWeight'); if (wi && !wi.value) { const w = state.athlete?.weight || localStorage.getItem('icu_athlete_weight'); if (w) wi.value = Math.round(parseFloat(w)); }
+  if (ev?.moving_time) { const m = Math.round(ev.moving_time / 60); const hE = document.getElementById('fuelDurationH'), mE = document.getElementById('fuelDurationM'); if (hE) hE.value = Math.floor(m / 60); if (mE) mE.value = m % 60; }
+  const f = document.getElementById('fuelPlanForm'), o = document.getElementById('fuelPlanOutput'); if (f) f.style.display = ''; if (o) o.style.display = 'none';
+  _openOverlaySheet('fuelPlanSheet');
+}
+function _closeFuelPlan() { _closeOverlaySheet('fuelPlanSheet'); }
+function _fuelGenerate() {
+  const hr = parseInt(document.getElementById('fuelDurationH').value) || 0, mn = parseInt(document.getElementById('fuelDurationM').value) || 0, tot = hr * 60 + mn;
+  if (tot < 30) { showToast('Ride must be at least 30 minutes', 'error'); return; }
+  const IF = parseFloat(document.getElementById('fuelIntensity').value) || 0.76, hot = document.getElementById('fuelHot')?.checked, alt = document.getElementById('fuelHigh')?.checked;
+  const ft = []; document.querySelectorAll('#fuelPlanForm .fuel-toggles input:checked').forEach(cb => { if (FUEL_PRODUCTS[cb.value]) ft.push(cb.value); });
+  if (!ft.length) { showToast('Select at least one fuel type', 'error'); return; }
+  let carb = IF < 0.6 ? 30 : IF < 0.75 ? 50 : IF < 0.85 ? 70 : IF < 0.95 ? 80 : 90; if (hot) carb = Math.round(carb * 1.1);
+  const wph = hot ? 750 : alt ? 650 : 500, sched = [], pri = ['drink', 'gel', 'banana', 'rice', 'bar'], avail = pri.filter(t => ft.includes(t)); let fi = 0;
+  for (let m = 30; m < tot; m += 20) { const t = avail[fi++ % avail.length], p = FUEL_PRODUCTS[t], tH = Math.floor(m / 60), tM = m % 60; sched.push({ ts: tH > 0 ? `${tH}h${tM > 0 ? ' ' + tM + 'm' : ''}` : `${tM}m`, item: p.label, c: p.carbsG, cal: p.cals }); }
+  const tc = sched.reduce((s, i) => s + i.c, 0), tCal = sched.reduce((s, i) => s + i.cal, 0), tW = Math.round(tot / 60 * wph);
+  const ds = tot >= 60 ? `${Math.floor(tot / 60)}h${tot % 60 > 0 ? ' ' + (tot % 60) + 'm' : ''}` : `${tot}m`;
+  const f = document.getElementById('fuelPlanForm'), o = document.getElementById('fuelPlanOutput'); if (f) f.style.display = 'none'; if (o) o.style.display = '';
+  let h = `<div class="fuel-summary"><div class="fuel-summary-card"><div class="fuel-summary-val">${tc}g</div><div class="fuel-summary-lbl">Total Carbs</div></div><div class="fuel-summary-card"><div class="fuel-summary-val">${tCal}</div><div class="fuel-summary-lbl">Calories</div></div><div class="fuel-summary-card"><div class="fuel-summary-val">${Math.ceil(tW / 500)}</div><div class="fuel-summary-lbl">Bottles</div></div><div class="fuel-summary-card"><div class="fuel-summary-val">${carb}g/h</div><div class="fuel-summary-lbl">Target Rate</div></div></div>`;
+  h += `<div class="fuel-water-note">Drink ~${wph}ml/hr (${tW.toLocaleString()}ml total for ${ds})</div><div class="fuel-timeline">`;
+  h += `<div class="fuel-tl-item fuel-tl-item--start"><div class="fuel-tl-time">0:00</div><div class="fuel-tl-dot"></div><div class="fuel-tl-body"><div class="fuel-tl-title">Ride Start</div><div class="fuel-tl-desc">Glycogen stores \u2014 no fueling needed yet</div></div></div>`;
+  sched.forEach(i => { h += `<div class="fuel-tl-item"><div class="fuel-tl-time">${i.ts}</div><div class="fuel-tl-dot" style="background:#00e5a0"></div><div class="fuel-tl-body"><div class="fuel-tl-title">${i.item}</div><div class="fuel-tl-desc">${i.c}g carbs \u00B7 ${i.cal} cal</div></div></div>`; });
+  h += `<div class="fuel-tl-item fuel-tl-item--end"><div class="fuel-tl-time">${Math.floor(tot / 60)}:${String(tot % 60).padStart(2, '0')}</div><div class="fuel-tl-dot"></div><div class="fuel-tl-body"><div class="fuel-tl-title">Ride End</div><div class="fuel-tl-desc">Recovery meal within 30 min</div></div></div></div>`;
+  h += `<button class="fuel-back-btn" onclick="_fuelShowForm()"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg> Adjust Inputs</button>`;
+  o.innerHTML = h;
+}
+function _fuelShowForm() { const f = document.getElementById('fuelPlanForm'), o = document.getElementById('fuelPlanOutput'); if (f) f.style.display = ''; if (o) o.style.display = 'none'; }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TAPERING WIZARD
+// ─────────────────────────────────────────────────────────────────────────────
+const TAPER_PROFILES = { crit: { days: 7, vr: 0.40, tau: 4 }, road_race: { days: 10, vr: 0.50, tau: 5 }, tt: { days: 10, vr: 0.45, tau: 5 }, gran_fondo: { days: 14, vr: 0.55, tau: 6 }, stage_race: { days: 14, vr: 0.50, tau: 7 } };
+function openTaperWizard(rd) { const ci = document.getElementById('taperCTL'); if (ci && state.fitness?.ctl) ci.value = Math.round(state.fitness.ctl); if (rd) { const d = document.getElementById('taperRaceDate'); if (d) d.value = rd; } const s1 = document.getElementById('taperStep1'), s2 = document.getElementById('taperStep2'); if (s1) s1.style.display = ''; if (s2) s2.style.display = 'none'; _openOverlaySheet('taperWizardSheet'); }
+function _closeTaperWizard() { _closeOverlaySheet('taperWizardSheet'); }
+function _taperGenerate() {
+  const rd = document.getElementById('taperRaceDate').value; if (!rd) { showToast('Select a race date', 'error'); return; }
+  const et = document.getElementById('taperEventType').value, ctl = parseFloat(document.getElementById('taperCTL').value); if (!ctl || ctl < 1) { showToast('Enter your current CTL', 'error'); return; }
+  const pr = TAPER_PROFILES[et], race = new Date(rd), plan = [];
+  for (let d = 0; d < pr.days; d++) { const dt = new Date(race); dt.setDate(dt.getDate() - pr.days + d); const dtr = pr.days - d, decay = Math.exp(-d / pr.tau); let tss = Math.round(ctl * decay * (1 - pr.vr * 0.4)); const rest = dtr === 1 || (dtr <= 4 && dtr % 2 === 0), opener = dtr === 2; if (rest) tss = 0; if (opener) tss = Math.round(ctl * 0.3); plan.push({ date: dt.toISOString().split('T')[0], tss, rest, opener, dtr, label: rest ? 'Rest' : opener ? 'Openers' : dtr > 7 ? 'Reduced volume' : 'Easy spin' }); }
+  plan.push({ date: rd, tss: null, rest: false, opener: false, dtr: 0, label: 'Race Day!' });
+  let pc = ctl, pa = state.fitness?.atl || ctl; plan.forEach(d => { if (d.dtr > 0) { const t = d.tss || 0; pc += (t - pc) / 42; pa += (t - pa) / 7; } });
+  const proj = { ctl: Math.round(pc), atl: Math.round(pa), tsb: Math.round(pc - pa) }, tc = proj.tsb >= 10 ? '#00e5a0' : proj.tsb >= 0 ? '#f0c429' : '#ff453a';
+  const s1 = document.getElementById('taperStep1'), s2 = document.getElementById('taperStep2'); if (s1) s1.style.display = 'none'; if (s2) s2.style.display = '';
+  let h = `<div class="taper-projection"><div class="taper-proj-title">Projected Race Day Form</div><div class="taper-proj-stats"><div class="taper-proj-stat"><span class="taper-proj-val" style="color:#00e5a0">${proj.ctl}</span><span class="taper-proj-lbl">CTL</span></div><div class="taper-proj-stat"><span class="taper-proj-val" style="color:#ff9500">${proj.atl}</span><span class="taper-proj-lbl">ATL</span></div><div class="taper-proj-stat"><span class="taper-proj-val" style="color:${tc}">${proj.tsb > 0 ? '+' : ''}${proj.tsb}</span><span class="taper-proj-lbl">TSB</span></div></div></div>`;
+  h += `<div class="taper-chart-wrap"><canvas id="taperChart"></canvas></div><div class="taper-days">`;
+  plan.forEach(d => { const dt = new Date(d.date + 'T12:00:00'), dn = dt.toLocaleDateString('en-US', { weekday: 'short' }), df = dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), isR = d.dtr === 0; let c = 'rgba(255,255,255,0.4)'; if (d.tss > 0 && d.tss < 30) c = '#00e5a0'; else if (d.tss >= 30 && d.tss < 60) c = '#f0c429'; else if (d.tss >= 60) c = '#ff9500'; h += `<div class="taper-day${isR ? ' taper-day--race' : ''}"><div class="taper-day-date"><span class="taper-day-name">${dn}</span><span class="taper-day-num">${df}</span></div><div class="taper-day-info"><span class="taper-day-label">${d.label}</span>${d.dtr > 0 ? `<span class="taper-day-countdown">${d.dtr}d to race</span>` : ''}</div><div class="taper-day-tss" style="color:${isR ? '#00e5a0' : c}">${isR ? 'RACE' : d.tss > 0 ? d.tss + ' TSS' : '\u2014'}</div></div>`; });
+  h += `</div><div class="taper-actions"><button class="taper-back-btn" onclick="_taperShowStep1()"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg> Back</button><button class="taper-apply-btn" onclick="_taperApplyToCalendar()">Apply to Calendar</button></div>`;
+  s2.innerHTML = h; window._taperPlan = plan;
+  const cv = document.getElementById('taperChart'); if (cv) { if (state._taperChart) { state._taperChart.destroy(); state._taperChart = null; } const days = plan.filter(d => d.dtr > 0); state._taperChart = new Chart(cv, { type: 'bar', data: { labels: days.map(d => { const dt = new Date(d.date + 'T12:00:00'); return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); }), datasets: [{ data: days.map(d => d.tss || 0), backgroundColor: days.map(d => d.rest ? 'rgba(255,255,255,0.1)' : d.opener ? '#4a9eff' : '#00e5a0'), borderRadius: 4, borderSkipped: false }] }, options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP, callbacks: { label: ctx => ctx.raw + ' TSS' } } }, scales: { x: { grid: { display: false }, ticks: { ...C_TICK, maxRotation: 45 } }, y: { grid: C_GRID, beginAtZero: true, ticks: { ...C_TICK, callback: (v, i) => i === 0 ? 'TSS' : Math.round(v) } } } } }); }
+}
+function _taperShowStep1() { const s1 = document.getElementById('taperStep1'), s2 = document.getElementById('taperStep2'); if (s1) s1.style.display = ''; if (s2) s2.style.display = 'none'; }
+async function _taperApplyToCalendar() {
+  const plan = window._taperPlan; if (!plan) return; const aid = state.athleteId || localStorage.getItem('icu_athlete_id'); if (!aid) { showToast('No athlete ID', 'error'); return; }
+  let n = 0; for (const d of plan) { if (d.dtr === 0) continue; try { await icuPost(`/api/v1/athlete/${aid}/events`, { start_date_local: d.date + 'T00:00:00', name: d.rest ? 'Taper Rest' : d.opener ? 'Taper Openers' : `Taper (${d.dtr}d out)`, category: 'WORKOUT', type: 'Ride', icu_training_load: d.tss || 0, description: `Taper: ${d.label}\nTSS: ${d.tss || 0}`, color: d.rest ? '#666' : d.opener ? '#4a9eff' : '#00e5a0' }); n++; } catch (e) { console.warn('Taper fail:', e); } }
+  showToast(`${n} taper events added`, 'success'); _closeTaperWizard(); if (typeof renderCalendar === 'function') renderCalendar();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WEATHER-PERFORMANCE CORRELATION
+// ─────────────────────────────────────────────────────────────────────────────
+let _fitWxPlot = 'temp-power';
+function renderWeatherCorrelation() { const card = document.getElementById('fitWeatherCorrCard'); if (!card) return; const acts = (state.activities || []).filter(a => a.type === 'Ride' && (a.weather_temp != null || a.average_temp != null) && (a.icu_weighted_avg_watts > 0 || a.average_watts > 0)); if (acts.length < 5) { card.style.display = 'none'; return; } card.style.display = ''; _fitWxRender(_fitWxPlot, acts); }
+function _fitWxSwitch(pt) { _fitWxPlot = pt; document.querySelectorAll('.fit-wx-tab').forEach(t => t.classList.toggle('active', t.dataset.wxplot === pt)); const acts = (state.activities || []).filter(a => a.type === 'Ride' && (a.weather_temp != null || a.average_temp != null) && (a.icu_weighted_avg_watts > 0 || a.average_watts > 0)); _fitWxRender(pt, acts); }
+function _fitWxRender(pt, acts) {
+  const cv = document.getElementById('fitWxCorrChart'); if (!cv) return; if (state._fitWxChart) { state._fitWxChart.destroy(); state._fitWxChart = null; }
+  const pts = []; let xL, yL, xU, yU;
+  if (pt === 'temp-power') { xL = 'Temperature'; yL = 'Norm. Power'; xU = '\u00B0C'; yU = 'W'; acts.forEach(a => { const t = a.weather_temp ?? a.average_temp, p = a.icu_weighted_avg_watts || a.average_watts; if (t != null && p > 0) pts.push({ x: Math.round(t), y: Math.round(p) }); }); }
+  else if (pt === 'temp-hr') { xL = 'Temperature'; yL = 'Avg HR'; xU = '\u00B0C'; yU = 'BPM'; acts.forEach(a => { const t = a.weather_temp ?? a.average_temp, hr = a.average_heartrate; if (t != null && hr > 0) pts.push({ x: Math.round(t), y: Math.round(hr) }); }); }
+  else { xL = 'Wind Speed'; yL = 'Avg Speed'; xU = 'km/h'; yU = 'km/h'; acts.forEach(a => { const w = a.weather_wind_speed, s = a.average_speed ? a.average_speed * 3.6 : null; if (w != null && s > 0) pts.push({ x: Math.round(w * 3.6), y: Math.round(s * 10) / 10 }); }); }
+  if (!pts.length) return;
+  const xs = pts.map(p => p.x), ys = pts.map(p => p.y), n = xs.length, sX = xs.reduce((a, b) => a + b, 0), sY = ys.reduce((a, b) => a + b, 0), sXY = xs.reduce((a, x, i) => a + x * ys[i], 0), sX2 = xs.reduce((a, x) => a + x * x, 0);
+  const sl = (n * sXY - sX * sY) / (n * sX2 - sX * sX) || 0, ic = (sY - sl * sX) / n, xMn = Math.min(...xs), xMx = Math.max(...xs);
+  const trend = [{ x: xMn, y: sl * xMn + ic }, { x: xMx, y: sl * xMx + ic }];
+  const cols = pts.map(p => { if (pt.startsWith('temp')) { const t = p.x; if (t < 5) return '#4a9eff'; if (t < 15) return '#00e5a0'; if (t < 25) return '#f0c429'; if (t < 35) return '#ff9500'; return '#ff453a'; } return 'rgba(0,229,160,0.6)'; });
+  state._fitWxChart = new Chart(cv, { type: 'scatter', data: { datasets: [{ data: pts, backgroundColor: cols, borderColor: 'transparent', pointRadius: 5, pointHoverRadius: 7 }, { data: trend, type: 'line', borderColor: 'rgba(255,255,255,0.3)', borderWidth: 2, borderDash: [6, 4], pointRadius: 0, fill: false }] }, options: { responsive: true, maintainAspectRatio: false, animation: false, interaction: { mode: 'nearest', intersect: true }, plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP, callbacks: { label: ctx => ctx.datasetIndex === 1 ? '' : `${xL}: ${ctx.raw.x}${xU}  ${yL}: ${Math.round(ctx.raw.y)}${yU}` } } }, scales: { x: { grid: C_GRID, title: { display: true, text: `${xL} (${xU})`, color: 'rgba(255,255,255,0.4)', font: { size: 11 } }, ticks: { ...C_TICK } }, y: { grid: C_GRID, title: { display: true, text: `${yL} (${yU})`, color: 'rgba(255,255,255,0.4)', font: { size: 11 } }, ticks: { ...C_TICK, callback: (v, i) => i === 0 ? yU : Math.round(v) } } } } });
+  const ie = document.getElementById('fitWxInsights'); if (ie) { const ins = []; if (Math.abs(sl) > 0.3) { const dir = sl > 0 ? 'increases' : 'decreases', p10 = Math.abs(sl * 10).toFixed(1); if (pt === 'temp-power') ins.push(`Power ${dir} by ~${p10}W per 10\u00B0C`); else if (pt === 'temp-hr') ins.push(`HR ${dir} by ~${p10} BPM per 10\u00B0C`); else ins.push(`Speed drops ~${p10} km/h per 10 km/h wind`); } if (pt === 'temp-power') { const bins = {}; pts.forEach(p => { const b = Math.floor(p.x / 5) * 5; if (!bins[b]) bins[b] = { s: 0, n: 0 }; bins[b].s += p.y; bins[b].n++; }); const best = Object.entries(bins).filter(([, b]) => b.n >= 2).map(([k, b]) => ({ l: `${k}-${+k + 5}`, a: b.s / b.n, n: b.n })).sort((a, b) => b.a - a.a)[0]; if (best) ins.push(`Peak at ${best.l}\u00B0C (avg ${Math.round(best.a)}W, ${best.n} rides)`); } if (pts.length < 20) ins.push(`Based on ${pts.length} rides`); if (!ins.length) ins.push('No significant pattern yet'); ie.innerHTML = ins.map(i => `<div class="fit-wx-insight">${i}</div>`).join(''); }
+}
+
 // ── From strava.js ──
 Object.assign(window, { saveStravaCredentials, loadStravaCredentials,
   clearStravaCredentials, isStravaConnected, stravaStartAuth, stravaExchangeCode,
@@ -34209,6 +34329,10 @@ Object.assign(window, {
   C_TOOLTIP, C_TICK, C_GRID,
   // My Routes
   mrSwitchTab, mrFilter, mrToggleFav, renderMyRoutesPage, _mrOpenSuggestion, renderSuggestionPage,
+  // New features: ROI, Fueling, Taper, Weather Correlation
+  renderGearRoi, openFuelPlanSheet, _closeFuelPlan, _fuelGenerate, _fuelShowForm,
+  openTaperWizard, _closeTaperWizard, _taperGenerate, _taperShowStep1, _taperApplyToCalendar,
+  renderWeatherCorrelation, _fitWxSwitch,
 });
 
 // ── Also expose constants ──
