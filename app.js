@@ -17903,6 +17903,8 @@ _ACT_CARD_INFO.detailHRCurveCard.customRender = function(page, activity, streams
   const hr = streams?.heartrate;
   if (!hr?.length) { page.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted)">No HR data</div>'; return; }
 
+  const avgHR = Math.round(activity?.average_heartrate || 0);
+  const maxHR = Math.round(activity?.max_heartrate || 0);
   const durations = [5,15,30,60,120,300,600,1200];
   const peaks = durations.map(d => {
     if (d > hr.length) return { dur: d, val: 0 };
@@ -17913,16 +17915,50 @@ _ACT_CARD_INFO.detailHRCurveCard.customRender = function(page, activity, streams
   }).filter(p => p.val > 0);
 
   const labels = peaks.map(p => p.dur < 60 ? p.dur + 's' : Math.round(p.dur/60) + 'm');
+
+  // Hero stats
   let html = `<div class="aci-sp-header"><div class="aci-sp-title">Heart Rate Curve</div></div>
-    <div style="display:flex;flex-wrap:wrap;gap:6px;padding:12px 16px;justify-content:center">`;
-  peaks.slice(0, 4).forEach(p => {
+    <div style="display:flex;justify-content:center;gap:24px;padding:16px">
+      <div style="text-align:center"><div style="font-size:36px;font-weight:800;font-family:var(--font-num);color:#ff6b35">${avgHR}</div><div style="font-size:11px;color:var(--text-muted)">AVG BPM</div></div>
+      <div style="text-align:center"><div style="font-size:36px;font-weight:800;font-family:var(--font-num);color:#ff453a">${maxHR}</div><div style="font-size:11px;color:var(--text-muted)">MAX BPM</div></div>
+    </div>`;
+
+  // Chart first
+  html += `<div style="height:200px;margin:0"><canvas id="aciHRCurve"></canvas></div>`;
+
+  // Peak pills below chart
+  html += `<div style="display:flex;flex-wrap:wrap;gap:6px;padding:16px;justify-content:center">`;
+  peaks.forEach(p => {
     const lbl = p.dur < 60 ? p.dur + 's' : Math.round(p.dur/60) + 'm';
-    html += `<div style="background:var(--surface-1);border-radius:var(--radius-sm);padding:10px 14px;text-align:center;min-width:60px">
-      <div style="font-size:18px;font-weight:700;font-family:var(--font-num);color:#f87171">${p.val}<span style="font-size:11px;color:var(--text-muted)">bpm</span></div>
+    html += `<div style="background:var(--surface-1);border-radius:var(--radius-sm);padding:10px 14px;text-align:center;min-width:55px">
+      <div style="font-size:16px;font-weight:700;font-family:var(--font-num);color:#f87171">${p.val}<span style="font-size:10px;color:var(--text-muted)">bpm</span></div>
       <div style="font-size:10px;color:var(--text-muted)">${lbl}</div>
     </div>`;
   });
-  html += `</div><div style="height:200px;margin:0"><canvas id="aciHRCurve"></canvas></div>`;
+  html += `</div>`;
+
+  // HR Recovery analysis
+  const valid = hr.filter(v => v != null && v > 0);
+  const lastMin = valid.slice(-60);
+  const peakInRide = Math.max(...valid);
+  const endHR = lastMin.length ? Math.round(lastMin.reduce((s,v) => s+v,0) / lastMin.length) : 0;
+  const recovery = peakInRide - endHR;
+
+  html += `<div style="padding:0 0 16px">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin-bottom:8px">Recovery</div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="color:var(--text-muted)">Peak HR in ride</span><span style="font-weight:600">${peakInRide} bpm</span></div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="color:var(--text-muted)">Last minute avg</span><span style="font-weight:600">${endHR} bpm</span></div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px"><span style="color:var(--text-muted)">HR drop</span><span style="font-weight:600;color:${recovery > 30 ? 'var(--accent)' : recovery > 15 ? '#f0c429' : 'var(--red)'}">${recovery} bpm</span></div>
+  </div>`;
+
+  // Max HR validation
+  html += `<div style="padding:0 0 16px">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin-bottom:8px">Max HR Analysis</div>
+    <div style="font-size:13px;color:var(--text-muted);line-height:1.6">
+      ${maxHR >= 190 ? 'Very high max HR recorded — this likely represents your true max HR.' : maxHR >= 170 ? 'Solid effort — approaching max HR. Good for VO₂max validation.' : 'Moderate HR ceiling — may not represent true max. Consider a dedicated max HR test.'}
+    </div>
+  </div>`;
+
   page.innerHTML = html;
 
   requestAnimationFrame(() => {
