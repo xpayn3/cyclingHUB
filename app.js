@@ -2482,6 +2482,20 @@ function _peerHandleConn(conn) {
     } else if (data.type === 'request_declined') {
       _peerLog('Request declined by peer', 'warn');
       showToast((data.device || 'Peer') + ' declined the request', 'info');
+    } else if (data.type === 'send_offer') {
+      // Peer wants to send us data — ask user to accept
+      _peerLog('Incoming data offer from: ' + (data.device || conn.peer) + ' (' + data.keys + ' keys, ' + Math.round((data.size || 0) / 1024) + ' KB)');
+      _peerShowIncomingSendOffer(data.device || conn.peer, data.size, data.keys, conn);
+    } else if (data.type === 'send_accepted') {
+      // Peer accepted our send — now actually send the data
+      _peerLog('Peer accepted — sending data...');
+      showToast('Peer accepted — sending...', 'success');
+      _peerSendSnapshot(conn);
+      localStorage.setItem('icu_peer_last_sync', new Date().toISOString());
+      _peerUpdateLastSync();
+    } else if (data.type === 'send_declined') {
+      _peerLog('Send declined by peer', 'warn');
+      showToast((data.device || 'Peer') + ' declined the transfer', 'info');
     }
   });
   conn.on('close', () => {
@@ -2664,10 +2678,12 @@ function _peerSendData() {
     showToast('No peer connected', 'error');
     return;
   }
-  _peerSendSnapshot(_peerConn);
-  localStorage.setItem('icu_peer_last_sync', new Date().toISOString());
-  _peerUpdateLastSync();
-  showToast('Data sent to peer (' + Math.round(JSON.stringify(_peerBuildSnapshot()).length / 1024) + ' KB)', 'success');
+  // Send offer — wait for peer to accept before sending actual data
+  const snapshot = _peerBuildSnapshot();
+  const sizeBytes = JSON.stringify(snapshot).length;
+  _peerConn.send({ type: 'send_offer', device: _peerDeviceName(), size: sizeBytes, keys: Object.keys(snapshot).length });
+  _peerLog('Sent data offer to peer — waiting for approval...');
+  showToast('Waiting for peer to accept...', 'info');
 }
 window._peerSendData = _peerSendData;
 
@@ -2903,6 +2919,48 @@ function _peerShowIncomingRequest(deviceName, conn) {
   const closeBtn = overlay?.querySelector('.modal-close');
   // One-time handlers — clean up after sheet closes
   const _onClose = () => { _origClose(); backdrop?.removeEventListener('click', _onClose); closeBtn?.removeEventListener('click', _onClose); };
+  backdrop?.addEventListener('click', _onClose, { once: true });
+  closeBtn?.addEventListener('click', _onClose, { once: true });
+
+  _openOverlaySheet('syncConfirmSheet');
+}
+
+/* ── Incoming send offer (peer wants to push data to us) ── */
+function _peerShowIncomingSendOffer(deviceName, sizeBytes, keyCount, conn) {
+  const titleEl = document.getElementById('syncConfirmTitle');
+  const descEl = document.getElementById('syncConfirmDesc');
+  const itemsEl = document.getElementById('syncConfirmItems');
+  const sizeEl = document.getElementById('syncConfirmSize');
+  const btnEl = document.getElementById('syncConfirmBtn');
+  if (!titleEl || !btnEl) return;
+
+  titleEl.textContent = 'Incoming Data';
+  descEl.textContent = `${deviceName || 'A device'} wants to send you their data. Your local data will be overwritten.`;
+
+  if (itemsEl) itemsEl.innerHTML = `<div class="ios-row" style="min-height:36px"><span class="ios-row-label">Data keys</span><span class="ios-row-detail" style="color:var(--accent);font-weight:600">${keyCount || '?'}</span></div>`;
+
+  const sizeMB = ((sizeBytes || 0) / 1048576).toFixed(1);
+  const sizeKB = Math.round((sizeBytes || 0) / 1024);
+  sizeEl.textContent = (sizeBytes || 0) > 1048576 ? `${sizeMB} MB` : `${sizeKB} KB`;
+
+  btnEl.textContent = 'Accept & Receive';
+  btnEl.style.background = '#5ac8fa';
+  btnEl.style.color = '#000';
+  btnEl.onclick = () => {
+    _closeOverlaySheet('syncConfirmSheet');
+    conn.send({ type: 'send_accepted', device: _peerDeviceName() });
+    _peerLog('Accepted incoming data');
+    showToast('Accepted — waiting for data...', 'info');
+  };
+
+  const _decline = () => {
+    conn.send({ type: 'send_declined', device: _peerDeviceName() });
+    _peerLog('Declined incoming data');
+  };
+  const overlay = document.getElementById('syncConfirmSheet');
+  const backdrop = overlay?.querySelector('.wxd-backdrop');
+  const closeBtn = overlay?.querySelector('.modal-close');
+  const _onClose = () => { _decline(); backdrop?.removeEventListener('click', _onClose); closeBtn?.removeEventListener('click', _onClose); };
   backdrop?.addEventListener('click', _onClose, { once: true });
   closeBtn?.addEventListener('click', _onClose, { once: true });
 
