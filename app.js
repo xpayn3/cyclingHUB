@@ -6012,7 +6012,7 @@ function _chartGrid() {
 }
 function _chartSubgrid() { return _isDark() ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)'; }
 // Keep C_TICK/C_GRID as live-updating objects for backward compat
-let C_TICK  = { color: _chartTick(), font: { size: 10 } };
+let C_TICK  = { color: _chartTick(), font: { size: 10 }, precision: 0 };
 let C_GRID  = { color: _chartGrid() };
 const C_NOGRID = { display: false };
 window.C_TICK = C_TICK; window.C_GRID = C_GRID; window.C_TOOLTIP = C_TOOLTIP;
@@ -23340,7 +23340,7 @@ function renderDetailGradientProfile(streams, activity) {
           },
           y: {
             ticks: { ...C_TICK,
-              callback: function(v, i, ticks) { return i === 0 ? 'm' : v; } },
+              callback: function(v, i, ticks) { return i === 0 ? 'm' : Math.round(v); } },
             grid: C_GRID,
             border: { display: false },
           }
