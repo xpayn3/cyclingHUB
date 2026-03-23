@@ -1,4 +1,5 @@
 this folder includes all the code and ux for a cycling web app that pulls data from intervals.icu
 
-when designing new cards, card sections or graphs, allways reference the existing design ques of a already designed components. 
+when designing new cards, card sections or graphs, allways reference the existing design ques of a already designed components.
 
+for full design system, coding patterns, edge cases, and component guidelines see GUIDELINES.md
