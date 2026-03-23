@@ -11210,16 +11210,17 @@ body.show-save-fab #actSaveRouteFab {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 17px;
-    font-weight: 700;
-    margin-bottom: 20px;
+    font-size: 20px;
+    font-weight: 800;
+    margin-bottom: 16px;
+    padding-top: 8px;
     color: var(--text-primary);
 }
 .aci-guide-section {
-    margin-bottom: 20px;
-    padding: 14px 16px;
-    background: var(--surface-1);
-    border-radius: var(--radius-sm);
+    margin-bottom: 12px;
+    padding: 16px;
+    background: rgba(255,255,255,0.06);
+    border-radius: var(--radius);
 }
 .aci-guide-title {
     font-size: 14px;
