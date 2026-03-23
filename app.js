@@ -2107,6 +2107,9 @@ async function _idbWriteAll(openFn, storeName, entries, outOfLineKeys) {
 let _peerInstance = null;
 let _peerConn = null;
 let _peerMyId = '';
+let _peerRemoteId = '';
+let _peerReconnecting = false;
+let _peerManualDisconnect = false;
 const _peerIceConfig = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
@@ -2388,13 +2391,19 @@ function _peerHideProgress() {
 
 function _peerHandleConn(conn) {
   _peerConn = conn;
+  _peerManualDisconnect = false;
   let _chunks = [];
   let _chunkTotal = 0;
   conn.on('open', () => {
+    _peerRemoteId = conn.peer;
+    _peerReconnecting = false;
     _peerUpdateUI('connected');
     conn.send({ type: 'hello', name: _peerDeviceName() });
     _peerRenderDevices(null);
-    showToast('Peer connected!', 'success');
+    // Save pairing for reconnect
+    localStorage.setItem('icu_peer_remote', _peerRemoteId);
+    localStorage.setItem('icu_peer_my_id', _peerMyId);
+    showToast(_peerReconnecting ? 'Reconnected!' : 'Peer connected!', 'success');
   });
   conn.on('data', data => {
     if (!data || !data.type) return;
@@ -2447,16 +2456,54 @@ function _peerHandleConn(conn) {
   });
   conn.on('close', () => {
     _peerConn = null;
-    if (_peerInstance) { try { _peerInstance.destroy(); } catch {} _peerInstance = null; }
-    _peerMyId = '';
-    _peerUpdateUI('off');
-    _peerRenderDevices(null);
-    showToast('Peer disconnected', 'info');
+    if (_peerManualDisconnect) {
+      // User clicked Disconnect — full teardown
+      return;
+    }
+    // Auto-reconnect
+    const remoteId = _peerRemoteId || conn.peer;
+    if (remoteId && _peerInstance && !_peerInstance.destroyed) {
+      _peerReconnecting = true;
+      _peerUpdateUI('connecting');
+      showToast('Connection lost — reconnecting...', 'info');
+      _peerAutoReconnect(remoteId, 0);
+    } else {
+      _peerUpdateUI('ready', _peerMyId);
+      _peerRenderDevices(null);
+      showToast('Peer disconnected', 'info');
+    }
   });
   conn.on('error', e => {
     console.warn('[PEER] conn error:', e);
-    showToast('Connection error', 'error');
+    if (!_peerManualDisconnect) {
+      showToast('Connection error — will retry...', 'error');
+    }
   });
+}
+
+function _peerAutoReconnect(remoteId, attempt) {
+  if (_peerManualDisconnect || !_peerInstance || _peerInstance.destroyed) return;
+  if (attempt >= 10) {
+    _peerReconnecting = false;
+    _peerUpdateUI('ready', _peerMyId);
+    showToast('Could not reconnect — peer may be offline', 'error');
+    return;
+  }
+  const delay = Math.min(2000 * Math.pow(1.5, attempt), 30000); // 2s, 3s, 4.5s... max 30s
+  setTimeout(() => {
+    if (_peerManualDisconnect || !_peerInstance || _peerInstance.destroyed) return;
+    if (_peerConn && _peerConn.open) return; // already reconnected (e.g. peer reconnected to us)
+    console.log(`[PEER] reconnect attempt ${attempt + 1} to ${remoteId}`);
+    const conn = _peerInstance.connect(remoteId, { reliable: true });
+    _peerHandleConn(conn);
+    // If this attempt doesn't open within 10s, try again
+    const timeout = setTimeout(() => {
+      if (!conn.open && !_peerManualDisconnect) {
+        _peerAutoReconnect(remoteId, attempt + 1);
+      }
+    }, 10000);
+    conn.on('open', () => clearTimeout(timeout));
+  }, delay);
 }
 
 function _peerStart() {
@@ -2584,13 +2631,16 @@ function _peerRequestData() {
 window._peerRequestData = _peerRequestData;
 
 function _peerDisconnect() {
+  _peerManualDisconnect = true;
+  _peerReconnecting = false;
+  _peerRemoteId = '';
+  localStorage.removeItem('icu_peer_remote');
+  localStorage.removeItem('icu_peer_my_id');
   if (_peerConn) { try { _peerConn.close(); } catch {} _peerConn = null; }
   if (_peerInstance) { try { _peerInstance.destroy(); } catch {} _peerInstance = null; }
   _peerMyId = '';
   _peerUpdateUI('off');
   _peerRenderDevices(null);
-  const el = document.getElementById('syncDeviceList');
-  if (el) el.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:12px;font-size:13px">Not connected</div>';
   showToast('Disconnected', 'success');
 }
 window._peerDisconnect = _peerDisconnect;
@@ -2611,6 +2661,44 @@ window._gunSyncNow = function() {
     showToast('No peer connected — start hosting or connect to a peer first', 'error');
   }
 };
+
+// Auto-reconnect on app startup if we have a saved pairing
+(function _peerAutoStart() {
+  const savedRemote = localStorage.getItem('icu_peer_remote');
+  const savedMyId = localStorage.getItem('icu_peer_my_id');
+  if (!savedRemote || !savedMyId) return;
+  // Wait for PeerJS library to load
+  const _tryStart = () => {
+    if (typeof Peer === 'undefined') { setTimeout(_tryStart, 1000); return; }
+    _peerInstance = new Peer(savedMyId, { debug: 0, config: _peerIceConfig });
+    _peerInstance.on('open', id => {
+      _peerMyId = id;
+      _peerRemoteId = savedRemote;
+      _peerReconnecting = true;
+      _peerUpdateUI('connecting');
+      const conn = _peerInstance.connect(savedRemote, { reliable: true });
+      _peerHandleConn(conn);
+      // Timeout for initial auto-reconnect
+      setTimeout(() => {
+        if (!conn.open && !_peerManualDisconnect) {
+          _peerAutoReconnect(savedRemote, 1);
+        }
+      }, 10000);
+    });
+    _peerInstance.on('connection', conn => _peerHandleConn(conn));
+    _peerInstance.on('error', e => {
+      console.warn('[PEER] auto-start error:', e);
+      if (e.type === 'unavailable-id') {
+        // Our saved ID is taken — clear pairing, user can reconnect manually
+        localStorage.removeItem('icu_peer_remote');
+        localStorage.removeItem('icu_peer_my_id');
+        if (_peerInstance) { try { _peerInstance.destroy(); } catch {} _peerInstance = null; }
+        _peerUpdateUI('off');
+      }
+    });
+  };
+  setTimeout(_tryStart, 2000); // delay to not block app init
+})();
 
 /* ── Sync transfer confirmation sheet ── */
 function _peerConfirmTransfer(mode) {
