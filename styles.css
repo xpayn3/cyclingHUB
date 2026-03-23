@@ -21347,49 +21347,116 @@ body:has(.act-sheet-mode) .topbar {
 /* Floating sticky pill — bike name */
 .bkd-sticky-pill {
     position: fixed;
-    top: calc(env(safe-area-inset-top, 0px) + 8px);
+    top: calc(env(safe-area-inset-top, 0px) + 2px);
     right: var(--pad-page, 16px);
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 6px 6px 14px;
-    background: rgba(30,30,30,0.85);
-    -webkit-backdrop-filter: blur(20px);
-    backdrop-filter: blur(20px);
+    gap: 8px;
+    padding: 5px 12px 5px 5px;
+    background: rgba(40, 42, 48, 0.42);
+    backdrop-filter: blur(48px) saturate(220%) brightness(1.1);
+    -webkit-backdrop-filter: blur(48px) saturate(220%) brightness(1.1);
+    box-shadow:
+        0 0.5px 0 0 rgba(255,255,255,0.20) inset,
+        0 0 0 0.5px rgba(255,255,255,0.10) inset,
+        0 -0.5px 0 0 rgba(0,0,0,0.15) inset,
+        0 12px 40px rgba(0,0,0,0.50),
+        0 4px 12px rgba(0,0,0,0.30);
     border-radius: 100px;
     z-index: 90;
-    opacity: 0;
-    transform: translateY(-10px);
-    pointer-events: none;
-    transition: opacity 0.25s, transform 0.25s;
+    cursor: pointer;
 }
-.bkd-sticky-pill.bkd-sticky-visible {
-    opacity: 1;
-    transform: translateY(0);
-    pointer-events: auto;
+.bkd-pill-count {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #000;
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
 }
 .bkd-sticky-name {
     font-size: 13px;
     font-weight: 600;
     color: var(--text-primary);
     white-space: nowrap;
-    max-width: 160px;
+    max-width: 140px;
     overflow: hidden;
     text-overflow: ellipsis;
 }
-.bkd-sticky-menu {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.1);
-    border: none;
-    color: var(--text-primary);
+.bkd-pill-chevron {
+    opacity: 0.5;
+    flex-shrink: 0;
+    transition: transform 0.2s;
+}
+.bkd-sticky-pill.bkd-switcher-open .bkd-pill-chevron {
+    transform: rotate(180deg);
+}
+/* Bike switcher dropdown */
+.bkd-bike-dropdown {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 44px);
+    right: var(--pad-page, 16px);
+    min-width: 220px;
+    max-width: 280px;
+    background: rgba(40, 42, 48, 0.75);
+    backdrop-filter: blur(48px) saturate(220%) brightness(1.1);
+    -webkit-backdrop-filter: blur(48px) saturate(220%) brightness(1.1);
+    box-shadow:
+        0 0.5px 0 0 rgba(255,255,255,0.15) inset,
+        0 0 0 0.5px rgba(255,255,255,0.08) inset,
+        0 16px 48px rgba(0,0,0,0.6),
+        0 4px 16px rgba(0,0,0,0.35);
+    border-radius: 16px;
+    z-index: 91;
+    overflow: hidden;
+    animation: bkdDropIn 0.2s ease-out;
+}
+@keyframes bkdDropIn {
+    from { opacity: 0; transform: translateY(-8px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.bkd-bike-option {
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 10px;
+    padding: 10px 14px;
     cursor: pointer;
+    transition: background 0.15s;
 }
-.bkd-sticky-menu:active { background: rgba(255,255,255,0.2); }
+.bkd-bike-option:active { background: rgba(255,255,255,0.08); }
+.bkd-bike-option + .bkd-bike-option { border-top: 1px solid rgba(255,255,255,0.06); }
+.bkd-bike-option-photo {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--surface-1);
+    flex-shrink: 0;
+}
+.bkd-bike-option-info { flex: 1; min-width: 0; }
+.bkd-bike-option-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.bkd-bike-option-km {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+.bkd-bike-option-check {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    color: var(--accent);
+}
 
 .bkd-hero-photo {
     width: 100%;
@@ -21400,6 +21467,17 @@ body:has(.act-sheet-mode) .topbar {
     justify-content: center;
     position: relative;
     overflow: hidden;
+}
+.bkd-hero-photo::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: calc(env(safe-area-inset-top, 0px) + 56px);
+    background: linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.2) 60%, transparent 100%);
+    z-index: 2;
+    pointer-events: none;
 }
 .bkd-hero-photo img {
     position: absolute;

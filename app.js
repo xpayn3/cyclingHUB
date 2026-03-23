@@ -27085,13 +27085,13 @@ function renderBikeDetailPage() {
       </div>
     </div>
 
-    <!-- Floating sticky pill -->
-    <div class="bkd-sticky-pill" id="bkdStickyPill">
+    <!-- Floating sticky pill — bike switcher -->
+    <div class="bkd-sticky-pill" id="bkdStickyPill" onclick="_bkdToggleSwitcher(event)">
+      <div class="bkd-pill-count">${_gearBikeCache.length}</div>
       <span class="bkd-sticky-name">${bike.name}</span>
-      <button class="bkd-sticky-menu" onclick="event.stopPropagation()">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
-      </button>
+      <svg class="bkd-pill-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
     </div>
+    <div class="bkd-bike-dropdown" id="bkdBikeDropdown" style="display:none"></div>
 
     <!-- Stats -->
     <div class="gar-stats">
@@ -27171,18 +27171,73 @@ function renderBikeDetailPage() {
   renderGearTires();
   renderGearServices();
 
-  // Floating sticky pill — show when hero photo scrolls out of view
-  const heroPhoto = el.querySelector('.bkd-hero-photo');
-  const stickyPill = document.getElementById('bkdStickyPill');
-  if (heroPhoto && stickyPill) {
-    const pageContent = document.getElementById('pageContent');
-    const scrollRoot = pageContent || window;
-    const obs = new IntersectionObserver(entries => {
-      stickyPill.classList.toggle('bkd-sticky-visible', !entries[0].isIntersecting);
-    }, { root: pageContent, threshold: 0 });
-    obs.observe(heroPhoto);
+  // Close bike switcher dropdown when re-rendering
+  _bkdCloseSwitcher();
+}
+
+/* ── Bike switcher dropdown ── */
+function _bkdToggleSwitcher(e) {
+  e.stopPropagation();
+  const dd = document.getElementById('bkdBikeDropdown');
+  const pill = document.getElementById('bkdStickyPill');
+  if (!dd) return;
+  const isOpen = dd.style.display !== 'none';
+  if (isOpen) {
+    _bkdCloseSwitcher();
+  } else {
+    const photos = _gearLoadPhotos();
+    const currentId = window._garActiveBike;
+    const bikeSvg = '<svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6l-4 8h6l-3 3.5"/><path d="M5.5 17.5L9 9h3"/></svg>';
+    dd.innerHTML = _gearBikeCache.map(b => {
+      const photo = photos[b.id];
+      const isCurrent = b.id === currentId;
+      const photoHtml = photo
+        ? `<img class="bkd-bike-option-photo" src="${photo}" alt="">`
+        : `<div class="bkd-bike-option-photo" style="display:flex;align-items:center;justify-content:center">${bikeSvg}</div>`;
+      const check = isCurrent
+        ? `<svg class="bkd-bike-option-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`
+        : '';
+      return `<div class="bkd-bike-option" onclick="_bkdSwitchBike('${b.id}')">
+        ${photoHtml}
+        <div class="bkd-bike-option-info">
+          <div class="bkd-bike-option-name">${b.name}</div>
+          <div class="bkd-bike-option-km">${b.km.toLocaleString()} km</div>
+        </div>
+        ${check}
+      </div>`;
+    }).join('');
+    dd.style.display = '';
+    if (pill) pill.classList.add('bkd-switcher-open');
+    // Close on outside tap
+    setTimeout(() => document.addEventListener('click', _bkdOutsideClick, { once: true }), 10);
   }
 }
+window._bkdToggleSwitcher = _bkdToggleSwitcher;
+
+function _bkdCloseSwitcher() {
+  const dd = document.getElementById('bkdBikeDropdown');
+  const pill = document.getElementById('bkdStickyPill');
+  if (dd) dd.style.display = 'none';
+  if (pill) pill.classList.remove('bkd-switcher-open');
+}
+
+function _bkdOutsideClick(e) {
+  const dd = document.getElementById('bkdBikeDropdown');
+  const pill = document.getElementById('bkdStickyPill');
+  if (dd && !dd.contains(e.target) && pill && !pill.contains(e.target)) {
+    _bkdCloseSwitcher();
+  }
+}
+
+function _bkdSwitchBike(bikeId) {
+  _bkdCloseSwitcher();
+  if (bikeId === window._garActiveBike) return;
+  window._garActiveBike = bikeId;
+  _gearSelectedBike = bikeId;
+  renderBikeDetailPage();
+  window.scrollTo(0, 0);
+}
+window._bkdSwitchBike = _bkdSwitchBike;
 
 function _openGearService() {
   // Navigate to the first bike's detail page and show service tab
