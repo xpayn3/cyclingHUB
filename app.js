@@ -5080,6 +5080,144 @@ function _initRecentActDots(rail, count) {
 
 
 /* ====================================================
+   WIDGET SYSTEM — show/hide/reorder dashboard sections
+==================================================== */
+const _WIDGET_DEFS = [
+  { id: 'recentCarousel',  label: 'Recent Activities',   icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>' },
+  { id: 'goalsTargets',    label: 'Goals',               icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>' },
+  { id: 'vitality',        label: 'Week Summary',        icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>' },
+  { id: 'todaySuggestion', label: 'Today Suggestion',    icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>' },
+  { id: 'weekProgress',    label: 'Week Progress',       icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>' },
+  { id: 'quickLinks',      label: 'Garage & Route',      icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="18" r="3"/><circle cx="19" cy="18" r="3"/><path d="M5 18h3l2-5 2-5h4l2 5 1 2.5"/></svg>' },
+  { id: 'weather',         label: 'Riding Forecast',     icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>' },
+  { id: 'batteryStatus',   label: 'Batteries',           icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="18" height="10" rx="2"/><line x1="22" y1="11" x2="22" y2="13"/></svg>' },
+];
+
+function _getWidgetOrder() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('icu_widget_order') || 'null');
+    if (Array.isArray(saved) && saved.length) return saved;
+  } catch (_) {}
+  return _WIDGET_DEFS.map(w => w.id);
+}
+function _getWidgetHidden() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('icu_widget_hidden') || 'null');
+    if (Array.isArray(saved)) return new Set(saved);
+  } catch (_) {}
+  return new Set();
+}
+function _saveWidgetOrder(order) { localStorage.setItem('icu_widget_order', JSON.stringify(order)); }
+function _saveWidgetHidden(set)  { localStorage.setItem('icu_widget_hidden', JSON.stringify([...set])); }
+
+function _applyWidgetOrder() {
+  const container = document.getElementById('page-dashboard');
+  if (!container) return;
+  const order = _getWidgetOrder();
+  const hidden = _getWidgetHidden();
+  const sections = {};
+  container.querySelectorAll('[data-dash-section]').forEach(el => {
+    sections[el.dataset.dashSection] = el;
+  });
+  // Reorder: move sections in order, appending after the last non-section child
+  const anchor = container.querySelector('[data-dash-section]');
+  if (!anchor) return;
+  const parent = anchor.parentNode;
+  // Collect all section elements and remove from DOM
+  const allSections = [];
+  Object.values(sections).forEach(el => { allSections.push(el); el.remove(); });
+  // Re-insert in order
+  order.forEach(id => {
+    const el = sections[id];
+    if (el) {
+      if (hidden.has(id)) el.classList.add('widget-hidden');
+      else el.classList.remove('widget-hidden');
+      parent.appendChild(el);
+    }
+  });
+  // Append any sections not in the order (new widgets)
+  Object.entries(sections).forEach(([id, el]) => {
+    if (!order.includes(id)) parent.appendChild(el);
+  });
+}
+
+function openWidgetEditor() {
+  const order = _getWidgetOrder();
+  const hidden = _getWidgetHidden();
+  let html = `<div class="aci-sp-header"><div class="aci-sp-title">Edit Widgets</div></div>
+  <p style="color:var(--text-muted);font-size:13px;padding:0 16px 12px">Drag to reorder. Toggle to show or hide widgets on your dashboard.</p>
+  <div class="widget-editor-list" id="widgetEditorList">`;
+  order.forEach(id => {
+    const def = _WIDGET_DEFS.find(w => w.id === id);
+    if (!def) return;
+    const isHidden = hidden.has(id);
+    html += `<div class="widget-editor-item" data-widget-id="${id}">
+      <div class="widget-editor-drag"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--text-muted)" stroke-width="2"><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="18" x2="16" y2="18"/></svg></div>
+      <div class="widget-editor-icon">${def.icon}</div>
+      <div class="widget-editor-label">${def.label}</div>
+      <label class="widget-editor-toggle">
+        <input type="checkbox" ${isHidden ? '' : 'checked'} onchange="_toggleWidget('${id}',this.checked)">
+        <span class="widget-editor-slider"></span>
+      </label>
+    </div>`;
+  });
+  html += '</div>';
+
+  // Use the actCardInfoOverlay for the editor
+  const overlay = document.getElementById('actCardInfoOverlay');
+  if (!overlay) return;
+  const page = document.getElementById('actCardInfoPage');
+  if (!page) return;
+  page.className = 'act-card-info-page aci-custom-page';
+  page.innerHTML = html;
+  overlay.style.display = 'flex';
+  requestAnimationFrame(() => overlay.classList.add('aci-open'));
+
+  // Simple drag reorder
+  _initWidgetDragReorder();
+}
+window.openWidgetEditor = openWidgetEditor;
+
+function _toggleWidget(id, visible) {
+  const hidden = _getWidgetHidden();
+  if (visible) hidden.delete(id);
+  else hidden.add(id);
+  _saveWidgetHidden(hidden);
+  _applyWidgetOrder();
+}
+window._toggleWidget = _toggleWidget;
+
+function _initWidgetDragReorder() {
+  const list = document.getElementById('widgetEditorList');
+  if (!list) return;
+  let dragItem = null;
+  list.querySelectorAll('.widget-editor-item').forEach(item => {
+    item.setAttribute('draggable', 'true');
+    item.addEventListener('dragstart', e => {
+      dragItem = item;
+      item.classList.add('widget-dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    item.addEventListener('dragend', () => {
+      item.classList.remove('widget-dragging');
+      dragItem = null;
+      // Save new order
+      const newOrder = [...list.querySelectorAll('.widget-editor-item')].map(el => el.dataset.widgetId);
+      _saveWidgetOrder(newOrder);
+      _applyWidgetOrder();
+    });
+    item.addEventListener('dragover', e => {
+      e.preventDefault();
+      if (!dragItem || dragItem === item) return;
+      const rect = item.getBoundingClientRect();
+      const mid = rect.top + rect.height / 2;
+      if (e.clientY < mid) list.insertBefore(dragItem, item);
+      else list.insertBefore(dragItem, item.nextSibling);
+    });
+  });
+}
+
+/* ====================================================
    RENDER DASHBOARD
 ==================================================== */
 function renderDashboard() {
@@ -5245,7 +5383,20 @@ function renderDashboard() {
   _renderDashGear();
   _renderDashBatteries();
   _renderDashRouteMap();
+  _applyWidgetOrder();
+  // Add edit widgets button at bottom
+  _injectEditWidgetsBtn();
   _rIC(() => { if (window.refreshGlow) refreshGlow(); });
+}
+
+function _injectEditWidgetsBtn() {
+  const dash = document.getElementById('page-dashboard');
+  if (!dash || dash.querySelector('.dash-edit-widgets-btn')) return;
+  const btn = document.createElement('button');
+  btn.className = 'dash-edit-widgets-btn';
+  btn.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> Edit Widgets`;
+  btn.onclick = () => openWidgetEditor();
+  dash.appendChild(btn);
 }
 
 // ── Dashboard Quick Links: Garage + Route Builder ────────────

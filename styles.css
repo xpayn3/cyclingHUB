@@ -29259,3 +29259,96 @@ html[data-theme="tdf"] {
         overflow-y: auto;
     }
 }
+
+/* Widget system */
+.widget-hidden { display: none !important; }
+.dash-edit-widgets-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: calc(100% - 2 * var(--pad-page));
+    margin: 8px var(--pad-page) 24px;
+    padding: 14px;
+    background: var(--surface-1);
+    border: 1px solid var(--surface-2);
+    border-radius: var(--radius);
+    color: var(--text-muted);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.dash-edit-widgets-btn:active { background: var(--surface-2); }
+/* Widget editor */
+.widget-editor-list {
+    padding: 0 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.widget-editor-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 12px;
+    background: var(--surface-1);
+    border-radius: var(--radius-sm);
+    cursor: grab;
+    transition: transform 0.15s, opacity 0.15s;
+}
+.widget-editor-item.widget-dragging {
+    opacity: 0.5;
+    transform: scale(0.97);
+}
+.widget-editor-drag {
+    flex-shrink: 0;
+    opacity: 0.4;
+    cursor: grab;
+}
+.widget-editor-icon {
+    flex-shrink: 0;
+    color: var(--accent);
+}
+.widget-editor-label {
+    flex: 1;
+    font-size: 15px;
+    font-weight: 600;
+}
+.widget-editor-toggle {
+    position: relative;
+    width: 44px;
+    height: 26px;
+    flex-shrink: 0;
+}
+.widget-editor-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+}
+.widget-editor-slider {
+    position: absolute;
+    inset: 0;
+    background: var(--surface-2);
+    border-radius: 13px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.widget-editor-slider::before {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    left: 3px;
+    top: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.2s;
+}
+.widget-editor-toggle input:checked + .widget-editor-slider {
+    background: var(--accent);
+}
+.widget-editor-toggle input:checked + .widget-editor-slider::before {
+    transform: translateX(18px);
+}
