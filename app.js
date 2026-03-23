@@ -17407,7 +17407,7 @@ function _renderDetailPwrHR(streams, activity) {
   const card = document.getElementById('detailPwrHRCard');
   if (!card) return;
   const watts = streams?.watts, hr = streams?.heartrate;
-  if (!watts?.length || !hr?.length) { card.style.display = 'none'; return; }
+  if (!watts?.length || !hr?.length) { showCardNA('detailPwrHRCard'); return; }
 
   // Build scatter points from 30s rolling averages
   const windowSize = 30;
@@ -17419,7 +17419,7 @@ function _renderDetailPwrHR(streams, activity) {
     }
     if (cnt > 10) points.push({ x: Math.round(hSum / cnt), y: Math.round(wSum / cnt) });
   }
-  if (points.length < 5) { card.style.display = 'none'; return; }
+  if (points.length < 5) { showCardNA('detailPwrHRCard'); return; }
 
   card.style.display = '';
   unskeletonCard('detailPwrHRCard');
@@ -17452,7 +17452,7 @@ function _renderDetailNPTimeline(streams, activity) {
   const card = document.getElementById('detailNPTimelineCard');
   if (!card) return;
   const watts = streams?.watts, time = streams?.time;
-  if (!watts?.length) { card.style.display = 'none'; return; }
+  if (!watts?.length) { showCardNA('detailNPTimelineCard'); return; }
 
   // 30-second rolling NP
   const window = 30;
@@ -17474,7 +17474,7 @@ function _renderDetailNPTimeline(streams, activity) {
       labels.push(Math.round(i / 60) + 'm');
     }
   }
-  if (np30.length < 3) { card.style.display = 'none'; return; }
+  if (np30.length < 3) { showCardNA('detailNPTimelineCard'); return; }
 
   card.style.display = '';
   unskeletonCard('detailNPTimelineCard');
@@ -17518,7 +17518,7 @@ function _renderDetailSpeedGrade(streams, activity) {
   const card = document.getElementById('detailSpeedGradeCard');
   if (!card) return;
   const speed = streams?.velocity_smooth, grade = streams?.grade_smooth;
-  if (!speed?.length || !grade?.length) { card.style.display = 'none'; return; }
+  if (!speed?.length || !grade?.length) { showCardNA('detailSpeedGradeCard'); return; }
 
   // Build scatter: grade vs speed (10s averages)
   const window = 10;
@@ -17530,7 +17530,7 @@ function _renderDetailSpeedGrade(streams, activity) {
     }
     if (cnt > 5) points.push({ x: +(gSum / cnt).toFixed(1), y: +(sSum / cnt).toFixed(1) });
   }
-  if (points.length < 5) { card.style.display = 'none'; return; }
+  if (points.length < 5) { showCardNA('detailSpeedGradeCard'); return; }
 
   // Color by speed
   const maxSpd = Math.max(...points.map(p => p.y));
@@ -17660,6 +17660,28 @@ const _ACT_CARD_INFO = {
 // ══════════════════════════════════════════════════════════════
 // UNIQUE INFO PAGE RENDERERS
 // ══════════════════════════════════════════════════════════════
+
+// Sensor requirements per card — shown when data is unavailable
+const _ACT_CARD_SENSORS = {
+  detailStreamsCard:     { sensor: 'Power Meter + HR Strap', desc: 'A power meter (pedal, crank, or hub) and heart rate strap provide the data streams shown here.' },
+  detailPerfCard:       { sensor: 'Power Meter + HR Strap', desc: 'Efficiency metrics require both power and heart rate data.' },
+  detailDecoupleCard:   { sensor: 'Power Meter + HR Strap', desc: 'Aerobic decoupling needs both power and heart rate over a sustained effort (60+ minutes).' },
+  detailLRBalanceCard:  { sensor: 'Dual-Sided Power Meter', desc: 'Left/right balance requires a dual-sided power meter (e.g. Assioma Duo, Garmin Rally, Stages LR).' },
+  detailZonesCard:      { sensor: 'Power Meter', desc: 'Power zones require a power meter. Pedal-based (Favero, Garmin), crank (Stages, 4iiii), or spider (Quarq, Power2Max).' },
+  detailHRZonesCard:    { sensor: 'Heart Rate Strap', desc: 'HR zones require a chest strap or optical HR sensor. Chest straps (Garmin HRM-Pro, Wahoo TICKR) are most accurate.' },
+  detailIntervalsCard:  { sensor: 'Power Meter or HR Strap', desc: 'Intervals are detected from power or heart rate patterns during structured workouts.' },
+  detailCurveCard:      { sensor: 'Power Meter', desc: 'The power curve needs watt data from a power meter to compute best efforts at each duration.' },
+  detailHRCurveCard:    { sensor: 'Heart Rate Strap', desc: 'HR curve needs continuous heart rate data to find peak sustained HR at each duration.' },
+  detailGradientCard:   { sensor: 'GPS (Bike Computer)', desc: 'Elevation profile needs GPS altitude data from your bike computer or phone.' },
+  detailCadenceCard:    { sensor: 'Cadence Sensor', desc: 'Cadence distribution requires a cadence sensor or a power meter that measures cadence (most do).' },
+  detailHistogramCard:  { sensor: 'Power Meter', desc: 'Power distribution needs watt data from a power meter.' },
+  detailTempCard:       { sensor: 'Temperature Sensor', desc: 'Temperature recording requires a Garmin Tempe sensor or a bike computer with built-in thermometer.' },
+  detailPwrHRCard:      { sensor: 'Power Meter + HR Strap', desc: 'Power vs HR scatter needs both power and heart rate data simultaneously.' },
+  detailNPTimelineCard: { sensor: 'Power Meter', desc: 'Rolling NP timeline needs second-by-second power data from a power meter.' },
+  detailSpeedGradeCard: { sensor: 'GPS + Speed Sensor', desc: 'Speed vs gradient needs GPS (for gradient) and speed data (GPS or wheel sensor).' },
+  detailClimbsCard:     { sensor: 'GPS (Bike Computer)', desc: 'Climb detection needs GPS altitude data.' },
+  detailMapCard:        { sensor: 'GPS', desc: 'Route map needs GPS coordinates from your bike computer or phone.' },
+};
 
 // Helper: append guide section to a custom info page from the card's desc text
 function _aciAppendGuide(page, info) {
@@ -18506,6 +18528,40 @@ function _openActCardInfo(cardId, info) {
     _renderStreamsBreakdown(pgEl, state.normStreams, activity);
     // Add guide section below breakdowns
     _renderStreamsGuide(pgEl);
+    overlay.style.display = 'flex';
+    requestAnimationFrame(() => overlay.classList.add('act-info-open'));
+    return;
+  }
+
+  // Check if card has no data — show sensor requirements page
+  const sourceCard = document.getElementById(cardId);
+  if (sourceCard?.classList.contains('card--na')) {
+    const sensorInfo = _ACT_CARD_SENSORS[cardId];
+    pgEl.className = 'act-card-info-page aci-custom-page';
+    pgEl.innerHTML = `
+      <div class="aci-sp-header"><div class="aci-sp-title">${info.title}</div></div>
+      <div style="text-align:center;padding:40px 16px 24px">
+        <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16.5" r="1" fill="rgba(255,255,255,0.2)" stroke="none"/></svg>
+        <div style="font-size:18px;font-weight:700;color:var(--text-primary);margin-top:16px">Data Not Available</div>
+        <div style="font-size:14px;color:var(--text-muted);margin-top:6px">This ride doesn't have the required sensor data</div>
+      </div>
+      ${sensorInfo ? `
+      <div style="background:rgba(255,255,255,0.04);border-radius:var(--radius);padding:16px;margin-bottom:16px">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin-bottom:8px">Required Hardware</div>
+        <div style="font-size:16px;font-weight:700;color:var(--accent);margin-bottom:8px">${sensorInfo.sensor}</div>
+        <div style="font-size:13px;color:var(--text-secondary);line-height:1.6">${sensorInfo.desc}</div>
+      </div>
+      <div style="background:rgba(255,255,255,0.04);border-radius:var(--radius);padding:16px">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin-bottom:8px">Popular Options</div>
+        <div style="font-size:13px;color:var(--text-secondary);line-height:1.8">
+          ${sensorInfo.sensor.includes('Power') ? '• Favero Assioma (pedal)<br>• Stages (crank arm)<br>• Garmin Rally (pedal)<br>• 4iiii Precision (crank arm)<br>' : ''}
+          ${sensorInfo.sensor.includes('HR') ? '• Garmin HRM-Pro Plus<br>• Wahoo TICKR X<br>• Polar H10<br>' : ''}
+          ${sensorInfo.sensor.includes('GPS') ? '• Garmin Edge series<br>• Wahoo ELEMNT<br>• Hammerhead Karoo<br>' : ''}
+          ${sensorInfo.sensor.includes('Cadence') ? '• Garmin Cadence Sensor 2<br>• Wahoo RPM<br>• Most power meters include cadence<br>' : ''}
+          ${sensorInfo.sensor.includes('Temperature') ? '• Garmin Tempe sensor<br>• Some Garmin Edge models have built-in<br>' : ''}
+        </div>
+      </div>` : ''}`;
+    _aciAppendGuide(pgEl, info);
     overlay.style.display = 'flex';
     requestAnimationFrame(() => overlay.classList.add('act-info-open'));
     return;
