@@ -22091,7 +22091,7 @@ function renderStreamCharts(streams, activity) {
     yPower:   { display: hasPower,       position: 'left',  min: 0, grid: C_GRID,            ticks: { ...C_TICK, maxTicksLimit: 5, padding: 0, callback: function(v, i) { return i === 0 ? 'W' : v; } }, afterFit: a => { a.width = 24; } },
     yHR:      { display: hasHR,          position: 'right', min: 30, grid: { display: false }, ticks: { ...C_TICK, maxTicksLimit: 5, padding: 0, callback: function(v, i) { return i === 0 ? 'BPM' : v; } }, afterFit: a => { a.width = 28; } },
     yCadence: { display: showCadenceLeft, position: 'left', min: 0, grid: showCadenceLeft ? C_GRID : { display: false }, ticks: { ...C_TICK, maxTicksLimit: 5, padding: 0, callback: function(v, i) { return i === 0 ? 'rpm' : v; } }, afterFit: a => { a.width = 24; } },
-    ySpeed:   { display: showSpeedLeft,   position: 'left', min: 0, grid: showSpeedLeft ? C_GRID : { display: false },   ticks: { ...C_TICK, maxTicksLimit: 5, padding: 0, callback: function(v, i) { return i === 0 ? 'km/h' : v; } }, afterFit: a => { a.width = 28; } },
+    ySpeed:   { display: showSpeedLeft,   position: 'left', min: 0, grid: showSpeedLeft ? C_GRID : { display: false },   ticks: { ...C_TICK, maxTicksLimit: 5, padding: 0, callback: function(v, i) { return i === 0 ? 'kph' : v; } }, afterFit: a => { a.width = 24; } },
     yAlt:     { display: false        },
     yLRBal:   { display: false, min: 40, max: 60 },
   };
