@@ -11209,11 +11209,14 @@ body.show-save-fab #actSaveRouteFab {
     border-radius: 0;
     margin: 16px 0 0;
 }
-.aci-custom-page .aci-streams-guide {
+.aci-custom-page .aci-streams-guide,
+.aci-streams-page .aci-streams-guide {
     margin-left: calc(-1 * var(--pad-page, 16px));
     margin-right: calc(-1 * var(--pad-page, 16px));
+    margin-bottom: -100px;
     padding-left: var(--pad-page, 16px);
     padding-right: var(--pad-page, 16px);
+    padding-bottom: calc(100px + env(safe-area-inset-bottom, 20px));
     border-radius: 0;
 }
 .aci-guide-header {
