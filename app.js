@@ -18059,8 +18059,10 @@ function _renderStreamsBreakdown(container, streams, activity) {
     const avg = count > 0 ? sum / count : 0;
     // For speed: convert m/s to km/h
     const isSpeed = m.key === 'velocity_smooth';
-    const displayAvg = m.avg || (isSpeed ? +(avg * 3.6).toFixed(1) : Math.round(avg));
-    const displayMax = m.max || (isSpeed ? +(max * 3.6).toFixed(1) : Math.round(max));
+    const rawAvg = m.avg || (isSpeed ? +(avg * 3.6).toFixed(1) : avg);
+    const displayAvg = isSpeed ? rawAvg : Math.round(rawAvg);
+    const rawMax = m.max || (isSpeed ? +(max * 3.6).toFixed(1) : max);
+    const displayMax = isSpeed ? rawMax : Math.round(rawMax);
 
     // 3rd stat: metric-specific (not min — min is always 0 for cadence/speed/power)
     let stat3Val, stat3Unit, stat3Lbl;
