@@ -17718,6 +17718,345 @@ _ACT_CARD_INFO.detailIntervalsCard.customRender = function(page, activity, strea
   page.innerHTML = html;
 };
 
+// ── Performance Analysis ──
+_ACT_CARD_INFO.detailPerfCard.customRender = function(page, activity) {
+  const np = Math.round(activity?.icu_weighted_avg_watts || 0);
+  const avgP = Math.round(activity?.average_watts || 0);
+  const avgHR = Math.round(activity?.average_heartrate || 0);
+  const ftp = state.ftp || activity?.icu_ftp || 200;
+  const IF = np > 0 && ftp > 0 ? +(np / ftp).toFixed(2) : 0;
+  const VI = avgP > 0 ? +(np / avgP).toFixed(2) : 0;
+  const EF = avgHR > 0 && np > 0 ? +(np / avgHR).toFixed(2) : 0;
+  const tss = Math.round(activity?.icu_training_load || 0);
+
+  const efColor = EF >= 1.5 ? 'var(--accent)' : EF >= 1.2 ? '#f0c429' : 'var(--red)';
+  page.innerHTML = `<div class="aci-sp-header"><div class="aci-sp-title">Performance Analysis</div></div>
+    <div style="text-align:center;padding:24px 16px">
+      <div style="font-size:56px;font-weight:800;font-family:var(--font-num);color:${efColor}">${EF}</div>
+      <div style="font-size:13px;color:var(--text-muted)">Efficiency Factor (NP÷HR)</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;padding:0 16px">
+      <div style="background:var(--surface-1);border-radius:var(--radius-sm);padding:14px;text-align:center"><div style="font-size:24px;font-weight:700;font-family:var(--font-num)">${np}<span style="font-size:12px;color:var(--text-muted)">W</span></div><div style="font-size:11px;color:var(--text-muted)">NP</div></div>
+      <div style="background:var(--surface-1);border-radius:var(--radius-sm);padding:14px;text-align:center"><div style="font-size:24px;font-weight:700;font-family:var(--font-num)">${IF}</div><div style="font-size:11px;color:var(--text-muted)">IF</div></div>
+      <div style="background:var(--surface-1);border-radius:var(--radius-sm);padding:14px;text-align:center"><div style="font-size:24px;font-weight:700;font-family:var(--font-num)">${VI}</div><div style="font-size:11px;color:var(--text-muted)">VI</div></div>
+      <div style="background:var(--surface-1);border-radius:var(--radius-sm);padding:14px;text-align:center"><div style="font-size:24px;font-weight:700;font-family:var(--font-num)">${tss}</div><div style="font-size:11px;color:var(--text-muted)">TSS</div></div>
+    </div>
+    <div style="padding:16px">
+      <div style="font-size:11px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px">What this means</div>
+      <div style="font-size:13px;color:var(--text-muted);line-height:1.6">
+        ${EF >= 1.5 ? 'Excellent efficiency — your power output relative to heart rate is strong.' : EF >= 1.2 ? 'Good efficiency — room for improvement with more aerobic base work.' : 'Low efficiency — consider more Zone 2 training to improve aerobic base.'}
+        ${VI > 1.1 ? ' High variability suggests surging effort — try steadier pacing.' : ' Steady pacing — good power discipline.'}
+      </div>
+    </div>`;
+};
+
+// ── Aerobic Decoupling ──
+_ACT_CARD_INFO.detailDecoupleCard.customRender = function(page, activity) {
+  const dc = activity?.icu_aerobic_decoupling;
+  const dcVal = dc != null ? +dc.toFixed(1) : null;
+  const color = dcVal == null ? 'var(--text-muted)' : dcVal < 3 ? 'var(--accent)' : dcVal < 5 ? '#f0c429' : dcVal < 8 ? '#ff9500' : 'var(--red)';
+  const label = dcVal == null ? 'No data' : dcVal < 3 ? 'Excellent' : dcVal < 5 ? 'Good' : dcVal < 8 ? 'Needs Work' : 'Poor';
+
+  page.innerHTML = `<div class="aci-sp-header"><div class="aci-sp-title">Aerobic Decoupling</div></div>
+    <div style="text-align:center;padding:30px 16px">
+      <div style="font-size:64px;font-weight:800;font-family:var(--font-num);color:${color}">${dcVal != null ? dcVal + '%' : '—'}</div>
+      <div style="font-size:15px;font-weight:600;color:${color};margin-top:4px">${label}</div>
+    </div>
+    <div style="padding:0 16px">
+      <div style="height:12px;border-radius:6px;background:linear-gradient(to right, var(--accent) 0%, #f0c429 37%, #ff9500 62%, var(--red) 100%);position:relative;margin-bottom:20px">
+        ${dcVal != null ? `<div style="position:absolute;top:-4px;left:${Math.min(95, dcVal * 6.25)}%;width:4px;height:20px;background:#fff;border-radius:2px;box-shadow:0 0 8px rgba(255,255,255,0.5)"></div>` : ''}
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);margin-top:-12px;margin-bottom:16px"><span>0%</span><span>3%</span><span>5%</span><span>8%</span><span>16%</span></div>
+    </div>
+    <div style="padding:0 16px">
+      <div style="font-size:11px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px">How to improve</div>
+      <div style="font-size:13px;color:var(--text-muted);line-height:1.6">
+        • Do long rides at Zone 2 (60-75% FTP)<br>
+        • Build duration gradually (10% per week)<br>
+        • Aim for < 5% on 2+ hour rides<br>
+        • Retest monthly to track progress
+      </div>
+    </div>`;
+};
+
+// ── L/R Power Balance ──
+_ACT_CARD_INFO.detailLRBalanceCard.customRender = function(page, activity, streams) {
+  const lrRaw = streams?.lrbalance || streams?.left_right_balance || [];
+  const valid = lrRaw.filter(v => v != null && v > 0);
+  if (!valid.length) { page.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted)">No L/R balance data</div>'; return; }
+  const avg = valid.reduce((s,v) => s+v, 0) / valid.length;
+  const left = Math.round(100 - avg);
+  const right = Math.round(avg);
+  const diff = Math.abs(left - right);
+  const balanced = diff <= 2;
+  const color = balanced ? 'var(--accent)' : diff <= 5 ? '#f0c429' : 'var(--red)';
+
+  page.innerHTML = `<div class="aci-sp-header"><div class="aci-sp-title">L/R Power Balance</div></div>
+    <div style="text-align:center;padding:24px 16px">
+      <div style="display:flex;justify-content:center;gap:24px;margin-bottom:8px">
+        <div><div style="font-size:36px;font-weight:800;font-family:var(--font-num);color:#4a9eff">${left}%</div><div style="font-size:11px;color:var(--text-muted)">LEFT</div></div>
+        <div style="width:1px;background:rgba(255,255,255,0.1)"></div>
+        <div><div style="font-size:36px;font-weight:800;font-family:var(--font-num);color:#ff6b35">${right}%</div><div style="font-size:11px;color:var(--text-muted)">RIGHT</div></div>
+      </div>
+      <div style="font-size:13px;font-weight:600;color:${color}">${balanced ? 'Balanced' : diff <= 5 ? 'Slight Imbalance' : 'Imbalanced'}</div>
+    </div>
+    <div style="padding:0 16px;margin-bottom:16px">
+      <div style="display:flex;height:12px;border-radius:6px;overflow:hidden">
+        <div style="width:${left}%;background:#4a9eff"></div>
+        <div style="width:${right}%;background:#ff6b35"></div>
+      </div>
+    </div>
+    <div style="height:120px;margin:0 -16px"><canvas id="aciLRChart"></canvas></div>`;
+
+  requestAnimationFrame(() => {
+    const c = document.getElementById('aciLRChart');
+    if (!c) return;
+    const step = Math.max(1, Math.floor(valid.length / 200));
+    const data = [], labels = [];
+    for (let i = 0; i < valid.length; i += step) { data.push(Math.round(100 - valid[i])); labels.push(i); }
+    new Chart(c, { type: 'line', data: { labels, datasets: [{ data, borderColor: '#4a9eff', borderWidth: 1.5, pointRadius: 0, fill: false, tension: 0.3 }, { data: data.map(() => 50), borderColor: 'rgba(255,255,255,0.15)', borderWidth: 1, borderDash: [4,4], pointRadius: 0 }] },
+      options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP } }, scales: { x: { display: false }, y: { min: 40, max: 60, ticks: { ...C_TICK, callback: (v,i) => i === 0 ? 'L%' : v }, grid: C_GRID } } } });
+  });
+};
+
+// ── HR Zones ──
+_ACT_CARD_INFO.detailHRZonesCard.customRender = function(page, activity) {
+  const zt = activity?.icu_hr_zone_times;
+  const zones = Array.isArray(zt) ? zt : [];
+  const total = zones.reduce((s, z) => s + (typeof z === 'number' ? z : (z?.secs || 0)), 0);
+  const zNames = ['Recovery','Easy','Moderate','Hard','Max'];
+  const zColors = ['#4a9eff','#00e5a0','#f0c429','#ff6b35','#ff453a'];
+  const avgHR = Math.round(activity?.average_heartrate || 0);
+  const maxHR = Math.round(activity?.max_heartrate || 0);
+
+  let html = `<div class="aci-sp-header"><div class="aci-sp-title">Heart Rate Zones</div></div>
+    <div style="display:flex;justify-content:center;gap:20px;padding:20px 16px">
+      <div style="text-align:center"><div style="font-size:32px;font-weight:800;font-family:var(--font-num);color:#ff6b35">${avgHR}</div><div style="font-size:11px;color:var(--text-muted)">AVG BPM</div></div>
+      <div style="text-align:center"><div style="font-size:32px;font-weight:800;font-family:var(--font-num);color:#ff453a">${maxHR}</div><div style="font-size:11px;color:var(--text-muted)">MAX BPM</div></div>
+    </div>`;
+
+  html += '<div style="padding:0 16px">';
+  zones.forEach((z, i) => {
+    if (i >= 5) return;
+    const secs = typeof z === 'number' ? z : (z?.secs || 0);
+    const pct = total > 0 ? Math.round(secs / total * 100) : 0;
+    html += `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+      <span style="color:${zColors[i]};font-weight:700;min-width:24px;font-size:13px">Z${i+1}</span>
+      <span style="color:var(--text-muted);font-size:12px;min-width:60px">${zNames[i]}</span>
+      <div style="flex:1;height:8px;background:var(--surface-2);border-radius:4px;overflow:hidden"><div style="width:${pct}%;height:100%;background:${zColors[i]};border-radius:0 4px 4px 0"></div></div>
+      <span style="font-family:var(--font-num);font-weight:600;font-size:13px;min-width:30px;text-align:right">${pct}%</span>
+      <span style="font-family:var(--font-num);font-size:11px;color:var(--text-muted);min-width:35px;text-align:right">${Math.round(secs/60)}m</span>
+    </div>`;
+  });
+  html += '</div>';
+  page.innerHTML = html;
+};
+
+// ── Power Curve ──
+_ACT_CARD_INFO.detailCurveCard.customRender = function(page, activity, streams) {
+  const watts = streams?.watts;
+  if (!watts?.length) { page.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted)">No power data</div>'; return; }
+
+  // Compute power curve from stream
+  const durations = [5,15,30,60,120,300,600,1200,1800,3600];
+  const peaks = durations.map(d => {
+    if (d > watts.length) return { dur: d, val: 0 };
+    let maxAvg = 0;
+    let sum = watts.slice(0, d).reduce((s,v) => s + (v||0), 0);
+    maxAvg = sum / d;
+    for (let i = d; i < watts.length; i++) {
+      sum += (watts[i]||0) - (watts[i-d]||0);
+      const avg = sum / d;
+      if (avg > maxAvg) maxAvg = avg;
+    }
+    return { dur: d, val: Math.round(maxAvg) };
+  }).filter(p => p.val > 0);
+
+  const weight = state.weight || state.athlete?.weight || 70;
+  const labels = peaks.map(p => p.dur < 60 ? p.dur + 's' : p.dur < 3600 ? Math.round(p.dur/60) + 'm' : '1h');
+
+  let html = `<div class="aci-sp-header"><div class="aci-sp-title">Power Curve</div></div>`;
+  html += `<div style="display:flex;flex-wrap:wrap;gap:6px;padding:12px 16px;justify-content:center">`;
+  peaks.slice(0, 5).forEach(p => {
+    const wkg = weight > 0 ? (p.val / weight).toFixed(1) : '—';
+    const lbl = p.dur < 60 ? p.dur + 's' : p.dur < 3600 ? Math.round(p.dur/60) + 'm' : '1h';
+    html += `<div style="background:var(--surface-1);border-radius:var(--radius-sm);padding:10px 14px;text-align:center;min-width:55px">
+      <div style="font-size:18px;font-weight:700;font-family:var(--font-num);color:var(--accent)">${p.val}<span style="font-size:11px;color:var(--text-muted)">w</span></div>
+      <div style="font-size:10px;color:var(--text-muted)">${lbl} · ${wkg}w/kg</div>
+    </div>`;
+  });
+  html += `</div>`;
+  html += `<div style="height:200px;margin:0 -16px"><canvas id="aciPwrCurve"></canvas></div>`;
+  page.innerHTML = html;
+
+  requestAnimationFrame(() => {
+    const c = document.getElementById('aciPwrCurve');
+    if (!c) return;
+    new Chart(c, { type: 'line', data: { labels, datasets: [{ data: peaks.map(p => p.val), borderColor: ACCENT, backgroundColor: ACCENT + '18', fill: true, borderWidth: 2, pointRadius: 3, tension: 0.3 }] },
+      options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP } },
+        scales: { x: { ticks: { ...C_TICK }, grid: { display: false } }, y: { ticks: { ...C_TICK, callback: (v,i) => i === 0 ? 'W' : v }, grid: C_GRID } } } });
+  });
+};
+
+// ── HR Curve ──
+_ACT_CARD_INFO.detailHRCurveCard.customRender = function(page, activity, streams) {
+  const hr = streams?.heartrate;
+  if (!hr?.length) { page.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted)">No HR data</div>'; return; }
+
+  const durations = [5,15,30,60,120,300,600,1200];
+  const peaks = durations.map(d => {
+    if (d > hr.length) return { dur: d, val: 0 };
+    let maxAvg = 0, sum = hr.slice(0, d).reduce((s,v) => s + (v||0), 0);
+    maxAvg = sum / d;
+    for (let i = d; i < hr.length; i++) { sum += (hr[i]||0) - (hr[i-d]||0); const avg = sum / d; if (avg > maxAvg) maxAvg = avg; }
+    return { dur: d, val: Math.round(maxAvg) };
+  }).filter(p => p.val > 0);
+
+  const labels = peaks.map(p => p.dur < 60 ? p.dur + 's' : Math.round(p.dur/60) + 'm');
+  let html = `<div class="aci-sp-header"><div class="aci-sp-title">Heart Rate Curve</div></div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;padding:12px 16px;justify-content:center">`;
+  peaks.slice(0, 4).forEach(p => {
+    const lbl = p.dur < 60 ? p.dur + 's' : Math.round(p.dur/60) + 'm';
+    html += `<div style="background:var(--surface-1);border-radius:var(--radius-sm);padding:10px 14px;text-align:center;min-width:60px">
+      <div style="font-size:18px;font-weight:700;font-family:var(--font-num);color:#f87171">${p.val}<span style="font-size:11px;color:var(--text-muted)">bpm</span></div>
+      <div style="font-size:10px;color:var(--text-muted)">${lbl}</div>
+    </div>`;
+  });
+  html += `</div><div style="height:200px;margin:0 -16px"><canvas id="aciHRCurve"></canvas></div>`;
+  page.innerHTML = html;
+
+  requestAnimationFrame(() => {
+    const c = document.getElementById('aciHRCurve');
+    if (!c) return;
+    new Chart(c, { type: 'line', data: { labels, datasets: [{ data: peaks.map(p => p.val), borderColor: '#f87171', backgroundColor: 'rgba(248,113,113,0.15)', fill: true, borderWidth: 2, pointRadius: 3, tension: 0.3 }] },
+      options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP } },
+        scales: { x: { ticks: { ...C_TICK }, grid: { display: false } }, y: { ticks: { ...C_TICK, callback: (v,i) => i === 0 ? 'bpm' : v }, grid: C_GRID } } } });
+  });
+};
+
+// ── Cadence Distribution ──
+_ACT_CARD_INFO.detailCadenceCard.customRender = function(page, activity, streams) {
+  const cad = streams?.cadence;
+  if (!cad?.length) { page.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted)">No cadence data</div>'; return; }
+  const valid = cad.filter(v => v != null && v > 0);
+  const avg = Math.round(valid.reduce((s,v) => s+v, 0) / (valid.length || 1));
+  const max = Math.round(Math.max(...valid));
+  const pedaling = Math.round(valid.length / cad.length * 100);
+  const optimal = valid.filter(v => v >= 80 && v <= 100).length;
+  const optPct = Math.round(optimal / (valid.length || 1) * 100);
+
+  page.innerHTML = `<div class="aci-sp-header"><div class="aci-sp-title">Cadence Analysis</div></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;padding:0 16px 16px">
+      <div style="background:var(--surface-1);border-radius:var(--radius-sm);padding:14px;text-align:center"><div style="font-size:28px;font-weight:800;font-family:var(--font-num);color:#4a9eff">${avg}<span style="font-size:12px;color:var(--text-muted)">rpm</span></div><div style="font-size:11px;color:var(--text-muted)">AVERAGE</div></div>
+      <div style="background:var(--surface-1);border-radius:var(--radius-sm);padding:14px;text-align:center"><div style="font-size:28px;font-weight:800;font-family:var(--font-num)">${max}<span style="font-size:12px;color:var(--text-muted)">rpm</span></div><div style="font-size:11px;color:var(--text-muted)">MAX</div></div>
+      <div style="background:var(--surface-1);border-radius:var(--radius-sm);padding:14px;text-align:center"><div style="font-size:28px;font-weight:800;font-family:var(--font-num);color:var(--accent)">${pedaling}<span style="font-size:12px;color:var(--text-muted)">%</span></div><div style="font-size:11px;color:var(--text-muted)">PEDALING</div></div>
+      <div style="background:var(--surface-1);border-radius:var(--radius-sm);padding:14px;text-align:center"><div style="font-size:28px;font-weight:800;font-family:var(--font-num);color:${optPct >= 60 ? 'var(--accent)' : '#f0c429'}">${optPct}<span style="font-size:12px;color:var(--text-muted)">%</span></div><div style="font-size:11px;color:var(--text-muted)">80-100 RPM</div></div>
+    </div>
+    <div style="height:180px;margin:0 -16px"><canvas id="aciCadHist"></canvas></div>`;
+
+  requestAnimationFrame(() => {
+    const c = document.getElementById('aciCadHist');
+    if (!c) return;
+    const buckets = new Array(20).fill(0);
+    valid.forEach(v => { const b = Math.min(19, Math.floor(v / 10)); buckets[b]++; });
+    const labels = buckets.map((_, i) => (i * 10) + '');
+    new Chart(c, { type: 'bar', data: { labels, datasets: [{ data: buckets.map(b => +(b/60).toFixed(1)), backgroundColor: buckets.map((_, i) => i >= 8 && i <= 10 ? '#4a9eff' : 'rgba(74,158,255,0.3)'), borderRadius: 3 }] },
+      options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP } },
+        scales: { x: { ticks: { ...C_TICK, callback: (v,i) => i === 0 ? 'rpm' : labels[i] }, grid: { display: false } }, y: { ticks: { ...C_TICK, callback: (v,i) => i === 0 ? 'min' : v }, grid: C_GRID } } } });
+  });
+};
+
+// ── Power Distribution ──
+_ACT_CARD_INFO.detailHistogramCard.customRender = function(page, activity, streams) {
+  const watts = streams?.watts;
+  if (!watts?.length) { page.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted)">No power data</div>'; return; }
+  const np = Math.round(activity?.icu_weighted_avg_watts || 0);
+  const avg = Math.round(activity?.average_watts || 0);
+  const coasting = Math.round(watts.filter(v => v != null && v < 10).length / watts.length * 100);
+
+  page.innerHTML = `<div class="aci-sp-header"><div class="aci-sp-title">Power Distribution</div></div>
+    <div style="display:flex;justify-content:center;gap:20px;padding:16px">
+      <div style="text-align:center"><div style="font-size:28px;font-weight:800;font-family:var(--font-num);color:var(--accent)">${avg}<span style="font-size:12px;color:var(--text-muted)">W</span></div><div style="font-size:11px;color:var(--text-muted)">AVG</div></div>
+      <div style="text-align:center"><div style="font-size:28px;font-weight:800;font-family:var(--font-num)">${np}<span style="font-size:12px;color:var(--text-muted)">W</span></div><div style="font-size:11px;color:var(--text-muted)">NP</div></div>
+      <div style="text-align:center"><div style="font-size:28px;font-weight:800;font-family:var(--font-num);color:${coasting > 30 ? '#f0c429' : 'var(--text-muted)'}">${coasting}<span style="font-size:12px;color:var(--text-muted)">%</span></div><div style="font-size:11px;color:var(--text-muted)">COASTING</div></div>
+    </div>
+    <div style="height:200px;margin:0 -16px"><canvas id="aciPwrHist"></canvas></div>`;
+
+  requestAnimationFrame(() => {
+    const c = document.getElementById('aciPwrHist');
+    if (!c) return;
+    const maxW = Math.min(800, Math.max(...watts.filter(v => v != null)));
+    const bucketSize = 20;
+    const nBuckets = Math.ceil(maxW / bucketSize) + 1;
+    const buckets = new Array(nBuckets).fill(0);
+    watts.forEach(v => { if (v != null && v >= 0) buckets[Math.min(nBuckets-1, Math.floor(v / bucketSize))]++; });
+    const labels = buckets.map((_, i) => (i * bucketSize) + '');
+    new Chart(c, { type: 'bar', data: { labels, datasets: [{ data: buckets.map(b => +(b/60).toFixed(1)), backgroundColor: ACCENT + 'cc', borderRadius: 2 }] },
+      options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP } },
+        scales: { x: { ticks: { ...C_TICK, maxTicksLimit: 10, callback: (v,i) => i === 0 ? 'W' : labels[i] }, grid: { display: false } }, y: { ticks: { ...C_TICK, callback: (v,i) => i === 0 ? 'min' : v }, grid: C_GRID } } } });
+  });
+};
+
+// ── Temperature ──
+_ACT_CARD_INFO.detailTempCard.customRender = function(page, activity, streams) {
+  const temp = streams?.temp || streams?.temperature;
+  const avgT = activity?.icu_average_temp;
+  if (!temp?.length && avgT == null) { page.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted)">No temperature data</div>'; return; }
+  const valid = (temp || []).filter(v => v != null);
+  const avg = avgT || (valid.length ? +(valid.reduce((s,v) => s+v, 0) / valid.length).toFixed(1) : '—');
+  const min = valid.length ? Math.round(Math.min(...valid)) : '—';
+  const max = valid.length ? Math.round(Math.max(...valid)) : '—';
+  const hrImpact = avg > 25 ? 'Heat increases HR ~5bpm per 5°C above 20°C' : avg < 5 ? 'Cold reduces muscle efficiency' : 'Comfortable temperature range';
+
+  page.innerHTML = `<div class="aci-sp-header"><div class="aci-sp-title">Temperature</div></div>
+    <div style="text-align:center;padding:24px"><div style="font-size:56px;font-weight:800;font-family:var(--font-num);color:#ff9500">${avg}°</div><div style="font-size:13px;color:var(--text-muted)">Average</div></div>
+    <div style="display:flex;justify-content:center;gap:24px;padding:0 16px 16px">
+      <div style="text-align:center"><div style="font-size:20px;font-weight:700;font-family:var(--font-num);color:#4a9eff">${min}°</div><div style="font-size:11px;color:var(--text-muted)">MIN</div></div>
+      <div style="text-align:center"><div style="font-size:20px;font-weight:700;font-family:var(--font-num);color:#ff453a">${max}°</div><div style="font-size:11px;color:var(--text-muted)">MAX</div></div>
+    </div>
+    ${valid.length > 10 ? '<div style="height:160px;margin:0 -16px"><canvas id="aciTempChart"></canvas></div>' : ''}
+    <div style="padding:16px;font-size:13px;color:var(--text-muted);line-height:1.6">${hrImpact}</div>`;
+
+  if (valid.length > 10) {
+    requestAnimationFrame(() => {
+      const c = document.getElementById('aciTempChart');
+      if (!c) return;
+      const step = Math.max(1, Math.floor(valid.length / 200));
+      const data = [], labels = [];
+      for (let i = 0; i < temp.length; i += step) { data.push(temp[i]); labels.push(i); }
+      new Chart(c, { type: 'line', data: { labels, datasets: [{ data, borderColor: '#ff9500', borderWidth: 1.5, pointRadius: 0, fill: false, tension: 0.3 }] },
+        options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP } },
+          scales: { x: { display: false }, y: { ticks: { ...C_TICK, callback: (v,i) => i === 0 ? '°C' : v }, grid: C_GRID } } } });
+    });
+  }
+};
+
+// ── Climbs ──
+_ACT_CARD_INFO.detailClimbsCard.customRender = function(page, activity, streams) {
+  const alt = streams?.altitude;
+  const dist = streams?.distance;
+  if (!alt?.length) { page.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted)">No elevation data</div>'; return; }
+
+  const gain = Math.round(activity?.total_elevation_gain || 0);
+  const totalDist = dist ? +(dist[dist.length-1] / 1000).toFixed(1) : 0;
+  const movingSecs = activity?.moving_time || 1;
+  const vam = gain > 0 ? Math.round(gain / (movingSecs / 3600)) : 0;
+
+  page.innerHTML = `<div class="aci-sp-header"><div class="aci-sp-title">Climbing Summary</div></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px;padding:0 16px 16px">
+      <div style="background:var(--surface-1);border-radius:var(--radius-sm);padding:14px;text-align:center"><div style="font-size:22px;font-weight:800;font-family:var(--font-num);color:var(--accent)">+${gain}<span style="font-size:11px;color:var(--text-muted)">m</span></div><div style="font-size:10px;color:var(--text-muted)">GAIN</div></div>
+      <div style="background:var(--surface-1);border-radius:var(--radius-sm);padding:14px;text-align:center"><div style="font-size:22px;font-weight:800;font-family:var(--font-num)">${vam}<span style="font-size:11px;color:var(--text-muted)">m/h</span></div><div style="font-size:10px;color:var(--text-muted)">VAM</div></div>
+      <div style="background:var(--surface-1);border-radius:var(--radius-sm);padding:14px;text-align:center"><div style="font-size:22px;font-weight:800;font-family:var(--font-num)">${totalDist}<span style="font-size:11px;color:var(--text-muted)">km</span></div><div style="font-size:10px;color:var(--text-muted)">DIST</div></div>
+    </div>
+    <div style="padding:0 16px;font-size:13px;color:var(--text-muted);line-height:1.6">
+      <div style="font-size:11px;text-transform:uppercase;margin-bottom:6px;font-weight:600">VAM Reference</div>
+      < 800 m/h — Recreational<br>
+      800–1000 — Competitive amateur<br>
+      1000–1400 — Elite / Pro<br>
+      > 1400 — World class (short climbs)
+    </div>`;
+};
+
 function _injectActCardInfoBtns() {
   const scroll = document.getElementById('actSheetScroll');
   if (!scroll) return;
