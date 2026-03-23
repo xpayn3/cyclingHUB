@@ -2452,10 +2452,9 @@ function _peerHandleConn(conn) {
         _peerRestoreSnapshot(snapshot);
         localStorage.setItem('icu_peer_last_sync', new Date().toISOString());
         _peerUpdateLastSync();
-        // Send acknowledgment back to sender
         conn.send({ type: 'snapshot_ack', keys, device: _peerDeviceName() });
-        showToast(`Received ${keys} keys — reloading...`, 'success');
-        setTimeout(() => location.reload(), 1500);
+        _peerLog('Received ' + keys + ' keys from peer');
+        showToast(`Received ${keys} keys ✓`, 'success');
       } catch (e) {
         _peerLog('Snapshot parse error: ' + e.message, 'error');
         conn.send({ type: 'snapshot_ack', error: true });
@@ -2468,8 +2467,8 @@ function _peerHandleConn(conn) {
       _peerRestoreSnapshot(data.payload);
       localStorage.setItem('icu_peer_last_sync', new Date().toISOString());
       _peerUpdateLastSync();
-      showToast(`Received ${keys} keys — reloading...`, 'success');
-      setTimeout(() => location.reload(), 1500);
+      _peerLog('Received ' + keys + ' keys from peer');
+      showToast(`Received ${keys} keys ✓`, 'success');
     } else if (data.type === 'snapshot_ack') {
       if (data.error) {
         showToast('Peer failed to restore data', 'error');
@@ -2731,13 +2730,18 @@ window._gunSyncNow = function() {
     });
     _peerInstance.on('connection', conn => _peerHandleConn(conn));
     _peerInstance.on('error', e => {
-      _peerLog('Auto-start error: ' + (e.type || e.message || e), 'error');
+      _peerLog('Auto-start error: ' + (e.type || e.message || e), 'warn');
       if (e.type === 'unavailable-id') {
-        // Our saved ID is taken — clear pairing, user can reconnect manually
-        localStorage.removeItem('icu_peer_remote');
-        localStorage.removeItem('icu_peer_my_id');
+        // Our saved ID is still registered — retry with a new ID
         if (_peerInstance) { try { _peerInstance.destroy(); } catch {} _peerInstance = null; }
-        _peerUpdateUI('off');
+        const newId = 'CIQ-' + Array.from(crypto.getRandomValues(new Uint8Array(3)))
+          .map(b => b.toString(36)).join('').toUpperCase().slice(0, 6);
+        localStorage.setItem('icu_peer_my_id', newId);
+        _peerLog('ID taken, retrying as ' + newId);
+        setTimeout(_tryStart, 1500);
+      } else if (e.type === 'peer-unavailable') {
+        _peerLog('Peer offline — will keep listening', 'warn');
+        _peerUpdateUI('ready', _peerMyId);
       }
     });
   };
