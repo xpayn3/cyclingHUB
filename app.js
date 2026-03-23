@@ -2476,8 +2476,12 @@ function _peerHandleConn(conn) {
         showToast(`${data.device || 'Peer'} received ${data.keys} keys ✓`, 'success');
       }
     } else if (data.type === 'request') {
-      _peerSendSnapshot(conn);
-      showToast('Sending data to peer...', 'info');
+      // Peer wants our data — ask user to approve
+      _peerLog('Data request from: ' + (data.device || conn.peer));
+      _peerShowIncomingRequest(data.device || conn.peer, conn);
+    } else if (data.type === 'request_declined') {
+      _peerLog('Request declined by peer', 'warn');
+      showToast((data.device || 'Peer') + ' declined the request', 'info');
     }
   });
   conn.on('close', () => {
@@ -2539,9 +2543,11 @@ function _peerStart() {
     _peerUpdateUI('error');
     return;
   }
-  // Generate a short human-readable ID
-  const shortId = 'CIQ-' + Array.from(crypto.getRandomValues(new Uint8Array(3)))
-    .map(b => b.toString(36)).join('').toUpperCase().slice(0, 6);
+  // Reuse saved host ID, or generate a new one
+  const savedHostId = localStorage.getItem('icu_peer_host_id');
+  const shortId = savedHostId || ('CIQ-' + Array.from(crypto.getRandomValues(new Uint8Array(3)))
+    .map(b => b.toString(36)).join('').toUpperCase().slice(0, 6));
+  localStorage.setItem('icu_peer_host_id', shortId);
   _peerMyId = shortId;
 
   _peerInstance = new Peer(shortId, _peerOpts);
@@ -2561,6 +2567,9 @@ function _peerStart() {
     _peerLog('Peer error: ' + e.type + ' — ' + (e.message || ''), 'error');
     if (e.type === 'unavailable-id') {
       _peerInstance.destroy();
+      // Clear saved ID so _peerStart generates a fresh one
+      localStorage.removeItem('icu_peer_host_id');
+      _peerLog('ID taken, generating new one...');
       setTimeout(_peerStart, 500);
     } else if (e.type === 'peer-unavailable') {
       showToast('Peer not found — check the ID and try again', 'error');
@@ -2667,8 +2676,9 @@ function _peerRequestData() {
     showToast('No peer connected', 'error');
     return;
   }
-  _peerConn.send({ type: 'request' });
-  showToast('Requesting data from peer...', 'info');
+  _peerConn.send({ type: 'request', device: _peerDeviceName() });
+  _peerLog('Requesting data from peer...');
+  showToast('Requesting data from peer — waiting for approval...', 'info');
 }
 window._peerRequestData = _peerRequestData;
 
@@ -2690,6 +2700,12 @@ window._peerDisconnect = _peerDisconnect;
 
 // Aliases for HTML onclick compatibility
 window._gunGenRoom = _peerStart;
+window._peerResetId = function() {
+  if (_peerInstance) { try { _peerInstance.destroy(); } catch {} _peerInstance = null; }
+  localStorage.removeItem('icu_peer_host_id');
+  _peerMyId = '';
+  _peerStart();
+};
 window._gunCopyRoom = function() {
   if (!_peerMyId) return;
   navigator.clipboard?.writeText(_peerMyId).then(() => showToast('Peer ID copied', 'success'))
@@ -2819,6 +2835,79 @@ function _peerConfirmTransfer(mode) {
   _openOverlaySheet('syncConfirmSheet');
 }
 window._peerConfirmTransfer = _peerConfirmTransfer;
+
+/* ── Incoming data request approval ── */
+function _peerShowIncomingRequest(deviceName, conn) {
+  const titleEl = document.getElementById('syncConfirmTitle');
+  const descEl = document.getElementById('syncConfirmDesc');
+  const itemsEl = document.getElementById('syncConfirmItems');
+  const sizeEl = document.getElementById('syncConfirmSize');
+  const btnEl = document.getElementById('syncConfirmBtn');
+  if (!titleEl || !btnEl) return;
+
+  titleEl.textContent = 'Data Request';
+  descEl.textContent = `${deviceName || 'A device'} is requesting your data. This will send your local data to them.`;
+
+  // Build data summary
+  const snapshot = _peerBuildSnapshot();
+  const keys = Object.keys(snapshot);
+  const sizeBytes = JSON.stringify(snapshot).length;
+  const sizeMB = (sizeBytes / 1048576).toFixed(1);
+  const sizeKB = Math.round(sizeBytes / 1024);
+  sizeEl.textContent = sizeBytes > 1048576 ? `${sizeMB} MB` : `${sizeKB} KB`;
+
+  const cats = { gear: 0, batteries: 0, services: 0, goals: 0, settings: 0, strava: 0, other: 0 };
+  for (const k of keys) {
+    if (k.includes('gear') || k.includes('component') || k.includes('bike')) cats.gear++;
+    else if (k.includes('batter')) cats.batteries++;
+    else if (k.includes('service') || k.includes('shop')) cats.services++;
+    else if (k.includes('goal')) cats.goals++;
+    else if (k.startsWith('strava_')) cats.strava++;
+    else if (k.includes('setting') || k.includes('range') || k.includes('widget') || k.includes('theme') || k.includes('notif')) cats.settings++;
+    else cats.other++;
+  }
+  let itemsHtml = '';
+  const catList = [
+    ['Gear & Components', cats.gear, 'var(--accent)'],
+    ['Batteries', cats.batteries, '#f0c429'],
+    ['Services & Shops', cats.services, '#5ac8fa'],
+    ['Goals', cats.goals, '#ff9500'],
+    ['Settings & Preferences', cats.settings, '#af52de'],
+    ['Strava Data', cats.strava, '#fc4c02'],
+    ['Other Data', cats.other, 'var(--text-muted)'],
+  ];
+  for (const [label, count, color] of catList) {
+    if (count === 0) continue;
+    itemsHtml += `<div class="ios-row" style="min-height:36px"><span class="ios-row-label">${label}</span><span class="ios-row-detail" style="color:${color};font-weight:600">${count} keys</span></div>`;
+  }
+  if (itemsEl) itemsEl.innerHTML = itemsHtml;
+
+  // Approve button
+  btnEl.textContent = 'Approve & Send';
+  btnEl.style.background = 'var(--accent)';
+  btnEl.style.color = '#000';
+  btnEl.onclick = () => {
+    _closeOverlaySheet('syncConfirmSheet');
+    _peerSendSnapshot(conn);
+    _peerLog('Approved request — sending data');
+    showToast('Sending data...', 'info');
+  };
+
+  // Add a decline handler on the backdrop/close button
+  const _origClose = () => {
+    conn.send({ type: 'request_declined', device: _peerDeviceName() });
+    _peerLog('Declined data request');
+  };
+  const overlay = document.getElementById('syncConfirmSheet');
+  const backdrop = overlay?.querySelector('.wxd-backdrop');
+  const closeBtn = overlay?.querySelector('.modal-close');
+  // One-time handlers — clean up after sheet closes
+  const _onClose = () => { _origClose(); backdrop?.removeEventListener('click', _onClose); closeBtn?.removeEventListener('click', _onClose); };
+  backdrop?.addEventListener('click', _onClose, { once: true });
+  closeBtn?.addEventListener('click', _onClose, { once: true });
+
+  _openOverlaySheet('syncConfirmSheet');
+}
 
 /* ── Clipboard-based transfer (reliable fallback) ── */
 async function _clipboardExport() {
