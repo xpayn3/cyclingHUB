@@ -17480,6 +17480,244 @@ const _ACT_CARD_INFO = {
   }
 };
 
+// ══════════════════════════════════════════════════════════════
+// UNIQUE INFO PAGE RENDERERS
+// ══════════════════════════════════════════════════════════════
+
+// ── Power Zones ──
+_ACT_CARD_INFO.detailZonesCard.customRender = function(page, activity, streams) {
+  const ftp = state.ftp || activity?.icu_ftp || 200;
+  const zt = activity?.icu_zone_times;
+  const zones = Array.isArray(zt) ? zt : [];
+  const total = zones.reduce((s, z) => s + (z?.secs || 0), 0);
+  const zNames = ['Recovery','Endurance','Tempo','Threshold','VO₂max','Anaerobic'];
+  const zColors = ['#4a9eff','#00e5a0','#f0c429','#ff9500','#ff6b35','#ff453a'];
+
+  let html = `<div class="aci-sp-header"><div class="aci-sp-title">Power Zones</div></div>`;
+
+  // Donut chart
+  html += `<div style="display:flex;justify-content:center;padding:16px 0"><canvas id="aciZoneDonut" width="200" height="200" style="width:200px;height:200px"></canvas></div>`;
+
+  // Zone bars with % and time
+  html += '<div style="padding:0 16px">';
+  zones.forEach((z, i) => {
+    if (i >= 6) return;
+    const secs = z?.secs || 0;
+    const pct = total > 0 ? Math.round(secs / total * 100) : 0;
+    const mins = Math.round(secs / 60);
+    html += `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+      <span style="color:${zColors[i]};font-weight:700;min-width:24px;font-size:13px">Z${i+1}</span>
+      <span style="color:var(--text-muted);font-size:12px;min-width:70px">${zNames[i]}</span>
+      <div style="flex:1;height:8px;background:var(--surface-2);border-radius:4px;overflow:hidden">
+        <div style="width:${pct}%;height:100%;background:${zColors[i]};border-radius:0 4px 4px 0"></div>
+      </div>
+      <span style="font-family:var(--font-num);font-weight:600;font-size:13px;min-width:30px;text-align:right">${pct}%</span>
+      <span style="font-family:var(--font-num);font-size:11px;color:var(--text-muted);min-width:35px;text-align:right">${mins}m</span>
+    </div>`;
+  });
+  html += '</div>';
+
+  // Training type classification
+  const z12pct = zones.slice(0, 2).reduce((s, z) => s + (z?.secs || 0), 0) / (total || 1);
+  const z45pct = zones.slice(3, 6).reduce((s, z) => s + (z?.secs || 0), 0) / (total || 1);
+  let style = 'Mixed', styleColor = 'var(--text-muted)';
+  if (z12pct > 0.75 && z45pct > 0.1) { style = 'Polarized'; styleColor = 'var(--accent)'; }
+  else if (z12pct > 0.6) { style = 'Pyramidal'; styleColor = '#4a9eff'; }
+  else if (zones[2]?.secs / (total || 1) > 0.3) { style = 'Sweet Spot'; styleColor = '#f0c429'; }
+
+  html += `<div style="text-align:center;padding:20px 16px">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin-bottom:4px">Training Style</div>
+    <div style="font-size:20px;font-weight:700;color:${styleColor}">${style}</div>
+  </div>`;
+
+  // FTP reference
+  html += `<div style="padding:8px 16px;display:flex;justify-content:space-between;font-size:13px;color:var(--text-muted);border-top:1px solid rgba(255,255,255,0.04)">
+    <span>FTP</span><span style="font-weight:700;color:var(--text-primary)">${ftp}W</span>
+  </div>`;
+
+  page.innerHTML = html;
+
+  // Draw donut
+  requestAnimationFrame(() => {
+    const c = document.getElementById('aciZoneDonut');
+    if (!c) return;
+    const ctx = c.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    c.width = 200 * dpr; c.height = 200 * dpr;
+    ctx.scale(dpr, dpr);
+    const cx = 100, cy = 100, r = 75, w = 18;
+    let angle = -Math.PI / 2;
+    zones.forEach((z, i) => {
+      if (i >= 6) return;
+      const pct = (z?.secs || 0) / (total || 1);
+      const sweep = pct * Math.PI * 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, angle, angle + sweep);
+      ctx.lineWidth = w;
+      ctx.strokeStyle = zColors[i];
+      ctx.lineCap = 'round';
+      ctx.stroke();
+      angle += sweep + 0.02;
+    });
+    // Center text
+    ctx.fillStyle = '#fff';
+    ctx.font = '700 24px var(--font-num)';
+    ctx.textAlign = 'center';
+    ctx.fillText(Math.round(total / 60) + 'm', cx, cy + 8);
+    ctx.font = '500 11px Inter';
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.fillText('total', cx, cy + 24);
+  });
+};
+
+// ── Elevation Profile ──
+_ACT_CARD_INFO.detailGradientCard.customRender = function(page, activity, streams) {
+  const alt = streams?.altitude;
+  const dist = streams?.distance;
+  if (!alt?.length) { page.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted)">No elevation data</div>'; return; }
+
+  const totalDist = dist ? +(dist[dist.length-1] / 1000).toFixed(1) : '—';
+  const gain = Math.round(activity?.total_elevation_gain || 0);
+  const minAlt = Math.round(Math.min(...alt.filter(v => v != null)));
+  const maxAlt = Math.round(Math.max(...alt.filter(v => v != null)));
+
+  let html = `<div class="aci-sp-header"><div class="aci-sp-title">Elevation Profile</div></div>`;
+
+  // Hero stats
+  html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;padding:0 16px 16px">
+    <div style="background:var(--surface-1);border-radius:var(--radius-sm);padding:14px;text-align:center">
+      <div style="font-size:28px;font-weight:800;font-family:var(--font-num);color:var(--accent)">+${gain}<span style="font-size:14px;font-weight:500;color:var(--text-muted)">m</span></div>
+      <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase">Elevation Gain</div>
+    </div>
+    <div style="background:var(--surface-1);border-radius:var(--radius-sm);padding:14px;text-align:center">
+      <div style="font-size:28px;font-weight:800;font-family:var(--font-num)">${totalDist}<span style="font-size:14px;font-weight:500;color:var(--text-muted)">km</span></div>
+      <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase">Distance</div>
+    </div>
+  </div>`;
+
+  // Main elevation chart
+  html += `<div style="height:220px;margin:0 -16px"><canvas id="aciElevChart"></canvas></div>`;
+
+  // Stats rows
+  html += `<div style="padding:12px 16px">
+    <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="color:var(--text-muted)">Min Altitude</span><span style="font-weight:600">${minAlt}m</span></div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="color:var(--text-muted)">Max Altitude</span><span style="font-weight:600">${maxAlt}m</span></div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px"><span style="color:var(--text-muted)">Range</span><span style="font-weight:600">${maxAlt - minAlt}m</span></div>
+  </div>`;
+
+  // Gradient distribution
+  const grades = [];
+  for (let i = 10; i < alt.length; i++) {
+    const dAlt = alt[i] - alt[i-10];
+    const dDist = dist ? (dist[i] - dist[i-10]) : 10;
+    if (dDist > 0) grades.push(Math.abs(dAlt / dDist * 100));
+  }
+  const flat = grades.filter(g => g < 3).length;
+  const mod = grades.filter(g => g >= 3 && g < 6).length;
+  const steep = grades.filter(g => g >= 6).length;
+  const gTotal = grades.length || 1;
+
+  html += `<div style="padding:0 16px 16px">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin-bottom:8px">Gradient Breakdown</div>
+    <div style="display:flex;gap:6px;height:8px;border-radius:4px;overflow:hidden">
+      <div style="flex:${flat};background:#00e5a0;border-radius:4px"></div>
+      <div style="flex:${mod};background:#f0c429;border-radius:4px"></div>
+      <div style="flex:${steep};background:#ff453a;border-radius:4px"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-top:4px">
+      <span>Flat ${Math.round(flat/gTotal*100)}%</span>
+      <span>Moderate ${Math.round(mod/gTotal*100)}%</span>
+      <span>Steep ${Math.round(steep/gTotal*100)}%</span>
+    </div>
+  </div>`;
+
+  page.innerHTML = html;
+
+  // Render elevation chart
+  requestAnimationFrame(() => {
+    const canvas = document.getElementById('aciElevChart');
+    if (!canvas) return;
+    const step = Math.max(1, Math.floor(alt.length / 400));
+    const altDS = [], distDS = [];
+    for (let i = 0; i < alt.length; i += step) {
+      altDS.push(alt[i]);
+      distDS.push(dist ? +(dist[i]/1000).toFixed(1) : i);
+    }
+    new Chart(canvas, {
+      type: 'line',
+      data: { labels: distDS, datasets: [{ data: altDS, borderColor: C_PURPLE, backgroundColor: 'rgba(155,89,255,0.15)', fill: true, borderWidth: 2, pointRadius: 0, tension: 0.3 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP, callbacks: { title: items => items[0].label + ' km', label: item => Math.round(item.raw) + 'm' } } },
+        scales: { x: { ticks: { ...C_TICK, maxTicksLimit: 6, callback: (v,i) => i === 0 ? 'km' : Math.round(distDS[v]) }, grid: { display: false } }, y: { ticks: { ...C_TICK, callback: (v,i) => i === 0 ? 'm' : v }, grid: C_GRID } }
+      }
+    });
+  });
+};
+
+// ── Intervals ──
+_ACT_CARD_INFO.detailIntervalsCard.customRender = function(page, activity, streams) {
+  const intervals = activity?._intervals || state._actIntervals || [];
+  if (!intervals.length) { page.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted)">No interval data</div>'; return; }
+
+  const workInts = intervals.filter(iv => iv.type === 'WORK');
+  const restInts = intervals.filter(iv => iv.type !== 'WORK');
+
+  let html = `<div class="aci-sp-header"><div class="aci-sp-title">Intervals</div></div>`;
+
+  // Consistency score
+  if (workInts.length >= 2) {
+    const powers = workInts.map(iv => iv.average_watts || 0).filter(w => w > 0);
+    const avgPwr = powers.reduce((s,v) => s+v, 0) / (powers.length || 1);
+    const variance = powers.reduce((s,v) => s + Math.pow(v - avgPwr, 2), 0) / (powers.length || 1);
+    const cv = avgPwr > 0 ? Math.round(Math.sqrt(variance) / avgPwr * 100) : 0;
+    const score = Math.max(0, 100 - cv * 5);
+    const scoreColor = score >= 80 ? 'var(--accent)' : score >= 60 ? '#f0c429' : 'var(--red)';
+
+    html += `<div style="text-align:center;padding:20px 16px">
+      <div style="font-size:48px;font-weight:800;font-family:var(--font-num);color:${scoreColor}">${score}</div>
+      <div style="font-size:11px;text-transform:uppercase;color:var(--text-muted)">Consistency Score</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:4px">${workInts.length} work intervals · ${cv}% power variation</div>
+    </div>`;
+  }
+
+  // Work interval bars
+  html += '<div style="padding:0 16px">';
+  html += '<div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin-bottom:8px">Work Intervals</div>';
+  workInts.forEach((iv, i) => {
+    const pwr = Math.round(iv.average_watts || 0);
+    const dur = Math.round((iv.moving_time || iv.elapsed_time || 0) / 60);
+    const hr = Math.round(iv.average_heartrate || 0);
+    const maxPwr = Math.max(...workInts.map(w => w.average_watts || 0), 1);
+    const pct = pwr / maxPwr * 100;
+    html += `<div style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+        <span style="color:var(--text-muted)">#${i+1} · ${dur}m</span>
+        <span style="font-weight:700;font-family:var(--font-num)">${pwr}W${hr ? ' · ' + hr + 'bpm' : ''}</span>
+      </div>
+      <div style="height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden">
+        <div style="width:${pct}%;height:100%;background:var(--accent);border-radius:0 3px 3px 0"></div>
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+
+  // Fade analysis
+  if (workInts.length >= 3) {
+    const firstPwr = workInts[0]?.average_watts || 0;
+    const lastPwr = workInts[workInts.length-1]?.average_watts || 0;
+    const fade = firstPwr > 0 ? Math.round((1 - lastPwr / firstPwr) * 100) : 0;
+    const fadeColor = fade < 5 ? 'var(--accent)' : fade < 15 ? '#f0c429' : 'var(--red)';
+    html += `<div style="text-align:center;padding:16px;border-top:1px solid rgba(255,255,255,0.04)">
+      <div style="font-size:11px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px">Power Fade</div>
+      <div style="font-size:20px;font-weight:700;color:${fadeColor}">${fade > 0 ? '-' : '+'}${Math.abs(fade)}%</div>
+      <div style="font-size:12px;color:var(--text-muted)">${firstPwr}W → ${lastPwr}W</div>
+    </div>`;
+  }
+
+  page.innerHTML = html;
+};
+
 function _injectActCardInfoBtns() {
   const scroll = document.getElementById('actSheetScroll');
   if (!scroll) return;
@@ -17578,6 +17816,17 @@ function _openActCardInfo(cardId, info) {
     _renderStreamsBreakdown(pgEl, state.normStreams, activity);
     // Add guide section below breakdowns
     _renderStreamsGuide(pgEl);
+    overlay.style.display = 'flex';
+    requestAnimationFrame(() => overlay.classList.add('act-info-open'));
+    return;
+  }
+
+  // Check for custom renderer per card
+  if (info.customRender) {
+    const activity = state.activities?.[state.currentActivityIdx];
+    pgEl.className = 'act-card-info-page aci-custom-page';
+    pgEl.innerHTML = '';
+    info.customRender(pgEl, activity, state.normStreams, info);
     overlay.style.display = 'flex';
     requestAnimationFrame(() => overlay.classList.add('act-info-open'));
     return;
