@@ -11205,7 +11205,7 @@ body.show-save-fab #actSaveRouteFab {
 /* Streams guide section — Apple Health "About" style */
 .aci-streams-guide {
     padding: 24px var(--pad-page) 40px;
-    background: rgba(255,255,255,0.04);
+    background: rgba(255,255,255,0.08);
     border-radius: var(--radius);
     margin: 16px 0;
 }
