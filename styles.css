@@ -3663,6 +3663,10 @@ input[type="number"] {
 .card-row > .card .chart-wrap {
     flex: 1;
 }
+#detailStreamsCard .chart-wrap {
+    margin-left: calc(-1 * var(--pad-card, 16px));
+    margin-right: calc(-1 * var(--pad-card, 16px));
+}
 @media (max-width: 900px) {
     .card-row {
         grid-template-columns: 1fr;
