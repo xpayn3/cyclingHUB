@@ -3185,13 +3185,13 @@ function _peerShowSyncConfirm(cfg) {
     const deviceImg = _devImages[cfg.pairDevice];
     const isMobile = ['iPhone','iPad','Android'].includes(cfg.pairDevice);
     const deviceVisual = deviceImg
-      ? `<img src="${deviceImg}" alt="${cfg.pairDevice}" style="width:72px;height:auto;object-fit:contain">`
+      ? `<img src="${deviceImg}" alt="${cfg.pairDevice}" style="width:100px;height:auto;object-fit:contain">`
       : (isMobile
         ? `<svg viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="var(--accent)" stroke-width="1.2"><rect x="5" y="2" width="14" height="20" rx="3"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>`
         : `<svg viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="var(--accent)" stroke-width="1.2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`);
     if (itemsEl) itemsEl.innerHTML = `
       <div style="display:flex;flex-direction:column;align-items:center;padding:20px 0 8px;gap:12px">
-        <div style="width:88px;height:88px;border-radius:24px;background:${deviceImg ? 'none' : 'var(--surface-1)'};display:flex;align-items:center;justify-content:center;overflow:hidden">${deviceVisual}</div>
+        <div style="width:120px;height:120px;border-radius:28px;background:${deviceImg ? 'none' : 'var(--surface-1)'};display:flex;align-items:center;justify-content:center;overflow:hidden">${deviceVisual}</div>
         <div style="text-align:center">
           <div style="font-size:18px;font-weight:700;color:var(--text-primary)">${cfg.pairDevice}</div>
           <div style="font-size:13px;color:var(--text-muted);margin-top:2px">Wants to pair with this device</div>
