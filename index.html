@@ -41,6 +41,16 @@
             media="print" onload="this.media='all'"
         />
         <link rel="stylesheet" href="styles.css?v=4" />
+        <style>
+          .dev-filter-pill{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#888;font:10px var(--font-num),monospace;border-radius:4px;padding:2px 6px;cursor:pointer}
+          .dev-filter-pill--active{background:rgba(255,255,255,0.15);color:#fff;border-color:rgba(255,255,255,0.25)}
+          .dev-log-line{padding:1px 0;border-bottom:1px solid rgba(255,255,255,0.03);word-break:break-all;font-size:10px;line-height:1.5}
+          .dev-log-line .dev-ts{color:#555;margin-right:6px}
+          .dev-log-line.dev-lv-log{color:#aaa}
+          .dev-log-line.dev-lv-info{color:#4a9eff}
+          .dev-log-line.dev-lv-warn{color:#f0c429}
+          .dev-log-line.dev-lv-error{color:#ff453a}
+        </style>
         <script>
             // Apply saved theme immediately to avoid flash of dark theme
             (function(){var t=localStorage.getItem('icu_theme');if(t)document.documentElement.setAttribute('data-theme',t);if(localStorage.getItem('icu_squircle')==='true')document.documentElement.setAttribute('data-squircle','')})();
@@ -4994,7 +5004,7 @@
                             <div class="ios-group">
                                 <div class="ios-row">
                                     <div class="ios-row-icon" style="background:#ff453a"><svg viewBox="0 0 24 24"><path d="M12 20V10M18 20V4M6 20v-4"/></svg></div>
-                                    <span class="ios-row-label">Performance Monitor</span>
+                                    <span class="ios-row-label">Developer Tools</span>
                                     <label class="ios-switch"><input type="checkbox" id="perfMonToggle" onchange="_togglePerfMon(this.checked)"><span class="ios-switch-slider"></span></label>
                                 </div>
                             </div>
@@ -7227,13 +7237,43 @@
             </div>
         </div>
     </div>
-    <!-- Performance Monitor Overlay -->
-    <div id="perfMonOverlay" style="display:none;position:fixed;top:env(safe-area-inset-top,0);right:8px;z-index:99999;background:rgba(0,0,0,0.85);backdrop-filter:blur(10px);border-radius:10px;padding:8px 12px;font:11px/1.4 var(--font-num),monospace;color:#fff;pointer-events:none;min-width:140px">
-      <div style="display:flex;justify-content:space-between;gap:12px"><span style="color:var(--accent)">FPS</span><span id="perfFps">—</span></div>
-      <div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#4a9eff">Heap</span><span id="perfHeap">—</span></div>
-      <div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#f0c429">DOM</span><span id="perfDom">—</span></div>
-      <div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#9b59ff">Charts</span><span id="perfCharts">—</span></div>
-      <div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#ff6b35">Storage</span><span id="perfStorage">—</span></div>
+    <!-- Unified Developer Panel -->
+    <div id="devPanel" style="display:none;position:fixed;top:env(safe-area-inset-top,0);right:8px;z-index:99999;font:11px/1.4 var(--font-num),monospace;color:#fff;pointer-events:auto;width:320px;max-width:calc(100vw - 16px)">
+      <!-- Metrics bar (always visible when panel on) -->
+      <div id="devMetrics" onclick="_devToggleExpand()" style="background:rgba(0,0,0,0.88);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-radius:10px;padding:6px 10px;cursor:pointer;user-select:none">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <span><span style="color:var(--accent)">FPS</span> <span id="perfFps">—</span></span>
+          <span><span style="color:#4a9eff">Heap</span> <span id="perfHeap">—</span></span>
+          <span><span style="color:#f0c429">DOM</span> <span id="perfDom">—</span></span>
+          <span><span style="color:#9b59ff">Charts</span> <span id="perfCharts">—</span></span>
+          <span><span style="color:#ff6b35">LS</span> <span id="perfStorage">—</span></span>
+        </div>
+      </div>
+      <!-- Expandable console body -->
+      <div id="devBody" style="display:none;margin-top:4px;background:rgba(10,10,10,0.95);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-radius:10px;overflow:hidden">
+        <!-- Filter pills + actions -->
+        <div style="display:flex;align-items:center;gap:4px;padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.08);flex-wrap:wrap">
+          <button class="dev-filter-pill dev-filter-pill--active" data-filter="all" onclick="_devSetFilter('all')">All</button>
+          <button class="dev-filter-pill" data-filter="error" onclick="_devSetFilter('error')">Err <span id="devErrBadge" style="display:none;background:#ff453a;color:#fff;font-size:9px;padding:0 4px;border-radius:8px;margin-left:2px">0</span></button>
+          <button class="dev-filter-pill" data-filter="warn" onclick="_devSetFilter('warn')">Warn</button>
+          <button class="dev-filter-pill" data-filter="info" onclick="_devSetFilter('info')">Info</button>
+          <button class="dev-filter-pill" data-filter="p2p" onclick="_devSetFilter('p2p')">P2P</button>
+          <button class="dev-filter-pill" data-filter="fit" onclick="_devSetFilter('fit')">FIT</button>
+          <span style="flex:1"></span>
+          <button onclick="_devCopyLog()" title="Copy" style="background:none;border:none;color:#888;font-size:10px;cursor:pointer;padding:2px 4px">Copy</button>
+          <button onclick="_devExportLog()" title="Export" style="background:none;border:none;color:#888;font-size:10px;cursor:pointer;padding:2px 4px">Export</button>
+          <button onclick="_devClearLog()" title="Clear" style="background:none;border:none;color:#888;font-size:10px;cursor:pointer;padding:2px 4px">Clear</button>
+        </div>
+        <!-- Terminal log -->
+        <div id="devLogBody" style="max-height:45vh;overflow-y:auto;padding:4px 8px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scroll-behavior:auto"></div>
+        <!-- Network stats + actions -->
+        <div style="border-top:1px solid rgba(255,255,255,0.08);padding:6px 8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="color:#888">API: <span id="devApiCalls" style="color:#4a9eff">0</span></span>
+          <span style="color:#888">Last: <span id="devApiMs" style="color:#f0c429">—</span></span>
+          <span style="flex:1"></span>
+          <button onclick="_devForceRefresh()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#ff453a;font-size:10px;border-radius:4px;padding:3px 8px;cursor:pointer">Force Refresh</button>
+        </div>
+      </div>
     </div>
     </body>
 </html>

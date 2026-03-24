@@ -51,6 +51,47 @@ import { initImportPage, impSwitchTab, impAddFiles, impRemoveFromQueue,
          impRenderHistory, impClearHistory, impSaveRouteToIDB } from './js/import.js';
 
 /* ====================================================
+   DEVELOPER CONSOLE — capture console output for in-app log
+==================================================== */
+const _devLog = [];
+const _DEV_LOG_MAX = 500;
+let _devLogFilter = 'all';
+let _devLogRenderFn = null;
+let _devApiCalls = 0;
+let _devApiLastMs = 0;
+
+// Override console methods to capture output
+['log', 'warn', 'error', 'info'].forEach(level => {
+  const orig = console[level].bind(console);
+  console[level] = (...args) => {
+    orig(...args);
+    try {
+      const msg = args.map(a => {
+        if (a instanceof Error) return a.message + (a.stack ? '\n' + a.stack.split('\n').slice(0, 3).join('\n') : '');
+        if (typeof a === 'object') try { return JSON.stringify(a).slice(0, 200); } catch { return String(a); }
+        return String(a);
+      }).join(' ');
+      _devLog.push({ ts: Date.now(), level, msg });
+      if (_devLog.length > _DEV_LOG_MAX) _devLog.shift();
+      if (_devLogRenderFn) _devLogRenderFn();
+    } catch (_) {}
+  };
+});
+
+// Capture uncaught errors
+window.addEventListener('error', e => {
+  _devLog.push({ ts: Date.now(), level: 'error', msg: `Uncaught: ${e.message} at ${e.filename}:${e.lineno}` });
+  if (_devLog.length > _DEV_LOG_MAX) _devLog.shift();
+  if (_devLogRenderFn) _devLogRenderFn();
+});
+window.addEventListener('unhandledrejection', e => {
+  const msg = e.reason instanceof Error ? e.reason.message : String(e.reason);
+  _devLog.push({ ts: Date.now(), level: 'error', msg: `Unhandled Promise: ${msg}` });
+  if (_devLog.length > _DEV_LOG_MAX) _devLog.shift();
+  if (_devLogRenderFn) _devLogRenderFn();
+});
+
+/* ====================================================
    DESIGN TOKENS — single source of truth for JS colors
 ==================================================== */
 /* ── Colour tokens (read from CSS custom properties) ──────── */
@@ -875,6 +916,11 @@ async function icuFetch(path) {
     throw err;
   }
   rlTrackRequest();  // count only after a real network request fires
+  _devApiCalls++;
+  if (res.headers) {
+    const serverTiming = res.headers.get('server-timing');
+    if (serverTiming) { const m = serverTiming.match(/dur=(\d+)/); if (m) _devApiLastMs = +m[1]; }
+  }
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);
     throw new Error(`${res.status}: ${text}`);
@@ -36612,8 +36658,11 @@ if (_initRoute && _initRoute.type === 'activity' && _initRoute.actId) {
   if (_restoredAct) navigateToActivity(_restoredAct);
 }
 
-/* ── Performance Monitor ── */
+/* ── Unified Developer Panel ── */
 let _perfMonRAF = 0, _perfFrames = 0, _perfLastTs = 0;
+let _devExpanded = false;
+let _devAutoScroll = true;
+
 function _perfMonLoop(ts) {
   _perfFrames++;
   if (ts - _perfLastTs >= 1000) {
@@ -36632,15 +36681,12 @@ function _perfMonLoop(ts) {
     if (heapEl && performance.memory) {
       const mb = (performance.memory.usedJSHeapSize / 1048576).toFixed(1);
       const limit = (performance.memory.jsHeapSizeLimit / 1048576).toFixed(0);
-      heapEl.textContent = `${mb} / ${limit} MB`;
+      heapEl.textContent = `${mb}/${limit}`;
     } else if (heapEl) {
       heapEl.textContent = 'N/A';
     }
     if (domEl) domEl.textContent = document.querySelectorAll('*').length.toLocaleString();
-    if (chartsEl) {
-      const chartCount = Object.values(Chart.instances || {}).length;
-      chartsEl.textContent = chartCount;
-    }
+    if (chartsEl) chartsEl.textContent = Object.values(Chart.instances || {}).length;
     if (storageEl) {
       try {
         let total = 0;
@@ -36648,30 +36694,160 @@ function _perfMonLoop(ts) {
           const k = localStorage.key(i);
           total += (k.length + (localStorage.getItem(k) || '').length) * 2;
         }
-        storageEl.textContent = (total / 1048576).toFixed(1) + ' MB';
+        storageEl.textContent = (total / 1048576).toFixed(1) + 'M';
       } catch (_) { storageEl.textContent = '?'; }
+    }
+    // Update API stats
+    const apiEl = document.getElementById('devApiCalls');
+    const apiMsEl = document.getElementById('devApiMs');
+    if (apiEl) apiEl.textContent = _devApiCalls;
+    if (apiMsEl) apiMsEl.textContent = _devApiLastMs ? _devApiLastMs + 'ms' : '—';
+
+    // Update error badge
+    const badge = document.getElementById('devErrBadge');
+    if (badge) {
+      const errCount = _devLog.filter(e => e.level === 'error').length;
+      if (errCount > 0) { badge.textContent = errCount; badge.style.display = ''; }
+      else badge.style.display = 'none';
     }
   }
   _perfMonRAF = requestAnimationFrame(_perfMonLoop);
 }
 
 function _togglePerfMon(on) {
-  const overlay = document.getElementById('perfMonOverlay');
-  if (!overlay) return;
+  const panel = document.getElementById('devPanel');
+  if (!panel) return;
   localStorage.setItem('icu_perf_mon', on ? '1' : '0');
   if (on) {
-    overlay.style.display = '';
+    panel.style.display = '';
     _perfLastTs = performance.now();
     _perfFrames = 0;
     _perfMonRAF = requestAnimationFrame(_perfMonLoop);
+    _devLogRenderFn = _devRenderLog;
   } else {
-    overlay.style.display = 'none';
+    panel.style.display = 'none';
+    _devExpanded = false;
+    const body = document.getElementById('devBody');
+    if (body) body.style.display = 'none';
     if (_perfMonRAF) { cancelAnimationFrame(_perfMonRAF); _perfMonRAF = 0; }
+    _devLogRenderFn = null;
   }
 }
 window._togglePerfMon = _togglePerfMon;
 
-// Restore perf monitor state on load
+// Toggle expand/collapse the console body
+function _devToggleExpand() {
+  _devExpanded = !_devExpanded;
+  const body = document.getElementById('devBody');
+  if (body) {
+    body.style.display = _devExpanded ? '' : 'none';
+    if (_devExpanded) _devRenderLog();
+  }
+}
+window._devToggleExpand = _devToggleExpand;
+
+// Filter log messages
+function _devSetFilter(filter) {
+  _devLogFilter = filter;
+  document.querySelectorAll('.dev-filter-pill').forEach(p => {
+    p.classList.toggle('dev-filter-pill--active', p.dataset.filter === filter);
+  });
+  _devRenderLog();
+}
+window._devSetFilter = _devSetFilter;
+
+// Render the log terminal
+function _devRenderLog() {
+  if (!_devExpanded) return;
+  const el = document.getElementById('devLogBody');
+  if (!el) return;
+
+  const P2P_WORDS = ['peer', 'sync', 'p2p', 'connect', 'pair', 'host', 'join', 'gun'];
+  const FIT_WORDS = ['fit', 'battery', 'device_info', 'glb', 'dynamics'];
+
+  let entries = _devLog;
+  if (_devLogFilter === 'error') entries = entries.filter(e => e.level === 'error');
+  else if (_devLogFilter === 'warn') entries = entries.filter(e => e.level === 'warn');
+  else if (_devLogFilter === 'info') entries = entries.filter(e => e.level === 'info');
+  else if (_devLogFilter === 'p2p') entries = entries.filter(e => P2P_WORDS.some(w => e.msg.toLowerCase().includes(w)));
+  else if (_devLogFilter === 'fit') entries = entries.filter(e => FIT_WORDS.some(w => e.msg.toLowerCase().includes(w)));
+
+  // Show last 150 entries
+  const visible = entries.slice(-150);
+  el.innerHTML = visible.map(e => {
+    const d = new Date(e.ts);
+    const ts = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
+    const msg = e.msg.length > 300 ? e.msg.slice(0, 300) + '…' : e.msg;
+    return `<div class="dev-log-line dev-lv-${e.level}"><span class="dev-ts">${ts}</span>${msg.replace(/</g, '&lt;')}</div>`;
+  }).join('');
+
+  // Auto-scroll to bottom
+  if (_devAutoScroll) el.scrollTop = el.scrollHeight;
+}
+
+// Pause auto-scroll when user scrolls up
+document.addEventListener('DOMContentLoaded', () => {
+  const el = document.getElementById('devLogBody');
+  if (el) {
+    el.addEventListener('scroll', () => {
+      _devAutoScroll = el.scrollTop + el.clientHeight >= el.scrollHeight - 20;
+    });
+  }
+});
+
+// Copy log to clipboard
+function _devCopyLog() {
+  const text = _devLog.map(e => {
+    const d = new Date(e.ts);
+    const ts = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
+    return `[${ts}] [${e.level}] ${e.msg}`;
+  }).join('\n');
+  navigator.clipboard.writeText(text).then(() => showToast('Log copied', 'success')).catch(() => showToast('Copy failed', 'error'));
+}
+window._devCopyLog = _devCopyLog;
+
+// Export log as .txt file
+function _devExportLog() {
+  const text = _devLog.map(e => {
+    const d = new Date(e.ts);
+    const ts = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}.${String(d.getMilliseconds()).padStart(3, '0')}`;
+    return `[${ts}] [${e.level.toUpperCase()}] ${e.msg}`;
+  }).join('\n');
+  const blob = new Blob([text], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `cycleiq-log-${new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-')}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Log exported', 'success');
+}
+window._devExportLog = _devExportLog;
+
+// Clear log
+function _devClearLog() {
+  _devLog.length = 0;
+  _devRenderLog();
+}
+window._devClearLog = _devClearLog;
+
+// Force refresh (unregister SW + hard reload)
+function _devForceRefresh() {
+  if (!confirm('Unregister service worker and reload?')) return;
+  if (navigator.serviceWorker) {
+    navigator.serviceWorker.getRegistration().then(r => {
+      if (r) r.unregister();
+      location.reload(true);
+    }).catch(() => location.reload(true));
+  } else {
+    location.reload(true);
+  }
+}
+window._devForceRefresh = _devForceRefresh;
+
+// Restore dev panel state on load
 if (localStorage.getItem('icu_perf_mon') === '1') {
   requestAnimationFrame(() => {
     const toggle = document.getElementById('perfMonToggle');
