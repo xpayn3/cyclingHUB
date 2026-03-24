@@ -2313,33 +2313,34 @@ function _peerDiscoverDevices() {
 
 /* ── Handle incoming discovery connections ── */
 function _peerHandleDiscovery(conn) {
+  let _remoteName = '';
   conn.on('data', data => {
-    if (data?.type === 'discover') {
-      // Respond with our name
+    if (!data?.type) return;
+    if (data.type === 'discover') {
+      _remoteName = data.name || conn.peer;
       conn.send({ type: 'discover_ack', name: _peerDeviceName() });
-      _peerDiscoveredDevices[conn.peer] = { name: data.name, conn };
-      _peerLog('Discovered by: ' + data.name);
+      _peerDiscoveredDevices[conn.peer] = { name: _remoteName, conn };
+      _peerLog('Discovered by: ' + _remoteName);
       _peerRenderDevices(null);
-
-      // Listen for pair request
-      conn.on('data', msg => {
-        if (msg?.type === 'pair_request') {
-          _peerShowSyncConfirm({
-            title: 'Pair Request',
-            desc: `${msg.name || data.name} wants to pair with this device for sync.`,
-            btnText: 'Accept', btnColor: 'var(--accent)',
-            sizeBytes: 0, showItemBreakdown: false, keyCount: 0,
-            onApprove: () => {
-              conn.send({ type: 'pair_accept', name: _peerDeviceName() });
-              _peerPromoteToPaired(conn, msg.name || data.name);
-            },
-            onDecline: () => {
-              conn.send({ type: 'pair_decline', name: _peerDeviceName() });
-              _peerLog('Declined pair from ' + data.name);
-            },
-          });
-        }
+    } else if (data.type === 'pair_request') {
+      _peerShowSyncConfirm({
+        title: 'Pair Request',
+        desc: `${data.name || _remoteName} wants to pair with this device.`,
+        btnText: 'Accept', btnColor: 'var(--accent)',
+        sizeBytes: 0, showItemBreakdown: false, keyCount: 0,
+        onApprove: () => {
+          conn.send({ type: 'pair_accept', name: _peerDeviceName() });
+          _peerPromoteToPaired(conn, data.name || _remoteName);
+        },
+        onDecline: () => {
+          conn.send({ type: 'pair_decline', name: _peerDeviceName() });
+          _peerLog('Declined pair from ' + _remoteName);
+        },
       });
+    } else if (data.type === 'pair_accept') {
+      _peerHandlePairAccept(conn, data);
+    } else if (data.type === 'pair_decline') {
+      showToast((data.name || _remoteName) + ' declined', 'info');
     }
   });
   conn.on('close', () => {
@@ -2986,25 +2987,22 @@ function _peerCancelConnect() {
 window._peerCancelConnect = _peerCancelConnect;
 
 function _peerDisconnect() {
-  _peerLog('Disconnected from peer');
-  _peerManualDisconnect = true;
-  _peerReconnecting = false;
+  _peerLog('Disconnected — restarting discovery');
   localStorage.removeItem('icu_peer_remote');
   localStorage.removeItem('icu_peer_my_id');
-  // Close connection but keep the peer instance alive for re-discovery
+  // Full teardown + re-enable to get a clean state
+  _peerManualDisconnect = true;
+  _peerReconnecting = false;
+  if (_peerDiscoverTimer) { clearInterval(_peerDiscoverTimer); _peerDiscoverTimer = null; }
   if (_peerConn) { try { _peerConn.close(); } catch {} _peerConn = null; }
+  if (_peerInstance) { try { _peerInstance.destroy(); } catch {} _peerInstance = null; }
   _peerRemoteId = '';
   _peerRemoteName = '';
+  _peerMyId = '';
   _peerDiscoveredDevices = {};
-  _peerUpdateUI('ready', _peerMyId);
-  _peerRenderDevices(null);
   showToast('Disconnected', 'success');
-  // Restart discovery so the device reappears
-  _peerManualDisconnect = false;
-  if (!_peerDiscoverTimer && _peerInstance && !_peerInstance.destroyed) {
-    _peerDiscoverDevices();
-    _peerDiscoverTimer = setInterval(_peerDiscoverDevices, 30000);
-  }
+  // Re-enable P2P with fresh instance after a short delay
+  setTimeout(() => _peerToggle(true), 500);
 }
 window._peerDisconnect = _peerDisconnect;
 
