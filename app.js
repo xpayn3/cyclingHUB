@@ -5584,14 +5584,14 @@ async function renderRecentActCardMap(a, idx, idPrefix = 'recentActCard', mapSto
     bearing = Math.min(ratio * 18, 70);
   }
 
-  const targetPitch = 40;
-  const targetBearing = bearing;
+  const pitch = 40; // cinematic tilt
   const map = new maplibregl.Map({
     container: mapEl,
     style: _mlGetStyle(loadMapTheme()),
     bounds: [[minLng, minLat], [maxLng, maxLat]],
-    fitBoundsOptions: { padding: { top: 30, bottom: 10, left: 20, right: 20 }, bearing: 0 },
+    fitBoundsOptions: { padding: { top: 30, bottom: 10, left: 20, right: 20 }, bearing, pitch },
     interactive: false,
+    pitch,
     attributionControl: false,
     fadeDuration: 0,
     renderWorldCopies: false,
@@ -5648,11 +5648,10 @@ async function renderRecentActCardMap(a, idx, idPrefix = 'recentActCard', mapSto
       new maplibregl.Marker({ element: makeDot('#888'), anchor: 'center' })
         .setLngLat(coords[coords.length - 1]).addTo(map);
 
-      // Cinematic animation: ease into pitch + bearing, then snapshot
-      map.easeTo({ pitch: targetPitch, bearing: targetBearing, duration: 2000, easing: t => 1 - Math.pow(1 - t, 3) });
-
-      // Snapshot after animation completes + tiles settle
-      const _snapshot = () => {
+      // Snapshot to static image once rendered, then destroy the WebGL context.
+      // Applies to all card types (hero + grid) to prevent GPU exhaustion and
+      // enable instant cache restore on subsequent dashboard loads.
+      map.once('idle', () => {
         clearTimeout(timer);
         try {
           const canvas = map.getCanvas();
@@ -5674,9 +5673,7 @@ async function renderRecentActCardMap(a, idx, idPrefix = 'recentActCard', mapSto
           if (si !== -1) state.recentActivityMaps.splice(si, 1);
         }
         done();
-      };
-      // Wait for animation to end, then wait for idle, then snapshot
-      map.once('moveend', () => map.once('idle', _snapshot));
+      });
     });
 
     map.on('error', () => { clearTimeout(timer); done(); });
