@@ -22487,16 +22487,15 @@ async function renderDetailDevices(a) {
   if (!devices || !devices.length) return;
 
   const readings = devices
-    .filter(d => (d.voltage || d.batStatus) && (d.manufacturer || d.product))
-    .filter(d => d.manufacturer !== 0 && d.manufacturer != null) // skip internal/unknown sensors
+    .filter(d => d.voltage || d.batStatus)
     .map(d => ({
       voltage: d.voltage,
       status: _batStatusText(d.batStatus),
       percent: _voltageToPercent(d.voltage),
-      manufacturer: _FIT_MFR[d.manufacturer] || (d.manufacturer ? `ID:${d.manufacturer}` : null),
+      manufacturer: _FIT_MFR[d.manufacturer] || (d.manufacturer ? `ID:${d.manufacturer}` : 'Internal'),
       product: d.product,
-    }))
-    .filter(d => d.manufacturer); // skip any remaining unknowns
+      deviceType: d.deviceType,
+    }));
 
   if (!readings.length) return;
 
