@@ -636,8 +636,11 @@
                     <div style="text-align:center;padding:8px 0 16px;font-size:13px;color:var(--text-muted)">
                         Total size: <span id="syncConfirmSize" style="font-weight:600;color:var(--text-primary)">—</span>
                     </div>
-                    <!-- Confirm button -->
-                    <button class="btn btn-accent" id="syncConfirmBtn" style="width:100%;height:48px;border-radius:12px;font-size:16px;font-weight:600">Confirm</button>
+                    <!-- Confirm buttons -->
+                    <div id="syncConfirmBtns" style="display:flex;gap:10px">
+                        <button class="btn btn-accent" id="syncConfirmBtn" style="flex:1;height:48px;border-radius:12px;font-size:16px;font-weight:600">Confirm</button>
+                        <button class="btn" id="syncDeclineBtn" style="display:none;flex:1;height:48px;border-radius:12px;font-size:16px;font-weight:600;background:var(--surface-2);color:var(--text-primary);border:none">Decline</button>
+                    </div>
                 </div>
             </div>
         </div>

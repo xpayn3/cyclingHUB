@@ -3240,13 +3240,18 @@ function _peerShowSyncConfirm(cfg) {
   btnEl.style.color = '#000';
   btnEl.onclick = () => { _closeOverlaySheet('syncConfirmSheet'); cfg.onApprove(); };
 
-  // Decline on dismiss
+  // Decline button (visible for pair requests)
+  const declineBtn = document.getElementById('syncDeclineBtn');
+  if (declineBtn) {
+    declineBtn.style.display = cfg.pairDevice ? '' : 'none';
+    declineBtn.onclick = () => { _closeOverlaySheet('syncConfirmSheet'); cfg.onDecline?.(); };
+  }
+
+  // Decline on backdrop dismiss
   const overlay = document.getElementById('syncConfirmSheet');
   const backdrop = overlay?.querySelector('.wxd-backdrop');
-  const closeBtn = overlay?.querySelector('.modal-close');
-  const _onClose = () => { cfg.onDecline?.(); backdrop?.removeEventListener('click', _onClose); closeBtn?.removeEventListener('click', _onClose); };
+  const _onClose = () => { cfg.onDecline?.(); backdrop?.removeEventListener('click', _onClose); };
   backdrop?.addEventListener('click', _onClose, { once: true });
-  closeBtn?.addEventListener('click', _onClose, { once: true });
 
   _openOverlaySheet('syncConfirmSheet');
 }
