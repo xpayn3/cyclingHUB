@@ -1220,6 +1220,9 @@ async function syncData(force = false) {
     updateLastSyncLabel(new Date().toISOString());
     if (window._lbAutoBackupIfEnabled) _lbAutoBackupIfEnabled();
 
+    // Extract battery levels from most recent ride's FIT file (background, non-blocking)
+    _syncBatteryFromLastRide().catch(() => {});
+
     // Invalidate power curve cache so it re-fetches with fresh range
     state.powerCurve = null;
     state.powerCurveRange = null;
@@ -6477,6 +6480,20 @@ function _renderDashBatteries() {
       chargeInfo = days === 0 ? 'Charged today' : days === 1 ? '1 day ago' : `${days}d ago`;
     }
 
+    // Check for FIT sensor reading
+    let sensorBadge = '';
+    try {
+      const fitReadings = JSON.parse(localStorage.getItem('icu_bat_fit_readings') || '[]');
+      const mfrName = (BATTERY_SYSTEMS[b.system]?.label || '').split(' ')[0].toLowerCase();
+      const match = fitReadings.find(r => {
+        const rMfr = (r.manufacturer || '').toString().toLowerCase();
+        return mfrName && rMfr.includes(mfrName);
+      });
+      if (match && match.percent != null) {
+        sensorBadge = `<span style="font-size:10px;color:var(--text-muted);opacity:0.7" title="From FIT sensor: ${match.voltage ? match.voltage.toFixed(2) + 'V' : ''}${match.status ? ' (' + match.status + ')' : ''}">sensor</span>`;
+      }
+    } catch {}
+
     return `<div class="dash-bat-card" data-bike-id="${b.bikeId||''}" data-bat-id="${b.id}">
       <div class="dash-bat-header">
         <div class="dash-bat-icon" style="${(isSramShifter || isSramDerailleur) ? 'background:transparent;border-radius:0' : 'background:' + iconBg}">${batIcon}</div>
@@ -6490,6 +6507,7 @@ function _renderDashBatteries() {
       </div>
       <div class="dash-bat-footer">
         <span class="dash-bat-pct" style="color:${pctColor}">${pctVal !== null ? pctVal + '%' : '—'}</span>
+        ${sensorBadge}
         <span class="dash-bat-charge">${chargeInfo}</span>
       </div>
     </div>`;
@@ -28900,6 +28918,193 @@ function loadGearBatteries() {
 }
 function saveGearBatteries(arr) {
   try { localStorage.setItem(BATTERY_STORE_KEY, JSON.stringify(arr)); } catch (e) { console.warn('localStorage.setItem failed:', e); }
+}
+
+/* ── FIT file battery extraction ── */
+
+// Minimal FIT parser: extracts device_info battery_voltage fields
+// FIT spec: device_info (mesg 23), field 10 = battery_voltage (uint16, scale 256)
+// field 11 = battery_status (enum: 1=new, 2=good, 3=ok, 4=low, 5=critical, 6=charging, 7=unknown)
+async function _extractBatteryFromFIT(actId) {
+  try {
+    const resp = await fetch(
+      ICU_BASE + `/activity/${actId}.fit`,
+      { headers: authHeader() }
+    );
+    if (!resp.ok) return null;
+    rlTrackRequest();
+    const buf = await resp.arrayBuffer();
+    return _parseFITBattery(new DataView(buf));
+  } catch (e) {
+    console.warn('FIT battery extract failed:', e.message);
+    return null;
+  }
+}
+
+function _parseFITBattery(dv) {
+  const devices = [];
+  try {
+    // Validate FIT header
+    const headerSize = dv.getUint8(0);
+    if (headerSize < 12) return devices;
+    const sig = String.fromCharCode(dv.getUint8(8), dv.getUint8(9), dv.getUint8(10), dv.getUint8(11));
+    if (sig !== '.FIT') return devices;
+
+    let offset = headerSize;
+    const defnMap = {};
+    const end = dv.byteLength - 2; // exclude CRC
+
+    while (offset < end) {
+      const recHeader = dv.getUint8(offset++);
+      const isDefn = (recHeader & 0x40) !== 0;
+      const localMesg = recHeader & 0x0F;
+      const isCompressed = (recHeader & 0x80) !== 0;
+
+      if (isCompressed) {
+        // Compressed timestamp — skip data based on known definition
+        const tsLocal = (recHeader >> 5) & 0x03;
+        const defn = defnMap[tsLocal];
+        if (defn) offset += defn.size;
+        continue;
+      }
+
+      if (isDefn) {
+        // Definition message
+        offset++; // reserved
+        const arch = dv.getUint8(offset++); // architecture: 0=LE, 1=BE
+        const le = arch === 0;
+        const globalMesg = le ? dv.getUint16(offset, true) : dv.getUint16(offset, false);
+        offset += 2;
+        const numFields = dv.getUint8(offset++);
+        const fields = [];
+        let dataSize = 0;
+        for (let i = 0; i < numFields; i++) {
+          const fNum = dv.getUint8(offset++);
+          const fSize = dv.getUint8(offset++);
+          const fType = dv.getUint8(offset++);
+          fields.push({ num: fNum, size: fSize, type: fType });
+          dataSize += fSize;
+        }
+        // Skip dev fields if present
+        if ((recHeader & 0x20) !== 0) {
+          const nDev = dv.getUint8(offset++);
+          for (let i = 0; i < nDev; i++) { offset += 3; dataSize += dv.getUint8(offset - 2); }
+        }
+        defnMap[localMesg] = { globalMesg, fields, size: dataSize, le };
+      } else {
+        // Data message
+        const defn = defnMap[localMesg];
+        if (!defn) break; // Can't parse without definition
+
+        if (defn.globalMesg === 23) { // device_info
+          let voltage = null, batStatus = null, manufacturer = null, product = null, deviceType = null;
+          let fOff = offset;
+          for (const f of defn.fields) {
+            if (f.num === 10 && f.size === 2) { // battery_voltage
+              const raw = defn.le ? dv.getUint16(fOff, true) : dv.getUint16(fOff, false);
+              if (raw !== 0xFFFF) voltage = raw / 256; // scale factor 256
+            } else if (f.num === 11 && f.size === 1) { // battery_status
+              const raw = dv.getUint8(fOff);
+              if (raw !== 0xFF) batStatus = raw;
+            } else if (f.num === 2 && f.size === 2) { // manufacturer
+              const raw = defn.le ? dv.getUint16(fOff, true) : dv.getUint16(fOff, false);
+              if (raw !== 0xFFFF) manufacturer = raw;
+            } else if (f.num === 3 && f.size === 2) { // product
+              const raw = defn.le ? dv.getUint16(fOff, true) : dv.getUint16(fOff, false);
+              if (raw !== 0xFFFF) product = raw;
+            } else if (f.num === 25 && f.size === 1) { // source_type / device_type
+              const raw = dv.getUint8(fOff);
+              if (raw !== 0xFF) deviceType = raw;
+            }
+            fOff += f.size;
+          }
+          if (voltage !== null || batStatus !== null) {
+            devices.push({ voltage, batStatus, manufacturer, product, deviceType });
+          }
+        }
+        offset += defn.size;
+      }
+    }
+  } catch (e) {
+    console.warn('FIT parse error:', e.message);
+  }
+  return devices;
+}
+
+// Convert voltage to percentage based on common battery chemistries
+function _voltageToPercent(voltage, type) {
+  if (!voltage || voltage <= 0) return null;
+  // Li-ion/Li-po (most rechargeable cycling devices): 3.0V empty → 4.2V full
+  if (type === 'rechargeable' || !type) {
+    if (voltage >= 4.2) return 100;
+    if (voltage <= 3.0) return 0;
+    return Math.round(((voltage - 3.0) / 1.2) * 100);
+  }
+  // CR2032 coin cell: 2.0V empty → 3.0V full
+  if (type === 'coin_cell') {
+    if (voltage >= 3.0) return 100;
+    if (voltage <= 2.0) return 0;
+    return Math.round(((voltage - 2.0) / 1.0) * 100);
+  }
+  return null;
+}
+
+// Battery status enum → text
+function _batStatusText(s) {
+  return { 1: 'New', 2: 'Good', 3: 'OK', 4: 'Low', 5: 'Critical', 6: 'Charging', 7: 'Unknown' }[s] || null;
+}
+
+// FIT manufacturer IDs → names
+const _FIT_MFR = { 1: 'Garmin', 7: 'SRAM', 32: 'Wahoo', 48: 'Favero', 76: 'Stages', 89: 'Shimano', 267: '4iiii', 294: 'Hammerhead' };
+
+// After activity sync: extract battery data from the most recent ride's FIT file
+async function _syncBatteryFromLastRide() {
+  const bats = loadGearBatteries();
+  if (!bats.length) return; // no batteries tracked — skip
+
+  const acts = state.activities || [];
+  if (!acts.length) return;
+
+  // Find most recent cycling activity
+  const lastRide = acts.find(a => {
+    const t = (a.type || '').toLowerCase();
+    return t.includes('ride') || t.includes('cycling');
+  });
+  if (!lastRide) return;
+
+  // Check if we already extracted from this activity
+  const lastExtracted = localStorage.getItem('icu_bat_last_fit_id');
+  if (lastExtracted === lastRide.id) return;
+
+  console.log('Extracting battery info from FIT:', lastRide.id);
+  const devices = await _extractBatteryFromFIT(lastRide.id);
+  if (!devices || !devices.length) {
+    localStorage.setItem('icu_bat_last_fit_id', lastRide.id);
+    return;
+  }
+
+  // Store raw device battery readings
+  const readings = devices
+    .filter(d => d.voltage || d.batStatus)
+    .map(d => ({
+      voltage: d.voltage,
+      status: _batStatusText(d.batStatus),
+      percent: _voltageToPercent(d.voltage, d.voltage > 2.5 ? 'rechargeable' : 'coin_cell'),
+      manufacturer: _FIT_MFR[d.manufacturer] || d.manufacturer,
+      product: d.product,
+      deviceType: d.deviceType,
+      activityId: lastRide.id,
+      date: (lastRide.start_date_local || lastRide.start_date || '').slice(0, 10),
+    }));
+
+  if (readings.length) {
+    try {
+      localStorage.setItem('icu_bat_fit_readings', JSON.stringify(readings));
+      console.log('Battery readings from FIT:', readings);
+    } catch (e) {}
+  }
+
+  localStorage.setItem('icu_bat_last_fit_id', lastRide.id);
 }
 
 /* ── Charge calculation ── */
