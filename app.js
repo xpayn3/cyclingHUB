@@ -8260,11 +8260,8 @@ function _vitalityAnimLoop() {
   gl.uniform3f(G.u_click, P.clickX, P.clickY, P.clickStr);
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
-  // Only stop the loop when we've actually left the dashboard.
-  // Do NOT gate on canvas.offsetWidth — during a startViewTransition the canvas
-  // is temporarily 0-wide even though we're navigating TO the dashboard, which
-  // would kill the loop before the page finishes appearing.
-  if (state.currentPage === 'dashboard' && !document.hidden) {
+  // Only continue loop if on dashboard, tab visible, AND card scrolled into view
+  if (state.currentPage === 'dashboard' && !document.hidden && _vitalityVisible) {
     _vitalityRAF = requestAnimationFrame(_vitalityAnimLoop);
   } else {
     _vitalityRAF = null;
@@ -8276,6 +8273,30 @@ function _stopVitality() {
   // Reset GL context so renderVitality() does a clean re-init on next dashboard visit.
   // getContext('webgl') on the same canvas returns the existing context, so this is cheap.
   _vitalityGL = null;
+}
+
+// Lazy vitality: only animate when the card is scrolled into view
+let _vitalityObserver = null;
+let _vitalityVisible = false;
+function _initVitalityLazy() {
+  if (_vitalityObserver) return;
+  const card = document.getElementById('vitalityCard');
+  if (!card) return;
+  _vitalityObserver = new IntersectionObserver(entries => {
+    const visible = entries[0]?.isIntersecting ?? false;
+    if (visible && !_vitalityVisible) {
+      _vitalityVisible = true;
+      // Restart animation if GL is initialized and we're on dashboard
+      if (_vitalityGL && !_vitalityRAF && state.currentPage === 'dashboard') {
+        _vitalityAnimLoop();
+      }
+    } else if (!visible && _vitalityVisible) {
+      _vitalityVisible = false;
+      // Pause animation but keep GL context alive
+      if (_vitalityRAF) { cancelAnimationFrame(_vitalityRAF); _vitalityRAF = null; }
+    }
+  }, { threshold: 0.05 });
+  _vitalityObserver.observe(card);
 }
 
 function _initVitalityDialog() {
@@ -8633,6 +8654,9 @@ function renderVitality() {
   }
   if (!_vitalityGL) return;
 
+  _initVitalityLazy();
+  // Only start animation if card is visible (lazy observer will start it if not)
+  _vitalityVisible = true; // assume visible on first render, observer will correct
   if (!_vitalityRAF) _vitalityAnimLoop();
 }
 
