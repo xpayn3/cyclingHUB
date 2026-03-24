@@ -559,6 +559,14 @@ function cleanupPageCharts(leavingPage) {
 function _cleanupPageDOM(leavingPage) {
   if (!leavingPage) return;
 
+  // Dashboard — recent activity cards, weather rail, battery grid
+  if (leavingPage === 'dashboard') {
+    ['recentActScrollRail', 'dashBatGrid'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = '';
+    });
+  }
+
   // Activity detail — heaviest page: streams chart, zones, intervals, climbs, etc.
   if (leavingPage === 'activity') {
     const ids = [
@@ -36739,7 +36747,11 @@ function _perfMonLoop(ts) {
     } else if (heapEl) {
       heapEl.textContent = 'N/A';
     }
-    if (domEl) domEl.textContent = document.querySelectorAll('*').length.toLocaleString();
+    if (domEl) {
+      const total = document.querySelectorAll('*').length;
+      domEl.textContent = total.toLocaleString();
+      domEl.title = _devDOMBreakdown();
+    }
     if (chartsEl) chartsEl.textContent = Object.values(Chart.instances || {}).length;
     if (storageEl) {
       try {
@@ -36900,6 +36912,26 @@ function _devForceRefresh() {
   }
 }
 window._devForceRefresh = _devForceRefresh;
+
+// DOM breakdown by section (for diagnostics)
+function _devDOMBreakdown() {
+  const parts = [];
+  // Count per page
+  document.querySelectorAll('.page').forEach(p => {
+    const count = p.querySelectorAll('*').length;
+    if (count > 50) parts.push(`${p.id.replace('page-','')}: ${count}`);
+  });
+  // Count overlays
+  let overlayTotal = 0;
+  document.querySelectorAll('.wxd-overlay, .modal-dialog').forEach(o => {
+    overlayTotal += o.querySelectorAll('*').length;
+  });
+  parts.push(`overlays: ${overlayTotal}`);
+  // Sidebar
+  const sb = document.getElementById('sidebar');
+  if (sb) parts.push(`sidebar: ${sb.querySelectorAll('*').length}`);
+  return parts.join(' | ');
+}
 
 // Restore dev panel state on load
 if (localStorage.getItem('icu_perf_mon') === '1') {

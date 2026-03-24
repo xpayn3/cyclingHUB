@@ -18562,6 +18562,11 @@ body:has(.act-sheet-mode) .topbar {
     justify-content: center;
     overscroll-behavior: contain;
 }
+/* Skip layout/paint for hidden overlay sheets — saves thousands of DOM style recalcs */
+.wxd-overlay[style*="display:none"],
+.wxd-overlay[style*="display: none"] {
+    content-visibility: hidden;
+}
 .wxd-overlay.wxd-open .wxd-backdrop { opacity: 1; }
 .wxd-overlay.wxd-open .wxd-sheet { transform: translateY(0); }
 .wxd-backdrop {
