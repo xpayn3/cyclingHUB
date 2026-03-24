@@ -1267,6 +1267,35 @@
             </div>
         </div>
 
+        <!-- ==================== RACE PACING STRATEGY ==================== -->
+        <div class="wxd-overlay" id="pacingSheet" style="display:none">
+            <div class="wxd-backdrop" onclick="_closePacing()"></div>
+            <div class="wxd-sheet" style="max-width:560px">
+                <div class="modal-drag-indicator"></div>
+                <div class="modal-header">
+                    <div class="modal-title">Race Pacing Strategy</div>
+                    <button class="modal-close" onclick="_closePacing()"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+                </div>
+                <div class="wxd-sheet-body" id="pacingBody">
+                    <div id="pacingForm">
+                        <div class="pacing-form-section"><label class="pacing-label">Rider Weight (kg)</label><input type="number" id="pacingWeight" class="pacing-input" placeholder="75" min="40" max="150"></div>
+                        <div class="pacing-form-section"><label class="pacing-label">FTP (watts)</label><input type="number" id="pacingFtp" class="pacing-input" placeholder="250" min="50" max="500"></div>
+                        <div class="pacing-form-section"><label class="pacing-label">Target Intensity (% FTP)</label><input type="range" id="pacingIF" class="wif-slider" min="50" max="100" step="1" value="75" oninput="document.getElementById('pacingIFVal').textContent=this.value+'%'"><span class="wif-slider-val" id="pacingIFVal">75%</span></div>
+                        <div class="pacing-form-section"><label class="pacing-label">Route Segments</label><div class="pacing-note">Enter elevation segments or load from a saved route</div>
+                            <div id="pacingSegments">
+                                <div class="pacing-seg-row"><input type="number" placeholder="km" class="pacing-seg-km" value="10"><input type="number" placeholder="%" class="pacing-seg-grade" value="0"><span class="pacing-seg-label">Flat</span></div>
+                                <div class="pacing-seg-row"><input type="number" placeholder="km" class="pacing-seg-km" value="5"><input type="number" placeholder="%" class="pacing-seg-grade" value="6"><span class="pacing-seg-label">Climb</span></div>
+                                <div class="pacing-seg-row"><input type="number" placeholder="km" class="pacing-seg-km" value="5"><input type="number" placeholder="%" class="pacing-seg-grade" value="-4"><span class="pacing-seg-label">Descent</span></div>
+                            </div>
+                            <button class="pacing-add-seg" onclick="_pacingAddSeg()">+ Add Segment</button>
+                        </div>
+                        <button class="fuel-generate-btn" onclick="_pacingGenerate()">Generate Pacing Plan</button>
+                    </div>
+                    <div id="pacingOutput" style="display:none"></div>
+                </div>
+            </div>
+        </div>
+
         <!-- ============================================================  SIDEBAR  ============================================================ -->
 
         <div
@@ -1731,6 +1760,11 @@
                     </button>
                 </div>
                 <!-- Notification bell (dashboard only) -->
+                <!-- P2P status icon -->
+                <button class="p2p-status-btn" id="p2pStatusBtn" onclick="navigate('settings');setTimeout(()=>openSettingsSubpage('sync'),400)" aria-label="P2P Sync" style="display:none">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                    <span class="p2p-status-dot" id="p2pStatusDot"></span>
+                </button>
                 <button class="notif-bell" id="notifBell" onclick="openNotifSheet()" aria-label="Notifications" style="display:none">
                     <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
                     <span class="notif-badge" id="notifBadge" style="display:none">0</span>
@@ -3659,6 +3693,36 @@
                             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                             <span>Tapering Wizard</span>
                         </button>
+                    </div>
+
+                    <!-- ── "What If" CTL Simulator ── -->
+                    <div class="card" id="fitWhatIfCard">
+                        <div class="card-header"><div style="display:flex;align-items:center;gap:8px"><div class="card-title" style="flex:1 1 0%"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>What If Simulator</div></div></div>
+                        <div class="wif-desc">Project your future fitness based on planned training volume</div>
+                        <div class="wif-inputs">
+                            <div class="wif-input-group">
+                                <label class="wif-label">Weekly TSS</label>
+                                <input type="range" id="wifTss" class="wif-slider" min="100" max="1200" step="50" value="500" oninput="_wifUpdate()">
+                                <span class="wif-slider-val" id="wifTssVal">500</span>
+                            </div>
+                            <div class="wif-input-group">
+                                <label class="wif-label">Weeks</label>
+                                <input type="range" id="wifWeeks" class="wif-slider" min="1" max="24" step="1" value="8" oninput="_wifUpdate()">
+                                <span class="wif-slider-val" id="wifWeeksVal">8</span>
+                            </div>
+                        </div>
+                        <div class="wif-projection" id="wifProjection"></div>
+                        <div class="wif-chart-wrap"><canvas id="wifChart"></canvas></div>
+                    </div>
+
+                    <!-- ── Heat & Altitude Acclimatization ── -->
+                    <div class="card" id="fitAcclimCard" style="display:none">
+                        <div class="card-header"><div style="display:flex;align-items:center;gap:8px"><div class="card-title" style="flex:1 1 0%"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>Acclimatization</div></div></div>
+                        <div class="acclim-tabs">
+                            <button class="acclim-tab active" data-acclim="heat" onclick="_acclimSwitch('heat')">Heat</button>
+                            <button class="acclim-tab" data-acclim="altitude" onclick="_acclimSwitch('altitude')">Altitude</button>
+                        </div>
+                        <div id="acclimContent"></div>
                     </div>
 
                     <!-- ── Training Load chart (moved from dashboard) ── -->

@@ -2510,6 +2510,18 @@ function _peerUpdateUI(status, peerId) {
   const zoneActive = document.getElementById('syncZoneActive');
   if (zoneActive) zoneActive.style.display = isPeerConnected ? '' : 'none';
 
+  // Floating P2P status icon
+  const p2pBtn = document.getElementById('p2pStatusBtn');
+  const p2pDot = document.getElementById('p2pStatusDot');
+  if (p2pBtn) {
+    p2pBtn.style.display = isOn ? '' : 'none';
+    if (isPeerConnected) p2pBtn.style.color = 'var(--accent)';
+    else p2pBtn.style.color = 'var(--text-muted)';
+  }
+  if (p2pDot) {
+    p2pDot.className = 'p2p-status-dot ' + (isPeerConnected ? 'p2p-dot--on' : isOn ? 'p2p-dot--scanning' : 'p2p-dot--off');
+  }
+
   _peerUpdateLastSync();
 }
 
@@ -3927,6 +3939,12 @@ function navigate(page, opts) {
   if (notifBell) {
     notifBell.style.display = (page === 'dashboard') ? 'flex' : 'none';
     if (page === 'dashboard') _notifRefreshBell();
+  }
+  // P2P icon: show on dashboard if P2P is enabled
+  const p2pBtn = document.getElementById('p2pStatusBtn');
+  if (p2pBtn) {
+    const p2pOn = localStorage.getItem('icu_p2p_enabled') === 'true';
+    p2pBtn.style.display = (page === 'dashboard' && p2pOn) ? 'flex' : 'none';
   }
 
   // Dashboard top fade gradient — visible only on dashboard, fades in on scroll

@@ -1258,6 +1258,41 @@ code {
 }
 .notif-bell:hover { background: var(--bg-elevated); }
 .notif-bell:active { transform: scale(0.9); }
+/* P2P status floating icon */
+.p2p-status-btn {
+    position: fixed;
+    top: max(12px, env(safe-area-inset-top));
+    right: 68px;
+    z-index: 15;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+.p2p-status-btn:active { transform: scale(0.9); }
+.p2p-status-dot {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid #000;
+    background: var(--text-faint);
+}
+.p2p-status-dot.p2p-dot--on { background: var(--accent); }
+.p2p-status-dot.p2p-dot--scanning { background: #f0c429; animation: syncPulseWait 1.5s infinite; }
+.p2p-status-dot.p2p-dot--off { background: var(--text-faint); }
 .notif-badge {
     position: absolute;
     top: -2px;
