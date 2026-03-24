@@ -29680,40 +29680,52 @@ async function _syncBatteryFromLastRide() {
   const acts = state.activities || [];
   if (!acts.length) return;
 
-  // Find last 2 cycling activities
-  const rides = [];
-  for (const a of acts) {
+  // Find cycling activities
+  const rides = acts.filter(a => {
     const t = (a.type || '').toLowerCase();
-    if (t.includes('ride') || t.includes('cycling')) rides.push(a);
-    if (rides.length >= 5) break;
-  }
+    return t.includes('ride') || t.includes('cycling');
+  });
   if (!rides.length) return;
 
-  // Check if we already extracted from the most recent
+  // Check if we already synced the most recent ride
   const lastExtracted = localStorage.getItem('icu_bat_last_fit_id');
   if (lastExtracted === rides[0].id) return;
 
-  // Extract from both rides in parallel
+  // Process up to 10 uncached rides per sync (gradual backfill)
+  let toProcess = [];
+  for (const ride of rides) {
+    const cached = await _fitCacheGet(ride.id);
+    if (!cached) toProcess.push(ride);
+    if (toProcess.length >= 10) break;
+  }
+  // Always include the most recent ride even if cached (for fresh battery data)
+  if (!toProcess.find(r => r.id === rides[0].id)) toProcess.unshift(rides[0]);
+
   const allReadings = [];
-  const extractions = rides.map(async ride => {
-    console.log('Extracting battery info from FIT:', ride.id);
-    const devices = await _extractBatteryFromFIT(ride.id);
-    if (!devices || !devices.length) return;
-    const readings = devices
-      .filter(d => d.voltage || d.batStatus)
-      .map(d => ({
-        voltage: d.voltage,
-        status: _batStatusText(d.batStatus),
-        percent: _voltageToPercent(d.voltage),
-        manufacturer: _FIT_MFR[d.manufacturer] || d.manufacturer,
-        product: d.product,
-        deviceType: d.deviceType,
-        activityId: ride.id,
-        date: (ride.start_date_local || ride.start_date || '').slice(0, 10),
-      }));
-    allReadings.push(...readings);
-  });
-  await Promise.all(extractions);
+  // Process sequentially with small delay to avoid rate limiting
+  for (const ride of toProcess) {
+    try {
+      const fitData = await _fetchParsedFIT(ride.id); // uses cache if available
+      if (!fitData || !fitData.devices) continue;
+      const readings = fitData.devices
+        .filter(d => d.voltage || d.batStatus)
+        .map(d => ({
+          voltage: d.voltage,
+          status: _batStatusText(d.batStatus),
+          percent: _voltageToPercent(d.voltage),
+          manufacturer: _FIT_MFR[d.manufacturer] || d.manufacturer,
+          product: d.product,
+          deviceType: d.deviceType,
+          activityId: ride.id,
+          date: (ride.start_date_local || ride.start_date || '').slice(0, 10),
+        }));
+      allReadings.push(...readings);
+      // Small delay between downloads to avoid rate limiting
+      await new Promise(r => setTimeout(r, 500));
+    } catch (e) {
+      console.warn('Battery sync failed for', ride.id, e.message);
+    }
+  }
 
   if (allReadings.length) {
     // Deduplicate: keep most recent reading per manufacturer+product combo
