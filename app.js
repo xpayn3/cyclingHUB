@@ -22228,10 +22228,9 @@ function renderActivityBasic(a) {
   // ── Render the "How You Compare" card ────────────────────────────────────
   renderDetailComparison(a);
 
-  // ── Cycling Dynamics + Device Batteries from FIT ─────────────────────────
+  // ── Cycling Dynamics + Device Batteries from FIT (cached in IndexedDB) ──
   renderDetailDynamics(a).catch(() => {});
-  // Devices card reuses cached FIT parse from dynamics
-  setTimeout(() => renderDetailDevices(a).catch(() => {}), 100);
+  renderDetailDevices(a).catch(() => {});
 
   // ── Data source / device footer ───────────────────────────────────────────
   renderDetailSourceFooter(a);
@@ -22481,35 +22480,9 @@ async function renderDetailDynamics(a) {
   const actId = a.id;
   if (!actId) return;
 
-  // Get FIT data — reuse cached parse if available
+  // Get FIT data — cached in IndexedDB after first download
   let fitData;
-  try {
-    if (window._lastFITParse && window._lastFITParse.actId === actId) {
-      fitData = window._lastFITParse.data;
-    } else {
-      const urls = [
-        ICU_BASE + `/activity/${actId}/file`,
-        ICU_BASE + `/activity/${actId}/original`,
-        ICU_BASE + `/activity/${actId}.fit`,
-      ];
-      for (const url of urls) {
-        try {
-          const resp = await fetch(url, { headers: authHeader() });
-          if (!resp.ok) continue;
-          rlTrackRequest();
-          const buf = await resp.arrayBuffer();
-          if (buf.byteLength < 14) continue;
-          const dv = new DataView(buf);
-          const sig = String.fromCharCode(dv.getUint8(8), dv.getUint8(9), dv.getUint8(10), dv.getUint8(11));
-          if (sig !== '.FIT') continue;
-          fitData = _parseFIT(dv);
-          window._lastFITParse = { actId, data: fitData };
-          break;
-        } catch {}
-      }
-    }
-  } catch { return; }
-
+  try { fitData = await _fetchParsedFIT(actId); } catch { return; }
   if (!fitData || !fitData.dynamics) return;
   const d = fitData.dynamics;
 
@@ -22679,14 +22652,11 @@ async function renderDetailDevices(a) {
   const actId = a.id;
   if (!actId) return;
 
-  // Use cached FIT parse from dynamics, or extract fresh
+  // Use cached FIT data (IndexedDB or in-memory)
   let devices;
   try {
-    if (window._lastFITParse && window._lastFITParse.actId === actId) {
-      devices = window._lastFITParse.data.devices;
-    } else {
-      devices = await _extractBatteryFromFIT(actId);
-    }
+    const fitData = await _fetchParsedFIT(actId);
+    devices = fitData ? fitData.devices : null;
   } catch { return; }
   if (!devices || !devices.length) return;
 
@@ -29251,13 +29221,63 @@ function saveGearBatteries(arr) {
   try { localStorage.setItem(BATTERY_STORE_KEY, JSON.stringify(arr)); } catch (e) { console.warn('localStorage.setItem failed:', e); }
 }
 
-/* ── FIT file battery extraction ── */
+/* ── FIT file parsing & caching ── */
+
+// IndexedDB cache for parsed FIT data — avoids re-downloading on repeat views
+const FIT_CACHE_DB = 'cycleiq_fit_cache';
+const FIT_CACHE_VER = 1;
+function _fitCacheDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(FIT_CACHE_DB, FIT_CACHE_VER);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('parsed')) {
+        db.createObjectStore('parsed', { keyPath: 'actId' });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror   = () => reject(req.error);
+  });
+}
+
+async function _fitCacheGet(actId) {
+  try {
+    const db = await _fitCacheDB();
+    return await new Promise(res => {
+      const tx = db.transaction('parsed', 'readonly');
+      const req = tx.objectStore('parsed').get(actId);
+      req.onsuccess = () => res(req.result || null);
+      req.onerror   = () => res(null);
+    });
+  } catch { return null; }
+}
+
+async function _fitCachePut(actId, data) {
+  try {
+    const db = await _fitCacheDB();
+    const tx = db.transaction('parsed', 'readwrite');
+    tx.objectStore('parsed').put({ actId, ...data, cachedAt: Date.now() });
+  } catch {}
+}
 
 // Minimal FIT parser: extracts device_info battery_voltage fields
 // FIT spec: device_info (mesg 23), field 10 = battery_voltage (uint16, scale 256)
 // field 11 = battery_status (enum: 1=new, 2=good, 3=ok, 4=low, 5=critical, 6=charging, 7=unknown)
-async function _extractBatteryFromFIT(actId) {
-  // Try original file first (preserves device_info), then converted FIT
+// Fetch, parse, and cache FIT data for an activity
+// Returns { devices: [...], dynamics: {...} | null } or null
+async function _fetchParsedFIT(actId) {
+  // 1. Check in-memory cache
+  if (window._lastFITParse && window._lastFITParse.actId === actId) {
+    return window._lastFITParse.data;
+  }
+  // 2. Check IndexedDB cache
+  const cached = await _fitCacheGet(actId);
+  if (cached) {
+    const data = { devices: cached.devices || [], dynamics: cached.dynamics || null };
+    window._lastFITParse = { actId, data };
+    return data;
+  }
+  // 3. Download and parse
   const urls = [
     ICU_BASE + `/activity/${actId}/file`,
     ICU_BASE + `/activity/${actId}/original`,
@@ -29271,18 +29291,28 @@ async function _extractBatteryFromFIT(actId) {
       if (!resp.ok) continue;
       rlTrackRequest();
       const buf = await resp.arrayBuffer();
-      // Check if it's a valid FIT file (starts with header size + ".FIT" signature)
       if (buf.byteLength < 14) continue;
       const dv = new DataView(buf);
       const sig = String.fromCharCode(dv.getUint8(8), dv.getUint8(9), dv.getUint8(10), dv.getUint8(11));
       if (sig !== '.FIT') continue;
-      const devices = _parseFITBattery(dv);
-      if (devices && devices.length) return devices;
+      const data = _parseFIT(dv);
+      if (data.devices.length || data.dynamics) {
+        window._lastFITParse = { actId, data };
+        // Cache in IndexedDB (background, non-blocking)
+        _fitCachePut(actId, { devices: data.devices, dynamics: data.dynamics }).catch(() => {});
+        return data;
+      }
     } catch (e) {
-      console.warn('FIT battery extract failed for', url, e.message);
+      console.warn('FIT parse failed for', url, e.message);
     }
   }
   return null;
+}
+
+// Legacy wrapper: extract only battery devices
+async function _extractBatteryFromFIT(actId) {
+  const data = await _fetchParsedFIT(actId);
+  return data ? data.devices : null;
 }
 
 // General-purpose FIT parser: extracts device_info + record cycling dynamics
