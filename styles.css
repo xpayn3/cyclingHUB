@@ -621,25 +621,25 @@ code {
     overscroll-behavior: contain;
 }
 .nav-section-label {
-    font-size: var(--text-xs);
+    font-size: 10px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--text-muted);
-    padding: 16px 12px 6px;
+    padding: 12px 10px 4px;
 }
 .sidebar-nav > .nav-section-label:not(:first-child) {
-    margin-top: 8px;
+    margin-top: 4px;
 }
 .nav-item {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 12px 12px;
-    min-height: 44px;
+    gap: 8px;
+    padding: 8px 10px;
+    min-height: 36px;
     border-radius: var(--radius-sm);
     color: var(--text-secondary);
-    font-size: var(--text-md);
+    font-size: 13px;
     font-weight: 400;
     transition:
         background var(--transition),
@@ -648,8 +648,8 @@ code {
     user-select: none;
 }
 .nav-item svg {
-    width: var(--icon-md);
-    height: var(--icon-md);
+    width: 18px;
+    height: 18px;
     flex-shrink: 0;
 }
 .nav-item:hover {
