@@ -3338,6 +3338,84 @@ async function _clipboardImport() {
 window._clipboardImport = _clipboardImport;
 
 /* ── Full Backup Export ── */
+// ── Storage info ──
+async function _showStorageInfo() {
+  const el = document.getElementById('iosStorageSize');
+
+  // localStorage size
+  let lsSize = 0;
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    lsSize += (k.length + (localStorage.getItem(k) || '').length) * 2; // UTF-16
+  }
+
+  // IndexedDB sizes
+  const idbSizes = {};
+  const dbNames = ['cycleiq_fit_cache', 'cycleiq_routes', 'cycleiq_workouts', 'icu_activity_cache', 'icu_heatmap_cache', 'icu_strava_cache'];
+  for (const name of dbNames) {
+    try {
+      const db = await new Promise((res, rej) => {
+        const req = indexedDB.open(name);
+        req.onsuccess = () => res(req.result);
+        req.onerror = () => rej();
+      });
+      let total = 0;
+      const storeNames = [...db.objectStoreNames];
+      for (const sn of storeNames) {
+        try {
+          const tx = db.transaction(sn, 'readonly');
+          const store = tx.objectStore(sn);
+          const count = await new Promise(r => { const req = store.count(); req.onsuccess = () => r(req.result); req.onerror = () => r(0); });
+          total += count;
+        } catch {}
+      }
+      idbSizes[name] = { stores: storeNames.length, entries: total };
+      db.close();
+    } catch {}
+  }
+
+  // Storage estimate (if available)
+  let estimate = null;
+  if (navigator.storage && navigator.storage.estimate) {
+    try { estimate = await navigator.storage.estimate(); } catch {}
+  }
+
+  const fmt = (bytes) => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
+
+  // Update the settings row value
+  if (el && estimate) {
+    el.textContent = fmt(estimate.usage || 0);
+  }
+
+  // Build detail toast
+  let msg = `localStorage: ${fmt(lsSize)}\n`;
+  for (const [name, info] of Object.entries(idbSizes)) {
+    const short = name.replace('cycleiq_', '').replace('icu_', '');
+    msg += `${short}: ${info.entries} entries\n`;
+  }
+  if (estimate) {
+    msg += `\nTotal used: ${fmt(estimate.usage)}\nQuota: ${fmt(estimate.quota)}`;
+  }
+  showToast(msg.trim(), 'info', 6000);
+}
+window._showStorageInfo = _showStorageInfo;
+
+// Update storage size label when settings page loads
+function _updateStorageSizeLabel() {
+  const el = document.getElementById('iosStorageSize');
+  if (!el) return;
+  if (navigator.storage && navigator.storage.estimate) {
+    navigator.storage.estimate().then(est => {
+      const mb = est.usage ? (est.usage / (1024 * 1024)).toFixed(1) : '0';
+      el.textContent = mb + ' MB';
+    }).catch(() => {});
+  }
+}
+
 async function exportFullBackup() {
   showToast('Building full backup…', 'info');
   try {
@@ -4043,6 +4121,7 @@ function navigate(page, opts) {
   if (page === 'dashboard') { applyDashSectionVisibility(); }
   if (page === 'settings') {
     renderDashSectionToggles(); renderActSectionToggles();
+    _updateStorageSizeLabel();
     if (window._pendingSettingsSubpage) {
       const _psub = window._pendingSettingsSubpage;
       window._pendingSettingsSubpage = null;
