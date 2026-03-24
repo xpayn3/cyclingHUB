@@ -22228,8 +22228,9 @@ function renderActivityBasic(a) {
   // ── Render the "How You Compare" card ────────────────────────────────────
   renderDetailComparison(a);
 
-  // ── Cycling Dynamics + Device Batteries from FIT (cached in IndexedDB) ──
+  // ── FIT file data: dynamics, gear shifts, batteries (cached in IndexedDB) ──
   renderDetailDynamics(a).catch(() => {});
+  renderDetailGearShifts(a).catch(() => {});
   renderDetailDevices(a).catch(() => {});
 
   // ── Data source / device footer ───────────────────────────────────────────
@@ -22483,18 +22484,21 @@ async function renderDetailDynamics(a) {
   // Get FIT data — cached in IndexedDB after first download
   let fitData;
   try { fitData = await _fetchParsedFIT(actId); } catch { return; }
-  if (!fitData || !fitData.dynamics) return;
+  if (!fitData) return;
   const d = fitData.dynamics;
+  const hasTemp = fitData.temperature && fitData.temperature.length > 0;
+  const hasResp = fitData.respiration && fitData.respiration.length > 0;
+  if (!d && !hasTemp && !hasResp) return;
 
   // Compute averages
-  const avg = arr => arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : null;
-  const avgLTE = avg(d.lte);
-  const avgRTE = avg(d.rte);
-  const avgLPS = avg(d.lps);
-  const avgRPS = avg(d.rps);
-  const avgLPco = avg(d.lPco);
-  const avgRPco = avg(d.rPco);
-  const avgBal = avg(d.lrBal);
+  const avg = arr => arr && arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : null;
+  const avgLTE = d ? avg(d.lte) : null;
+  const avgRTE = d ? avg(d.rte) : null;
+  const avgLPS = d ? avg(d.lps) : null;
+  const avgRPS = d ? avg(d.rps) : null;
+  const avgLPco = d ? avg(d.lPco) : null;
+  const avgRPco = d ? avg(d.rPco) : null;
+  const avgBal = d ? avg(d.lrBal) : null;
 
   const hasTorque = avgLTE !== null || avgRTE !== null;
   const hasSmoothness = avgLPS !== null || avgRPS !== null;
@@ -22627,17 +22631,135 @@ async function renderDetailDynamics(a) {
     }
   }
 
+  // Temperature from device sensor
+  if (hasTemp) {
+    const temps = fitData.temperature;
+    const avgT = avg(temps);
+    const minT = Math.min(...temps);
+    const maxT = Math.max(...temps);
+    rows += `<div class="detail-zone-summary-row">
+      <span><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#ff9500" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>Temperature</span>
+      <span style="font-family:var(--font-num);font-weight:600">${Math.round(avgT)}°C <span style="font-weight:400;color:var(--text-muted);font-size:12px">(${Math.round(minT)}–${Math.round(maxT)}°C)</span></span>
+    </div>`;
+  }
+
+  // Respiration rate
+  if (hasResp) {
+    const resps = fitData.respiration;
+    const avgR = avg(resps);
+    const maxR = Math.max(...resps);
+    rows += `<div class="detail-zone-summary-row">
+      <span><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#4a9eff" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7S2 12 2 12z"/></svg>Respiration</span>
+      <span style="font-family:var(--font-num);font-weight:600">${avgR.toFixed(0)} <span style="font-weight:400;color:var(--text-muted);font-size:12px">avg · ${maxR.toFixed(0)} max br/min</span></span>
+    </div>`;
+  }
+
+  // GPS accuracy summary
+  if (fitData.gpsAccuracy && fitData.gpsAccuracy.length > 10) {
+    const gps = fitData.gpsAccuracy;
+    const avgGps = avg(gps);
+    const badPct = Math.round((gps.filter(v => v > 10).length / gps.length) * 100);
+    const gpsColor = avgGps <= 3 ? 'var(--accent)' : avgGps <= 6 ? C_YELLOW : 'var(--red)';
+    rows += `<div class="detail-zone-summary-row">
+      <span><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="${gpsColor}" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>GPS Accuracy</span>
+      <span style="font-family:var(--font-num);font-weight:600;color:${gpsColor}">${avgGps.toFixed(1)}m avg${badPct > 5 ? ` <span style="font-weight:400;color:var(--text-muted);font-size:12px">(${badPct}% poor)</span>` : ''}</span>
+    </div>`;
+  }
+
   el.innerHTML = `
     <div class="card-header">
       <div style="display:flex;align-items:center;gap:8px">
         <div class="card-title" style="flex:1 1 0%">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
-          Cycling Dynamics
+          Ride Sensors
         </div>
       </div>
     </div>
     <div class="detail-zone-summary">${rows}</div>
     ${pcoChart}
+  `;
+  el.style.display = '';
+}
+
+// ── Gear Shifts from FIT ──
+async function renderDetailGearShifts(a) {
+  const el = document.getElementById('detailGearShiftsCard');
+  if (!el) return;
+  el.style.display = 'none';
+  el.innerHTML = '';
+
+  const actId = a.id;
+  if (!actId) return;
+
+  let fitData;
+  try { fitData = await _fetchParsedFIT(actId); } catch { return; }
+  if (!fitData || !fitData.gearChanges || !fitData.gearChanges.length) return;
+
+  const shifts = fitData.gearChanges;
+  const totalShifts = shifts.length;
+
+  // Count time in each gear combo
+  const gearTime = {};
+  for (let i = 0; i < shifts.length; i++) {
+    const s = shifts[i];
+    const key = `${s.front || '?'}×${s.rear || '?'}`;
+    const nextTs = i + 1 < shifts.length ? shifts[i + 1].timestamp : (s.timestamp + 60);
+    const duration = nextTs - s.timestamp;
+    gearTime[key] = (gearTime[key] || 0) + duration;
+  }
+
+  // Sort by time spent descending
+  const sorted = Object.entries(gearTime).sort((a, b) => b[1] - a[1]);
+  const totalTime = sorted.reduce((s, [, t]) => s + t, 0) || 1;
+
+  // Top 6 gears
+  const topGears = sorted.slice(0, 6);
+  const maxTime = topGears[0]?.[1] || 1;
+
+  // Get unique front and rear counts
+  const fronts = new Set(shifts.map(s => s.front).filter(Boolean));
+  const rears = new Set(shifts.map(s => s.rear).filter(Boolean));
+
+  const gearRows = topGears.map(([gear, time]) => {
+    const pct = Math.round((time / totalTime) * 100);
+    const barW = Math.round((time / maxTime) * 100);
+    return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+      <span style="font-family:var(--font-num);font-size:14px;font-weight:600;min-width:56px;color:var(--text-primary)">${gear}</span>
+      <div style="flex:1;height:6px;background:var(--surface-1);border-radius:3px;overflow:hidden">
+        <div style="width:${barW}%;height:100%;background:var(--accent);border-radius:3px"></div>
+      </div>
+      <span style="font-family:var(--font-num);font-size:12px;color:var(--text-muted);min-width:32px;text-align:right">${pct}%</span>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="card-header">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="card-title" style="flex:1 1 0%">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8" stroke-dasharray="2 3"/></svg>
+          Gear Usage
+        </div>
+      </div>
+    </div>
+    <div class="detail-zone-summary">
+      <div class="detail-zone-summary-row">
+        <span>Total Shifts</span>
+        <span class="detail-zone-summary-val">${totalShifts}</span>
+      </div>
+      <div class="detail-zone-summary-row">
+        <span>Chainrings</span>
+        <span class="detail-zone-summary-val">${fronts.size > 0 ? [...fronts].sort((a,b) => a-b).join(' / ') + 'T' : '—'}</span>
+      </div>
+      <div class="detail-zone-summary-row">
+        <span>Cassette Range</span>
+        <span class="detail-zone-summary-val">${rears.size > 0 ? Math.min(...rears) + '-' + Math.max(...rears) + 'T' : '—'}</span>
+      </div>
+    </div>
+    <div style="padding:8px 0 4px">
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em">Time in Gear</div>
+      ${gearRows}
+      ${sorted.length > 6 ? `<div style="font-size:11px;color:var(--text-faint);text-align:center;padding:4px 0">+ ${sorted.length - 6} more gears</div>` : ''}
+    </div>
   `;
   el.style.display = '';
 }
