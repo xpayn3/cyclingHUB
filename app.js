@@ -560,17 +560,6 @@ function cleanupPageCharts(leavingPage) {
 function _cleanupPageDOM(leavingPage) {
   if (!leavingPage) return;
 
-  // For pages with cached static HTML, re-strip the whole page
-  if (_pageContentCache[leavingPage]) {
-    const page = document.getElementById('page-' + leavingPage);
-    if (page) {
-      // Update cache with current content (may have dynamic additions)
-      _pageContentCache[leavingPage] = page.innerHTML;
-      page.innerHTML = '';
-    }
-    return; // full strip done, no need for granular cleanup below
-  }
-
   // Dashboard — recent activity cards, weather rail, battery grid
   if (leavingPage === 'dashboard') {
     ['recentActScrollRail', 'dashBatGrid'].forEach(id => {
@@ -1628,51 +1617,12 @@ function _syncThemePicker() {
 const _subpageCache = {};
 let _subpageCacheReady = false;
 
-// Strip content from inactive pages on startup — saves ~2,000 DOM nodes
-// Pages rebuild their content via render*() functions when navigated to
-const _pageContentCache = {};
-function _initLazyPages() {
-  const activePage = state.currentPage || 'dashboard';
-  document.querySelectorAll('.page').forEach(page => {
-    const id = page.id.replace('page-', '');
-    if (id === activePage) return; // keep active page
-    if (id === 'settings') return; // handled by subpage cache
-    // Only strip pages with significant content
-    const nodeCount = page.querySelectorAll('*').length;
-    if (nodeCount > 100) {
-      _pageContentCache[id] = page.innerHTML;
-      page.innerHTML = '';
-    }
-  });
-  console.info('Lazy pages: stripped ' + Object.keys(_pageContentCache).length + ' inactive pages');
-}
-
-// Restore page content when navigating to it
-function _restorePage(pageId) {
-  if (_pageContentCache[pageId]) {
-    const page = document.getElementById('page-' + pageId);
-    if (page && !page.innerHTML.trim()) {
-      page.innerHTML = _pageContentCache[pageId];
-    }
-  }
-}
-
-// Strip overlay sheet bodies on startup — saves ~3,000-4,000 DOM nodes
-// Safe because all sheets rebuild their content via open*() functions
-function _initLazySheets() {
-  const KEEP_IDS = new Set(['syncConfirmSheet']); // sheets with static content needed immediately
-  document.querySelectorAll('.wxd-overlay').forEach(overlay => {
-    if (KEEP_IDS.has(overlay.id)) return;
-    if (overlay.style.display === 'none' || !overlay.classList.contains('wxd-open')) {
-      const body = overlay.querySelector('.wxd-sheet-body');
-      if (body && body.children.length > 3) {
-        body._lazyCache = body.innerHTML;
-        body.innerHTML = '';
-      }
-    }
-  });
-  console.info('Lazy sheets: stripped ' + document.querySelectorAll('.wxd-overlay').length + ' overlay bodies');
-}
+// NOTE: Aggressive page/sheet stripping on startup was removed because it breaks
+// render functions that expect static HTML elements to exist (e.g. form fields,
+// card containers, chart canvases). The safe DOM optimizations are:
+// 1. content-visibility: hidden on inactive pages (CSS-only, no DOM removal)
+// 2. _cleanupPageDOM() strips DYNAMIC content when leaving pages
+// 3. Settings subpage lazy cache (subpages are self-contained)
 
 function _initSubpageCache() {
   if (_subpageCacheReady) return;
@@ -3883,11 +3833,9 @@ function closeSidebar() {
 // Prevent touchmove on the backdrop — stops iOS from starting a scroll
 // context on the empty area that then "steals" scroll from the sidebar.
 document.addEventListener('DOMContentLoaded', () => {
-  // Strip heavy DOM on startup — defer to after first paint
+  // Lazy settings subpages — safe because subpages are self-contained
   requestAnimationFrame(() => {
-    _initLazySheets();
     _initSubpageCache();
-    _initLazyPages();
   });
 
   // ── iOS-style sticky title: show when large title scrolls out ──
@@ -4401,9 +4349,6 @@ function navigate(page, opts) {
   // Toggle scroll edge gradient for pages with floating pills (dashboard uses its own scroll-triggered fade)
   const _pillPages = ['power', 'fitness'];
   document.getElementById('pageContent')?.classList.toggle('has-scroll-edge', _pillPages.includes(page));
-
-  // Restore lazy-stripped page content before showing
-  _restorePage(page);
 
   // Swap active page — use View Transitions API for smooth cross-fade if available
   const _swapPage = () => {
@@ -15743,16 +15688,7 @@ function _closeOverlaySheet(id) {
   const sheet = document.getElementById(id);
   if (!sheet) return;
   sheet.classList.remove('wxd-open');
-  setTimeout(() => {
-    sheet.style.display = 'none';
-    // Strip dynamic content from heavy sheet bodies to reduce DOM
-    const body = sheet.querySelector('.wxd-sheet-body');
-    if (body && body.children.length > 5) {
-      // Cache content for sheets that are dynamically rendered (they'll re-render on open)
-      body._lazyCache = body.innerHTML;
-      body.innerHTML = '';
-    }
-  }, 350);
+  setTimeout(() => { sheet.style.display = 'none'; }, 350);
   _sheetStack = _sheetStack.filter(s => s !== id);
   // Only unlock body when all sheets closed
   if (_sheetStack.length === 0) {
