@@ -22503,9 +22503,12 @@ async function renderDetailDevices(a) {
   const best = new Map();
   for (const r of readings) {
     const key = `${r.manufacturer}_${r.product}`;
-    best.set(key, r); // last wins — end-of-ride reading
+    best.set(key, r);
   }
   const unique = [...best.values()];
+
+  // Check which devices are already linked to tracked batteries
+  const bats = loadGearBatteries();
 
   const batIcon = (pct) => {
     const color = pct == null ? 'var(--text-muted)' : pct > 50 ? 'var(--accent)' : pct > 25 ? C_YELLOW : pct > 10 ? C_ORANGE : 'var(--red)';
@@ -22519,13 +22522,22 @@ async function renderDetailDevices(a) {
     const voltText = r.voltage ? `${r.voltage.toFixed(2)}V` : '';
     const statusText = r.status && r.status !== 'Unknown' ? r.status : '';
     const detail = [voltText, statusText].filter(Boolean).join(' · ');
+    const fitKey = `${r.manufacturer}_${r.product}`;
+    const linked = bats.find(b => b.fitDeviceKey === fitKey);
+    const linkedName = linked ? linked.name || linked.componentType : null;
 
-    return `<div class="detail-zone-summary-row">
-      <span style="display:flex;align-items:center;gap:8px">
+    // "Add" button for unlinked devices, or linked battery name
+    const linkHtml = linkedName
+      ? `<span style="font-size:11px;color:var(--accent);font-weight:500">${_escHtml(linkedName)}</span>`
+      : `<button onclick="_fitAddBattery('${_escHtml(fitKey)}','${_escHtml(r.manufacturer)}')" style="font-size:11px;color:var(--accent);background:none;border:none;padding:2px 6px;cursor:pointer;font-weight:600">+ Add</button>`;
+
+    return `<div class="detail-zone-summary-row" style="flex-wrap:wrap;row-gap:4px">
+      <span style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
         ${batIcon(pct)}
-        <span>${r.manufacturer}</span>
+        <span>${r.manufacturer}${r.product ? ` <span style="color:var(--text-muted);font-size:12px">#${r.product}</span>` : ''}</span>
       </span>
       <span style="display:flex;align-items:center;gap:6px">
+        ${linkHtml}
         ${detail ? `<span style="font-size:12px;color:var(--text-muted)">${detail}</span>` : ''}
         <span class="detail-zone-summary-val" style="color:${pctColor};min-width:36px;text-align:right">${pctText}</span>
       </span>
@@ -22545,6 +22557,41 @@ async function renderDetailDevices(a) {
   `;
   el.style.display = '';
 }
+
+// Add a battery from FIT device reading — opens battery modal pre-filled
+function _fitAddBattery(fitKey, mfrName) {
+  // Determine system from manufacturer name
+  let system = 'other', compType = 'custom';
+  const mfr = mfrName.toLowerCase();
+  if (mfr.includes('garmin'))        { system = 'bike_computer'; compType = 'garmin_edge_540'; }
+  else if (mfr.includes('sram'))     { system = 'sram_axs';      compType = 'rear_derailleur'; }
+  else if (mfr.includes('shimano'))  { system = 'shimano_di2';   compType = 'internal_battery'; }
+  else if (mfr.includes('favero'))   { system = 'power_meter';   compType = 'assioma'; }
+  else if (mfr.includes('stages'))   { system = 'power_meter';   compType = 'stages'; }
+  else if (mfr.includes('4iiii'))    { system = 'power_meter';   compType = 'fouriii'; }
+  else if (mfr.includes('wahoo'))    { system = 'bike_computer'; compType = 'wahoo_roam'; }
+  else if (mfr.includes('power2max')){ system = 'power_meter';   compType = 'p2m'; }
+  else if (mfr.includes('quarq'))    { system = 'power_meter';   compType = 'quarq'; }
+  else if (mfr.includes('polar'))    { system = 'heart_rate';    compType = 'polar_h10'; }
+  else if (mfr.includes('hammerhead')){ system = 'bike_computer'; compType = 'hammerhead'; }
+
+  // Open battery modal pre-filled
+  if (typeof openBatteryModal === 'function') {
+    openBatteryModal();
+    // Pre-fill after modal opens
+    setTimeout(() => {
+      const sysEl = document.getElementById('batFormSystem');
+      if (sysEl) { sysEl.value = system; sysEl.dispatchEvent(new Event('change')); }
+      setTimeout(() => {
+        const compEl = document.getElementById('batFormComponent');
+        if (compEl) { compEl.value = compType; compEl.dispatchEvent(new Event('change')); }
+        // Store the FIT key to link on save
+        window._pendingFitDeviceKey = fitKey;
+      }, 100);
+    }, 300);
+  }
+}
+window._fitAddBattery = _fitAddBattery;
 
 function renderDetailSourceFooter(a) {
   const el = document.getElementById('detailSourceFooter');
@@ -29213,14 +29260,54 @@ async function _syncBatteryFromLastRide() {
       localStorage.setItem('icu_bat_fit_readings', JSON.stringify(merged));
       console.log('Battery readings from FIT:', merged);
     } catch (e) {}
+
+    // Auto-update linked batteries with sensor data
+    _syncFITReadingsToBatteries(merged);
   }
 
   localStorage.setItem('icu_bat_last_fit_id', rides[0].id);
 }
 
+// Sync FIT sensor readings to linked tracked batteries
+function _syncFITReadingsToBatteries(readings) {
+  const bats = loadGearBatteries();
+  let changed = false;
+  for (const bat of bats) {
+    if (!bat.fitDeviceKey) continue;
+    const reading = readings.find(r => `${r.manufacturer}_${r.product}` === bat.fitDeviceKey);
+    if (!reading) continue;
+    // Store the sensor reading directly on the battery
+    bat.fitSensorPercent = reading.percent;
+    bat.fitSensorVoltage = reading.voltage;
+    bat.fitSensorStatus = reading.status;
+    bat.fitSensorDate = reading.date;
+    changed = true;
+  }
+  if (changed) {
+    saveGearBatteries(bats);
+    // Re-render if on dashboard or gear page
+    if (typeof _renderDashBatteries === 'function') _renderDashBatteries();
+    if (typeof renderGearBatteries === 'function') renderGearBatteries();
+  }
+}
+
 /* ── Charge calculation ── */
 
 function calcBatteryPercent(bat) {
+  // Prefer real sensor data from FIT file when linked and recent (< 7 days)
+  if (bat.fitDeviceKey && bat.fitSensorPercent != null && bat.fitSensorDate) {
+    const daysSinceSensor = (Date.now() - new Date(bat.fitSensorDate).getTime()) / 86400000;
+    if (daysSinceSensor < 7) {
+      return {
+        percent: bat.fitSensorPercent,
+        source: 'sensor',
+        voltage: bat.fitSensorVoltage,
+        status: bat.fitSensorStatus,
+        sensorDate: bat.fitSensorDate,
+      };
+    }
+  }
+
   if (bat.batteryType === 'coin_cell') return calcCoinCellPercent(bat);
 
   const sinceDate = new Date(bat.lastChargeDate);
@@ -29517,11 +29604,18 @@ function submitBatteryForm() {
     obsoleteDate:   null,
   };
 
+  // Link to FIT device if adding from activity page
+  if (window._pendingFitDeviceKey) {
+    bat.fitDeviceKey = window._pendingFitDeviceKey;
+    window._pendingFitDeviceKey = null;
+  }
+
   const all = loadGearBatteries();
   const idx = all.findIndex(b => b.id === editId);
   if (idx >= 0) {
     bat.obsolete = all[idx].obsolete;
     bat.obsoleteDate = all[idx].obsoleteDate;
+    if (all[idx].fitDeviceKey && !bat.fitDeviceKey) bat.fitDeviceKey = all[idx].fitDeviceKey;
     all[idx] = bat;
   } else {
     all.push(bat);
