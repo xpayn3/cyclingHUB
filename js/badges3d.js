@@ -78,34 +78,61 @@ function _createShieldGeometry(THREE) {
   return geometry;
 }
 
-// Create gold PBR material
+// Create gold PBR material with rich procedural environment map
 function _createGoldMaterial(THREE) {
-  // Generate a simple gradient environment map for reflections
-  const size = 128;
+  // Generate a high-quality environment map with varied brightness for realistic reflections
+  const size = 512;
   const canvas = document.createElement('canvas');
   canvas.width = size;
-  canvas.height = size;
+  canvas.height = size / 2; // equirectangular = 2:1 aspect
   const ctx = canvas.getContext('2d');
 
-  // Warm gradient for gold reflections
-  const grad = ctx.createLinearGradient(0, 0, 0, size);
-  grad.addColorStop(0, '#ffe8a0');
-  grad.addColorStop(0.3, '#fff5d4');
-  grad.addColorStop(0.5, '#ffd700');
-  grad.addColorStop(0.7, '#b8860b');
-  grad.addColorStop(1, '#8b6914');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, size, size);
+  // Dark studio background
+  ctx.fillStyle = '#1a1408';
+  ctx.fillRect(0, 0, size, size / 2);
+
+  // Warm gradient sky (top portion)
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, size / 4);
+  skyGrad.addColorStop(0, '#4a3520');
+  skyGrad.addColorStop(0.5, '#2a1a0a');
+  skyGrad.addColorStop(1, '#0a0804');
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, size, size / 4);
+
+  // Bright hotspot (simulates studio softbox — creates specular highlight)
+  const hotspot = ctx.createRadialGradient(size * 0.35, size * 0.12, 0, size * 0.35, size * 0.12, size * 0.2);
+  hotspot.addColorStop(0, '#ffffff');
+  hotspot.addColorStop(0.2, '#fff5e0');
+  hotspot.addColorStop(0.5, '#ffcc44');
+  hotspot.addColorStop(1, 'transparent');
+  ctx.fillStyle = hotspot;
+  ctx.fillRect(0, 0, size, size / 2);
+
+  // Second hotspot (fill light — softer, opposite side)
+  const hotspot2 = ctx.createRadialGradient(size * 0.75, size * 0.2, 0, size * 0.75, size * 0.2, size * 0.15);
+  hotspot2.addColorStop(0, '#ffe0a0');
+  hotspot2.addColorStop(0.3, '#cc9933');
+  hotspot2.addColorStop(1, 'transparent');
+  ctx.fillStyle = hotspot2;
+  ctx.fillRect(0, 0, size, size / 2);
+
+  // Bottom reflection (ground bounce — warm)
+  const groundGrad = ctx.createLinearGradient(0, size * 0.35, 0, size / 2);
+  groundGrad.addColorStop(0, 'transparent');
+  groundGrad.addColorStop(1, '#3a2810');
+  ctx.fillStyle = groundGrad;
+  ctx.fillRect(0, size * 0.35, size, size / 2);
 
   const envTexture = new THREE.CanvasTexture(canvas);
   envTexture.mapping = THREE.EquirectangularReflectionMapping;
 
+  // True gold RGB: slightly darker than pure #FFD700 for realism
   return new THREE.MeshStandardMaterial({
-    color: 0xffd700,
+    color: 0xD4A843,       // warm gold (not bright yellow)
     metalness: 1.0,
-    roughness: 0.18,
+    roughness: 0.12,       // very smooth — more reflective
     envMap: envTexture,
-    envMapIntensity: 1.5,
+    envMapIntensity: 2.5,  // strong reflections
   });
 }
 
@@ -179,21 +206,36 @@ export async function initBadge3D(canvasEl, badgeId) {
   _badgeRenderer.toneMapping = THREE.ACESFilmicToneMapping;
   _badgeRenderer.toneMappingExposure = 1.2;
 
-  // Lighting
-  const ambientLight = new THREE.AmbientLight(0xfff5e0, 0.4);
+  // Lighting — studio setup for gold
+  const ambientLight = new THREE.AmbientLight(0xfff0d0, 0.3);
   _badgeScene.add(ambientLight);
 
-  const keyLight = new THREE.DirectionalLight(0xffffff, 1.2);
-  keyLight.position.set(2, 3, 4);
+  // Key light (top-right, bright white — creates main specular highlight)
+  const keyLight = new THREE.DirectionalLight(0xffffff, 1.5);
+  keyLight.position.set(3, 4, 5);
   _badgeScene.add(keyLight);
 
-  const fillLight = new THREE.DirectionalLight(0xffd700, 0.5);
-  fillLight.position.set(-2, -1, 3);
+  // Fill light (left, warm gold — softens shadows)
+  const fillLight = new THREE.DirectionalLight(0xffc850, 0.6);
+  fillLight.position.set(-3, 0, 3);
   _badgeScene.add(fillLight);
 
-  const rimLight = new THREE.DirectionalLight(0xffe8a0, 0.8);
-  rimLight.position.set(0, 2, -3);
+  // Rim light (behind, warm — edge highlight)
+  const rimLight = new THREE.DirectionalLight(0xffe8a0, 1.0);
+  rimLight.position.set(0, 2, -4);
   _badgeScene.add(rimLight);
+
+  // Top spotlight — creates a focused bright specular spot on the badge face
+  const spotLight = new THREE.SpotLight(0xffffff, 2.0, 12, Math.PI / 6, 0.5, 1);
+  spotLight.position.set(0, 5, 4);
+  spotLight.target.position.set(0, 0, 0);
+  _badgeScene.add(spotLight);
+  _badgeScene.add(spotLight.target);
+
+  // Bottom bounce (subtle, warm — prevents underside from going pure black)
+  const bounceLight = new THREE.DirectionalLight(0xcc8830, 0.3);
+  bounceLight.position.set(0, -3, 2);
+  _badgeScene.add(bounceLight);
 
   // Try loading GLB model first, fall back to procedural shield
   const glbPath = BADGE_GLB_MAP[badgeId] || BADGE_GLB_MAP._default;
