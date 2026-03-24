@@ -22487,14 +22487,16 @@ async function renderDetailDevices(a) {
   if (!devices || !devices.length) return;
 
   const readings = devices
-    .filter(d => d.voltage || d.batStatus)
+    .filter(d => (d.voltage || d.batStatus) && (d.manufacturer || d.product))
+    .filter(d => d.manufacturer !== 0 && d.manufacturer != null) // skip internal/unknown sensors
     .map(d => ({
       voltage: d.voltage,
       status: _batStatusText(d.batStatus),
-      percent: _voltageToPercent(d.voltage, d.voltage > 2.5 ? 'rechargeable' : 'coin_cell'),
-      manufacturer: _FIT_MFR[d.manufacturer] || (d.manufacturer ? `ID:${d.manufacturer}` : 'Unknown'),
+      percent: _voltageToPercent(d.voltage),
+      manufacturer: _FIT_MFR[d.manufacturer] || (d.manufacturer ? `ID:${d.manufacturer}` : null),
       product: d.product,
-    }));
+    }))
+    .filter(d => d.manufacturer); // skip any remaining unknowns
 
   if (!readings.length) return;
 
@@ -29124,21 +29126,19 @@ function _parseFITBattery(dv) {
 }
 
 // Convert voltage to percentage based on common battery chemistries
-function _voltageToPercent(voltage, type) {
+// Auto-detect: voltage ≤ 3.3V is likely coin cell (CR2032/CR1632), > 3.3V is Li-ion
+function _voltageToPercent(voltage) {
   if (!voltage || voltage <= 0) return null;
-  // Li-ion/Li-po (most rechargeable cycling devices): 3.0V empty → 4.2V full
-  if (type === 'rechargeable' || !type) {
-    if (voltage >= 4.2) return 100;
-    if (voltage <= 3.0) return 0;
-    return Math.round(((voltage - 3.0) / 1.2) * 100);
-  }
-  // CR2032 coin cell: 2.0V empty → 3.0V full
-  if (type === 'coin_cell') {
+  // Coin cell (CR2032, CR1632): 2.0V dead → 3.0V full
+  if (voltage <= 3.3) {
     if (voltage >= 3.0) return 100;
     if (voltage <= 2.0) return 0;
     return Math.round(((voltage - 2.0) / 1.0) * 100);
   }
-  return null;
+  // Li-ion/Li-po (rechargeable): 3.0V dead → 4.2V full
+  if (voltage >= 4.2) return 100;
+  if (voltage <= 3.3) return 0;
+  return Math.round(((voltage - 3.3) / 0.9) * 100);
 }
 
 // Battery status enum → text
@@ -29146,8 +29146,17 @@ function _batStatusText(s) {
   return { 1: 'New', 2: 'Good', 3: 'OK', 4: 'Low', 5: 'Critical', 6: 'Charging', 7: 'Unknown' }[s] || null;
 }
 
-// FIT manufacturer IDs → names
-const _FIT_MFR = { 1: 'Garmin', 7: 'SRAM', 32: 'Wahoo', 48: 'Favero', 76: 'Stages', 89: 'Shimano', 267: '4iiii', 294: 'Hammerhead' };
+// FIT manufacturer IDs → names (from Garmin FIT SDK Profile.xlsx)
+const _FIT_MFR = {
+  1: 'Garmin', 2: 'Garmin', 7: 'SRAM', 15: 'Timex', 23: 'SRM', 29: 'Quarq',
+  32: 'Wahoo', 36: 'Bryton', 38: 'Cateye', 40: 'Mio', 48: 'Favero',
+  63: 'Magene', 69: 'Lezyne', 70: 'Giant', 71: 'Shimano', 76: 'Stages',
+  85: 'Wahoo', 86: 'Sigma', 89: 'Shimano', 95: 'Tacx', 96: 'Polar',
+  104: 'Suunto', 110: 'Zwift', 119: 'iGPSPORT', 255: 'Development',
+  258: 'Rotor', 259: 'Elite', 267: '4iiii', 268: 'Power2Max', 269: 'InfoCrank',
+  278: 'Campagnolo', 284: 'Wahoo', 286: 'Xplova', 294: 'Hammerhead',
+  296: 'Kinetic', 297: 'Bkool', 312: 'CycleOps', 345: 'Xoss',
+};
 
 // After activity sync: extract battery data from the most recent ride's FIT file
 async function _syncBatteryFromLastRide() {
@@ -29181,7 +29190,7 @@ async function _syncBatteryFromLastRide() {
       .map(d => ({
         voltage: d.voltage,
         status: _batStatusText(d.batStatus),
-        percent: _voltageToPercent(d.voltage, d.voltage > 2.5 ? 'rechargeable' : 'coin_cell'),
+        percent: _voltageToPercent(d.voltage),
         manufacturer: _FIT_MFR[d.manufacturer] || d.manufacturer,
         product: d.product,
         deviceType: d.deviceType,
