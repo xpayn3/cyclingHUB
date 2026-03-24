@@ -2303,11 +2303,22 @@ function _peerDeviceName() {
   return 'Browser';
 }
 
+// Per-device unique suffix — persisted so the ID is stable across sessions
+function _peerDeviceSuffix() {
+  let suffix = localStorage.getItem('icu_peer_device_suffix');
+  if (!suffix) {
+    suffix = Math.random().toString(36).slice(2, 5); // 3-char random e.g. "k7f"
+    localStorage.setItem('icu_peer_device_suffix', suffix);
+  }
+  return suffix;
+}
+
 function _peerMakeId() {
   const aid = (state.athleteId || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 8);
   if (!aid) return null;
-  const device = _peerDeviceName(); // iPhone, Windows, Mac, etc.
-  return `CIQ-${aid}-${device}`;
+  const device = _peerDeviceName();
+  const suffix = _peerDeviceSuffix();
+  return `CIQ-${aid}-${device}-${suffix}`;
 }
 
 function _peerCandidateIds() {
@@ -2315,7 +2326,40 @@ function _peerCandidateIds() {
   if (!aid) return [];
   const myId = _peerMakeId();
   const devices = ['iPhone', 'iPad', 'Android', 'Mac', 'Windows', 'Linux', 'Browser'];
-  return devices.map(d => `CIQ-${aid}-${d}`).filter(id => id !== myId);
+  const candidates = new Set();
+  for (const d of devices) {
+    // Try base ID (no suffix) — first device of each type claims this
+    const baseId = `CIQ-${aid}-${d}`;
+    if (baseId !== myId && !myId.startsWith(baseId)) candidates.add(baseId);
+    // Try known suffixes from previous discoveries
+    const knownSuffixes = _peerGetKnownSuffixes(d);
+    for (const s of knownSuffixes) {
+      const id = `CIQ-${aid}-${d}-${s}`;
+      if (id !== myId) candidates.add(id);
+    }
+  }
+  return [...candidates];
+}
+
+// Store discovered device suffixes so we can find them again
+function _peerGetKnownSuffixes(deviceType) {
+  try {
+    const stored = JSON.parse(localStorage.getItem('icu_peer_known_suffixes') || '{}');
+    return stored[deviceType] || [];
+  } catch { return []; }
+}
+
+function _peerRememberSuffix(deviceType, suffix) {
+  try {
+    const stored = JSON.parse(localStorage.getItem('icu_peer_known_suffixes') || '{}');
+    if (!stored[deviceType]) stored[deviceType] = [];
+    if (!stored[deviceType].includes(suffix)) {
+      stored[deviceType].push(suffix);
+      // Keep max 5 per type
+      if (stored[deviceType].length > 5) stored[deviceType].shift();
+      localStorage.setItem('icu_peer_known_suffixes', JSON.stringify(stored));
+    }
+  } catch {}
 }
 
 /* ── P2P Toggle: ON/OFF ── */
@@ -2359,7 +2403,11 @@ function _peerToggle(on) {
 
   _peerManualDisconnect = false;
   _peerMyId = myId;
-  _peerInstance = new Peer(myId, _peerOpts);
+  // Try base ID first (without suffix) — if taken, fall back to suffixed ID
+  const aid = (state.athleteId || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 8);
+  const baseId = `CIQ-${aid}-${_peerDeviceName()}`;
+  const tryId = baseId; // try without suffix first
+  _peerInstance = new Peer(tryId, _peerOpts);
 
   _peerInstance.on('open', id => {
     if (gen !== _peerGeneration) return; // stale — a newer toggle happened
@@ -2386,10 +2434,32 @@ function _peerToggle(on) {
     if (e.type === 'peer-unavailable') return;
     if (e.type === 'network') { _peerLog('Network error', 'warn'); return; }
     if (e.type === 'unavailable-id') {
-      _peerLog('ID taken — retrying...', 'warn');
-      _peerToggling = false;
+      // Base ID taken by another device of same type — retry with unique suffix
       if (_peerInstance) { try { _peerInstance.destroy(); } catch {} _peerInstance = null; }
-      setTimeout(() => _peerToggle(true), 1500);
+      const suffixedId = _peerMakeId(); // includes unique suffix
+      _peerLog('ID taken, using ' + suffixedId, 'warn');
+      _peerMyId = suffixedId;
+      _peerInstance = new Peer(suffixedId, _peerOpts);
+      // Re-attach all handlers for the new instance
+      _peerInstance.on('open', id => {
+        if (gen !== _peerGeneration) return;
+        _peerMyId = id;
+        _peerLog('Registered as: ' + id);
+        _peerUpdateUI('ready', id);
+        _peerToggling = false;
+        _peerDiscoverDevices();
+        _peerDiscoverTimer = setInterval(() => {
+          window._peerFailedIds?.clear();
+          _peerDiscoverDevices();
+        }, 30000);
+      });
+      _peerInstance.on('connection', conn => _peerHandleDiscovery(conn, gen));
+      _peerInstance.on('error', e2 => {
+        if (gen !== _peerGeneration) return;
+        if (e2.type === 'peer-unavailable') return;
+        _peerLog('Peer error: ' + (e2.type || e2.message), 'error');
+        _peerToggling = false;
+      });
       return;
     }
     _peerLog('Peer error: ' + (e.type || e.message), 'error');
@@ -2430,12 +2500,17 @@ function _peerDiscoverDevices() {
           clearTimeout(timeout);
           if (gen !== _peerGeneration) { try { conn.close(); } catch {} return; }
           _peerLog('Probe connected: ' + cid);
-          conn.send({ type: 'discover', name: _peerDeviceName() });
+          conn.send({ type: 'discover', name: _peerDeviceName(), suffix: _peerDeviceSuffix() });
           conn.on('data', data => {
             if (gen !== _peerGeneration) return;
             if (data?.type === 'discover_ack') {
               if (!_peerDiscoveredDevices[cid]) {
                 _peerDiscoveredDevices[cid] = { name: data.name, conn };
+                // Remember suffix for future scans
+                if (data.suffix) {
+                  const parts = cid.split('-');
+                  if (parts.length >= 3) _peerRememberSuffix(parts[2], data.suffix);
+                }
                 _peerLog('Found: ' + data.name);
                 _peerRenderDevices(null);
               }
@@ -2478,9 +2553,12 @@ function _peerHandleDiscovery(conn, gen) {
     if (!data?.type) return;
     if (data.type === 'discover') {
       _remoteName = data.name || conn.peer;
-      conn.send({ type: 'discover_ack', name: _peerDeviceName() });
+      conn.send({ type: 'discover_ack', name: _peerDeviceName(), suffix: _peerDeviceSuffix() });
       // Always prefer incoming connection — both sides listen on it
       _peerDiscoveredDevices[conn.peer] = { name: _remoteName, conn };
+      // Remember this device's suffix for future discovery
+      const parts = conn.peer.split('-');
+      if (parts.length >= 4) _peerRememberSuffix(parts[2], parts[3]);
       _peerLog('Discovered by: ' + _remoteName);
       _peerRenderDevices(null);
     } else if (data.type === 'pair_request') {
