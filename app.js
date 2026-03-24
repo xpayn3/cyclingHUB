@@ -1614,11 +1614,48 @@ function _syncThemePicker() {
   );
 }
 
+// Lazy subpage cache — stores innerHTML of settings subpages
+const _subpageCache = {};
+let _subpageCacheReady = false;
+
+function _initSubpageCache() {
+  if (_subpageCacheReady) return;
+  document.querySelectorAll('.ios-subpage').forEach(sub => {
+    const key = sub.id.replace('iosSubpage-', '');
+    if (sub.innerHTML.trim()) {
+      _subpageCache[key] = sub.innerHTML;
+      sub.innerHTML = ''; // strip DOM
+    }
+  });
+  _subpageCacheReady = true;
+  console.info('Lazy subpages: cached ' + Object.keys(_subpageCache).length + ' subpages');
+}
+
+// Restore subpage content from cache
+function _restoreSubpage(id) {
+  const sub = document.getElementById('iosSubpage-' + id);
+  if (!sub) return;
+  if (!sub.innerHTML.trim() && _subpageCache[id]) {
+    sub.innerHTML = _subpageCache[id];
+  }
+}
+
+// Strip subpage content (after close animation)
+function _stripSubpage(id) {
+  const sub = document.getElementById('iosSubpage-' + id);
+  if (sub && _subpageCache[id]) {
+    sub.innerHTML = '';
+  }
+}
+
 function openSettingsSubpage(id) {
   if (_iosNavLocked) return;
   const main = document.getElementById('iosSettingsMain');
   const sub  = document.getElementById('iosSubpage-' + id);
   if (!main || !sub) return;
+
+  // Restore subpage content from cache
+  _restoreSubpage(id);
   _iosNavLocked = true;
   setTimeout(() => { _iosNavLocked = false; }, 400);
 
@@ -1638,10 +1675,12 @@ function openSettingsSubpage(id) {
     row.style.background = 'var(--accent-dim)';
   }
 
-  // Close any other active subpage instantly
+  // Close any other active subpage instantly and strip its DOM
   document.querySelectorAll('.ios-subpage.active').forEach(s => {
     s.classList.remove('active');
     s.style.display = 'none';
+    const prevId = s.id.replace('iosSubpage-', '');
+    if (prevId !== id) _stripSubpage(prevId);
   });
 
   // Slide main + headline out to the left
@@ -1731,7 +1770,8 @@ function closeSettingsSubpage() {
   // Slide headline out to the right with subpage
   if (headline) headline.classList.add('ios-nav-out-right');
 
-  // Slide subpage out to the right
+  // Slide subpage out to the right, then strip DOM
+  const closingId = _iosActiveSubpage;
   if (sub) {
     sub.style.display = 'block';
     sub.classList.remove('active');
@@ -1739,6 +1779,8 @@ function closeSettingsSubpage() {
     setTimeout(() => {
       sub.classList.remove('ios-nav-back');
       sub.style.display = 'none';
+      // Strip subpage DOM to save nodes
+      if (closingId) _stripSubpage(closingId);
     }, 380);
   }
 
@@ -4313,6 +4355,7 @@ function navigate(page, opts) {
 
   if (page === 'dashboard') { applyDashSectionVisibility(); }
   if (page === 'settings') {
+    _initSubpageCache(); // lazy-strip all subpage DOM on first visit
     renderDashSectionToggles(); renderActSectionToggles();
     _updateStorageSizeLabel();
     if (window._pendingSettingsSubpage) {
@@ -15634,7 +15677,16 @@ function _closeOverlaySheet(id) {
   const sheet = document.getElementById(id);
   if (!sheet) return;
   sheet.classList.remove('wxd-open');
-  setTimeout(() => { sheet.style.display = 'none'; }, 350);
+  setTimeout(() => {
+    sheet.style.display = 'none';
+    // Strip dynamic content from heavy sheet bodies to reduce DOM
+    const body = sheet.querySelector('.wxd-sheet-body');
+    if (body && body.children.length > 5) {
+      // Cache content for sheets that are dynamically rendered (they'll re-render on open)
+      body._lazyCache = body.innerHTML;
+      body.innerHTML = '';
+    }
+  }, 350);
   _sheetStack = _sheetStack.filter(s => s !== id);
   // Only unlock body when all sheets closed
   if (_sheetStack.length === 0) {
