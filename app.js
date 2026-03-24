@@ -29005,19 +29005,32 @@ function saveGearBatteries(arr) {
 // FIT spec: device_info (mesg 23), field 10 = battery_voltage (uint16, scale 256)
 // field 11 = battery_status (enum: 1=new, 2=good, 3=ok, 4=low, 5=critical, 6=charging, 7=unknown)
 async function _extractBatteryFromFIT(actId) {
-  try {
-    const resp = await fetch(
-      ICU_BASE + `/activity/${actId}.fit`,
-      { headers: authHeader() }
-    );
-    if (!resp.ok) return null;
-    rlTrackRequest();
-    const buf = await resp.arrayBuffer();
-    return _parseFITBattery(new DataView(buf));
-  } catch (e) {
-    console.warn('FIT battery extract failed:', e.message);
-    return null;
+  // Try original file first (preserves device_info), then converted FIT
+  const urls = [
+    ICU_BASE + `/activity/${actId}/file`,
+    ICU_BASE + `/activity/${actId}/original`,
+    ICU_BASE + `/athlete/${state.athleteId}/activities/${actId}/original`,
+    ICU_BASE + `/activity/${actId}.fit`,
+    ICU_BASE + `/athlete/${state.athleteId}/activities/${actId}.fit`,
+  ];
+  for (const url of urls) {
+    try {
+      const resp = await fetch(url, { headers: authHeader() });
+      if (!resp.ok) continue;
+      rlTrackRequest();
+      const buf = await resp.arrayBuffer();
+      // Check if it's a valid FIT file (starts with header size + ".FIT" signature)
+      if (buf.byteLength < 14) continue;
+      const dv = new DataView(buf);
+      const sig = String.fromCharCode(dv.getUint8(8), dv.getUint8(9), dv.getUint8(10), dv.getUint8(11));
+      if (sig !== '.FIT') continue;
+      const devices = _parseFITBattery(dv);
+      if (devices && devices.length) return devices;
+    } catch (e) {
+      console.warn('FIT battery extract failed for', url, e.message);
+    }
   }
+  return null;
 }
 
 function _parseFITBattery(dv) {
