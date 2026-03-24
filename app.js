@@ -29299,7 +29299,11 @@ async function _fetchParsedFIT(actId) {
       if (data.devices.length || data.dynamics) {
         window._lastFITParse = { actId, data };
         // Cache in IndexedDB (background, non-blocking)
-        _fitCachePut(actId, { devices: data.devices, dynamics: data.dynamics }).catch(() => {});
+        _fitCachePut(actId, {
+          devices: data.devices, dynamics: data.dynamics,
+          temperature: data.temperature, gpsAccuracy: data.gpsAccuracy,
+          respiration: data.respiration, gearChanges: data.gearChanges,
+        }).catch(() => {});
         return data;
       }
     } catch (e) {
@@ -29315,12 +29319,16 @@ async function _extractBatteryFromFIT(actId) {
   return data ? data.devices : null;
 }
 
-// General-purpose FIT parser: extracts device_info + record cycling dynamics
-// Returns { devices: [...], dynamics: { lrBalance:[], lte:[], rte:[], lps:[], rps:[], lPco:[], rPco:[], lPhase:[], rPhase:[], lPhasePeak:[], rPhasePeak:[] } }
+// General-purpose FIT parser: extracts device_info, record dynamics, temperature, GPS, respiration, gear changes
 function _parseFIT(dv) {
-  const result = { devices: [], dynamics: null };
+  const result = { devices: [], dynamics: null, temperature: null, gpsAccuracy: null, respiration: null, gearChanges: null };
   // Cycling dynamics accumulators
   const dyn = { lrBal: [], lte: [], rte: [], lps: [], rps: [], cps: [], lPco: [], rPco: [] };
+  // Additional streams
+  const temp = [];       // temperature per record (°C)
+  const gpsAcc = [];     // GPS accuracy per record (m)
+  const respRate = [];   // respiration rate per record (breaths/min)
+  const gearChanges = []; // gear change events
   let hasDyn = false;
 
   try {
@@ -29341,9 +29349,8 @@ function _parseFIT(dv) {
         const tsLocal = (recHeader >> 5) & 0x03;
         const defn = defnMap[tsLocal];
         if (!defn) break;
-        // Parse compressed record too if it's a record message
         if (defn.globalMesg === 20) {
-          _parseFITRecord(dv, offset, defn, dyn);
+          _parseFITRecord(dv, offset, defn, dyn, temp, gpsAcc, respRate);
           hasDyn = true;
         }
         offset += defn.size;
@@ -29404,8 +29411,10 @@ function _parseFIT(dv) {
             result.devices.push({ voltage, batStatus, manufacturer, product, deviceType });
           }
         } else if (defn.globalMesg === 20) { // record
-          _parseFITRecord(dv, offset, defn, dyn);
+          _parseFITRecord(dv, offset, defn, dyn, temp, gpsAcc, respRate);
           hasDyn = true;
+        } else if (defn.globalMesg === 21) { // event — gear_change is event_type 42
+          _parseFITEvent(dv, offset, defn, gearChanges);
         }
         offset += defn.size;
       }
@@ -29417,29 +29426,44 @@ function _parseFIT(dv) {
   if (hasDyn && (dyn.lte.length || dyn.lps.length || dyn.lPco.length || dyn.lrBal.length)) {
     result.dynamics = dyn;
   }
+  if (temp.length > 10)    result.temperature  = temp;
+  if (gpsAcc.length > 10)  result.gpsAccuracy  = gpsAcc;
+  if (respRate.length > 10) result.respiration  = respRate;
+  if (gearChanges.length)  result.gearChanges  = gearChanges;
   return result;
 }
 
-// Parse a single FIT record message for cycling dynamics fields
-function _parseFITRecord(dv, offset, defn, dyn) {
+// Parse a single FIT record message for dynamics + streams
+// Record field numbers: 13=temperature, 31=gps_accuracy, 108=respiration_rate
+function _parseFITRecord(dv, offset, defn, dyn, temp, gpsAcc, respRate) {
   let lrBal = null, lte = null, rte = null, lps = null, rps = null, cps = null, lPco = null, rPco = null;
+  let t = null, gps = null, resp = null;
   let fOff = offset;
   for (const f of defn.fields) {
     const v8 = () => { const r = dv.getUint8(fOff); return r === 0xFF ? null : r; };
     const v8s = () => { const r = dv.getInt8(fOff); return r === 0x7F ? null : r; };
+    const v16 = () => { const r = defn.le ? dv.getUint16(fOff, true) : dv.getUint16(fOff, false); return r === 0xFFFF ? null : r; };
+    const v16s = () => { const r = defn.le ? dv.getInt16(fOff, true) : dv.getInt16(fOff, false); return r === 0x7FFF ? null : r; };
     switch (f.num) {
-      case 30: lrBal = v8(); break;                         // left_right_balance (uint8, %)
-      case 43: lte = v8(); if (lte !== null) lte /= 2; break; // left_torque_effectiveness (uint8, scale 2, %)
-      case 44: rte = v8(); if (rte !== null) rte /= 2; break; // right_torque_effectiveness
-      case 45: lps = v8(); if (lps !== null) lps /= 2; break; // left_pedal_smoothness
-      case 46: rps = v8(); if (rps !== null) rps /= 2; break; // right_pedal_smoothness
-      case 47: cps = v8(); if (cps !== null) cps /= 2; break; // combined_pedal_smoothness
-      case 67: lPco = v8s(); break;                          // left_platform_center_offset (sint8, mm)
-      case 68: rPco = v8s(); break;                          // right_platform_center_offset (sint8, mm)
+      // Cycling dynamics
+      case 30: lrBal = v8(); break;
+      case 43: lte = v8(); if (lte !== null) lte /= 2; break;
+      case 44: rte = v8(); if (rte !== null) rte /= 2; break;
+      case 45: lps = v8(); if (lps !== null) lps /= 2; break;
+      case 46: rps = v8(); if (rps !== null) rps /= 2; break;
+      case 47: cps = v8(); if (cps !== null) cps /= 2; break;
+      case 67: lPco = v8s(); break;
+      case 68: rPco = v8s(); break;
+      // Temperature (field 13, sint8, °C)
+      case 13: if (f.size === 1) t = v8s(); break;
+      // GPS accuracy (field 31, uint8, meters)
+      case 31: if (f.size === 1) gps = v8(); break;
+      // Respiration rate (field 108, uint8, scale 2, breaths/min) — newer Garmin devices
+      case 108: if (f.size === 1) { resp = v8(); if (resp !== null) resp /= 2; } break;
     }
     fOff += f.size;
   }
-  if (lrBal !== null) dyn.lrBal.push(lrBal & 0x7F); // bit 7 = which side, bits 0-6 = value
+  if (lrBal !== null) dyn.lrBal.push(lrBal & 0x7F);
   if (lte !== null) dyn.lte.push(lte);
   if (rte !== null) dyn.rte.push(rte);
   if (lps !== null) dyn.lps.push(lps);
@@ -29447,6 +29471,45 @@ function _parseFITRecord(dv, offset, defn, dyn) {
   if (cps !== null) dyn.cps.push(cps);
   if (lPco !== null) dyn.lPco.push(lPco);
   if (rPco !== null) dyn.rPco.push(rPco);
+  // Streams
+  if (t !== null) temp.push(t);
+  if (gps !== null) gpsAcc.push(gps);
+  if (resp !== null && resp > 0 && resp < 60) respRate.push(resp);
+}
+
+// Parse FIT event message for gear changes
+// Event mesg (21): field 0 = event (enum), field 1 = event_type, field 3 = data (uint32)
+// Gear change event: event = 42, data encodes front/rear gear teeth
+function _parseFITEvent(dv, offset, defn, gearChanges) {
+  let event = null, eventType = null, data = null, timestamp = null;
+  let fOff = offset;
+  for (const f of defn.fields) {
+    if (f.num === 0 && f.size === 1) { // event
+      const r = dv.getUint8(fOff);
+      if (r !== 0xFF) event = r;
+    } else if (f.num === 1 && f.size === 1) { // event_type
+      const r = dv.getUint8(fOff);
+      if (r !== 0xFF) eventType = r;
+    } else if (f.num === 3 && f.size === 4) { // data (uint32)
+      const r = defn.le ? dv.getUint32(fOff, true) : dv.getUint32(fOff, false);
+      if (r !== 0xFFFFFFFF) data = r;
+    } else if (f.num === 253 && f.size === 4) { // timestamp
+      const r = defn.le ? dv.getUint32(fOff, true) : dv.getUint32(fOff, false);
+      if (r !== 0xFFFFFFFF) timestamp = r;
+    }
+    fOff += f.size;
+  }
+  // event 42 = gear_change_data  (or legacy: event 11 = rear_gear_change, 12 = front_gear_change)
+  if ((event === 42 || event === 11 || event === 12) && data !== null) {
+    // gear_change_data encoding: bits 0-7 = rear_gear_num, 8-15 = rear_gear, 16-23 = front_gear_num, 24-31 = front_gear
+    const rearTeeth  = (data >> 8) & 0xFF;
+    const frontTeeth = (data >> 24) & 0xFF;
+    const rearNum    = data & 0xFF;
+    const frontNum   = (data >> 16) & 0xFF;
+    if (rearTeeth || frontTeeth) {
+      gearChanges.push({ timestamp, front: frontTeeth, rear: rearTeeth, frontNum, rearNum });
+    }
+  }
 }
 
 // Legacy wrapper for battery-only extraction
@@ -29500,7 +29563,7 @@ async function _syncBatteryFromLastRide() {
   for (const a of acts) {
     const t = (a.type || '').toLowerCase();
     if (t.includes('ride') || t.includes('cycling')) rides.push(a);
-    if (rides.length >= 2) break;
+    if (rides.length >= 5) break;
   }
   if (!rides.length) return;
 
