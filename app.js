@@ -2986,19 +2986,25 @@ function _peerCancelConnect() {
 window._peerCancelConnect = _peerCancelConnect;
 
 function _peerDisconnect() {
-  _peerLog('Manual disconnect');
+  _peerLog('Disconnected from peer');
   _peerManualDisconnect = true;
   _peerReconnecting = false;
-  _peerAutoStarting = false;
-  _peerRemoteId = '';
-  _peerRemoteName = '';
   localStorage.removeItem('icu_peer_remote');
   localStorage.removeItem('icu_peer_my_id');
-  _peerDestroyInstance();
-  _peerMyId = '';
-  _peerUpdateUI('off');
+  // Close connection but keep the peer instance alive for re-discovery
+  if (_peerConn) { try { _peerConn.close(); } catch {} _peerConn = null; }
+  _peerRemoteId = '';
+  _peerRemoteName = '';
+  _peerDiscoveredDevices = {};
+  _peerUpdateUI('ready', _peerMyId);
   _peerRenderDevices(null);
   showToast('Disconnected', 'success');
+  // Restart discovery so the device reappears
+  _peerManualDisconnect = false;
+  if (!_peerDiscoverTimer && _peerInstance && !_peerInstance.destroyed) {
+    _peerDiscoverDevices();
+    _peerDiscoverTimer = setInterval(_peerDiscoverDevices, 30000);
+  }
 }
 window._peerDisconnect = _peerDisconnect;
 
