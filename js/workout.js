@@ -1317,6 +1317,7 @@ const FONT_OPTIONS = {
   'dm-sans':       "'DM Sans', system-ui, -apple-system, sans-serif",
   'outfit':        "'Outfit', system-ui, -apple-system, sans-serif",
   'space-grotesk': "'Space Grotesk', system-ui, -apple-system, sans-serif",
+  'source-serif':  "'Source Serif 4', Georgia, 'Times New Roman', serif",
 };
 
 export function loadAppFont() {
@@ -1375,8 +1376,9 @@ export function shareToReddit() {
 }
 
 // ── Theme setting ─────────────────────────────────────────────────────────────
+const _LIGHT_THEMES = ['light', 'awwwards'];
 export function _isDark() {
-  return document.documentElement.getAttribute('data-theme') !== 'light';
+  return !_LIGHT_THEMES.includes(document.documentElement.getAttribute('data-theme'));
 }
 
 export function _updateChartColors() {
@@ -1388,6 +1390,20 @@ export function _updateChartColors() {
   else window.C_TICK = { color: tickColor, font: { size: 10 } };
   if (window.C_GRID) { window.C_GRID.color = gridColor; }
   else window.C_GRID = { color: gridColor };
+  // Update all existing Chart.js instances with new colors
+  if (window.Chart) {
+    Object.values(Chart.instances || {}).forEach(c => {
+      try {
+        if (c.options?.scales) {
+          Object.values(c.options.scales).forEach(s => {
+            if (s.ticks) s.ticks.color = tickColor;
+            if (s.grid) s.grid.color = gridColor;
+          });
+        }
+        c.update('none');
+      } catch (_) {}
+    });
+  }
 }
 
 function _resolveTheme(mode) {
@@ -1398,11 +1414,11 @@ function _resolveTheme(mode) {
 function _applyResolvedTheme(resolved) {
   document.documentElement.setAttribute('data-theme', resolved);
   const tc = document.querySelector('meta[name="theme-color"]');
-  if (tc) tc.setAttribute('content', resolved === 'light' ? '#f2f3f5' : resolved === 'tdf' ? '#000000' : '#090b0e');
+  if (tc) tc.setAttribute('content', resolved === 'light' ? '#f2f3f5' : resolved === 'awwwards' ? '#FFFFFF' : resolved === 'tdf' ? '#000000' : '#090b0e');
   _updateChartColors();
-  // Switch map theme to match: light → liberty, dark → strava
+  // Switch map theme to match: light/awwwards → liberty, dark → strava
   if (window.MAP_STYLES) {
-    const targetMap = resolved === 'light' ? 'liberty' : 'strava';
+    const targetMap = (resolved === 'light' || resolved === 'awwwards') ? 'liberty' : 'strava';
     if (loadMapTheme() !== targetMap) setMapTheme(targetMap);
   }
 }
@@ -1412,6 +1428,11 @@ export function setTheme(mode) {
 
   const resolved = _resolveTheme(mode);
   _applyResolvedTheme(resolved);
+
+  // Clear inline background then re-apply dashboard gradient if on dashboard
+  const _pc = document.getElementById('pageContent');
+  if (_pc) _pc.style.background = '';
+  if (typeof window._applyDashGradient === 'function') requestAnimationFrame(window._applyDashGradient);
 
   // Refresh colour palette so zone colours match the new theme
   if (typeof refreshPalette === 'function') refreshPalette();

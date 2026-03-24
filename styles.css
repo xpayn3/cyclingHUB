@@ -2499,6 +2499,7 @@ input[type="number"] {
     min-height: 160px;
     overflow: hidden;
     position: relative;
+    isolation: isolate;
 }
 .dash-quick-card .card-header {
     display: none;
@@ -2745,6 +2746,8 @@ input[type="number"] {
     padding: 0 !important;
     position: relative;
     overflow: hidden;
+    isolation: isolate;
+    -webkit-mask-image: -webkit-radial-gradient(white, black);
 }
 .dash-route-card .card-header {
     position: absolute;
@@ -3638,7 +3641,6 @@ input[type="number"] {
     height: 100%;
     object-fit: cover;
     display: block;
-    border-radius: var(--radius);
 }
 .recent-act-badges {
     display: flex;
@@ -9111,12 +9113,12 @@ body.show-save-fab #actSaveRouteFab {
     background-image:
         repeating-linear-gradient(
             to right,
-            rgba(255, 255, 255, 0.5) 0, rgba(255, 255, 255, 0.5) 1.5px,
+            var(--scrubber-tick-major, rgba(255, 255, 255, 0.5)) 0, var(--scrubber-tick-major, rgba(255, 255, 255, 0.5)) 1.5px,
             transparent 1.5px, transparent 30px
         ),
         repeating-linear-gradient(
             to right,
-            rgba(255, 255, 255, 0.18) 0, rgba(255, 255, 255, 0.18) 1px,
+            var(--scrubber-tick-minor, rgba(255, 255, 255, 0.18)) 0, var(--scrubber-tick-minor, rgba(255, 255, 255, 0.18)) 1px,
             transparent 1px, transparent 6px
         );
     background-size: 100% 22px, 100% 10px;
@@ -26451,6 +26453,9 @@ textarea:focus-visible {
    Overrides design tokens + component-specific dark patterns.
 ============================================================ */
 html[data-theme="light"] {
+    /* ── Scrubber ticks ── */
+    --scrubber-tick-major: rgba(0, 0, 0, 0.4);
+    --scrubber-tick-minor: rgba(0, 0, 0, 0.15);
     /* ── Backgrounds ── */
     --bg-base: #f2f3f5;
     --bg-surface: #ffffff;
@@ -27435,9 +27440,174 @@ html[data-theme="tdf"] {
 [data-theme="tdf"] .goal-dash-card::before {
     background: radial-gradient(ellipse at 30% 20%, rgba(255,215,0,0.08) 0%, transparent 70%);
 }
+/* ══════════════════════════════════════════════════════════════════
+   AWWWARDS THEME — Off-white, editorial, soft blue accent
+   ══════════════════════════════════════════════════════════════════ */
+html[data-theme="awwwards"] {
+    --scrubber-tick-major: rgba(0, 0, 0, 0.35);
+    --scrubber-tick-minor: rgba(0, 0, 0, 0.12);
+    --accent: #7CB9C8;
+    --accent-bright: #9DD0DC;
+    --accent-hover: #8EC5D2;
+    --accent-dark: #5A9AAB;
+    --accent-neon: #A8D8E4;
+    --accent-dim: rgba(124,185,200,0.12);
+    --accent-glow: rgba(124,185,200,0.20);
+    --accent-faint: rgba(124,185,200,0.07);
+    --accent-medium: rgba(124,185,200,0.25);
+    --accent-strong: rgba(124,185,200,0.40);
+    --accent-border: rgba(124,185,200,0.18);
+    --accent-dim-strong: rgba(124,185,200,0.15);
+    --accent-wash: rgba(124,185,200,0.08);
+    --accent-whisper: rgba(124,185,200,0.04);
+
+    --blue: #7CB9C8;
+    --blue-dim: rgba(124,185,200,0.12);
+    --purple: #9B8EC4;
+    --purple-dim: rgba(155,142,196,0.12);
+    --orange: #C4956A;
+    --orange-dim: rgba(196,149,106,0.12);
+    --red: #C45B5B;
+    --red-dim: rgba(196,91,91,0.12);
+    --yellow: #C4B06A;
+    --yellow-dim: rgba(196,176,106,0.12);
+
+    --red-ios: #C45B5B;
+    --red-danger: #C45B5B;
+    --red-light: #D48080;
+    --green: #7CB9C8;
+    --green-light: #9DD0DC;
+    --green-lighter: #C4E4EC;
+    --green-ios: #7CB9C8;
+    --orange-light: #D4A87A;
+    --amber: #C4B06A;
+    --amber-light: #D4C490;
+    --blue-light: #9DD0DC;
+    --blue-tw: #7CB9C8;
+    --purple-light: #B8ACD8;
+    --purple-ios: #9B8EC4;
+    --violet: #9B8EC4;
+    --pink: #D48080;
+    --cyan-ios: #9DD0DC;
+    --cyan: #7CB9C8;
+    --gold: #C4B06A;
+    --gold-bright: #D4C490;
+
+    /* ── Backgrounds — white base, light gray cards ── */
+    --bg-base: #FFFFFF;
+    --bg-surface: #E9E9E9;
+    --bg-elevated: #E9E9E9;
+    --bg-card: #E9E9E9;
+    --bg-tertiary: #E0E0E0;
+    --bg-quaternary: #D6D6D6;
+    --bg-map: #FFFFFF;
+
+    /* ── Borders ── */
+    --border: rgba(0,0,0,0.08);
+    --border-active: rgba(124,185,200,0.30);
+    --separator-active: rgba(124,185,200,0.20);
+    --fill-secondary: rgba(0,0,0,0.04);
+    --fill-tertiary: rgba(0,0,0,0.02);
+
+    /* ── Text — dark on light ── */
+    --text-primary: #1A1A1A;
+    --text-secondary: rgba(26,26,26,0.65);
+    --text-muted: rgba(26,26,26,0.45);
+    --text-bright: rgba(26,26,26,0.90);
+    --text-faint: rgba(26,26,26,0.25);
+    --text-light: rgba(26,26,26,0.30);
+
+    /* ── On-colour ── */
+    --on-accent: #FFFFFF;
+    --on-accent-dark: #FFFFFF;
+
+    /* ── Glass / overlay ── */
+    --glass-bg: rgba(255,255,255,0.92);
+    --glass-border: rgba(0,0,0,0.06);
+    --glass-blur: blur(16px) saturate(1.4);
+    --hover-overlay: rgba(0,0,0,0.03);
+    --hover-overlay-strong: rgba(0,0,0,0.06);
+    --shadow-overlay: rgba(0,0,0,0.10);
+
+    --sheet-bg: rgba(255,255,255,0.96);
+    --sheet-bg-opaque: rgba(255,255,255,0.98);
+    --overlay-subtle: rgba(0,0,0,0.03);
+    --overlay-faint: rgba(0,0,0,0.02);
+    --scrim: rgba(0,0,0,0.30);
+    --shadow-sm: rgba(0,0,0,0.06);
+    --shadow-md: rgba(0,0,0,0.10);
+    --shadow-lg: rgba(0,0,0,0.15);
+
+    --scrollbar-thumb: rgba(0,0,0,0.12);
+    --scrollbar-thumb-hover: rgba(0,0,0,0.22);
+
+    /* ── Chart / canvas ── */
+    --chart-grid: rgba(0,0,0,0.06);
+    --chart-tick: rgba(0,0,0,0.40);
+    --chart-legend: rgba(0,0,0,0.50);
+    --canvas-bg: #FFFFFF;
+    --canvas-grid: rgba(0,0,0,0.06);
+    --canvas-text: rgba(0,0,0,0.55);
+
+    /* ── Zones — muted editorial palette ── */
+    --zone-1: #7CB9C8;
+    --zone-2: #6AAD9E;
+    --zone-3: #C4B06A;
+    --zone-4: #C4956A;
+    --zone-5: #C45B5B;
+    --zone-6: #9B5B8E;
+
+    --zone-1-chart: rgba(124,185,200,0.80);
+    --zone-2-chart: rgba(106,173,158,0.80);
+    --zone-3-chart: rgba(196,176,106,0.80);
+    --zone-4-chart: rgba(196,149,106,0.80);
+    --zone-5-chart: rgba(196,91,91,0.80);
+    --zone-6-chart: rgba(155,91,142,0.80);
+
+    --hr-zone-1: rgba(124,185,200,0.70);
+    --hr-zone-2: rgba(106,173,158,0.70);
+    --hr-zone-3: rgba(196,176,106,0.70);
+    --hr-zone-4: rgba(196,149,106,0.70);
+    --hr-zone-5: rgba(196,91,91,0.70);
+    --hr-zone-6: rgba(155,91,142,0.70);
+    --hr-zone-7: rgba(130,60,120,0.70);
+
+    color-scheme: light;
+}
+
+/* ── Awwwards card overrides ── */
+[data-theme="awwwards"] .card {
+    background: #E9E9E9;
+    color: #1A1A1A;
+    border: 1px solid rgba(0,0,0,0.05);
+    box-shadow: none;
+}
+[data-theme="awwwards"] .card-title { color: #1A1A1A; }
+[data-theme="awwwards"] .card-title svg { stroke: var(--accent); }
+[data-theme="awwwards"] .card-subtitle { color: rgba(26,26,26,0.50); }
+[data-theme="awwwards"] .wxd-sheet { background: #FAFAF7; color: #1A1A1A; }
+[data-theme="awwwards"] .wxd-backdrop { background: rgba(0,0,0,0.25); }
+[data-theme="awwwards"] .modal-drag-indicator { background: rgba(0,0,0,0.15); }
+[data-theme="awwwards"] .ios-group { background: #E9E9E9; border: 1px solid rgba(0,0,0,0.05); }
+[data-theme="awwwards"] .ios-row { border-bottom-color: rgba(0,0,0,0.06); }
+[data-theme="awwwards"] .sidebar { background: #FFFFFF; color: #1A1A1A; border-right: 1px solid rgba(0,0,0,0.06); }
+[data-theme="awwwards"] .bottom-nav { background: rgba(255,255,255,0.95); border-top: 1px solid rgba(0,0,0,0.06); }
+[data-theme="awwwards"] .bottom-nav-item { color: rgba(26,26,26,0.40); }
+[data-theme="awwwards"] .bottom-nav-item.active { color: var(--accent); }
+[data-theme="awwwards"] .gar-stat-pill { background: #E9E9E9; color: #1A1A1A; }
+[data-theme="awwwards"] .fuel-input,
+[data-theme="awwwards"] .taper-input,
+[data-theme="awwwards"] .pacing-input,
+[data-theme="awwwards"] .fuel-select,
+[data-theme="awwwards"] .taper-select { background: #E9E9E9; border-color: rgba(0,0,0,0.08); color: #1A1A1A; }
+[data-theme="awwwards"] .fuel-toggle { background: #E9E9E9; border-color: rgba(0,0,0,0.06); color: #1A1A1A; }
+[data-theme="awwwards"] .fuel-generate-btn,
+[data-theme="awwwards"] .taper-gen-btn,
+[data-theme="awwwards"] .taper-apply-btn { color: #FFFFFF; }
+
 /* ── Squircle Mode (Apple continuous corners) ── */
-/* Uses corner-shape: squircle (Safari 18.4+) with fallback to increased radius */
-[data-squircle] { --radius: 20px; --radius-sm: 12px; --radius-lg: 22px; }
+/* Uses corner-shape: squircle (Safari 18.4+, Chrome 136+) */
+[data-squircle] { --radius: 16px; --radius-sm: 10px; --radius-lg: 22px; --radius-sheet: 40px; }
 [data-squircle] .card,
 [data-squircle] .ios-group,
 [data-squircle] .cev-target-card,

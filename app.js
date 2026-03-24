@@ -6258,9 +6258,10 @@ function _applyDashGradient() {
   // Only apply gradient when dashboard is the active page
   if (state.currentPage !== 'dashboard') return;
   const theme = document.documentElement.dataset.theme || 'dark';
-  const isLight = theme === 'light';
+  const _lightThemes = ['light', 'awwwards'];
+  const isLight = _lightThemes.includes(theme);
   const tsb = state.fitness?.tsb ?? (state.fitness ? (state.fitness.ctl - state.fitness.atl) : null);
-  const base = isLight ? '#f2f3f5' : '#000000';
+  const base = isLight ? (getComputedStyle(document.documentElement).getPropertyValue('--bg-base').trim() || '#f2f3f5') : '#000000';
   let top, mid;
   if (isLight) {
     // Light theme: soft pastel tints
@@ -6283,6 +6284,7 @@ function _applyDashGradient() {
   }
   pc.style.background = `linear-gradient(180deg, ${top} 0%, ${mid} 12%, ${base} 32%)`;
 }
+window._applyDashGradient = _applyDashGradient;
 
 function _injectEditWidgetsBtn() {
   const dash = document.getElementById('page-dashboard');
@@ -27051,6 +27053,8 @@ function _collectTransferableSettings() {
     'icu_wx_locations', 'icu_wx_model', 'icu_wx_coords',
     'icu_goals', 'icu_dash_sections', 'icu_ors_api_key',
     'icu_avatar', 'icu_cal_panel_hidden',
+    'icu_gear_components', 'icu_gear_batteries', 'icu_gear_services',
+    'icu_gear_service_shops',
   ];
   const cfg = {};
   for (const k of keys) {
@@ -27069,13 +27073,41 @@ function _applyTransferredSettings(cfg) {
   }
 }
 
-function copySetupLink() {
+async function _compressB64(str) {
+  if (!window.CompressionStream) return btoa(unescape(encodeURIComponent(str)));
+  const buf = new TextEncoder().encode(str);
+  const cs = new CompressionStream('gzip');
+  const w = cs.writable.getWriter(); w.write(buf); w.close();
+  const chunks = []; const r = cs.readable.getReader();
+  for (;;) { const { done, value } = await r.read(); if (done) break; chunks.push(value); }
+  const out = new Uint8Array(chunks.reduce((s, c) => s + c.length, 0));
+  let off = 0; for (const c of chunks) { out.set(c, off); off += c.length; }
+  return btoa(String.fromCharCode(...out));
+}
+async function _decompressB64(b64) {
+  const bin = atob(b64);
+  // Check gzip magic bytes
+  if (bin.charCodeAt(0) === 0x1f && bin.charCodeAt(1) === 0x8b && window.DecompressionStream) {
+    const buf = Uint8Array.from(bin, c => c.charCodeAt(0));
+    const ds = new DecompressionStream('gzip');
+    const w = ds.writable.getWriter(); w.write(buf); w.close();
+    const chunks = []; const r = ds.readable.getReader();
+    for (;;) { const { done, value } = await r.read(); if (done) break; chunks.push(value); }
+    const out = new Uint8Array(chunks.reduce((s, c) => s + c.length, 0));
+    let off = 0; for (const c of chunks) { out.set(c, off); off += c.length; }
+    return new TextDecoder().decode(out);
+  }
+  // Fallback: plain base64 (old format links)
+  return decodeURIComponent(escape(bin));
+}
+
+async function copySetupLink() {
   if (!state.athleteId || !state.apiKey) {
     showToast('Connect first to generate a setup link', 'error');
     return;
   }
   const cfg = _collectTransferableSettings();
-  const cfgStr = btoa(unescape(encodeURIComponent(JSON.stringify(cfg))));
+  const cfgStr = await _compressB64(JSON.stringify(cfg));
   const url = window.location.origin + window.location.pathname +
     '#id=' + encodeURIComponent(state.athleteId) +
     '&key=' + encodeURIComponent(state.apiKey) +
@@ -27106,7 +27138,7 @@ function _copyFallback(text) {
   document.body.removeChild(ta);
 }
 
-function applySetupLink(inputId) {
+async function applySetupLink(inputId) {
   const input = document.getElementById(inputId || 'setupLinkInput');
   const raw = (input?.value || '').trim();
   if (!raw) { showToast('Paste a setup link first', 'info'); return; }
@@ -27124,7 +27156,7 @@ function applySetupLink(inputId) {
   const cfgB64 = p.get('cfg');
   let cfgObj = null;
   if (cfgB64) {
-    try { cfgObj = JSON.parse(decodeURIComponent(escape(atob(cfgB64)))); } catch (_) {}
+    try { cfgObj = JSON.parse(await _decompressB64(cfgB64)); } catch (_) {}
   }
   const hasSettings = cfgObj && Object.keys(cfgObj).length > 0;
 
@@ -32604,7 +32636,7 @@ const _startPage = (_initRoute && _initRoute.type === 'page' && _validInitPages.
 // Check URL hash for setup link credentials (e.g. #id=i12345&key=abc...)
 // The hash is never sent to any server, so credentials stay private.
 let _hashSetupPending = false;
-(function applyHashCredentials() {
+(async function applyHashCredentials() {
   const hash = window.location.hash.slice(1);
   if (!hash) return;
   const p = new URLSearchParams(hash);
@@ -32613,17 +32645,14 @@ let _hashSetupPending = false;
   // Always clear the hash from the URL first for safety
   history.replaceState(null, '', window.location.pathname + window.location.search);
   if (hashId && hashKey) {
-    _hashSetupPending = true; // prevent openModal() from blocking the confirm dialog
-    // Decode transferred settings if present
+    _hashSetupPending = true;
     const cfgB64 = p.get('cfg');
     let cfgObj = null;
     if (cfgB64) {
-      try { cfgObj = JSON.parse(decodeURIComponent(escape(atob(cfgB64)))); } catch (_) {}
+      try { cfgObj = JSON.parse(await _decompressB64(cfgB64)); } catch (_) {}
     }
     const hasSettings = cfgObj && Object.keys(cfgObj).length > 0;
-    // Defer so it runs after openModal() would have fired, then show on top
     setTimeout(() => {
-      // Close connect modal if it opened
       const cm = document.getElementById('connectModal');
       if (cm?.open) closeModalAnimated(cm);
       showConfirmDialog(

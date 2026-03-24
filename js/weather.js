@@ -458,10 +458,11 @@ export async function renderActivityIntervals(activityId) {
       const maxPower = Math.max(...intervals.map(iv => iv.average_watts || 0), 50);
       const yMax = Math.ceil(maxPower / 25) * 25;
 
-      // Grid lines
-      ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+      // Grid lines — theme-aware
+      const _ivlDark = document.documentElement.getAttribute('data-theme') !== 'light' && document.documentElement.getAttribute('data-theme') !== 'awwwards';
+      ctx.strokeStyle = _ivlDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)';
       ctx.lineWidth = 1;
-      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.fillStyle = _ivlDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.4)';
       ctx.font = '10px Inter, system-ui, sans-serif';
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
@@ -494,7 +495,7 @@ export async function renderActivityIntervals(activityId) {
 
         // Power label inside bar if wide enough
         if (barW > 28 && watts > 0) {
-          ctx.fillStyle = '#fff';
+          ctx.fillStyle = _ivlDark ? '#fff' : '#000';
           ctx.font = 'bold 10px Inter, system-ui, sans-serif';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
@@ -506,7 +507,7 @@ export async function renderActivityIntervals(activityId) {
       });
 
       // Time axis labels
-      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.fillStyle = _ivlDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.4)';
       ctx.font = '10px Inter, system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
