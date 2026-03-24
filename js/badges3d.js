@@ -20,7 +20,7 @@ async function _loadThreeJS() {
   return new Promise((resolve, reject) => {
     if (window.THREE) { _THREE = window.THREE; resolve(_THREE); return; }
     const script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r168/three.min.js';
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js';
     script.crossOrigin = 'anonymous';
     script.onload = () => { _THREE = window.THREE; resolve(_THREE); };
     script.onerror = () => reject(new Error('Failed to load Three.js'));
@@ -108,8 +108,16 @@ function _createIconMesh(THREE, svgPath, scale) {
 // Initialize the 3D scene in a canvas
 export function initBadge3D(canvasEl, badgeId) {
   return _loadThreeJS().then(THREE => {
-    const w = canvasEl.clientWidth || 280;
-    const h = canvasEl.clientHeight || 320;
+    // Ensure canvas has dimensions (sheet may still be animating)
+    let w = canvasEl.clientWidth;
+    let h = canvasEl.clientHeight;
+    if (!w || w < 50) w = canvasEl.parentElement?.clientWidth || 280;
+    if (!h || h < 50) h = 280;
+    // Set explicit pixel dimensions
+    canvasEl.width = w * Math.min(window.devicePixelRatio, 2);
+    canvasEl.height = h * Math.min(window.devicePixelRatio, 2);
+    canvasEl.style.width = w + 'px';
+    canvasEl.style.height = h + 'px';
 
     // Scene
     _badgeScene = new THREE.Scene();

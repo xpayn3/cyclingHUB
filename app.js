@@ -30399,10 +30399,11 @@ async function openBadgeViewer(badgeId, name, desc) {
     _badges3dModule.destroyBadge3D();
     // Wait for sheet animation
     await new Promise(r => setTimeout(r, 400));
-    _badges3dModule.initBadge3D(canvas, badgeId);
+    await _badges3dModule.initBadge3D(canvas, badgeId);
   } catch (e) {
-    console.warn('3D badge failed:', e);
-    canvas.style.display = 'none';
+    console.error('3D badge failed:', e);
+    canvas.style.background = 'var(--surface-1)';
+    canvas.style.borderRadius = '12px';
   }
 }
 
