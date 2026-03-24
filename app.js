@@ -16808,6 +16808,66 @@ const _CEV_SCRUBBER_DEFS = {
 const _CEV_PX_PER_STEP = 6; // pixels of drag per step
 let _cevScrubbersInited = false;
 
+/* ── Generic scrubber init (reused by gear, fuel, taper) ── */
+const _scrubberInitFlags = {};
+function _initScrubbers(containerSel, defs) {
+  if (_scrubberInitFlags[containerSel]) return;
+  _scrubberInitFlags[containerSel] = true;
+  document.querySelectorAll(`${containerSel} .cev-scrubber`).forEach(scrubber => {
+    const metric = scrubber.dataset.metric;
+    const def = defs[metric];
+    if (!def) return;
+    const input = document.getElementById(def.inputId);
+    const ruler = scrubber.querySelector('.cev-scrubber-ruler');
+    const valueEl = scrubber.querySelector('.cev-scrubber-value');
+    const unitEl = scrubber.querySelector('.cev-scrubber-unit');
+    const undoBtn = scrubber.closest('.cev-target-card')?.querySelector('.cev-undo-btn');
+    // Generate ticks if ruler is empty
+    if (ruler && !ruler.children.length) {
+      let ticks = '';
+      for (let i = -200; i <= 200; i++) ticks += `<div class="cev-tick${i % 5 === 0 ? ' cev-tick--major' : ''}"></div>`;
+      ruler.innerHTML = ticks;
+    }
+    let step = 0, history = [], dragStartX = 0, dragStartStep = 0, dragging = false;
+    function applyStep(s) {
+      step = Math.max(def.min, Math.min(def.max, Math.round(s)));
+      const trackW = scrubber.querySelector('.cev-scrubber-track').clientWidth || 80;
+      ruler.style.transform = `translateX(${trackW / 2 - step * _CEV_PX_PER_STEP}px)`;
+      const d = def.display(step);
+      valueEl.textContent = d.text;
+      valueEl.classList.toggle('is-zero', d.zero);
+      if (unitEl && d.unit !== undefined) unitEl.textContent = d.unit;
+      if (d.color !== undefined) valueEl.style.color = d.color;
+      input.value = def.fromStep(step);
+    }
+    function syncUndoBtn() { if (undoBtn) undoBtn.style.display = history.length > 0 ? '' : 'none'; }
+    scrubber._cevApplyStep = (s) => { applyStep(s); history = []; syncUndoBtn(); };
+    scrubber._cevDef = def;
+    if (undoBtn) undoBtn.addEventListener('click', e => { e.stopPropagation(); if (!history.length) return; applyStep(history.pop()); syncUndoBtn(); });
+    let pending = false, pendingPid = 0, lockScroll = false;
+    scrubber.style.setProperty('touch-action', 'pan-y', 'important');
+    scrubber.addEventListener('pointerdown', e => { if (e.button > 0) return; dragStartX = e.clientX; dragStartStep = step; pending = true; pendingPid = e.pointerId; });
+    scrubber.addEventListener('pointermove', e => {
+      if (pending) { if (Math.abs(e.clientX - dragStartX) < 10) return; pending = false; dragging = true; lockScroll = true; scrubber.setPointerCapture(pendingPid); }
+      if (!dragging) return;
+      applyStep(dragStartStep - (e.clientX - dragStartX) / _CEV_PX_PER_STEP);
+    });
+    scrubber.addEventListener('touchmove', e => { if (dragging || lockScroll) e.preventDefault(); }, { passive: false });
+    scrubber.addEventListener('touchend', () => { lockScroll = false; });
+    scrubber.addEventListener('touchcancel', () => { lockScroll = false; });
+    const endDrag = () => { if (pending) { pending = false; return; } if (!dragging) return; dragging = false; if (step !== dragStartStep) { history.push(dragStartStep); syncUndoBtn(); } };
+    scrubber.addEventListener('pointerup', endDrag);
+    scrubber.addEventListener('pointercancel', endDrag);
+  });
+}
+function _syncScrubbers(containerSel, defs) {
+  document.querySelectorAll(`${containerSel} .cev-scrubber`).forEach(scrubber => {
+    if (!scrubber._cevApplyStep || !scrubber._cevDef) return;
+    const input = document.getElementById(scrubber._cevDef.inputId);
+    scrubber._cevApplyStep(scrubber._cevDef.toStep(input?.value));
+  });
+}
+
 function _initCalScrubbers() {
   if (_cevScrubbersInited) return;
   _cevScrubbersInited = true;
@@ -26803,7 +26863,7 @@ if (elevEl) elevEl.textContent = state.units === 'imperial' ? 'feet' : 'metres';
 let _gearActiveTab = 'components';
 function gearSwitchTab(tab) {
   _gearActiveTab = tab;
-  const tabs = ['components', 'batteries', 'tires', 'roi'];
+  const tabs = ['components', 'batteries', 'tires'];
   const idx = tabs.indexOf(tab);
   document.querySelectorAll('#page-gear .gar-tab').forEach(t => t.classList.toggle('active', t.dataset.gear === tab));
   const indicator = document.querySelector('.gar-tab-indicator');
@@ -26812,7 +26872,8 @@ function gearSwitchTab(tab) {
     const p = document.getElementById('gearPanel' + k.charAt(0).toUpperCase() + k.slice(1));
     if (p) p.style.display = k === tab ? '' : 'none';
   });
-  if (tab === 'components') renderGearRoi();
+  // ROI renders inside components panel; skip if already rendered on page load
+  if (tab === 'components' && document.getElementById('gearRoiContent')?.childElementCount === 0) renderGearRoi();
 }
 
 const GEAR_STORE_KEY = 'icu_gear_components';
@@ -27897,104 +27958,8 @@ const _GEAR_SCRUBBER_DEFS = {
   },
 };
 
-let _gearScrubbersInited = false;
-function _initGearScrubbers() {
-  if (_gearScrubbersInited) return;
-  _gearScrubbersInited = true;
-
-  document.querySelectorAll('#gearModal .cev-scrubber').forEach(scrubber => {
-    const metric = scrubber.dataset.metric;
-    const def = _GEAR_SCRUBBER_DEFS[metric];
-    if (!def) return;
-
-    const input   = document.getElementById(def.inputId);
-    const ruler   = scrubber.querySelector('.cev-scrubber-ruler');
-    const valueEl = scrubber.querySelector('.cev-scrubber-value');
-    const unitEl  = scrubber.querySelector('.cev-scrubber-unit');
-    const undoBtn = scrubber.closest('.cev-target-card')?.querySelector('.cev-undo-btn');
-
-    // Generate ticks
-    let ticks = '';
-    for (let i = -200; i <= 200; i++) ticks += `<div class="cev-tick${i % 5 === 0 ? ' cev-tick--major' : ''}"></div>`;
-    ruler.innerHTML = ticks;
-
-    let step = 0, history = [], dragStartX = 0, dragStartStep = 0, dragging = false;
-
-    function applyStep(s) {
-      step = Math.max(def.min, Math.min(def.max, Math.round(s)));
-      const trackW = scrubber.querySelector('.cev-scrubber-track').clientWidth || 80;
-      ruler.style.transform = `translateX(${trackW / 2 - step * _CEV_PX_PER_STEP}px)`;
-      const d = def.display(step);
-      valueEl.textContent = d.text;
-      valueEl.classList.toggle('is-zero', d.zero);
-      if (unitEl && d.unit !== undefined) unitEl.textContent = d.unit;
-      if (d.color !== undefined) valueEl.style.color = d.color;
-      input.value = def.fromStep(step);
-    }
-
-    function syncUndoBtn() {
-      if (undoBtn) undoBtn.style.display = history.length > 0 ? '' : 'none';
-    }
-
-    scrubber._cevApplyStep = (s) => { applyStep(s); history = []; syncUndoBtn(); };
-    scrubber._cevDef = def;
-
-    if (undoBtn) {
-      undoBtn.addEventListener('click', e => {
-        e.stopPropagation();
-        if (!history.length) return;
-        applyStep(history.pop());
-        syncUndoBtn();
-      });
-    }
-
-    let pending = false, pendingPid = 0, lockScroll = false;
-    const DRAG_THRESHOLD = 10;
-    scrubber.style.setProperty('touch-action', 'pan-y', 'important');
-
-    scrubber.addEventListener('pointerdown', e => {
-      if (e.button > 0) return;
-      dragStartX = e.clientX;
-      dragStartStep = step;
-      pending = true;
-      pendingPid = e.pointerId;
-    });
-
-    scrubber.addEventListener('pointermove', e => {
-      if (pending) {
-        if (Math.abs(e.clientX - dragStartX) < DRAG_THRESHOLD) return;
-        pending = false;
-        dragging = true;
-        lockScroll = true;
-        scrubber.setPointerCapture(pendingPid);
-      }
-      if (!dragging) return;
-      applyStep(dragStartStep - (e.clientX - dragStartX) / _CEV_PX_PER_STEP);
-    });
-
-    scrubber.addEventListener('touchmove', e => { if (dragging || lockScroll) e.preventDefault(); }, { passive: false });
-    scrubber.addEventListener('touchend', () => { lockScroll = false; });
-    scrubber.addEventListener('touchcancel', () => { lockScroll = false; });
-
-    const endDrag = () => {
-      if (pending) { pending = false; return; }
-      if (!dragging) return;
-      dragging = false;
-      if (step !== dragStartStep) { history.push(dragStartStep); syncUndoBtn(); }
-    };
-    scrubber.addEventListener('pointerup', endDrag);
-    scrubber.addEventListener('pointercancel', endDrag);
-  });
-}
-
-function _syncGearScrubbers() {
-  document.querySelectorAll('#gearModal .cev-scrubber').forEach(scrubber => {
-    if (!scrubber._cevApplyStep || !scrubber._cevDef) return;
-    const input = document.getElementById(scrubber._cevDef.inputId);
-    const step = scrubber._cevDef.toStep(input?.value);
-    scrubber._cevApplyStep(step);
-  });
-}
+function _initGearScrubbers() { _initScrubbers('#gearModal', _GEAR_SCRUBBER_DEFS); }
+function _syncGearScrubbers() { _syncScrubbers('#gearModal', _GEAR_SCRUBBER_DEFS); }
 
 function openGearModal(editId) {
   const modal = document.getElementById('gearModal');
@@ -34368,61 +34333,8 @@ const _FUEL_SCRUBBER_DEFS = {
   },
 };
 
-let _fuelScrubbersInited = false;
-function _initFuelScrubbers() {
-  if (_fuelScrubbersInited) return;
-  _fuelScrubbersInited = true;
-  document.querySelectorAll('#fuelPlanSheet .cev-scrubber').forEach(scrubber => {
-    const metric = scrubber.dataset.metric;
-    const def = _FUEL_SCRUBBER_DEFS[metric];
-    if (!def) return;
-    const input = document.getElementById(def.inputId);
-    const ruler = scrubber.querySelector('.cev-scrubber-ruler');
-    const valueEl = scrubber.querySelector('.cev-scrubber-value');
-    const unitEl = scrubber.querySelector('.cev-scrubber-unit');
-    const undoBtn = scrubber.closest('.cev-target-card')?.querySelector('.cev-undo-btn');
-    let ticks = '';
-    for (let i = -200; i <= 200; i++) ticks += `<div class="cev-tick${i % 5 === 0 ? ' cev-tick--major' : ''}"></div>`;
-    ruler.innerHTML = ticks;
-    let step = 0, history = [], dragStartX = 0, dragStartStep = 0, dragging = false;
-    function applyStep(s) {
-      step = Math.max(def.min, Math.min(def.max, Math.round(s)));
-      const trackW = scrubber.querySelector('.cev-scrubber-track').clientWidth || 80;
-      ruler.style.transform = `translateX(${trackW / 2 - step * _CEV_PX_PER_STEP}px)`;
-      const d = def.display(step);
-      valueEl.textContent = d.text;
-      valueEl.classList.toggle('is-zero', d.zero);
-      if (unitEl && d.unit !== undefined) unitEl.textContent = d.unit;
-      if (d.color !== undefined) valueEl.style.color = d.color;
-      input.value = def.fromStep(step);
-    }
-    function syncUndoBtn() { if (undoBtn) undoBtn.style.display = history.length > 0 ? '' : 'none'; }
-    scrubber._cevApplyStep = (s) => { applyStep(s); history = []; syncUndoBtn(); };
-    scrubber._cevDef = def;
-    if (undoBtn) undoBtn.addEventListener('click', e => { e.stopPropagation(); if (!history.length) return; applyStep(history.pop()); syncUndoBtn(); });
-    let pending = false, pendingPid = 0, lockScroll = false;
-    scrubber.style.setProperty('touch-action', 'pan-y', 'important');
-    scrubber.addEventListener('pointerdown', e => { if (e.button > 0) return; dragStartX = e.clientX; dragStartStep = step; pending = true; pendingPid = e.pointerId; });
-    scrubber.addEventListener('pointermove', e => {
-      if (pending) { if (Math.abs(e.clientX - dragStartX) < 10) return; pending = false; dragging = true; lockScroll = true; scrubber.setPointerCapture(pendingPid); }
-      if (!dragging) return;
-      applyStep(dragStartStep - (e.clientX - dragStartX) / _CEV_PX_PER_STEP);
-    });
-    scrubber.addEventListener('touchmove', e => { if (dragging || lockScroll) e.preventDefault(); }, { passive: false });
-    scrubber.addEventListener('touchend', () => { lockScroll = false; });
-    scrubber.addEventListener('touchcancel', () => { lockScroll = false; });
-    const endDrag = () => { if (pending) { pending = false; return; } if (!dragging) return; dragging = false; if (step !== dragStartStep) { history.push(dragStartStep); syncUndoBtn(); } };
-    scrubber.addEventListener('pointerup', endDrag);
-    scrubber.addEventListener('pointercancel', endDrag);
-  });
-}
-function _syncFuelScrubbers() {
-  document.querySelectorAll('#fuelPlanSheet .cev-scrubber').forEach(scrubber => {
-    if (!scrubber._cevApplyStep || !scrubber._cevDef) return;
-    const input = document.getElementById(scrubber._cevDef.inputId);
-    scrubber._cevApplyStep(scrubber._cevDef.toStep(input?.value));
-  });
-}
+function _initFuelScrubbers() { _initScrubbers('#fuelPlanSheet', _FUEL_SCRUBBER_DEFS); }
+function _syncFuelScrubbers() { _syncScrubbers('#fuelPlanSheet', _FUEL_SCRUBBER_DEFS); }
 
 function openFuelPlanSheet(ev) {
   const wi = document.getElementById('fuelWeight'); if (wi && !wi.value) { const w = state.athlete?.weight || localStorage.getItem('icu_athlete_weight'); if (w) wi.value = Math.round(parseFloat(w)); }
@@ -34482,61 +34394,8 @@ const _TAPER_SCRUBBER_DEFS = {
     }
   },
 };
-let _taperScrubbersInited = false;
-function _initTaperScrubbers() {
-  if (_taperScrubbersInited) return;
-  _taperScrubbersInited = true;
-  document.querySelectorAll('#taperWizardSheet .cev-scrubber').forEach(scrubber => {
-    const metric = scrubber.dataset.metric;
-    const def = _TAPER_SCRUBBER_DEFS[metric];
-    if (!def) return;
-    const input = document.getElementById(def.inputId);
-    const ruler = scrubber.querySelector('.cev-scrubber-ruler');
-    const valueEl = scrubber.querySelector('.cev-scrubber-value');
-    const unitEl = scrubber.querySelector('.cev-scrubber-unit');
-    const undoBtn = scrubber.closest('.cev-target-card')?.querySelector('.cev-undo-btn');
-    let ticks = '';
-    for (let i = -200; i <= 200; i++) ticks += `<div class="cev-tick${i % 5 === 0 ? ' cev-tick--major' : ''}"></div>`;
-    ruler.innerHTML = ticks;
-    let step = 0, history = [], dragStartX = 0, dragStartStep = 0, dragging = false;
-    function applyStep(s) {
-      step = Math.max(def.min, Math.min(def.max, Math.round(s)));
-      const trackW = scrubber.querySelector('.cev-scrubber-track').clientWidth || 80;
-      ruler.style.transform = `translateX(${trackW / 2 - step * _CEV_PX_PER_STEP}px)`;
-      const d = def.display(step);
-      valueEl.textContent = d.text;
-      valueEl.classList.toggle('is-zero', d.zero);
-      if (unitEl && d.unit !== undefined) unitEl.textContent = d.unit;
-      if (d.color !== undefined) valueEl.style.color = d.color;
-      input.value = def.fromStep(step);
-    }
-    function syncUndoBtn() { if (undoBtn) undoBtn.style.display = history.length > 0 ? '' : 'none'; }
-    scrubber._cevApplyStep = (s) => { applyStep(s); history = []; syncUndoBtn(); };
-    scrubber._cevDef = def;
-    if (undoBtn) undoBtn.addEventListener('click', e => { e.stopPropagation(); if (!history.length) return; applyStep(history.pop()); syncUndoBtn(); });
-    let pending = false, pendingPid = 0, lockScroll = false;
-    scrubber.style.setProperty('touch-action', 'pan-y', 'important');
-    scrubber.addEventListener('pointerdown', e => { if (e.button > 0) return; dragStartX = e.clientX; dragStartStep = step; pending = true; pendingPid = e.pointerId; });
-    scrubber.addEventListener('pointermove', e => {
-      if (pending) { if (Math.abs(e.clientX - dragStartX) < 10) return; pending = false; dragging = true; lockScroll = true; scrubber.setPointerCapture(pendingPid); }
-      if (!dragging) return;
-      applyStep(dragStartStep - (e.clientX - dragStartX) / _CEV_PX_PER_STEP);
-    });
-    scrubber.addEventListener('touchmove', e => { if (dragging || lockScroll) e.preventDefault(); }, { passive: false });
-    scrubber.addEventListener('touchend', () => { lockScroll = false; });
-    scrubber.addEventListener('touchcancel', () => { lockScroll = false; });
-    const endDrag = () => { if (pending) { pending = false; return; } if (!dragging) return; dragging = false; if (step !== dragStartStep) { history.push(dragStartStep); syncUndoBtn(); } };
-    scrubber.addEventListener('pointerup', endDrag);
-    scrubber.addEventListener('pointercancel', endDrag);
-  });
-}
-function _syncTaperScrubbers() {
-  document.querySelectorAll('#taperWizardSheet .cev-scrubber').forEach(scrubber => {
-    if (!scrubber._cevApplyStep || !scrubber._cevDef) return;
-    const input = document.getElementById(scrubber._cevDef.inputId);
-    scrubber._cevApplyStep(scrubber._cevDef.toStep(input?.value));
-  });
-}
+function _initTaperScrubbers() { _initScrubbers('#taperWizardSheet', _TAPER_SCRUBBER_DEFS); }
+function _syncTaperScrubbers() { _syncScrubbers('#taperWizardSheet', _TAPER_SCRUBBER_DEFS); }
 
 function openTaperWizard(rd) { const ci = document.getElementById('taperCTL'); if (ci && state.fitness?.ctl) ci.value = Math.round(state.fitness.ctl); if (rd) { const d = document.getElementById('taperRaceDate'); if (d) d.value = rd; } const s1 = document.getElementById('taperStep1'), s2 = document.getElementById('taperStep2'); if (s1) s1.style.display = ''; if (s2) s2.style.display = 'none'; _openOverlaySheet('taperWizardSheet'); _gearHookDatePickers(document.getElementById('taperWizardSheet')); _initTaperScrubbers(); _syncTaperScrubbers(); }
 function _closeTaperWizard() { _closeOverlaySheet('taperWizardSheet'); }

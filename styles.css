@@ -21732,50 +21732,40 @@ body:has(.act-sheet-mode) .topbar {
     min-width: 0;
     overflow: hidden;
 }
-/* Gear scrubbers: overlay layout — value + track stacked in same space */
-.gear-form-grid .cev-target-card {
-    display: grid;
-    grid-template: 1fr / 1fr;
-    min-height: 48px;
-    padding: 0;
-    overflow: visible;
+/* Scrubber overlay layout — shared by gear, fuel, taper forms */
+.gear-form-grid .cev-target-card,
+.fuel-form-section .cev-target-card,
+.taper-form-section .cev-target-card {
+    display: grid; grid-template: 1fr / 1fr; min-height: 48px; padding: 0; overflow: visible;
 }
-.gear-form-grid .cev-target-card > * {
-    grid-area: 1 / 1;
+.gear-form-grid .cev-target-card > *,
+.fuel-form-section .cev-target-card > *,
+.taper-form-section .cev-target-card > * { grid-area: 1 / 1; }
+.gear-form-grid .cev-scrubber,
+.fuel-form-section .cev-scrubber,
+.taper-form-section .cev-scrubber {
+    display: grid; grid-template: 1fr / 1fr; align-items: center;
 }
-.gear-form-grid .cev-scrubber {
-    display: grid;
-    grid-template: 1fr / 1fr;
-    align-items: center;
+.gear-form-grid .cev-scrubber > *,
+.fuel-form-section .cev-scrubber > *,
+.taper-form-section .cev-scrubber > * { grid-area: 1 / 1; }
+.gear-form-grid .cev-scrubber-value-row,
+.fuel-form-section .cev-scrubber-value-row,
+.taper-form-section .cev-scrubber-value-row {
+    z-index: 2; pointer-events: none; padding-left: 12px; display: flex; align-items: center; gap: 4px;
 }
-.gear-form-grid .cev-scrubber > * {
-    grid-area: 1 / 1;
+.gear-form-grid .cev-scrubber-value,
+.fuel-form-section .cev-scrubber-value,
+.taper-form-section .cev-scrubber-value {
+    font-size: 22px; line-height: 1; min-height: 0; display: flex; align-items: center;
 }
-.gear-form-grid .cev-scrubber-value-row {
-    z-index: 2;
-    pointer-events: none;
-    padding-left: 12px;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-.gear-form-grid .cev-scrubber-value {
-    font-size: 22px;
-    line-height: 1;
-    min-height: 0;
-    display: flex;
-    align-items: center;
-}
-.gear-form-grid .cev-scrubber-track {
-    height: 48px;
-    border-radius: 12px;
-}
-.gear-form-grid .cev-undo-btn {
-    z-index: 3;
-    justify-self: end;
-    align-self: center;
-    margin-right: 8px;
-    position: static;
+.gear-form-grid .cev-scrubber-track,
+.fuel-form-section .cev-scrubber-track,
+.taper-form-section .cev-scrubber-track { height: 48px; border-radius: 12px; }
+.gear-form-grid .cev-undo-btn,
+.fuel-form-section .cev-undo-btn,
+.taper-form-section .cev-undo-btn {
+    z-index: 3; justify-self: end; align-self: center; margin-right: 8px; position: static;
 }
 
 /* ── Manual backdrop for mobile sheets (replaces ::backdrop) ── */
@@ -29578,34 +29568,7 @@ html[data-theme="tdf"] {
 .fuel-toggle{display:flex;align-items:center;gap:6px;background:var(--surface-1);border-radius:20px;padding:6px 14px;font-size:13px;cursor:pointer;border:1px solid rgba(255,255,255,0.08);transition:all .15s}
 .fuel-toggle:has(input:checked){background:rgba(0,229,160,0.15);border-color:var(--accent);color:var(--accent)}
 .fuel-toggle input{display:none}
-/* Fuel plan scrubbers: same overlay pattern as gear form */
-.fuel-form-section .cev-target-card {
-    display: grid;
-    grid-template: 1fr / 1fr;
-    min-height: 48px;
-    padding: 0;
-    overflow: visible;
-}
-.fuel-form-section .cev-target-card > * { grid-area: 1 / 1; }
-.fuel-form-section .cev-scrubber {
-    display: grid;
-    grid-template: 1fr / 1fr;
-    align-items: center;
-}
-.fuel-form-section .cev-scrubber > * { grid-area: 1 / 1; }
-.fuel-form-section .cev-scrubber-value-row {
-    z-index: 2; pointer-events: none; padding-left: 12px;
-    display: flex; align-items: center; gap: 4px;
-}
-.fuel-form-section .cev-scrubber-value {
-    font-size: 22px; line-height: 1; min-height: 0;
-    display: flex; align-items: center;
-}
-.fuel-form-section .cev-scrubber-track { height: 48px; border-radius: 12px; }
-.fuel-form-section .cev-undo-btn {
-    z-index: 3; justify-self: end; align-self: center;
-    margin-right: 8px; position: static;
-}
+/* Fuel/taper scrubber overrides now shared via gear-form-grid block above */
 .fuel-generate-btn{width:100%;padding:14px;background:var(--accent);color:#000;font-weight:700;font-size:15px;border:none;border-radius:var(--radius-sm);cursor:pointer;margin-top:8px}
 .fuel-summary{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
 .fuel-summary-card{background:var(--surface-1);border-radius:var(--radius-sm);padding:12px;text-align:center}
@@ -29629,15 +29592,7 @@ html[data-theme="tdf"] {
 .taper-form-section{margin-bottom:16px}
 .taper-label{display:block;font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
 .taper-input,.taper-select{width:100%;background:var(--surface-1);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);padding:10px 12px;color:var(--text-primary);font-size:16px}
-/* Taper scrubbers: overlay layout */
-.taper-form-section .cev-target-card{display:grid;grid-template:1fr/1fr;min-height:48px;padding:0;overflow:visible}
-.taper-form-section .cev-target-card>*{grid-area:1/1}
-.taper-form-section .cev-scrubber{display:grid;grid-template:1fr/1fr;align-items:center}
-.taper-form-section .cev-scrubber>*{grid-area:1/1}
-.taper-form-section .cev-scrubber-value-row{z-index:2;pointer-events:none;padding-left:12px;display:flex;align-items:center;gap:4px}
-.taper-form-section .cev-scrubber-value{font-size:22px;line-height:1;min-height:0;display:flex;align-items:center}
-.taper-form-section .cev-scrubber-track{height:48px;border-radius:12px}
-.taper-form-section .cev-undo-btn{z-index:3;justify-self:end;align-self:center;margin-right:8px;position:static}
+/* Taper scrubber overrides now shared via gear-form-grid block above */
 .taper-gen-btn{width:100%;padding:14px;background:var(--accent);color:#000;font-weight:700;font-size:15px;border:none;border-radius:var(--radius-sm);cursor:pointer;margin-top:8px}
 .taper-projection{background:var(--surface-1);border-radius:var(--radius);padding:16px;margin-bottom:16px}
 .taper-proj-title{font-size:13px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
