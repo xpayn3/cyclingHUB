@@ -36750,7 +36750,11 @@ function _perfMonLoop(ts) {
     if (domEl) {
       const total = document.querySelectorAll('*').length;
       domEl.textContent = total.toLocaleString();
-      domEl.title = _devDOMBreakdown();
+      // Log breakdown every 10 seconds
+      if (!window._lastDomLog || ts - window._lastDomLog > 10000) {
+        window._lastDomLog = ts;
+        console.info('DOM breakdown: ' + _devDOMBreakdown());
+      }
     }
     if (chartsEl) chartsEl.textContent = Object.values(Chart.instances || {}).length;
     if (storageEl) {
