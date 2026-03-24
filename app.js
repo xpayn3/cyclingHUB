@@ -5584,12 +5584,14 @@ async function renderRecentActCardMap(a, idx, idPrefix = 'recentActCard', mapSto
     bearing = Math.min(ratio * 18, 70);
   }
 
+  const pitch = 40; // cinematic tilt
   const map = new maplibregl.Map({
     container: mapEl,
     style: _mlGetStyle(loadMapTheme()),
     bounds: [[minLng, minLat], [maxLng, maxLat]],
-    fitBoundsOptions: { padding: 20, bearing },
+    fitBoundsOptions: { padding: { top: 30, bottom: 10, left: 20, right: 20 }, bearing, pitch },
     interactive: false,
+    pitch,
     attributionControl: false,
     fadeDuration: 0,
     renderWorldCopies: false,
