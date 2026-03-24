@@ -29065,46 +29065,57 @@ async function _syncBatteryFromLastRide() {
   const acts = state.activities || [];
   if (!acts.length) return;
 
-  // Find most recent cycling activity
-  const lastRide = acts.find(a => {
+  // Find last 2 cycling activities
+  const rides = [];
+  for (const a of acts) {
     const t = (a.type || '').toLowerCase();
-    return t.includes('ride') || t.includes('cycling');
-  });
-  if (!lastRide) return;
-
-  // Check if we already extracted from this activity
-  const lastExtracted = localStorage.getItem('icu_bat_last_fit_id');
-  if (lastExtracted === lastRide.id) return;
-
-  console.log('Extracting battery info from FIT:', lastRide.id);
-  const devices = await _extractBatteryFromFIT(lastRide.id);
-  if (!devices || !devices.length) {
-    localStorage.setItem('icu_bat_last_fit_id', lastRide.id);
-    return;
+    if (t.includes('ride') || t.includes('cycling')) rides.push(a);
+    if (rides.length >= 2) break;
   }
+  if (!rides.length) return;
 
-  // Store raw device battery readings
-  const readings = devices
-    .filter(d => d.voltage || d.batStatus)
-    .map(d => ({
-      voltage: d.voltage,
-      status: _batStatusText(d.batStatus),
-      percent: _voltageToPercent(d.voltage, d.voltage > 2.5 ? 'rechargeable' : 'coin_cell'),
-      manufacturer: _FIT_MFR[d.manufacturer] || d.manufacturer,
-      product: d.product,
-      deviceType: d.deviceType,
-      activityId: lastRide.id,
-      date: (lastRide.start_date_local || lastRide.start_date || '').slice(0, 10),
-    }));
+  // Check if we already extracted from the most recent
+  const lastExtracted = localStorage.getItem('icu_bat_last_fit_id');
+  if (lastExtracted === rides[0].id) return;
 
-  if (readings.length) {
+  // Extract from both rides in parallel
+  const allReadings = [];
+  const extractions = rides.map(async ride => {
+    console.log('Extracting battery info from FIT:', ride.id);
+    const devices = await _extractBatteryFromFIT(ride.id);
+    if (!devices || !devices.length) return;
+    const readings = devices
+      .filter(d => d.voltage || d.batStatus)
+      .map(d => ({
+        voltage: d.voltage,
+        status: _batStatusText(d.batStatus),
+        percent: _voltageToPercent(d.voltage, d.voltage > 2.5 ? 'rechargeable' : 'coin_cell'),
+        manufacturer: _FIT_MFR[d.manufacturer] || d.manufacturer,
+        product: d.product,
+        deviceType: d.deviceType,
+        activityId: ride.id,
+        date: (ride.start_date_local || ride.start_date || '').slice(0, 10),
+      }));
+    allReadings.push(...readings);
+  });
+  await Promise.all(extractions);
+
+  if (allReadings.length) {
+    // Deduplicate: keep most recent reading per manufacturer+product combo
+    const best = new Map();
+    for (const r of allReadings) {
+      const key = `${r.manufacturer}_${r.product}_${r.deviceType}`;
+      const existing = best.get(key);
+      if (!existing || r.date > existing.date) best.set(key, r);
+    }
+    const merged = [...best.values()];
     try {
-      localStorage.setItem('icu_bat_fit_readings', JSON.stringify(readings));
-      console.log('Battery readings from FIT:', readings);
+      localStorage.setItem('icu_bat_fit_readings', JSON.stringify(merged));
+      console.log('Battery readings from FIT:', merged);
     } catch (e) {}
   }
 
-  localStorage.setItem('icu_bat_last_fit_id', lastRide.id);
+  localStorage.setItem('icu_bat_last_fit_id', rides[0].id);
 }
 
 /* ── Charge calculation ── */
