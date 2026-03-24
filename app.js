@@ -2190,39 +2190,19 @@ function _peerDeviceName() {
   return 'Browser';
 }
 
-function _peerDeviceHash() {
-  const name = _peerDeviceName();
-  // Simple stable hash per device type (3 chars)
-  const codes = { iPhone: 'iPh', iPad: 'iPd', Android: 'And', Mac: 'Mac', Windows: 'Win', Linux: 'Lnx', Browser: 'Brw' };
-  const base = codes[name] || 'Unk';
-  // Add screen dimension to differentiate multiple same-type devices
-  const scr = String(screen.width ^ screen.height).slice(-2);
-  return base + scr;
-}
-
 function _peerMakeId() {
   const aid = (state.athleteId || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 8);
   if (!aid) return null;
-  return `CIQ-${aid}-${_peerDeviceHash()}`;
+  const device = _peerDeviceName(); // iPhone, Windows, Mac, etc.
+  return `CIQ-${aid}-${device}`;
 }
 
 function _peerCandidateIds() {
   const aid = (state.athleteId || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 8);
   if (!aid) return [];
   const myId = _peerMakeId();
-  // Only try exact device type + common screen combos for the most likely devices
-  const bases = ['iPh', 'iPd', 'And', 'Mac', 'Win', 'Lnx'];
-  // Use most common screen XOR last-2-digits across popular devices
-  const screens = new Set(['12', '32', '52', '68', '80', '20', '40', '56', '76', '48', '00', '96',
-    String(screen.width ^ screen.height).slice(-2)]);
-  const ids = [];
-  for (const b of bases) {
-    for (const s of screens) {
-      const id = `CIQ-${aid}-${b}${s}`;
-      if (id !== myId) ids.push(id);
-    }
-  }
-  return ids;
+  const devices = ['iPhone', 'iPad', 'Android', 'Mac', 'Windows', 'Linux', 'Browser'];
+  return devices.map(d => `CIQ-${aid}-${d}`).filter(id => id !== myId);
 }
 
 /* ── P2P Toggle: ON/OFF ── */
