@@ -2209,20 +2209,20 @@ function _peerMakeId() {
 function _peerCandidateIds() {
   const aid = (state.athleteId || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 8);
   if (!aid) return [];
-  const myHash = _peerDeviceHash();
-  // Generate candidates for all known device types + screen combos
-  const bases = ['iPh', 'iPd', 'And', 'Mac', 'Win', 'Lnx', 'Brw'];
-  const screens = ['00', '10', '20', '30', '40', '50', '60', '70', '80', '90',
-    String(screen.width ^ screen.height).slice(-2)];
+  const myId = _peerMakeId();
+  // Only try exact device type + common screen combos for the most likely devices
+  const bases = ['iPh', 'iPd', 'And', 'Mac', 'Win', 'Lnx'];
+  // Use most common screen XOR last-2-digits across popular devices
+  const screens = new Set(['12', '32', '52', '68', '80', '20', '40', '56', '76', '48', '00', '96',
+    String(screen.width ^ screen.height).slice(-2)]);
   const ids = [];
   for (const b of bases) {
     for (const s of screens) {
-      const h = b + s;
-      if (h !== myHash) ids.push(`CIQ-${aid}-${h}`);
+      const id = `CIQ-${aid}-${b}${s}`;
+      if (id !== myId) ids.push(id);
     }
   }
-  // Deduplicate
-  return [...new Set(ids)];
+  return ids;
 }
 
 /* ── P2P Toggle: ON/OFF ── */
@@ -2258,13 +2258,16 @@ function _peerToggle(on) {
       _peerHandleDiscovery(conn);
     });
     _peerInstance.on('error', e => {
-      _peerLog('Peer error: ' + (e.type || e.message), 'error');
+      // peer-unavailable is expected during discovery scans — don't log as error
+      if (e.type === 'peer-unavailable') return;
+      if (e.type === 'network') { _peerLog('Network error — check connection', 'warn'); return; }
       if (e.type === 'unavailable-id') {
-        // ID conflict — rare, append random suffix
         _peerDestroyInstance();
         _peerLog('ID taken — retrying...', 'warn');
         setTimeout(() => _peerToggle(true), 1500);
+        return;
       }
+      _peerLog('Peer error: ' + (e.type || e.message), 'error');
     });
   } else {
     // Turn OFF
@@ -2287,34 +2290,44 @@ window._peerToggle = _peerToggle;
 function _peerDiscoverDevices() {
   if (!_peerInstance || _peerInstance.destroyed || !_peerInstance.open) return;
   if (_peerConn && _peerConn.open) return; // already connected, skip discovery
-  const candidates = _peerCandidateIds();
-  _peerLog('Scanning for ' + candidates.length + ' devices...');
-  for (const cid of candidates) {
-    if (_peerDiscoveredDevices[cid]) continue; // already found
-    const conn = _peerInstance.connect(cid, { ordered: true });
-    const timeout = setTimeout(() => { try { conn.close(); } catch {} }, 4000);
-    conn.on('open', () => {
-      clearTimeout(timeout);
-      conn.send({ type: 'discover', name: _peerDeviceName() });
-      // Wait for their discover response
-      conn.on('data', data => {
-        if (data?.type === 'discover_ack') {
-          _peerDiscoveredDevices[cid] = { name: data.name, conn };
-          _peerLog('Found device: ' + data.name + ' (' + cid + ')');
-          _peerRenderDevices(null);
-        } else if (data?.type === 'pair_accept') {
-          _peerHandlePairAccept(conn, data);
-        } else if (data?.type === 'pair_decline') {
-          showToast((data.name || 'Peer') + ' declined pairing', 'info');
-        }
-      });
-      conn.on('close', () => {
-        delete _peerDiscoveredDevices[cid];
-        _peerRenderDevices(null);
-      });
-    });
-    conn.on('error', () => { clearTimeout(timeout); });
-  }
+  const candidates = _peerCandidateIds().filter(c => !_peerDiscoveredDevices[c]);
+  if (!candidates.length) return;
+  _peerLog('Scanning ' + candidates.length + ' candidates...');
+
+  // Batch: try 3 at a time with 800ms gaps to avoid flooding PeerJS
+  let idx = 0;
+  const _batch = () => {
+    if (!_peerInstance || _peerInstance.destroyed || (_peerConn && _peerConn.open)) return;
+    const batch = candidates.slice(idx, idx + 3);
+    if (!batch.length) return;
+    idx += 3;
+    for (const cid of batch) {
+      if (_peerDiscoveredDevices[cid]) continue;
+      try {
+        const conn = _peerInstance.connect(cid, { ordered: true });
+        const timeout = setTimeout(() => { try { conn.close(); } catch {} }, 5000);
+        conn.on('open', () => {
+          clearTimeout(timeout);
+          conn.send({ type: 'discover', name: _peerDeviceName() });
+          conn.on('data', data => {
+            if (data?.type === 'discover_ack') {
+              _peerDiscoveredDevices[cid] = { name: data.name, conn };
+              _peerLog('Found: ' + data.name);
+              _peerRenderDevices(null);
+            } else if (data?.type === 'pair_accept') {
+              _peerHandlePairAccept(conn, data);
+            } else if (data?.type === 'pair_decline') {
+              showToast((data.name || 'Peer') + ' declined', 'info');
+            }
+          });
+          conn.on('close', () => { delete _peerDiscoveredDevices[cid]; _peerRenderDevices(null); });
+        });
+        conn.on('error', () => clearTimeout(timeout));
+      } catch {}
+    }
+    if (idx < candidates.length) setTimeout(_batch, 800);
+  };
+  _batch();
 }
 
 /* ── Handle incoming discovery connections ── */
