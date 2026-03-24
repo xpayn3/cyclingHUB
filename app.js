@@ -22579,29 +22579,32 @@ async function renderDetailDynamics(a) {
     const lColor = avgLPco !== null && Math.abs(avgLPco) <= 5 ? 'var(--accent)' : avgLPco !== null && Math.abs(avgLPco) <= 8 ? C_YELLOW : 'var(--red)';
     const rColor = avgRPco !== null && Math.abs(avgRPco) <= 5 ? 'var(--accent)' : avgRPco !== null && Math.abs(avgRPco) <= 8 ? C_YELLOW : 'var(--red)';
 
-    // SVG pedal graphic — offset line shows where foot sits relative to center
-    // Pedal width represents ±15mm range, center at x=60
+    // SVG pedal graphic — viewed from above while riding
+    // Left pedal: + outboard (left), − inboard (right towards frame)
+    // Right pedal: − inboard (left towards frame), + outboard (right)
+    // Positive PCO = foot shifted outboard
     const pedalSVG = (offset, side) => {
       const clamp = Math.max(-15, Math.min(15, offset || 0));
-      const cx = 60; // center of pedal
-      const lineX = cx + (clamp / 15) * 30; // scale to SVG coords
+      const cx = 60;
       const isLeft = side === 'left';
-      // Mirror +/- labels for left pedal (+ is outboard = left side)
-      const plusSide = isLeft ? 'left' : 'right';
+      // For left pedal: positive offset = outboard = move line LEFT (negative X)
+      // For right pedal: positive offset = outboard = move line RIGHT (positive X)
+      const lineX = cx + (isLeft ? -1 : 1) * (clamp / 15) * 30;
+      const col = isLeft ? lColor : rColor;
       return `<svg viewBox="0 0 120 100" width="140" height="120" style="display:block;margin:0 auto">
-        <!-- +/- labels -->
+        <!-- +/- labels: + always on outboard side -->
         <text x="12" y="14" fill="var(--text-faint)" font-size="12" font-weight="600">${isLeft ? '+' : '−'}</text>
-        <text x="104" y="14" fill="var(--text-faint)" font-size="12" font-weight="600" text-anchor="end">${isLeft ? '−' : '+'}</text>
+        <text x="108" y="14" fill="var(--text-faint)" font-size="12" font-weight="600" text-anchor="end">${isLeft ? '−' : '+'}</text>
         <!-- Pedal body -->
         <rect x="18" y="20" width="84" height="55" rx="8" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
         <!-- Cleat area -->
         <rect x="35" y="30" width="50" height="35" rx="4" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>
-        <!-- Spindle -->
+        <!-- Spindle (centered bottom) -->
         <rect x="56" y="75" width="8" height="12" rx="2" fill="rgba(255,255,255,0.12)"/>
-        <!-- Center reference (dashed) -->
+        <!-- Center reference (dashed grey) -->
         <line x1="${cx}" y1="22" x2="${cx}" y2="73" stroke="rgba(255,255,255,0.2)" stroke-width="1" stroke-dasharray="3,3"/>
         <!-- Average offset line (solid, colored) -->
-        <line x1="${lineX}" y1="22" x2="${lineX}" y2="73" stroke="${isLeft ? lColor : rColor}" stroke-width="2.5"/>
+        <line x1="${lineX}" y1="22" x2="${lineX}" y2="73" stroke="${col}" stroke-width="2.5"/>
       </svg>`;
     };
 
