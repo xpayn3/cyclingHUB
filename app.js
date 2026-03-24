@@ -1547,11 +1547,17 @@ function openSettingsSubpage(id) {
   if (id === 'navigation' && typeof renderNavSettings === 'function') renderNavSettings();
   if (id === 'accentcolor') setTimeout(() => openAccentColorPicker(), 350);
   if (id === 'sync') {
+    // Restore P2P toggle state
+    const p2pOn = localStorage.getItem('icu_p2p_enabled') === 'true';
+    const p2pCb = document.getElementById('syncP2pToggle');
+    if (p2pCb) p2pCb.checked = p2pOn;
+    const content = document.getElementById('syncP2pContent');
+    if (content) content.style.display = p2pOn ? '' : 'none';
     _peerRenderDevices((_peerConn && _peerConn.open) ? _peerRemoteName : null);
     // Restore sync category toggles
     const toggles = _syncGetToggles();
     document.querySelectorAll('#iosSubpage-sync [data-sync-key]').forEach(cb => {
-      cb.checked = toggles[cb.dataset.syncKey] !== false; // default ON
+      cb.checked = toggles[cb.dataset.syncKey] !== false;
     });
   }
   if (id === 'apptheme' || id === 'maptheme') _syncThemePicker();
@@ -2129,9 +2135,11 @@ let _peerMyId = '';
 let _peerRemoteId = '';
 let _peerReconnecting = false;
 let _peerManualDisconnect = false;
-let _peerAutoStarting = false; // guard against auto-start + manual conflicts
-let _peerReconnectTimer = null; // single reconnect timer (prevents cascading)
-let _peerRemoteName = ''; // cached peer device name for re-rendering
+let _peerAutoStarting = false;
+let _peerReconnectTimer = null;
+let _peerRemoteName = '';
+let _peerDiscoverTimer = null; // periodic discovery scan timer
+let _peerDiscoveredDevices = {}; // { peerId: { name, conn } }
 
 function _peerLog(msg, level) {
   const ts = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -2182,6 +2190,209 @@ function _peerDeviceName() {
   return 'Browser';
 }
 
+function _peerDeviceHash() {
+  const name = _peerDeviceName();
+  // Simple stable hash per device type (3 chars)
+  const codes = { iPhone: 'iPh', iPad: 'iPd', Android: 'And', Mac: 'Mac', Windows: 'Win', Linux: 'Lnx', Browser: 'Brw' };
+  const base = codes[name] || 'Unk';
+  // Add screen dimension to differentiate multiple same-type devices
+  const scr = String(screen.width ^ screen.height).slice(-2);
+  return base + scr;
+}
+
+function _peerMakeId() {
+  const aid = (state.athleteId || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 8);
+  if (!aid) return null;
+  return `CIQ-${aid}-${_peerDeviceHash()}`;
+}
+
+function _peerCandidateIds() {
+  const aid = (state.athleteId || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 8);
+  if (!aid) return [];
+  const myHash = _peerDeviceHash();
+  // Generate candidates for all known device types + screen combos
+  const bases = ['iPh', 'iPd', 'And', 'Mac', 'Win', 'Lnx', 'Brw'];
+  const screens = ['00', '10', '20', '30', '40', '50', '60', '70', '80', '90',
+    String(screen.width ^ screen.height).slice(-2)];
+  const ids = [];
+  for (const b of bases) {
+    for (const s of screens) {
+      const h = b + s;
+      if (h !== myHash) ids.push(`CIQ-${aid}-${h}`);
+    }
+  }
+  // Deduplicate
+  return [...new Set(ids)];
+}
+
+/* ── P2P Toggle: ON/OFF ── */
+function _peerToggle(on) {
+  localStorage.setItem('icu_p2p_enabled', on ? 'true' : 'false');
+  const content = document.getElementById('syncP2pContent');
+  if (content) content.style.display = on ? '' : 'none';
+
+  if (on) {
+    if (!state.athleteId) { showToast('Log in first to use P2P sync', 'error'); return; }
+    const myId = _peerMakeId();
+    if (!myId) { showToast('No athlete ID — log in first', 'error'); return; }
+    _peerDestroyInstance();
+    _peerManualDisconnect = false;
+    _peerMyId = myId;
+    _peerDiscoveredDevices = {};
+
+    if (typeof Peer === 'undefined') {
+      showToast('PeerJS not loaded — check your connection', 'error');
+      return;
+    }
+    _peerInstance = new Peer(myId, _peerOpts);
+    _peerInstance.on('open', id => {
+      _peerMyId = id;
+      _peerLog('Registered as: ' + id);
+      _peerUpdateUI('ready', id);
+      _peerRenderDevices(null);
+      _peerDiscoverDevices(); // initial scan
+      _peerDiscoverTimer = setInterval(_peerDiscoverDevices, 30000); // re-scan every 30s
+    });
+    _peerInstance.on('connection', conn => {
+      _peerLog('Incoming connection from: ' + conn.peer);
+      _peerHandleDiscovery(conn);
+    });
+    _peerInstance.on('error', e => {
+      _peerLog('Peer error: ' + (e.type || e.message), 'error');
+      if (e.type === 'unavailable-id') {
+        // ID conflict — rare, append random suffix
+        _peerDestroyInstance();
+        _peerLog('ID taken — retrying...', 'warn');
+        setTimeout(() => _peerToggle(true), 1500);
+      }
+    });
+  } else {
+    // Turn OFF
+    if (_peerDiscoverTimer) { clearInterval(_peerDiscoverTimer); _peerDiscoverTimer = null; }
+    _peerManualDisconnect = true;
+    _peerDestroyInstance();
+    _peerMyId = '';
+    _peerRemoteId = '';
+    _peerRemoteName = '';
+    _peerDiscoveredDevices = {};
+    localStorage.removeItem('icu_peer_remote');
+    localStorage.removeItem('icu_peer_my_id');
+    _peerUpdateUI('off');
+    _peerRenderDevices(null);
+  }
+}
+window._peerToggle = _peerToggle;
+
+/* ── Discovery: scan for other devices on same account ── */
+function _peerDiscoverDevices() {
+  if (!_peerInstance || _peerInstance.destroyed || !_peerInstance.open) return;
+  if (_peerConn && _peerConn.open) return; // already connected, skip discovery
+  const candidates = _peerCandidateIds();
+  _peerLog('Scanning for ' + candidates.length + ' devices...');
+  for (const cid of candidates) {
+    if (_peerDiscoveredDevices[cid]) continue; // already found
+    const conn = _peerInstance.connect(cid, { ordered: true });
+    const timeout = setTimeout(() => { try { conn.close(); } catch {} }, 4000);
+    conn.on('open', () => {
+      clearTimeout(timeout);
+      conn.send({ type: 'discover', name: _peerDeviceName() });
+      // Wait for their discover response
+      conn.on('data', data => {
+        if (data?.type === 'discover_ack') {
+          _peerDiscoveredDevices[cid] = { name: data.name, conn };
+          _peerLog('Found device: ' + data.name + ' (' + cid + ')');
+          _peerRenderDevices(null);
+        } else if (data?.type === 'pair_accept') {
+          _peerHandlePairAccept(conn, data);
+        } else if (data?.type === 'pair_decline') {
+          showToast((data.name || 'Peer') + ' declined pairing', 'info');
+        }
+      });
+      conn.on('close', () => {
+        delete _peerDiscoveredDevices[cid];
+        _peerRenderDevices(null);
+      });
+    });
+    conn.on('error', () => { clearTimeout(timeout); });
+  }
+}
+
+/* ── Handle incoming discovery connections ── */
+function _peerHandleDiscovery(conn) {
+  conn.on('data', data => {
+    if (data?.type === 'discover') {
+      // Respond with our name
+      conn.send({ type: 'discover_ack', name: _peerDeviceName() });
+      _peerDiscoveredDevices[conn.peer] = { name: data.name, conn };
+      _peerLog('Discovered by: ' + data.name);
+      _peerRenderDevices(null);
+
+      // Listen for pair request
+      conn.on('data', msg => {
+        if (msg?.type === 'pair_request') {
+          _peerShowSyncConfirm({
+            title: 'Pair Request',
+            desc: `${msg.name || data.name} wants to pair with this device for sync.`,
+            btnText: 'Accept', btnColor: 'var(--accent)',
+            sizeBytes: 0, showItemBreakdown: false, keyCount: 0,
+            onApprove: () => {
+              conn.send({ type: 'pair_accept', name: _peerDeviceName() });
+              _peerPromoteToPaired(conn, msg.name || data.name);
+            },
+            onDecline: () => {
+              conn.send({ type: 'pair_decline', name: _peerDeviceName() });
+              _peerLog('Declined pair from ' + data.name);
+            },
+          });
+        }
+      });
+    }
+  });
+  conn.on('close', () => {
+    delete _peerDiscoveredDevices[conn.peer];
+    _peerRenderDevices(null);
+  });
+}
+
+/* ── Pair request (initiated by tapping Pair button) ── */
+function _peerRequestPair(peerId) {
+  const device = _peerDiscoveredDevices[peerId];
+  if (!device || !device.conn || !device.conn.open) {
+    showToast('Device no longer available', 'error');
+    return;
+  }
+  device.conn.send({ type: 'pair_request', name: _peerDeviceName() });
+  _peerLog('Sent pair request to ' + device.name);
+  showToast('Pair request sent to ' + device.name + '...', 'info');
+}
+window._peerRequestPair = _peerRequestPair;
+
+/* ── Accept pairing: promote discovery conn to full paired conn ── */
+function _peerHandlePairAccept(conn, data) {
+  _peerPromoteToPaired(conn, data.name || 'Peer');
+  showToast('Paired with ' + (data.name || 'Peer') + '!', 'success');
+}
+
+function _peerPromoteToPaired(conn, name) {
+  // Stop discovery
+  if (_peerDiscoverTimer) { clearInterval(_peerDiscoverTimer); _peerDiscoverTimer = null; }
+  _peerDiscoveredDevices = {};
+
+  // Set as main connection
+  _peerConn = conn;
+  _peerRemoteId = conn.peer;
+  _peerRemoteName = name;
+  _peerReconnecting = false;
+  localStorage.setItem('icu_peer_remote', _peerRemoteId);
+  localStorage.setItem('icu_peer_my_id', _peerMyId);
+
+  // Attach full data handler
+  _peerHandleConn(conn);
+  _peerUpdateUI('connected');
+  _peerRenderDevices(name);
+  _peerLog('Paired with ' + name);
+}
+
 /* ── Sync category toggles ── */
 const _SYNC_CATEGORIES = {
   gear:        k => k.includes('gear') || k.includes('component') || k.includes('bike_photo'),
@@ -2227,45 +2438,27 @@ function _peerRestoreSnapshot(snapshot) {
 function _peerUpdateUI(status, peerId) {
   const dot = document.querySelector('#syncStatusDot .sync-dot');
   const text = document.getElementById('syncStatusText');
-  const codeEl = document.getElementById('syncRoomCode');
   const label = document.getElementById('syncStatusLabel');
 
-  const isOn = status === 'ready' || status === 'connected' || status === 'connecting';
   const isPeerConnected = status === 'connected';
-  const isHosting = status === 'ready';
-  const isConnecting = status === 'connecting';
+  const isOn = status === 'ready' || isPeerConnected || status === 'connecting';
 
   // Hero status dot + text
   if (dot) {
-    dot.className = 'sync-dot ' + (isPeerConnected ? 'sync-dot--on' : isConnecting ? 'sync-dot--connecting' : isOn ? 'sync-dot--waiting' : 'sync-dot--off');
+    dot.className = 'sync-dot ' + (isPeerConnected ? 'sync-dot--on' : isOn ? 'sync-dot--waiting' : 'sync-dot--off');
   }
   if (text) {
     text.textContent = isPeerConnected ? 'Connected'
-      : isConnecting ? 'Connecting...'
-      : isHosting ? 'Waiting for peer...'
-      : status === 'error' ? 'Connection failed'
-      : 'Not connected';
+      : isOn ? 'Scanning...'
+      : 'Off';
   }
-  if (codeEl) codeEl.textContent = peerId || _peerMyId || '—';
 
   // Settings row label
-  if (label) label.textContent = isPeerConnected ? 'Connected' : isConnecting ? 'Connecting...' : isOn ? 'Hosting' : '';
+  if (label) label.textContent = isPeerConnected ? 'Connected' : isOn ? 'On' : '';
 
-  // Zone visibility: connect zone vs active zone
-  const zoneConnect = document.getElementById('syncZoneConnect');
+  // Transfer zone visibility
   const zoneActive = document.getElementById('syncZoneActive');
-  if (zoneConnect) zoneConnect.style.display = isPeerConnected ? 'none' : '';
   if (zoneActive) zoneActive.style.display = isPeerConnected ? '' : 'none';
-
-  // Host sub-state within connect zone
-  const hostSection = document.getElementById('syncHostSection');
-  const startRow = document.getElementById('syncStartRow');
-  const hostActive = document.getElementById('syncHostActive');
-  const cancelRow = document.getElementById('syncCancelRow');
-  if (cancelRow) cancelRow.style.display = isConnecting ? '' : 'none';
-  if (hostSection) hostSection.style.display = isConnecting ? 'none' : '';
-  if (startRow) startRow.style.display = isHosting ? 'none' : '';
-  if (hostActive) hostActive.style.display = isHosting ? '' : 'none';
 
   _peerUpdateLastSync();
 }
@@ -2285,25 +2478,35 @@ function _peerUpdateLastSync() {
 function _peerRenderDevices(peerName) {
   const el = document.getElementById('syncDeviceList');
   if (!el) return;
-  const phoneIcon = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>';
-  const pcIcon = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>';
+  const _icon = n => (['iPhone','iPad','Android'].includes(n)
+    ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>'
+    : '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>');
   const myName = _peerDeviceName();
-  const myIcon = (myName === 'iPhone' || myName === 'iPad' || myName === 'Android') ? phoneIcon : pcIcon;
-
   let html = `<div class="sync-device sync-device--me">
-    <div class="sync-device-icon">${myIcon}</div>
-    <div class="sync-device-info"><div class="sync-device-name">${myName}</div><div class="sync-device-time">You</div></div>
+    <div class="sync-device-icon">${_icon(myName)}</div>
+    <div class="sync-device-info"><div class="sync-device-name">${myName}</div><div class="sync-device-time">This device</div></div>
     <div class="sync-device-dot"></div>
   </div>`;
 
-  if (peerName) {
-    const peerIcon = (peerName === 'iPhone' || peerName === 'iPad' || peerName === 'Android') ? phoneIcon : pcIcon;
+  // Connected peer
+  if (peerName && _peerConn?.open) {
     html += `<div class="sync-device">
-      <div class="sync-device-icon">${peerIcon}</div>
-      <div class="sync-device-info"><div class="sync-device-name">${peerName}</div><div class="sync-device-time">Connected</div></div>
+      <div class="sync-device-icon">${_icon(peerName)}</div>
+      <div class="sync-device-info"><div class="sync-device-name">${peerName}</div><div class="sync-device-time" style="color:var(--accent)">Connected</div></div>
       <div class="sync-device-dot sync-device-dot--peer"></div>
     </div>`;
   }
+
+  // Discovered (not yet paired) devices
+  for (const [pid, dev] of Object.entries(_peerDiscoveredDevices)) {
+    if (_peerConn?.open && pid === _peerRemoteId) continue; // already shown as connected
+    html += `<div class="sync-device">
+      <div class="sync-device-icon">${_icon(dev.name)}</div>
+      <div class="sync-device-info"><div class="sync-device-name">${dev.name}</div><div class="sync-device-time">Discovered</div></div>
+      <button class="sync-pair-btn" onclick="_peerRequestPair('${pid}')">Pair</button>
+    </div>`;
+  }
+
   el.innerHTML = html;
 }
 
@@ -2822,55 +3025,17 @@ window._gunJoinRoom = _peerConnect;
 window._gunDisconnect = _peerDisconnect;
 
 // Auto-reconnect on app startup if we have a saved pairing
-(function _peerAutoStart() {
-  const savedRemote = localStorage.getItem('icu_peer_remote');
-  const savedMyId = localStorage.getItem('icu_peer_my_id');
-  if (!savedRemote || !savedMyId) return;
-  // Guard: if user manually starts/connects before auto-start fires, bail out
-  _peerAutoStarting = true;
-  let _retries = 0;
-  const _tryStart = () => {
-    if (_peerManualDisconnect || (!_peerAutoStarting)) return; // user took manual action
-    if (_peerInstance && !_peerInstance.destroyed) return; // instance already created manually
-    if (typeof Peer === 'undefined') { setTimeout(_tryStart, 1000); return; }
-    if (_retries >= 3) { _peerAutoStarting = false; _peerLog('Auto-start gave up after 3 ID retries', 'warn'); return; }
-
-    _peerInstance = new Peer(savedMyId, _peerOpts);
-    _peerInstance.on('open', id => {
-      _peerAutoStarting = false;
-      _peerMyId = id;
-      _peerRemoteId = savedRemote;
-      _peerReconnecting = true;
-      _peerUpdateUI('connecting');
-      _peerLog('Auto-reconnecting to ' + savedRemote + '...');
-      const conn = _peerInstance.connect(savedRemote, { ordered: true });
-      _peerHandleConn(conn);
-      const timeout = setTimeout(() => {
-        if (!conn.open && !_peerManualDisconnect) {
-          try { conn.close(); } catch {}
-          _peerAutoReconnect(savedRemote, 1);
-        }
-      }, 10000);
-      conn.on('open', () => clearTimeout(timeout));
-    });
-    _peerInstance.on('connection', conn => _peerHandleConn(conn));
-    _peerInstance.on('error', e => {
-      _peerLog('Auto-start error: ' + (e.type || e.message || e), 'warn');
-      if (e.type === 'unavailable-id') {
-        _peerDestroyInstance();
-        _retries++;
-        const newId = 'CIQ-' + Array.from(crypto.getRandomValues(new Uint8Array(3)))
-          .map(b => b.toString(36)).join('').toUpperCase().slice(0, 6);
-        localStorage.setItem('icu_peer_my_id', newId);
-        _peerLog('ID taken, retrying as ' + newId + ' (attempt ' + _retries + ')');
-        setTimeout(_tryStart, 2000);
-      } else if (e.type === 'peer-unavailable') {
-        _peerAutoStarting = false;
-        _peerLog('Peer offline — listening for incoming connections', 'warn');
-      }
-    });
+// Auto-enable P2P if it was on in previous session
+(function _peerAutoEnable() {
+  if (localStorage.getItem('icu_p2p_enabled') !== 'true') return;
+  const _wait = () => {
+    if (typeof Peer === 'undefined' || !state.athleteId) { setTimeout(_wait, 1000); return; }
+    _peerToggle(true);
+    // Restore toggle checkbox state
+    const cb = document.getElementById('syncP2pToggle');
+    if (cb) cb.checked = true;
   };
-  setTimeout(_tryStart, 3000); // delay to not block app init
+  setTimeout(_wait, 3000);
 })();
 
 /* ── Sync transfer confirmation sheet ── */

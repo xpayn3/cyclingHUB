@@ -5711,66 +5711,20 @@
                                 </div>
                             </div>
 
-                            <!-- ═══ Zone A: Connect (visible when NOT connected to peer) ═══ -->
-                            <div id="syncZoneConnect">
-                                <!-- Cancel connecting -->
-                                <div id="syncCancelRow" style="display:none;padding:4px 0">
-                                    <button class="btn" onclick="_peerCancelConnect()" style="width:100%;height:44px;background:var(--surface-1);color:var(--text-muted);font-weight:600;font-size:15px;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:8px;border:none">
-                                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                                        Cancel
-                                    </button>
+                            <!-- ═══ P2P Toggle ═══ -->
+                            <div class="ios-group">
+                                <div class="ios-row">
+                                    <div class="ios-row-icon" style="background:var(--accent)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></div>
+                                    <span class="ios-row-label">P2P Sync</span>
+                                    <label class="settings-ios-toggle">
+                                        <input type="checkbox" id="syncP2pToggle" onchange="_peerToggle(this.checked)">
+                                        <span class="settings-ios-slider"></span>
+                                    </label>
                                 </div>
-                                <!-- Host sub-section -->
-                                <div id="syncHostSection">
-                                <!-- Pre-host: start button -->
-                                <div id="syncStartRow" style="padding:4px 0">
-                                    <button class="btn" onclick="_gunGenRoom()" style="width:100%;height:44px;background:var(--accent);color:#000;font-weight:600;font-size:15px;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:8px;border:none">
-                                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-                                        Start Hosting
-                                    </button>
-                                </div>
-                                <!-- Hosting active: code + share (hidden until hosting) -->
-                                <div class="ios-group">
-                                    <div id="syncHostActive" style="display:none">
-                                        <div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px">
-                                            <div style="display:flex;align-items:center;justify-content:space-between">
-                                                <span style="font-size:13px;color:var(--text-muted);font-weight:500">Your Room Code</span>
-                                                <button class="btn btn-ghost btn-sm" id="syncGenBtn" onclick="_peerResetId()" style="font-size:12px;color:var(--text-muted)">New ID</button>
-                                            </div>
-                                            <div class="sync-room-code" id="syncRoomCode">—</div>
-                                            <canvas id="syncQrCanvas" width="160" height="160" style="display:none;width:100%;aspect-ratio:1;border-radius:var(--radius);background:#fff;padding:12px;box-sizing:border-box"></canvas>
-                                            <div style="display:flex;gap:8px">
-                                                <button class="btn btn-ghost btn-sm" id="syncCopyBtn" onclick="_gunCopyRoom()" style="flex:1">
-                                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                                                    Copy ID
-                                                </button>
-                                                <button class="btn btn-ghost btn-sm" id="syncQrBtn" onclick="_peerShowQR()" style="flex:1">
-                                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="8" height="8" rx="1"/><rect x="14" y="2" width="8" height="8" rx="1"/><rect x="2" y="14" width="8" height="8" rx="1"/><rect x="14" y="14" width="4" height="4"/></svg>
-                                                    Show QR
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <div class="ios-row" onclick="_gunDisconnect()" style="cursor:pointer;justify-content:center;color:var(--red);font-weight:500;font-size:14px">
-                                            Stop Hosting
-                                        </div>
-                                    </div>
-                                </div>
-                                </div><!-- /syncHostSection -->
-
-                                <!-- Join sub-section -->
-                                <div class="ios-group-label">Join</div>
-                                <div class="ios-group">
-                                    <div class="ios-row" style="padding:10px 12px">
-                                        <div style="display:flex;align-items:center;gap:8px;background:var(--surface-1);border-radius:var(--radius-sm);padding:0 4px 0 14px;height:44px;flex:1;min-width:0">
-                                            <input type="text" id="syncJoinInput" placeholder="Peer ID" maxlength="12" style="flex:1;background:none;border:none;outline:none;color:var(--text-primary);text-transform:uppercase;letter-spacing:0.15em;font-family:var(--font-num);font-size:15px;font-weight:600;padding:0;min-width:0" aria-label="Peer ID">
-                                            <button class="btn" onclick="_gunJoinRoom(document.getElementById('syncJoinInput').value)" style="height:36px;padding:0 16px;background:var(--accent);color:#000;font-weight:600;font-size:14px;border-radius:var(--radius-sm);border:none;flex-shrink:0">Connect</button>
-                                        </div>
-                                    </div>
-                                    <div class="ios-row" onclick="_peerScanQR()" style="cursor:pointer;justify-content:center;gap:8px;color:var(--accent)">
-                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 3H4a1 1 0 0 0-1 1v3"/><path d="M17 3h3a1 1 0 0 1 1 1v3"/><path d="M21 17v3a1 1 0 0 1-1 1h-3"/><path d="M3 17v3a1 1 0 0 0 1 1h3"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
-                                        <span style="font-weight:600;font-size:14px">Scan QR Code</span>
-                                    </div>
-                                </div>
+                            </div>
+                            <div id="syncP2pContent" style="display:none">
+                            <div style="padding:0 16px 8px;font-size:12px;color:var(--text-faint)">
+                                Devices on the same account will discover each other automatically.
                             </div>
 
                             <!-- ═══ Devices: always visible ═══ -->
@@ -5813,7 +5767,9 @@
                                 </div>
                             </div>
 
-                            <!-- ═══ Zone C: Always visible ═══ -->
+                            </div><!-- /syncP2pContent -->
+
+                            <!-- ═══ Always visible ═══ -->
                             <!-- What syncs -->
                             <div class="ios-group-label">What Syncs</div>
                             <div class="ios-group">

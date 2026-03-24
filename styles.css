@@ -20555,9 +20555,21 @@ body:has(.act-sheet-mode) .topbar {
     flex-shrink: 0;
 }
 .sync-device-dot--peer {
-    background: #5ac8fa;
-    box-shadow: 0 0 6px rgba(90, 200, 250, 0.5);
+    background: var(--accent);
+    box-shadow: 0 0 6px rgba(0, 229, 160, 0.5);
 }
+.sync-pair-btn {
+    padding: 6px 16px;
+    background: var(--accent);
+    color: #000;
+    font-weight: 600;
+    font-size: 13px;
+    border: none;
+    border-radius: 100px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.sync-pair-btn:active { opacity: 0.7; }
 
 /* Sync transfer buttons */
 .sync-transfer-btn {
