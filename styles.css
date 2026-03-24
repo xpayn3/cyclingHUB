@@ -23000,7 +23000,7 @@ body:has(.act-sheet-mode) .topbar {
     filter: none;
     border-color: rgba(212, 175, 55, 0.35);
     background: rgba(212, 175, 55, 0.06);
-
+    cursor: pointer;
 }
 /* Smooth spring-back when the mouse leaves the badge */
 .stk-badge--earned.badge-tilt-reset {

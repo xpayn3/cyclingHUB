@@ -476,6 +476,20 @@
         </div>
 
         <!-- ============================================================  BATTERY DETAIL SHEET  ============================================================ -->
+        <!-- Badge 3D Viewer Sheet -->
+        <div class="wxd-overlay" id="badgeViewerSheet" style="display:none">
+            <div class="wxd-backdrop" onclick="_closeOverlaySheet('badgeViewerSheet')"></div>
+            <div class="wxd-sheet wxd-sheet--partial" style="max-width:400px">
+                <div class="modal-drag-indicator"></div>
+                <div class="wxd-sheet-body" style="padding:0 20px 24px;text-align:center">
+                    <canvas id="badge3dCanvas" style="width:100%;height:280px;touch-action:none;cursor:grab"></canvas>
+                    <div id="badgeViewerName" style="font-size:22px;font-weight:700;margin:8px 0 4px"></div>
+                    <div id="badgeViewerDesc" style="font-size:14px;color:var(--text-muted);margin-bottom:12px"></div>
+                    <div id="badgeViewerDate" style="font-size:12px;color:var(--text-faint)"></div>
+                </div>
+            </div>
+        </div>
+
         <div class="wxd-overlay" id="batDetailSheet" style="display:none">
             <div class="wxd-backdrop" onclick="closeBatDetailSheet()"></div>
             <div class="wxd-sheet wxd-sheet--partial" style="max-width:480px">

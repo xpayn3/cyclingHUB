@@ -26982,7 +26982,7 @@ function renderStreaksPage() {
   const badgesGrid = document.getElementById('stkBadgesGrid');
   if (badgesGrid) {
     badgesGrid.innerHTML = BADGES.map(b => `
-      <div class="stk-badge${b.earned ? ' stk-badge--earned' : ''}">
+      <div class="stk-badge${b.earned ? ' stk-badge--earned' : ''}" onclick="${b.earned ? `openBadgeViewer('${b.id}','${_escHtml(b.name)}','${_escHtml(b.desc)}')` : ''}">
         <div class="stk-badge-icon">${b.icon}</div>
         <div class="stk-badge-name">${b.name}</div>
         <div class="stk-badge-desc">${b.desc}</div>
@@ -30378,6 +30378,40 @@ function deleteBattery(id) {
 window.openBatDetailSheet = openBatDetailSheet;
 window.closeBatDetailSheet = closeBatDetailSheet;
 window.deleteBattery = deleteBattery;
+
+// ── 3D Badge Viewer ──
+let _badges3dModule = null;
+async function openBadgeViewer(badgeId, name, desc) {
+  _openOverlaySheet('badgeViewerSheet');
+  document.getElementById('badgeViewerName').textContent = name;
+  document.getElementById('badgeViewerDesc').textContent = desc;
+  document.getElementById('badgeViewerDate').textContent = 'Earned';
+
+  const canvas = document.getElementById('badge3dCanvas');
+  if (!canvas) return;
+
+  // Lazy-load the 3D module
+  try {
+    if (!_badges3dModule) {
+      _badges3dModule = await import('./js/badges3d.js');
+    }
+    // Destroy previous instance
+    _badges3dModule.destroyBadge3D();
+    // Wait for sheet animation
+    await new Promise(r => setTimeout(r, 400));
+    _badges3dModule.initBadge3D(canvas, badgeId);
+  } catch (e) {
+    console.warn('3D badge failed:', e);
+    canvas.style.display = 'none';
+  }
+}
+
+function closeBadgeViewer() {
+  if (_badges3dModule) _badges3dModule.destroyBadge3D();
+  _closeOverlaySheet('badgeViewerSheet');
+}
+window.openBadgeViewer = openBadgeViewer;
+window.closeBadgeViewer = closeBadgeViewer;
 
 function undoChargeBattery(id) {
   const all = loadGearBatteries();
