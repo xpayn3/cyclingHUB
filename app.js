@@ -22228,8 +22228,10 @@ function renderActivityBasic(a) {
   // ── Render the "How You Compare" card ────────────────────────────────────
   renderDetailComparison(a);
 
-  // ── Device battery levels from FIT ───────────────────────────────────────
-  renderDetailDevices(a).catch(() => {});
+  // ── Cycling Dynamics + Device Batteries from FIT ─────────────────────────
+  renderDetailDynamics(a).catch(() => {});
+  // Devices card reuses cached FIT parse from dynamics
+  setTimeout(() => renderDetailDevices(a).catch(() => {}), 100);
 
   // ── Data source / device footer ───────────────────────────────────────────
   renderDetailSourceFooter(a);
@@ -22469,6 +22471,160 @@ function renderDetailComparison(a) {
   });
 }
 
+// ── Cycling Dynamics from FIT file ──
+async function renderDetailDynamics(a) {
+  const el = document.getElementById('detailDynamicsCard');
+  if (!el) return;
+  el.style.display = 'none';
+  el.innerHTML = '';
+
+  const actId = a.id;
+  if (!actId) return;
+
+  // Get FIT data — reuse cached parse if available
+  let fitData;
+  try {
+    if (window._lastFITParse && window._lastFITParse.actId === actId) {
+      fitData = window._lastFITParse.data;
+    } else {
+      const urls = [
+        ICU_BASE + `/activity/${actId}/file`,
+        ICU_BASE + `/activity/${actId}/original`,
+        ICU_BASE + `/activity/${actId}.fit`,
+      ];
+      for (const url of urls) {
+        try {
+          const resp = await fetch(url, { headers: authHeader() });
+          if (!resp.ok) continue;
+          rlTrackRequest();
+          const buf = await resp.arrayBuffer();
+          if (buf.byteLength < 14) continue;
+          const dv = new DataView(buf);
+          const sig = String.fromCharCode(dv.getUint8(8), dv.getUint8(9), dv.getUint8(10), dv.getUint8(11));
+          if (sig !== '.FIT') continue;
+          fitData = _parseFIT(dv);
+          window._lastFITParse = { actId, data: fitData };
+          break;
+        } catch {}
+      }
+    }
+  } catch { return; }
+
+  if (!fitData || !fitData.dynamics) return;
+  const d = fitData.dynamics;
+
+  // Compute averages
+  const avg = arr => arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : null;
+  const avgLTE = avg(d.lte);
+  const avgRTE = avg(d.rte);
+  const avgLPS = avg(d.lps);
+  const avgRPS = avg(d.rps);
+  const avgLPco = avg(d.lPco);
+  const avgRPco = avg(d.rPco);
+  const avgBal = avg(d.lrBal);
+
+  const hasTorque = avgLTE !== null || avgRTE !== null;
+  const hasSmoothness = avgLPS !== null || avgRPS !== null;
+  const hasPCO = avgLPco !== null || avgRPco !== null;
+  const hasBalance = avgBal !== null;
+
+  if (!hasTorque && !hasSmoothness && !hasPCO && !hasBalance) return;
+
+  // Helper: format value with color
+  const fmtPct = (v, good = 80) => {
+    if (v === null) return '<span style="color:var(--text-muted)">—</span>';
+    const color = v >= good ? 'var(--accent)' : v >= good * 0.8 ? C_YELLOW : 'var(--red)';
+    return `<span style="color:${color};font-weight:600">${v.toFixed(1)}%</span>`;
+  };
+  const fmtMm = (v) => {
+    if (v === null) return '<span style="color:var(--text-muted)">—</span>';
+    const color = Math.abs(v) <= 5 ? 'var(--accent)' : Math.abs(v) <= 10 ? C_YELLOW : 'var(--red)';
+    return `<span style="color:${color};font-weight:600">${v.toFixed(1)}mm</span>`;
+  };
+
+  let rows = '';
+
+  // L/R Balance
+  if (hasBalance) {
+    const left = Math.round(avgBal);
+    const right = 100 - left;
+    const balColor = Math.abs(left - 50) <= 3 ? 'var(--accent)' : Math.abs(left - 50) <= 5 ? C_YELLOW : 'var(--red)';
+    rows += `<div class="detail-zone-summary-row">
+      <span>L/R Balance</span>
+      <span style="font-weight:600;color:${balColor}">${left}% / ${right}%</span>
+    </div>`;
+  }
+
+  // Torque Effectiveness
+  if (hasTorque) {
+    rows += `<div class="detail-zone-summary-row">
+      <span>Torque Effectiveness</span>
+      <span>L ${fmtPct(avgLTE, 80)} · R ${fmtPct(avgRTE, 80)}</span>
+    </div>`;
+  }
+
+  // Pedal Smoothness
+  if (hasSmoothness) {
+    rows += `<div class="detail-zone-summary-row">
+      <span>Pedal Smoothness</span>
+      <span>L ${fmtPct(avgLPS, 20)} · R ${fmtPct(avgRPS, 20)}</span>
+    </div>`;
+  }
+
+  // Platform Center Offset
+  if (hasPCO) {
+    rows += `<div class="detail-zone-summary-row">
+      <span>Platform Offset</span>
+      <span>L ${fmtMm(avgLPco)} · R ${fmtMm(avgRPco)}</span>
+    </div>`;
+  }
+
+  // PCO distribution chart (visual bar showing offset spread)
+  let pcoChart = '';
+  if (hasPCO && d.lPco.length > 10) {
+    // Build histogram of PCO values
+    const allPco = [...d.lPco, ...d.rPco];
+    const min = Math.min(...allPco), max = Math.max(...allPco);
+    const range = Math.max(max - min, 1);
+    const bins = new Array(21).fill(0); // -10mm to +10mm
+    allPco.forEach(v => {
+      const idx = Math.max(0, Math.min(20, Math.round(v + 10)));
+      bins[idx]++;
+    });
+    const maxBin = Math.max(...bins, 1);
+    const bars = bins.map((count, i) => {
+      const h = Math.round((count / maxBin) * 32);
+      const mm = i - 10;
+      const color = Math.abs(mm) <= 3 ? 'var(--accent)' : Math.abs(mm) <= 6 ? C_YELLOW : C_ORANGE;
+      return `<div style="width:4px;height:${h}px;background:${color};border-radius:1px;flex-shrink:0" title="${mm}mm: ${count}"></div>`;
+    }).join('');
+
+    pcoChart = `<div style="padding:8px 0 4px">
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Platform Offset Distribution</div>
+      <div style="display:flex;align-items:flex-end;gap:2px;height:36px;padding:0 4px">
+        ${bars}
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-faint);padding:2px 4px 0">
+        <span>-10mm</span><span>0</span><span>+10mm</span>
+      </div>
+    </div>`;
+  }
+
+  el.innerHTML = `
+    <div class="card-header">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="card-title" style="flex:1 1 0%">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+          Cycling Dynamics
+        </div>
+      </div>
+    </div>
+    <div class="detail-zone-summary">${rows}</div>
+    ${pcoChart}
+  `;
+  el.style.display = '';
+}
+
 // ── Device battery levels from FIT file ──
 async function renderDetailDevices(a) {
   const el = document.getElementById('detailDevicesCard');
@@ -22479,10 +22635,14 @@ async function renderDetailDevices(a) {
   const actId = a.id;
   if (!actId) return;
 
-  // Extract battery from this specific activity's FIT
+  // Use cached FIT parse from dynamics, or extract fresh
   let devices;
   try {
-    devices = await _extractBatteryFromFIT(actId);
+    if (window._lastFITParse && window._lastFITParse.actId === actId) {
+      devices = window._lastFITParse.data.devices;
+    } else {
+      devices = await _extractBatteryFromFIT(actId);
+    }
   } catch { return; }
   if (!devices || !devices.length) return;
 
@@ -29081,37 +29241,47 @@ async function _extractBatteryFromFIT(actId) {
   return null;
 }
 
-function _parseFITBattery(dv) {
-  const devices = [];
+// General-purpose FIT parser: extracts device_info + record cycling dynamics
+// Returns { devices: [...], dynamics: { lrBalance:[], lte:[], rte:[], lps:[], rps:[], lPco:[], rPco:[], lPhase:[], rPhase:[], lPhasePeak:[], rPhasePeak:[] } }
+function _parseFIT(dv) {
+  const result = { devices: [], dynamics: null };
+  // Cycling dynamics accumulators
+  const dyn = { lrBal: [], lte: [], rte: [], lps: [], rps: [], cps: [], lPco: [], rPco: [] };
+  let hasDyn = false;
+
   try {
-    // Validate FIT header
     const headerSize = dv.getUint8(0);
-    if (headerSize < 12) return devices;
+    if (headerSize < 12) return result;
     const sig = String.fromCharCode(dv.getUint8(8), dv.getUint8(9), dv.getUint8(10), dv.getUint8(11));
-    if (sig !== '.FIT') return devices;
+    if (sig !== '.FIT') return result;
 
     let offset = headerSize;
     const defnMap = {};
-    const end = dv.byteLength - 2; // exclude CRC
+    const end = dv.byteLength - 2;
 
     while (offset < end) {
       const recHeader = dv.getUint8(offset++);
-      const isDefn = (recHeader & 0x40) !== 0;
-      const localMesg = recHeader & 0x0F;
       const isCompressed = (recHeader & 0x80) !== 0;
 
       if (isCompressed) {
-        // Compressed timestamp — skip data based on known definition
         const tsLocal = (recHeader >> 5) & 0x03;
         const defn = defnMap[tsLocal];
-        if (defn) offset += defn.size;
+        if (!defn) break;
+        // Parse compressed record too if it's a record message
+        if (defn.globalMesg === 20) {
+          _parseFITRecord(dv, offset, defn, dyn);
+          hasDyn = true;
+        }
+        offset += defn.size;
         continue;
       }
 
+      const isDefn = (recHeader & 0x40) !== 0;
+      const localMesg = recHeader & 0x0F;
+
       if (isDefn) {
-        // Definition message
         offset++; // reserved
-        const arch = dv.getUint8(offset++); // architecture: 0=LE, 1=BE
+        const arch = dv.getUint8(offset++);
         const le = arch === 0;
         const globalMesg = le ? dv.getUint16(offset, true) : dv.getUint16(offset, false);
         offset += 2;
@@ -29125,42 +29295,43 @@ function _parseFITBattery(dv) {
           fields.push({ num: fNum, size: fSize, type: fType });
           dataSize += fSize;
         }
-        // Skip dev fields if present
         if ((recHeader & 0x20) !== 0) {
           const nDev = dv.getUint8(offset++);
           for (let i = 0; i < nDev; i++) { offset += 3; dataSize += dv.getUint8(offset - 2); }
         }
         defnMap[localMesg] = { globalMesg, fields, size: dataSize, le };
       } else {
-        // Data message
         const defn = defnMap[localMesg];
-        if (!defn) break; // Can't parse without definition
+        if (!defn) break;
 
         if (defn.globalMesg === 23) { // device_info
           let voltage = null, batStatus = null, manufacturer = null, product = null, deviceType = null;
           let fOff = offset;
           for (const f of defn.fields) {
-            if (f.num === 10 && f.size === 2) { // battery_voltage
+            if (f.num === 10 && f.size === 2) {
               const raw = defn.le ? dv.getUint16(fOff, true) : dv.getUint16(fOff, false);
-              if (raw !== 0xFFFF) voltage = raw / 256; // scale factor 256
-            } else if (f.num === 11 && f.size === 1) { // battery_status
+              if (raw !== 0xFFFF) voltage = raw / 256;
+            } else if (f.num === 11 && f.size === 1) {
               const raw = dv.getUint8(fOff);
               if (raw !== 0xFF) batStatus = raw;
-            } else if (f.num === 2 && f.size === 2) { // manufacturer
+            } else if (f.num === 2 && f.size === 2) {
               const raw = defn.le ? dv.getUint16(fOff, true) : dv.getUint16(fOff, false);
               if (raw !== 0xFFFF) manufacturer = raw;
-            } else if (f.num === 3 && f.size === 2) { // product
+            } else if (f.num === 3 && f.size === 2) {
               const raw = defn.le ? dv.getUint16(fOff, true) : dv.getUint16(fOff, false);
               if (raw !== 0xFFFF) product = raw;
-            } else if (f.num === 25 && f.size === 1) { // source_type / device_type
+            } else if (f.num === 25 && f.size === 1) {
               const raw = dv.getUint8(fOff);
               if (raw !== 0xFF) deviceType = raw;
             }
             fOff += f.size;
           }
           if (voltage !== null || batStatus !== null) {
-            devices.push({ voltage, batStatus, manufacturer, product, deviceType });
+            result.devices.push({ voltage, batStatus, manufacturer, product, deviceType });
           }
+        } else if (defn.globalMesg === 20) { // record
+          _parseFITRecord(dv, offset, defn, dyn);
+          hasDyn = true;
         }
         offset += defn.size;
       }
@@ -29168,7 +29339,45 @@ function _parseFITBattery(dv) {
   } catch (e) {
     console.warn('FIT parse error:', e.message);
   }
-  return devices;
+
+  if (hasDyn && (dyn.lte.length || dyn.lps.length || dyn.lPco.length || dyn.lrBal.length)) {
+    result.dynamics = dyn;
+  }
+  return result;
+}
+
+// Parse a single FIT record message for cycling dynamics fields
+function _parseFITRecord(dv, offset, defn, dyn) {
+  let lrBal = null, lte = null, rte = null, lps = null, rps = null, cps = null, lPco = null, rPco = null;
+  let fOff = offset;
+  for (const f of defn.fields) {
+    const v8 = () => { const r = dv.getUint8(fOff); return r === 0xFF ? null : r; };
+    const v8s = () => { const r = dv.getInt8(fOff); return r === 0x7F ? null : r; };
+    switch (f.num) {
+      case 30: lrBal = v8(); break;                         // left_right_balance (uint8, %)
+      case 43: lte = v8(); if (lte !== null) lte /= 2; break; // left_torque_effectiveness (uint8, scale 2, %)
+      case 44: rte = v8(); if (rte !== null) rte /= 2; break; // right_torque_effectiveness
+      case 45: lps = v8(); if (lps !== null) lps /= 2; break; // left_pedal_smoothness
+      case 46: rps = v8(); if (rps !== null) rps /= 2; break; // right_pedal_smoothness
+      case 47: cps = v8(); if (cps !== null) cps /= 2; break; // combined_pedal_smoothness
+      case 67: lPco = v8s(); break;                          // left_platform_center_offset (sint8, mm)
+      case 68: rPco = v8s(); break;                          // right_platform_center_offset (sint8, mm)
+    }
+    fOff += f.size;
+  }
+  if (lrBal !== null) dyn.lrBal.push(lrBal & 0x7F); // bit 7 = which side, bits 0-6 = value
+  if (lte !== null) dyn.lte.push(lte);
+  if (rte !== null) dyn.rte.push(rte);
+  if (lps !== null) dyn.lps.push(lps);
+  if (rps !== null) dyn.rps.push(rps);
+  if (cps !== null) dyn.cps.push(cps);
+  if (lPco !== null) dyn.lPco.push(lPco);
+  if (rPco !== null) dyn.rPco.push(rPco);
+}
+
+// Legacy wrapper for battery-only extraction
+function _parseFITBattery(dv) {
+  return _parseFIT(dv).devices;
 }
 
 // Convert voltage to percentage based on common battery chemistries
