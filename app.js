@@ -2227,6 +2227,8 @@ function _peerUpdateUI(status, peerId) {
   const hostSection = document.getElementById('syncHostSection');
   const startRow = document.getElementById('syncStartRow');
   const hostActive = document.getElementById('syncHostActive');
+  const cancelRow = document.getElementById('syncCancelRow');
+  if (cancelRow) cancelRow.style.display = isConnecting ? '' : 'none';
   if (hostSection) hostSection.style.display = isConnecting ? 'none' : '';
   if (startRow) startRow.style.display = isHosting ? 'none' : '';
   if (hostActive) hostActive.style.display = isHosting ? '' : 'none';
@@ -2256,7 +2258,7 @@ function _peerRenderDevices(peerName) {
 
   let html = `<div class="sync-device sync-device--me">
     <div class="sync-device-icon">${myIcon}</div>
-    <div class="sync-device-info"><div class="sync-device-name">${myName} (this device)</div><div class="sync-device-time">You</div></div>
+    <div class="sync-device-info"><div class="sync-device-name">${myName}</div><div class="sync-device-time">You</div></div>
     <div class="sync-device-dot"></div>
   </div>`;
 
@@ -2736,6 +2738,20 @@ function _peerRequestData() {
   showToast('Requesting data from peer — waiting for approval...', 'info');
 }
 window._peerRequestData = _peerRequestData;
+
+function _peerCancelConnect() {
+  _peerLog('Connection cancelled');
+  _peerManualDisconnect = true;
+  _peerReconnecting = false;
+  if (_peerReconnectTimer) { clearTimeout(_peerReconnectTimer); _peerReconnectTimer = null; }
+  if (_peerConn) { try { _peerConn.close(); } catch {} _peerConn = null; }
+  if (_peerInstance) { try { _peerInstance.destroy(); } catch {} _peerInstance = null; }
+  _peerMyId = '';
+  _peerUpdateUI('off');
+  _peerRenderDevices(null);
+  showToast('Connection cancelled', 'info');
+}
+window._peerCancelConnect = _peerCancelConnect;
 
 function _peerDisconnect() {
   _peerLog('Manual disconnect');

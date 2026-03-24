@@ -5713,6 +5713,13 @@
 
                             <!-- ═══ Zone A: Connect (visible when NOT connected to peer) ═══ -->
                             <div id="syncZoneConnect">
+                                <!-- Cancel connecting -->
+                                <div id="syncCancelRow" style="display:none;padding:4px 0">
+                                    <button class="btn" onclick="_peerCancelConnect()" style="width:100%;height:44px;background:var(--surface-1);color:var(--text-muted);font-weight:600;font-size:15px;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:8px;border:none">
+                                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                        Cancel
+                                    </button>
+                                </div>
                                 <!-- Host sub-section -->
                                 <div id="syncHostSection">
                                 <!-- Pre-host: start button -->
