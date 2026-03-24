@@ -22571,41 +22571,57 @@ async function renderDetailDynamics(a) {
     </div>`;
   }
 
-  // Platform Center Offset
-  if (hasPCO) {
-    rows += `<div class="detail-zone-summary-row">
-      <span>Platform Offset</span>
-      <span>L ${fmtMm(avgLPco)} · R ${fmtMm(avgRPco)}</span>
-    </div>`;
-  }
-
-  // PCO distribution chart (visual bar showing offset spread)
+  // Platform Center Offset — Garmin-style pedal visualization
   let pcoChart = '';
-  if (hasPCO && d.lPco.length > 10) {
-    // Build histogram of PCO values
-    const allPco = [...d.lPco, ...d.rPco];
-    const min = Math.min(...allPco), max = Math.max(...allPco);
-    const range = Math.max(max - min, 1);
-    const bins = new Array(21).fill(0); // -10mm to +10mm
-    allPco.forEach(v => {
-      const idx = Math.max(0, Math.min(20, Math.round(v + 10)));
-      bins[idx]++;
-    });
-    const maxBin = Math.max(...bins, 1);
-    const bars = bins.map((count, i) => {
-      const h = Math.round((count / maxBin) * 32);
-      const mm = i - 10;
-      const color = Math.abs(mm) <= 3 ? 'var(--accent)' : Math.abs(mm) <= 6 ? C_YELLOW : C_ORANGE;
-      return `<div style="width:4px;height:${h}px;background:${color};border-radius:1px;flex-shrink:0" title="${mm}mm: ${count}"></div>`;
-    }).join('');
+  if (hasPCO) {
+    const lVal = avgLPco !== null ? avgLPco.toFixed(1) : '—';
+    const rVal = avgRPco !== null ? avgRPco.toFixed(1) : '—';
+    const lColor = avgLPco !== null && Math.abs(avgLPco) <= 5 ? 'var(--accent)' : avgLPco !== null && Math.abs(avgLPco) <= 8 ? C_YELLOW : 'var(--red)';
+    const rColor = avgRPco !== null && Math.abs(avgRPco) <= 5 ? 'var(--accent)' : avgRPco !== null && Math.abs(avgRPco) <= 8 ? C_YELLOW : 'var(--red)';
 
-    pcoChart = `<div style="padding:8px 0 4px">
-      <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Platform Offset Distribution</div>
-      <div style="display:flex;align-items:flex-end;gap:2px;height:36px;padding:0 4px">
-        ${bars}
+    // SVG pedal graphic — offset line shows where foot sits relative to center
+    // Pedal width represents ±15mm range, center at x=60
+    const pedalSVG = (offset, side) => {
+      const clamp = Math.max(-15, Math.min(15, offset || 0));
+      const cx = 60; // center of pedal
+      const lineX = cx + (clamp / 15) * 30; // scale to SVG coords
+      const isLeft = side === 'left';
+      // Mirror +/- labels for left pedal (+ is outboard = left side)
+      const plusSide = isLeft ? 'left' : 'right';
+      return `<svg viewBox="0 0 120 100" width="140" height="120" style="display:block;margin:0 auto">
+        <!-- +/- labels -->
+        <text x="12" y="14" fill="var(--text-faint)" font-size="12" font-weight="600">${isLeft ? '+' : '−'}</text>
+        <text x="104" y="14" fill="var(--text-faint)" font-size="12" font-weight="600" text-anchor="end">${isLeft ? '−' : '+'}</text>
+        <!-- Pedal body -->
+        <rect x="18" y="20" width="84" height="55" rx="8" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+        <!-- Cleat area -->
+        <rect x="35" y="30" width="50" height="35" rx="4" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>
+        <!-- Spindle -->
+        <rect x="56" y="75" width="8" height="12" rx="2" fill="rgba(255,255,255,0.12)"/>
+        <!-- Center reference (dashed) -->
+        <line x1="${cx}" y1="22" x2="${cx}" y2="73" stroke="rgba(255,255,255,0.2)" stroke-width="1" stroke-dasharray="3,3"/>
+        <!-- Average offset line (solid, colored) -->
+        <line x1="${lineX}" y1="22" x2="${lineX}" y2="73" stroke="${isLeft ? lColor : rColor}" stroke-width="2.5"/>
+      </svg>`;
+    };
+
+    pcoChart = `<div style="padding:12px 0 4px">
+      <div style="font-size:13px;font-weight:600;margin-bottom:8px">Platform Offset</div>
+      <div style="display:flex;justify-content:center;gap:8px">
+        <div style="text-align:center">
+          ${pedalSVG(avgLPco, 'left')}
+          <div style="font-size:16px;font-weight:700;color:${lColor};margin-top:4px">${lVal > 0 ? '+' : ''}${lVal} mm</div>
+          <div style="font-size:12px;color:var(--text-muted)">Left Pedal</div>
+        </div>
+        <div style="text-align:center">
+          ${pedalSVG(avgRPco, 'right')}
+          <div style="font-size:16px;font-weight:700;color:${rColor};margin-top:4px">${rVal > 0 ? '+' : ''}${rVal} mm</div>
+          <div style="font-size:12px;color:var(--text-muted)">Right Pedal</div>
+        </div>
       </div>
-      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-faint);padding:2px 4px 0">
-        <span>-10mm</span><span>0</span><span>+10mm</span>
+      <div style="display:flex;justify-content:center;gap:16px;margin-top:8px;font-size:11px;color:var(--text-muted)">
+        <span><span style="display:inline-block;width:12px;height:2px;background:rgba(255,255,255,0.2);vertical-align:middle;margin-right:4px;border-top:1px dashed rgba(255,255,255,0.3)"></span>Center</span>
+        <span><span style="display:inline-block;width:12px;height:2px;background:var(--accent);vertical-align:middle;margin-right:4px"></span>Average</span>
       </div>
     </div>`;
   }
