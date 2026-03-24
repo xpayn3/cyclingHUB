@@ -557,9 +557,19 @@ function cleanupPageCharts(leavingPage) {
 }
 
 // Strip dynamic DOM content from heavy pages when navigating away
-// Reduces DOM node count by thousands, improving style recalc and memory
 function _cleanupPageDOM(leavingPage) {
   if (!leavingPage) return;
+
+  // For pages with cached static HTML, re-strip the whole page
+  if (_pageContentCache[leavingPage]) {
+    const page = document.getElementById('page-' + leavingPage);
+    if (page) {
+      // Update cache with current content (may have dynamic additions)
+      _pageContentCache[leavingPage] = page.innerHTML;
+      page.innerHTML = '';
+    }
+    return; // full strip done, no need for granular cleanup below
+  }
 
   // Dashboard — recent activity cards, weather rail, battery grid
   if (leavingPage === 'dashboard') {
@@ -1617,6 +1627,35 @@ function _syncThemePicker() {
 // Lazy subpage cache — stores innerHTML of settings subpages
 const _subpageCache = {};
 let _subpageCacheReady = false;
+
+// Strip content from inactive pages on startup — saves ~2,000 DOM nodes
+// Pages rebuild their content via render*() functions when navigated to
+const _pageContentCache = {};
+function _initLazyPages() {
+  const activePage = state.currentPage || 'dashboard';
+  document.querySelectorAll('.page').forEach(page => {
+    const id = page.id.replace('page-', '');
+    if (id === activePage) return; // keep active page
+    if (id === 'settings') return; // handled by subpage cache
+    // Only strip pages with significant content
+    const nodeCount = page.querySelectorAll('*').length;
+    if (nodeCount > 100) {
+      _pageContentCache[id] = page.innerHTML;
+      page.innerHTML = '';
+    }
+  });
+  console.info('Lazy pages: stripped ' + Object.keys(_pageContentCache).length + ' inactive pages');
+}
+
+// Restore page content when navigating to it
+function _restorePage(pageId) {
+  if (_pageContentCache[pageId]) {
+    const page = document.getElementById('page-' + pageId);
+    if (page && !page.innerHTML.trim()) {
+      page.innerHTML = _pageContentCache[pageId];
+    }
+  }
+}
 
 // Strip overlay sheet bodies on startup — saves ~3,000-4,000 DOM nodes
 // Safe because all sheets rebuild their content via open*() functions
@@ -3848,6 +3887,7 @@ document.addEventListener('DOMContentLoaded', () => {
   requestAnimationFrame(() => {
     _initLazySheets();
     _initSubpageCache();
+    _initLazyPages();
   });
 
   // ── iOS-style sticky title: show when large title scrolls out ──
@@ -4361,6 +4401,9 @@ function navigate(page, opts) {
   // Toggle scroll edge gradient for pages with floating pills (dashboard uses its own scroll-triggered fade)
   const _pillPages = ['power', 'fitness'];
   document.getElementById('pageContent')?.classList.toggle('has-scroll-edge', _pillPages.includes(page));
+
+  // Restore lazy-stripped page content before showing
+  _restorePage(page);
 
   // Swap active page — use View Transitions API for smooth cross-fade if available
   const _swapPage = () => {
