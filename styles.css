@@ -27607,22 +27607,7 @@ html[data-theme="awwwards"] {
 
 /* ── Squircle Mode (Apple continuous corners) ── */
 /* Uses corner-shape: squircle (Safari 18.4+, Chrome 136+) */
-[data-squircle] { --radius: 16px; --radius-sm: 10px; --radius-lg: 22px; --radius-sheet: 40px; }
-[data-squircle] .card,
-[data-squircle] .ios-group,
-[data-squircle] .cev-target-card,
-[data-squircle] .app-select,
-[data-squircle] .stat-card,
-[data-squircle] .app-theme-card,
-[data-squircle] .goal-card,
-[data-squircle] .goal-dash-card,
-[data-squircle] .sync-device,
-[data-squircle] .fit-race-tool-btn,
-[data-squircle] .cdd-dropdown,
-[data-squircle] .btn {
-    corner-shape: squircle;
-    -webkit-corner-shape: squircle;
-}
+[data-squircle] { --radius: 22px; --radius-sm: 14px; --radius-lg: 28px; --radius-sheet: 44px; }
 } /* end @layer themes */
 
 @layer pages {
