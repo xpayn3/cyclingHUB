@@ -14,18 +14,38 @@ let _badgeStartY = 0;
 let _badgeRotX = 0;
 let _badgeRotY = 0;
 
-// Lazy-load Three.js from CDN
+let _GLTFLoader = null;
+
+// Lazy-load Three.js + GLTFLoader from CDN
 async function _loadThreeJS() {
   if (_THREE) return _THREE;
-  return new Promise((resolve, reject) => {
-    if (window.THREE) { _THREE = window.THREE; resolve(_THREE); return; }
+  // Load Three.js core
+  await new Promise((resolve, reject) => {
+    if (window.THREE) { resolve(); return; }
     const script = document.createElement('script');
     script.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js';
     script.crossOrigin = 'anonymous';
-    script.onload = () => { _THREE = window.THREE; resolve(_THREE); };
+    script.onload = resolve;
     script.onerror = () => reject(new Error('Failed to load Three.js'));
     document.head.appendChild(script);
   });
+  _THREE = window.THREE;
+
+  // Load GLTFLoader
+  if (!_GLTFLoader) {
+    await new Promise((resolve, reject) => {
+      if (window.THREE.GLTFLoader) { resolve(); return; }
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/loaders/GLTFLoader.js';
+      script.crossOrigin = 'anonymous';
+      script.onload = resolve;
+      script.onerror = () => { console.warn('GLTFLoader not available, using procedural badges'); resolve(); };
+      document.head.appendChild(script);
+    });
+    _GLTFLoader = window.THREE.GLTFLoader || null;
+  }
+
+  return _THREE;
 }
 
 // Create a shield-shaped geometry (procedural)
@@ -105,70 +125,116 @@ function _createIconMesh(THREE, svgPath, scale) {
   return mesh;
 }
 
+// Try loading a GLB model file for a badge
+function _loadGLB(THREE, path) {
+  return new Promise((resolve, reject) => {
+    if (!_GLTFLoader) { reject(new Error('No GLTFLoader')); return; }
+    const loader = new _GLTFLoader();
+    loader.load(
+      path,
+      gltf => resolve(gltf),
+      undefined,
+      err => reject(err)
+    );
+  });
+}
+
+// Badge GLB file mapping — add entries here when you have custom models
+// Keys are badge IDs, values are paths to .glb files
+const BADGE_GLB_MAP = {
+  // 'b1': 'img/badges/on-fire.glb',
+  // 'b2': 'img/badges/week-warrior.glb',
+};
+
 // Initialize the 3D scene in a canvas
-export function initBadge3D(canvasEl, badgeId) {
-  return _loadThreeJS().then(THREE => {
-    // Ensure canvas has dimensions (sheet may still be animating)
-    let w = canvasEl.clientWidth;
-    let h = canvasEl.clientHeight;
-    if (!w || w < 50) w = canvasEl.parentElement?.clientWidth || 280;
-    if (!h || h < 50) h = 280;
-    // Set explicit pixel dimensions
-    canvasEl.width = w * Math.min(window.devicePixelRatio, 2);
-    canvasEl.height = h * Math.min(window.devicePixelRatio, 2);
-    canvasEl.style.width = w + 'px';
-    canvasEl.style.height = h + 'px';
+export async function initBadge3D(canvasEl, badgeId) {
+  const THREE = await _loadThreeJS();
 
-    // Scene
-    _badgeScene = new THREE.Scene();
+  // Ensure canvas has dimensions
+  let w = canvasEl.clientWidth;
+  let h = canvasEl.clientHeight;
+  if (!w || w < 50) w = canvasEl.parentElement?.clientWidth || 280;
+  if (!h || h < 50) h = 280;
+  canvasEl.width = w * Math.min(window.devicePixelRatio, 2);
+  canvasEl.height = h * Math.min(window.devicePixelRatio, 2);
+  canvasEl.style.width = w + 'px';
+  canvasEl.style.height = h + 'px';
 
-    // Camera
-    _badgeCamera = new THREE.PerspectiveCamera(35, w / h, 0.1, 100);
-    _badgeCamera.position.set(0, 0, 4.5);
+  // Scene
+  _badgeScene = new THREE.Scene();
 
-    // Renderer
-    _badgeRenderer = new THREE.WebGLRenderer({
-      canvas: canvasEl,
-      alpha: true,
-      antialias: true,
-    });
-    _badgeRenderer.setSize(w, h);
-    _badgeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    _badgeRenderer.toneMapping = THREE.ACESFilmicToneMapping;
-    _badgeRenderer.toneMappingExposure = 1.2;
+  // Camera
+  _badgeCamera = new THREE.PerspectiveCamera(35, w / h, 0.1, 100);
+  _badgeCamera.position.set(0, 0, 4.5);
 
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0xfff5e0, 0.4);
-    _badgeScene.add(ambientLight);
+  // Renderer
+  _badgeRenderer = new THREE.WebGLRenderer({
+    canvas: canvasEl,
+    alpha: true,
+    antialias: true,
+  });
+  _badgeRenderer.setSize(w, h);
+  _badgeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  _badgeRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+  _badgeRenderer.toneMappingExposure = 1.2;
 
-    const keyLight = new THREE.DirectionalLight(0xffffff, 1.2);
-    keyLight.position.set(2, 3, 4);
-    _badgeScene.add(keyLight);
+  // Lighting
+  const ambientLight = new THREE.AmbientLight(0xfff5e0, 0.4);
+  _badgeScene.add(ambientLight);
 
-    const fillLight = new THREE.DirectionalLight(0xffd700, 0.5);
-    fillLight.position.set(-2, -1, 3);
-    _badgeScene.add(fillLight);
+  const keyLight = new THREE.DirectionalLight(0xffffff, 1.2);
+  keyLight.position.set(2, 3, 4);
+  _badgeScene.add(keyLight);
 
-    const rimLight = new THREE.DirectionalLight(0xffe8a0, 0.8);
-    rimLight.position.set(0, 2, -3);
-    _badgeScene.add(rimLight);
+  const fillLight = new THREE.DirectionalLight(0xffd700, 0.5);
+  fillLight.position.set(-2, -1, 3);
+  _badgeScene.add(fillLight);
 
-    // Shield mesh
+  const rimLight = new THREE.DirectionalLight(0xffe8a0, 0.8);
+  rimLight.position.set(0, 2, -3);
+  _badgeScene.add(rimLight);
+
+  // Try loading GLB model first, fall back to procedural shield
+  const glbPath = BADGE_GLB_MAP[badgeId];
+  let loaded = false;
+
+  if (glbPath && _GLTFLoader) {
+    try {
+      const gltf = await _loadGLB(THREE, glbPath);
+      _badgeMesh = gltf.scene;
+      // Auto-center and scale the model
+      const box = new THREE.Box3().setFromObject(_badgeMesh);
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const scale = 2.5 / maxDim; // fit in ~2.5 units
+      _badgeMesh.scale.setScalar(scale);
+      _badgeMesh.position.sub(center.multiplyScalar(scale));
+      _badgeScene.add(_badgeMesh);
+      loaded = true;
+      console.log('Loaded GLB badge:', glbPath);
+    } catch (e) {
+      console.warn('GLB load failed, using procedural:', e.message);
+    }
+  }
+
+  // Fallback: procedural gold shield
+  if (!loaded) {
     const shieldGeo = _createShieldGeometry(THREE);
     const goldMat = _createGoldMaterial(THREE);
     _badgeMesh = new THREE.Mesh(shieldGeo, goldMat);
     _badgeMesh.rotation.x = 0.1;
     _badgeScene.add(_badgeMesh);
+  }
 
-    // Start render loop
-    _badgeAutoRotate = true;
-    _badgeRotX = 0.1;
-    _badgeRotY = 0;
-    _animate();
+  // Start render loop
+  _badgeAutoRotate = true;
+  _badgeRotX = 0.1;
+  _badgeRotY = 0;
+  _animate();
 
-    // Touch/mouse interaction for spinning
-    _setupBadgeInteraction(canvasEl);
-  });
+  // Touch/mouse interaction for spinning
+  _setupBadgeInteraction(canvasEl);
 }
 
 function _animate() {
