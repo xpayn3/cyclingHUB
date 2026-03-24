@@ -2328,10 +2328,8 @@ function _peerDiscoverDevices() {
               // Remote tapped Pair on a connection we initiated — handle it
               const name = data.name || _peerDiscoveredDevices[cid]?.name || cid;
               _peerShowSyncConfirm({
-                title: 'Pair Request',
-                desc: `${name} wants to pair with this device.`,
-                btnText: 'Accept', btnColor: 'var(--accent)',
-                sizeBytes: 0, showItemBreakdown: false, keyCount: 0,
+                title: 'Pair Request', pairDevice: name,
+                desc: '', btnText: 'Accept', btnColor: 'var(--accent)',
                 onApprove: () => { conn.send({ type: 'pair_accept', name: _peerDeviceName() }); _peerPromoteToPaired(conn, name); },
                 onDecline: () => { conn.send({ type: 'pair_decline', name: _peerDeviceName() }); },
               });
@@ -2372,10 +2370,8 @@ function _peerHandleDiscovery(conn, gen) {
       _peerRenderDevices(null);
     } else if (data.type === 'pair_request') {
       _peerShowSyncConfirm({
-        title: 'Pair Request',
-        desc: `${data.name || _remoteName} wants to pair with this device.`,
-        btnText: 'Accept', btnColor: 'var(--accent)',
-        sizeBytes: 0, showItemBreakdown: false, keyCount: 0,
+        title: 'Pair Request', pairDevice: data.name || _remoteName,
+        desc: '', btnText: 'Accept', btnColor: 'var(--accent)',
         onApprove: () => {
           conn.send({ type: 'pair_accept', name: _peerDeviceName() });
           _peerPromoteToPaired(conn, data.name || _remoteName);
@@ -3179,12 +3175,34 @@ function _peerShowSyncConfirm(cfg) {
   titleEl.textContent = cfg.title;
   descEl.textContent = cfg.desc;
 
-  // Size display
-  const bytes = cfg.sizeBytes || 0;
-  sizeEl.textContent = bytes > 1048576 ? (bytes / 1048576).toFixed(1) + ' MB' : Math.round(bytes / 1024) + ' KB';
+  // Pair request: show device graphic instead of data keys/size
+  const sizeRow = sizeEl?.closest('div');
+  if (cfg.pairDevice) {
+    const isMobile = ['iPhone','iPad','Android'].includes(cfg.pairDevice);
+    const deviceSvg = isMobile
+      ? `<svg viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="var(--accent)" stroke-width="1.2"><rect x="5" y="2" width="14" height="20" rx="3"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>`
+      : `<svg viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="var(--accent)" stroke-width="1.2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`;
+    if (itemsEl) itemsEl.innerHTML = `
+      <div style="display:flex;flex-direction:column;align-items:center;padding:20px 0 8px;gap:12px">
+        <div style="width:88px;height:88px;border-radius:24px;background:var(--surface-1);display:flex;align-items:center;justify-content:center">${deviceSvg}</div>
+        <div style="text-align:center">
+          <div style="font-size:18px;font-weight:700;color:var(--text-primary)">${cfg.pairDevice}</div>
+          <div style="font-size:13px;color:var(--text-muted);margin-top:2px">Wants to pair with this device</div>
+        </div>
+      </div>`;
+    if (sizeRow) sizeRow.style.display = 'none';
+    descEl.style.display = 'none';
+  } else {
+    if (sizeRow) sizeRow.style.display = '';
+    descEl.style.display = '';
 
-  // Items breakdown
-  if (cfg.showItemBreakdown) {
+    // Size display
+    const bytes = cfg.sizeBytes || 0;
+    sizeEl.textContent = bytes > 1048576 ? (bytes / 1048576).toFixed(1) + ' MB' : Math.round(bytes / 1024) + ' KB';
+  }
+
+  // Items breakdown (only for non-pair confirms)
+  if (!cfg.pairDevice && cfg.showItemBreakdown) {
     const snapshot = _peerBuildSnapshot();
     const keys = Object.keys(snapshot);
     const cats = { gear: 0, batteries: 0, services: 0, goals: 0, settings: 0, strava: 0, other: 0 };
@@ -3205,7 +3223,7 @@ function _peerShowSyncConfirm(cfg) {
     ];
     if (itemsEl) itemsEl.innerHTML = catList.filter(([,c]) => c > 0)
       .map(([l, c, col]) => `<div class="ios-row" style="min-height:36px"><span class="ios-row-label">${l}</span><span class="ios-row-detail" style="color:${col};font-weight:600">${c} keys</span></div>`).join('');
-  } else {
+  } else if (!cfg.pairDevice) {
     if (itemsEl) itemsEl.innerHTML = `<div class="ios-row" style="min-height:36px"><span class="ios-row-label">Data keys</span><span class="ios-row-detail" style="color:var(--accent);font-weight:600">${cfg.keyCount || '?'}</span></div>`;
   }
 
