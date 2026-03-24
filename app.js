@@ -30364,8 +30364,20 @@ function openBatDetailSheet(id) {
 function closeBatDetailSheet() {
   _closeOverlaySheet('batDetailSheet');
 }
+function deleteBattery(id) {
+  const all = loadGearBatteries();
+  const idx = all.findIndex(b => b.id === id);
+  if (idx < 0) return;
+  all.splice(idx, 1);
+  saveGearBatteries(all);
+  renderGearBatteries();
+  _renderDashBatteries();
+  showToast('Battery deleted', 'success');
+}
+
 window.openBatDetailSheet = openBatDetailSheet;
 window.closeBatDetailSheet = closeBatDetailSheet;
+window.deleteBattery = deleteBattery;
 
 function undoChargeBattery(id) {
   const all = loadGearBatteries();
