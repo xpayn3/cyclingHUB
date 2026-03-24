@@ -1546,7 +1546,14 @@ function openSettingsSubpage(id) {
   // Render dynamic subpage content
   if (id === 'navigation' && typeof renderNavSettings === 'function') renderNavSettings();
   if (id === 'accentcolor') setTimeout(() => openAccentColorPicker(), 350);
-  if (id === 'sync') _peerRenderDevices(null);
+  if (id === 'sync') {
+    _peerRenderDevices((_peerConn && _peerConn.open) ? _peerRemoteName : null);
+    // Restore sync category toggles
+    const toggles = _syncGetToggles();
+    document.querySelectorAll('#iosSubpage-sync [data-sync-key]').forEach(cb => {
+      cb.checked = toggles[cb.dataset.syncKey] !== false; // default ON
+    });
+  }
   if (id === 'apptheme' || id === 'maptheme') _syncThemePicker();
 
   // Inject hero intro if not already present
@@ -1782,7 +1789,7 @@ function iosSettingsInit() {
   if (wxEl) {
     try {
       const locs = JSON.parse(localStorage.getItem('icu_wx_locations') || '[]');
-      wxEl.textContent = locs.length ? locs.length + ' location' + (locs.length > 1 ? 's' : '') : 'None';
+      wxEl.textContent = locs.length ? String(locs.length) : 'None';
     } catch { wxEl.textContent = 'None'; }
   }
   // Default range value
@@ -2124,6 +2131,7 @@ let _peerReconnecting = false;
 let _peerManualDisconnect = false;
 let _peerAutoStarting = false; // guard against auto-start + manual conflicts
 let _peerReconnectTimer = null; // single reconnect timer (prevents cascading)
+let _peerRemoteName = ''; // cached peer device name for re-rendering
 
 function _peerLog(msg, level) {
   const ts = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -2174,11 +2182,37 @@ function _peerDeviceName() {
   return 'Browser';
 }
 
+/* ── Sync category toggles ── */
+const _SYNC_CATEGORIES = {
+  gear:        k => k.includes('gear') || k.includes('component') || k.includes('bike_photo'),
+  batteries:   k => k.includes('batter'),
+  services:    k => k.includes('service') || k.includes('shop'),
+  settings:    k => k.includes('theme') || k.includes('widget') || k.includes('range') || k.includes('notif') || k.includes('font') || k.includes('unit') || k.includes('week_start') || k.includes('dash_section') || k.includes('goal'),
+  credentials: k => k.includes('athlete') || k.includes('api_key') || k.includes('strava'),
+};
+function _syncGetToggles() {
+  try { return JSON.parse(localStorage.getItem('icu_sync_toggles') || '{}'); } catch { return {}; }
+}
+function _syncToggleCategory(el) {
+  const key = el.dataset.syncKey;
+  const toggles = _syncGetToggles();
+  toggles[key] = el.checked;
+  localStorage.setItem('icu_sync_toggles', JSON.stringify(toggles));
+}
+window._syncToggleCategory = _syncToggleCategory;
+
 function _peerBuildSnapshot() {
+  const toggles = _syncGetToggles();
   const ls = {};
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);
-    if (k.startsWith('icu_') || k.startsWith('strava_')) ls[k] = localStorage.getItem(k);
+    if (!k.startsWith('icu_') && !k.startsWith('strava_')) continue;
+    // Check if any disabled category matches this key
+    let excluded = false;
+    for (const [cat, matcher] of Object.entries(_SYNC_CATEGORIES)) {
+      if (toggles[cat] === false && matcher(k)) { excluded = true; break; }
+    }
+    if (!excluded) ls[k] = localStorage.getItem(k);
   }
   return ls;
 }
@@ -2463,7 +2497,8 @@ function _peerHandleConn(conn) {
   conn.on('data', data => {
     if (!data || !data.type) return;
     if (data.type === 'hello') {
-      _peerRenderDevices(data.name);
+      _peerRemoteName = data.name || '';
+      _peerRenderDevices(_peerRemoteName);
     } else if (data.type === 'snapshot_start') {
       if (!conn._receiveApproved) { _peerLog('Blocked unapproved snapshot_start', 'warn'); return; }
       _chunks = new Array(data.total);
@@ -2759,6 +2794,7 @@ function _peerDisconnect() {
   _peerReconnecting = false;
   _peerAutoStarting = false;
   _peerRemoteId = '';
+  _peerRemoteName = '';
   localStorage.removeItem('icu_peer_remote');
   localStorage.removeItem('icu_peer_my_id');
   _peerDestroyInstance();

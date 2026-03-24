@@ -5817,12 +5817,11 @@
                             <!-- What syncs -->
                             <div class="ios-group-label">What Syncs</div>
                             <div class="ios-group">
-                                <div class="ios-row"><span class="ios-row-label">Gear & Components</span><span class="ios-row-detail" style="color:var(--accent)">Yes</span></div>
-                                <div class="ios-row"><span class="ios-row-label">Batteries</span><span class="ios-row-detail" style="color:var(--accent)">Yes</span></div>
-                                <div class="ios-row"><span class="ios-row-label">Services & Shops</span><span class="ios-row-detail" style="color:var(--accent)">Yes</span></div>
-                                <div class="ios-row"><span class="ios-row-label">Goals & Settings</span><span class="ios-row-detail" style="color:var(--accent)">Yes</span></div>
-                                <div class="ios-row"><span class="ios-row-label">API Credentials</span><span class="ios-row-detail" style="color:var(--accent)">Yes</span></div>
-                                <div class="ios-row"><span class="ios-row-label">Activity Data</span><span class="ios-row-detail" style="color:var(--text-muted)">No (re-syncs from API)</span></div>
+                                <div class="ios-row"><span class="ios-row-label">Gear & Components</span><label class="settings-ios-toggle"><input type="checkbox" data-sync-key="gear" checked onchange="_syncToggleCategory(this)"><span class="settings-ios-slider"></span></label></div>
+                                <div class="ios-row"><span class="ios-row-label">Batteries</span><label class="settings-ios-toggle"><input type="checkbox" data-sync-key="batteries" checked onchange="_syncToggleCategory(this)"><span class="settings-ios-slider"></span></label></div>
+                                <div class="ios-row"><span class="ios-row-label">Services & Shops</span><label class="settings-ios-toggle"><input type="checkbox" data-sync-key="services" checked onchange="_syncToggleCategory(this)"><span class="settings-ios-slider"></span></label></div>
+                                <div class="ios-row"><span class="ios-row-label">Goals & Settings</span><label class="settings-ios-toggle"><input type="checkbox" data-sync-key="settings" checked onchange="_syncToggleCategory(this)"><span class="settings-ios-slider"></span></label></div>
+                                <div class="ios-row"><span class="ios-row-label">API Credentials</span><label class="settings-ios-toggle"><input type="checkbox" data-sync-key="credentials" checked onchange="_syncToggleCategory(this)"><span class="settings-ios-slider"></span></label></div>
                             </div>
 
                             <div style="padding:16px;text-align:center;font-size:12px;color:var(--text-faint)">
