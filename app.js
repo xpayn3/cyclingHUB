@@ -2272,7 +2272,7 @@ function _peerDiscoverDevices() {
   if (_peerConn && _peerConn.open) return; // already connected, skip discovery
   const candidates = _peerCandidateIds().filter(c => !_peerDiscoveredDevices[c]);
   if (!candidates.length) return;
-  _peerLog('Scanning ' + candidates.length + ' candidates...');
+  _peerLog('Scanning: ' + candidates.join(', '));
 
   // Batch: try 3 at a time with 800ms gaps to avoid flooding PeerJS
   let idx = 0;
@@ -2288,6 +2288,7 @@ function _peerDiscoverDevices() {
         const timeout = setTimeout(() => { try { conn.close(); } catch {} }, 5000);
         conn.on('open', () => {
           clearTimeout(timeout);
+          _peerLog('Probe connected: ' + cid);
           conn.send({ type: 'discover', name: _peerDeviceName() });
           conn.on('data', data => {
             if (data?.type === 'discover_ack') {
