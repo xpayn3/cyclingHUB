@@ -15267,7 +15267,7 @@ function closeModalAnimated(dialog) {
   }, 400);
 }
 
-function showToast(msg, type = 'success') {
+function showToast(msg, type = 'success', subtitle) {
   const ICONS = {
     success: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`,
     error:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg>`,
@@ -15275,14 +15275,23 @@ function showToast(msg, type = 'success') {
   };
   const t = document.createElement('div');
   t.className = 'toast ' + type;
-  t.innerHTML = `<span class="toast-icon">${ICONS[type] || ICONS.info}</span><span>${msg}</span>`;
+  const subHtml = subtitle ? `<div class="toast-sub">${subtitle}</div>` : '';
+  t.innerHTML = `<span class="toast-icon">${ICONS[type] || ICONS.info}</span><div class="toast-text"><div class="toast-msg">${msg}</div>${subHtml}</div>`;
   document.getElementById('toastContainer').appendChild(t);
-  setTimeout(() => {
-    t.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
-    t.style.opacity = '0';
-    t.style.transform = 'translateY(6px) scale(0.95)';
-    setTimeout(() => t.remove(), 220);
-  }, 3500);
+  // Tap to dismiss
+  t.addEventListener('click', () => _dismissToast(t));
+  // Auto-dismiss
+  const timer = setTimeout(() => _dismissToast(t), 4000);
+  t._timer = timer;
+}
+function _dismissToast(t) {
+  if (t._dismissed) return;
+  t._dismissed = true;
+  clearTimeout(t._timer);
+  t.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+  t.style.opacity = '0';
+  t.style.transform = 'translateY(-8px) scale(0.96)';
+  setTimeout(() => t.remove(), 220);
 }
 
 /* ====================================================
