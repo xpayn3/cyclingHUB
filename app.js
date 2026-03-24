@@ -22228,6 +22228,9 @@ function renderActivityBasic(a) {
   // ── Render the "How You Compare" card ────────────────────────────────────
   renderDetailComparison(a);
 
+  // ── Device battery levels from FIT ───────────────────────────────────────
+  renderDetailDevices(a).catch(() => {});
+
   // ── Data source / device footer ───────────────────────────────────────────
   renderDetailSourceFooter(a);
 
@@ -22464,6 +22467,82 @@ function renderDetailComparison(a) {
       observer.observe(bar);
     });
   });
+}
+
+// ── Device battery levels from FIT file ──
+async function renderDetailDevices(a) {
+  const el = document.getElementById('detailDevicesCard');
+  if (!el) return;
+  el.style.display = 'none';
+  el.innerHTML = '';
+
+  const actId = a.id;
+  if (!actId) return;
+
+  // Extract battery from this specific activity's FIT
+  let devices;
+  try {
+    devices = await _extractBatteryFromFIT(actId);
+  } catch { return; }
+  if (!devices || !devices.length) return;
+
+  const readings = devices
+    .filter(d => d.voltage || d.batStatus)
+    .map(d => ({
+      voltage: d.voltage,
+      status: _batStatusText(d.batStatus),
+      percent: _voltageToPercent(d.voltage, d.voltage > 2.5 ? 'rechargeable' : 'coin_cell'),
+      manufacturer: _FIT_MFR[d.manufacturer] || (d.manufacturer ? `ID:${d.manufacturer}` : 'Unknown'),
+      product: d.product,
+    }));
+
+  if (!readings.length) return;
+
+  // Deduplicate by manufacturer+product (keep last occurrence which has end-of-ride battery)
+  const best = new Map();
+  for (const r of readings) {
+    const key = `${r.manufacturer}_${r.product}`;
+    best.set(key, r); // last wins — end-of-ride reading
+  }
+  const unique = [...best.values()];
+
+  const batIcon = (pct) => {
+    const color = pct == null ? 'var(--text-muted)' : pct > 50 ? 'var(--accent)' : pct > 25 ? C_YELLOW : pct > 10 ? C_ORANGE : 'var(--red)';
+    return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"><rect x="2" y="7" width="18" height="10" rx="2"/><line x1="22" y1="11" x2="22" y2="13"/></svg>`;
+  };
+
+  const rows = unique.map(r => {
+    const pct = r.percent;
+    const pctColor = pct == null ? 'var(--text-muted)' : pct > 50 ? 'var(--accent)' : pct > 25 ? C_YELLOW : pct > 10 ? C_ORANGE : 'var(--red)';
+    const pctText = pct != null ? `${pct}%` : (r.status || '—');
+    const voltText = r.voltage ? `${r.voltage.toFixed(2)}V` : '';
+    const statusText = r.status && r.status !== 'Unknown' ? r.status : '';
+    const detail = [voltText, statusText].filter(Boolean).join(' · ');
+
+    return `<div class="detail-zone-summary-row">
+      <span style="display:flex;align-items:center;gap:8px">
+        ${batIcon(pct)}
+        <span>${r.manufacturer}</span>
+      </span>
+      <span style="display:flex;align-items:center;gap:6px">
+        ${detail ? `<span style="font-size:12px;color:var(--text-muted)">${detail}</span>` : ''}
+        <span class="detail-zone-summary-val" style="color:${pctColor};min-width:36px;text-align:right">${pctText}</span>
+      </span>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="card-header">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="card-title" style="flex:1 1 0%">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="7" width="18" height="10" rx="2"/><line x1="22" y1="11" x2="22" y2="13"/></svg>
+          Device Batteries
+        </div>
+      </div>
+    </div>
+    <div class="detail-zone-summary">${rows}</div>
+  `;
+  el.style.display = '';
 }
 
 function renderDetailSourceFooter(a) {
