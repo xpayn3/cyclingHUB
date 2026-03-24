@@ -7314,9 +7314,11 @@ input[type="number"] {
 ============================================================ */
 .page {
     display: none;
+    content-visibility: hidden;
 }
 .page.active {
     display: contents;
+    content-visibility: visible;
 }
 
 /* Skip rendering of off-screen dashboard sections until scrolled into view */

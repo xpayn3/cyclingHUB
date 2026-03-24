@@ -554,6 +554,57 @@ function cleanupPageCharts(leavingPage) {
   _lazyCharts.pending.clear();
 }
 
+// Strip dynamic DOM content from heavy pages when navigating away
+// Reduces DOM node count by thousands, improving style recalc and memory
+function _cleanupPageDOM(leavingPage) {
+  if (!leavingPage) return;
+
+  // Activity detail — heaviest page: streams chart, zones, intervals, climbs, etc.
+  if (leavingPage === 'activity') {
+    const ids = [
+      'detailStreamsCard', 'detailChartsRow', 'detailIntervalsBody',
+      'detailCurvesRow', 'detailGradientCard', 'detailClimbsCard',
+      'detailCadenceCard', 'detailHistogramCard', 'detailTempCard',
+      'detailPwrHRCard', 'detailNPTimelineCard', 'detailSpeedGradeCard',
+      'detailDynamicsCard', 'detailGearShiftsCard', 'detailDevicesCard',
+    ];
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = '';
+    });
+  }
+
+  // Goals page — badges grid, lifetime stats, monthly grid
+  if (leavingPage === 'goals') {
+    ['stkBadgesGrid', 'stkLifetimeGrid', 'stkMonthsGrid'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = '';
+    });
+  }
+
+  // Activities list — card grid with maps
+  if (leavingPage === 'activities') {
+    const grid = document.getElementById('allActivityCardGrid');
+    if (grid) grid.innerHTML = '';
+  }
+
+  // Fitness page — many chart cards
+  if (leavingPage === 'fitness') {
+    ['fitWhatIfCard', 'fitAcclimCard', 'fitFatigueCard', 'fitInjuryRiskCard', 'fitRecoveryCard'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        const canvas = el.querySelector('canvas');
+        if (canvas) canvas.remove();
+      }
+    });
+  }
+
+  // Power page — chart canvases
+  if (leavingPage === 'power') {
+    document.querySelectorAll('#page-power canvas').forEach(c => c.remove());
+  }
+}
+
 /** Update the sidebar CTL badge from state.fitness — call any time fitness data is available */
 function updateSidebarCTL() {
   const el = document.getElementById('sidebarCTL');
@@ -3974,6 +4025,9 @@ function navigate(page, opts) {
 
   // Clean up charts from the page we're leaving to free memory
   if (state.currentPage) cleanupPageCharts(state.currentPage);
+
+  // Strip dynamic DOM from heavy pages to reduce node count
+  _cleanupPageDOM(state.currentPage);
 
   // Clear any pending debounce timers from the page we're leaving
   clearTimeout(_wxSearchTimer);
