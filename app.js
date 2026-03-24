@@ -2138,8 +2138,11 @@ let _peerManualDisconnect = false;
 let _peerAutoStarting = false;
 let _peerReconnectTimer = null;
 let _peerRemoteName = '';
-let _peerDiscoverTimer = null; // periodic discovery scan timer
-let _peerDiscoveredDevices = {}; // { peerId: { name, conn } }
+let _peerDiscoverTimer = null;
+let _peerDiscoveredDevices = {};
+let _peerGeneration = 0; // incremented on every toggle/disconnect — stale handlers check this
+let _peerDiscovering = false; // guards against overlapping discovery scans
+let _peerToggling = false; // guards against overlapping toggle calls
 
 function _peerLog(msg, level) {
   const ts = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -2207,91 +2210,115 @@ function _peerCandidateIds() {
 
 /* ── P2P Toggle: ON/OFF ── */
 function _peerToggle(on) {
+  if (_peerToggling) return; // guard against overlapping calls
+  _peerToggling = true;
+  _peerGeneration++; // invalidate all stale handlers
+  const gen = _peerGeneration;
+
   localStorage.setItem('icu_p2p_enabled', on ? 'true' : 'false');
   const content = document.getElementById('syncP2pContent');
   if (content) content.style.display = on ? '' : 'none';
 
-  if (on) {
-    if (!state.athleteId) { showToast('Log in first to use P2P sync', 'error'); return; }
-    const myId = _peerMakeId();
-    if (!myId) { showToast('No athlete ID — log in first', 'error'); return; }
-    _peerDestroyInstance();
-    _peerManualDisconnect = false;
-    _peerMyId = myId;
-    _peerDiscoveredDevices = {};
+  // Always fully tear down first
+  if (_peerDiscoverTimer) { clearInterval(_peerDiscoverTimer); _peerDiscoverTimer = null; }
+  _peerDiscovering = false;
+  _peerManualDisconnect = true;
+  _peerReconnecting = false;
+  if (_peerReconnectTimer) { clearTimeout(_peerReconnectTimer); _peerReconnectTimer = null; }
+  if (_peerConn) { try { _peerConn.close(); } catch {} _peerConn = null; }
+  if (_peerInstance) { try { _peerInstance.destroy(); } catch {} _peerInstance = null; }
+  _peerMyId = '';
+  _peerRemoteId = '';
+  _peerRemoteName = '';
+  _peerDiscoveredDevices = {};
+  localStorage.removeItem('icu_peer_remote');
+  localStorage.removeItem('icu_peer_my_id');
 
-    if (typeof Peer === 'undefined') {
-      showToast('PeerJS not loaded — check your connection', 'error');
-      return;
-    }
-    _peerInstance = new Peer(myId, _peerOpts);
-    _peerInstance.on('open', id => {
-      _peerMyId = id;
-      _peerLog('Registered as: ' + id);
-      _peerUpdateUI('ready', id);
-      _peerRenderDevices(null);
-      _peerDiscoverDevices(); // initial scan
-      _peerDiscoverTimer = setInterval(_peerDiscoverDevices, 30000); // re-scan every 30s
-    });
-    _peerInstance.on('connection', conn => {
-      _peerLog('Incoming connection from: ' + conn.peer);
-      _peerHandleDiscovery(conn);
-    });
-    _peerInstance.on('error', e => {
-      // peer-unavailable is expected during discovery scans — don't log as error
-      if (e.type === 'peer-unavailable') return;
-      if (e.type === 'network') { _peerLog('Network error — check connection', 'warn'); return; }
-      if (e.type === 'unavailable-id') {
-        _peerDestroyInstance();
-        _peerLog('ID taken — retrying...', 'warn');
-        setTimeout(() => _peerToggle(true), 1500);
-        return;
-      }
-      _peerLog('Peer error: ' + (e.type || e.message), 'error');
-    });
-  } else {
-    // Turn OFF
-    if (_peerDiscoverTimer) { clearInterval(_peerDiscoverTimer); _peerDiscoverTimer = null; }
-    _peerManualDisconnect = true;
-    _peerDestroyInstance();
-    _peerMyId = '';
-    _peerRemoteId = '';
-    _peerRemoteName = '';
-    _peerDiscoveredDevices = {};
-    localStorage.removeItem('icu_peer_remote');
-    localStorage.removeItem('icu_peer_my_id');
+  if (!on) {
     _peerUpdateUI('off');
     _peerRenderDevices(null);
+    _peerToggling = false;
+    return;
   }
+
+  // Turn ON
+  if (!state.athleteId) { showToast('Log in first to use P2P sync', 'error'); _peerToggling = false; return; }
+  const myId = _peerMakeId();
+  if (!myId) { showToast('No athlete ID', 'error'); _peerToggling = false; return; }
+  if (typeof Peer === 'undefined') { showToast('PeerJS not loaded', 'error'); _peerToggling = false; return; }
+
+  _peerManualDisconnect = false;
+  _peerMyId = myId;
+  _peerInstance = new Peer(myId, _peerOpts);
+
+  _peerInstance.on('open', id => {
+    if (gen !== _peerGeneration) return; // stale — a newer toggle happened
+    _peerMyId = id;
+    _peerLog('Registered as: ' + id);
+    _peerUpdateUI('ready', id);
+    _peerRenderDevices(null);
+    _peerToggling = false;
+    _peerDiscoverDevices();
+    _peerDiscoverTimer = setInterval(_peerDiscoverDevices, 30000);
+  });
+
+  _peerInstance.on('connection', conn => {
+    if (gen !== _peerGeneration) { try { conn.close(); } catch {} return; }
+    _peerLog('Incoming connection from: ' + conn.peer);
+    _peerHandleDiscovery(conn, gen);
+  });
+
+  _peerInstance.on('error', e => {
+    if (gen !== _peerGeneration) return;
+    if (e.type === 'peer-unavailable') return;
+    if (e.type === 'network') { _peerLog('Network error', 'warn'); return; }
+    if (e.type === 'unavailable-id') {
+      _peerLog('ID taken — retrying...', 'warn');
+      _peerToggling = false;
+      if (_peerInstance) { try { _peerInstance.destroy(); } catch {} _peerInstance = null; }
+      setTimeout(() => _peerToggle(true), 1500);
+      return;
+    }
+    _peerLog('Peer error: ' + (e.type || e.message), 'error');
+    _peerToggling = false;
+  });
+
+  // Timeout: if open doesn't fire in 10s, release the toggle guard
+  setTimeout(() => { _peerToggling = false; }, 10000);
 }
 window._peerToggle = _peerToggle;
 
 /* ── Discovery: scan for other devices on same account ── */
 function _peerDiscoverDevices() {
+  if (_peerDiscovering) return; // re-entrance guard
   if (!_peerInstance || _peerInstance.destroyed || !_peerInstance.open) return;
-  if (_peerConn && _peerConn.open) return; // already connected, skip discovery
+  if (_peerConn && _peerConn.open) return; // already paired
+  const gen = _peerGeneration;
   const candidates = _peerCandidateIds().filter(c => !_peerDiscoveredDevices[c]);
   if (!candidates.length) return;
+  _peerDiscovering = true;
   _peerLog('Scanning: ' + candidates.join(', '));
 
-  // Batch: try 3 at a time with 800ms gaps to avoid flooding PeerJS
   let idx = 0;
   const _batch = () => {
-    if (!_peerInstance || _peerInstance.destroyed || (_peerConn && _peerConn.open)) return;
+    if (gen !== _peerGeneration) { _peerDiscovering = false; return; } // stale
+    if (!_peerInstance || _peerInstance.destroyed || (_peerConn && _peerConn.open)) { _peerDiscovering = false; return; }
     const batch = candidates.slice(idx, idx + 3);
-    if (!batch.length) return;
+    if (!batch.length) { _peerDiscovering = false; return; }
     idx += 3;
     for (const cid of batch) {
-      if (_peerDiscoveredDevices[cid]) continue;
+      if (_peerDiscoveredDevices[cid] || gen !== _peerGeneration) continue;
       try {
         const conn = _peerInstance.connect(cid, { ordered: true });
         const timeout = setTimeout(() => { try { conn.close(); } catch {} }, 5000);
         conn.on('open', () => {
           clearTimeout(timeout);
+          if (gen !== _peerGeneration) { try { conn.close(); } catch {} return; }
           _peerLog('Probe connected: ' + cid);
           conn.send({ type: 'discover', name: _peerDeviceName() });
           conn.on('data', data => {
-            if (data?.type === 'discover_ack') {
+            if (gen !== _peerGeneration) return;
+            if (data?.type === 'discover_ack' && !_peerDiscoveredDevices[cid]) {
               _peerDiscoveredDevices[cid] = { name: data.name, conn };
               _peerLog('Found: ' + data.name);
               _peerRenderDevices(null);
@@ -2301,27 +2328,37 @@ function _peerDiscoverDevices() {
               showToast((data.name || 'Peer') + ' declined', 'info');
             }
           });
-          conn.on('close', () => { delete _peerDiscoveredDevices[cid]; _peerRenderDevices(null); });
+          conn.on('close', () => {
+            if (gen !== _peerGeneration) return;
+            delete _peerDiscoveredDevices[cid];
+            _peerRenderDevices(null);
+          });
         });
         conn.on('error', () => clearTimeout(timeout));
       } catch {}
     }
     if (idx < candidates.length) setTimeout(_batch, 800);
+    else _peerDiscovering = false;
   };
   _batch();
 }
 
 /* ── Handle incoming discovery connections ── */
-function _peerHandleDiscovery(conn) {
+function _peerHandleDiscovery(conn, gen) {
   let _remoteName = '';
+  conn._peerGen = gen; // tag connection with its generation
   conn.on('data', data => {
+    if (gen !== _peerGeneration) return; // stale
     if (!data?.type) return;
     if (data.type === 'discover') {
       _remoteName = data.name || conn.peer;
       conn.send({ type: 'discover_ack', name: _peerDeviceName() });
-      _peerDiscoveredDevices[conn.peer] = { name: _remoteName, conn };
-      _peerLog('Discovered by: ' + _remoteName);
-      _peerRenderDevices(null);
+      // Only store if not already discovered (prevents bidirectional duplicates)
+      if (!_peerDiscoveredDevices[conn.peer]) {
+        _peerDiscoveredDevices[conn.peer] = { name: _remoteName, conn };
+        _peerLog('Discovered by: ' + _remoteName);
+        _peerRenderDevices(null);
+      }
     } else if (data.type === 'pair_request') {
       _peerShowSyncConfirm({
         title: 'Pair Request',
@@ -2344,6 +2381,7 @@ function _peerHandleDiscovery(conn) {
     }
   });
   conn.on('close', () => {
+    if (gen !== _peerGeneration) return;
     delete _peerDiscoveredDevices[conn.peer];
     _peerRenderDevices(null);
   });
@@ -2371,7 +2409,13 @@ function _peerHandlePairAccept(conn, data) {
 function _peerPromoteToPaired(conn, name) {
   // Stop discovery
   if (_peerDiscoverTimer) { clearInterval(_peerDiscoverTimer); _peerDiscoverTimer = null; }
+  _peerDiscovering = false;
   _peerDiscoveredDevices = {};
+
+  // Remove all existing listeners from discovery phase to prevent duplicates
+  conn.removeAllListeners('data');
+  conn.removeAllListeners('close');
+  conn.removeAllListeners('error');
 
   // Set as main connection
   _peerConn = conn;
@@ -2381,7 +2425,7 @@ function _peerPromoteToPaired(conn, name) {
   localStorage.setItem('icu_peer_remote', _peerRemoteId);
   localStorage.setItem('icu_peer_my_id', _peerMyId);
 
-  // Attach full data handler
+  // Attach full paired data handler (clean — no duplicate listeners)
   _peerHandleConn(conn);
   _peerUpdateUI('connected');
   _peerRenderDevices(name);
@@ -2664,6 +2708,7 @@ function _peerHideProgress() {
 }
 
 function _peerHandleConn(conn) {
+  const gen = _peerGeneration;
   // Close previous connection if still open
   if (_peerConn && _peerConn !== conn) { try { _peerConn.close(); } catch {} }
   _peerConn = conn;
@@ -2764,9 +2809,10 @@ function _peerHandleConn(conn) {
     }
   });
   conn.on('close', () => {
+    if (gen !== _peerGeneration) return; // stale — a newer toggle/disconnect happened
     if (_peerConn === conn) _peerConn = null;
     if (_peerManualDisconnect) return;
-    if (_peerReconnecting) return; // already reconnecting, don't stack
+    if (_peerReconnecting) return;
     const remoteId = _peerRemoteId || conn.peer;
     if (remoteId && _peerInstance && !_peerInstance.destroyed) {
       _peerReconnecting = true;
@@ -2988,21 +3034,9 @@ window._peerCancelConnect = _peerCancelConnect;
 
 function _peerDisconnect() {
   _peerLog('Disconnected — restarting discovery');
-  localStorage.removeItem('icu_peer_remote');
-  localStorage.removeItem('icu_peer_my_id');
-  // Full teardown + re-enable to get a clean state
-  _peerManualDisconnect = true;
-  _peerReconnecting = false;
-  if (_peerDiscoverTimer) { clearInterval(_peerDiscoverTimer); _peerDiscoverTimer = null; }
-  if (_peerConn) { try { _peerConn.close(); } catch {} _peerConn = null; }
-  if (_peerInstance) { try { _peerInstance.destroy(); } catch {} _peerInstance = null; }
-  _peerRemoteId = '';
-  _peerRemoteName = '';
-  _peerMyId = '';
-  _peerDiscoveredDevices = {};
   showToast('Disconnected', 'success');
-  // Re-enable P2P with fresh instance after a short delay
-  setTimeout(() => _peerToggle(true), 500);
+  // Full clean re-toggle: _peerToggle handles all teardown + re-init
+  _peerToggle(true);
 }
 window._peerDisconnect = _peerDisconnect;
 
