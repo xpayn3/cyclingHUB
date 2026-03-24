@@ -27435,7 +27435,9 @@ html[data-theme="tdf"] {
 [data-theme="tdf"] .goal-dash-card::before {
     background: radial-gradient(ellipse at 30% 20%, rgba(255,215,0,0.08) 0%, transparent 70%);
 }
-/* ── Squircle Mode (Apple superellipse corners) ── */
+/* ── Squircle Mode (Apple continuous corners) ── */
+/* Uses corner-shape: squircle (Safari 18.4+) with fallback to increased radius */
+[data-squircle] { --radius: 20px; --radius-sm: 12px; --radius-lg: 22px; }
 [data-squircle] .card,
 [data-squircle] .ios-group,
 [data-squircle] .cev-target-card,
@@ -27446,28 +27448,10 @@ html[data-theme="tdf"] {
 [data-squircle] .goal-dash-card,
 [data-squircle] .sync-device,
 [data-squircle] .fit-race-tool-btn,
-[data-squircle] .cdd-dropdown {
-    border-radius: 0 !important;
-    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M0 16C0 7.2 0 2.8 1.4 1.4 2.8 0 7.2 0 16 0h68c8.8 0 13.2 0 14.6 1.4C100 2.8 100 7.2 100 16v68c0 8.8 0 13.2-1.4 14.6-1.4 1.4-5.8 1.4-14.6 1.4H16c-8.8 0-13.2 0-14.6-1.4C0 97.2 0 92.8 0 84V16Z' fill='%23fff'/%3E%3C/svg%3E");
-    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M0 16C0 7.2 0 2.8 1.4 1.4 2.8 0 7.2 0 16 0h68c8.8 0 13.2 0 14.6 1.4C100 2.8 100 7.2 100 16v68c0 8.8 0 13.2-1.4 14.6-1.4 1.4-5.8 1.4-14.6 1.4H16c-8.8 0-13.2 0-14.6-1.4C0 97.2 0 92.8 0 84V16Z' fill='%23fff'/%3E%3C/svg%3E");
-    -webkit-mask-size: 100% 100%;
-    mask-size: 100% 100%;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-}
-[data-squircle] .btn:not([class*="pill"]):not(.cal-fab):not(.settings-back-fab):not(.settings-search-fab):not(.modal-close):not(.act-card-info-btn):not(.floating-profile-btn):not(.notif-bell):not(.p2p-status-btn) {
-    border-radius: 0 !important;
-    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M0 12C0 5.4 0 2.1 1.1 1.1 2.1 0 5.4 0 12 0h76c6.6 0 9.9 0 10.9 1.1 1.1 1 1.1 4.4 1.1 10.9v76c0 6.6 0 9.9-1.1 10.9-1 1.1-4.3 1.1-10.9 1.1H12c-6.6 0-9.9 0-10.9-1.1C0 97.9 0 94.6 0 88V12Z' fill='%23fff'/%3E%3C/svg%3E");
-    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M0 12C0 5.4 0 2.1 1.1 1.1 2.1 0 5.4 0 12 0h76c6.6 0 9.9 0 10.9 1.1 1.1 1 1.1 4.4 1.1 10.9v76c0 6.6 0 9.9-1.1 10.9-1 1.1-4.3 1.1-10.9 1.1H12c-6.6 0-9.9 0-10.9-1.1C0 97.9 0 94.6 0 88V12Z' fill='%23fff'/%3E%3C/svg%3E");
-    -webkit-mask-size: 100% 100%;
-    mask-size: 100% 100%;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-}
-/* Squircle shadows → use filter instead of box-shadow */
-[data-squircle] .fit-race-tool-btn {
-    box-shadow: none !important;
-    filter: drop-shadow(0 8px 24px rgba(0,0,0,0.35));
+[data-squircle] .cdd-dropdown,
+[data-squircle] .btn {
+    corner-shape: squircle;
+    -webkit-corner-shape: squircle;
 }
 } /* end @layer themes */
 
