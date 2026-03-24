@@ -2318,10 +2318,23 @@ function _peerDiscoverDevices() {
           conn.send({ type: 'discover', name: _peerDeviceName() });
           conn.on('data', data => {
             if (gen !== _peerGeneration) return;
-            if (data?.type === 'discover_ack' && !_peerDiscoveredDevices[cid]) {
-              _peerDiscoveredDevices[cid] = { name: data.name, conn };
-              _peerLog('Found: ' + data.name);
-              _peerRenderDevices(null);
+            if (data?.type === 'discover_ack') {
+              if (!_peerDiscoveredDevices[cid]) {
+                _peerDiscoveredDevices[cid] = { name: data.name, conn };
+                _peerLog('Found: ' + data.name);
+                _peerRenderDevices(null);
+              }
+            } else if (data?.type === 'pair_request') {
+              // Remote tapped Pair on a connection we initiated — handle it
+              const name = data.name || _peerDiscoveredDevices[cid]?.name || cid;
+              _peerShowSyncConfirm({
+                title: 'Pair Request',
+                desc: `${name} wants to pair with this device.`,
+                btnText: 'Accept', btnColor: 'var(--accent)',
+                sizeBytes: 0, showItemBreakdown: false, keyCount: 0,
+                onApprove: () => { conn.send({ type: 'pair_accept', name: _peerDeviceName() }); _peerPromoteToPaired(conn, name); },
+                onDecline: () => { conn.send({ type: 'pair_decline', name: _peerDeviceName() }); },
+              });
             } else if (data?.type === 'pair_accept') {
               _peerHandlePairAccept(conn, data);
             } else if (data?.type === 'pair_decline') {
@@ -2353,12 +2366,10 @@ function _peerHandleDiscovery(conn, gen) {
     if (data.type === 'discover') {
       _remoteName = data.name || conn.peer;
       conn.send({ type: 'discover_ack', name: _peerDeviceName() });
-      // Only store if not already discovered (prevents bidirectional duplicates)
-      if (!_peerDiscoveredDevices[conn.peer]) {
-        _peerDiscoveredDevices[conn.peer] = { name: _remoteName, conn };
-        _peerLog('Discovered by: ' + _remoteName);
-        _peerRenderDevices(null);
-      }
+      // Always prefer incoming connection — both sides listen on it
+      _peerDiscoveredDevices[conn.peer] = { name: _remoteName, conn };
+      _peerLog('Discovered by: ' + _remoteName);
+      _peerRenderDevices(null);
     } else if (data.type === 'pair_request') {
       _peerShowSyncConfirm({
         title: 'Pair Request',
