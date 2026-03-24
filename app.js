@@ -3174,6 +3174,9 @@ function _peerShowSyncConfirm(cfg) {
 
   titleEl.textContent = cfg.title;
   descEl.textContent = cfg.desc;
+  const closeBtn = document.querySelector('#syncConfirmSheet .modal-close');
+  if (closeBtn) closeBtn.style.display = cfg.pairDevice ? 'none' : '';
+  titleEl.style.display = cfg.pairDevice ? 'none' : '';
 
   // Pair request: show device graphic instead of data keys/size
   const sizeRow = sizeEl?.closest('div');
