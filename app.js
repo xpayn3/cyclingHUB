@@ -1618,6 +1618,23 @@ function _syncThemePicker() {
 const _subpageCache = {};
 let _subpageCacheReady = false;
 
+// Strip overlay sheet bodies on startup — saves ~3,000-4,000 DOM nodes
+// Safe because all sheets rebuild their content via open*() functions
+function _initLazySheets() {
+  const KEEP_IDS = new Set(['syncConfirmSheet']); // sheets with static content needed immediately
+  document.querySelectorAll('.wxd-overlay').forEach(overlay => {
+    if (KEEP_IDS.has(overlay.id)) return;
+    if (overlay.style.display === 'none' || !overlay.classList.contains('wxd-open')) {
+      const body = overlay.querySelector('.wxd-sheet-body');
+      if (body && body.children.length > 3) {
+        body._lazyCache = body.innerHTML;
+        body.innerHTML = '';
+      }
+    }
+  });
+  console.info('Lazy sheets: stripped ' + document.querySelectorAll('.wxd-overlay').length + ' overlay bodies');
+}
+
 function _initSubpageCache() {
   if (_subpageCacheReady) return;
   document.querySelectorAll('.ios-subpage').forEach(sub => {
@@ -3827,6 +3844,12 @@ function closeSidebar() {
 // Prevent touchmove on the backdrop — stops iOS from starting a scroll
 // context on the empty area that then "steals" scroll from the sidebar.
 document.addEventListener('DOMContentLoaded', () => {
+  // Strip heavy DOM on startup — defer to after first paint
+  requestAnimationFrame(() => {
+    _initLazySheets();
+    _initSubpageCache();
+  });
+
   // ── iOS-style sticky title: show when large title scrolls out ──
   const _pgHeadline = document.querySelector('.page-headline-title');
   const _stickyBar = document.getElementById('stickyPageTitle');
