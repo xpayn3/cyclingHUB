@@ -22627,6 +22627,31 @@ async function renderDetailDynamics(a) {
         <span><span style="display:inline-block;width:12px;height:2px;background:var(--accent);vertical-align:middle;margin-right:4px"></span>Average</span>
       </div>
     </div>`;
+
+    // PCO distribution histograms (L and R separately)
+    if (d.lPco.length > 10 || d.rPco.length > 10) {
+      const buildHisto = (arr, label, color) => {
+        if (!arr.length) return '';
+        const bins = new Array(21).fill(0); // -10mm to +10mm
+        arr.forEach(v => { const idx = Math.max(0, Math.min(20, Math.round(v + 10))); bins[idx]++; });
+        const maxBin = Math.max(...bins, 1);
+        const bars = bins.map((count, i) => {
+          const h = Math.max(count > 0 ? 2 : 0, Math.round((count / maxBin) * 36));
+          const mm = i - 10;
+          const c = Math.abs(mm) <= 3 ? 'var(--accent)' : Math.abs(mm) <= 6 ? C_YELLOW : C_ORANGE;
+          return `<div style="flex:1;height:${h}px;background:${c};border-radius:1px" title="${mm}mm: ${count}"></div>`;
+        }).join('');
+        return `<div style="margin-top:8px">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">${label}</div>
+          <div style="display:flex;align-items:flex-end;gap:1px;height:40px">${bars}</div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-faint);padding:2px 0 0">
+            <span>-10</span><span>0</span><span>+10mm</span>
+          </div>
+        </div>`;
+      };
+      pcoChart += buildHisto(d.lPco, 'Left PCO Distribution', lColor);
+      pcoChart += buildHisto(d.rPco, 'Right PCO Distribution', rColor);
+    }
   }
 
   el.innerHTML = `
