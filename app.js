@@ -71,6 +71,8 @@ let _devApiLastMs = 0;
         if (typeof a === 'object') try { return JSON.stringify(a).slice(0, 200); } catch { return String(a); }
         return String(a);
       }).join(' ');
+      // Suppress noisy PeerJS discovery errors (expected when scanning for devices)
+      if (msg.includes('Could not connect to peer') || msg.includes('peer-unavailable')) return;
       _devLog.push({ ts: Date.now(), level, msg });
       if (_devLog.length > _DEV_LOG_MAX) _devLog.shift();
       if (_devLogRenderFn) _devLogRenderFn();
@@ -2367,7 +2369,10 @@ function _peerToggle(on) {
     _peerRenderDevices(null);
     _peerToggling = false;
     _peerDiscoverDevices();
-    _peerDiscoverTimer = setInterval(_peerDiscoverDevices, 30000);
+    _peerDiscoverTimer = setInterval(() => {
+      window._peerFailedIds?.clear(); // retry all candidates each cycle
+      _peerDiscoverDevices();
+    }, 30000);
   });
 
   _peerInstance.on('connection', conn => {
@@ -2402,7 +2407,8 @@ function _peerDiscoverDevices() {
   if (!_peerInstance || _peerInstance.destroyed || !_peerInstance.open) return;
   if (_peerConn && _peerConn.open) return; // already paired
   const gen = _peerGeneration;
-  const candidates = _peerCandidateIds().filter(c => !_peerDiscoveredDevices[c]);
+  if (!window._peerFailedIds) window._peerFailedIds = new Set();
+  const candidates = _peerCandidateIds().filter(c => !_peerDiscoveredDevices[c] && !window._peerFailedIds.has(c));
   if (!candidates.length) return;
   _peerDiscovering = true;
   _peerLog('Scanning: ' + candidates.join(', '));
@@ -2418,7 +2424,8 @@ function _peerDiscoverDevices() {
       if (_peerDiscoveredDevices[cid] || gen !== _peerGeneration) continue;
       try {
         const conn = _peerInstance.connect(cid, { ordered: true });
-        const timeout = setTimeout(() => { try { conn.close(); } catch {} }, 5000);
+        const timeout = setTimeout(() => { window._peerFailedIds?.add(cid); try { conn.close(); } catch {} }, 5000);
+        conn.on('error', () => { window._peerFailedIds?.add(cid); });
         conn.on('open', () => {
           clearTimeout(timeout);
           if (gen !== _peerGeneration) { try { conn.close(); } catch {} return; }
