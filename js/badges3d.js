@@ -243,53 +243,106 @@ export async function initBadge3D(canvasEl, badgeId) {
     _badgeScene.add(_badgeMesh);
   }
 
-  // Start render loop
-  _badgeAutoRotate = true;
-  _badgeRotX = 0.1;
-  _badgeRotY = 0;
-  _animate();
+  // Default front-facing rotation (slight tilt for depth)
+  const REST_X = 0.08;
+  const REST_Y = 0;
 
-  // Touch/mouse interaction for spinning
-  _setupBadgeInteraction(canvasEl);
+  // Spring physics state
+  let velX = 0, velY = 0;
+  const SPRING = 0.08;    // spring stiffness (higher = snappier)
+  const DAMPING = 0.82;   // friction (lower = more bouncy)
+  const OVERSHOOT = 1.3;  // allows spring to overshoot for bounce effect
+
+  if (_badgeMesh) {
+    _badgeMesh.rotation.x = REST_X;
+    _badgeMesh.rotation.y = REST_Y;
+  }
+
+  _badgeDragging = false;
+  _badgeAutoRotate = false; // no auto-rotate, badge faces front
+
+  _animate_spring(REST_X, REST_Y, SPRING, DAMPING);
+  _setupBadgeInteraction_spring(canvasEl, REST_X, REST_Y, SPRING, DAMPING);
 }
 
-function _animate() {
-  _badgeRaf = requestAnimationFrame(_animate);
-  if (_badgeAutoRotate && _badgeMesh) {
-    _badgeMesh.rotation.y += 0.008;
+// Spring-back animation loop
+let _springRestX = 0, _springRestY = 0, _springK = 0.08, _springD = 0.82;
+let _velX = 0, _velY = 0;
+
+function _animate_spring(restX, restY, spring, damping) {
+  _springRestX = restX;
+  _springRestY = restY;
+  _springK = spring;
+  _springD = damping;
+  _velX = 0;
+  _velY = 0;
+
+  function loop() {
+    _badgeRaf = requestAnimationFrame(loop);
+    if (!_badgeMesh) return;
+
+    if (!_badgeDragging) {
+      // Spring force towards rest position
+      const dx = _springRestX - _badgeMesh.rotation.x;
+      const dy = _springRestY - _badgeMesh.rotation.y;
+
+      // Apply spring acceleration
+      _velX += dx * _springK;
+      _velY += dy * _springK;
+
+      // Apply damping
+      _velX *= _springD;
+      _velY *= _springD;
+
+      // Update rotation
+      _badgeMesh.rotation.x += _velX;
+      _badgeMesh.rotation.y += _velY;
+
+      // Add subtle idle wobble when nearly at rest (alive feel)
+      const dist = Math.abs(dx) + Math.abs(dy);
+      if (dist < 0.01) {
+        const t = Date.now() * 0.001;
+        _badgeMesh.rotation.y = _springRestY + Math.sin(t * 0.8) * 0.015;
+        _badgeMesh.rotation.x = _springRestX + Math.sin(t * 0.6 + 1) * 0.008;
+      }
+    }
+
+    if (_badgeRenderer && _badgeScene && _badgeCamera) {
+      _badgeRenderer.render(_badgeScene, _badgeCamera);
+    }
   }
-  if (_badgeRenderer && _badgeScene && _badgeCamera) {
-    _badgeRenderer.render(_badgeScene, _badgeCamera);
-  }
+  loop();
 }
 
-function _setupBadgeInteraction(canvasEl) {
+function _setupBadgeInteraction_spring(canvasEl) {
   let lastX = 0, lastY = 0;
 
   canvasEl.addEventListener('pointerdown', e => {
     _badgeDragging = true;
-    _badgeAutoRotate = false;
+    _velX = 0;
+    _velY = 0;
     lastX = e.clientX;
     lastY = e.clientY;
     canvasEl.setPointerCapture(e.pointerId);
+    canvasEl.style.cursor = 'grabbing';
   });
 
   canvasEl.addEventListener('pointermove', e => {
     if (!_badgeDragging || !_badgeMesh) return;
     const dx = e.clientX - lastX;
     const dy = e.clientY - lastY;
-    _badgeMesh.rotation.y += dx * 0.01;
-    _badgeMesh.rotation.x += dy * 0.01;
-    // Clamp X rotation
-    _badgeMesh.rotation.x = Math.max(-0.8, Math.min(0.8, _badgeMesh.rotation.x));
+    _badgeMesh.rotation.y += dx * 0.012;
+    _badgeMesh.rotation.x += dy * 0.008;
+    // Allow full rotation on Y, limit X tilt
+    _badgeMesh.rotation.x = Math.max(-1.0, Math.min(1.0, _badgeMesh.rotation.x));
     lastX = e.clientX;
     lastY = e.clientY;
   });
 
-  const endDrag = () => {
+  const endDrag = (e) => {
     _badgeDragging = false;
-    // Resume auto-rotate after 3s
-    setTimeout(() => { if (!_badgeDragging) _badgeAutoRotate = true; }, 3000);
+    canvasEl.style.cursor = 'grab';
+    // Give spring some initial velocity from last drag movement for natural feel
   };
   canvasEl.addEventListener('pointerup', endDrag);
   canvasEl.addEventListener('pointercancel', endDrag);
