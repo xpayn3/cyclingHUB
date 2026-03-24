@@ -27445,8 +27445,43 @@ function _gearCheckNotifications() {
 
   bats.forEach(b => {
     if (b.obsolete) return;
-    const pct = _gearBatPct(b);
-    if (pct !== null && pct < 20) alerts.push({ severity: 'red', message: `${b.name || b.componentType} — battery low (${Math.round(pct)}%)` });
+    const result = calcBatteryPercent(b);
+    if (!result) return;
+    const pct = result.percent;
+    const batName = b.name || b.componentType;
+
+    // Critical low battery
+    if (pct < 10) {
+      alerts.push({ severity: 'critical', message: `${batName} — battery critically low (${Math.round(pct)}%). Charge now!` });
+    } else if (pct < 20) {
+      alerts.push({ severity: 'red', message: `${batName} — battery low (${Math.round(pct)}%)` });
+    }
+
+    // Smart ride-aware: check if battery can last planned upcoming rides
+    if (pct > 0 && pct < 50 && (result.ratedHours || result.ratedKm)) {
+      const upcoming = (state.calendarEvents || []).filter(e => {
+        if (e.category !== 'WORKOUT') return false;
+        const eDate = new Date(e.start_date_local || e.start_date);
+        const now = new Date();
+        return eDate > now && eDate < new Date(now.getTime() + 7 * 86400000); // next 7 days
+      });
+      if (upcoming.length > 0) {
+        let plannedH = 0, plannedKm = 0;
+        upcoming.forEach(e => {
+          plannedH += (e.moving_time || e.icu_moving_time || 0) / 3600;
+          plannedKm += (e.distance || e.icu_distance || 0) / 1000;
+        });
+        const remainH = result.ratedHours ? (pct / 100) * result.ratedHours - (result.usedHours || 0) : Infinity;
+        const remainKm = result.ratedKm ? (pct / 100) * result.ratedKm - (result.usedKm || 0) : Infinity;
+        const willRunOut = (result.ratedHours && plannedH > remainH) || (result.ratedKm && plannedKm > remainKm);
+        if (willRunOut) {
+          alerts.push({
+            severity: 'orange',
+            message: `${batName} — may not last your ${upcoming.length} planned ride${upcoming.length > 1 ? 's' : ''} this week. Charge before your next ride.`
+          });
+        }
+      }
+    }
   });
 
   svcs.forEach(s => {
@@ -27466,15 +27501,9 @@ function _gearCheckNotifications() {
 }
 
 function _gearBatPct(b) {
-  if (!b.lastChargeDate) return null;
-  const days = (Date.now() - new Date(b.lastChargeDate).getTime()) / 86400000;
-  if (b.batteryType === 'coin_cell') {
-    const ratedDays = (b.ratedLifeHours || 730) / 24 * 365;
-    return Math.max(0, Math.min(100, (1 - days / ratedDays) * 100));
-  }
-  const usedHours = days * 0.5;
-  const rated = b.ratedLifeHours || 60;
-  return Math.max(0, Math.min(100, (1 - usedHours / rated) * 100));
+  // Use the proper activity-based calculation instead of time-based estimate
+  const result = calcBatteryPercent(b);
+  return result ? result.percent : null;
 }
 
 function renderBikeDetailPage() {
@@ -28817,6 +28846,44 @@ const BATTERY_SYSTEMS = {
     label: 'Campagnolo EPS',
     components: {
       power_pack: { label: 'EPS Power Pack', ratedHours: null, ratedKm: 2000, type: 'rechargeable', chargeTime: 120 },
+    }
+  },
+  power_meter: {
+    label: 'Power Meter',
+    components: {
+      quarq:          { label: 'Quarq / SRAM',         ratedHours: 200,  ratedKm: null, type: 'rechargeable', chargeTime: 120 },
+      stages:         { label: 'Stages',                ratedHours: 200,  ratedKm: null, type: 'rechargeable', chargeTime: 120 },
+      assioma:        { label: 'Favero Assioma',        ratedHours: 50,   ratedKm: null, type: 'rechargeable', chargeTime: 360 },
+      garmin_rally:   { label: 'Garmin Rally',          ratedHours: 120,  ratedKm: null, type: 'rechargeable', chargeTime: 120 },
+      p2m:            { label: 'Power2Max',             ratedHours: null, ratedKm: null, type: 'coin_cell',    lifeYears: 1.5 },
+      fouriii:        { label: '4iiii',                  ratedHours: null, ratedKm: null, type: 'coin_cell',    lifeYears: 1   },
+    }
+  },
+  bike_computer: {
+    label: 'Bike Computer',
+    components: {
+      garmin_edge_540:  { label: 'Garmin Edge 540/840', ratedHours: 26, ratedKm: null, type: 'rechargeable', chargeTime: 150 },
+      garmin_edge_1040: { label: 'Garmin Edge 1040',    ratedHours: 35, ratedKm: null, type: 'rechargeable', chargeTime: 180 },
+      garmin_edge_130:  { label: 'Garmin Edge 130',     ratedHours: 13, ratedKm: null, type: 'rechargeable', chargeTime: 90  },
+      wahoo_roam:       { label: 'Wahoo ROAM/BOLT',     ratedHours: 14, ratedKm: null, type: 'rechargeable', chargeTime: 120 },
+      wahoo_elemnt:     { label: 'Wahoo ELEMNT',        ratedHours: 17, ratedKm: null, type: 'rechargeable', chargeTime: 150 },
+      hammerhead:       { label: 'Hammerhead Karoo',    ratedHours: 12, ratedKm: null, type: 'rechargeable', chargeTime: 120 },
+    }
+  },
+  lights: {
+    label: 'Lights',
+    components: {
+      front_high:   { label: 'Front Light (High)',   ratedHours: 3,  ratedKm: null, type: 'rechargeable', chargeTime: 180 },
+      front_medium: { label: 'Front Light (Medium)', ratedHours: 8,  ratedKm: null, type: 'rechargeable', chargeTime: 180 },
+      rear_light:   { label: 'Rear Light',           ratedHours: 12, ratedKm: null, type: 'rechargeable', chargeTime: 120 },
+    }
+  },
+  heart_rate: {
+    label: 'Heart Rate Monitor',
+    components: {
+      garmin_hrm:  { label: 'Garmin HRM-Pro/Dual',  ratedHours: null, ratedKm: null, type: 'coin_cell', lifeYears: 1   },
+      polar_h10:   { label: 'Polar H10',             ratedHours: 400,  ratedKm: null, type: 'rechargeable', chargeTime: 120 },
+      wahoo_tickr: { label: 'Wahoo TICKR',           ratedHours: null, ratedKm: null, type: 'coin_cell', lifeYears: 1.5 },
     }
   },
   other: {
