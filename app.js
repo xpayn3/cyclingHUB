@@ -31,7 +31,7 @@ import { wrkRender, wrkRefreshStats, wrkSetName, wrkAddSegment, wrkRemove, wrkMo
          wrkDownload, wrkSetFtp, wrkDrawChart, buildFitWorkout,
          loadMapTheme, setMapTheme, loadAppFont, setAppFont,
          copyShareLink, shareToTwitter, shareToWhatsApp, shareToReddit,
-         _isDark, _updateChartColors, setTheme,
+         _isDark, _updateChartColors, setTheme, toggleSquircle, _syncSquircleToggle,
          loadPhysicsScroll, setPhysicsScroll,
          loadSmoothFlyover, toggleSmoothFlyover, toggleTerrain3d,
          initMapThemePicker,
@@ -1560,7 +1560,7 @@ function openSettingsSubpage(id) {
       cb.checked = toggles[cb.dataset.syncKey] !== false;
     });
   }
-  if (id === 'apptheme' || id === 'maptheme') _syncThemePicker();
+  if (id === 'apptheme' || id === 'maptheme') { _syncThemePicker(); _syncSquircleToggle(); }
 
   // Inject hero intro if not already present
   if (!sub.querySelector('.stt-hero') && _STT_HERO_DATA[id]) {
@@ -12707,6 +12707,8 @@ function renderFitnessPage() {
   _renderStrainRecovery(fd);
   renderWeatherCorrelation();
   renderAcclimatization();
+  _initWifScrubbers();
+  _syncWifScrubbers();
   _wifUpdate();
   _rIC(() => { if (window.refreshGlow) refreshGlow(); });
 }
@@ -17162,6 +17164,7 @@ function _initScrubbers(containerSel, defs) {
       if (unitEl && d.unit !== undefined) unitEl.textContent = d.unit;
       if (d.color !== undefined) valueEl.style.color = d.color;
       input.value = def.fromStep(step);
+      if (def.onChange && dragging) def.onChange();
     }
     function syncUndoBtn() { if (undoBtn) undoBtn.style.display = history.length > 0 ? '' : 'none'; }
     scrubber._cevApplyStep = (s) => { applyStep(s); history = []; syncUndoBtn(); };
@@ -17178,7 +17181,7 @@ function _initScrubbers(containerSel, defs) {
     scrubber.addEventListener('touchmove', e => { if (dragging || lockScroll) e.preventDefault(); }, { passive: false });
     scrubber.addEventListener('touchend', () => { lockScroll = false; });
     scrubber.addEventListener('touchcancel', () => { lockScroll = false; });
-    const endDrag = () => { if (pending) { pending = false; return; } if (!dragging) return; dragging = false; if (step !== dragStartStep) { history.push(dragStartStep); syncUndoBtn(); } };
+    const endDrag = () => { if (pending) { pending = false; return; } if (!dragging) return; dragging = false; if (step !== dragStartStep) { history.push(dragStartStep); syncUndoBtn(); if (def.onChange) def.onChange(); } };
     scrubber.addEventListener('pointerup', endDrag);
     scrubber.addEventListener('pointercancel', endDrag);
   });
@@ -34592,7 +34595,8 @@ Object.assign(window, { wrkRender, wrkRefreshStats, wrkSetName, wrkAddSegment, w
   wrkSetFtp, buildFitWorkout, loadMapTheme, setMapTheme, loadAppFont, setAppFont,
   copyShareLink, shareToTwitter, shareToWhatsApp, shareToReddit,
   _isDark, _updateChartColors, setTheme, loadPhysicsScroll, setPhysicsScroll,
-  loadSmoothFlyover, toggleSmoothFlyover, toggleTerrain3d });
+  loadSmoothFlyover, toggleSmoothFlyover, toggleTerrain3d,
+  toggleSquircle, _syncSquircleToggle });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GEAR — COST & ROI ANALYSIS
@@ -34703,10 +34707,112 @@ function _fuelShowForm() { const f = document.getElementById('fuelPlanForm'), o 
 // ─────────────────────────────────────────────────────────────────────────────
 const TAPER_PROFILES = { crit: { days: 7, vr: 0.40, tau: 4 }, road_race: { days: 10, vr: 0.50, tau: 5 }, tt: { days: 10, vr: 0.45, tau: 5 }, gran_fondo: { days: 14, vr: 0.55, tau: 6 }, stage_race: { days: 14, vr: 0.50, tau: 7 } };
 // ── "What If" CTL Simulator ──
-function _wifUpdate(){var wT=parseInt(document.getElementById('wifTss').value)||500,wk=parseInt(document.getElementById('wifWeeks').value)||8;document.getElementById('wifTssVal').textContent=wT;document.getElementById('wifWeeksVal').textContent=wk;var dT=wT/7;var c=state.fitness?.ctl||50,a=state.fitness?.atl||c;var s0=c,hi=[{d:0,c:Math.round(c),a:Math.round(a),t:Math.round(c-a)}];for(var d=1;d<=wk*7;d++){c+=(dT-c)/42;a+=(dT-a)/7;if(d%7===0)hi.push({d:d,c:Math.round(c),a:Math.round(a),t:Math.round(c-a)});}var fc=Math.round(c),dl=fc-Math.round(s0),ft=Math.round(c-a),p=document.getElementById('wifProjection');if(p){var tc=ft>=10?'#00e5a0':ft>=0?'#f0c429':'#ff453a';p.innerHTML='<div class="wif-proj-stats"><div class="wif-proj-stat"><span class="wif-proj-val" style="color:#00e5a0">'+fc+'</span><span class="wif-proj-lbl">CTL in '+wk+'w</span></div><div class="wif-proj-stat"><span class="wif-proj-val" style="color:'+(dl>=0?'#00e5a0':'#ff453a')+'">'+(dl>=0?'+':'')+dl+'</span><span class="wif-proj-lbl">CTL Change</span></div><div class="wif-proj-stat"><span class="wif-proj-val" style="color:'+tc+'">'+(ft>0?'+':'')+ft+'</span><span class="wif-proj-lbl">Projected TSB</span></div></div>';}var cv=document.getElementById('wifChart');if(!cv)return;if(state._wifChart){state._wifChart.destroy();state._wifChart=null;}state._wifChart=new Chart(cv,{type:'line',data:{labels:hi.map(function(h){return h.d===0?'Now':'W'+h.d/7}),datasets:[{label:'CTL',data:hi.map(function(h){return h.c}),borderColor:'#00e5a0',backgroundColor:'transparent',borderWidth:2,pointRadius:3,tension:0.3},{label:'ATL',data:hi.map(function(h){return h.a}),borderColor:'#ff9500',backgroundColor:'transparent',borderWidth:2,pointRadius:3,tension:0.3},{label:'TSB',data:hi.map(function(h){return h.t}),borderColor:'#4a9eff',backgroundColor:'transparent',borderWidth:1.5,pointRadius:2,tension:0.3,borderDash:[4,3]}]},options:{responsive:true,maintainAspectRatio:false,animation:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:true,labels:{color:'rgba(255,255,255,0.5)',boxWidth:12,font:{size:11}}},tooltip:{...C_TOOLTIP,callbacks:{label:function(ctx){return ctx.dataset.label+': '+ctx.raw}}}},scales:{x:{grid:{display:false},ticks:{...C_TICK}},y:{grid:C_GRID,ticks:{...C_TICK,callback:function(v,i){return i===0?'CTL':Math.round(v)}}}}}});}
+/* ── Enhanced What-If prediction engine ── */
+function _wifAnalyzeHistory() {
+  var acts = (state.activities || []).filter(a => a.icu_training_load > 0 && a.start_date_local);
+  var now = Date.now(), w8 = 56 * 86400000, w12 = 84 * 86400000;
+  // 1. Weekly pattern (day-of-week TSS distribution)
+  var dayBuckets = [0,0,0,0,0,0,0], dayCounts = [0,0,0,0,0,0,0];
+  var recentActs = acts.filter(a => now - new Date(a.start_date_local).getTime() < w8);
+  recentActs.forEach(a => {
+    var dow = (new Date(a.start_date_local).getDay() + 6) % 7;
+    dayBuckets[dow] += a.icu_training_load;
+    dayCounts[dow]++;
+  });
+  var total = dayBuckets.reduce((s,v) => s + v, 0);
+  var pattern = total < 50 ? [0.18, 0.14, 0.16, 0, 0.14, 0.22, 0.16]
+    : dayBuckets.map(v => v / total);
+
+  // 2. Personalized time constants (fit τ from CTL/ATL trajectory)
+  // Use longer history to estimate how quickly fitness responds
+  var hist = acts.filter(a => now - new Date(a.start_date_local).getTime() < w12)
+    .sort((a,b) => new Date(a.start_date_local) - new Date(b.start_date_local));
+  var tauCTL = 42, tauATL = 7; // defaults
+  if (hist.length > 20) {
+    // Estimate consistency: higher consistency = faster adaptation
+    var weeks = {};
+    hist.forEach(a => {
+      var wk = Math.floor((now - new Date(a.start_date_local).getTime()) / (7 * 86400000));
+      if (!weeks[wk]) weeks[wk] = 0;
+      weeks[wk] += a.icu_training_load;
+    });
+    var wkVals = Object.values(weeks);
+    var mean = wkVals.reduce((s,v) => s + v, 0) / wkVals.length;
+    var variance = wkVals.reduce((s,v) => s + (v - mean) ** 2, 0) / wkVals.length;
+    var cv = Math.sqrt(variance) / (mean || 1); // coefficient of variation
+    // Lower cv = more consistent = slightly faster CTL gain
+    tauCTL = Math.round(38 + cv * 8); // 38-50 range
+    tauCTL = Math.max(35, Math.min(50, tauCTL));
+    tauATL = Math.round(6 + cv * 2); // 6-10 range
+    tauATL = Math.max(5, Math.min(10, tauATL));
+  }
+
+  // 3. Consecutive load penalty factor
+  // Look at how many days in a row they typically train
+  var maxConsec = 0, curConsec = 0;
+  var daySet = new Set();
+  recentActs.forEach(a => {
+    var d = new Date(a.start_date_local).toISOString().slice(0, 10);
+    daySet.add(d);
+  });
+  // Sort and count consecutive days
+  var sorted = [...daySet].sort();
+  curConsec = 1;
+  for (var i = 1; i < sorted.length; i++) {
+    var diff = (new Date(sorted[i]) - new Date(sorted[i-1])) / 86400000;
+    if (diff === 1) { curConsec++; if (curConsec > maxConsec) maxConsec = curConsec; }
+    else curConsec = 1;
+  }
+
+  // 4. Wellness recovery modifier (if available)
+  var recoveryMod = 1.0;
+  var wellness = state.wellness;
+  if (wellness && wellness.length) {
+    var recent = wellness.slice(-7);
+    var avgSleep = 0, avgHrv = 0, cnt = 0;
+    recent.forEach(w => {
+      if (w.sleepSecs) { avgSleep += w.sleepSecs; cnt++; }
+      if (w.hrv) avgHrv += w.hrv;
+    });
+    if (cnt > 0) {
+      avgSleep /= cnt;
+      avgHrv /= cnt;
+      // Good sleep (>7h) and high HRV = faster recovery
+      if (avgSleep > 25200 && avgHrv > 50) recoveryMod = 0.95;
+      else if (avgSleep < 21600 || avgHrv < 30) recoveryMod = 1.08;
+    }
+  }
+
+  return { pattern, tauCTL, tauATL, maxConsec, recoveryMod };
+}
+
+function _wifUpdate(){var wT=parseInt(document.getElementById('wifTss').value)||500,wk=parseInt(document.getElementById('wifWeeks').value)||8;
+  var analysis = _wifAnalyzeHistory();
+  var pattern = analysis.pattern;
+  var tauCTL = analysis.tauCTL * analysis.recoveryMod;
+  var tauATL = analysis.tauATL * analysis.recoveryMod;
+  var c=state.fitness?.ctl||50,a=state.fitness?.atl||c;var s0=c;
+  var consecutiveLoad = 0;
+  var hi=[{d:0,c:Math.round(c),a:Math.round(a),t:Math.round(c-a)}];
+  for(var d=1;d<=wk*7;d++){
+    var dow = (d - 1) % 7;
+    var dailyTss = wT * pattern[dow];
+    // Deterministic jitter ±15%
+    var jitter = 1 + 0.15 * Math.sin(d * 7.13 + dow * 3.7);
+    dailyTss *= jitter;
+    // Consecutive load penalty: 3+ days in a row increases fatigue accumulation
+    if (dailyTss > 10) { consecutiveLoad++; } else { consecutiveLoad = 0; }
+    var fatigueMult = consecutiveLoad >= 3 ? 1 + (consecutiveLoad - 2) * 0.08 : 1;
+    // Apply with personalized τ
+    c += (dailyTss - c) / tauCTL;
+    a += (dailyTss * fatigueMult - a) / tauATL;
+    if(d%7===0) hi.push({d:d,c:Math.round(c),a:Math.round(a),t:Math.round(c-a)});
+  }
+  // Store analysis for info page
+  state._wifAnalysis = analysis;var fc=Math.round(c),dl=fc-Math.round(s0),ft=Math.round(c-a),p=document.getElementById('wifProjection');if(p){p.innerHTML='<div class="wif-proj-stats"><div class="wif-proj-stat"><span class="wif-proj-val" style="color:#00e5a0">'+fc+'</span><span class="wif-proj-lbl">CTL in '+wk+'w</span></div><div class="wif-proj-stat"><span class="wif-proj-val" style="color:#ff9500">'+(dl>=0?'+':'')+dl+'</span><span class="wif-proj-lbl">ATL Change</span></div><div class="wif-proj-stat"><span class="wif-proj-val" style="color:#4a9eff">'+(ft>0?'+':'')+ft+'</span><span class="wif-proj-lbl">Projected TSB</span></div></div>';}var cv=document.getElementById('wifChart');if(!cv)return;if(state._wifChart){state._wifChart.destroy();state._wifChart=null;}state._wifChart=new Chart(cv,{type:'line',data:{labels:hi.map(function(h){return h.d===0?'Now':String(h.d/7)}),datasets:[{label:'CTL',data:hi.map(function(h){return h.c}),borderColor:'#00e5a0',backgroundColor:'transparent',borderWidth:2,pointRadius:0,tension:0.3},{label:'ATL',data:hi.map(function(h){return h.a}),borderColor:'#ff9500',backgroundColor:'transparent',borderWidth:2,pointRadius:0,tension:0.3},{label:'TSB',data:hi.map(function(h){return h.t}),borderColor:'#4a9eff',backgroundColor:'transparent',borderWidth:1.5,pointRadius:0,tension:0.3}]},options:{responsive:true,maintainAspectRatio:false,animation:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{...C_TOOLTIP,callbacks:{label:function(ctx){return ctx.dataset.label+': '+ctx.raw}}}},scales:{x:{grid:{display:false},ticks:{...C_TICK}},y:{grid:C_GRID,ticks:{...C_TICK,callback:function(v,i){return i===0?'CTL':Math.round(v)}}}}}});}
 
 // ── Race Day Pacing ──
-function openPacingSheet(){var w=document.getElementById('pacingWeight'),f=document.getElementById('pacingFtp');if(w&&!w.value&&state.athlete?.weight)w.value=Math.round(state.athlete.weight);if(f&&!f.value){var v=state.athlete?.ftp||localStorage.getItem('icu_ftp');if(v)f.value=Math.round(parseFloat(v));}var fm=document.getElementById('pacingForm'),o=document.getElementById('pacingOutput');if(fm)fm.style.display='';if(o)o.style.display='none';_openOverlaySheet('pacingSheet');}
+function openPacingSheet(){var w=document.getElementById('pacingWeight'),f=document.getElementById('pacingFtp');if(w&&!w.value&&state.athlete?.weight)w.value=Math.round(state.athlete.weight);if(f&&!f.value){var v=state.athlete?.ftp||localStorage.getItem('icu_ftp');if(v)f.value=Math.round(parseFloat(v));}var fm=document.getElementById('pacingForm'),o=document.getElementById('pacingOutput');if(fm)fm.style.display='';if(o)o.style.display='none';_openOverlaySheet('pacingSheet');_initPacingScrubbers();_syncPacingScrubbers();}
 function _closePacing(){_closeOverlaySheet('pacingSheet');}
 function _pacingAddSeg(){var c=document.getElementById('pacingSegments');if(!c)return;var r=document.createElement('div');r.className='pacing-seg-row';r.innerHTML='<input type="number" placeholder="km" class="pacing-seg-km" value="5"><input type="number" placeholder="%" class="pacing-seg-grade" value="0"><span class="pacing-seg-label">Flat</span><button class="pacing-seg-del" onclick="this.parentElement.remove()">\u00D7</button>';c.appendChild(r);}
 function _pacingGenerate(){var wt=parseFloat(document.getElementById('pacingWeight').value)||75,ftp=parseFloat(document.getElementById('pacingFtp').value)||250,tP=parseInt(document.getElementById('pacingIF').value)||75,tW=Math.round(ftp*tP/100);var sg=[];document.querySelectorAll('.pacing-seg-row').forEach(function(r){var k=parseFloat(r.querySelector('.pacing-seg-km')?.value)||0,gr=parseFloat(r.querySelector('.pacing-seg-grade')?.value)||0;if(k>0)sg.push({km:k,grade:gr});});if(!sg.length){showToast('Add a segment','error');return;}var CdA=0.32,Crr=0.005,rho=1.225,gv=9.81,tw=wt+8;var rs=sg.map(function(s){var pw;if(s.grade>3)pw=Math.min(ftp,Math.round(tW*(1+s.grade*0.03)));else if(s.grade<-2)pw=Math.round(tW*0.3);else pw=tW;var gR=Math.atan(s.grade/100),Fg=tw*gv*Math.sin(gR),Fr=Crr*tw*gv*Math.cos(gR);var v=8;for(var i=0;i<20;i++){v=pw/Math.max(Fg+Fr+0.5*rho*CdA*v*v,1);v=Math.max(1,Math.min(25,v));}var sp=v*3.6,tH=s.km/sp,tM=Math.round(tH*60),kj=Math.round(pw*tH*3.6);var lb=s.grade>3?'Climb':s.grade<-2?'Descent':s.grade>0.5?'Rolling':'Flat';return Object.assign({},s,{pw:pw,sp:Math.round(sp*10)/10,tm:tM,kj:kj,lb:lb});});var tK=rs.reduce(function(a,r){return a+r.km},0),tT=rs.reduce(function(a,r){return a+r.tm},0),tJ=rs.reduce(function(a,r){return a+r.kj},0),aP=Math.round(rs.reduce(function(a,r){return a+r.pw*r.tm},0)/tT);var fm=document.getElementById('pacingForm'),o=document.getElementById('pacingOutput');if(fm)fm.style.display='none';if(o)o.style.display='';var h='<div class="fuel-summary"><div class="fuel-summary-card"><div class="fuel-summary-val">'+tK+'km</div><div class="fuel-summary-lbl">Distance</div></div><div class="fuel-summary-card"><div class="fuel-summary-val">'+(tT>=60?Math.floor(tT/60)+'h '+(tT%60)+'m':tT+'m')+'</div><div class="fuel-summary-lbl">Est. Time</div></div><div class="fuel-summary-card"><div class="fuel-summary-val">'+aP+'W</div><div class="fuel-summary-lbl">Avg Power</div></div><div class="fuel-summary-card"><div class="fuel-summary-val">'+tJ+'</div><div class="fuel-summary-lbl">kJ</div></div></div><div class="pacing-plan">';var ck=0;rs.forEach(function(r,i){var c=r.grade>3?'#ff453a':r.grade<-2?'#4a9eff':'#00e5a0';ck+=r.km;h+='<div class="pacing-seg"><div class="pacing-seg-header"><span class="pacing-seg-num" style="background:'+c+'">'+(i+1)+'</span><span class="pacing-seg-type">'+r.lb+' \u2014 '+r.km+'km @ '+r.grade+'%</span><span class="pacing-seg-dist">km '+Math.round(ck-r.km)+'\u2013'+Math.round(ck)+'</span></div><div class="pacing-seg-metrics"><div class="pacing-seg-metric"><span class="pacing-seg-val" style="color:'+c+'">'+r.pw+'W</span><span class="pacing-seg-lbl">Target</span></div><div class="pacing-seg-metric"><span class="pacing-seg-val">'+r.sp+'</span><span class="pacing-seg-lbl">km/h</span></div><div class="pacing-seg-metric"><span class="pacing-seg-val">'+r.tm+'m</span><span class="pacing-seg-lbl">Time</span></div><div class="pacing-seg-metric"><span class="pacing-seg-val">'+r.kj+'</span><span class="pacing-seg-lbl">kJ</span></div></div></div>';});h+='</div><button class="fuel-back-btn" onclick="_pacingShowForm()"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg> Adjust</button>';o.innerHTML=h;}
@@ -34733,6 +34839,169 @@ const _TAPER_SCRUBBER_DEFS = {
 };
 function _initTaperScrubbers() { _initScrubbers('#taperWizardSheet', _TAPER_SCRUBBER_DEFS); }
 function _syncTaperScrubbers() { _syncScrubbers('#taperWizardSheet', _TAPER_SCRUBBER_DEFS); }
+
+/* ── What-If Simulator scrubbers ── */
+const _WIF_SCRUBBER_DEFS = {
+  wifTss: {
+    inputId: 'wifTss', min: 0, max: 1500,
+    toStep(val) { return parseInt(val) || 500; },
+    fromStep(s) { return String(s); },
+    display(s) {
+      if (s === 0) return { text: '—', zero: true, unit: 'TSS', color: '' };
+      const color = s < 300 ? 'var(--accent)' : s < 600 ? '#f0c429' : s < 900 ? '#ff9500' : 'var(--red)';
+      return { text: s.toLocaleString(), zero: false, unit: 'TSS', color };
+    },
+    onChange() { _wifUpdate(); }
+  },
+  wifWeeks: {
+    inputId: 'wifWeeks', min: 1, max: 24,
+    toStep(val) { return parseInt(val) || 8; },
+    fromStep(s) { return String(s); },
+    display(s) {
+      if (s <= 0) return { text: '—', zero: true, unit: 'wk', color: '' };
+      const color = s <= 4 ? 'var(--accent)' : s <= 12 ? '#f0c429' : '#ff9500';
+      return { text: String(s), zero: false, unit: 'wk', color };
+    },
+    onChange() { _wifUpdate(); }
+  },
+};
+let _wifScrubInited = false;
+function _initWifScrubbers() {
+  if (_wifScrubInited) return;
+  _wifScrubInited = true;
+  _initScrubbers('#fitWhatIfCard', _WIF_SCRUBBER_DEFS);
+}
+function _syncWifScrubbers() { _syncScrubbers('#fitWhatIfCard', _WIF_SCRUBBER_DEFS); }
+
+/* ── What-If Info Subpage ── */
+function _openWifInfo() {
+  var a = state._wifAnalysis || { tauCTL: 42, tauATL: 7, recoveryMod: 1, pattern: [0.14,0.14,0.14,0.14,0.14,0.14,0.14], maxConsec: 0 };
+  var days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  var patternBars = a.pattern.map((v, i) => {
+    var pct = Math.round(v * 100);
+    var h = Math.max(4, Math.round(v * 200));
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1">
+      <div style="background:var(--accent);width:100%;height:${h}px;border-radius:4px;opacity:${pct < 3 ? 0.15 : 0.8}"></div>
+      <span style="font-size:10px;color:var(--text-muted)">${days[i]}</span>
+      <span style="font-size:10px;font-weight:600;color:${pct < 3 ? 'var(--text-faint)' : 'var(--text-primary)'}">${pct}%</span>
+    </div>`;
+  }).join('');
+
+  var recLabel = a.recoveryMod < 1 ? 'Above average' : a.recoveryMod > 1.02 ? 'Below average' : 'Normal';
+  var recColor = a.recoveryMod < 1 ? 'var(--accent)' : a.recoveryMod > 1.02 ? '#ff9500' : 'var(--text-muted)';
+
+  // Create or reuse overlay
+  var overlay = document.getElementById('wifInfoOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'wifInfoOverlay';
+    overlay.className = 'act-card-info-overlay';
+    overlay.innerHTML = `<div class="act-card-info-page aci-custom-page" id="wifInfoPage" style="overflow-y:auto;-webkit-overflow-scrolling:touch"></div>
+      <button class="fab-back act-card-info-back" onclick="_closeWifInfo()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>`;
+    document.body.appendChild(overlay);
+  }
+  var pg = document.getElementById('wifInfoPage');
+  if (!pg) return;
+  pg.innerHTML = `
+    <div class="aci-sp-header"><div class="aci-sp-title">How It Works</div>
+      <div class="aci-sp-subtitle">Personalized fitness projection engine</div></div>
+    <div style="padding:0 16px">
+
+    <div style="margin-bottom:24px">
+      <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin-bottom:12px">Your Training Pattern</div>
+      <div style="display:flex;gap:4px;align-items:flex-end;height:80px;padding:0 4px">${patternBars}</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:8px;line-height:1.5">Based on your last 8 weeks of training. The simulator distributes your target weekly TSS across days using this pattern instead of spreading it evenly.</div>
+    </div>
+
+    <div style="margin-bottom:24px">
+      <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin-bottom:12px">Personalized Constants</div>
+      <div class="ios-group">
+        <div class="ios-row" style="min-height:44px"><span class="ios-row-label">Fitness gain rate (\u03C4 CTL)</span><span class="ios-row-detail" style="font-weight:700;color:var(--accent)">${Math.round(a.tauCTL)} days</span></div>
+        <div class="ios-row" style="min-height:44px"><span class="ios-row-label">Fatigue decay rate (\u03C4 ATL)</span><span class="ios-row-detail" style="font-weight:700;color:#ff9500">${Math.round(a.tauATL)} days</span></div>
+        <div class="ios-row" style="min-height:44px"><span class="ios-row-label">Recovery capacity</span><span class="ios-row-detail" style="font-weight:700;color:${recColor}">${recLabel}</span></div>
+        <div class="ios-row" style="min-height:44px"><span class="ios-row-label">Max consecutive load days</span><span class="ios-row-detail" style="font-weight:700">${a.maxConsec || 'N/A'}</span></div>
+      </div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:8px;line-height:1.5">Standard values are \u03C4=42 for CTL and \u03C4=7 for ATL. Your values are personalized based on training consistency \u2014 more consistent training leads to faster adaptation.</div>
+    </div>
+
+    <div style="margin-bottom:24px">
+      <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin-bottom:12px">Model Features</div>
+      <div class="ios-group">
+        <div class="ios-row" style="min-height:auto;padding:12px 16px;flex-direction:column;align-items:flex-start;gap:4px">
+          <span style="font-weight:600;color:var(--accent)">Consecutive Load Penalty</span>
+          <span style="font-size:12px;color:var(--text-muted);line-height:1.4">3+ training days in a row increases fatigue accumulation by 8% per extra day. Simulates real-world cumulative fatigue from back-to-back hard sessions.</span>
+        </div>
+        <div class="ios-row" style="min-height:auto;padding:12px 16px;flex-direction:column;align-items:flex-start;gap:4px">
+          <span style="font-weight:600;color:#ff9500">Wellness-Modulated Recovery</span>
+          <span style="font-size:12px;color:var(--text-muted);line-height:1.4">If HRV and sleep data is available, recovery rate is adjusted. Good sleep (>7h) + high HRV = 5% faster adaptation. Poor sleep + low HRV = 8% slower.</span>
+        </div>
+        <div class="ios-row" style="min-height:auto;padding:12px 16px;flex-direction:column;align-items:flex-start;gap:4px">
+          <span style="font-weight:600;color:#4a9eff">Deterministic Variation</span>
+          <span style="font-size:12px;color:var(--text-muted);line-height:1.4">Daily TSS varies \u00B115% using a seeded function, simulating natural training variation while keeping results reproducible.</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="background:rgba(255,255,255,0.04);border-radius:var(--radius);padding:16px;margin-bottom:24px">
+      <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin-bottom:8px">The Math</div>
+      <div style="font-size:13px;color:var(--text-secondary);line-height:1.7">
+        Based on the <strong style="color:var(--text-primary)">Banister Impulse-Response model</strong>, the gold standard in sports science for modeling training adaptation.<br><br>
+        <span style="font-family:var(--font-num);color:var(--accent)">CTL\u2099 = CTL\u2099\u208B\u2081 + (TSS\u2099 \u2212 CTL\u2099\u208B\u2081) / \u03C4\u209C</span><br>
+        <span style="font-family:var(--font-num);color:#ff9500">ATL\u2099 = ATL\u2099\u208B\u2081 + (TSS\u2099 \u00D7 F\u2099 \u2212 ATL\u2099\u208B\u2081) / \u03C4\u2090</span><br>
+        <span style="font-family:var(--font-num);color:#4a9eff">TSB\u2099 = CTL\u2099 \u2212 ATL\u2099</span><br><br>
+        Where F\u2099 is the consecutive load penalty factor (1.0 normally, increasing by 0.08 per day after 3+ consecutive training days).
+      </div>
+    </div>
+
+    </div>`;
+  overlay.style.display = 'flex';
+  requestAnimationFrame(() => overlay.classList.add('act-info-open'));
+}
+function _closeWifInfo() {
+  var overlay = document.getElementById('wifInfoOverlay');
+  if (!overlay) return;
+  overlay.classList.remove('act-info-open');
+  setTimeout(() => { overlay.style.display = 'none'; }, 300);
+}
+window._openWifInfo = _openWifInfo;
+window._closeWifInfo = _closeWifInfo;
+
+/* ── Pacing sheet scrubbers ── */
+const _PACING_SCRUBBER_DEFS = {
+  pacingWeight: {
+    inputId: 'pacingWeight', min: 8, max: 30,
+    toStep(val) { return val ? Math.round(parseFloat(val) / 5) : 15; },
+    fromStep(s) { return String(s * 5); },
+    display(s) {
+      const v = s * 5;
+      return { text: String(v), zero: v === 0, unit: 'kg', color: 'var(--text-primary)' };
+    }
+  },
+  pacingFtp: {
+    inputId: 'pacingFtp', min: 10, max: 100,
+    toStep(val) { return val ? Math.round(parseFloat(val) / 5) : 50; },
+    fromStep(s) { return String(s * 5); },
+    display(s) {
+      const v = s * 5;
+      if (v === 0) return { text: '—', zero: true, unit: 'W', color: '' };
+      const color = v < 150 ? 'var(--text-muted)' : v < 250 ? 'var(--accent)' : v < 350 ? '#f0c429' : '#ff9500';
+      return { text: String(v), zero: false, unit: 'W', color };
+    }
+  },
+  pacingIF: {
+    inputId: 'pacingIF', min: 50, max: 100,
+    toStep(val) { return parseInt(val) || 75; },
+    fromStep(s) { return String(s); },
+    display(s) {
+      const color = s <= 65 ? 'var(--accent)' : s <= 76 ? '#f0c429' : s <= 88 ? '#ff9500' : 'var(--red)';
+      return { text: String(s), zero: false, unit: '%', color };
+    }
+  },
+};
+function _initPacingScrubbers() { _initScrubbers('#pacingSheet', _PACING_SCRUBBER_DEFS); }
+function _syncPacingScrubbers() { _syncScrubbers('#pacingSheet', _PACING_SCRUBBER_DEFS); }
 
 function openTaperWizard(rd) { const ci = document.getElementById('taperCTL'); if (ci && state.fitness?.ctl) ci.value = Math.round(state.fitness.ctl); if (rd) { const d = document.getElementById('taperRaceDate'); if (d) d.value = rd; } const s1 = document.getElementById('taperStep1'), s2 = document.getElementById('taperStep2'); if (s1) s1.style.display = ''; if (s2) s2.style.display = 'none'; _openOverlaySheet('taperWizardSheet'); _gearHookDatePickers(document.getElementById('taperWizardSheet')); _initTaperScrubbers(); _syncTaperScrubbers(); }
 function _closeTaperWizard() { _closeOverlaySheet('taperWizardSheet'); }

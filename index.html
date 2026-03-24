@@ -43,7 +43,7 @@
         <link rel="stylesheet" href="styles.css?v=4" />
         <script>
             // Apply saved theme immediately to avoid flash of dark theme
-            (function(){var t=localStorage.getItem('icu_theme');if(t)document.documentElement.setAttribute('data-theme',t)})();
+            (function(){var t=localStorage.getItem('icu_theme');if(t)document.documentElement.setAttribute('data-theme',t);if(localStorage.getItem('icu_squircle')==='true')document.documentElement.setAttribute('data-squircle','')})();
         </script>
         <link
             rel="stylesheet"
@@ -1281,9 +1281,27 @@
                 </div>
                 <div class="wxd-sheet-body" id="pacingBody">
                     <div id="pacingForm">
-                        <div class="pacing-form-section"><label class="pacing-label">Rider Weight (kg)</label><input type="number" id="pacingWeight" class="pacing-input" placeholder="75" min="40" max="150"></div>
-                        <div class="pacing-form-section"><label class="pacing-label">FTP (watts)</label><input type="number" id="pacingFtp" class="pacing-input" placeholder="250" min="50" max="500"></div>
-                        <div class="pacing-form-section"><label class="pacing-label">Target Intensity (% FTP)</label><input type="range" id="pacingIF" class="wif-slider" min="50" max="100" step="1" value="75" oninput="document.getElementById('pacingIFVal').textContent=this.value+'%'"><span class="wif-slider-val" id="pacingIFVal">75%</span></div>
+                        <div class="pacing-form-section"><label class="pacing-label">Rider Weight (kg)</label>
+                            <div class="cev-target-card">
+                                <button class="cev-undo-btn" style="display:none" aria-label="Undo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
+                                <input type="hidden" id="pacingWeight" value="75">
+                                <div class="cev-scrubber" data-metric="pacingWeight"><div class="cev-scrubber-value-row"><div class="cev-scrubber-value">75</div><span class="cev-scrubber-unit">kg</span></div><div class="cev-scrubber-track"><div class="cev-scrubber-ruler"></div></div></div>
+                            </div>
+                        </div>
+                        <div class="pacing-form-section"><label class="pacing-label">FTP (watts)</label>
+                            <div class="cev-target-card">
+                                <button class="cev-undo-btn" style="display:none" aria-label="Undo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
+                                <input type="hidden" id="pacingFtp" value="250">
+                                <div class="cev-scrubber" data-metric="pacingFtp"><div class="cev-scrubber-value-row"><div class="cev-scrubber-value">250</div><span class="cev-scrubber-unit">W</span></div><div class="cev-scrubber-track"><div class="cev-scrubber-ruler"></div></div></div>
+                            </div>
+                        </div>
+                        <div class="pacing-form-section"><label class="pacing-label">Target Intensity (% FTP)</label>
+                            <div class="cev-target-card">
+                                <button class="cev-undo-btn" style="display:none" aria-label="Undo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
+                                <input type="hidden" id="pacingIF" value="75">
+                                <div class="cev-scrubber" data-metric="pacingIF"><div class="cev-scrubber-value-row"><div class="cev-scrubber-value">75</div><span class="cev-scrubber-unit">%</span></div><div class="cev-scrubber-track"><div class="cev-scrubber-ruler"></div></div></div>
+                            </div>
+                        </div>
                         <div class="pacing-form-section"><label class="pacing-label">Route Segments</label><div class="pacing-note">Enter elevation segments or load from a saved route</div>
                             <div id="pacingSegments">
                                 <div class="pacing-seg-row"><input type="number" placeholder="km" class="pacing-seg-km" value="10"><input type="number" placeholder="%" class="pacing-seg-grade" value="0"><span class="pacing-seg-label">Flat</span></div>
@@ -3556,6 +3574,22 @@
                         </div>
                     </div>
 
+                    <!-- ── Race Tools ── -->
+                    <div class="fit-race-tools">
+                        <button class="fit-race-tool-btn" onclick="openFuelPlanSheet()">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+                            <span>Fueling Plan</span>
+                        </button>
+                        <button class="fit-race-tool-btn" onclick="openTaperWizard()">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                            <span>Taper</span>
+                        </button>
+                        <button class="fit-race-tool-btn" onclick="openPacingSheet()">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                            <span>Pacing</span>
+                        </button>
+                    </div>
+
                     <!-- ── Training Readiness + Pacer row ── -->
                     <div class="fit-ready-pacer-row" id="fitReadyPacerRow" style="display:none">
                         <div class="card fit-readiness-card" id="fitReadinessCard">
@@ -3686,36 +3720,34 @@
                         <div class="fit-rp-note" id="fitRacePredNote"></div>
                     </div>
 
-                    <!-- ── Race Tools ── -->
-                    <div class="fit-race-tools">
-                        <button class="fit-race-tool-btn" onclick="openFuelPlanSheet()">
-                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
-                            <span>Fueling Plan</span>
-                        </button>
-                        <button class="fit-race-tool-btn" onclick="openTaperWizard()">
-                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                            <span>Tapering Wizard</span>
-                        </button>
-                    </div>
-
                     <!-- ── "What If" CTL Simulator ── -->
                     <div class="card" id="fitWhatIfCard">
-                        <div class="card-header"><div style="display:flex;align-items:center;gap:8px"><div class="card-title" style="flex:1 1 0%"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>What If Simulator</div></div></div>
+                        <div class="card-header"><div style="display:flex;align-items:center;gap:8px"><div class="card-title" style="flex:1 1 0%"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>What If Simulator</div><button class="act-card-info-btn" title="How it works" onclick="_openWifInfo()" style="margin-left:auto;flex-shrink:0"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button></div></div>
                         <div class="wif-desc">Project your future fitness based on planned training volume</div>
-                        <div class="wif-inputs">
-                            <div class="wif-input-group">
-                                <label class="wif-label">Weekly TSS</label>
-                                <input type="range" id="wifTss" class="wif-slider" min="100" max="1200" step="50" value="500" oninput="_wifUpdate()">
-                                <span class="wif-slider-val" id="wifTssVal">500</span>
+                        <div class="wif-chart-wrap"><canvas id="wifChart"></canvas></div>
+                        <div class="wif-projection" id="wifProjection"></div>
+                        <div class="wif-inputs" style="display:flex;flex-direction:column;gap:8px;padding:8px 0 0">
+                            <div class="field">
+                                <div class="cev-target-card">
+                                    <button class="cev-undo-btn" style="display:none" aria-label="Undo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
+                                    <input type="hidden" id="wifTss" value="500">
+                                    <div class="cev-scrubber" data-metric="wifTss">
+                                        <div class="cev-scrubber-value-row"><div class="cev-scrubber-value">500</div><span class="cev-scrubber-unit">TSS</span></div>
+                                        <div class="cev-scrubber-track"><div class="cev-scrubber-ruler"></div></div>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="wif-input-group">
-                                <label class="wif-label">Weeks</label>
-                                <input type="range" id="wifWeeks" class="wif-slider" min="1" max="24" step="1" value="8" oninput="_wifUpdate()">
-                                <span class="wif-slider-val" id="wifWeeksVal">8</span>
+                            <div class="field">
+                                <div class="cev-target-card">
+                                    <button class="cev-undo-btn" style="display:none" aria-label="Undo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
+                                    <input type="hidden" id="wifWeeks" value="8">
+                                    <div class="cev-scrubber" data-metric="wifWeeks">
+                                        <div class="cev-scrubber-value-row"><div class="cev-scrubber-value">8</div><span class="cev-scrubber-unit">wk</span></div>
+                                        <div class="cev-scrubber-track"><div class="cev-scrubber-ruler"></div></div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div class="wif-projection" id="wifProjection"></div>
-                        <div class="wif-chart-wrap"><canvas id="wifChart"></canvas></div>
                     </div>
 
                     <!-- ── Heat & Altitude Acclimatization ── -->
@@ -5242,6 +5274,19 @@
                                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--text-faint)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
                                     </div>
                                 </div>
+                            </div>
+
+                            <div class="ios-group-label" style="margin-top:20px">Shape</div>
+                            <div class="ios-group">
+                                <div class="ios-row">
+                                    <div class="ios-row-icon" style="background:#af52de"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="6"/></svg></div>
+                                    <span class="ios-row-label">Apple Squircle</span>
+                                    <label class="settings-ios-toggle">
+                                        <input type="checkbox" id="squircleToggle" onchange="toggleSquircle(this.checked)">
+                                        <span class="settings-ios-slider"></span>
+                                    </label>
+                                </div>
+                                <div style="padding:0 16px 12px;font-size:12px;color:var(--text-muted)">Smooth continuous-curvature corners instead of circular arcs</div>
                             </div>
                         </div>
 

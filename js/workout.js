@@ -1452,6 +1452,19 @@ export function setTheme(mode) {
   }
 }
 
+// ── Squircle Mode ──
+export function toggleSquircle(on) {
+  try { localStorage.setItem('icu_squircle', on ? 'true' : 'false'); } catch (e) {}
+  if (on) document.documentElement.setAttribute('data-squircle', '');
+  else document.documentElement.removeAttribute('data-squircle');
+}
+
+// Sync toggle state when subpage opens
+export function _syncSquircleToggle() {
+  const tog = document.getElementById('squircleToggle');
+  if (tog) tog.checked = localStorage.getItem('icu_squircle') === 'true';
+}
+
 (function initTheme() {
   const saved = localStorage.getItem('icu_theme') || 'dark';
   const resolved = _resolveTheme(saved);

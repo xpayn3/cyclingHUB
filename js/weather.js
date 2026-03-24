@@ -745,7 +745,7 @@ export async function renderWeatherForecast() {
   const windUnit = state.units === 'imperial' ? 'mph' : 'km/h';
   const scoreColors = { good: 'var(--accent)', fair: '#f0c429', poor: 'var(--red)' };
   const scoreTexts = { good: 'Great day to ride', fair: 'Rideable with caution', poor: 'Consider staying indoor' };
-  const scoreBg = { good: 'rgba(0,229,160,0.08)', fair: 'rgba(240,196,41,0.08)', poor: 'rgba(255,69,58,0.08)' };
+  const scoreBg = { good: 'var(--bg-card)', fair: 'var(--bg-card)', poor: 'var(--bg-card)' };
 
   // Hourly temps for sparkline (next 12 hours)
   const hTemps = forecast.hourly?.temperature_2m;

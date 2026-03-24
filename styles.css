@@ -27435,6 +27435,40 @@ html[data-theme="tdf"] {
 [data-theme="tdf"] .goal-dash-card::before {
     background: radial-gradient(ellipse at 30% 20%, rgba(255,215,0,0.08) 0%, transparent 70%);
 }
+/* ── Squircle Mode (Apple superellipse corners) ── */
+[data-squircle] .card,
+[data-squircle] .ios-group,
+[data-squircle] .cev-target-card,
+[data-squircle] .app-select,
+[data-squircle] .stat-card,
+[data-squircle] .app-theme-card,
+[data-squircle] .goal-card,
+[data-squircle] .goal-dash-card,
+[data-squircle] .sync-device,
+[data-squircle] .fit-race-tool-btn,
+[data-squircle] .cdd-dropdown {
+    border-radius: 0 !important;
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M0 16C0 7.2 0 2.8 1.4 1.4 2.8 0 7.2 0 16 0h68c8.8 0 13.2 0 14.6 1.4C100 2.8 100 7.2 100 16v68c0 8.8 0 13.2-1.4 14.6-1.4 1.4-5.8 1.4-14.6 1.4H16c-8.8 0-13.2 0-14.6-1.4C0 97.2 0 92.8 0 84V16Z' fill='%23fff'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M0 16C0 7.2 0 2.8 1.4 1.4 2.8 0 7.2 0 16 0h68c8.8 0 13.2 0 14.6 1.4C100 2.8 100 7.2 100 16v68c0 8.8 0 13.2-1.4 14.6-1.4 1.4-5.8 1.4-14.6 1.4H16c-8.8 0-13.2 0-14.6-1.4C0 97.2 0 92.8 0 84V16Z' fill='%23fff'/%3E%3C/svg%3E");
+    -webkit-mask-size: 100% 100%;
+    mask-size: 100% 100%;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+}
+[data-squircle] .btn:not([class*="pill"]):not(.cal-fab):not(.settings-back-fab):not(.settings-search-fab):not(.modal-close):not(.act-card-info-btn):not(.floating-profile-btn):not(.notif-bell):not(.p2p-status-btn) {
+    border-radius: 0 !important;
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M0 12C0 5.4 0 2.1 1.1 1.1 2.1 0 5.4 0 12 0h76c6.6 0 9.9 0 10.9 1.1 1.1 1 1.1 4.4 1.1 10.9v76c0 6.6 0 9.9-1.1 10.9-1 1.1-4.3 1.1-10.9 1.1H12c-6.6 0-9.9 0-10.9-1.1C0 97.9 0 94.6 0 88V12Z' fill='%23fff'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M0 12C0 5.4 0 2.1 1.1 1.1 2.1 0 5.4 0 12 0h76c6.6 0 9.9 0 10.9 1.1 1.1 1 1.1 4.4 1.1 10.9v76c0 6.6 0 9.9-1.1 10.9-1 1.1-4.3 1.1-10.9 1.1H12c-6.6 0-9.9 0-10.9-1.1C0 97.9 0 94.6 0 88V12Z' fill='%23fff'/%3E%3C/svg%3E");
+    -webkit-mask-size: 100% 100%;
+    mask-size: 100% 100%;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+}
+/* Squircle shadows → use filter instead of box-shadow */
+[data-squircle] .fit-race-tool-btn {
+    box-shadow: none !important;
+    filter: drop-shadow(0 8px 24px rgba(0,0,0,0.35));
+}
 } /* end @layer themes */
 
 @layer pages {
@@ -29578,10 +29612,24 @@ html[data-theme="tdf"] {
 /* ═══════════════════════════════════════════════════════════════
    RACE TOOLS BUTTONS (Fitness page)
    ═══════════════════════════════════════════════════════════════ */
-.fit-race-tools{display:flex;gap:8px;padding:0 var(--pad-page);margin-bottom:var(--gap-layout)}
-.fit-race-tool-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:14px 16px;background:var(--bg-card);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius);color:var(--text-primary);font-size:14px;font-weight:600;cursor:pointer;transition:all .15s}
-.fit-race-tool-btn:active{transform:scale(0.97);background:var(--surface-2)}
-.fit-race-tool-btn svg{color:var(--accent);flex-shrink:0}
+.fit-race-tools{display:flex;gap:10px;margin-bottom:var(--gap-layout)}
+.fit-race-tool-btn{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  padding:18px 12px 16px;
+  background:rgba(40,42,48,0.42);
+  backdrop-filter:blur(48px) saturate(220%) brightness(1.1);
+  -webkit-backdrop-filter:blur(48px) saturate(220%) brightness(1.1);
+  box-shadow:
+    0 0.5px 0 0 rgba(255,255,255,0.18) inset,
+    0 0 0 0.5px rgba(255,255,255,0.08) inset,
+    0 -0.5px 0 0 rgba(0,0,0,0.12) inset,
+    0 8px 24px rgba(0,0,0,0.35);
+  border:none;border-radius:var(--radius);
+  color:var(--text-primary);font-size:13px;font-weight:600;letter-spacing:0.02em;
+  cursor:pointer;transition:all .2s cubic-bezier(0.34,1.56,0.64,1)
+}
+.fit-race-tool-btn:active{transform:scale(0.94);box-shadow:0 0.5px 0 0 rgba(255,255,255,0.12) inset,0 2px 8px rgba(0,0,0,0.3)}
+.fit-race-tool-btn svg{color:var(--accent);flex-shrink:0;width:24px;height:24px;filter:drop-shadow(0 0 6px rgba(0,229,160,0.3))}
 
 /* ═══════════════════════════════════════════════════════════════
    GEAR ROI DASHBOARD
@@ -29673,3 +29721,77 @@ html[data-theme="tdf"] {
 .fit-wx-tab.active{background:rgba(0,229,160,0.15);color:var(--accent)}
 .fit-wx-insights{padding:12px var(--pad-card) 0}
 .fit-wx-insight{font-size:13px;color:var(--text-muted);padding:8px 12px;background:var(--surface-1);border-radius:var(--radius-sm);margin-bottom:6px;line-height:1.4}
+
+/* ═══════════════════════════════════════════════════════════════
+   "WHAT IF" CTL SIMULATOR
+   ═══════════════════════════════════════════════════════════════ */
+.wif-desc{font-size:13px;color:var(--text-muted);padding:0 8px;margin-bottom:12px}
+.wif-inputs{padding:0 8px;margin-bottom:4px}
+.wif-inputs .field{margin:0}
+.wif-inputs .field>label{font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);font-weight:600;margin-bottom:4px}
+.wif-inputs .cev-target-card{display:grid;grid-template:1fr/1fr;min-height:44px;padding:0;overflow:visible}
+.wif-inputs .cev-target-card>*{grid-area:1/1}
+.wif-inputs .cev-scrubber{display:grid;grid-template:1fr/1fr;align-items:center}
+.wif-inputs .cev-scrubber>*{grid-area:1/1}
+.wif-inputs .cev-scrubber-value-row{z-index:2;pointer-events:none;padding-left:10px;display:flex;align-items:center;gap:3px}
+.wif-inputs .cev-scrubber-value{font-size:20px;line-height:1;min-height:0;display:flex;align-items:center}
+.wif-inputs .cev-scrubber-track{height:44px;border-radius:10px}
+.wif-inputs .cev-undo-btn{z-index:3;justify-self:end;align-self:center;margin-right:6px;position:static}
+.wif-input-group{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.wif-label{font-size:13px;font-weight:600;color:var(--text-muted);width:90px;flex-shrink:0}
+.wif-slider{flex:1;accent-color:var(--accent);height:4px}
+.wif-slider-val{font-size:14px;font-weight:700;font-family:var(--font-num);color:var(--accent);width:40px;text-align:right}
+.wif-projection{padding:8px 8px 4px;margin:0}
+.wif-proj-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.wif-proj-stat{text-align:center;background:var(--surface-1);border-radius:12px;padding:12px 8px 10px}
+.wif-proj-val{display:block;font-size:26px;font-weight:700;font-family:var(--font-num);line-height:1.1}
+.wif-proj-lbl{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin-top:4px;display:block}
+.wif-chart-wrap{height:200px;padding:0 4px;position:relative}
+.wif-chart-wrap canvas{display:block;width:100%!important}
+
+/* ═══════════════════════════════════════════════════════════════
+   RACE PACING STRATEGY
+   ═══════════════════════════════════════════════════════════════ */
+.pacing-form-section{margin-bottom:16px}
+.pacing-form-section .cev-target-card{display:grid;grid-template:1fr/1fr;min-height:48px;padding:0;overflow:visible}
+.pacing-form-section .cev-target-card>*{grid-area:1/1}
+.pacing-form-section .cev-scrubber{display:grid;grid-template:1fr/1fr;align-items:center}
+.pacing-form-section .cev-scrubber>*{grid-area:1/1}
+.pacing-form-section .cev-scrubber-value-row{z-index:2;pointer-events:none;padding-left:12px;display:flex;align-items:center;gap:4px}
+.pacing-form-section .cev-scrubber-value{font-size:22px;line-height:1;min-height:0;display:flex;align-items:center}
+.pacing-form-section .cev-scrubber-track{height:48px;border-radius:12px}
+.pacing-form-section .cev-undo-btn{z-index:3;justify-self:end;align-self:center;margin-right:8px;position:static}
+.pacing-label{display:block;font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+.pacing-input{width:100%;background:var(--surface-1);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);padding:10px 12px;color:var(--text-primary);font-size:16px;font-family:var(--font-num)}
+.pacing-note{font-size:12px;color:var(--text-muted);margin-bottom:8px}
+.pacing-seg-row{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.pacing-seg-km,.pacing-seg-grade{width:60px;background:var(--surface-1);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);padding:8px;color:var(--text-primary);font-size:16px;text-align:center;font-family:var(--font-num)}
+.pacing-seg-label{font-size:12px;color:var(--text-muted);flex:1}
+.pacing-seg-del{background:none;border:none;color:var(--red);font-size:18px;cursor:pointer;padding:4px 8px}
+.pacing-add-seg{background:none;border:1px dashed rgba(255,255,255,0.15);color:var(--text-muted);width:100%;padding:8px;border-radius:var(--radius-sm);font-size:13px;cursor:pointer;margin-top:4px;margin-bottom:12px}
+.pacing-plan{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+.pacing-seg{background:var(--surface-1);border-radius:var(--radius-sm);padding:12px;overflow:hidden}
+.pacing-seg-header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.pacing-seg-num{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#000;flex-shrink:0}
+.pacing-seg-type{font-size:13px;font-weight:600;flex:1}
+.pacing-seg-dist{font-size:11px;color:var(--text-muted)}
+.pacing-seg-metrics{display:flex;justify-content:space-between}
+.pacing-seg-metric{text-align:center}
+.pacing-seg-val{display:block;font-size:16px;font-weight:700;font-family:var(--font-num)}
+.pacing-seg-lbl{font-size:10px;color:var(--text-muted);text-transform:uppercase}
+
+/* ═══════════════════════════════════════════════════════════════
+   ACCLIMATIZATION TRACKER
+   ═══════════════════════════════════════════════════════════════ */
+.acclim-tabs{display:flex;gap:4px;padding:0 var(--pad-card);margin-bottom:16px}
+.acclim-tab{flex:1;padding:8px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;background:var(--surface-1);color:var(--text-muted);border:none;cursor:pointer;text-align:center}
+.acclim-tab.active{background:rgba(0,229,160,0.15);color:var(--accent)}
+.acclim-gauge{display:flex;flex-direction:column;align-items:center;padding:16px 0}
+.acclim-gauge-ring{position:relative;width:120px;height:120px}
+.acclim-gauge-val{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:28px;font-weight:700;font-family:var(--font-num)}
+.acclim-gauge-label{font-size:13px;color:var(--text-muted);margin-top:8px}
+.acclim-stats{display:flex;justify-content:space-around;padding:0 var(--pad-card);margin-bottom:12px}
+.acclim-stat{text-align:center}
+.acclim-stat-val{display:block;font-size:18px;font-weight:700;font-family:var(--font-num)}
+.acclim-stat-lbl{font-size:11px;color:var(--text-muted)}
+.acclim-tip{font-size:13px;color:var(--text-muted);padding:10px 14px;margin:0 var(--pad-card);background:var(--surface-1);border-radius:var(--radius-sm);line-height:1.4;margin-bottom:8px}
