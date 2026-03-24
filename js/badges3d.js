@@ -139,9 +139,10 @@ function _loadGLB(THREE, path) {
   });
 }
 
-// Badge GLB file mapping — add entries here when you have custom models
-// Keys are badge IDs, values are paths to .glb files
+// Badge GLB file mapping — keys are badge IDs, values are paths to .glb files
+// Use '_default' as fallback for all badges without a specific model
 const BADGE_GLB_MAP = {
+  _default: 'img/badges/achievment.glb',
   // 'b1': 'img/badges/on-fire.glb',
   // 'b2': 'img/badges/week-warrior.glb',
 };
@@ -195,24 +196,39 @@ export async function initBadge3D(canvasEl, badgeId) {
   _badgeScene.add(rimLight);
 
   // Try loading GLB model first, fall back to procedural shield
-  const glbPath = BADGE_GLB_MAP[badgeId];
+  const glbPath = BADGE_GLB_MAP[badgeId] || BADGE_GLB_MAP._default;
   let loaded = false;
 
   if (glbPath && _GLTFLoader) {
     try {
       const gltf = await _loadGLB(THREE, glbPath);
       _badgeMesh = gltf.scene;
+
+      // Apply gold material to all meshes that have no texture
+      const goldMat = _createGoldMaterial(THREE);
+      _badgeMesh.traverse(child => {
+        if (child.isMesh) {
+          const mat = child.material;
+          // If model has no texture map, apply our gold PBR material
+          if (!mat.map && !mat.normalMap && !mat.roughnessMap) {
+            child.material = goldMat;
+          }
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+
       // Auto-center and scale the model
       const box = new THREE.Box3().setFromObject(_badgeMesh);
       const size = box.getSize(new THREE.Vector3());
       const center = box.getCenter(new THREE.Vector3());
       const maxDim = Math.max(size.x, size.y, size.z);
-      const scale = 2.5 / maxDim; // fit in ~2.5 units
+      const scale = 2.5 / maxDim;
       _badgeMesh.scale.setScalar(scale);
       _badgeMesh.position.sub(center.multiplyScalar(scale));
       _badgeScene.add(_badgeMesh);
       loaded = true;
-      console.log('Loaded GLB badge:', glbPath);
+      console.log('Loaded GLB badge:', glbPath, '| meshes:', gltf.scene.children.length);
     } catch (e) {
       console.warn('GLB load failed, using procedural:', e.message);
     }
