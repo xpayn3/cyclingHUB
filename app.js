@@ -20643,14 +20643,13 @@ function createSheetController(config) {
     s.el.classList.remove('dragging');
     s.el.style.transform = `translateY(${targetY}px)`;
     s.el.classList.toggle('sheet-expanded', newState === 'expanded');
-    if (newState === 'hidden') {
-      s.el.classList.add('sheet-peek');
-      // Hidden: no scroll
-      s.scroll.style.setProperty('overflow-y', 'hidden', 'important');
-    } else {
+    if (newState === 'expanded') {
       s.el.classList.remove('sheet-peek');
-      // Peek & expanded: allow scroll
       s.scroll.style.setProperty('overflow-y', 'auto', 'important');
+    } else {
+      s.el.classList.toggle('sheet-peek', newState === 'hidden');
+      // Peek & hidden: no scroll — user must expand first
+      s.scroll.style.setProperty('overflow-y', 'hidden', 'important');
     }
     if (config.onStateChange) config.onStateChange(newState, s);
   }
@@ -20684,15 +20683,14 @@ function createSheetController(config) {
       if (absDy < 8) return;
       s.directionLocked = true;
       if (!s.touchOnHandle) {
-        const scrollable = s.scroll.scrollHeight > s.scroll.clientHeight + 1;
         if (s.state === 'expanded') {
           // Expanded: only drag if scrolled to top and pulling down
           if (dy > 0 && s.scroll.scrollTop <= 1) { s.tracking = true; }
           else { s.tracking = false; return; }
-        } else if (s.state === 'peek' && scrollable && dy < 0) {
-          // Peek with scrollable content + swiping up: let content scroll
-          s.tracking = false; return;
-        } else { s.tracking = true; }
+        } else {
+          // Peek/hidden: always drag sheet (scroll disabled until expanded)
+          s.tracking = true;
+        }
       } else { s.tracking = true; }
       s.el.classList.add('dragging');
     }
