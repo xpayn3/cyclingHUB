@@ -28345,7 +28345,7 @@ window._gearOpenBgColorPicker = _gearOpenBgColorPicker;
 
 function _gearSetBgColor(bikeId, color) {
   _gearSaveBgColor(bikeId, color);
-  _closeOverlaySheet('compDetailSheet');
+  _closeUniSheet();
   // Re-render the hero photo if on bike detail page
   const heroPhoto = document.querySelector('.bkd-hero-photo');
   if (heroPhoto) heroPhoto.style.background = color || '';
@@ -28921,9 +28921,6 @@ function gearComponentCard(c) {
 function openCompDetail(compId) {
   const c = loadGearComponents().find(x => x.id === compId);
   if (!c) return;
-  const sheet = document.getElementById('compDetailSheet');
-  const body = document.getElementById('compDetailBody');
-  if (!sheet || !body) return;
 
   const color = GEAR_CATEGORY_COLORS[c.category] || '#94a3b8';
   const bike = _gearBikeCache.find(b => b.id === c.bikeId);
@@ -30711,8 +30708,6 @@ function openBatDetailSheet(id) {
   const all = loadGearBatteries();
   const bat = all.find(b => b.id === id);
   if (!bat) return;
-  const body = document.getElementById('batDetailBody');
-  if (!body) return;
 
   const calc = (typeof calcBatteryPercent === 'function') ? calcBatteryPercent(bat) : null;
   const pct = calc ? Math.round(typeof calc === 'object' ? calc.percent : calc) : null;
