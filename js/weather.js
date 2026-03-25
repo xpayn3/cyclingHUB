@@ -1964,9 +1964,8 @@ function _wxBuildMeta(lat, lng) {
    WEATHER DAY DETAIL SUB-PAGE
 ==================================================== */
 export function renderWeatherDayDetail(dayIdx) {
-  const sheet = document.getElementById('wxDaySheet');
-  const container = document.getElementById('wxDaySheetBody');
-  if (!sheet || !container) return;
+  // Use universal sheet system — no static HTML needed
+  const _wxDayUseUni = typeof window._openUniSheet === 'function';
 
   let data = state.weatherPageData;
   let meta = state.weatherPageMeta;
@@ -2198,7 +2197,7 @@ export function renderWeatherDayDetail(dayIdx) {
   const windDesc2 = wind < 5 ? 'Calm' : wind < 20 ? 'Light' : wind < 40 ? 'Breezy' : 'Strong';
   const precipDesc = rain > 0.5 ? `${rain.toFixed(1)} mm expected` : precip > 0 ? `${Math.round(precip)}% chance` : 'None expected';
 
-  container.innerHTML = `
+  const _wxDayHtml = `
     <div class="aw-detail-wrap">
 
     <!-- Hero — centered Apple weather style -->
@@ -2270,13 +2269,18 @@ export function renderWeatherDayDetail(dayIdx) {
     </div><!-- /.aw-detail-wrap -->
   `;
 
-  // Open the sheet overlay
-  if (sheet.style.display === 'none' || !sheet.classList.contains('wxd-open')) {
+  // Use universal sheet or fallback to old overlay
+  if (_wxDayUseUni) {
+    window._openUniSheet({ id: 'wxDay', title: dayName, body: _wxDayHtml });
+  } else {
+    const container = document.getElementById('wxDaySheetBody');
+    if (container) container.innerHTML = _wxDayHtml;
     window._openOverlaySheet('wxDaySheet');
   }
 
   // Drag-to-scroll on hourly rail
-  const hRail = container.querySelector('.aw-hourly-scroll');
+  const sheetEl = _wxDayUseUni ? document.getElementById('uniSheetOverlay') : document.getElementById('wxDaySheet');
+  const hRail = sheetEl?.querySelector('.aw-hourly-scroll');
   if (hRail) {
     let isDown = false, startX = 0, scrollLeft = 0;
     hRail.addEventListener('mousedown', e => {

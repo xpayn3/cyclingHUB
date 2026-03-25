@@ -22327,18 +22327,19 @@ function openSimilarRidesModal() {
   const a = _similarRidesRef;
   if (!a) return;
   const results = findSimilarRides(a, 10);
-  const list = document.getElementById('similarRidesList');
-  const desc = document.getElementById('similarRidesDesc');
 
   const refDist = actVal(a, 'distance', 'icu_distance');
   const refTime = actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time');
   const dF = refDist > 0 ? fmtDist(refDist) : null;
-  desc.textContent = `${results.length} rides similar to ${dF ? dF.val + ' ' + dF.unit : ''} ${refTime ? fmtDur(refTime) : ''} ${a.sport_type || a.type || 'ride'}`;
+  const descText = `${results.length} rides similar to ${dF ? dF.val + ' ' + dF.unit : ''} ${refTime ? fmtDur(refTime) : ''} ${a.sport_type || a.type || 'ride'}`;
 
+  let listHTML;
   if (!results.length) {
-    list.innerHTML = '<div class="sim-empty">No similar rides found. Try syncing more activities.</div>';
+    listHTML = '<div class="sim-empty">No similar rides found. Try syncing more activities.</div>';
   } else {
-    list.innerHTML = results.map(({ activity: r, score }) => {
+    window._simLookup = {};
+    results.forEach(({ activity: r }) => { window._simLookup[r.id || r.icu_activity_id] = r; });
+    listHTML = results.map(({ activity: r, score }) => {
       const dist = actVal(r, 'distance', 'icu_distance');
       const secs = actVal(r, 'moving_time', 'elapsed_time', 'icu_moving_time');
       const pwr  = actVal(r, 'icu_weighted_avg_watts', 'average_watts');
@@ -22371,17 +22372,19 @@ function openSimilarRidesModal() {
         </div>
       </div>`;
     }).join('');
-    // Store references for navigation
-    window._simLookup = {};
-    results.forEach(({ activity: r }) => {
-      window._simLookup[r.id || r.icu_activity_id] = r;
-    });
   }
-  _openOverlaySheet('similarRidesModal');
+
+  _openUniSheet({
+    title: 'Similar Rides',
+    body: `<p style="font-size:13px;color:var(--text-muted);margin:0 0 12px">${descText}</p>
+           <div class="sim-rides-list">${listHTML}</div>`,
+    maxWidth: 560,
+    partial: false
+  });
 }
 
 function closeSimilarRidesModal() {
-  _closeOverlaySheet('similarRidesModal');
+  _closeUniSheet();
 }
 
 /* ====================================================
@@ -30817,23 +30820,26 @@ window.deleteBattery = deleteBattery;
 // ── 3D Badge Viewer ──
 let _badges3dModule = null;
 async function openBadgeViewer(badgeId, name, desc) {
-  _openOverlaySheet('badgeViewerSheet');
-  document.getElementById('badgeViewerName').textContent = name;
-  document.getElementById('badgeViewerDesc').textContent = desc;
-  document.getElementById('badgeViewerDate').textContent = 'Earned';
+  const bodyHtml = `
+    <div style="text-align:center">
+      <canvas id="badge3dCanvas" style="width:100%;height:280px;touch-action:none;cursor:grab"></canvas>
+      <div id="badgeViewerName" style="font-size:22px;font-weight:700;margin:8px 0 4px">${_escHtml(name)}</div>
+      <div id="badgeViewerDesc" style="font-size:14px;color:var(--text-muted);margin-bottom:12px">${_escHtml(desc)}</div>
+      <div id="badgeViewerDate" style="font-size:12px;color:var(--text-faint)">Earned</div>
+    </div>`;
+  _openUniSheet({ id: 'badgeViewer', body: bodyHtml, partial: true, maxWidth: 400 });
 
+  // Wait for DOM then init 3D
+  await new Promise(r => setTimeout(r, 100));
   const canvas = document.getElementById('badge3dCanvas');
   if (!canvas) return;
 
-  // Lazy-load the 3D module
   try {
     if (!_badges3dModule) {
       _badges3dModule = await import('./js/badges3d.js');
     }
-    // Destroy previous instance
     _badges3dModule.destroyBadge3D();
-    // Wait for sheet animation
-    await new Promise(r => setTimeout(r, 400));
+    await new Promise(r => setTimeout(r, 300));
     await _badges3dModule.initBadge3D(canvas, badgeId);
   } catch (e) {
     console.error('3D badge failed:', e);
@@ -30844,7 +30850,7 @@ async function openBadgeViewer(badgeId, name, desc) {
 
 function closeBadgeViewer() {
   if (_badges3dModule) _badges3dModule.destroyBadge3D();
-  _closeOverlaySheet('badgeViewerSheet');
+  _closeUniSheet();
 }
 window.openBadgeViewer = openBadgeViewer;
 window.closeBadgeViewer = closeBadgeViewer;
@@ -31173,57 +31179,96 @@ function _initTireWeightScrubber(initVal) {
   apply(val);
 }
 
+function _buildTireSheetHTML() {
+  return `<input type="hidden" id="tireEditId">
+    <div class="cev-group" style="margin-bottom:12px">
+      <div class="cev-group-row"><span class="cev-group-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4M4 7l8 4M4 7v10l8 4m0-10v10"/></svg></span><span class="cev-group-label">Brand</span>
+        <select id="tireBrand" class="app-select" style="width:auto;min-width:120px;text-align:right" onchange="_tireUpdateModels()"><option value="">Select brand</option><option value="Continental">Continental</option><option value="Vittoria">Vittoria</option><option value="Pirelli">Pirelli</option><option value="Schwalbe">Schwalbe</option><option value="Michelin">Michelin</option><option value="Maxxis">Maxxis</option><option value="Specialized">Specialized</option><option value="Goodyear">Goodyear</option><option value="Challenge">Challenge</option><option value="Panaracer">Panaracer</option><option value="WTB">WTB</option><option value="Hutchinson">Hutchinson</option><option value="IRC">IRC</option><option value="Wolfpack">Wolfpack</option><option value="Other">Other</option></select></div>
+      <div class="cev-group-row"><span class="cev-group-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/></svg></span><span class="cev-group-label">Model</span>
+        <select id="tireName" class="app-select" style="width:auto;min-width:140px;text-align:right"><option value="">Select model</option></select></div>
+      <div class="cev-group-row"><span class="cev-group-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></span><span class="cev-group-label">Width</span>
+        <select id="tireWidth" class="app-select" style="width:auto;min-width:80px;text-align:right"><option value="23">23mm</option><option value="25" selected>25mm</option><option value="28">28mm</option><option value="30">30mm</option><option value="32">32mm</option><option value="35">35mm</option><option value="38">38mm</option><option value="40">40mm</option><option value="42">42mm</option><option value="45">45mm</option></select></div>
+      <div class="cev-group-row"><span class="cev-group-icon"><svg class="icon" width="18" height="18"><use href="icons.svg#icon-clock"/></svg></span><span class="cev-group-label">Position</span>
+        <select id="tirePosition" class="app-select" style="width:auto;min-width:80px;text-align:right"><option value="front">Front</option><option value="rear">Rear</option><option value="both" selected>Both (same)</option></select></div>
+    </div>
+    <div class="cev-section-label">Pressure Calculator</div>
+    <div class="cev-group" style="margin-bottom:12px">
+      <div class="cev-group-row"><span class="cev-group-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20V10M18 20V4M6 20v-4"/></svg></span><span class="cev-group-label">Formula</span>
+        <select id="tireCalcModel" class="app-select" style="width:auto;min-width:110px;text-align:right" onchange="_calcTirePressure()"><option value="sram" selected>SRAM / Zipp</option><option value="silca">Silca</option><option value="berto">Berto 15%</option></select></div>
+      <div class="cev-group-row"><span class="cev-group-icon"><svg class="icon" width="18" height="18"><use href="icons.svg#icon-clock"/></svg></span><span class="cev-group-label">Riding Style</span>
+        <select id="tireRideStyle" class="app-select" style="width:auto;min-width:100px;text-align:right"><option value="comfort">Comfort</option><option value="balanced" selected>Balanced</option><option value="performance">Performance</option></select></div>
+      <div class="cev-group-row"><span class="cev-group-icon"><svg class="icon" width="18" height="18"><use href="icons.svg#icon-home"/></svg></span><span class="cev-group-label">Surface</span>
+        <select id="tireSurface" class="app-select" style="width:auto;min-width:100px;text-align:right"><option value="road" selected>Road</option><option value="mixed">Mixed/Gravel</option><option value="offroad">Off-road</option></select></div>
+      <div class="cev-group-row"><span class="cev-group-icon"><svg class="icon" width="18" height="18"><use href="icons.svg#icon-globe"/></svg></span><span class="cev-group-label">Tire Type</span>
+        <select id="tireTubeType" class="app-select" style="width:auto;min-width:100px;text-align:right" onchange="_calcTirePressure()"><option value="tubeless" selected>Tubeless</option><option value="clincher">Clincher (tubed)</option><option value="tubular">Tubular</option></select></div>
+    </div>
+    <div class="cev-section-label">Rider Weight</div>
+    <div class="wrk-scrub tire-weight-scrub" id="tireWeightScrub" data-field="weight" data-min="40" data-max="150" data-val="75" data-step="1">
+      <div class="wrk-scrub-head"><span class="wrk-scrub-val">75</span><span class="wrk-scrub-unit">kg</span></div>
+      <div class="wrk-scrub-track"><div class="wrk-scrub-ruler"></div></div>
+    </div>
+    <input type="hidden" id="tireRiderWeight" value="75">
+    <div id="tirePressureResult" class="tire-pressure-result"></div>
+    <div class="cev-section-label" style="margin-top:12px">My Pressure</div>
+    <div class="cev-group">
+      <div class="cev-group-row"><span class="cev-group-label">Front</span><div style="display:flex;align-items:center;gap:4px"><input type="number" id="tireMyFront" step="0.5" min="20" max="120" style="width:60px;color:var(--accent);font-weight:600;font-size:17px"><span style="color:var(--text-muted);font-size:13px">psi</span></div></div>
+      <div class="cev-group-row"><span class="cev-group-label">Rear</span><div style="display:flex;align-items:center;gap:4px"><input type="number" id="tireMyRear" step="0.5" min="20" max="120" style="width:60px;color:var(--accent);font-weight:600;font-size:17px"><span style="color:var(--text-muted);font-size:13px">psi</span></div></div>
+    </div>
+    <div class="tire-sheet-actions">
+      <button class="tire-cancel-btn" onclick="closeTireSheet()">Cancel</button>
+      <button class="tire-save-btn" onclick="saveTire()"><svg class="icon" width="18" height="18"><use href="icons.svg#icon-check"/></svg> Save Tire</button>
+    </div>`;
+}
+
 function openTireSheet(editId) {
-  const title = document.getElementById('tireSheetTitle');
-  if (title) title.textContent = editId ? 'Edit Tire' : 'Add Tire';
-  document.getElementById('tireEditId').value = editId || '';
-  document.getElementById('tireBrand').value = '';
-  _tireUpdateModels();
-  document.getElementById('tireName').value = '';
-  document.getElementById('tireWidth').value = '25';
-  document.getElementById('tirePosition').value = 'both';
-  document.getElementById('tireRiderWeight').value = '75';
-  document.getElementById('tireRideStyle').value = 'balanced';
-  document.getElementById('tireSurface').value = 'road';
-  document.getElementById('tireTubeType').value = 'tubeless';
-  document.getElementById('tireMyFront').value = '';
-  document.getElementById('tireMyRear').value = '';
+  const title = editId ? 'Edit Tire' : 'Add Tire';
+  _openUniSheet({
+    title,
+    body: _buildTireSheetHTML,
+    maxWidth: 480,
+    partial: true,
+    onOpen(bodyEl) {
+      // Reset defaults
+      document.getElementById('tireEditId').value = editId || '';
 
-  if (editId) {
-    const comps = loadGearComponents();
-    const c = comps.find(x => x.id === editId);
-    if (c) {
-      document.getElementById('tireBrand').value = c.brand || '';
-      _tireUpdateModels();
-      document.getElementById('tireName').value = c.name || '';
-      if (c.tireWidth) document.getElementById('tireWidth').value = c.tireWidth;
-      if (c.tirePosition) document.getElementById('tirePosition').value = c.tirePosition;
-      if (c.tireRiderWeight) document.getElementById('tireRiderWeight').value = c.tireRiderWeight;
-      if (c.tireRideStyle) document.getElementById('tireRideStyle').value = c.tireRideStyle;
-      if (c.tireSurface) document.getElementById('tireSurface').value = c.tireSurface;
-      if (c.tireTubeType) document.getElementById('tireTubeType').value = c.tireTubeType;
-      else if (c.tireTubeless !== undefined) document.getElementById('tireTubeType').value = c.tireTubeless ? 'tubeless' : 'clincher';
-      if (c.tireFrontPsi) document.getElementById('tireMyFront').value = c.tireFrontPsi;
-      if (c.tireRearPsi) document.getElementById('tireMyRear').value = c.tireRearPsi;
+      if (editId) {
+        const comps = loadGearComponents();
+        const c = comps.find(x => x.id === editId);
+        if (c) {
+          document.getElementById('tireBrand').value = c.brand || '';
+          _tireUpdateModels();
+          document.getElementById('tireName').value = c.name || '';
+          if (c.tireWidth) document.getElementById('tireWidth').value = c.tireWidth;
+          if (c.tirePosition) document.getElementById('tirePosition').value = c.tirePosition;
+          if (c.tireRiderWeight) document.getElementById('tireRiderWeight').value = c.tireRiderWeight;
+          if (c.tireRideStyle) document.getElementById('tireRideStyle').value = c.tireRideStyle;
+          if (c.tireSurface) document.getElementById('tireSurface').value = c.tireSurface;
+          if (c.tireTubeType) document.getElementById('tireTubeType').value = c.tireTubeType;
+          else if (c.tireTubeless !== undefined) document.getElementById('tireTubeType').value = c.tireTubeless ? 'tubeless' : 'clincher';
+          if (c.tireFrontPsi) document.getElementById('tireMyFront').value = c.tireFrontPsi;
+          if (c.tireRearPsi) document.getElementById('tireMyRear').value = c.tireRearPsi;
+        }
+      }
+
+      // Init dropdowns
+      const cont = bodyEl.closest('.wxd-overlay') || bodyEl;
+      if (typeof initCustomDropdowns === 'function') initCustomDropdowns(cont);
+
+      // Init weight scrubber
+      _initTireWeightScrubber(parseInt(document.getElementById('tireRiderWeight').value) || 75);
+      _calcTirePressure();
+
+      // Live recalculate
+      ['tireWidth', 'tireRideStyle', 'tireSurface', 'tireTubeType', 'tireCalcModel'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.onchange = _calcTirePressure;
+      });
     }
-  }
-
-  _openOverlaySheet('tireSheet');
-
-  // Initialize weight scrubber
-  _initTireWeightScrubber(parseInt(document.getElementById('tireRiderWeight').value) || 75);
-
-  _calcTirePressure();
-
-  // Live recalculate on input changes
-  ['tireWidth', 'tireRideStyle', 'tireSurface', 'tireTubeType', 'tireCalcModel'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.onchange = _calcTirePressure;
   });
 }
 window.openTireSheet = openTireSheet;
 
-function closeTireSheet() { _closeOverlaySheet('tireSheet'); }
+function closeTireSheet() { _closeUniSheet(); }
 window.closeTireSheet = closeTireSheet;
 
 function saveTire() {
@@ -31522,87 +31567,105 @@ function _svcIsOverdue(s, bike) {
 }
 
 // ── Service Modal ───────────────────────────────────────────────────────────
-function openServiceModal(editId, presetBikeId) {
-  const modal = document.getElementById('serviceModal');
-  if (!modal) return;
-
-  // Reset form
-  document.getElementById('serviceEditId').value = '';
-  document.getElementById('serviceFormBike').value = '';
-  document.getElementById('serviceFormShop').value = '';
-  document.getElementById('serviceFormShopName').value = '';
-  document.getElementById('serviceFormShopPhone').value = '';
-  document.getElementById('serviceFormDate').value = new Date().toISOString().slice(0, 10);
-  document.getElementById('serviceFormCost').value = '';
-  document.getElementById('serviceFormWork').value = '';
-  document.getElementById('serviceFormNotes').value = '';
-  document.getElementById('serviceFormNextMode').value = '';
-  document.getElementById('serviceFormNextKm').value = '';
-  document.getElementById('serviceFormNextMonths').value = '';
-  document.getElementById('serviceNextKmField').style.display = 'none';
-  document.getElementById('serviceNextMonthsField').style.display = 'none';
-
-  // Populate bike select
-  const bikeSelect = document.getElementById('serviceFormBike');
-  bikeSelect.innerHTML = '<option value="">Select bike</option>' +
+function _buildServiceFormHTML() {
+  const bikeOpts = '<option value="">Select bike</option>' +
     _gearBikeCache.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
-
-  // Populate shop select
   const shops = loadServiceShops();
-  const shopSelect = document.getElementById('serviceFormShop');
-  shopSelect.innerHTML = '<option value="">Select or enter below</option>' +
+  const shopOpts = '<option value="">Select or enter below</option>' +
     shops.map(s => `<option value="${s.id}">${s.name}</option>`).join('') +
     '<option value="__new__">+ Add New Shop…</option>';
+  return `<input type="hidden" id="serviceEditId">
+    <div class="gear-form-grid">
+      <div class="field"><label for="serviceFormBike">Bike</label>
+        <select id="serviceFormBike" class="app-select">${bikeOpts}</select></div>
+      <div class="field"><label for="serviceFormShop">Service Shop</label>
+        <select id="serviceFormShop" class="app-select" onchange="onServiceShopChange()">${shopOpts}</select></div>
+      <div class="field" id="serviceShopNameField"><label for="serviceFormShopName">Shop Name</label>
+        <input type="text" id="serviceFormShopName" placeholder="e.g. BikeWorld Service"></div>
+      <div class="field" id="serviceShopPhoneField"><label for="serviceFormShopPhone">Shop Phone</label>
+        <input type="tel" id="serviceFormShopPhone" placeholder="+386 1 234 5678"></div>
+      <div class="field"><label for="serviceFormDate">Service Date</label>
+        <input type="date" id="serviceFormDate"></div>
+      <div class="field"><label for="serviceFormCost">Cost (EUR)</label>
+        <input type="number" id="serviceFormCost" placeholder="0" min="0" step="0.01"></div>
+      <div class="field" style="grid-column:1/-1"><label for="serviceFormWork">Work Performed</label>
+        <textarea id="serviceFormWork" rows="2" placeholder="e.g. Full drivetrain service, brake bleed, new cables…"></textarea></div>
+      <div class="field" style="grid-column:1/-1"><label for="serviceFormNotes">Notes</label>
+        <input type="text" id="serviceFormNotes" placeholder="Optional notes…"></div>
+      <div class="field"><label for="serviceFormNextMode">Next Service Due By</label>
+        <select id="serviceFormNextMode" class="app-select" onchange="onServiceNextModeChange()">
+          <option value="">— No reminder —</option><option value="km">Kilometers</option><option value="months">Months</option></select></div>
+      <div class="field" id="serviceNextKmField" style="display:none"><label for="serviceFormNextKm">Service Every (km)</label>
+        <input type="number" id="serviceFormNextKm" placeholder="e.g. 3000" min="100" step="100">
+        <div class="field-hint">Service again after this many km ridden.</div></div>
+      <div class="field" id="serviceNextMonthsField" style="display:none"><label for="serviceFormNextMonths">Service Every (months)</label>
+        <input type="number" id="serviceFormNextMonths" placeholder="e.g. 6" min="1" step="1">
+        <div class="field-hint">Service again after this many months.</div></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button class="btn btn-primary" style="flex:1" onclick="submitServiceForm()">Save Service</button>
+      <button class="btn btn-ghost" onclick="closeServiceModal()">Cancel</button>
+    </div>`;
+}
 
-  // Show inline shop fields by default
-  document.getElementById('serviceShopNameField').style.display = '';
-  document.getElementById('serviceShopPhoneField').style.display = '';
+function openServiceModal(editId, presetBikeId) {
+  const title = editId ? 'Edit Service' : 'Add Service';
+  _openUniSheet({
+    title,
+    body: _buildServiceFormHTML,
+    maxWidth: 560,
+    partial: false,
+    onOpen(bodyEl) {
+      // Set default date
+      document.getElementById('serviceFormDate').value = new Date().toISOString().slice(0, 10);
 
-  // Pre-select bike
-  if (presetBikeId) bikeSelect.value = presetBikeId;
-  else if (_gearSelectedBike) bikeSelect.value = _gearSelectedBike;
+      // Pre-select bike
+      const bikeSelect = document.getElementById('serviceFormBike');
+      if (presetBikeId) bikeSelect.value = presetBikeId;
+      else if (_gearSelectedBike) bikeSelect.value = _gearSelectedBike;
 
-  // Title
-  document.getElementById('serviceModalTitle').textContent = editId ? 'Edit Service' : 'Add Service';
-
-  // If editing, populate fields
-  if (editId) {
-    const svc = loadGearServices().find(s => s.id === editId);
-    if (svc) {
-      document.getElementById('serviceEditId').value = svc.id;
-      bikeSelect.value = svc.bikeId || '';
-      if (svc.shopId) {
-        shopSelect.value = svc.shopId;
-        document.getElementById('serviceShopNameField').style.display = 'none';
-        document.getElementById('serviceShopPhoneField').style.display = 'none';
-      } else {
-        shopSelect.value = svc.shopNameOverride ? '__new__' : '';
-        document.getElementById('serviceFormShopName').value = svc.shopNameOverride || '';
-        document.getElementById('serviceFormShopPhone').value = svc.phoneOverride || '';
+      // If editing, populate fields
+      if (editId) {
+        const svc = loadGearServices().find(s => s.id === editId);
+        if (svc) {
+          document.getElementById('serviceEditId').value = svc.id;
+          bikeSelect.value = svc.bikeId || '';
+          const shopSelect = document.getElementById('serviceFormShop');
+          if (svc.shopId) {
+            shopSelect.value = svc.shopId;
+            document.getElementById('serviceShopNameField').style.display = 'none';
+            document.getElementById('serviceShopPhoneField').style.display = 'none';
+          } else {
+            shopSelect.value = svc.shopNameOverride ? '__new__' : '';
+            document.getElementById('serviceFormShopName').value = svc.shopNameOverride || '';
+            document.getElementById('serviceFormShopPhone').value = svc.phoneOverride || '';
+          }
+          document.getElementById('serviceFormDate').value = svc.serviceDate || '';
+          document.getElementById('serviceFormCost').value = svc.cost || '';
+          document.getElementById('serviceFormWork').value = svc.workDone || '';
+          document.getElementById('serviceFormNotes').value = svc.notes || '';
+          document.getElementById('serviceFormNextMode').value = svc.nextServiceMode || '';
+          if (svc.nextServiceMode === 'km') {
+            document.getElementById('serviceNextKmField').style.display = '';
+            document.getElementById('serviceFormNextKm').value = svc.nextServiceKm || '';
+          } else if (svc.nextServiceMode === 'months') {
+            document.getElementById('serviceNextMonthsField').style.display = '';
+            document.getElementById('serviceFormNextMonths').value = svc.nextServiceMonths || '';
+          }
+        }
       }
-      document.getElementById('serviceFormDate').value = svc.serviceDate || '';
-      document.getElementById('serviceFormCost').value = svc.cost || '';
-      document.getElementById('serviceFormWork').value = svc.workDone || '';
-      document.getElementById('serviceFormNotes').value = svc.notes || '';
-      document.getElementById('serviceFormNextMode').value = svc.nextServiceMode || '';
-      if (svc.nextServiceMode === 'km') {
-        document.getElementById('serviceNextKmField').style.display = '';
-        document.getElementById('serviceFormNextKm').value = svc.nextServiceKm || '';
-      } else if (svc.nextServiceMode === 'months') {
-        document.getElementById('serviceNextMonthsField').style.display = '';
-        document.getElementById('serviceFormNextMonths').value = svc.nextServiceMonths || '';
-      }
+
+      // Init dropdowns and pickers
+      const cont = bodyEl.closest('.wxd-overlay') || bodyEl;
+      if (typeof initCustomDropdowns === 'function') initCustomDropdowns(cont);
+      _gearHookPickerSheets(cont);
+      _gearHookDatePickers(cont);
     }
-  }
-
-  _openOverlaySheet('serviceModal');
-  if (typeof initCustomDropdowns === 'function') initCustomDropdowns(modal);
-  _gearHookPickerSheets(modal);
-  _gearHookDatePickers(modal);
+  });
 }
 
 function closeServiceModal() {
-  _closeOverlaySheet('serviceModal');
+  _closeUniSheet();
 }
 
 function onServiceShopChange() {
@@ -31696,19 +31759,34 @@ function submitServiceForm() {
 }
 
 // ── Service Shop Management ─────────────────────────────────────────────────
+function _buildServiceShopHTML() {
+  return `<div id="serviceShopList"></div>
+    <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
+      <input type="hidden" id="shopEditId">
+      <div class="gear-form-grid">
+        <div class="field"><label for="shopFormName">Shop Name</label>
+          <input type="text" id="shopFormName" placeholder="e.g. Bike House"></div>
+        <div class="field"><label for="shopFormPhone">Phone</label>
+          <input type="tel" id="shopFormPhone" placeholder="+386 1 234 5678"></div>
+        <div class="field" style="grid-column:1/-1"><label for="shopFormAddress">Address</label>
+          <input type="text" id="shopFormAddress" placeholder="Optional"></div>
+      </div>
+      <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="saveServiceShop()">Save Shop</button>
+    </div>`;
+}
+
 function openServiceShopModal() {
-  const modal = document.getElementById('serviceShopModal');
-  if (!modal) return;
-  document.getElementById('shopEditId').value = '';
-  document.getElementById('shopFormName').value = '';
-  document.getElementById('shopFormPhone').value = '';
-  document.getElementById('shopFormAddress').value = '';
-  renderServiceShopList();
-  _openOverlaySheet('serviceShopModal');
+  _openUniSheet({
+    title: 'Service Shops',
+    body: _buildServiceShopHTML,
+    maxWidth: 480,
+    partial: true,
+    onOpen() { renderServiceShopList(); }
+  });
 }
 
 function closeServiceShopModal() {
-  _closeOverlaySheet('serviceShopModal');
+  _closeUniSheet();
 }
 
 function renderServiceShopList() {
@@ -35712,7 +35790,7 @@ Object.assign(window, { weatherIconSvg, wmoIcon, wmoLabel, windDir, fmtTempC,
 window._openOverlaySheet = _openOverlaySheet;
 window._closeOverlaySheet = _closeOverlaySheet;
 window.closeWxDaySheet = function() {
-  _closeOverlaySheet('wxDaySheet');
+  _closeUniSheet();
 };
 
 /* ============================================================
@@ -36256,28 +36334,59 @@ const _FUEL_SCRUBBER_DEFS = {
   },
 };
 
-function _initFuelScrubbers() { _initScrubbers('#fuelPlanSheet', _FUEL_SCRUBBER_DEFS); }
-function _syncFuelScrubbers() { _syncScrubbers('#fuelPlanSheet', _FUEL_SCRUBBER_DEFS); }
+function _initFuelScrubbers() { delete _scrubberInitFlags['#_uniSheet']; _initScrubbers('#_uniSheet', _FUEL_SCRUBBER_DEFS); }
+function _syncFuelScrubbers() { _syncScrubbers('#_uniSheet', _FUEL_SCRUBBER_DEFS); }
+
+function _buildFuelPlanHTML() {
+  return `<div id="fuelPlanForm">
+    <div class="fuel-form-section"><label class="fuel-label">Ride Duration</label>
+      <div class="cev-target-card" style="margin-top:4px">
+        <button class="cev-undo-btn" style="display:none" aria-label="Undo"><svg class="icon" width="14" height="14"><use href="icons.svg#icon-undo"/></svg></button>
+        <input type="hidden" id="fuelDurationH" value="3"><input type="hidden" id="fuelDurationM" value="0"><input type="hidden" id="fuelDurationTotal" value="180">
+        <div class="cev-scrubber" data-metric="fuelDuration"><div class="cev-scrubber-value-row"><div class="cev-scrubber-value">3h</div><span class="cev-scrubber-unit"></span></div><div class="cev-scrubber-track"><div class="cev-scrubber-ruler"></div></div></div>
+      </div></div>
+    <div class="fuel-form-section"><label class="fuel-label">Intensity</label><select id="fuelIntensity" class="app-select fuel-select"><option value="0.55">Z1 — Recovery (IF 0.55)</option><option value="0.65">Z2 — Endurance (IF 0.65)</option><option value="0.76" selected>Z3 — Tempo (IF 0.76)</option><option value="0.88">Z4 — Threshold (IF 0.88)</option><option value="0.95">Z5 — VO2max (IF 0.95)</option><option value="1.05">Z6 — Anaerobic (IF 1.05)</option></select></div>
+    <div class="fuel-form-section"><label class="fuel-label">Body Weight (kg)</label>
+      <div class="cev-target-card" style="margin-top:4px">
+        <button class="cev-undo-btn" style="display:none" aria-label="Undo"><svg class="icon" width="14" height="14"><use href="icons.svg#icon-undo"/></svg></button>
+        <input type="hidden" id="fuelWeight" value="">
+        <div class="cev-scrubber" data-metric="fuelWeight"><div class="cev-scrubber-value-row"><div class="cev-scrubber-value">—</div><span class="cev-scrubber-unit">kg</span></div><div class="cev-scrubber-track"><div class="cev-scrubber-ruler"></div></div></div>
+      </div></div>
+    <div class="fuel-form-section"><label class="fuel-label">Fuel Types</label><div class="fuel-toggles"><label class="fuel-toggle"><input type="checkbox" value="gel" checked><span>Gels</span></label><label class="fuel-toggle"><input type="checkbox" value="bar"><span>Bars</span></label><label class="fuel-toggle"><input type="checkbox" value="drink" checked><span>Drink Mix</span></label><label class="fuel-toggle"><input type="checkbox" value="banana"><span>Bananas</span></label><label class="fuel-toggle"><input type="checkbox" value="rice"><span>Rice Cakes</span></label></div></div>
+    <div class="fuel-form-section"><label class="fuel-label">Conditions</label><div class="fuel-toggles"><label class="fuel-toggle"><input type="checkbox" id="fuelHot" value="hot"><span>Hot (&gt;30°C)</span></label><label class="fuel-toggle"><input type="checkbox" id="fuelHigh" value="high"><span>High Altitude</span></label></div></div>
+    <button class="fuel-generate-btn" onclick="_fuelGenerate()">Generate Plan</button>
+  </div><div id="fuelPlanOutput" style="display:none"></div>`;
+}
 
 function openFuelPlanSheet(ev) {
-  const wi = document.getElementById('fuelWeight'); if (wi && !wi.value) { const w = state.athlete?.weight || localStorage.getItem('icu_athlete_weight'); if (w) wi.value = Math.round(parseFloat(w)); }
-  if (ev?.moving_time) {
-    const m = Math.round(ev.moving_time / 60);
-    const hE = document.getElementById('fuelDurationH'), mE = document.getElementById('fuelDurationM'), tE = document.getElementById('fuelDurationTotal');
-    if (hE) hE.value = Math.floor(m / 60);
-    if (mE) mE.value = m % 60;
-    if (tE) tE.value = String(m);
-  } else {
-    // Default: set total from H/M inputs
-    const hE = document.getElementById('fuelDurationH'), mE = document.getElementById('fuelDurationM'), tE = document.getElementById('fuelDurationTotal');
-    if (tE) tE.value = String((parseInt(hE?.value) || 0) * 60 + (parseInt(mE?.value) || 0));
-  }
-  const f = document.getElementById('fuelPlanForm'), o = document.getElementById('fuelPlanOutput'); if (f) f.style.display = ''; if (o) o.style.display = 'none';
-  _openOverlaySheet('fuelPlanSheet');
-  _initFuelScrubbers();
-  _syncFuelScrubbers();
+  _openUniSheet({
+    title: 'Fueling Plan',
+    body: _buildFuelPlanHTML,
+    maxWidth: 520,
+    partial: false,
+    onOpen() {
+      // Set weight from profile
+      const wi = document.getElementById('fuelWeight');
+      if (wi && !wi.value) { const w = state.athlete?.weight || localStorage.getItem('icu_athlete_weight'); if (w) wi.value = Math.round(parseFloat(w)); }
+      // Set duration from event if provided
+      if (ev?.moving_time) {
+        const m = Math.round(ev.moving_time / 60);
+        const hE = document.getElementById('fuelDurationH'), mE = document.getElementById('fuelDurationM'), tE = document.getElementById('fuelDurationTotal');
+        if (hE) hE.value = Math.floor(m / 60);
+        if (mE) mE.value = m % 60;
+        if (tE) tE.value = String(m);
+      } else {
+        const hE = document.getElementById('fuelDurationH'), mE = document.getElementById('fuelDurationM'), tE = document.getElementById('fuelDurationTotal');
+        if (tE) tE.value = String((parseInt(hE?.value) || 0) * 60 + (parseInt(mE?.value) || 0));
+      }
+      _initFuelScrubbers();
+      _syncFuelScrubbers();
+      const cont = document.getElementById('_uniSheet');
+      if (cont && typeof initCustomDropdowns === 'function') initCustomDropdowns(cont);
+    }
+  });
 }
-function _closeFuelPlan() { _closeOverlaySheet('fuelPlanSheet'); }
+function _closeFuelPlan() { _closeUniSheet(); }
 function _fuelGenerate() {
   const hr = parseInt(document.getElementById('fuelDurationH').value) || 0, mn = parseInt(document.getElementById('fuelDurationM').value) || 0, tot = hr * 60 + mn;
   if (tot < 30) { showToast('Ride must be at least 30 minutes', 'error'); return; }
@@ -36410,8 +36519,54 @@ function _wifUpdate(){var wT=parseInt(document.getElementById('wifTss').value)||
   state._wifAnalysis = analysis;var fc=Math.round(c),dl=fc-Math.round(s0),ft=Math.round(c-a),p=document.getElementById('wifProjection');if(p){p.innerHTML='<div class="wif-proj-stats"><div class="wif-proj-stat"><span class="wif-proj-val" style="color:#00e5a0">'+fc+'</span><span class="wif-proj-lbl">CTL in '+wk+'w</span></div><div class="wif-proj-stat"><span class="wif-proj-val" style="color:#ff9500">'+(dl>=0?'+':'')+dl+'</span><span class="wif-proj-lbl">ATL Change</span></div><div class="wif-proj-stat"><span class="wif-proj-val" style="color:#4a9eff">'+(ft>0?'+':'')+ft+'</span><span class="wif-proj-lbl">Projected TSB</span></div></div>';}var cv=document.getElementById('wifChart');if(!cv)return;if(state._wifChart){state._wifChart.destroy();state._wifChart=null;}state._wifChart=new Chart(cv,{type:'line',data:{labels:hi.map(function(h){return h.d===0?'Now':String(h.d/7)}),datasets:[{label:'CTL',data:hi.map(function(h){return h.c}),borderColor:'#00e5a0',backgroundColor:'transparent',borderWidth:2,pointRadius:0,tension:0.3},{label:'ATL',data:hi.map(function(h){return h.a}),borderColor:'#ff9500',backgroundColor:'transparent',borderWidth:2,pointRadius:0,tension:0.3},{label:'TSB',data:hi.map(function(h){return h.t}),borderColor:'#4a9eff',backgroundColor:'transparent',borderWidth:1.5,pointRadius:0,tension:0.3}]},options:{responsive:true,maintainAspectRatio:false,animation:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{...C_TOOLTIP,callbacks:{label:function(ctx){return ctx.dataset.label+': '+ctx.raw}}}},scales:{x:{grid:{display:false},ticks:{...C_TICK}},y:{grid:C_GRID,ticks:{...C_TICK,callback:function(v,i){return i===0?'CTL':Math.round(v)}}}}}});}
 
 // ── Race Day Pacing ──
-function openPacingSheet(){var w=document.getElementById('pacingWeight'),f=document.getElementById('pacingFtp');if(w&&!w.value&&state.athlete?.weight)w.value=Math.round(state.athlete.weight);if(f&&!f.value){var v=state.athlete?.ftp||localStorage.getItem('icu_ftp');if(v)f.value=Math.round(parseFloat(v));}var fm=document.getElementById('pacingForm'),o=document.getElementById('pacingOutput');if(fm)fm.style.display='';if(o)o.style.display='none';_openOverlaySheet('pacingSheet');_initPacingScrubbers();_syncPacingScrubbers();}
-function _closePacing(){_closeOverlaySheet('pacingSheet');}
+function _buildPacingHTML() {
+  return `<div id="pacingForm">
+    <div class="pacing-form-section"><label class="pacing-label">Rider Weight (kg)</label>
+      <div class="cev-target-card">
+        <button class="cev-undo-btn" style="display:none" aria-label="Undo"><svg class="icon" width="14" height="14"><use href="icons.svg#icon-undo"/></svg></button>
+        <input type="hidden" id="pacingWeight" value="75">
+        <div class="cev-scrubber" data-metric="pacingWeight"><div class="cev-scrubber-value-row"><div class="cev-scrubber-value">75</div><span class="cev-scrubber-unit">kg</span></div><div class="cev-scrubber-track"><div class="cev-scrubber-ruler"></div></div></div>
+      </div></div>
+    <div class="pacing-form-section"><label class="pacing-label">FTP (watts)</label>
+      <div class="cev-target-card">
+        <button class="cev-undo-btn" style="display:none" aria-label="Undo"><svg class="icon" width="14" height="14"><use href="icons.svg#icon-undo"/></svg></button>
+        <input type="hidden" id="pacingFtp" value="250">
+        <div class="cev-scrubber" data-metric="pacingFtp"><div class="cev-scrubber-value-row"><div class="cev-scrubber-value">250</div><span class="cev-scrubber-unit">W</span></div><div class="cev-scrubber-track"><div class="cev-scrubber-ruler"></div></div></div>
+      </div></div>
+    <div class="pacing-form-section"><label class="pacing-label">Target Intensity (% FTP)</label>
+      <div class="cev-target-card">
+        <button class="cev-undo-btn" style="display:none" aria-label="Undo"><svg class="icon" width="14" height="14"><use href="icons.svg#icon-undo"/></svg></button>
+        <input type="hidden" id="pacingIF" value="75">
+        <div class="cev-scrubber" data-metric="pacingIF"><div class="cev-scrubber-value-row"><div class="cev-scrubber-value">75</div><span class="cev-scrubber-unit">%</span></div><div class="cev-scrubber-track"><div class="cev-scrubber-ruler"></div></div></div>
+      </div></div>
+    <div class="pacing-form-section"><label class="pacing-label">Route Segments</label><div class="pacing-note">Enter elevation segments or load from a saved route</div>
+      <div id="pacingSegments">
+        <div class="pacing-seg-row"><input type="number" placeholder="km" class="pacing-seg-km" value="10"><input type="number" placeholder="%" class="pacing-seg-grade" value="0"><span class="pacing-seg-label">Flat</span></div>
+        <div class="pacing-seg-row"><input type="number" placeholder="km" class="pacing-seg-km" value="5"><input type="number" placeholder="%" class="pacing-seg-grade" value="6"><span class="pacing-seg-label">Climb</span></div>
+        <div class="pacing-seg-row"><input type="number" placeholder="km" class="pacing-seg-km" value="5"><input type="number" placeholder="%" class="pacing-seg-grade" value="-4"><span class="pacing-seg-label">Descent</span></div>
+      </div>
+      <button class="pacing-add-seg" onclick="_pacingAddSeg()">+ Add Segment</button>
+    </div>
+    <button class="fuel-generate-btn" onclick="_pacingGenerate()">Generate Pacing Plan</button>
+  </div><div id="pacingOutput" style="display:none"></div>`;
+}
+
+function openPacingSheet(){
+  _openUniSheet({
+    title: 'Race Pacing Strategy',
+    body: _buildPacingHTML,
+    maxWidth: 560,
+    partial: false,
+    onOpen() {
+      var w=document.getElementById('pacingWeight'),f=document.getElementById('pacingFtp');
+      if(w&&!w.value&&state.athlete?.weight)w.value=Math.round(state.athlete.weight);
+      if(f&&!f.value){var v=state.athlete?.ftp||localStorage.getItem('icu_ftp');if(v)f.value=Math.round(parseFloat(v));}
+      _initPacingScrubbers();
+      _syncPacingScrubbers();
+    }
+  });
+}
+function _closePacing(){_closeUniSheet();}
 function _pacingAddSeg(){var c=document.getElementById('pacingSegments');if(!c)return;var r=document.createElement('div');r.className='pacing-seg-row';r.innerHTML='<input type="number" placeholder="km" class="pacing-seg-km" value="5"><input type="number" placeholder="%" class="pacing-seg-grade" value="0"><span class="pacing-seg-label">Flat</span><button class="pacing-seg-del" onclick="this.parentElement.remove()">\u00D7</button>';c.appendChild(r);}
 function _pacingGenerate(){var wt=parseFloat(document.getElementById('pacingWeight').value)||75,ftp=parseFloat(document.getElementById('pacingFtp').value)||250,tP=parseInt(document.getElementById('pacingIF').value)||75,tW=Math.round(ftp*tP/100);var sg=[];document.querySelectorAll('.pacing-seg-row').forEach(function(r){var k=parseFloat(r.querySelector('.pacing-seg-km')?.value)||0,gr=parseFloat(r.querySelector('.pacing-seg-grade')?.value)||0;if(k>0)sg.push({km:k,grade:gr});});if(!sg.length){showToast('Add a segment','error');return;}var CdA=0.32,Crr=0.005,rho=1.225,gv=9.81,tw=wt+8;var rs=sg.map(function(s){var pw;if(s.grade>3)pw=Math.min(ftp,Math.round(tW*(1+s.grade*0.03)));else if(s.grade<-2)pw=Math.round(tW*0.3);else pw=tW;var gR=Math.atan(s.grade/100),Fg=tw*gv*Math.sin(gR),Fr=Crr*tw*gv*Math.cos(gR);var v=8;for(var i=0;i<20;i++){v=pw/Math.max(Fg+Fr+0.5*rho*CdA*v*v,1);v=Math.max(1,Math.min(25,v));}var sp=v*3.6,tH=s.km/sp,tM=Math.round(tH*60),kj=Math.round(pw*tH*3.6);var lb=s.grade>3?'Climb':s.grade<-2?'Descent':s.grade>0.5?'Rolling':'Flat';return Object.assign({},s,{pw:pw,sp:Math.round(sp*10)/10,tm:tM,kj:kj,lb:lb});});var tK=rs.reduce(function(a,r){return a+r.km},0),tT=rs.reduce(function(a,r){return a+r.tm},0),tJ=rs.reduce(function(a,r){return a+r.kj},0),aP=Math.round(rs.reduce(function(a,r){return a+r.pw*r.tm},0)/tT);var fm=document.getElementById('pacingForm'),o=document.getElementById('pacingOutput');if(fm)fm.style.display='none';if(o)o.style.display='';var h='<div class="fuel-summary"><div class="fuel-summary-card"><div class="fuel-summary-val">'+tK+'km</div><div class="fuel-summary-lbl">Distance</div></div><div class="fuel-summary-card"><div class="fuel-summary-val">'+(tT>=60?Math.floor(tT/60)+'h '+(tT%60)+'m':tT+'m')+'</div><div class="fuel-summary-lbl">Est. Time</div></div><div class="fuel-summary-card"><div class="fuel-summary-val">'+aP+'W</div><div class="fuel-summary-lbl">Avg Power</div></div><div class="fuel-summary-card"><div class="fuel-summary-val">'+tJ+'</div><div class="fuel-summary-lbl">kJ</div></div></div><div class="pacing-plan">';var ck=0;rs.forEach(function(r,i){var c=r.grade>3?'#ff453a':r.grade<-2?'#4a9eff':'#00e5a0';ck+=r.km;h+='<div class="pacing-seg"><div class="pacing-seg-header"><span class="pacing-seg-num" style="background:'+c+'">'+(i+1)+'</span><span class="pacing-seg-type">'+r.lb+' \u2014 '+r.km+'km @ '+r.grade+'%</span><span class="pacing-seg-dist">km '+Math.round(ck-r.km)+'\u2013'+Math.round(ck)+'</span></div><div class="pacing-seg-metrics"><div class="pacing-seg-metric"><span class="pacing-seg-val" style="color:'+c+'">'+r.pw+'W</span><span class="pacing-seg-lbl">Target</span></div><div class="pacing-seg-metric"><span class="pacing-seg-val">'+r.sp+'</span><span class="pacing-seg-lbl">km/h</span></div><div class="pacing-seg-metric"><span class="pacing-seg-val">'+r.tm+'m</span><span class="pacing-seg-lbl">Time</span></div><div class="pacing-seg-metric"><span class="pacing-seg-val">'+r.kj+'</span><span class="pacing-seg-lbl">kJ</span></div></div></div>';});h+='</div><button class="fuel-back-btn" onclick="_pacingShowForm()"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-chevron-left"/></svg> Adjust</button>';o.innerHTML=h;}
 function _pacingShowForm(){var f=document.getElementById('pacingForm'),o=document.getElementById('pacingOutput');if(f)f.style.display='';if(o)o.style.display='none';}
@@ -36435,8 +36590,8 @@ const _TAPER_SCRUBBER_DEFS = {
     }
   },
 };
-function _initTaperScrubbers() { _initScrubbers('#taperWizardSheet', _TAPER_SCRUBBER_DEFS); }
-function _syncTaperScrubbers() { _syncScrubbers('#taperWizardSheet', _TAPER_SCRUBBER_DEFS); }
+function _initTaperScrubbers() { delete _scrubberInitFlags['#_uniSheet']; _initScrubbers('#_uniSheet', _TAPER_SCRUBBER_DEFS); }
+function _syncTaperScrubbers() { _syncScrubbers('#_uniSheet', _TAPER_SCRUBBER_DEFS); }
 
 /* ── What-If Simulator scrubbers ── */
 const _WIF_SCRUBBER_DEFS = {
@@ -36598,11 +36753,43 @@ const _PACING_SCRUBBER_DEFS = {
     }
   },
 };
-function _initPacingScrubbers() { _initScrubbers('#pacingSheet', _PACING_SCRUBBER_DEFS); }
-function _syncPacingScrubbers() { _syncScrubbers('#pacingSheet', _PACING_SCRUBBER_DEFS); }
+function _initPacingScrubbers() { delete _scrubberInitFlags['#_uniSheet']; _initScrubbers('#_uniSheet', _PACING_SCRUBBER_DEFS); }
+function _syncPacingScrubbers() { _syncScrubbers('#_uniSheet', _PACING_SCRUBBER_DEFS); }
 
-function openTaperWizard(rd) { const ci = document.getElementById('taperCTL'); if (ci && state.fitness?.ctl) ci.value = Math.round(state.fitness.ctl); if (rd) { const d = document.getElementById('taperRaceDate'); if (d) d.value = rd; } const s1 = document.getElementById('taperStep1'), s2 = document.getElementById('taperStep2'); if (s1) s1.style.display = ''; if (s2) s2.style.display = 'none'; _openOverlaySheet('taperWizardSheet'); _gearHookDatePickers(document.getElementById('taperWizardSheet')); _initTaperScrubbers(); _syncTaperScrubbers(); }
-function _closeTaperWizard() { _closeOverlaySheet('taperWizardSheet'); }
+function _buildTaperHTML() {
+  return `<div id="taperStep1">
+    <p class="taper-desc">Plan a science-based taper for peak race-day performance using the Mujika &amp; Padilla exponential decay model.</p>
+    <div class="taper-form-section"><label class="taper-label">Race Date</label><input type="date" id="taperRaceDate" class="taper-input"></div>
+    <div class="taper-form-section"><label class="taper-label">Event Type</label><select id="taperEventType" class="app-select taper-select"><option value="crit">Criterium (7-day taper)</option><option value="road_race">Road Race (10-day taper)</option><option value="tt">Time Trial (10-day taper)</option><option value="gran_fondo" selected>Gran Fondo (14-day taper)</option><option value="stage_race">Stage Race (14-day taper)</option></select></div>
+    <div class="taper-form-section"><label class="taper-label">Current CTL (Fitness)</label>
+      <div class="cev-target-card" style="margin-top:4px">
+        <button class="cev-undo-btn" style="display:none" aria-label="Undo"><svg class="icon" width="14" height="14"><use href="icons.svg#icon-undo"/></svg></button>
+        <input type="hidden" id="taperCTL" value="">
+        <div class="cev-scrubber" data-metric="taperCTL"><div class="cev-scrubber-value-row"><div class="cev-scrubber-value">—</div><span class="cev-scrubber-unit">CTL</span></div><div class="cev-scrubber-track"><div class="cev-scrubber-ruler"></div></div></div>
+      </div></div>
+    <button class="taper-gen-btn" onclick="_taperGenerate()">Generate Taper Plan</button>
+  </div><div id="taperStep2" style="display:none"></div>`;
+}
+
+function openTaperWizard(rd) {
+  _openUniSheet({
+    title: 'Tapering Wizard',
+    body: _buildTaperHTML,
+    maxWidth: 520,
+    partial: false,
+    onOpen() {
+      const ci = document.getElementById('taperCTL');
+      if (ci && state.fitness?.ctl) ci.value = Math.round(state.fitness.ctl);
+      if (rd) { const d = document.getElementById('taperRaceDate'); if (d) d.value = rd; }
+      const cont = document.getElementById('_uniSheet');
+      _gearHookDatePickers(cont);
+      if (typeof initCustomDropdowns === 'function') initCustomDropdowns(cont);
+      _initTaperScrubbers();
+      _syncTaperScrubbers();
+    }
+  });
+}
+function _closeTaperWizard() { _closeUniSheet(); }
 function _taperGenerate() {
   const rd = document.getElementById('taperRaceDate').value; if (!rd) { showToast('Select a race date', 'error'); return; }
   const et = document.getElementById('taperEventType').value, ctl = parseFloat(document.getElementById('taperCTL').value); if (!ctl || ctl < 1) { showToast('Enter your current CTL', 'error'); return; }
