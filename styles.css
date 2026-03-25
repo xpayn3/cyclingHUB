@@ -6402,9 +6402,11 @@ input[type="number"] {
 /* ── Desktop split-pane settings (iPad-style) ── */
 @media (min-width: 900px) {
     /* Lock page-content scroll when settings is active */
-    .page-content:has(#page-settings.active) {
+    .page-content:has(#page-settings.active),
+    .page-content.stt-desktop-lock {
         overflow: hidden !important;
         height: 100vh;
+        max-height: 100vh;
     }
     #page-settings {
         height: calc(100vh - var(--nav-h, 60px));

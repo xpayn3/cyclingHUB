@@ -4382,6 +4382,10 @@ function navigate(page, opts) {
   }
 
   if (page === 'dashboard') { applyDashSectionVisibility(); }
+  // Desktop settings scroll lock
+  const _pc = document.getElementById('pageContent');
+  if (_pc) _pc.classList.toggle('stt-desktop-lock', page === 'settings' && _isDesktopSettings());
+
   if (page === 'settings') {
     _initSubpageCache(); // lazy-strip all subpage DOM on first visit
     renderDashSectionToggles(); renderActSectionToggles();
