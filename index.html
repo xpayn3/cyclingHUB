@@ -141,27 +141,27 @@
                     </div>
                     <div class="prof-stats">
                         <div class="prof-stat-card">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" width="18" height="18"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                            <svg class="icon" width="2" height="18" style="stroke:var(--accent)"><use href="icons.svg#icon-bolt"/></svg>
                             <span class="prof-stat-num" id="profTotalXP">0</span>
                             <span class="prof-stat-lbl">Total XP</span>
                         </div>
                         <div class="prof-stat-card">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="#5ac8fa" stroke-width="2" width="18" height="18"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                            <svg class="icon" width="2" height="18" style="stroke:#5ac8fa"><use href="icons.svg#icon-activity"/></svg>
                             <span class="prof-stat-num" id="profTotalRides">0</span>
                             <span class="prof-stat-lbl">Rides</span>
                         </div>
                         <div class="prof-stat-card">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="#ff9f0a" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                            <svg class="icon" width="2" height="18" style="stroke:#ff9f0a"><use href="icons.svg#icon-clock"/></svg>
                             <span class="prof-stat-num" id="profTotalDist">0</span>
                             <span class="prof-stat-lbl">km</span>
                         </div>
                         <div class="prof-stat-card">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="#bf5af2" stroke-width="2" width="18" height="18"><path d="M3 20l5-10 4 6 3-4 6 8"/></svg>
+                            <svg class="icon" width="2" height="18" style="stroke:#bf5af2"><use href="icons.svg#icon-mountain"/></svg>
                             <span class="prof-stat-num" id="profTotalElev">0</span>
                             <span class="prof-stat-lbl">m climbed</span>
                         </div>
                         <div class="prof-stat-card">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="#ff375f" stroke-width="2" width="18" height="18"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                            <svg class="icon" width="2" height="18" style="stroke:#ff375f"><use href="icons.svg#icon-heart"/></svg>
                             <span class="prof-stat-num" id="profStreakXP">0</span>
                             <span class="prof-stat-lbl">Streak XP</span>
                         </div>
@@ -237,7 +237,7 @@
 
                     <!-- CTA -->
                     <button class="conn-cta" id="connectBtn" onclick="handleConnect()">
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        <svg class="icon" width="18" height="18"><use href="icons.svg#icon-check"/></svg>
                         Connect & Sync
                     </button>
                     <button class="conn-cancel" onclick="closeModal()">Cancel</button>
@@ -389,7 +389,7 @@
                             </select>
                         </div>
                         <div class="cev-group-row">
-                            <span class="cev-group-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
+                            <span class="cev-group-icon"><svg class="icon" width="18" height="18"><use href="icons.svg#icon-clock"/></svg></span>
                             <span class="cev-group-label">Position</span>
                             <select id="tirePosition" class="app-select" style="width:auto;min-width:80px;text-align:right">
                                 <option value="front">Front</option>
@@ -412,7 +412,7 @@
                             </select>
                         </div>
                         <div class="cev-group-row">
-                            <span class="cev-group-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg></span>
+                            <span class="cev-group-icon"><svg class="icon" width="18" height="18"><use href="icons.svg#icon-clock"/></svg></span>
                             <span class="cev-group-label">Riding Style</span>
                             <select id="tireRideStyle" class="app-select" style="width:auto;min-width:100px;text-align:right">
                                 <option value="comfort">Comfort</option>
@@ -421,7 +421,7 @@
                             </select>
                         </div>
                         <div class="cev-group-row">
-                            <span class="cev-group-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>
+                            <span class="cev-group-icon"><svg class="icon" width="18" height="18"><use href="icons.svg#icon-home"/></svg></span>
                             <span class="cev-group-label">Surface</span>
                             <select id="tireSurface" class="app-select" style="width:auto;min-width:100px;text-align:right">
                                 <option value="road" selected>Road</option>
@@ -430,7 +430,7 @@
                             </select>
                         </div>
                         <div class="cev-group-row">
-                            <span class="cev-group-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/></svg></span>
+                            <span class="cev-group-icon"><svg class="icon" width="18" height="18"><use href="icons.svg#icon-globe"/></svg></span>
                             <span class="cev-group-label">Tire Type</span>
                             <select id="tireTubeType" class="app-select" style="width:auto;min-width:100px;text-align:right" onchange="_calcTirePressure()">
                                 <option value="tubeless" selected>Tubeless</option>
@@ -630,7 +630,7 @@
                 <!-- Results -->
                 <div class="gs-results" id="gsResults">
                     <div class="gs-placeholder">
-                        <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <svg class="icon" width="40" height="40"><use href="icons.svg#icon-search"/></svg>
                         <div>Search across your rides, routes, gear & settings</div>
                     </div>
                 </div>
@@ -646,10 +646,7 @@
                 <div class="modal-header">
                     <div class="modal-title" id="syncConfirmTitle">Send Data</div>
                     <button class="modal-close" onclick="_closeOverlaySheet('syncConfirmSheet')">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
+                        <svg class="icon"><use href="icons.svg#icon-x"/></svg>
                     </button>
                 </div>
                 <div class="wxd-sheet-body" style="padding:0 20px 24px">
@@ -675,21 +672,14 @@
                 <!-- Floating close button — sticky, zero height, floats above scrolling content -->
                 <div class="wxd-floating-close">
                     <button class="modal-close" onclick="closeGearModal()" aria-label="Close">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                            <line x1="18" y1="6" x2="6" y2="18" />
-                            <line x1="6" y1="6" x2="18" y2="18" />
-                        </svg>
+                        <svg class="icon"><use href="icons.svg#icon-x"/></svg>
                     </button>
                 </div>
                 <!-- All content scrolls: drag pill, title, icon, desc, form -->
                 <div class="modal-drag-indicator"></div>
                 <div class="modal-header">
                     <div class="modal-header-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
-                            <circle cx="12" cy="12" r="3" />
-                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-                            <path d="M4.93 4.93a10 10 0 0 0 0 14.14" />
-                        </svg>
+                        <svg class="icon" width="2" height="22"><use href="icons.svg#icon-wheel"/></svg>
                     </div>
                     <div class="modal-title" id="gearModalTitle">Add Component</div>
                     <div class="modal-desc">Track a bike part — brand, install date, and when to replace it.</div>
@@ -963,9 +953,7 @@
                 <div class="modal-drag-indicator"></div>
                 <div class="modal-header">
                     <div class="modal-header-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22">
-                            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-                        </svg>
+                        <svg class="icon" width="2" height="22"><use href="icons.svg#icon-settings"/></svg>
                     </div>
                     <div class="modal-title" id="serviceModalTitle">Add Service</div>
                     <div class="modal-desc">Record a bike service — what was done, where, and when it's next due.</div>
@@ -1043,9 +1031,7 @@
                 <div class="modal-header">
                     <div>
                         <div class="modal-header-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22">
-                                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
-                            </svg>
+                            <svg class="icon" width="2" height="22"><use href="icons.svg#icon-home"/></svg>
                         </div>
                         <div class="modal-title" id="serviceShopModalTitle">Service Shops</div>
                         <div class="modal-desc">Your saved bike shops. Add shops here or when logging a service.</div>
@@ -1086,9 +1072,7 @@
                 <div class="modal-header">
                     <div>
                         <div class="modal-header-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22">
-                                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-                            </svg>
+                            <svg class="icon" width="2" height="22"><use href="icons.svg#icon-activity"/></svg>
                         </div>
                         <div class="modal-title" id="serviceHistoryTitle">Service History</div>
                         <div class="modal-desc" id="serviceHistoryDesc">All services for this bike</div>
@@ -1110,11 +1094,7 @@
                 <div class="modal-header">
                     <div>
                         <div class="modal-header-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                                <polyline points="7 10 12 15 17 10"/>
-                                <line x1="12" y1="15" x2="12" y2="3"/>
-                            </svg>
+                            <svg class="icon" width="2" height="22"><use href="icons.svg#icon-download"/></svg>
                         </div>
                         <div class="modal-title" id="exportHelperTitle">Route Exported</div>
                         <div class="modal-desc" id="exportHelperDesc">Your file has been downloaded. Follow the steps below to load it on your device.</div>
@@ -1140,13 +1120,13 @@
                 <div class="modal-header">
                     <div>
                         <div class="modal-header-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                            <svg class="icon" width="2" height="22"><use href="icons.svg#icon-image"/></svg>
                         </div>
                         <div class="modal-title">Share Activity</div>
                         <div class="modal-desc">Generate a route image for social media</div>
                     </div>
                     <button class="modal-close" onclick="closeShareModal()" aria-label="Close">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        <svg class="icon" width="2" height="14"><use href="icons.svg#icon-x"/></svg>
                     </button>
                 </div>
                 <div class="modal-body">
@@ -1185,7 +1165,7 @@
                     <div class="modal-footer">
                         <button class="btn btn-ghost" onclick="closeShareModal()">Cancel</button>
                         <button class="btn btn-ghost" onclick="shareImageCopy()" id="shareCopyBtn">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                            <svg class="icon" width="2" height="14"><use href="icons.svg#icon-copy"/></svg>
                             Copy
                         </button>
                         <button class="btn btn-primary" onclick="shareImageDownload()" id="shareDownloadBtn">
@@ -1205,13 +1185,13 @@
                 <div class="modal-header">
                     <div>
                         <div class="modal-header-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            <svg class="icon" width="2" height="22"><use href="icons.svg#icon-search"/></svg>
                         </div>
                         <div class="modal-title" id="similarRidesTitle">Similar Rides</div>
                         <div class="modal-desc" id="similarRidesDesc">Rides matching distance, duration & type</div>
                     </div>
                     <button class="modal-close" onclick="closeSimilarRidesModal()" aria-label="Close">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        <svg class="icon" width="14" height="14"><use href="icons.svg#icon-x"/></svg>
                     </button>
                 </div>
                 <div class="wxd-sheet-body">
@@ -1486,7 +1466,7 @@
                         closeSidebar();
                     "
                 >
-                    <svg class="icon"><use href="icons.svg#icon-wheel"/></svg>
+                    <svg class="icon"><use href="icons.svg#icon-bike"/></svg>
                     My Garage
                 </div>
                 <div
@@ -1528,11 +1508,7 @@
                     style="display:none; background: var(--bg-elevated); border: 1px solid var(--border);"
                     onclick="pwaInstall()"
                 >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                        <polyline points="7 10 12 15 17 10"/>
-                        <line x1="12" y1="15" x2="12" y2="3"/>
-                    </svg>
+                    <svg class="icon"><use href="icons.svg#icon-download"/></svg>
                     Install App
                 </button>
                 <div class="sidebar-footer-row">
@@ -1556,10 +1532,7 @@
                         <span class="athlete-chip-lvl" id="sidebarLvlBadge"></span>
                     </div>
                     <button class="sidebar-settings-fab" onclick="closeSidebar();navigate('settings')" title="Settings" aria-label="Settings">
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="3"/>
-                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-                        </svg>
+                        <svg class="icon" width="20" height="20"><use href="icons.svg#icon-settings"/></svg>
                     </button>
                 </div>
             </div>
@@ -1598,18 +1571,7 @@
                     onclick="navigateBack()"
                     style="display: none"
                 >
-                    <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2.5"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        width="16"
-                        height="16"
-                    >
-                        <polyline points="15 18 9 12 15 6" />
-                    </svg>
+                    <svg class="icon" width="16" height="16"><use href="icons.svg#icon-chevron-left"/></svg>
                     Back
                 </button>
                 <!-- Back button — shown when viewing weather day detail -->
@@ -1619,18 +1581,7 @@
                     onclick="renderWeatherPage()"
                     style="display: none"
                 >
-                    <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2.5"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        width="16"
-                        height="16"
-                    >
-                        <polyline points="15 18 9 12 15 6" />
-                    </svg>
+                    <svg class="icon" width="16" height="16"><use href="icons.svg#icon-chevron-left"/></svg>
                     Back
                 </button>
                 <!-- Refresh — shown on the LEFT only on the weather page -->
@@ -1641,10 +1592,7 @@
                     style="display: none"
                     title="Refresh weather data"
                 >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15">
-                        <polyline points="23 4 23 10 17 10"/>
-                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-                    </svg>
+                    <svg class="icon" width="15" height="15"><use href="icons.svg#icon-refresh-cw"/></svg>
                     Refresh
                 </button>
                 <div class="topbar-actions"></div>
@@ -1652,21 +1600,21 @@
             <div class="page-content" id="pageContent">
                 <!-- Pull-to-refresh indicator -->
                 <div class="ptr-indicator" id="ptrIndicator">
-                    <svg class="ptr-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.22-8.56"/></svg>
+                    <svg class="icon ptr-spinner"><use href="icons.svg#icon-spinner"/></svg>
                 </div>
                 <!-- Top fade gradient (fades in on scroll) -->
                 <div class="dash-top-fade" id="dashTopFade"></div>
                 <!-- Floating top row: profile + date range pill -->
                 <div class="floating-top-row" id="floatingTopRow">
                     <button class="floating-profile-btn" onclick="openProfileModal()" aria-label="Profile">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>
+                        <svg class="icon"><use href="icons.svg#icon-user"/></svg>
                         <span class="floating-profile-lvl" id="floatingProfileLvl"></span>
                     </button>
                 </div>
                 <!-- Notification bell (dashboard only) -->
                 <!-- P2P status icon -->
                 <button class="p2p-status-btn" id="p2pStatusBtn" onclick="navigate('settings');setTimeout(()=>openSettingsSubpage('sync'),400)" aria-label="P2P Sync" style="display:none">
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                    <svg class="icon" width="20" height="20"><use href="icons.svg#icon-repeat"/></svg>
                     <span class="p2p-status-dot" id="p2pStatusDot"></span>
                 </button>
                 <button class="notif-bell" id="notifBell" onclick="openNotifSheet()" aria-label="Notifications" style="display:none">
@@ -1709,7 +1657,7 @@
                 <!-- ── Page headline ── -->
                 <div class="page-headline">
                     <button class="settings-back-btn" id="settingsBackBtn" onclick="closeSettingsSubpage()" style="display:none" aria-label="Back to Settings">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><polyline points="15 18 9 12 15 6"/></svg>
+                        <svg class="icon" width="2" height="22"><use href="icons.svg#icon-chevron-left"/></svg>
                     </button>
                     <div class="page-headline-title" id="pageTitle">
                         Dashboard
@@ -2409,9 +2357,7 @@
                         <!-- Floating right stats panel -->
                         <div id="mapStatsPanel" class="map-stats-panel collapsed">
                             <button class="map-stats-toggle" onclick="toggleMapStats()" title="Toggle stats panel">
-                                <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                    <polyline points="9 18 15 12 9 6"/>
-                                </svg>
+                                <svg class="icon" width="11" height="11"><use href="icons.svg#icon-chevron-right"/></svg>
                             </button>
                             <!-- Collapsed mini preview — visible only when panel is collapsed -->
                             <div class="map-stats-mini">
@@ -2466,43 +2412,14 @@
                                     onclick="streamsZoomIn()"
                                     title="Zoom in"
                                 >
-                                    <svg
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="2.5"
-                                    >
-                                        <circle cx="11" cy="11" r="8" />
-                                        <line
-                                            x1="21"
-                                            y1="21"
-                                            x2="16.65"
-                                            y2="16.65"
-                                        />
-                                        <line x1="11" y1="8" x2="11" y2="14" />
-                                        <line x1="8" y1="11" x2="14" y2="11" />
-                                    </svg>
+                                    <svg class="icon"><use href="icons.svg#icon-search"/></svg>
                                 </button>
                                 <button
                                     class="streams-zoom-btn"
                                     onclick="streamsZoomOut()"
                                     title="Zoom out"
                                 >
-                                    <svg
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="2.5"
-                                    >
-                                        <circle cx="11" cy="11" r="8" />
-                                        <line
-                                            x1="21"
-                                            y1="21"
-                                            x2="16.65"
-                                            y2="16.65"
-                                        />
-                                        <line x1="8" y1="11" x2="14" y2="11" />
-                                    </svg>
+                                    <svg class="icon"><use href="icons.svg#icon-search"/></svg>
                                 </button>
                                 <button
                                     class="streams-zoom-btn streams-zoom-btn--reset"
@@ -2532,24 +2449,7 @@
                                 id="streamToggleChips"
                             ></div>
                             <div class="streams-zoom-hint" id="streamsZoomHint">
-                                <svg
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                    width="12"
-                                    height="12"
-                                >
-                                    <circle cx="11" cy="11" r="8" />
-                                    <line
-                                        x1="21"
-                                        y1="21"
-                                        x2="16.65"
-                                        y2="16.65"
-                                    />
-                                    <line x1="11" y1="8" x2="11" y2="14" />
-                                    <line x1="8" y1="11" x2="14" y2="11" />
-                                </svg>
+                                <svg class="icon" width="2" height="12"><use href="icons.svg#icon-search"/></svg>
                                 Alt + Scroll to zoom · Drag to pan
                             </div>
                         </div>
@@ -2672,7 +2572,7 @@
                     >
                         <div class="card-header">
                             <div>
-                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>Aerobic Decoupling</div>
+                                <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-git-branch"/></svg>Aerobic Decoupling</div>
                                 <div
                                     class="card-subtitle"
                                     id="detailDecoupleSub"
@@ -2764,7 +2664,7 @@
                     <div class="card" id="detailLapSplitsCard" style="display: none">
                         <div class="card-header">
                             <div>
-                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/><path d="M16.5 7.5L19 5"/><path d="M12 2v2"/></svg>Lap Splits</div>
+                                <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-clock"/></svg>Lap Splits</div>
                                 <div class="card-subtitle" id="detailLapSplitsSubtitle"></div>
                             </div>
                         </div>
@@ -2834,7 +2734,7 @@
                         >
                             <div class="card-header">
                                 <div>
-                                    <div class="card-title" style="color:#f87171"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.42 4.58a5.4 5.4 0 0 0-7.65 0L12 5.34l-.77-.76a5.4 5.4 0 0 0-7.65 7.65l.77.77L12 20.65l7.65-7.65.77-.77a5.4 5.4 0 0 0 0-7.65z"/></svg>
+                                    <div class="card-title" style="color:#f87171"><svg class="icon" width="16" height="16" style="stroke:#f87171"><use href="icons.svg#icon-heart"/></svg>
                                         Heart Rate Curve
                                     </div>
                                     <div class="card-subtitle" style="display:none">
@@ -3005,7 +2905,7 @@
                     <div class="card" id="detailSpeedGradeCard">
                         <div class="card-header">
                             <div>
-                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 20l5-10 4 6 3-4 6 8H3z"/></svg>Speed vs Gradient</div>
+                                <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-mountain"/></svg>Speed vs Gradient</div>
                             </div>
                         </div>
                         <div class="chart-wrap" style="height:200px"><canvas id="detailSpeedGradeChart"></canvas></div>
@@ -3018,7 +2918,7 @@
                         style="display: none"
                     >
                         <div class="card-header">
-                            <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>Ride Conditions</div>
+                            <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-cloud"/></svg>Ride Conditions</div>
                         </div>
                         <div class="wx-tiles" id="wxTiles"></div>
                     </div>
@@ -3073,10 +2973,10 @@
                         <div class="cal-header">
                             <div class="cal-header-nav">
                                 <button class="btn btn-ghost btn-icon" onclick="calPrevMonth()" title="Previous month">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                                    <svg class="icon"><use href="icons.svg#icon-chevron-left"/></svg>
                                 </button>
                                 <button class="btn btn-ghost btn-icon" onclick="calNextMonth()" title="Next month">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                                    <svg class="icon"><use href="icons.svg#icon-chevron-right"/></svg>
                                 </button>
                                 <span class="cal-month-title" id="calMonthTitle"></span>
                                 <button class="cal-view-toggle" id="calViewToggle" onclick="toggleCalView()" title="Toggle grid/list view">
@@ -3120,7 +3020,7 @@
                             <div class="cal-hstat">
                                 <span class="cal-hstat-val" id="calStatTSS">—</span>
                                 <span class="cal-hstat-label">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                                    <svg class="icon"><use href="icons.svg#icon-bolt"/></svg>
                                     Load
                                 </span>
                             </div>
@@ -3169,7 +3069,7 @@
                                 </button>
                                 <span class="cev-hdr-title modal-title">New Event</span>
                                 <button class="cev-hdr-btn cev-hdr-btn--done" id="calEvSaveBtn" onclick="saveCalEvent()" aria-label="Save">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                    <svg class="icon"><use href="icons.svg#icon-check"/></svg>
                                 </button>
                             </div>
                             <div class="modal-body cev-body">
@@ -3180,19 +3080,19 @@
                                         Easy Ride
                                     </button>
                                     <button type="button" data-preset="intervals">
-                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                                        <svg class="icon" width="14" height="14"><use href="icons.svg#icon-activity"/></svg>
                                         Intervals
                                     </button>
                                     <button type="button" data-preset="long">
-                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 3l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/></svg>
+                                        <svg class="icon" width="14" height="14"><use href="icons.svg#icon-repeat"/></svg>
                                         Long Ride
                                     </button>
                                     <button type="button" data-preset="rest">
-                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+                                        <svg class="icon" width="14" height="14"><use href="icons.svg#icon-moon"/></svg>
                                         Rest Day
                                     </button>
                                     <button type="button" data-preset="race">
-                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                                        <svg class="icon" width="14" height="14"><use href="icons.svg#icon-bolt"/></svg>
                                         Race
                                     </button>
                                 </div>
@@ -3218,7 +3118,7 @@
                                     </div>
                                     <div class="cev-group-row" id="calEvSportField">
                                         <span class="cev-group-icon">
-                                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 000 20 14.5 14.5 0 000-20"/><path d="M2 12h20"/></svg>
+                                            <svg class="icon" width="18" height="18"><use href="icons.svg#icon-globe-alt"/></svg>
                                         </span>
                                         <span class="cev-group-label">Sport</span>
                                         <select id="calEvSport" class="app-select">
@@ -3231,7 +3131,7 @@
                                     </div>
                                     <div class="cev-group-row" onclick="openCevDatePicker()" style="cursor:pointer">
                                         <span class="cev-group-icon">
-                                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                            <svg class="icon" width="18" height="18"><use href="icons.svg#icon-calendar"/></svg>
                                         </span>
                                         <span class="cev-group-label">Date</span>
                                         <span class="cev-group-value" id="calEvDateDisplay">--</span>
@@ -3240,7 +3140,7 @@
                                     </div>
                                     <div class="cev-group-row" onclick="openCalEvColorPicker()">
                                         <span class="cev-group-icon">
-                                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+                                            <svg class="icon" width="18" height="18"><use href="icons.svg#icon-target"/></svg>
                                         </span>
                                         <span class="cev-group-label">Color</span>
                                         <div class="cev-color-preview" id="calEvColorPreview"></div>
@@ -3253,7 +3153,7 @@
                                 <div class="cev-group">
                                     <div class="cev-group-row cev-group-row--input">
                                         <span class="cev-group-icon">
-                                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                                            <svg class="icon" width="18" height="18"><use href="icons.svg#icon-map-pin"/></svg>
                                         </span>
                                         <input type="text" id="calEvLocation" placeholder="Location" autocomplete="off">
                                     </div>
@@ -3345,7 +3245,7 @@
                                     <div class="modal-desc">Build a week template and apply to calendar</div>
                                 </div>
                                 <button class="modal-close" onclick="closeTrainingPlanModal()" aria-label="Close">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                    <svg class="icon"><use href="icons.svg#icon-x"/></svg>
                                 </button>
                             </div>
                             <div class="modal-body">
@@ -3444,15 +3344,15 @@
                     <!-- ── Race Tools ── -->
                     <div class="fit-race-tools">
                         <button class="fit-race-tool-btn" onclick="openFuelPlanSheet()">
-                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+                            <svg class="icon" width="20" height="20"><use href="icons.svg#icon-coffee"/></svg>
                             <span>Fueling Plan</span>
                         </button>
                         <button class="fit-race-tool-btn" onclick="openTaperWizard()">
-                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                            <svg class="icon" width="20" height="20"><use href="icons.svg#icon-activity"/></svg>
                             <span>Taper</span>
                         </button>
                         <button class="fit-race-tool-btn" onclick="openPacingSheet()">
-                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                            <svg class="icon" width="20" height="20"><use href="icons.svg#icon-bolt"/></svg>
                             <span>Pacing</span>
                         </button>
                     </div>
@@ -3788,7 +3688,7 @@
                             <div class="card-header">
                                 <div>
                                     <div class="card-title health-title" style="color:#ff375f">
-                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#ff375f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>HRV vs Training Load
+                                        <svg class="icon" width="16" height="16" style="stroke:#ff375f"><use href="icons.svg#icon-activity"/></svg>HRV vs Training Load
                                     </div>
                                     <div class="card-subtitle">90-day · how training impacts recovery</div>
                                 </div>
@@ -3905,7 +3805,7 @@
                         <div class="card-header">
                             <div>
                                 <div class="card-title">
-                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>Year to Date
+                                    <svg class="icon" width="16" height="16" style="stroke:var(--accent)"><use href="icons.svg#icon-clock"/></svg>Year to Date
                                 </div>
                                 <div class="card-subtitle">Cumulative cycling distance</div>
                             </div>
@@ -3997,7 +3897,7 @@
                     <div class="card">
                         <div class="card-header">
                             <div>
-                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"/><path d="M3 20C3 8 8 4 12 4s9 4 9 16"/></svg>Power Curve</div>
+                                <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-mountain"/></svg>Power Curve</div>
                                 <div
                                     class="card-subtitle"
                                     id="pwrCurveSubtitle"
@@ -4111,7 +4011,7 @@
                     <div class="card" id="pwrCurveOverlayCard" style="display:none">
                         <div class="card-header">
                             <div>
-                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 20h18"/><path d="M3 20C3 8 8 4 12 4s9 4 9 16"/></svg>Power Curve Overlay</div>
+                                <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-mountain"/></svg>Power Curve Overlay</div>
                             </div>
                         </div>
                         <div class="chart-wrap" style="height:220px"><canvas id="pwrCurveOverlayChart"></canvas></div>
@@ -4123,7 +4023,7 @@
                     <!-- ── Energy (kJ) Analysis — Collapsible ── -->
                     <div class="pwr-kj-header" id="pwrKjToggle">
                         <span class="pwr-kj-title">Energy Analysis</span>
-                        <svg class="pwr-kj-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                        <svg class="icon pwr-kj-chevron" width="16" height="16"><use href="icons.svg#icon-chevron-down"/></svg>
                     </div>
                     <div id="pwrKjSection" style="display:none">
 
@@ -4155,7 +4055,7 @@
                         <div class="card" id="kjEfficiencyCard">
                             <div class="card-header">
                                 <div>
-                                    <div class="card-title" style="color:#4a9eff"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#4a9eff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>Energy Efficiency</div>
+                                    <div class="card-title" style="color:#4a9eff"><svg class="icon" width="16" height="16" style="stroke:#4a9eff"><use href="icons.svg#icon-bar-chart"/></svg>Energy Efficiency</div>
                                     <div class="card-subtitle" id="kjEfficiencySub">kJ per km · per ride</div>
                                 </div>
                             </div>
@@ -4168,7 +4068,7 @@
                     <div class="card" id="kjCumulativeCard">
                         <div class="card-header">
                             <div>
-                                <div class="card-title" style="color:#00e5a0"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#00e5a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Cumulative Energy</div>
+                                <div class="card-title" style="color:#00e5a0"><svg class="icon" width="16" height="16" style="stroke:#00e5a0"><use href="icons.svg#icon-activity"/></svg>Cumulative Energy</div>
                                 <div class="card-subtitle" id="kjCumulativeSub">Running total kJ</div>
                             </div>
                         </div>
@@ -4182,7 +4082,7 @@
                         <div class="card" id="kjTssCard">
                             <div class="card-header">
                                 <div>
-                                    <div class="card-title" style="color:#b482ff"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#b482ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>Work per Stress</div>
+                                    <div class="card-title" style="color:#b482ff"><svg class="icon" width="16" height="16" style="stroke:#b482ff"><use href="icons.svg#icon-target"/></svg>Work per Stress</div>
                                     <div class="card-subtitle" id="kjTssSub">kJ per TSS point · per ride</div>
                                 </div>
                             </div>
@@ -4193,7 +4093,7 @@
                         <div class="card" id="kjCardiacCard">
                             <div class="card-header">
                                 <div>
-                                    <div class="card-title" style="color:#ff5252"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#ff5252" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.42 4.58a5.4 5.4 0 0 0-7.65 0L12 5.34l-.77-.76a5.4 5.4 0 0 0-7.65 7.65l.77.77L12 20.65l7.65-7.65.77-.77a5.4 5.4 0 0 0 0-7.65z"/></svg>Cardiac Efficiency</div>
+                                    <div class="card-title" style="color:#ff5252"><svg class="icon" width="16" height="16" style="stroke:#ff5252"><use href="icons.svg#icon-heart"/></svg>Cardiac Efficiency</div>
                                     <div class="card-subtitle" id="kjCardiacSub">Joules per heartbeat</div>
                                 </div>
                             </div>
@@ -4207,7 +4107,7 @@
                         <div class="card" id="kjElevationCard">
                             <div class="card-header">
                                 <div>
-                                    <div class="card-title" style="color:#ff9632"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#ff9632" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20l5-10 4 6 3-4 6 8H3z"/></svg>Climbing Cost</div>
+                                    <div class="card-title" style="color:#ff9632"><svg class="icon" width="16" height="16" style="stroke:#ff9632"><use href="icons.svg#icon-mountain"/></svg>Climbing Cost</div>
                                     <div class="card-subtitle" id="kjElevationSub">kJ per 100m climbed</div>
                                 </div>
                             </div>
@@ -4231,7 +4131,7 @@
                     <div class="card" id="kjFuelingCard">
                         <div class="card-header">
                             <div>
-                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>Fueling Demand</div>
+                                <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-coffee"/></svg>Fueling Demand</div>
                                 <div class="card-subtitle" id="kjFuelingSub">Ride intensity vs fueling needs</div>
                             </div>
                             <div class="chart-legend" id="kjFuelingLegend">
@@ -4275,7 +4175,7 @@
                     <div class="card" id="pwrPageAvgPowerCard" style="display:none">
                         <div class="card-header">
                             <div>
-                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#00e5a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Average Power</div>
+                                <div class="card-title"><svg class="icon" width="16" height="16" style="stroke:#00e5a0"><use href="icons.svg#icon-bolt"/></svg>Average Power</div>
                                 <div class="card-subtitle">Per ride trend</div>
                             </div>
                         </div>
@@ -4298,7 +4198,7 @@
                     <div class="card" id="fitPrWallCard">
                         <div class="card-header">
                             <div>
-                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5C7 4 6 9 6 9Zm12 0h1.5a2.5 2.5 0 0 0 0-5C17 4 18 9 18 9Zm-1 0H7l1 10a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2l1-10Z"/></svg>Personal Records</div>
+                                <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-trophy"/></svg>Personal Records</div>
                                 <div class="card-subtitle">All-time ride superlatives</div>
                             </div>
                         </div>
@@ -4337,7 +4237,7 @@
                         <div class="card" id="znpHRZoneCard">
                             <div class="card-header">
                                 <div>
-                                    <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.42 4.58a5.4 5.4 0 0 0-7.65 0L12 5.34l-.77-.76a5.4 5.4 0 0 0-7.65 7.65l.77.77L12 20.65l7.65-7.65.77-.77a5.4 5.4 0 0 0 0-7.65z"/></svg>
+                                    <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-heart"/></svg>
                                         Heart Rate Zones
                                     </div>
                                     <div
@@ -4380,7 +4280,7 @@
                     <div class="card" id="znpDecoupleCard">
                         <div class="card-header">
                             <div>
-                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>
+                                <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-git-branch"/></svg>
                                     Aerobic Decoupling Trend
                                 </div>
                                 <div class="card-subtitle" id="znpDecoupleSub">
@@ -4455,7 +4355,7 @@
                         <div class="wrk-hero-top">
                             <input class="wrk-name-input" id="wrkNameInput" placeholder="Workout name" value="New Workout" oninput="wrkSetName(this.value)"/>
                             <button class="wrk-new-btn" onclick="wrkClear()" title="New workout">
-                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                <svg class="icon" width="18" height="18"><use href="icons.svg#icon-plus"/></svg>
                             </button>
                         </div>
                         <div class="wrk-hero-stats">
@@ -4545,7 +4445,7 @@
                             <div class="wrk-export-divider"></div>
                             <button class="wrk-export-row wrk-export-row--calendar" onclick="wrkSendToCalendar()">
                                 <div class="wrk-export-icon wrk-export-icon--icu">
-                                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/></svg>
+                                    <svg class="icon" width="20" height="20"><use href="icons.svg#icon-calendar"/></svg>
                                 </div>
                                 <div class="wrk-export-row-info">
                                     <span class="wrk-export-row-title">Send to Calendar</span>
@@ -4577,10 +4477,10 @@
                     <!-- Bottom FAB nav -->
                     <div class="wrk-fab-bar" id="wrkFabBar">
                         <button class="wrk-fab wrk-fab--back" onclick="navigate('dashboard')" aria-label="Back">
-                            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+                            <svg class="icon" width="22" height="22"><use href="icons.svg#icon-chevron-left"/></svg>
                         </button>
                         <button class="wrk-fab wrk-fab--fav" onclick="wrkSave()" aria-label="Save to library" id="wrkFavBtn">
-                            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                            <svg class="icon" width="22" height="22"><use href="icons.svg#icon-heart"/></svg>
                         </button>
                     </div>
                 </div>
@@ -4619,12 +4519,12 @@
 
                     <!-- Service History link -->
                     <div class="gar-service-link" onclick="navigate('service')" style="margin:16px var(--pad-page);padding:14px 16px;background:var(--bg-card);border-radius:var(--radius);display:flex;align-items:center;gap:12px;cursor:pointer">
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                        <svg class="icon" width="20" height="20"><use href="icons.svg#icon-settings"/></svg>
                         <div style="flex:1">
                             <div style="font-weight:600;font-size:15px">Service History</div>
                             <div style="font-size:13px;color:var(--text-muted)">Track maintenance and repairs</div>
                         </div>
-                        <svg class="icon" style="stroke:var(--text-muted)"><use href="icons.svg#icon-chevron-right"/></svg>
+                        <svg class="icon" width="16" height="16" style="stroke:var(--text-muted)"><use href="icons.svg#icon-chevron-right"/></svg>
                     </div>
                 </div>
 
@@ -4885,9 +4785,7 @@
                                 <!-- Avatar (kept for Settings photo management) -->
                             <div class="card">
                                 <div class="stt-section-header">
-                                    <svg class="stt-section-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-                                    </svg>
+                                    <svg class="icon stt-section-icon" width="18" height="18"><use href="icons.svg#icon-user"/></svg>
                                     <div>
                                         <div class="stt-section-title">Profile Photo</div>
                                         <div class="stt-section-sub">Stored locally in your browser</div>
@@ -4912,21 +4810,7 @@
                                             "
                                             title="Change photo"
                                         >
-                                            <svg
-                                                viewBox="0 0 24 24"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                stroke-width="2.5"
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                            >
-                                                <path
-                                                    d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
-                                                />
-                                                <path
-                                                    d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
-                                                />
-                                            </svg>
+                                            <svg class="icon"><use href="icons.svg#icon-edit"/></svg>
                                         </button>
                                         <input
                                             type="file"
@@ -5125,7 +5009,7 @@
                                     <span class="ios-row-label">Accent Color</span>
                                     <div style="display:flex;align-items:center;gap:8px">
                                         <div id="accentColorPreview" style="width:24px;height:24px;border-radius:50%;background:var(--accent)"></div>
-                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--text-faint)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                                        <svg class="icon" width="16" height="16" style="stroke:var(--text-faint)"><use href="icons.svg#icon-chevron-right"/></svg>
                                     </div>
                                 </div>
                             </div>
@@ -5260,7 +5144,7 @@
                                         <div style="display:flex;align-items:center;gap:6px;flex:1;justify-content:flex-end">
                                             <input type="password" class="stt-input" id="icuApiKeyInput" placeholder="Your intervals.icu API key">
                                             <button class="btn btn-ghost btn-sm" onclick="let i=document.getElementById('icuApiKeyInput');i.type=i.type==='password'?'text':'password'" title="Show/hide" style="padding:4px 6px">
-                                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                                <svg class="icon" width="14" height="14"><use href="icons.svg#icon-eye"/></svg>
                                             </button>
                                         </div>
                                     </div>
@@ -5410,9 +5294,7 @@
                                 </div>
                                 <div class="stt-subsection-divider"></div>
                                 <div class="stt-subsection-header">
-                                    <svg class="stt-section-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.08-8.58"/>
-                                    </svg>
+                                    <svg class="icon stt-section-icon" width="16" height="16"><use href="icons.svg#icon-refresh-cw"/></svg>
                                     <span class="stt-subsection-title">Smart Sync</span>
                                 </div>
                                 <div class="stt-rows">
@@ -5449,9 +5331,7 @@
                                 </div>
                                 <div class="stt-subsection-divider"></div>
                                 <div class="stt-subsection-header">
-                                    <svg class="stt-section-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-                                    </svg>
+                                    <svg class="icon stt-section-icon" width="16" height="16"><use href="icons.svg#icon-bolt"/></svg>
                                     <span class="stt-subsection-title">API Usage</span>
                                 </div>
                                 <div class="rl-bar-wrap">
@@ -5727,7 +5607,7 @@
                             <!-- Debug log (hidden by default) -->
                             <div style="padding:0 0 8px">
                                 <button id="syncLogToggle" onclick="var c=document.getElementById('syncLogCard');c.style.display=c.style.display==='none'?'':'none';this.querySelector('span').textContent=c.style.display==='none'?'Show Log':'Hide Log';if(c.style.display!=='none')setTimeout(function(){c.scrollIntoView({behavior:'smooth',block:'nearest'})},50)" style="background:none;border:none;color:var(--text-faint);font-size:12px;padding:8px 16px;cursor:pointer;display:flex;align-items:center;gap:6px">
-                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                                    <svg class="icon" width="14" height="14"><use href="icons.svg#icon-terminal"/></svg>
                                     <span>Show Log</span>
                                 </button>
                                 <div id="syncLogCard" style="display:none;margin:0 16px;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);padding:12px;max-height:180px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch">
@@ -5741,12 +5621,12 @@
                                 <div class="ios-group-label">Transfer</div>
                                 <div style="display:flex;gap:10px;padding:0">
                                     <button class="sync-transfer-btn" id="syncSendRow" onclick="_peerConfirmTransfer('send')">
-                                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                                        <svg class="icon" width="22" height="22"><use href="icons.svg#icon-send"/></svg>
                                         <span>Send</span>
                                         <span class="sync-transfer-sub" id="syncLastTime"></span>
                                     </button>
                                     <button class="sync-transfer-btn sync-transfer-btn--recv" id="syncRecvRow" onclick="_peerConfirmTransfer('receive')">
-                                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                        <svg class="icon" width="22" height="22"><use href="icons.svg#icon-download"/></svg>
                                         <span>Receive</span>
                                     </button>
                                 </div>
@@ -5808,7 +5688,7 @@
                             <div class="ios-group-label">Quick Actions</div>
                             <div class="ios-group">
                                 <div class="ios-row" onclick="navigate('gear');settingsBack()">
-                                    <div class="ios-row-icon" style="background:#ff9500"><svg class="icon"><use href="icons.svg#icon-wheel"/></svg></div>
+                                    <div class="ios-row-icon" style="background:#ff9500"><svg class="icon"><use href="icons.svg#icon-bike"/></svg></div>
                                     <span class="ios-row-label">Open My Garage</span>
                                     <svg class="icon ios-row-chevron"><use href="icons.svg#icon-chevron-right"/></svg>
                                 </div>
@@ -5828,10 +5708,7 @@
                         <!-- Share subpage -->
                         <div class="ios-subpage" id="iosSubpage-share">                            <div class="card">
                                 <div class="stt-section-header">
-                                    <svg class="stt-section-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
-                                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-                                    </svg>
+                                    <svg class="icon stt-section-icon" width="18" height="18"><use href="icons.svg#icon-share"/></svg>
                                     <div>
                                         <div class="stt-section-title">Share CycleIQ</div>
                                         <div class="stt-section-sub">Help other cyclists discover the app</div>
@@ -5864,7 +5741,7 @@
                             <!-- Hero card -->
                             <div class="lvl-hero-card">
                                 <div class="lvl-hero-icon">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" width="28" height="28"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                                    <svg class="icon" width="28" height="28" style="stroke:#000"><use href="icons.svg#icon-bolt"/></svg>
                                 </div>
                                 <div class="lvl-hero-text">
                                     <div class="lvl-hero-title">Earn XP. Level Up.</div>
@@ -6053,9 +5930,7 @@
                         <!-- Donate subpage -->
                         <div class="ios-subpage" id="iosSubpage-donate">                            <div class="card">
                                 <div class="stt-section-header">
-                                    <svg class="stt-section-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-                                    </svg>
+                                    <svg class="icon stt-section-icon" width="18" height="18"><use href="icons.svg#icon-heart"/></svg>
                                     <div>
                                         <div class="stt-section-title">Support CycleIQ</div>
                                         <div class="stt-section-sub">Open source & free forever</div>
@@ -6064,9 +5939,7 @@
                                 <div class="stt-donate-box">
                                     <p class="stt-share-text">CycleIQ is open source and completely free. If you find it useful, consider buying us a coffee to support development.</p>
                                     <a href="https://buymeacoffee.com/cycleiq" target="_blank" rel="noopener" class="stt-donate-btn">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/>
-                                        </svg>
+                                        <svg class="icon" width="18" height="18"><use href="icons.svg#icon-coffee"/></svg>
                                         Buy me a coffee
                                     </a>
                                     <a href="https://github.com/cycleiq/cycleiq" target="_blank" rel="noopener" class="stt-github-btn">
@@ -6333,7 +6206,7 @@
                                 class="stk-hero-card stk-hero-card--day"
                                 id="stkDayHero"
                             >
-                                <div class="stk-hero-flame"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
+                                <div class="stk-hero-flame"><svg class="icon" width="28" height="28"><use href="icons.svg#icon-bolt"/></svg></div>
                                 <div class="stk-hero-num" id="stkDayNum">—</div>
                                 <div class="stk-hero-label">Day Streak</div>
                                 <div class="stk-hero-sub" id="stkDaySub">
@@ -6344,7 +6217,7 @@
                                 class="stk-hero-card stk-hero-card--month"
                                 id="stkMonthHero"
                             >
-                                <div class="stk-hero-flame"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"/></svg></div>
+                                <div class="stk-hero-flame"><svg class="icon" width="28" height="28"><use href="icons.svg#icon-calendar"/></svg></div>
                                 <div class="stk-hero-num" id="stkMonthNum">
                                     —
                                 </div>
@@ -6383,7 +6256,7 @@
                         <!-- Personal bests row -->
                         <div class="stk-pb-row">
                             <div class="card stk-pb-card">
-                                <div class="stk-pb-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg></div>
+                                <div class="stk-pb-icon"><svg class="icon" width="22" height="22"><use href="icons.svg#icon-trophy"/></svg></div>
                                 <div class="stk-pb-val" id="stkBestWeekStreak">
                                     —
                                 </div>
@@ -6393,7 +6266,7 @@
                                 </div>
                             </div>
                             <div class="card stk-pb-card">
-                                <div class="stk-pb-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
+                                <div class="stk-pb-icon"><svg class="icon" width="22" height="22"><use href="icons.svg#icon-bolt"/></svg></div>
                                 <div class="stk-pb-val" id="stkBestDayStreak">
                                     —
                                 </div>
@@ -6403,7 +6276,7 @@
                                 </div>
                             </div>
                             <div class="card stk-pb-card">
-                                <div class="stk-pb-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+                                <div class="stk-pb-icon"><svg class="icon" width="22" height="22"><use href="icons.svg#icon-calendar"/></svg></div>
                                 <div class="stk-pb-val" id="stkBestMonthStreak">
                                     —
                                 </div>
@@ -6468,7 +6341,7 @@
                         <div class="card">
                             <div class="card-header">
                                 <div>
-                                    <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Lifetime Stats</div>
+                                    <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-activity"/></svg>Lifetime Stats</div>
                                     <div
                                         class="card-subtitle"
                                         id="stkLifetimeSub"
@@ -6528,9 +6401,7 @@
                         <div class="compare-metrics-container" id="compareMetricsContainer"></div>
                         <button class="btn btn-primary" style="margin: 20px var(--pad-page)" onclick="addCompareCard()">+ Add Metric</button>
                         <div class="empty-state" id="compareEmptyState">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                                <path d="M3 3v18h18M3 9h12M3 15h18M9 3v18M15 3v18"/>
-                            </svg>
+                            <svg class="icon"><use href="icons.svg#icon-data-grid"/></svg>
                             <p>Click "Add Metric" to start comparing your training data</p>
                         </div>
                     </div>
@@ -6539,7 +6410,7 @@
                     <div class="compare-tab-content" id="compareTabH2H">
                         <div class="h2h-selector-panel">
                             <div class="h2h-search-wrap">
-                                <svg class="h2h-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                <svg class="icon h2h-search-icon"><use href="icons.svg#icon-search"/></svg>
                                 <input type="text" id="h2hSearch" class="h2h-search-input" placeholder="Search activities to compare…" oninput="h2hSearch(this.value)" onfocus="h2hSearch(this.value)" autocomplete="off">
                                 <div class="h2h-dropdown" id="h2hDropdown"></div>
                             </div>
@@ -6547,9 +6418,7 @@
                         </div>
                         <div class="h2h-spreadsheet-wrap" id="h2hSpreadsheet" style="display:none"></div>
                         <div class="h2h-empty-state" id="h2hEmptyState">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:48px;height:48px;margin-bottom:12px;opacity:0.4">
-                                <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4-4v-2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
-                            </svg>
+                            <svg class="icon"><use href="icons.svg#icon-users"/></svg>
                             <p>Select 2 or more activities to compare head to head</p>
                         </div>
                     </div>
@@ -6562,20 +6431,7 @@
                         <!-- Drop zone -->
                         <div class="imp-dropzone" id="impDropzone">
                             <div class="imp-dropzone-icon">
-                                <svg
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="1.5"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                >
-                                    <path
-                                        d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
-                                    />
-                                    <polyline points="17 8 12 3 7 8" />
-                                    <line x1="12" y1="3" x2="12" y2="15" />
-                                </svg>
+                                <svg class="icon"><use href="icons.svg#icon-upload"/></svg>
                             </div>
                             <div class="imp-dropzone-title">
                                 Drop .FIT files here
@@ -6605,7 +6461,7 @@
                         >
                             <div class="card-header">
                                 <div>
-                                    <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Upload Queue</div>
+                                    <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-upload"/></svg>Upload Queue</div>
                                     <div class="card-subtitle" id="impQueueSub">
                                         0 files selected
                                     </div>
@@ -6622,16 +6478,7 @@
                                         id="impProcessBtn"
                                         onclick="impProcessAll()"
                                     >
-                                        <svg
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            stroke-width="2.5"
-                                            width="14"
-                                            height="14"
-                                        >
-                                            <polyline points="20 6 9 17 4 12" />
-                                        </svg>
+                                        <svg class="icon" width="14" height="14"><use href="icons.svg#icon-check"/></svg>
                                         Import All
                                     </button>
                                 </div>
@@ -6643,7 +6490,7 @@
                         <div class="card" style="margin-top: var(--gap-layout)">
                             <div class="card-header">
                                 <div>
-                                    <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82 1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Import Options</div>
+                                    <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-settings"/></svg>Import Options</div>
                                     <div class="card-subtitle">
                                         Customize how activities are processed
                                     </div>
@@ -6653,19 +6500,7 @@
                             <div class="imp-options-grid">
                                 <label class="imp-toggle-row">
                                     <span class="imp-toggle-label">
-                                        <svg
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            stroke-width="2"
-                                            width="16"
-                                            height="16"
-                                        >
-                                            <path
-                                                d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"
-                                            />
-                                            <circle cx="12" cy="10" r="3" />
-                                        </svg>
+                                        <svg class="icon" width="2" height="16"><use href="icons.svg#icon-map-pin"/></svg>
                                         Extract GPS routes
                                     </span>
                                     <span class="imp-toggle-hint"
@@ -6680,17 +6515,7 @@
                                 </label>
                                 <label class="imp-toggle-row">
                                     <span class="imp-toggle-label">
-                                        <svg
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            stroke-width="2"
-                                            width="16"
-                                            height="16"
-                                        >
-                                            <circle cx="12" cy="12" r="10" />
-                                            <path d="M12 6v6l4 2" />
-                                        </svg>
+                                        <svg class="icon" width="2" height="16"><use href="icons.svg#icon-clock"/></svg>
                                         Auto-detect sport type
                                     </span>
                                     <span class="imp-toggle-hint"
@@ -6706,17 +6531,7 @@
                                 </label>
                                 <label class="imp-toggle-row">
                                     <span class="imp-toggle-label">
-                                        <svg
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            stroke-width="2"
-                                            width="16"
-                                            height="16"
-                                        >
-                                            <path d="M4 4h16v16H4z" />
-                                            <path d="M4 9h16M9 4v16" />
-                                        </svg>
+                                        <svg class="icon" width="2" height="16"><use href="icons.svg#icon-data-grid"/></svg>
                                         Skip duplicates
                                     </span>
                                     <span class="imp-toggle-hint"
@@ -6732,19 +6547,7 @@
                                 </label>
                                 <label class="imp-toggle-row">
                                     <span class="imp-toggle-label">
-                                        <svg
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            stroke-width="2"
-                                            width="16"
-                                            height="16"
-                                        >
-                                            <path d="M12 20h9" />
-                                            <path
-                                                d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"
-                                            />
-                                        </svg>
+                                        <svg class="icon" width="2" height="16"><use href="icons.svg#icon-edit"/></svg>
                                         Allow renaming
                                     </span>
                                     <span class="imp-toggle-hint"
@@ -6761,7 +6564,7 @@
                         <div class="card" style="margin-top: var(--gap-layout)">
                             <div class="card-header">
                                 <div>
-                                    <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Import History</div>
+                                    <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-clock"/></svg>Import History</div>
                                     <div
                                         class="card-subtitle"
                                         id="impHistorySub"
@@ -6780,21 +6583,7 @@
                             </div>
                             <div id="impHistoryList" class="imp-history-list">
                                 <div class="imp-history-empty">
-                                    <svg
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="1.5"
-                                        width="32"
-                                        height="32"
-                                    >
-                                        <path
-                                            d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
-                                        />
-                                        <polyline points="14 2 14 8 20 8" />
-                                        <line x1="16" y1="13" x2="8" y2="13" />
-                                        <line x1="16" y1="17" x2="8" y2="17" />
-                                    </svg>
+                                    <svg class="icon" width="32" height="32"><use href="icons.svg#icon-file-text"/></svg>
                                     <p>Imported activities will appear here</p>
                                 </div>
                             </div>
@@ -6867,9 +6656,7 @@
         </button>
         <!-- Weather add-location FAB (bottom-right) -->
         <button class="cal-fab settings-search-fab" id="weatherAddFab" onclick="openSettingsSubpage('weather')" aria-label="Add weather location" style="visibility:hidden;pointer-events:none">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
+            <svg class="icon"><use href="icons.svg#icon-plus"/></svg>
         </button>
 
         <!-- LOADING OVERLAY -->
