@@ -313,6 +313,35 @@
             </div>
         </div>
 
+        <!-- ============================================================  UNIVERSAL SHEET (reusable, content injected by JS) ============================================================ -->
+        <div class="wxd-overlay" id="_uniSheet" style="display:none">
+            <div class="wxd-backdrop" onclick="_closeUniSheet()"></div>
+            <div class="wxd-sheet wxd-sheet--partial" id="_uniSheetPanel" style="max-width:480px">
+                <div class="modal-drag-indicator"></div>
+                <div class="modal-header" id="_uniSheetHeader">
+                    <div class="modal-title" id="_uniSheetTitle"></div>
+                    <button class="modal-close" onclick="_closeUniSheet()">
+                        <svg class="icon"><use href="icons.svg#icon-x"/></svg>
+                    </button>
+                </div>
+                <div class="wxd-sheet-body" id="_uniSheetBody"></div>
+            </div>
+        </div>
+        <!-- Universal Sheet 2 (for stacking) -->
+        <div class="wxd-overlay" id="_uniSheet2" style="display:none">
+            <div class="wxd-backdrop" onclick="_closeUniSheet2()"></div>
+            <div class="wxd-sheet wxd-sheet--partial" id="_uniSheet2Panel" style="max-width:480px">
+                <div class="modal-drag-indicator"></div>
+                <div class="modal-header" id="_uniSheet2Header">
+                    <div class="modal-title" id="_uniSheet2Title"></div>
+                    <button class="modal-close" onclick="_closeUniSheet2()">
+                        <svg class="icon"><use href="icons.svg#icon-x"/></svg>
+                    </button>
+                </div>
+                <div class="wxd-sheet-body" id="_uniSheet2Body"></div>
+            </div>
+        </div>
+
         <!-- ============================================================  COMPONENT DETAIL SHEET  ============================================================ -->
         <div class="wxd-overlay" id="compDetailSheet" style="display:none">
             <div class="wxd-backdrop" onclick="closeCompDetailSheet()"></div>

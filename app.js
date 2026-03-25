@@ -15738,6 +15738,98 @@ function _closeOverlaySheet(id) {
   if (backdrop) backdrop.style.opacity = '';
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   UNIVERSAL SHEET SYSTEM — one reusable sheet, content injected on open, stripped on close
+   ═══════════════════════════════════════════════════════════════ */
+const _uniSheetState = { current: null, stack: null };
+
+/**
+ * Open a universal sheet.
+ * @param {Object} opts
+ * @param {string} opts.title — header title
+ * @param {string|Function} opts.body — HTML string or function returning HTML string
+ * @param {Function} [opts.onOpen] — called after DOM is built (wire up listeners, scrubbers)
+ * @param {Function} [opts.onClose] — called before DOM is stripped
+ * @param {number} [opts.maxWidth=480] — max width in px
+ * @param {boolean} [opts.partial=true] — partial (bottom card) vs full-screen
+ * @param {boolean} [opts.hideClose=false] — hide the X button
+ * @param {boolean} [opts.hideHeader=false] — hide the entire header
+ * @param {boolean} [opts.stacked=false] — use second sheet container (for sheet-on-sheet)
+ */
+function _openUniSheet(opts) {
+  const isStacked = opts.stacked || false;
+  const sheetId = isStacked ? '_uniSheet2' : '_uniSheet';
+  const panel = document.getElementById(isStacked ? '_uniSheet2Panel' : '_uniSheetPanel');
+  const titleEl = document.getElementById(isStacked ? '_uniSheet2Title' : '_uniSheetTitle');
+  const bodyEl = document.getElementById(isStacked ? '_uniSheet2Body' : '_uniSheetBody');
+  const headerEl = document.getElementById(isStacked ? '_uniSheet2Header' : '_uniSheetHeader');
+  if (!panel || !bodyEl) return;
+
+  // Set max-width
+  panel.style.maxWidth = (opts.maxWidth || 480) + 'px';
+
+  // Partial vs full-screen
+  if (opts.partial !== false) {
+    panel.classList.add('wxd-sheet--partial');
+  } else {
+    panel.classList.remove('wxd-sheet--partial');
+  }
+
+  // Title
+  if (titleEl) titleEl.textContent = opts.title || '';
+
+  // Header visibility
+  if (headerEl) headerEl.style.display = opts.hideHeader ? 'none' : '';
+  const closeBtn = headerEl?.querySelector('.modal-close');
+  if (closeBtn) closeBtn.style.display = opts.hideClose ? 'none' : '';
+
+  // Inject body content
+  const html = typeof opts.body === 'function' ? opts.body() : (opts.body || '');
+  bodyEl.innerHTML = html;
+
+  // Store state for close callback
+  const stateKey = isStacked ? 'stack' : 'current';
+  _uniSheetState[stateKey] = {
+    onClose: opts.onClose || null,
+    sheetId
+  };
+
+  // Open via standard overlay system
+  _openOverlaySheet(sheetId);
+
+  // Call onOpen after a frame (DOM needs to be in the layout)
+  if (opts.onOpen) {
+    requestAnimationFrame(() => requestAnimationFrame(() => opts.onOpen(bodyEl)));
+  }
+}
+
+function _closeUniSheet() {
+  const st = _uniSheetState.current;
+  if (st?.onClose) st.onClose();
+  _closeOverlaySheet('_uniSheet');
+  // Strip body after close animation
+  setTimeout(() => {
+    const body = document.getElementById('_uniSheetBody');
+    if (body) body.innerHTML = '';
+  }, 380);
+  _uniSheetState.current = null;
+}
+
+function _closeUniSheet2() {
+  const st = _uniSheetState.stack;
+  if (st?.onClose) st.onClose();
+  _closeOverlaySheet('_uniSheet2');
+  setTimeout(() => {
+    const body = document.getElementById('_uniSheet2Body');
+    if (body) body.innerHTML = '';
+  }, 380);
+  _uniSheetState.stack = null;
+}
+
+window._openUniSheet = _openUniSheet;
+window._closeUniSheet = _closeUniSheet;
+window._closeUniSheet2 = _closeUniSheet2;
+
 /* ── Reusable confirmation sheet ── */
 function _confirmSheet(msg, actionLabel, onConfirm, destructive) {
   let overlay = document.getElementById('_confirmSheetOverlay');
