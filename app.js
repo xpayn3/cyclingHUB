@@ -568,28 +568,22 @@ function _cleanupPageDOM(leavingPage) {
     });
   }
 
-  // Activity detail — heaviest page: streams chart, zones, intervals, climbs, etc.
+  // Activity detail — remove canvases and dynamic generated content, keep card shells
   if (leavingPage === 'activity') {
-    // Remove all canvases first (Chart.js instances)
+    // Remove all Chart.js canvases
     document.querySelectorAll('#page-activity canvas').forEach(c => c.remove());
-    const ids = [
-      'detailStreamsCard', 'detailChartsRow', 'detailIntervalsBody',
-      'detailCurvesRow', 'detailGradientCard', 'detailClimbsCard',
-      'detailCadenceCard', 'detailHistogramCard', 'detailTempCard',
-      'detailPwrHRCard', 'detailNPTimelineCard', 'detailSpeedGradeCard',
-      'detailDynamicsCard', 'detailGearShiftsCard', 'detailDevicesCard',
-      'detailZonesCarouselCard', 'detailLapSplitsCard', 'detailWeatherCard',
-      'detailNotesCard', 'detailCompareCard', 'detailPerfCard',
-      'detailDecoupleCard', 'detailLRBalanceCard',
-      'actSecondaryStats', 'detailAchievements',
-    ];
-    ids.forEach(id => {
+    // Remove dynamically generated summaries, zone rows, chart wraps
+    document.querySelectorAll('#page-activity .detail-zone-summary').forEach(el => el.innerHTML = '');
+    document.querySelectorAll('#page-activity .act-ivl-chart-wrap').forEach(el => el.innerHTML = '');
+    document.querySelectorAll('#page-activity .act-ivl-legend').forEach(el => el.innerHTML = '');
+    // Strip only fully-dynamic containers (content rebuilt from scratch each time)
+    ['detailIntervalsBody', 'detailDynamicsCard', 'detailGearShiftsCard', 'detailDevicesCard'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.innerHTML = '';
     });
-    // Strip map
-    const mapCard = document.getElementById('detailMapCard');
-    if (mapCard) mapCard.innerHTML = '';
+    // Strip map (rebuilt on open)
+    const mapCont = document.getElementById('detailMapWrap');
+    if (mapCont) mapCont.innerHTML = '';
   }
 
   // Goals page — badges grid, lifetime stats, monthly grid
