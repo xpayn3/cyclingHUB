@@ -402,7 +402,7 @@
 
   <!-- Bike -->
   <symbol id="icon-bike" viewBox="0 0 24 24">
-    <circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/>
+    <circle cx="5" cy="17" r="3.5"/><circle cx="19" cy="17" r="3.5"/><path d="M5 17l3.5-7h5l2.5 7"/><path d="M8.5 10L12 5h3"/><path d="M16 7l-2-2"/><path d="M14 5h2.5"/><path d="M10.5 14.5l5.5 2.5"/><path d="M8.5 10l2 4.5"/>
   </symbol>
 
   <!-- Trophy -->
