@@ -2279,7 +2279,7 @@ export function renderWeatherDayDetail(dayIdx) {
   }
 
   // Drag-to-scroll on hourly rail
-  const sheetEl = _wxDayUseUni ? document.getElementById('uniSheetOverlay') : document.getElementById('wxDaySheet');
+  const sheetEl = document.getElementById('_uniSheet');
   const hRail = sheetEl?.querySelector('.aw-hourly-scroll');
   if (hRail) {
     let isDown = false, startX = 0, scrollLeft = 0;
