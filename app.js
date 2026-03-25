@@ -21610,6 +21610,7 @@ function destroyChartInstances() {
   state._detailDecoupleChart = destroyChart(state._detailDecoupleChart);
   state._detailLRBalChart = destroyChart(state._detailLRBalChart);
   state._actHrvChart = destroyChart(state._actHrvChart);
+  state._actRespChart = destroyChart(state._actRespChart);
   // Clear NA overlays so they don't double-up
   _DETAIL_CARD_IDS.forEach(id => {
     const el = document.getElementById(id);
@@ -22793,12 +22794,8 @@ function renderActivityBasic(a) {
   // ── Render the "How You Compare" card ────────────────────────────────────
   renderDetailComparison(a);
 
-  // ── FIT file data: dynamics, gear shifts, GPS, respiration, batteries (cached in IndexedDB) ──
-  renderDetailDynamics(a).catch(() => {});
-  renderDetailGearShifts(a).catch(() => {});
-  // GPS quality card removed — device doesn't record field 31
-  renderDetailRespiration(a).catch(() => {});
-  renderDetailDevices(a).catch(() => {});
+  // ── FIT file data: single fetch, sequential render ──
+  _renderAllFITCards(a);
 
   // ── Data source / device footer ───────────────────────────────────────────
   renderDetailSourceFooter(a);
@@ -23039,18 +23036,37 @@ function renderDetailComparison(a) {
 }
 
 // ── Cycling Dynamics from FIT file ──
-async function renderDetailDynamics(a) {
+// ── Single orchestrator for all FIT-based cards ──
+async function _renderAllFITCards(a) {
+  const actId = a?.id;
+  if (!actId) return;
+
+  let fitData = null;
+  try {
+    fitData = await _fetchParsedFIT(actId);
+  } catch (e) {
+    console.warn('[FIT] Fetch failed:', e.message);
+  }
+
+  // Sync accessory batteries from FIT data
+  if (fitData?.devices?.length) {
+    try { _fitSyncAccessoryBatteries(fitData.devices); } catch (_) {}
+  }
+
+  // Render each card sequentially — each handles its own show/hide/NA
+  try { _renderDynamicsCard(a, fitData); } catch (e) { console.warn('[FIT] Dynamics render error:', e.message); }
+  try { _renderGearShiftsCard(a, fitData); } catch (e) { console.warn('[FIT] Gear shifts render error:', e.message); }
+  try { _renderRespirationCard(a, fitData); } catch (e) { console.warn('[FIT] Respiration render error:', e.message); }
+  try { _renderDevicesCard(a, fitData); } catch (e) { console.warn('[FIT] Devices render error:', e.message); }
+}
+
+// ── Dynamics card (L/R balance, PCO, torque effectiveness) ──
+function _renderDynamicsCard(a, fitData) {
   const el = document.getElementById('detailDynamicsCard');
   if (!el) return;
   el.style.display = 'none';
   el.innerHTML = '';
 
-  const actId = a.id;
-  if (!actId) return;
-
-  // Get FIT data — cached in IndexedDB after first download
-  let fitData;
-  try { fitData = await _fetchParsedFIT(actId); } catch (e) { console.warn('[FIT] Dynamics fetch failed:', e.message); return; }
   if (!fitData) return;
   const d = fitData.dynamics;
   const hasTemp = fitData.temperature && fitData.temperature.length > 0;
@@ -23249,19 +23265,13 @@ async function renderDetailDynamics(a) {
 }
 
 // ── Gear Shifts from FIT ──
-async function renderDetailGearShifts(a) {
+function _renderGearShiftsCard(a, fitData) {
   const el = document.getElementById('detailGearShiftsCard');
   if (!el) return;
   el.style.display = 'none';
   el.innerHTML = '';
 
-  const actId = a.id;
-  if (!actId) return;
-
-  let fitData;
-  try { fitData = await _fetchParsedFIT(actId); } catch (e) { console.warn('[FIT] Gear shifts fetch failed:', e.message); return; }
-  if (!fitData) { console.warn('[FIT] No FIT data for gear shifts'); return; }
-  if (!fitData.gearChanges || !fitData.gearChanges.length) { el.style.display = 'none'; return; }
+  if (!fitData || !fitData.gearChanges || !fitData.gearChanges.length) return;
 
   const shifts = fitData.gearChanges;
   const totalShifts = shifts.length;
@@ -23486,17 +23496,12 @@ async function renderDetailGpsAccuracy(a) {
 }
 
 // ── Respiration Rate from FIT file ──
-async function renderDetailRespiration(a) {
+function _renderRespirationCard(a, fitData) {
   const el = document.getElementById('detailRespCard');
   if (!el) return;
   el.style.display = 'none';
   el.innerHTML = '';
 
-  const actId = a.id;
-  if (!actId) return;
-
-  let fitData;
-  try { fitData = await _fetchParsedFIT(actId); } catch (e) { return; }
   if (!fitData || !fitData.respiration || fitData.respiration.length < 10) return;
 
   const resps = fitData.respiration.filter(v => v > 0 && v < 80); // filter invalid values
@@ -23507,7 +23512,7 @@ async function renderDetailRespiration(a) {
   const minR = Math.min(...resps.filter(v => v > 5)); // ignore very low
 
   // Create chart
-  const canvasId = 'respChart_' + Date.now();
+  const canvasId = 'activityRespChart';
 
   // Downsample for chart if too many points
   let chartData = resps;
@@ -23558,7 +23563,8 @@ async function renderDetailRespiration(a) {
   requestAnimationFrame(() => {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
-    new Chart(canvas, {
+    state._actRespChart = destroyChart(state._actRespChart);
+    state._actRespChart = new Chart(canvas, {
       type: 'line',
       data: {
         labels,
@@ -23746,25 +23752,14 @@ async function renderDetailHRV(a) {
 }
 
 // ── Device battery levels from FIT file ──
-async function renderDetailDevices(a) {
+function _renderDevicesCard(a, fitData) {
   const el = document.getElementById('detailDevicesCard');
   if (!el) return;
   el.style.display = 'none';
   el.innerHTML = '';
 
-  const actId = a.id;
-  if (!actId) return;
-
-  // Use cached FIT data (IndexedDB or in-memory)
-  let devices;
-  try {
-    const fitData = await _fetchParsedFIT(actId);
-    devices = fitData ? fitData.devices : null;
-  } catch (e) { console.warn('[FIT] Devices fetch failed:', e.message); return; }
+  const devices = fitData ? fitData.devices : null;
   if (!devices || !devices.length) return;
-
-  // Auto-sync accessory battery levels from this ride's FIT data
-  _fitSyncAccessoryBatteries(devices);
 
   const allMapped = devices
     .filter(d => d.manufacturer !== null || d.deviceType !== null)
@@ -24027,7 +24022,7 @@ function _saveAccessoryFromFIT() {
   if (actEl) {
     // Trigger a re-render of the devices card
     const actId = state.currentActivity?.id;
-    if (actId) _renderDevicesBatteryCard(state.currentActivity);
+    if (actId) _renderAllFITCards(state.currentActivity);
   }
 }
 window._openAddAccessoryPrefilled = _openAddAccessoryPrefilled;
