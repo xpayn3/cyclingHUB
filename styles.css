@@ -704,7 +704,6 @@ code {
 .sidebar-create-btn svg {
     width: 16px;
     height: 16px;
-    stroke-width: 2;
 }
 .sidebar-footer-row {
     display: flex;
@@ -6400,6 +6399,67 @@ input[type="number"] {
         margin: 0;
     }
 }
+/* ── Desktop split-pane settings (iPad-style) ── */
+@media (min-width: 900px) {
+    .ios-settings {
+        display: flex;
+        flex-direction: row;
+        max-width: 1100px;
+        gap: 0;
+        overflow: visible;
+    }
+    .ios-settings-main {
+        flex: 0 0 340px;
+        min-width: 340px;
+        max-height: calc(100vh - 120px);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        position: sticky;
+        top: 80px;
+        border-right: 0.5px solid var(--border, rgba(255,255,255,0.08));
+        padding-right: 16px;
+    }
+    /* Never hide main list on desktop */
+    .ios-settings-main.ios-nav-out {
+        transform: none !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        display: flex !important;
+    }
+    .ios-subpage {
+        flex: 1;
+        min-width: 0;
+        padding-left: 24px;
+        /* No slide animation on desktop */
+        transform: none !important;
+        opacity: 1 !important;
+        transition: none !important;
+    }
+    .ios-subpage.active {
+        display: block;
+        transform: none;
+        opacity: 1;
+    }
+    .ios-subpage.ios-nav-back {
+        transform: none;
+        opacity: 1;
+    }
+    /* Hide settings hero on desktop — wastes space in split view */
+    .ios-subpage .stt-hero {
+        display: none;
+    }
+    /* Page headline stays visible */
+    .page-headline.ios-nav-out,
+    .page-headline.ios-nav-in {
+        transform: none;
+        opacity: 1;
+    }
+    /* Active row highlight in main list */
+    .ios-settings-main .ios-row.stt-active-row {
+        background: var(--accent-dim, rgba(0,229,160,0.08));
+        border-radius: var(--radius-sm);
+    }
+}
 
 /* ── Legacy settings grid (kept for subpage content) ── */
 .settings-grid {
@@ -8325,10 +8385,7 @@ input[type="number"] {
     box-shadow: var(--glass-shadow);
     z-index: 10;
 }
-.cal-fab svg {
-    width: 24px;
-    height: 24px;
-}
+.cal-fab svg { width: 24px; height: 24px; }
 /* Settings back FAB: bottom-left, fixed */
 .settings-back-fab {
     position: fixed !important;
@@ -8418,7 +8475,6 @@ body.show-save-fab #actSaveRouteFab {
 #dashRouteFab svg {
     width: 22px;
     height: 22px;
-    stroke-width: 2;
 }
 #actSearchFab:active,
 #calFab:active,
@@ -14620,7 +14676,6 @@ body:has(.act-sheet-mode) .topbar {
 .wrk-fab svg {
     width: 22px;
     height: 22px;
-    stroke-width: 2;
 }
 .wrk-fab--fav {
     color: var(--text-muted);

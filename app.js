@@ -1654,6 +1654,8 @@ function _stripSubpage(id) {
   }
 }
 
+function _isDesktopSettings() { return window.innerWidth >= 900; }
+
 function openSettingsSubpage(id) {
   if (_iosNavLocked) return;
   const main = document.getElementById('iosSettingsMain');
@@ -1663,7 +1665,7 @@ function openSettingsSubpage(id) {
   // Restore subpage content from cache
   _restoreSubpage(id);
   _iosNavLocked = true;
-  setTimeout(() => { _iosNavLocked = false; }, 400);
+  setTimeout(() => { _iosNavLocked = false; }, _isDesktopSettings() ? 50 : 400);
 
   // Push current subpage onto stack so back returns here
   if (_iosActiveSubpage) {
@@ -1676,7 +1678,14 @@ function openSettingsSubpage(id) {
   const evt = window.event;
   const row = evt?.target?.closest?.('.ios-row, .ios-profile-card');
   _iosSourceRow = row;
-  if (row) {
+
+  const isDesktop = _isDesktopSettings();
+
+  // Desktop: persistent active row highlight
+  if (isDesktop) {
+    main.querySelectorAll('.stt-active-row').forEach(r => r.classList.remove('stt-active-row'));
+    if (row) row.classList.add('stt-active-row');
+  } else if (row) {
     row.style.transition = 'background 0.3s ease';
     row.style.background = 'var(--accent-dim)';
   }
@@ -1689,13 +1698,15 @@ function openSettingsSubpage(id) {
     if (prevId !== id) _stripSubpage(prevId);
   });
 
-  // Slide main + headline out to the left
-  main.classList.add('ios-nav-out');
-  if (headline) headline.classList.add('ios-nav-out');
+  // Desktop: don't hide main list, no slide animation
+  if (!isDesktop) {
+    main.classList.add('ios-nav-out');
+    if (headline) headline.classList.add('ios-nav-out');
+  }
 
-  // Prepare subpage: show it off-screen right, then slide in
+  // Prepare subpage: show it (desktop: instantly, mobile: slide in)
   sub.style.display = 'block';
-  sub.offsetHeight; // force reflow
+  if (!isDesktop) sub.offsetHeight; // force reflow for mobile animation
   sub.classList.add('active');
 
   // Render dynamic subpage content
@@ -1727,8 +1738,8 @@ function openSettingsSubpage(id) {
     sub.insertBefore(hero, sub.firstChild);
   }
 
-  // Hide main after transition
-  setTimeout(() => { main.style.display = 'none'; }, 380);
+  // Hide main after transition (mobile only — desktop keeps both visible)
+  if (!isDesktop) setTimeout(() => { main.style.display = 'none'; }, 380);
 
   // Update page headline to subpage name after slide-out starts
   setTimeout(() => {
@@ -1765,8 +1776,14 @@ function closeSettingsSubpage() {
   if (_iosNavLocked) return;
   const main = document.getElementById('iosSettingsMain');
   if (!main) return;
+  const isDesktop = _isDesktopSettings();
   _iosNavLocked = true;
-  setTimeout(() => { _iosNavLocked = false; }, 400);
+  setTimeout(() => { _iosNavLocked = false; }, isDesktop ? 50 : 400);
+
+  // Desktop: clear active row highlight
+  if (isDesktop) {
+    main.querySelectorAll('.stt-active-row').forEach(r => r.classList.remove('stt-active-row'));
+  }
   const activeSub = document.querySelector('.ios-subpage.active, .ios-subpage.ios-nav-back');
   const headline = document.querySelector('.page-headline');
 
@@ -2779,7 +2796,7 @@ function _peerRenderDevices(peerName) {
   if (!el) return;
   const _icon = n => (['iPhone','iPad','Android'].includes(n)
     ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>'
-    : '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>');
+    : '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-monitor"/></svg>');
   const myName = _peerDeviceName();
   let html = `<div class="sync-device sync-device--me">
     <div class="sync-device-icon">${_icon(myName)}</div>
@@ -3431,7 +3448,7 @@ function _peerShowSyncConfirm(cfg) {
       ? `<img src="${deviceImg}" alt="${cfg.pairDevice}" style="width:140px;height:auto;object-fit:contain">`
       : (isMobile
         ? `<svg viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="var(--accent)" stroke-width="1.2"><rect x="5" y="2" width="14" height="20" rx="3"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>`
-        : `<svg viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="var(--accent)" stroke-width="1.2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`);
+        : `<svg class="icon" width="64" height="64" style="stroke:var(--accent)"><use href="icons.svg#icon-monitor"/></svg>`);
     if (itemsEl) itemsEl.innerHTML = `
       <div style="display:flex;flex-direction:column;align-items:center;padding:4px 0 8px;gap:8px">
         <div style="width:160px;height:160px;border-radius:32px;background:${deviceImg ? 'none' : 'var(--surface-1)'};display:flex;align-items:center;justify-content:center;overflow:hidden">${deviceVisual}</div>
@@ -4751,7 +4768,7 @@ function renderWxLocationSwitcher() {
         const code = wxCodes[l.id];
         const icon = code != null
           ? `<span class="wx-pill-icon">${wmoIcon(code)}</span>`
-          : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M12 2a7 7 0 0 1 7 7c0 5.25-7 13-7 13S5 14.25 5 9a7 7 0 0 1 7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>`;
+          : `<svg class="icon" width="2" height="12"><use href="icons.svg#icon-map-pin"/></svg>`;
         return `<button class="wx-loc-pill${l.active ? ' wx-loc-pill--active' : ''}" onclick="setActiveWxLocation(${l.id})">
           ${icon}
           ${l.city}
@@ -6159,11 +6176,11 @@ const _WIDGET_DEFS = [
   { id: 'recentCarousel',  label: 'Recent Activities',   icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-activity"/></svg>' },
   { id: 'goalsTargets',    label: 'Goals',               icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-target"/></svg>' },
   { id: 'vitality',        label: 'Week Summary',        icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>' },
-  { id: 'todaySuggestion', label: 'Today Suggestion',    icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>' },
+  { id: 'todaySuggestion', label: 'Today Suggestion',    icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-alert-circle"/></svg>' },
   { id: 'weekProgress',    label: 'Week Progress',       icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-activity"/></svg>' },
-  { id: 'quickLinks',      label: 'Garage & Route',      icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="18" r="3"/><circle cx="19" cy="18" r="3"/><path d="M5 18h3l2-5 2-5h4l2 5 1 2.5"/></svg>' },
+  { id: 'quickLinks',      label: 'Garage & Route',      icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-bike"/></svg>' },
   { id: 'weather',         label: 'Riding Forecast',     icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>' },
-  { id: 'batteryStatus',   label: 'Batteries',           icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="18" height="10" rx="2"/><line x1="22" y1="11" x2="22" y2="13"/></svg>' },
+  { id: 'batteryStatus',   label: 'Batteries',           icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-battery"/></svg>' },
 ];
 
 function _getWidgetOrder() {
@@ -6227,7 +6244,7 @@ function openWidgetEditor() {
     if (!def) return;
     const isHidden = hidden.has(id);
     html += `<div class="widget-editor-item" data-widget-id="${id}">
-      <div class="widget-editor-drag"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--text-muted)" stroke-width="2"><line x1="5" y1="6" x2="19" y2="6"/><line x1="5" y1="12" x2="19" y2="12"/><line x1="5" y1="18" x2="19" y2="18"/></svg></div>
+      <div class="widget-editor-drag"><svg class="icon" width="22" height="22" style="stroke:var(--text-muted)"><use href="icons.svg#icon-menu"/></svg></div>
       <div class="widget-editor-icon">${def.icon}</div>
       <div class="widget-editor-label">${def.label}</div>
       <label class="widget-editor-toggle">
@@ -6294,7 +6311,7 @@ function _renderSettingsWidgets() {
     if (!def) return;
     const isHidden = hidden.has(id);
     html += `<div class="ios-row widget-editor-item" data-widget-id="${id}" draggable="true">
-      <div class="widget-editor-drag"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--text-muted)" stroke-width="2"><line x1="5" y1="6" x2="19" y2="6"/><line x1="5" y1="12" x2="19" y2="12"/><line x1="5" y1="18" x2="19" y2="18"/></svg></div>
+      <div class="widget-editor-drag"><svg class="icon" width="22" height="22" style="stroke:var(--text-muted)"><use href="icons.svg#icon-menu"/></svg></div>
       <div class="widget-editor-icon">${def.icon}</div>
       <span class="ios-row-label" style="flex:1">${def.label}</span>
       <label class="widget-editor-toggle">
@@ -6672,8 +6689,8 @@ async function _renderDashGear() {
     if (t.includes('shoe') || t.includes('run'))
       return `<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18h18v-3l-4-6H7l-4 6v3z"/><path d="M7 9V6a2 2 0 0 1 2-2h2"/></svg>`;
     if (t.includes('trainer') || t.includes('indoor'))
-      return `<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="10" rx="2"/><line x1="6" y1="12" x2="18" y2="12"/></svg>`;
-    return `<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="18" r="3"/><circle cx="19" cy="18" r="3"/><path d="M5 18h3l2-5 2-5h4l2 5 1 2.5"/></svg>`;
+      return `<svg class="icon" width="28" height="28"><use href="icons.svg#icon-dumbbell"/></svg>`;
+    return `<svg class="icon" width="28" height="28"><use href="icons.svg#icon-bike"/></svg>`;
   };
 
   // Add bike count badge to card (top-right corner)
@@ -6982,8 +6999,8 @@ const sportIcon = {
   virtual:  `<svg class="icon"><use href="icons.svg#icon-bike"/></svg>`,
   run:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="14" cy="4" r="2"/><path d="M8 21l2-6"/><path d="M10 15l-2-4 4-2 3 3 3 1"/><path d="M6 12l2-4"/></svg>`,
   swim:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="6" r="2"/><path d="M18 8v4l-4-1-3 3"/><path d="M2 18c1.5-1.5 3-2 4.5-2s3 .5 4.5 2 3 2 4.5 2 3-.5 4.5-2"/></svg>`,
-  walk:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4" r="2"/><path d="M14 10l-1 4-3 5"/><path d="M10 14l-2 7"/><path d="M10 10l2-2"/><path d="M14 10l2 1"/></svg>`,
-  hike:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4" r="2"/><path d="M14 10l-1 4-3 5"/><path d="M10 14l-2 7"/><path d="M10 10l2-2"/><path d="M14 10l2 1"/><path d="M19 5l-1 8-1-1" opacity="0.7"/></svg>`,
+  walk:     `<svg class="icon"><use href="icons.svg#icon-run"/></svg>`,
+  hike:     `<svg class="icon"><use href="icons.svg#icon-run"/></svg>`,
   strength: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 5v14"/><path d="M18 5v14"/><path d="M6 12h12"/><rect x="3" y="7" width="2" height="10" rx="1"/><rect x="19" y="7" width="2" height="10" rx="1"/></svg>`,
   yoga:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4" r="2"/><path d="M12 6v6"/><path d="M12 12l-5 5"/><path d="M12 12l5 5"/><path d="M8 8l-4 1"/><path d="M16 8l4 1"/></svg>`,
   row:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l3-3 4 1 4-5 4 2 3-3"/><path d="M2 20c3-1 7-1 10 0s7 1 10 0"/></svg>`,
@@ -8866,7 +8883,7 @@ const TODAY_SUGGESTIONS = [
 
 const _sgIcons = {
   rest:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 18a5 5 0 0 0-10 0"/><line x1="12" y1="9" x2="12" y2="2"/><line x1="4.22" y1="10.22" x2="5.64" y2="11.64"/><line x1="1" y1="18" x2="3" y2="18"/><line x1="21" y1="18" x2="23" y2="18"/><line x1="18.36" y1="11.64" x2="19.78" y2="10.22"/></svg>',
-  recovery: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>',
+  recovery: '<svg class="icon"><use href="icons.svg#icon-refresh-cw"/></svg>',
   easy:     '<svg class="icon"><use href="icons.svg#icon-clock"/></svg>',
   moderate: '<svg class="icon"><use href="icons.svg#icon-activity"/></svg>',
   quality:  '<svg class="icon"><use href="icons.svg#icon-bolt"/></svg>',
@@ -11565,7 +11582,7 @@ function renderPwrHero(ftp, weight, wkg, days) {
       color: 'var(--orange)',
     },
     {
-      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>`,
+      icon: `<svg class="icon"><use href="icons.svg#icon-award"/></svg>`,
       label: 'Category',
       value: cat ? cat.label : '—',
       unit:  '',
@@ -11966,7 +11983,7 @@ function renderPwrInsights(ftp, weight, wkg, days) {
     const next = pwrNextCategory(wkg);
     insights.push({
       color: cat.color,
-      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>`,
+      icon: `<svg class="icon"><use href="icons.svg#icon-award"/></svg>`,
       title: `You ride at ${cat.label} level`,
       body: next
         ? `At <strong>${wkg} w/kg</strong> you're in <strong>${cat.label}</strong> territory. Push your FTP to <strong>${Math.round((next.threshold * (weight || 70)))}w</strong> (${next.threshold} w/kg) to reach <strong>${next.label}</strong>.`
@@ -15957,7 +15974,7 @@ function showToast(msg, type = 'success', subtitle) {
   const ICONS = {
     success: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`,
     error:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg>`,
-    info:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>`,
+    info:    `<svg class="icon"><use href="icons.svg#icon-alert-circle"/></svg>`,
   };
   const t = document.createElement('div');
   t.className = 'toast ' + type;
@@ -17281,7 +17298,7 @@ function _upgradeSelect(sel) {
   valSpan.textContent = sel.options[sel.selectedIndex]?.text || '';
   trigger.appendChild(valSpan);
   trigger.insertAdjacentHTML('beforeend',
-    '<svg class="cs-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>');
+    '<svg class="icon cs-chevron" width="12" height="12"><use href="icons.svg#icon-chevron-down"/></svg>');
   wrap.appendChild(trigger);
 
   const dd = document.createElement('div');
@@ -18830,7 +18847,7 @@ async function navigateToActivity(actKey, fromStep = false) {
         if (_secEl) {
           _secEl.insertAdjacentHTML('beforeend', `<div class="act-sstat">
             <div class="act-sstat-top">
-              <div class="act-sstat-icon purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></div>
+              <div class="act-sstat-icon purple"><svg class="icon"><use href="icons.svg#icon-repeat"/></svg></div>
               <div class="act-sstat-lbl">L/R Bal</div>
             </div>
             <div class="act-sstat-val">${_lrLeft}/${_lrRight}%</div>
@@ -19169,7 +19186,7 @@ function _aciAppendGuide(page, info) {
   const lines = info.desc.split('\n').filter(l => l.trim());
   let html = `<div class="aci-streams-guide" style="margin-top:24px">
     <div class="aci-guide-header">
-      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <svg class="icon" width="18" height="18" style="stroke:var(--accent)"><use href="icons.svg#icon-info"/></svg>
       <span>How to Use This Data</span>
     </div>
     <div class="aci-guide-section"><div style="font-size:13px;color:var(--text-secondary);line-height:1.6">`;
@@ -19923,7 +19940,7 @@ function _injectActCardInfoBtns() {
     const btn = document.createElement('button');
     btn.className = 'act-card-info-btn';
     btn.title = 'More info';
-    btn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>';
+    btn.innerHTML = '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-info"/></svg>';
     btn.addEventListener('click', e => {
       e.stopPropagation();
       _openActCardInfo(card.id, info);
@@ -20113,7 +20130,7 @@ function _openActCardInfo(cardId, info) {
         Data
       </button>
       <button class="aci-view-btn" data-view="info" onclick="_aciSwitchView('info')">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <svg class="icon" width="16" height="16"><use href="icons.svg#icon-info"/></svg>
         Guide
       </button>
     </div>`;
@@ -20167,7 +20184,7 @@ function _openActCardInfo(cardId, info) {
   {
     ctrlHTML += `<div class="aci-section">
       <div class="aci-section-title">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+        <svg class="icon" width="14" height="14"><use href="icons.svg#icon-settings"/></svg>
         Tools
       </div>
       <div class="aci-tools-grid">
@@ -20180,7 +20197,7 @@ function _openActCardInfo(cardId, info) {
           Share
         </button>
         <button class="aci-tool-btn" onclick="_aciFullscreen('${cardId}')">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+          <svg class="icon" width="18" height="18"><use href="icons.svg#icon-maximize"/></svg>
           Fullscreen
         </button>
       </div>
@@ -20592,7 +20609,7 @@ function _renderStreamsBreakdown(container, streams, activity) {
       watts: `<svg class="icon" width="16" height="16" style="stroke:${m.color}"><use href="icons.svg#icon-bolt"/></svg>`,
       heartrate: `<svg class="icon" width="16" height="16" style="stroke:${m.color}"><use href="icons.svg#icon-heart"/></svg>`,
       cadence: `<svg class="icon" width="16" height="16" style="stroke:${m.color}"><use href="icons.svg#icon-clock"/></svg>`,
-      velocity_smooth: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="${m.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>`,
+      velocity_smooth: `<svg class="icon" width="16" height="16" style="stroke:${m.color}"><use href="icons.svg#icon-bolt"/></svg>`,
       altitude: `<svg class="icon" width="16" height="16" style="stroke:${m.color}"><use href="icons.svg#icon-mountain"/></svg>`,
     };
     html += `<div class="aci-stream-section">
@@ -20964,7 +20981,7 @@ function _onMapFullscreenExit(card) {
   setTimeout(() => card.classList.remove('map-fullscreen-exit'), 250);
   const btn = document.getElementById('mapExpandBtn');
   if (btn) {
-    btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>';
+    btn.innerHTML = '<svg class="icon" width="16" height="16"><use href="icons.svg#icon-maximize"/></svg>';
     btn.title = 'Expand map';
   }
   document.body.style.overflow = '';
@@ -22438,7 +22455,7 @@ function renderActivityBasic(a) {
 
   // ── Primary stats: up to 4 hero numbers ───────────────────────────────────
   const P_ICONS = {
-    km:         `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0"/><path d="M12 8v4l3 3"/></svg>`,
+    km:         `<svg class="icon"><use href="icons.svg#icon-clock"/></svg>`,
     duration:   `<svg class="icon"><use href="icons.svg#icon-clock"/></svg>`,
     power:      `<svg class="icon"><use href="icons.svg#icon-bolt"/></svg>`,
     bpm:        `<svg class="icon"><use href="icons.svg#icon-heart"/></svg>`,
@@ -23011,7 +23028,7 @@ async function renderDetailDynamics(a) {
     const badPct = Math.round((gps.filter(v => v > 10).length / gps.length) * 100);
     const gpsColor = avgGps <= 3 ? 'var(--accent)' : avgGps <= 6 ? C_YELLOW : 'var(--red)';
     rows += `<div class="detail-zone-summary-row">
-      <span><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="${gpsColor}" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>GPS Accuracy</span>
+      <span><svg class="icon" width="14" height="14" style="stroke:${gpsColor}"><use href="icons.svg#icon-target"/></svg>GPS Accuracy</span>
       <span style="font-family:var(--font-num);font-weight:600;color:${gpsColor}">${avgGps.toFixed(1)}m avg${badPct > 5 ? ` <span style="font-weight:400;color:var(--text-muted);font-size:12px">(${badPct}% poor)</span>` : ''}</span>
     </div>`;
   }
@@ -23158,7 +23175,7 @@ async function renderDetailDevices(a) {
 
   const batIcon = (pct) => {
     const color = pct == null ? 'var(--text-muted)' : pct > 50 ? 'var(--accent)' : pct > 25 ? C_YELLOW : pct > 10 ? C_ORANGE : 'var(--red)';
-    return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"><rect x="2" y="7" width="18" height="10" rx="2"/><line x1="22" y1="11" x2="22" y2="13"/></svg>`;
+    return `<svg class="icon" width="16" height="16" style="stroke:${color}"><use href="icons.svg#icon-battery"/></svg>`;
   };
 
   const rows = unique.map(r => {
@@ -23194,7 +23211,7 @@ async function renderDetailDevices(a) {
     <div class="card-header">
       <div style="display:flex;align-items:center;gap:8px">
         <div class="card-title" style="flex:1 1 0%">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="7" width="18" height="10" rx="2"/><line x1="22" y1="11" x2="22" y2="13"/></svg>
+          <svg class="icon" width="16" height="16"><use href="icons.svg#icon-battery"/></svg>
           Device Batteries
         </div>
       </div>
@@ -23312,7 +23329,7 @@ function renderDetailExport(a) {
   // Share route image
   buttons.push(`
     <button class="btn btn-ghost detail-export-btn" title="Generate a shareable route image" onclick="openShareModal('${actId}')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      <svg class="icon" width="2" height="18"><use href="icons.svg#icon-image"/></svg>
       <span>Share</span>
     </button>
   `);
@@ -23497,7 +23514,7 @@ function buildColoredSegments(points, streams, mode, maxes) {
 const MAP_ICONS = {
   power: `<svg class="icon"><use href="icons.svg#icon-bolt"/></svg>`,
   hr:    `<svg class="icon"><use href="icons.svg#icon-heart"/></svg>`,
-  cad:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`,
+  cad:   `<svg class="icon"><use href="icons.svg#icon-refresh-cw"/></svg>`,
   alt:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>`,
   grade: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="20" x2="21" y2="20"/><polyline points="3 20 13 8 17 13 21 4"/></svg>`,
   time:  `<svg class="icon"><use href="icons.svg#icon-clock"/></svg>`,
@@ -24341,7 +24358,7 @@ function renderActivityMap(latlng, streams) {
           mtWrap.className = 'map-toggle-wrap';
           const mtTrigger = document.createElement('button');
           mtTrigger.className = 'map-toggle-trigger';
-          mtTrigger.innerHTML = `<span class="map-mode-icon">${modes[0].icon}</span><span class="map-toggle-label">${modes[0].label}</span><svg class="map-toggle-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="10" height="10"><polyline points="6 9 12 15 18 9"/></svg>`;
+          mtTrigger.innerHTML = `<span class="map-mode-icon">${modes[0].icon}</span><span class="map-toggle-label">${modes[0].label}</span><svg class="icon map-toggle-chevron" width="2" height="10"><use href="icons.svg#icon-chevron-down"/></svg>`;
           const mtMenu = document.createElement('div');
           mtMenu.className = 'map-toggle-menu';
           modes.forEach(m => {
@@ -28441,7 +28458,7 @@ function _bkdShowPill(bikeName, bikeCount) {
   pill.className = 'bkd-sticky-pill';
   pill.id = 'bkdStickyPill';
   pill.onclick = _bkdToggleSwitcher;
-  pill.innerHTML = `<div class="bkd-pill-count">${bikeCount}</div><span class="bkd-sticky-name">${bikeName}</span><svg class="bkd-pill-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
+  pill.innerHTML = `<div class="bkd-pill-count">${bikeCount}</div><span class="bkd-sticky-name">${bikeName}</span><svg class="icon bkd-pill-chevron" width="14" height="14"><use href="icons.svg#icon-chevron-down"/></svg>`;
   document.body.appendChild(pill);
 
   const dd = document.createElement('div');
@@ -28834,7 +28851,7 @@ function openCompDetail(compId) {
         Edit
       </button>
       <button class="btn btn-ghost" style="flex:1;color:var(--red)" onclick="closeCompDetailSheet();deleteGearComponent('${c.id}')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        <svg class="icon" width="2" height="16"><use href="icons.svg#icon-trash"/></svg>
         Delete
       </button>
     </div>
@@ -30567,7 +30584,7 @@ function openBatDetailSheet(id) {
   const imgHtml = imgSrc
     ? `<div class="comp-detail-img"><img src="${imgSrc}" alt="${bat.name}" style="object-fit:contain"></div>`
     : `<div class="comp-detail-img" style="background:rgba(0,229,160,0.1);display:flex;align-items:center;justify-content:center">
-        <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" width="40" height="40"><rect x="2" y="7" width="18" height="10" rx="2"/><line x1="22" y1="11" x2="22" y2="13"/></svg>
+        <svg class="icon" width="40" height="40" style="stroke:var(--accent)"><use href="icons.svg#icon-battery"/></svg>
       </div>`;
 
   // Info
@@ -31170,7 +31187,7 @@ function _tireCard(c) {
     </div>
     ${hasPressure ? `<div class="tire-card-pressure">
       <div class="tire-card-psi">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 0 1 0 20 10 10 0 0 1 0-20z"/><path d="M12 6v6l4 2"/></svg>
+        <svg class="icon" width="14" height="14"><use href="icons.svg#icon-clock"/></svg>
         <span>F: <strong>${frontPsi}</strong></span>
         <span>R: <strong>${rearPsi}</strong></span>
         <span class="tire-card-psi-unit">psi</span>
@@ -31288,7 +31305,7 @@ function renderServicePage() {
           </div>
         `).join('') : `
           <div class="svc-empty">
-            <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.3;margin-bottom:8px"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+            <svg class="icon" width="40" height="40"><use href="icons.svg#icon-settings"/></svg>
             <div>No services tracked yet</div>
             <div style="font-size:13px;color:var(--text-faint);margin-top:4px">Add your first service below</div>
           </div>
@@ -31556,7 +31573,7 @@ function renderServiceShopList() {
     return;
   }
   const editSvg = `<svg class="icon" width="2" height="13"><use href="icons.svg#icon-edit"/></svg>`;
-  const delSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+  const delSvg = `<svg class="icon" width="2" height="13"><use href="icons.svg#icon-trash"/></svg>`;
   container.innerHTML = shops.map(s => {
     const phoneHref = s.phone ? s.phone.replace(/[\s\-()]/g, '') : '';
     return `
@@ -31647,7 +31664,7 @@ function renderServiceHistoryList(bikeId) {
 
   const totalCost = all.reduce((sum, s) => sum + (s.cost || 0), 0);
   const editSvg = `<svg class="icon" width="2" height="13"><use href="icons.svg#icon-edit"/></svg>`;
-  const delSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+  const delSvg = `<svg class="icon" width="2" height="13"><use href="icons.svg#icon-trash"/></svg>`;
 
   const summaryHtml = `
     <div class="service-history-summary">
@@ -31850,7 +31867,7 @@ function _renderGuideInto(wrap) {
     </div>` : `
     <div class="card guide-intro-card">
       <div class="guide-intro-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        <svg class="icon"><use href="icons.svg#icon-alert-circle"/></svg>
       </div>
       <div>
         <div class="guide-intro-title">Training Load Explained</div>
@@ -32918,9 +32935,7 @@ function renderGoalsPage() {
   if (!goals.length) {
     container.innerHTML = sectionDivider + `
       <div class="goals-empty">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48">
-          <circle cx="12" cy="12" r="10"/><path d="M12 8v4l2 2"/>
-        </svg>
+        <svg class="icon" width="48" height="48"><use href="icons.svg#icon-clock"/></svg>
         <h3>No goals set yet</h3>
         <p>Set training targets to track your progress over time.</p>
         <button class="btn btn-primary" onclick="showGoalForm()">Create Your First Goal</button>
@@ -32949,9 +32964,7 @@ function renderGoalsPage() {
       <div class="goal-card-header">
         <div class="goal-card-metric">
           <div class="goal-metric-icon ${m.icon}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-              <circle cx="12" cy="12" r="10"/><path d="M12 8v4l2 2"/>
-            </svg>
+            <svg class="icon" width="2" height="16"><use href="icons.svg#icon-clock"/></svg>
           </div>
           <div>
             <div class="goal-card-title">${m.label}</div>
@@ -32960,7 +32973,7 @@ function renderGoalsPage() {
         </div>
         <div class="goal-card-actions">
           <button class="btn btn-ghost btn-xs" onclick="showGoalForm(${goal.id})" title="Edit">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            <svg class="icon" width="2" height="14"><use href="icons.svg#icon-edit"/></svg>
           </button>
           <button class="btn btn-ghost btn-xs" onclick="deleteGoal(${goal.id})" title="Delete">
             <svg class="icon" width="2" height="14"><use href="icons.svg#icon-x"/></svg>
@@ -35265,7 +35278,7 @@ function _mrBuildSuggestions() {
 const _SGN_INTENSITY = {
   recovery: { color: '#4a9eff', icon: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>', label: 'Recovery' },
   easy:     { color: '#00e5a0', icon: '<svg class="icon" width="16" height="16"><use href="icons.svg#icon-activity"/></svg>', label: 'Easy' },
-  moderate: { color: '#ffcc00', icon: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>', label: 'Moderate' },
+  moderate: { color: '#ffcc00', icon: '<svg class="icon" width="16" height="16"><use href="icons.svg#icon-bolt"/></svg>', label: 'Moderate' },
   hard:     { color: '#ff6b35', icon: '<svg class="icon" width="16" height="16"><use href="icons.svg#icon-flame"/></svg>', label: 'High Intensity' },
 };
 
@@ -35609,7 +35622,7 @@ function _gsRunSearch(q) {
       routes.forEach(r => {
         const dist = r.distance ? (r.distance / 1000).toFixed(1) + ' km' : '';
         html += `<div class="gs-item" onclick="closeGlobalSearch();navigate('myroutes')">
-          <div class="gs-item-icon" style="color:#5ac8fa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 1 7 7c0 5.25-7 13-7 13S5 14.25 5 9a7 7 0 0 1 7-7z"/><circle cx="12" cy="9" r="2.5"/></svg></div>
+          <div class="gs-item-icon" style="color:#5ac8fa"><svg class="icon"><use href="icons.svg#icon-map-pin"/></svg></div>
           <div class="gs-item-body">
             <div class="gs-item-title">${_escHtml(r.name || 'Untitled Route')}</div>
             <div class="gs-item-sub">${dist || 'Saved route'}</div>
