@@ -1022,6 +1022,11 @@ code {
     color: var(--accent);
     font-weight: 600;
 }
+.gear-picker-option .icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
 /* Picker option with image */
 .gp-opt-icon {
     width: 44px;
@@ -7294,8 +7299,10 @@ input[type="number"] {
 .toast-container {
     position: fixed;
     top: calc(env(safe-area-inset-top, 0px) + 8px);
-    left: 12px;
-    right: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 24px);
+    max-width: 420px;
     z-index: 600;
     display: flex;
     flex-direction: column;
@@ -11167,18 +11174,6 @@ body.show-save-fab #actSaveRouteFab {
     padding-right: var(--pad-page);
 }
 /* Zones carousel wrapper — match other cards */
-.act-sheet-scroll > .detail-zones-carousel-card {
-    margin-left: calc(-1 * var(--pad-page));
-    margin-right: calc(-1 * var(--pad-page));
-    padding-left: 0;
-    padding-right: 0;
-}
-.act-sheet-scroll > .detail-zones-carousel-card .card {
-    background: transparent;
-    margin: 0;
-    padding-left: var(--pad-page);
-    padding-right: var(--pad-page);
-}
 /* Info button on activity cards */
 .act-sheet-scroll .card {
     position: relative;
@@ -12773,32 +12768,7 @@ body:has(.act-sheet-mode) .topbar {
 }
 
 /* Power curve + HR curve — stacked on mobile, side by side on desktop */
-.detail-curves-row {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    margin-left: calc(-1 * var(--pad-page));
-    margin-right: calc(-1 * var(--pad-page));
-}
-.detail-curves-row > .card[style*="display:none"],
-.detail-curves-row > .card[style*="display: none"] {
-    display: none !important;
-}
-/* If only one card is visible, let it span full width */
-.detail-curves-row:has(> .card:only-child),
-.detail-curves-row:has(> .card[style*="display:none"]:first-child),
-.detail-curves-row:has(> .card[style*="display:none"]:last-child) {
-    grid-template-columns: 1fr;
-}
-@media (min-width: 701px) {
-    .detail-curves-row {
-        flex-direction: row;
-    }
-    .detail-curves-row > .card {
-        flex: 1;
-        min-width: 0;
-    }
-}
+/* detail-curves-row removed — power/HR curve cards are now standalone */
 
 /* ── Activity detail: performance analysis metrics grid ──────────── */
 .perf-metrics-grid {
@@ -12925,45 +12895,7 @@ body:has(.act-sheet-mode) .topbar {
 }
 
 /* ── Activity detail: zones side-by-side row ──────────────────────── */
-.detail-zones-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-}
-.detail-zones-row--single {
-    grid-template-columns: 1fr;
-}
-@media (max-width: 900px) {
-    .detail-zones-row:not(.detail-zones-row--single) {
-        grid-template-columns: 1fr;
-    }
-}
-/* Zones carousel pagination dots */
-.zones-carousel-dots {
-    display: none;
-}
-@media (max-width: 900px) {
-    .zones-carousel-dots {
-        display: flex;
-        justify-content: center;
-        gap: 6px;
-        padding-top: 10px;
-    }
-    .zones-carousel-dot {
-        width: 7px;
-        height: 7px;
-        border-radius: 50%;
-        background: var(--border);
-        border: none;
-        padding: 0;
-        cursor: pointer;
-        transition: background 0.2s, transform 0.2s;
-    }
-    .zones-carousel-dot.active {
-        background: var(--accent);
-        transform: scale(1.25);
-    }
-}
+/* detail-zones-row/carousel removed — zone cards are now standalone */
 
 /* ── Activity detail: power zone table ────────────────────────────── */
 .detail-zone-row {

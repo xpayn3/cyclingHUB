@@ -2063,50 +2063,28 @@
 
 
                     <!-- Power zones + HR zones side by side / swipe carousel on mobile -->
-                    <div class="detail-zones-carousel-card" id="detailZonesCarouselCard" style="display:none">
-                        <div class="detail-zones-row" id="detailZonesRow">
-                            <div
-                                class="card"
-                                id="detailZonesCard"
-                                style="display: none"
-                            >
-                                <div class="card-header">
-                                    <div>
-                                        <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-bolt"/></svg>Power Zones</div>
-                                        <div
-                                            class="card-subtitle"
-                                            id="detailZonesSubtitle"
-                                        ></div>
-                                    </div>
-                                    <span
-                                        class="zone-total-badge"
-                                        id="detailZonesTotalBadge"
-                                    ></span>
-                                </div>
-                                <div id="detailZoneList"></div>
+                    <!-- Power Zones (standalone card) -->
+                    <div class="card" id="detailZonesCard" style="display: none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-bolt"/></svg>Power Zones</div>
+                                <div class="card-subtitle" id="detailZonesSubtitle"></div>
                             </div>
-
-                            <div
-                                class="card"
-                                id="detailHRZonesCard"
-                                style="display: none"
-                            >
-                                <div class="card-header">
-                                    <div>
-                                        <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-heart"/></svg>HR Zones</div>
-                                        <div
-                                            class="card-subtitle"
-                                            id="detailHRZonesSubtitle"
-                                        ></div>
-                                    </div>
-                                    <span
-                                        class="zone-total-badge"
-                                        id="detailHRZonesTotalBadge"
-                                    ></span>
-                                </div>
-                                <div id="detailHRZoneList"></div>
-                            </div>
+                            <span class="zone-total-badge" id="detailZonesTotalBadge"></span>
                         </div>
+                        <div id="detailZoneList"></div>
+                    </div>
+
+                    <!-- HR Zones (standalone card) -->
+                    <div class="card" id="detailHRZonesCard" style="display: none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-heart"/></svg>HR Zones</div>
+                                <div class="card-subtitle" id="detailHRZonesSubtitle"></div>
+                            </div>
+                            <span class="zone-total-badge" id="detailHRZonesTotalBadge"></span>
+                        </div>
+                        <div id="detailHRZoneList"></div>
                     </div>
 
                     <!-- Lap Splits -->
@@ -2142,67 +2120,35 @@
                     </div>
 
                     <!-- Ride power curve + HR curve — side by side on desktop -->
-                    <div class="detail-curves-row" id="detailCurvesRow">
-                        <div
-                            class="card"
-                            id="detailCurveCard"
-                            style="display: none"
-                        >
-                            <div class="card-header">
-                                <div>
-                                    <div class="card-title">
-                                        Ride Power Curve
-                                    </div>
-                                    <div
-                                        class="card-subtitle"
-                                        id="detailCurveSubtitle"
-                                        style="display:none"
-                                    >
-                                        Best efforts this ride
-                                    </div>
-                                </div>
-                                <div
-                                    class="curve-legend"
-                                    id="detailCurveLegend"
-                                    style="display:none"
-                                ></div>
+                    <!-- Power Curve (standalone card) -->
+                    <div class="card" id="detailCurveCard" style="display: none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">Ride Power Curve</div>
+                                <div class="card-subtitle" id="detailCurveSubtitle" style="display:none">Best efforts this ride</div>
                             </div>
-                            <div
-                                class="curve-peaks"
-                                id="detailCurvePeaks"
-                            ></div>
-                            <div class="chart-wrap" style="height: 220px">
-                                <canvas id="activityCurveChart"></canvas>
-                            </div>
+                            <div class="curve-legend" id="detailCurveLegend" style="display:none"></div>
                         </div>
+                        <div class="curve-peaks" id="detailCurvePeaks"></div>
+                        <div class="chart-wrap" style="height: 220px">
+                            <canvas id="activityCurveChart"></canvas>
+                        </div>
+                    </div>
 
-                        <div
-                            class="card"
-                            id="detailHRCurveCard"
-                            style="display: none"
-                        >
-                            <div class="card-header">
-                                <div>
-                                    <div class="card-title" style="color:#f87171"><svg class="icon" width="16" height="16" style="stroke:#f87171"><use href="icons.svg#icon-heart"/></svg>
-                                        Heart Rate Curve
-                                    </div>
-                                    <div class="card-subtitle" style="display:none">
-                                        Best avg HR over duration · this ride
-                                    </div>
+                    <!-- HR Curve (standalone card) -->
+                    <div class="card" id="detailHRCurveCard" style="display: none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title" style="color:#f87171"><svg class="icon" width="16" height="16" style="stroke:#f87171"><use href="icons.svg#icon-heart"/></svg>
+                                    Heart Rate Curve
                                 </div>
-                                <div
-                                    class="curve-legend"
-                                    id="detailHRCurveLegend"
-                                    style="display:none"
-                                ></div>
+                                <div class="card-subtitle" style="display:none">Best avg HR over duration · this ride</div>
                             </div>
-                            <div
-                                class="curve-peaks"
-                                id="detailHRCurvePeaks"
-                            ></div>
-                            <div class="chart-wrap" style="height: 220px">
-                                <canvas id="activityHRCurveChart"></canvas>
-                            </div>
+                            <div class="curve-legend" id="detailHRCurveLegend" style="display:none"></div>
+                        </div>
+                        <div class="curve-peaks" id="detailHRCurvePeaks"></div>
+                        <div class="chart-wrap" style="height: 220px">
+                            <canvas id="activityHRCurveChart"></canvas>
                         </div>
                     </div>
 
@@ -2401,7 +2347,16 @@
                     <!-- Gear Shifts from FIT -->
                     <div class="card" id="detailGearShiftsCard" style="display:none"></div>
 
+                    <!-- GPS Accuracy from FIT -->
+                    <div class="card" id="detailGpsCard" style="display:none"></div>
+
+                    <!-- Respiration Rate from FIT -->
+                    <div class="card" id="detailRespCard" style="display:none"></div>
+
                     <!-- Device battery levels from FIT -->
+                    <!-- HRV Analysis from FIT -->
+                    <div class="card" id="detailHrvCard" style="display:none"></div>
+
                     <div class="card" id="detailDevicesCard" style="display:none"></div>
 
                     <!-- Export options -->
@@ -3965,6 +3920,9 @@
 
                     <!-- Quick stats (all bikes) -->
                     <div class="gar-stats" id="garStats"></div>
+
+                    <!-- Accessories (non-bike devices) -->
+                    <div id="garAccessories"></div>
 
                     <!-- Service History link -->
                     <div class="gar-service-link" onclick="navigate('service')" style="margin:16px var(--pad-page);padding:14px 16px;background:var(--bg-card);border-radius:var(--radius);display:flex;align-items:center;gap:12px;cursor:pointer">

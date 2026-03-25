@@ -570,14 +570,9 @@ function _cleanupPageDOM(leavingPage) {
 
   // Activity detail — remove canvases and dynamic generated content, keep card shells
   if (leavingPage === 'activity') {
-    // Remove all Chart.js canvases
-    document.querySelectorAll('#page-activity canvas').forEach(c => c.remove());
-    // Remove dynamically generated summaries, zone rows, chart wraps
-    document.querySelectorAll('#page-activity .detail-zone-summary').forEach(el => el.innerHTML = '');
-    document.querySelectorAll('#page-activity .act-ivl-chart-wrap').forEach(el => el.innerHTML = '');
-    document.querySelectorAll('#page-activity .act-ivl-legend').forEach(el => el.innerHTML = '');
+    // Charts are already destroyed by cleanupPageCharts() — don't double-destroy
     // Strip only fully-dynamic containers (content rebuilt from scratch each time)
-    ['detailIntervalsBody', 'detailDynamicsCard', 'detailGearShiftsCard', 'detailDevicesCard'].forEach(id => {
+    ['detailIntervalsBody', 'detailDynamicsCard', 'detailGearShiftsCard', 'detailGpsCard', 'detailRespCard', 'detailHrvCard', 'detailDevicesCard'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.innerHTML = '';
     });
@@ -602,9 +597,8 @@ function _cleanupPageDOM(leavingPage) {
 
   // Fitness page — strip dynamic chart bodies, keep card shells
   if (leavingPage === 'fitness') {
-    // Remove all canvases
-    document.querySelectorAll('#page-fitness canvas').forEach(c => c.remove());
-    // Strip heavy dynamic content
+    // Charts destroyed by cleanupPageCharts() — don't remove canvases
+    // Strip heavy dynamic content only
     ['fitWhatIfCard', 'fitAcclimCard', 'fitFatigueCard', 'fitInjuryRiskCard',
      'fitRecoveryCard', 'fitRacePredCard', 'fitWeekTargetCard',
      'fitWellnessPillsRow', 'guidePageContentInline'
@@ -614,9 +608,9 @@ function _cleanupPageDOM(leavingPage) {
     });
   }
 
-  // Power page — chart canvases + dynamic content
+  // Power page — charts destroyed by cleanupPageCharts()
   if (leavingPage === 'power') {
-    document.querySelectorAll('#page-power canvas').forEach(c => c.remove());
+    // Don't remove canvases — they're needed for re-render
   }
 
   // Calendar page — day cells and event cards
@@ -634,7 +628,7 @@ function _cleanupPageDOM(leavingPage) {
 
   // Gear page — carousel, stats (rebuilt on navigate)
   if (leavingPage === 'gear') {
-    ['garCarouselScroll', 'garStats', 'garAlerts'].forEach(id => {
+    ['garCarouselScroll', 'garStats', 'garAlerts', 'garAccessories'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.innerHTML = '';
     });
@@ -19070,8 +19064,8 @@ async function navigateToActivity(actKey, fromStep = false) {
     render3DElevation(normStreams, richActivity);
     renderClimbDetection(normStreams, richActivity);
     renderDetailCadenceHist(normStreams, richActivity);
-    renderDetailCurve(actId, normStreams);   // async — shows/hides its own card
-    renderDetailHRCurve(normStreams);        // async — shows/hides its own card
+    renderDetailCurve(actId, normStreams).catch(() => unskeletonCard('detailCurveCard'));
+    renderDetailHRCurve(normStreams).catch(() => unskeletonCard('detailHRCurveCard'));
     _renderDetailPwrHR(normStreams, richActivity);
     _renderDetailNPTimeline(normStreams, richActivity);
     _renderDetailSpeedGrade(normStreams, richActivity);
@@ -21578,7 +21572,7 @@ const _DETAIL_CARD_IDS = [
   'detailHistogramCard', 'detailCurveCard', 'detailHRCurveCard', 'detailPerfCard',
   'detailWeatherCard', 'detailTempCard', 'detailDecoupleCard', 'detailLRBalanceCard',
   'detailGradientCard', 'detailClimbsCard', 'detailCadenceCard', 'detailCompareCard',
-  'detailZonesCarouselCard', 'detailCurvesRow', 'detailIntervalsCard', 'detailLapSplitsCard', 'detailNotesCard'];
+  'detailZonesCard', 'detailHRZonesCard', 'detailCurveCard', 'detailHRCurveCard', 'detailIntervalsCard', 'detailLapSplitsCard', 'detailNotesCard'];
 
 function skeletonCards(show) {
   _DETAIL_CARD_IDS.forEach(id => {
@@ -21615,6 +21609,7 @@ function destroyChartInstances() {
   window._tempChart = destroyChart(window._tempChart);
   state._detailDecoupleChart = destroyChart(state._detailDecoupleChart);
   state._detailLRBalChart = destroyChart(state._detailLRBalChart);
+  state._actHrvChart = destroyChart(state._actHrvChart);
   // Clear NA overlays so they don't double-up
   _DETAIL_CARD_IDS.forEach(id => {
     const el = document.getElementById(id);
@@ -22798,9 +22793,11 @@ function renderActivityBasic(a) {
   // ── Render the "How You Compare" card ────────────────────────────────────
   renderDetailComparison(a);
 
-  // ── FIT file data: dynamics, gear shifts, batteries (cached in IndexedDB) ──
+  // ── FIT file data: dynamics, gear shifts, GPS, respiration, batteries (cached in IndexedDB) ──
   renderDetailDynamics(a).catch(() => {});
   renderDetailGearShifts(a).catch(() => {});
+  // GPS quality card removed — device doesn't record field 31
+  renderDetailRespiration(a).catch(() => {});
   renderDetailDevices(a).catch(() => {});
 
   // ── Data source / device footer ───────────────────────────────────────────
@@ -23053,7 +23050,7 @@ async function renderDetailDynamics(a) {
 
   // Get FIT data — cached in IndexedDB after first download
   let fitData;
-  try { fitData = await _fetchParsedFIT(actId); } catch { return; }
+  try { fitData = await _fetchParsedFIT(actId); } catch (e) { console.warn('[FIT] Dynamics fetch failed:', e.message); return; }
   if (!fitData) return;
   const d = fitData.dynamics;
   const hasTemp = fitData.temperature && fitData.temperature.length > 0;
@@ -23262,8 +23259,9 @@ async function renderDetailGearShifts(a) {
   if (!actId) return;
 
   let fitData;
-  try { fitData = await _fetchParsedFIT(actId); } catch { return; }
-  if (!fitData || !fitData.gearChanges || !fitData.gearChanges.length) return;
+  try { fitData = await _fetchParsedFIT(actId); } catch (e) { console.warn('[FIT] Gear shifts fetch failed:', e.message); return; }
+  if (!fitData) { console.warn('[FIT] No FIT data for gear shifts'); return; }
+  if (!fitData.gearChanges || !fitData.gearChanges.length) { el.style.display = 'none'; return; }
 
   const shifts = fitData.gearChanges;
   const totalShifts = shifts.length;
@@ -23334,6 +23332,419 @@ async function renderDetailGearShifts(a) {
   el.style.display = '';
 }
 
+// ── GPS Accuracy from FIT file ──
+async function renderDetailGpsAccuracy(a) {
+  const el = document.getElementById('detailGpsCard');
+  if (!el) return;
+  el.style.display = 'none';
+  el.innerHTML = '';
+
+  // Try FIT field 31 first, then compute from latlng+speed streams
+  let gps = null;
+
+  // 1. Check FIT data
+  try {
+    const fitData = await _fetchParsedFIT(a.id);
+    if (fitData?.gpsAccuracy?.length > 10) gps = fitData.gpsAccuracy;
+  } catch (_) {}
+
+  // 2. Compute from streams if FIT doesn't have it
+  if (!gps) {
+    // Wait a bit for streams to load (they're fetched async by the activity renderer)
+    let streams = state.normStreams;
+    if (!streams) {
+      await new Promise(r => setTimeout(r, 3000));
+      streams = state.normStreams;
+    }
+    if (!streams) return;
+
+    // Build latlng array from lat/lng streams
+    const latArr = streams.lat || streams.latlng;
+    const lngArr = streams.lng;
+    let latlng;
+    if (latArr && lngArr && !Array.isArray(latArr[0])) {
+      latlng = latArr.map((lat, i) => [lat, lngArr[i]]);
+    } else if (latArr && Array.isArray(latArr[0])) {
+      latlng = latArr;
+    }
+    const speed = streams.velocity_smooth || streams.speed;
+    const time = streams.time;
+    if (!latlng || !speed || !time || latlng.length < 20) return;
+
+    // Haversine distance between consecutive GPS points
+    const toRad = d => d * Math.PI / 180;
+    const haversine = (lat1, lon1, lat2, lon2) => {
+      const R = 6371000;
+      const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+      const a2 = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+      return R * 2 * Math.atan2(Math.sqrt(a2), Math.sqrt(1 - a2));
+    };
+
+    gps = [];
+    for (let i = 1; i < latlng.length; i++) {
+      const dt = (time[i] - time[i-1]) || 1;
+      if (dt <= 0 || dt > 10) continue; // skip gaps
+      const [lat1, lon1] = latlng[i-1];
+      const [lat2, lon2] = latlng[i];
+      if (!lat1 || !lon1 || !lat2 || !lon2) continue;
+      const gpsDist = haversine(lat1, lon1, lat2, lon2);
+      const expectedDist = (speed[i] || 0) * dt;
+      const error = Math.abs(gpsDist - expectedDist);
+      // Clamp to reasonable range (0-50m)
+      gps.push(Math.min(50, error));
+    }
+    if (gps.length < 10) return;
+  }
+
+  if (!gps || gps.length < 10) return;
+  const avgGps = gps.reduce((s, v) => s + v, 0) / gps.length;
+  const maxGps = Math.max(...gps);
+  const minGps = Math.min(...gps);
+  const badCount = gps.filter(v => v > 10).length;
+  const badPct = Math.round((badCount / gps.length) * 100);
+  const goodPct = Math.round((gps.filter(v => v <= 3).length / gps.length) * 100);
+  const okPct = 100 - goodPct - badPct;
+
+  const overallColor = avgGps <= 3 ? 'var(--accent)' : avgGps <= 6 ? C_YELLOW : 'var(--red)';
+  const overallLabel = avgGps <= 3 ? 'Excellent' : avgGps <= 6 ? 'Good' : avgGps <= 10 ? 'Fair' : 'Poor';
+
+  // Build a mini histogram (buckets: 0-2m, 2-5m, 5-10m, 10-20m, 20m+)
+  const buckets = [
+    { label: '0-2m', max: 2, color: 'var(--accent)', count: 0 },
+    { label: '2-5m', max: 5, color: '#4a9eff', count: 0 },
+    { label: '5-10m', max: 10, color: C_YELLOW, count: 0 },
+    { label: '10-20m', max: 20, color: C_ORANGE, count: 0 },
+    { label: '20m+', max: Infinity, color: 'var(--red)', count: 0 },
+  ];
+  for (const v of gps) {
+    const b = buckets.find(b => v <= b.max);
+    if (b) b.count++;
+  }
+  const maxCount = Math.max(...buckets.map(b => b.count)) || 1;
+
+  const barRows = buckets.map(b => {
+    const pct = Math.round((b.count / gps.length) * 100);
+    const barW = Math.round((b.count / maxCount) * 100);
+    return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0">
+      <span style="font-family:var(--font-num);font-size:12px;color:var(--text-muted);min-width:40px">${b.label}</span>
+      <div style="flex:1;height:6px;background:var(--surface-1);border-radius:3px;overflow:hidden">
+        <div style="width:${barW}%;height:100%;background:${b.color};border-radius:3px"></div>
+      </div>
+      <span style="font-family:var(--font-num);font-size:12px;color:var(--text-muted);min-width:32px;text-align:right">${pct}%</span>
+    </div>`;
+  }).join('');
+
+  // Quality pills
+  const pills = `
+    <div style="display:flex;gap:8px;padding:8px 0">
+      <div style="flex:1;text-align:center;padding:8px;background:var(--surface-1);border-radius:var(--radius-sm)">
+        <div style="font-family:var(--font-num);font-size:20px;font-weight:700;color:${overallColor}">${avgGps.toFixed(1)}m</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Avg Accuracy</div>
+      </div>
+      <div style="flex:1;text-align:center;padding:8px;background:var(--surface-1);border-radius:var(--radius-sm)">
+        <div style="font-family:var(--font-num);font-size:20px;font-weight:700;color:var(--accent)">${goodPct}%</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Excellent (&lt;3m)</div>
+      </div>
+      <div style="flex:1;text-align:center;padding:8px;background:var(--surface-1);border-radius:var(--radius-sm)">
+        <div style="font-family:var(--font-num);font-size:20px;font-weight:700;color:${badPct > 10 ? 'var(--red)' : 'var(--text-muted)'}">${badPct}%</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Poor (&gt;10m)</div>
+      </div>
+    </div>
+  `;
+
+  el.innerHTML = `
+    <div class="card-header">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="card-title" style="flex:1 1 0%">
+          <svg class="icon" width="16" height="16"><use href="icons.svg#icon-target"/></svg>
+          GPS Quality
+        </div>
+        <span style="font-size:13px;font-weight:600;color:${overallColor};font-family:var(--font-num)">${overallLabel}</span>
+      </div>
+    </div>
+    ${pills}
+    <div style="padding:4px 0 8px">
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em">Accuracy Distribution</div>
+      ${barRows}
+    </div>
+    <div class="detail-zone-summary">
+      <div class="detail-zone-summary-row">
+        <span>Best</span>
+        <span class="detail-zone-summary-val">${minGps.toFixed(1)}m</span>
+      </div>
+      <div class="detail-zone-summary-row">
+        <span>Worst</span>
+        <span class="detail-zone-summary-val">${maxGps.toFixed(1)}m</span>
+      </div>
+      <div class="detail-zone-summary-row">
+        <span>Samples</span>
+        <span class="detail-zone-summary-val">${gps.length.toLocaleString()}</span>
+      </div>
+    </div>
+  `;
+  el.style.display = '';
+}
+
+// ── Respiration Rate from FIT file ──
+async function renderDetailRespiration(a) {
+  const el = document.getElementById('detailRespCard');
+  if (!el) return;
+  el.style.display = 'none';
+  el.innerHTML = '';
+
+  const actId = a.id;
+  if (!actId) return;
+
+  let fitData;
+  try { fitData = await _fetchParsedFIT(actId); } catch (e) { return; }
+  if (!fitData || !fitData.respiration || fitData.respiration.length < 10) return;
+
+  const resps = fitData.respiration.filter(v => v > 0 && v < 80); // filter invalid values
+  if (resps.length < 10) return;
+
+  const avgR = resps.reduce((s, v) => s + v, 0) / resps.length;
+  const maxR = Math.max(...resps);
+  const minR = Math.min(...resps.filter(v => v > 5)); // ignore very low
+
+  // Create chart
+  const canvasId = 'respChart_' + Date.now();
+
+  // Downsample for chart if too many points
+  let chartData = resps;
+  if (chartData.length > 500) {
+    const step = Math.ceil(chartData.length / 500);
+    chartData = chartData.filter((_, i) => i % step === 0);
+  }
+
+  const labels = chartData.map((_, i) => {
+    const totalMins = (i / chartData.length) * (a.moving_time || a.elapsed_time || 3600);
+    const mins = Math.round(totalMins / 60);
+    return mins;
+  });
+
+  // Breathing zones
+  const zoneColor = (v) => v < 20 ? 'var(--accent)' : v < 30 ? '#4a9eff' : v < 40 ? C_YELLOW : C_ORANGE;
+
+  el.innerHTML = `
+    <div class="card-header">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="card-title" style="flex:1 1 0%">
+          <svg class="icon" width="16" height="16"><use href="icons.svg#icon-wind"/></svg>
+          Respiration Rate
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;padding:4px 0 12px">
+      <div style="flex:1;text-align:center;padding:8px;background:var(--surface-1);border-radius:var(--radius-sm)">
+        <div style="font-family:var(--font-num);font-size:20px;font-weight:700;color:#4a9eff">${avgR.toFixed(0)}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Avg br/min</div>
+      </div>
+      <div style="flex:1;text-align:center;padding:8px;background:var(--surface-1);border-radius:var(--radius-sm)">
+        <div style="font-family:var(--font-num);font-size:20px;font-weight:700;color:var(--accent)">${minR.toFixed(0)}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Min br/min</div>
+      </div>
+      <div style="flex:1;text-align:center;padding:8px;background:var(--surface-1);border-radius:var(--radius-sm)">
+        <div style="font-family:var(--font-num);font-size:20px;font-weight:700;color:${C_ORANGE}">${maxR.toFixed(0)}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Max br/min</div>
+      </div>
+    </div>
+    <div style="height:160px;margin-bottom:8px">
+      <canvas id="${canvasId}" style="width:100%;height:160px"></canvas>
+    </div>
+  `;
+  el.style.display = '';
+
+  // Render chart
+  requestAnimationFrame(() => {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          data: chartData,
+          borderColor: '#4a9eff',
+          backgroundColor: 'rgba(74, 158, 255, 0.08)',
+          fill: true,
+          borderWidth: 1.5,
+          pointRadius: 0,
+          tension: 0.3,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false }, ...C_TOOLTIP },
+        scales: {
+          x: {
+            ticks: { color: C_TICK, font: { size: 10 }, maxTicksLimit: 6,
+              callback: v => labels[v] != null ? labels[v] + 'm' : '' },
+            grid: { color: C_GRID },
+            border: { display: false },
+          },
+          y: {
+            ticks: { color: C_TICK, font: { size: 10 }, maxTicksLimit: 5,
+              callback: (v, i) => i === 0 ? 'br/min' : Math.round(v) },
+            grid: { color: C_GRID },
+            border: { display: false },
+          }
+        },
+        interaction: { mode: 'index', intersect: false },
+      }
+    });
+  });
+}
+
+// ── HRV Analysis from FIT file ──
+async function renderDetailHRV(a) {
+  const el = document.getElementById('detailHrvCard');
+  if (!el) return;
+  el.style.display = 'none';
+  el.innerHTML = '';
+
+  let fitData;
+  try { fitData = await _fetchParsedFIT(a.id); } catch (e) { console.warn('[HRV] fetch failed:', e); return; }
+  if (!fitData || !fitData.hrv || fitData.hrv.length < 30) return;
+
+  const rr = fitData.hrv;
+
+  // Compute HRV metrics
+  // rMSSD — root mean square of successive differences (gold standard short-term HRV)
+  let sumSqDiff = 0, diffCount = 0;
+  for (let i = 1; i < rr.length; i++) {
+    const diff = rr[i] - rr[i - 1];
+    sumSqDiff += diff * diff;
+    diffCount++;
+  }
+  const rmssd = Math.sqrt(sumSqDiff / (diffCount || 1));
+
+  // SDNN — standard deviation of all R-R intervals
+  const meanRR = rr.reduce((s, v) => s + v, 0) / rr.length;
+  const sdnn = Math.sqrt(rr.reduce((s, v) => s + (v - meanRR) ** 2, 0) / rr.length);
+
+  // Average HR from R-R
+  const avgHR = Math.round(60000 / meanRR);
+
+  // pNN50 — percentage of successive differences > 50ms
+  let nn50 = 0;
+  for (let i = 1; i < rr.length; i++) {
+    if (Math.abs(rr[i] - rr[i - 1]) > 50) nn50++;
+  }
+  const pnn50 = Math.round((nn50 / (diffCount || 1)) * 100);
+
+  // HRV trend over ride (compute rMSSD in 5-minute windows)
+  const windowSize = 300; // ~5 minutes of beats at ~60bpm
+  const trendRMSSD = [];
+  for (let start = 0; start < rr.length - windowSize; start += Math.floor(windowSize / 2)) {
+    const w = rr.slice(start, start + windowSize);
+    let wSum = 0, wN = 0;
+    for (let i = 1; i < w.length; i++) { wSum += (w[i] - w[i - 1]) ** 2; wN++; }
+    trendRMSSD.push(Math.sqrt(wSum / (wN || 1)));
+  }
+
+  // Quality assessment
+  const hrvColor = rmssd > 50 ? 'var(--accent)' : rmssd > 30 ? '#4a9eff' : rmssd > 15 ? C_YELLOW : 'var(--red)';
+  const hrvLabel = rmssd > 50 ? 'Excellent' : rmssd > 30 ? 'Good' : rmssd > 15 ? 'Fair' : 'Low';
+
+  // Static canvas ID — chart stored in state for proper cleanup
+  const canvasId = 'activityHrvChart';
+
+  // Downsample trend for chart labels
+  const labels = trendRMSSD.map((_, i) => {
+    const mins = Math.round((i * windowSize / 2) / (60000 / meanRR) / 60);
+    return mins;
+  });
+
+  el.innerHTML = `
+    <div class="card-header">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="card-title" style="flex:1 1 0%">
+          <svg class="icon" width="16" height="16"><use href="icons.svg#icon-heart"/></svg>
+          HRV Analysis
+        </div>
+        <span style="font-size:13px;font-weight:600;color:${hrvColor};font-family:var(--font-num)">${hrvLabel}</span>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;padding:4px 0 12px">
+      <div style="flex:1;text-align:center;padding:10px 8px;background:var(--surface-1);border-radius:var(--radius-sm)">
+        <div style="font-family:var(--font-num);font-size:22px;font-weight:700;color:${hrvColor}">${rmssd.toFixed(1)}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">rMSSD (ms)</div>
+      </div>
+      <div style="flex:1;text-align:center;padding:10px 8px;background:var(--surface-1);border-radius:var(--radius-sm)">
+        <div style="font-family:var(--font-num);font-size:22px;font-weight:700;color:#4a9eff">${sdnn.toFixed(1)}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">SDNN (ms)</div>
+      </div>
+      <div style="flex:1;text-align:center;padding:10px 8px;background:var(--surface-1);border-radius:var(--radius-sm)">
+        <div style="font-family:var(--font-num);font-size:22px;font-weight:700;color:var(--text-primary)">${pnn50}%</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">pNN50</div>
+      </div>
+    </div>
+    ${trendRMSSD.length > 3 ? `
+    <div style="height:140px;margin-bottom:8px">
+      <canvas id="${canvasId}" style="width:100%;height:140px"></canvas>
+    </div>` : ''}
+    <div class="detail-zone-summary">
+      <div class="detail-zone-summary-row">
+        <span>Avg R-R Interval</span>
+        <span class="detail-zone-summary-val">${meanRR.toFixed(0)} ms</span>
+      </div>
+      <div class="detail-zone-summary-row">
+        <span>Avg HR (from R-R)</span>
+        <span class="detail-zone-summary-val">${avgHR} bpm</span>
+      </div>
+      <div class="detail-zone-summary-row">
+        <span>R-R Samples</span>
+        <span class="detail-zone-summary-val">${rr.length.toLocaleString()}</span>
+      </div>
+    </div>
+  `;
+  el.style.display = '';
+
+  // Render trend chart
+  if (trendRMSSD.length > 3) {
+    requestAnimationFrame(() => {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas) return;
+      state._actHrvChart = destroyChart(state._actHrvChart);
+      state._actHrvChart = new Chart(canvas, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            data: trendRMSSD,
+            borderColor: hrvColor,
+            backgroundColor: `${hrvColor}15`,
+            fill: true,
+            borderWidth: 1.5,
+            pointRadius: 0,
+            tension: 0.4,
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false }, ...C_TOOLTIP },
+          scales: {
+            x: {
+              ticks: { color: C_TICK, font: { size: 10 }, maxTicksLimit: 6,
+                callback: v => labels[v] != null ? labels[v] + 'm' : '' },
+              grid: { color: C_GRID },
+              border: { display: false },
+            },
+            y: {
+              ticks: { color: C_TICK, font: { size: 10 }, maxTicksLimit: 5,
+                callback: (v, i) => i === 0 ? 'ms' : Math.round(v) },
+              grid: { color: C_GRID },
+              border: { display: false },
+            }
+          },
+          interaction: { mode: 'index', intersect: false },
+        }
+      });
+    });
+  }
+}
+
 // ── Device battery levels from FIT file ──
 async function renderDetailDevices(a) {
   const el = document.getElementById('detailDevicesCard');
@@ -23349,32 +23760,73 @@ async function renderDetailDevices(a) {
   try {
     const fitData = await _fetchParsedFIT(actId);
     devices = fitData ? fitData.devices : null;
-  } catch { return; }
+  } catch (e) { console.warn('[FIT] Devices fetch failed:', e.message); return; }
   if (!devices || !devices.length) return;
 
-  const readings = devices
-    .filter(d => d.voltage || d.batStatus)
+  // Auto-sync accessory battery levels from this ride's FIT data
+  _fitSyncAccessoryBatteries(devices);
+
+  const allMapped = devices
+    .filter(d => d.manufacturer !== null || d.deviceType !== null)
     .map(d => ({
       voltage: d.voltage,
       status: _batStatusText(d.batStatus),
       percent: _voltageToPercent(d.voltage),
       manufacturer: _FIT_MFR[d.manufacturer] || (d.manufacturer ? `ID:${d.manufacturer}` : 'Internal'),
+      friendlyName: _fitDeviceName(d.manufacturer, d.product, d.deviceType),
       product: d.product,
       deviceType: d.deviceType,
+      serialNumber: d.serialNumber,
+      hasBattery: !!(d.voltage || d.batStatus),
     }));
+  if (!allMapped.length) return;
 
-  if (!readings.length) return;
-
-  // Deduplicate by manufacturer+product (keep last occurrence which has end-of-ride battery)
-  const best = new Map();
-  for (const r of readings) {
-    const key = `${r.manufacturer}_${r.product}`;
-    best.set(key, r);
+  // Deduplicate ALL devices — prefer entries WITH battery over those without
+  const allBest = new Map();
+  for (const d of allMapped) {
+    const key = `${d.manufacturer}_${d.product}_${d.deviceType ?? ''}`;
+    const existing = allBest.get(key);
+    if (!existing || (d.hasBattery && !existing.hasBattery) || (d.hasBattery && d.voltage)) {
+      allBest.set(key, d);
+    }
   }
-  const unique = [...best.values()];
+  const allUnique = [...allBest.values()];
 
-  // Check which devices are already linked to tracked batteries
+  // Split into battery and non-battery
+  const unique = allUnique.filter(d => d.hasBattery);
+  const readings = unique; // alias for carry-forward logic
+
+  // Check which devices are already linked to tracked batteries or accessories
   const bats = loadGearBatteries();
+  const accs = _loadAccessories();
+
+  // Carry-forward: inject linked accessories that aren't in this ride's FIT data
+  // Shows last known battery with a "Last reading" note
+  for (const acc of accs) {
+    if (!acc.fitDeviceKey || acc.battery == null) continue;
+    // Check if this accessory's device is already in the readings
+    const alreadyPresent = unique.some(r => {
+      const rKey = `${r.manufacturer}_${r.product}_${r.deviceType ?? ''}_${r.serialNumber ?? ''}`;
+      return rKey === acc.fitDeviceKey || `${r.manufacturer}_${r.product}` === acc.fitDeviceKey;
+    });
+    if (alreadyPresent) continue;
+    // Inject as a carried-forward reading
+    const lastDate = acc.lastBatteryUpdate
+      ? new Date(acc.lastBatteryUpdate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      : '';
+    unique.push({
+      voltage: null,
+      status: lastDate ? `Last: ${lastDate}` : 'Last known',
+      percent: acc.battery,
+      manufacturer: acc.brand || acc.name || '',
+      friendlyName: acc.name || acc.type || 'Device',
+      product: null,
+      deviceType: null,
+      serialNumber: null,
+      _carriedForward: true,
+      _accIdx: accs.indexOf(acc),
+    });
+  }
 
   const batIcon = (pct) => {
     const color = pct == null ? 'var(--text-muted)' : pct > 50 ? 'var(--accent)' : pct > 25 ? C_YELLOW : pct > 10 ? C_ORANGE : 'var(--red)';
@@ -23385,79 +23837,224 @@ async function renderDetailDevices(a) {
     const pct = r.percent;
     const pctColor = pct == null ? 'var(--text-muted)' : pct > 50 ? 'var(--accent)' : pct > 25 ? C_YELLOW : pct > 10 ? C_ORANGE : 'var(--red)';
     const pctText = pct != null ? `${pct}%` : (r.status || '—');
+    const isCarried = r._carriedForward;
     const voltText = r.voltage ? `${r.voltage.toFixed(2)}V` : '';
     const statusText = r.status && r.status !== 'Unknown' ? r.status : '';
-    const detail = [voltText, statusText].filter(Boolean).join(' · ');
-    const fitKey = `${r.manufacturer}_${r.product}`;
-    const linked = bats.find(b => b.fitDeviceKey === fitKey);
-    const linkedName = linked ? linked.name || linked.componentType : null;
+    const detail = isCarried ? (r.status || '') : [voltText, statusText].filter(Boolean).join(' · ');
 
-    // "Add" button for unlinked devices, or linked battery name
-    const linkHtml = linkedName
-      ? `<span style="font-size:11px;color:var(--accent);font-weight:500">${_escHtml(linkedName)}</span>`
-      : `<button onclick="_fitAddBattery('${_escHtml(fitKey)}','${_escHtml(r.manufacturer)}')" style="font-size:11px;color:var(--accent);background:none;border:none;padding:2px 6px;cursor:pointer;font-weight:600">+ Add</button>`;
+    let linkedName, linkedAccIdx, fitKey = '';
+    if (isCarried) {
+      // Carried-forward: already linked by definition
+      linkedName = r.friendlyName;
+      linkedAccIdx = r._accIdx ?? -1;
+    } else {
+      fitKey = `${r.manufacturer}_${r.product}_${r.deviceType ?? ''}_${r.serialNumber ?? ''}`;
+      const linkedBat = bats.find(b => b.fitDeviceKey === fitKey);
+      const linkedAcc = accs.find(a => a.fitDeviceKey === fitKey);
+      linkedName = linkedBat ? (linkedBat.name || linkedBat.componentType)
+                   : linkedAcc ? (linkedAcc.name || linkedAcc.type)
+                   : null;
+      linkedAccIdx = linkedAcc ? accs.indexOf(linkedAcc) : -1;
+    }
+
+    // Device name: use linked name if available, then friendly FIT name, then manufacturer
+    const displayName = linkedName || r.friendlyName || r.manufacturer;
+    const addBtn = !linkedName
+      ? `<button onclick="_fitAddBattery('${_escHtml(fitKey)}','${_escHtml(r.friendlyName || r.manufacturer)}',${pct != null ? pct : 'null'})" style="font-size:11px;color:var(--accent);background:none;border:none;padding:2px 6px;cursor:pointer;font-weight:600">+ Add</button>`
+      : '';
+    const editBtn = linkedAccIdx >= 0
+      ? `<button onclick="_openAddAccessory(${linkedAccIdx})" style="font-size:11px;color:var(--text-muted);background:none;border:none;padding:2px 4px;cursor:pointer">
+          <svg class="icon" width="12" height="12"><use href="icons.svg#icon-edit"/></svg>
+        </button>`
+      : '';
 
     return `<div class="detail-zone-summary-row" style="flex-wrap:wrap;row-gap:4px">
       <span style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
         ${batIcon(pct)}
-        <span>${r.manufacturer}${r.product ? ` <span style="color:var(--text-muted);font-size:12px">#${r.product}</span>` : ''}</span>
+        <span style="font-weight:${linkedName ? '600' : '400'}">${_escHtml(displayName)}</span>
+        ${editBtn}
       </span>
       <span style="display:flex;align-items:center;gap:6px">
-        ${linkHtml}
+        ${addBtn}
         ${detail ? `<span style="font-size:12px;color:var(--text-muted)">${detail}</span>` : ''}
         <span class="detail-zone-summary-val" style="color:${pctColor};min-width:36px;text-align:right">${pctText}</span>
       </span>
     </div>`;
   }).join('');
 
+  // "Other Connected Devices" — already deduped, just filter non-battery + remove internals
+  const otherUnique = allUnique.filter(d => !d.hasBattery).filter(d => {
+    const name = d.friendlyName || '';
+    return name && !name.includes('Internal') && d.manufacturer !== 'Internal';
+  });
+
+  const otherRows = otherUnique.map(d => {
+    const name = d.friendlyName || d.manufacturer;
+    const typeLabel = _FIT_DEVICE_TYPE[d.deviceType] || '';
+    const fitKey = `${d.manufacturer}_${d.product}_${d.deviceType ?? ''}_${d.serialNumber ?? ''}`;
+    const linkedAcc = accs.find(a => a.fitDeviceKey === fitKey);
+    const linkedName = linkedAcc ? (linkedAcc.name || linkedAcc.type) : null;
+    const displayName = linkedName || name;
+    const addBtn = !linkedName
+      ? `<button onclick="_fitAddBattery('${_escHtml(fitKey)}','${_escHtml(name)}',null)" style="font-size:11px;color:var(--accent);background:none;border:none;padding:2px 6px;cursor:pointer;font-weight:600">+ Add</button>`
+      : '';
+
+    return `<div class="detail-zone-summary-row" style="min-height:32px">
+      <span style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
+        <svg class="icon" width="14" height="14" style="stroke:var(--text-faint)"><use href="icons.svg#icon-radio"/></svg>
+        <span style="font-size:13px;color:var(--text-muted)">${_escHtml(displayName)}</span>
+      </span>
+      <span style="display:flex;align-items:center;gap:6px">
+        ${addBtn}
+        ${typeLabel ? `<span style="font-size:11px;color:var(--text-faint)">${typeLabel}</span>` : ''}
+      </span>
+    </div>`;
+  }).join('');
+
+  const otherSection = otherUnique.length ? `
+    <div style="padding:8px 0 0;border-top:0.5px solid var(--border, rgba(255,255,255,0.06))">
+      <div style="font-size:11px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.05em;padding:4px 0 2px">Connected Sensors</div>
+      <div class="detail-zone-summary">${otherRows}</div>
+    </div>
+  ` : '';
+
   el.innerHTML = `
     <div class="card-header">
       <div style="display:flex;align-items:center;gap:8px">
         <div class="card-title" style="flex:1 1 0%">
           <svg class="icon" width="16" height="16"><use href="icons.svg#icon-battery"/></svg>
-          Device Batteries
+          Devices
         </div>
+        <span style="font-size:12px;color:var(--text-faint)">${unique.length + otherUnique.length} sensors</span>
       </div>
     </div>
     <div class="detail-zone-summary">${rows}</div>
+    ${otherSection}
   `;
   el.style.display = '';
 }
 
-// Add a battery from FIT device reading — opens battery modal pre-filled
-function _fitAddBattery(fitKey, mfrName) {
-  // Determine system from manufacturer name
-  let system = 'other', compType = 'custom';
+// Add a device from FIT reading — open accessory sheet pre-filled
+function _fitAddBattery(fitKey, mfrName, batteryPct) {
   const mfr = mfrName.toLowerCase();
-  if (mfr.includes('garmin'))        { system = 'bike_computer'; compType = 'garmin_edge_540'; }
-  else if (mfr.includes('sram'))     { system = 'sram_axs';      compType = 'rear_derailleur'; }
-  else if (mfr.includes('shimano'))  { system = 'shimano_di2';   compType = 'internal_battery'; }
-  else if (mfr.includes('favero'))   { system = 'power_meter';   compType = 'assioma'; }
-  else if (mfr.includes('stages'))   { system = 'power_meter';   compType = 'stages'; }
-  else if (mfr.includes('4iiii'))    { system = 'power_meter';   compType = 'fouriii'; }
-  else if (mfr.includes('wahoo'))    { system = 'bike_computer'; compType = 'wahoo_roam'; }
-  else if (mfr.includes('power2max')){ system = 'power_meter';   compType = 'p2m'; }
-  else if (mfr.includes('quarq'))    { system = 'power_meter';   compType = 'quarq'; }
-  else if (mfr.includes('polar'))    { system = 'heart_rate';    compType = 'polar_h10'; }
-  else if (mfr.includes('hammerhead')){ system = 'bike_computer'; compType = 'hammerhead'; }
 
-  // Open battery modal pre-filled
-  if (typeof openBatteryModal === 'function') {
-    openBatteryModal();
-    // Pre-fill after modal opens
-    setTimeout(() => {
-      const sysEl = document.getElementById('batFormSystem');
-      if (sysEl) { sysEl.value = system; sysEl.dispatchEvent(new Event('change')); }
-      setTimeout(() => {
-        const compEl = document.getElementById('batFormComponent');
-        if (compEl) { compEl.value = compType; compEl.dispatchEvent(new Event('change')); }
-        // Store the FIT key to link on save
-        window._pendingFitDeviceKey = fitKey;
-      }, 100);
-    }, 300);
-  }
+  // Auto-detect accessory type from manufacturer
+  let accType = 'other';
+  if (mfr.includes('garmin'))        accType = 'gps';
+  else if (mfr.includes('wahoo'))    accType = 'gps';
+  else if (mfr.includes('hammerhead')) accType = 'gps';
+  else if (mfr.includes('polar'))    accType = 'hrstrap';
+  else if (mfr.includes('favero'))   accType = 'powermeter';
+  else if (mfr.includes('stages'))   accType = 'powermeter';
+  else if (mfr.includes('4iiii'))    accType = 'powermeter';
+  else if (mfr.includes('power2max')) accType = 'powermeter';
+  else if (mfr.includes('quarq'))    accType = 'powermeter';
+  else if (mfr.includes('sram'))     accType = 'other';
+  else if (mfr.includes('shimano'))  accType = 'other';
+
+  // Open add accessory sheet pre-filled (don't save yet — user confirms)
+  _openAddAccessoryPrefilled({ type: accType, name: mfrName, brand: mfrName, fitDeviceKey: fitKey, battery: batteryPct });
 }
 window._fitAddBattery = _fitAddBattery;
+
+function _openAddAccessoryPrefilled(prefill) {
+  const typeOptions = _ACC_TYPES.map(t =>
+    `<option value="${t.value}" ${prefill.type === t.value ? 'selected' : ''}>${t.label}</option>`
+  ).join('');
+
+  const body = `
+    <div style="display:flex;flex-direction:column;gap:16px;padding:4px 0">
+      <div class="field">
+        <label>Type</label>
+        <select id="accFormType" class="app-select">${typeOptions}</select>
+      </div>
+      <div class="field">
+        <label>Name</label>
+        <input type="text" id="accFormName" class="gear-input" placeholder="e.g. Garmin Edge 540" value="${prefill.name || ''}">
+      </div>
+      <div class="field">
+        <label>Brand</label>
+        <input type="text" id="accFormBrand" class="gear-input" placeholder="e.g. Garmin, Wahoo" value="${prefill.brand || ''}">
+      </div>
+      ${prefill.battery != null ? `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;color:var(--text-muted);font-size:14px">
+        <svg class="icon" width="16" height="16" style="stroke:var(--accent)"><use href="icons.svg#icon-battery"/></svg>
+        Current battery: <strong style="color:var(--accent)">${prefill.battery}%</strong>
+      </div>` : ''}
+      <input type="hidden" id="accFormFitKey" value="${prefill.fitDeviceKey || ''}">
+      <input type="hidden" id="accFormBatInit" value="${prefill.battery != null ? prefill.battery : ''}">
+      <button class="btn btn-accent" style="width:100%;height:48px;border-radius:12px;font-size:16px;font-weight:600" onclick="_saveAccessoryFromFIT()">
+        Add Device
+      </button>
+    </div>
+  `;
+
+  _openUniSheet({
+    title: 'Add Device',
+    body,
+    partial: true,
+    maxWidth: 480,
+    onOpen: () => { initCustomDropdowns(document.getElementById('_uniSheet')); }
+  });
+}
+
+function _saveAccessoryFromFIT() {
+  const type = document.getElementById('accFormType')?.value;
+  const name = document.getElementById('accFormName')?.value?.trim();
+  const brand = document.getElementById('accFormBrand')?.value?.trim();
+  const fitKey = document.getElementById('accFormFitKey')?.value;
+  const batInit = document.getElementById('accFormBatInit')?.value;
+  const battery = batInit !== '' ? parseInt(batInit) : null;
+
+  if (!type) { _showToast('Select a type', 'error'); return; }
+
+  const accs = _loadAccessories();
+  accs.push({
+    id: 'acc_' + Date.now(),
+    type,
+    name: name || '',
+    brand: brand || '',
+    battery,
+    fitDeviceKey: fitKey || '',
+    lastBatteryUpdate: battery != null ? new Date().toISOString() : null,
+  });
+  _saveAccessories(accs);
+  _closeUniSheet();
+  _gearRenderAccessories();
+  _showToast('Device added to garage');
+
+  // Re-render the devices card to show linked name
+  const actEl = document.getElementById('detailDevicesCard');
+  if (actEl) {
+    // Trigger a re-render of the devices card
+    const actId = state.currentActivity?.id;
+    if (actId) _renderDevicesBatteryCard(state.currentActivity);
+  }
+}
+window._openAddAccessoryPrefilled = _openAddAccessoryPrefilled;
+window._saveAccessoryFromFIT = _saveAccessoryFromFIT;
+
+// Auto-update accessory battery levels from FIT data
+function _fitSyncAccessoryBatteries(fitDevices) {
+  if (!fitDevices || !fitDevices.length) return;
+  const accs = _loadAccessories();
+  if (!accs.length) return;
+
+  let changed = false;
+  for (const d of fitDevices) {
+    if (!d.voltage && !d.batStatus) continue;
+    const fitKey = `${_FIT_MFR[d.manufacturer] || 'ID:' + d.manufacturer}_${d.product}_${d.deviceType ?? ''}_${d.serialNumber ?? ''}`;
+    const acc = accs.find(a => a.fitDeviceKey === fitKey);
+    if (!acc) continue;
+
+    const pct = _voltageToPercent(d.voltage);
+    if (pct != null && pct !== acc.battery) {
+      acc.battery = pct;
+      acc.lastBatteryUpdate = new Date().toISOString();
+      changed = true;
+    }
+  }
+  if (changed) _saveAccessories(accs);
+}
 
 function renderDetailSourceFooter(a) {
   const el = document.getElementById('detailSourceFooter');
@@ -23978,8 +24575,8 @@ setTimeout(() => {
 var _STRAVA_OVERRIDES = {
   // Background & land — dark teal tint (Strava's signature blue-green)
   background:           { 'background-color': '#192428' },
-  landcover_wood:       { 'fill-color': '#1a3630', 'fill-opacity': 1 },
-  landuse_park:         { 'fill-color': '#1a3630', 'fill-opacity': 1 },
+  landcover_wood:       { 'fill-color': '#1e3d36', 'fill-opacity': 0.7 },
+  landuse_park:         { 'fill-color': '#1e3d36', 'fill-opacity': 0.7 },
   landuse_residential:  { 'fill-color': '#1c2628' },
   landcover_ice_shelf:  { 'fill-color': '#192428' },
   landcover_glacier:    { 'fill-color': '#192428' },
@@ -26027,49 +26624,9 @@ function renderDetailHRZones(activity) {
   unskeletonCard('detailHRZonesCard');
 }
 
-// ── Zones carousel (mobile swipe between Power Zones ↔ HR Zones) ─────────────
+// Zones carousel removed — power/HR zone cards are now standalone
 function initZonesCarousel() {
-  const wrapper = document.getElementById('detailZonesCarouselCard');
-  const row     = document.getElementById('detailZonesRow');
-  const dots    = document.getElementById('zonesCarouselDots');
-  const pwrCard = document.getElementById('detailZonesCard');
-  const hrCard  = document.getElementById('detailHRZonesCard');
-  if (!wrapper || !row) return;
-
-  // Show wrapper — always visible (both zone cards use showCardNA when no data)
-  const hasPwr = pwrCard && !pwrCard.classList.contains('card--na');
-  const hasHR  = hrCard  && !hrCard.classList.contains('card--na');
-  wrapper.style.display = '';
-  unskeletonCard('detailZonesCarouselCard');
-
-  // If only one card, mark as single (no carousel needed)
-  if (!hasPwr || !hasHR) {
-    row.classList.add('detail-zones-row--single');
-    if (dots) dots.style.display = 'none';
-    return;
-  }
-  row.classList.remove('detail-zones-row--single');
-
-  // Scroll listener for dot updates
-  if (dots) {
-    const allDots = dots.querySelectorAll('.zones-carousel-dot');
-    function updateDots() {
-      const scrollLeft = row.scrollLeft;
-      const cardW = row.scrollWidth / 2;
-      const idx = scrollLeft > cardW * 0.5 ? 1 : 0;
-      allDots.forEach((d, i) => d.classList.toggle('active', i === idx));
-    }
-    row.addEventListener('scroll', updateDots, { passive: true });
-
-    // Dot click → scroll to card
-    allDots.forEach(d => {
-      d.addEventListener('click', () => {
-        const idx = parseInt(d.dataset.idx, 10);
-        const cardW = row.scrollWidth / 2;
-        row.scrollTo({ left: idx * cardW, behavior: 'smooth' });
-      });
-    });
-  }
+  // No-op — cards manage their own visibility
 }
 
 // ── Outside temperature graph (Garmin ambient sensor) ────────────────────────
@@ -27735,8 +28292,7 @@ async function renderDetailCurve(actId, streams) {
   // No power for this activity → show NA
   if (!raw) {
     card.style.display = '';
-    const cr = document.getElementById('detailCurvesRow');
-    if (cr) cr.style.display = '';
+    unskeletonCard('detailCurveCard');
     showCardNA('detailCurveCard');
     return;
   }
@@ -27745,13 +28301,10 @@ async function renderDetailCurve(actId, streams) {
   clearCardNA(card);
   card.style.display = '';
   unskeletonCard('detailCurveCard');
-  const curvesRow = document.getElementById('detailCurvesRow');
-  if (curvesRow) curvesRow.style.display = '';
 
   // Fetch year best in background (non-blocking)
   let rawYear = null;
   try { rawYear = await fetchRangePowerCurve(toDateStr(daysAgo(365)), toDateStr(new Date())); } catch (_) {}
-
   // Hide old peak pills — we'll render summary rows after the chart instead
   const peaksEl = document.getElementById('detailCurvePeaks');
   if (peaksEl) peaksEl.style.display = 'none';
@@ -27803,7 +28356,7 @@ async function renderDetailCurve(actId, streams) {
   const maxSecs  = rideMaxSecs || (yearData.length ? yearData[yearData.length - 1].x : 3600);
 
   // Safety: if normalisation produced no plottable data, fall back to NA card
-  if (!rideData.length && !yearData.length) { showCardNA('detailCurveCard'); return; }
+  if (!rideData.length && !yearData.length) { unskeletonCard('detailCurveCard'); showCardNA('detailCurveCard'); return; }
 
   const datasets = [];
   if (yearData.length)
@@ -27822,8 +28375,10 @@ async function renderDetailCurve(actId, streams) {
     });
 
   state.activityCurveChart = destroyChart(state.activityCurveChart);
+  const _curveCanvas = document.getElementById('activityCurveChart');
+  if (!_curveCanvas) { console.warn('[PowerCurve] Canvas not found'); unskeletonCard('detailCurveCard'); return; }
   state.activityCurveChart = new Chart(
-    document.getElementById('activityCurveChart').getContext('2d'), {
+    _curveCanvas.getContext('2d'), {
       type: 'line',
       data: { datasets },
       options: {
@@ -27871,6 +28426,7 @@ async function renderDetailCurve(actId, streams) {
     }).join('');
 
   } catch (err) { console.error('[PowerCurve] render error:', err); card.style.display = ''; showCardNA('detailCurveCard'); }
+  finally { unskeletonCard('detailCurveCard'); }
 }
 
 // Build an HR curve {secs, heartrate} from a raw heartrate stream using sliding-window max.
@@ -27926,6 +28482,7 @@ const HR_CURVE_PEAKS = [
 async function renderDetailHRCurve(streams) {
   const card = document.getElementById('detailHRCurveCard');
   if (!card) return;
+  try {
 
   const hrStream = streams && (streams.heartrate || streams.heart_rate);
   let raw = null;
@@ -27935,11 +28492,9 @@ async function renderDetailHRCurve(streams) {
   const yearPromise = fetchRangeHRCurve(toDateStr(daysAgo(365)), toDateStr(new Date())).catch(() => null);
   const rawYear = await yearPromise;
 
-  const _crHR = document.getElementById('detailCurvesRow');
-  if (!raw && !rawYear) { card.style.display = ''; if (_crHR) _crHR.style.display = ''; showCardNA('detailHRCurveCard'); return; }
+  if (!raw && !rawYear) { unskeletonCard('detailHRCurveCard'); card.style.display = ''; showCardNA('detailHRCurveCard'); return; }
   clearCardNA(card);
   card.style.display = '';
-  if (_crHR) _crHR.style.display = '';
   unskeletonCard('detailHRCurveCard');
 
   // Hide old peak pills
@@ -28001,8 +28556,10 @@ async function renderDetailHRCurve(streams) {
     });
 
   state.activityHRCurveChart = destroyChart(state.activityHRCurveChart);
+  const _hrCurveCanvas = document.getElementById('activityHRCurveChart');
+  if (!_hrCurveCanvas) { console.warn('[HRCurve] Canvas not found'); return; }
   state.activityHRCurveChart = new Chart(
-    document.getElementById('activityHRCurveChart').getContext('2d'), {
+    _hrCurveCanvas.getContext('2d'), {
       type: 'line',
       data: { datasets },
       options: {
@@ -28050,6 +28607,8 @@ async function renderDetailHRCurve(streams) {
         return `<div class="detail-zone-summary-row"><span>${p.label} Peak</span><span class="detail-zone-summary-val">${bpm} bpm</span></div>`;
       }).join('');
   }
+  } catch (err) { console.error('[HRCurve] render error:', err); showCardNA('detailHRCurveCard'); }
+  finally { unskeletonCard('detailHRCurveCard'); }
 }
 
 /* ====================================================
@@ -28862,6 +29421,9 @@ async function renderGearPage() {
 
   // Notifications
   _gearRenderAlerts();
+
+  // Accessories (non-bike devices)
+  _gearRenderAccessories();
 }
 
 function _gearRenderStats() {
@@ -28902,6 +29464,302 @@ function _gearRenderAlerts() {
     `<div class="gar-alert-row"><span class="gar-alert-dot gar-alert-dot--${a.severity}"></span><span>${a.message}</span></div>`
   ).join('');
 }
+
+/* ── Accessories (non-bike devices: GPS, lights, HR strap, etc.) ── */
+const _ACC_TYPES = [
+  { value: 'gps', label: 'GPS Computer', icon: 'icon-navigation', img: 'img/devices/garmin-edge-540.webp' },
+  { value: 'hrstrap', label: 'HR Strap', icon: 'icon-heart', img: '' },
+  { value: 'powermeter', label: 'Power Meter', icon: 'icon-zap', img: '' },
+  { value: 'light_front', label: 'Front Light', icon: 'icon-sun', img: '' },
+  { value: 'light_rear', label: 'Rear Light', icon: 'icon-sun', img: 'img/devices/garmin-varia-light.webp' },
+  { value: 'trainer', label: 'Indoor Trainer', icon: 'icon-activity', img: '' },
+  { value: 'helmet', label: 'Helmet', icon: 'icon-shield', img: '' },
+  { value: 'shoes', label: 'Cycling Shoes', icon: 'icon-shoe', img: '' },
+  { value: 'radar', label: 'Radar / Varia', icon: 'icon-radio', img: 'img/devices/garmin-varia-light.webp' },
+  { value: 'other', label: 'Other', icon: 'icon-package', img: '' },
+];
+
+// Device image lookup by brand+model keywords
+const _ACC_DEVICE_IMAGES = {
+  'garmin_edge_1040_solar': 'img/devices/garmin-edge-1040-solar.webp',
+  'garmin_edge_1040': 'img/devices/garmin-edge-1040.webp',
+  'garmin_edge_540': 'img/devices/garmin-edge-540.webp',
+  'garmin_edge': 'img/devices/garmin-edge-540.webp',
+  'garmin_varia': 'img/devices/garmin-varia-light.webp',
+  'wahoo_elemnt': '',
+  'wahoo_roam': '',
+  'iphone': 'img/devices/iphone.webp',
+};
+
+function _accGetImage(acc) {
+  // Check custom image first
+  if (acc.image) return acc.image;
+  // Try brand+name keyword match
+  const key = `${acc.brand || ''}_${acc.name || ''}`.toLowerCase().replace(/\s+/g, '_');
+  for (const [k, v] of Object.entries(_ACC_DEVICE_IMAGES)) {
+    if (v && key.includes(k)) return v;
+  }
+  // Fall back to type default image
+  const t = _ACC_TYPES.find(t => t.value === acc.type);
+  return t?.img || '';
+}
+
+function _loadAccessories() {
+  try { return JSON.parse(localStorage.getItem('icu_gear_accessories') || '[]'); } catch(_) { return []; }
+}
+function _saveAccessories(list) {
+  localStorage.setItem('icu_gear_accessories', JSON.stringify(list));
+}
+
+function _gearRenderAccessories() {
+  const el = document.getElementById('garAccessories');
+  if (!el) return;
+  const accs = _loadAccessories();
+
+  const accIcon = (type) => {
+    const t = _ACC_TYPES.find(a => a.value === type);
+    return t ? t.icon : 'icon-package';
+  };
+  const accLabel = (type) => {
+    const t = _ACC_TYPES.find(a => a.value === type);
+    return t ? t.label : 'Accessory';
+  };
+
+  // Build accessory cards
+  const cards = accs.map((a, i) => {
+    const batPct = a.battery != null ? a.battery : null;
+    const batColor = batPct == null ? 'var(--text-muted)' : batPct > 50 ? 'var(--accent)' : batPct > 20 ? '#f0c429' : 'var(--red)';
+    const img = _accGetImage(a);
+    const name = a.name || accLabel(a.type);
+    const brand = a.brand || '';
+    const lastUpdate = a.lastBatteryUpdate
+      ? new Date(a.lastBatteryUpdate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      : '';
+
+    const imgHtml = img
+      ? `<img src="${img}" alt="${name}" style="width:48px;height:48px;object-fit:contain;border-radius:8px" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+      : '';
+    const fallbackIcon = `<div style="${img ? 'display:none;' : 'display:flex;'}align-items:center;justify-content:center;width:48px;height:48px;background:var(--surface-2);border-radius:8px">
+      <svg class="icon" width="22" height="22" style="opacity:0.5"><use href="icons.svg#${accIcon(a.type)}"/></svg>
+    </div>`;
+
+    const batHtml = batPct != null ? `
+      <div style="display:flex;align-items:center;gap:6px;margin-top:6px">
+        <div style="flex:1;height:4px;background:var(--surface-2);border-radius:2px;overflow:hidden">
+          <div style="width:${batPct}%;height:100%;background:${batColor};border-radius:2px"></div>
+        </div>
+        <span style="font-size:13px;font-weight:700;color:${batColor};font-family:var(--font-num);min-width:36px;text-align:right">${batPct}%</span>
+      </div>
+    ` : '';
+
+    return `<div class="acc-card card" onclick="_openAccessoryDetail(${i})" style="cursor:pointer;padding:12px;display:flex;gap:12px;align-items:flex-start">
+      <div style="flex-shrink:0">${imgHtml}${fallbackIcon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:15px;line-height:1.3">${_escHtml(name)}</div>
+        ${brand && brand !== name ? `<div style="font-size:12px;color:var(--text-muted);margin-top:1px">${_escHtml(brand)}</div>` : ''}
+        ${batHtml}
+        ${lastUpdate ? `<div style="font-size:11px;color:var(--text-faint);margin-top:4px">Updated ${lastUpdate}</div>` : ''}
+      </div>
+      <svg class="icon" width="7" height="12" style="stroke:var(--text-muted);flex-shrink:0;margin-top:4px"><use href="icons.svg#icon-chevron-right"/></svg>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div style="padding:0 var(--pad-page)">
+      <div class="section-label" style="margin-top:20px;margin-bottom:8px">ACCESSORIES</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${cards}
+        <button class="btn" onclick="_openAddAccessory()" style="width:100%;height:44px;background:var(--surface-1);color:var(--accent);font-weight:600;font-size:15px;border-radius:var(--radius);display:flex;align-items:center;justify-content:center;gap:8px;border:none;cursor:pointer">
+          <svg class="icon" width="18" height="18" style="stroke:var(--accent)"><use href="icons.svg#icon-plus"/></svg>
+          Add Accessory
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function _openAddAccessory(editIdx) {
+  const isEdit = editIdx != null;
+  const acc = isEdit ? _loadAccessories()[editIdx] : {};
+
+  const typeOptions = _ACC_TYPES.map(t =>
+    `<option value="${t.value}" ${acc.type === t.value ? 'selected' : ''}>${t.label}</option>`
+  ).join('');
+
+  const body = `
+    <div style="display:flex;flex-direction:column;gap:16px;padding:4px 0">
+      <div class="field">
+        <label>Type</label>
+        <select id="accFormType" class="app-select">${typeOptions}</select>
+      </div>
+      <div class="field">
+        <label>Name</label>
+        <input type="text" id="accFormName" class="gear-input" placeholder="e.g. Garmin Edge 540" value="${acc.name || ''}">
+      </div>
+      <div class="field">
+        <label>Brand</label>
+        <input type="text" id="accFormBrand" class="gear-input" placeholder="e.g. Garmin, Wahoo" value="${acc.brand || ''}">
+      </div>
+      <div class="field">
+        <label>Battery %</label>
+        <input type="number" id="accFormBattery" class="gear-input" placeholder="100" min="0" max="100" value="${acc.battery != null ? acc.battery : ''}">
+      </div>
+      <button class="btn btn-accent" style="width:100%;height:48px;border-radius:12px;font-size:16px;font-weight:600" onclick="_saveAccessoryForm(${isEdit ? editIdx : -1})">
+        ${isEdit ? 'Update' : 'Add Accessory'}
+      </button>
+      ${isEdit ? `<button class="btn" style="width:100%;height:44px;border-radius:12px;font-size:15px;color:var(--red);background:var(--surface-1)" onclick="_deleteAccessory(${editIdx})">Delete</button>` : ''}
+    </div>
+  `;
+
+  _openUniSheet({
+    title: isEdit ? 'Edit Accessory' : 'Add Accessory',
+    body,
+    partial: true,
+    maxWidth: 480,
+    onOpen: () => {
+      initCustomDropdowns(document.getElementById('_uniSheet'));
+    }
+  });
+}
+
+function _openAccessoryDetail(idx) {
+  const accs = _loadAccessories();
+  const a = accs[idx];
+  if (!a) return;
+
+  const accLabel = (type) => {
+    const t = _ACC_TYPES.find(t => t.value === type);
+    return t ? t.label : 'Accessory';
+  };
+  const accIcon = (type) => {
+    const t = _ACC_TYPES.find(t => t.value === type);
+    return t ? t.icon : 'icon-package';
+  };
+
+  const name = a.name || accLabel(a.type);
+  const brand = a.brand || accLabel(a.type);
+  const img = _accGetImage(a);
+  const batPct = a.battery != null ? a.battery : null;
+  const batColor = batPct == null ? 'var(--text-muted)' : batPct > 50 ? 'var(--accent)' : batPct > 20 ? '#f0c429' : 'var(--red)';
+  const lastUpdate = a.lastBatteryUpdate
+    ? new Date(a.lastBatteryUpdate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
+    : '';
+  const linked = a.fitDeviceKey ? 'Auto-synced' : 'Manual';
+
+  // Hero image (same as battery detail sheet)
+  const heroHtml = img
+    ? `<div class="comp-detail-img"><img src="${img}" alt="${_escHtml(name)}" style="object-fit:contain"></div>`
+    : `<div class="comp-detail-img" style="display:flex;align-items:center;justify-content:center;background:var(--surface-1)">
+        <svg class="icon" width="48" height="48" style="opacity:0.3"><use href="icons.svg#${accIcon(a.type)}"/></svg>
+      </div>`;
+
+  // Name + brand (same classes as component detail)
+  const nameHtml = `
+    <div class="comp-detail-name">${_escHtml(name)}</div>
+    <div class="comp-detail-brand">${_escHtml(brand)}</div>
+  `;
+
+  // Battery gauge (5-segment, same as battery detail sheet)
+  let gaugeHtml = '';
+  if (batPct != null) {
+    const segs = 5;
+    const filled = Math.round(batPct / 20);
+    let segHtml = '';
+    for (let s = 0; s < segs; s++) {
+      const active = s < filled;
+      segHtml += `<div class="cd-bat-gauge-seg${active ? ' cd-bat-gauge-seg--active' : ''}" style="${active ? 'background:' + batColor : ''}"></div>`;
+    }
+    gaugeHtml = `
+      <div class="cd-bat-gauge">
+        <div class="cd-bat-gauge-body">${segHtml}</div>
+        <div class="cd-bat-gauge-tip"></div>
+        <div class="cd-bat-gauge-pct" style="color:${batColor}">${batPct}%</div>
+      </div>
+    `;
+  }
+
+  // Details section (same layout as battery detail)
+  const rows = [];
+  rows.push({ label: 'Category', value: accLabel(a.type) });
+  if (a.brand && a.brand !== name) rows.push({ label: 'Brand', value: a.brand });
+  rows.push({ label: 'Tracking', value: linked });
+  if (a.fitDeviceKey) {
+    const parts = a.fitDeviceKey.split('_');
+    rows.push({ label: 'Sensor', value: parts[0] + (parts[1] ? ' #' + parts[1] : '') });
+  }
+  if (lastUpdate) rows.push({ label: 'Last Updated', value: lastUpdate });
+
+  const detailHtml = `
+    <div class="cd-section-title">Details</div>
+    <div class="comp-detail-rows">
+      ${rows.map(r => `<div class="comp-detail-row"><span class="comp-detail-label">${r.label}</span><span class="comp-detail-val">${_escHtml(r.value)}</span></div>`).join('')}
+    </div>
+  `;
+
+  // Action buttons (same layout as battery detail: Charge/Edit/Delete → Edit/Delete for accessories)
+  const actionsHtml = `
+    <div class="cd-actions" style="display:flex;gap:8px;padding:16px 0 8px">
+      <button class="btn btn-ghost" style="flex:1" onclick="_closeUniSheet();setTimeout(()=>_openAddAccessory(${idx}),350)">
+        <svg class="icon" width="16" height="16"><use href="icons.svg#icon-edit"/></svg> Edit
+      </button>
+      <button class="btn btn-ghost" style="flex:1;color:var(--red)" onclick="_deleteAccessory(${idx})">
+        <svg class="icon" width="16" height="16" style="stroke:var(--red)"><use href="icons.svg#icon-trash"/></svg> Delete
+      </button>
+    </div>
+  `;
+
+  const body = heroHtml + nameHtml + gaugeHtml + detailHtml + actionsHtml;
+
+  _openUniSheet({
+    title: name,
+    body,
+    partial: true,
+    maxWidth: 480,
+    hideTitle: true,
+  });
+}
+
+function _saveAccessoryForm(editIdx) {
+  const type = document.getElementById('accFormType')?.value;
+  const name = document.getElementById('accFormName')?.value?.trim();
+  const brand = document.getElementById('accFormBrand')?.value?.trim();
+  const batVal = document.getElementById('accFormBattery')?.value;
+  const battery = batVal !== '' ? Math.max(0, Math.min(100, parseInt(batVal) || 0)) : null;
+
+  if (!type) { _showToast('Select a type', 'error'); return; }
+
+  const accs = _loadAccessories();
+  const existing = editIdx >= 0 ? accs[editIdx] : {};
+  const obj = {
+    ...existing, // preserve fitDeviceKey, lastBatteryUpdate, etc.
+    type, name: name || '', brand: brand || '', battery,
+    id: existing?.id || 'acc_' + Date.now()
+  };
+
+  if (editIdx >= 0) {
+    accs[editIdx] = obj;
+  } else {
+    accs.push(obj);
+  }
+  _saveAccessories(accs);
+  _closeUniSheet();
+  _gearRenderAccessories();
+  _showToast(editIdx >= 0 ? 'Accessory updated' : 'Accessory added');
+}
+
+function _deleteAccessory(idx) {
+  const accs = _loadAccessories();
+  accs.splice(idx, 1);
+  _saveAccessories(accs);
+  _closeUniSheet();
+  _gearRenderAccessories();
+  _showToast('Accessory removed');
+}
+
+window._openAddAccessory = _openAddAccessory;
+window._openAccessoryDetail = _openAccessoryDetail;
+window._saveAccessoryForm = _saveAccessoryForm;
+window._deleteAccessory = _deleteAccessory;
 
 function gearSelectBike(id) {
   if (!id) return; // "All" card stays on garage page
@@ -29077,7 +29935,7 @@ let _gearPickerCallback = null;
 function _gpImgFail(img) {
   const parent = img.parentNode;
   if (parent) {
-    parent.innerHTML = '<svg class="icon"><use href="icons.svg#icon-wheel"/></svg>';
+    parent.innerHTML = '<svg class="icon"><use href="icons.svg#icon-image-off"/></svg>';
   }
 }
 
@@ -29092,7 +29950,7 @@ function openGearPicker(selectEl) {
   if (titleEl) titleEl.textContent = label;
 
   const checkSvg = '<svg class="icon"><use href="icons.svg#icon-check"/></svg>';
-  const defaultIcon = '<svg class="icon"><use href="icons.svg#icon-wheel"/></svg>';
+  const defaultIcon = '<svg class="icon"><use href="icons.svg#icon-image-off"/></svg>';
 
   // Determine context for image lookup
   const isModel = selectEl.id === 'gearFormModel';
@@ -29922,6 +30780,7 @@ function saveGearBatteries(arr) {
 // IndexedDB cache for parsed FIT data — avoids re-downloading on repeat views
 const FIT_CACHE_DB = 'cycleiq_fit_cache';
 const FIT_CACHE_VER = 1;
+const FIT_PARSER_VER = 14; // v14: fix HRV not stored in result
 function _fitCacheDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(FIT_CACHE_DB, FIT_CACHE_VER);
@@ -29952,7 +30811,7 @@ async function _fitCachePut(actId, data) {
   try {
     const db = await _fitCacheDB();
     const tx = db.transaction('parsed', 'readwrite');
-    tx.objectStore('parsed').put({ actId, ...data, cachedAt: Date.now() });
+    tx.objectStore('parsed').put({ actId, ...data, cachedAt: Date.now(), parserVer: FIT_PARSER_VER });
   } catch {}
 }
 
@@ -29961,15 +30820,32 @@ async function _fitCachePut(actId, data) {
 // field 11 = battery_status (enum: 1=new, 2=good, 3=ok, 4=low, 5=critical, 6=charging, 7=unknown)
 // Fetch, parse, and cache FIT data for an activity
 // Returns { devices: [...], dynamics: {...} | null } or null
+// Dedup inflight FIT requests — prevents 3 parallel downloads for the same activity
+const _fitInflight = new Map();
 async function _fetchParsedFIT(actId) {
+  // 0. Check inflight request
+  if (_fitInflight.has(actId)) return _fitInflight.get(actId);
+  const promise = _fetchParsedFITInner(actId);
+  _fitInflight.set(actId, promise);
+  try { return await promise; } finally { _fitInflight.delete(actId); }
+}
+async function _fetchParsedFITInner(actId) {
   // 1. Check in-memory cache
   if (window._lastFITParse && window._lastFITParse.actId === actId) {
     return window._lastFITParse.data;
   }
-  // 2. Check IndexedDB cache
+  // 2. Check IndexedDB cache (invalidate if parser version changed)
   const cached = await _fitCacheGet(actId);
-  if (cached) {
-    const data = { devices: cached.devices || [], dynamics: cached.dynamics || null };
+  if (cached && cached.parserVer === FIT_PARSER_VER) {
+    const data = {
+      devices: cached.devices || [],
+      dynamics: cached.dynamics || null,
+      temperature: cached.temperature || null,
+      gpsAccuracy: cached.gpsAccuracy || null,
+      respiration: cached.respiration || null,
+      gearChanges: cached.gearChanges || null,
+      hrv: cached.hrv || null,
+    };
     window._lastFITParse = { actId, data };
     return data;
   }
@@ -29991,14 +30867,36 @@ async function _fetchParsedFIT(actId) {
       const dv = new DataView(buf);
       const sig = String.fromCharCode(dv.getUint8(8), dv.getUint8(9), dv.getUint8(10), dv.getUint8(11));
       if (sig !== '.FIT') continue;
-      const data = _parseFIT(dv);
+      // Hybrid approach: library for device_info/events, legacy for record data (PCO, dynamics)
+      let data;
+      const legacyData = _parseFIT(dv);
+      try {
+        await _loadFitDecoder();
+        const libData = _parseFITWithLib(buf);
+        if (libData) {
+          // Library is better at: devices (handles all manufacturers), events (gear changes)
+          // Legacy is better at: record fields (PCO, dynamics — library misses some fields)
+          data = {
+            devices: libData.devices.length > legacyData.devices.length ? libData.devices : legacyData.devices,
+            dynamics: legacyData.dynamics, // always use legacy for dynamics/PCO
+            temperature: legacyData.temperature?.length > (libData.temperature?.length || 0) ? legacyData.temperature : libData.temperature,
+            gpsAccuracy: legacyData.gpsAccuracy?.length > (libData.gpsAccuracy?.length || 0) ? legacyData.gpsAccuracy : libData.gpsAccuracy,
+            respiration: legacyData.respiration?.length > (libData.respiration?.length || 0) ? legacyData.respiration : libData.respiration,
+            gearChanges: (libData.gearChanges?.length || 0) > (legacyData.gearChanges?.length || 0) ? libData.gearChanges : legacyData.gearChanges,
+            hrv: libData.hrv || legacyData.hrv, // library is better at HRV extraction
+          };
+        }
+      } catch (e) {
+        console.warn('[FIT] Library unavailable:', e.message);
+      }
+      if (!data) data = legacyData;
       if (data.devices.length || data.dynamics) {
         window._lastFITParse = { actId, data };
         // Cache in IndexedDB (background, non-blocking)
         _fitCachePut(actId, {
           devices: data.devices, dynamics: data.dynamics,
           temperature: data.temperature, gpsAccuracy: data.gpsAccuracy,
-          respiration: data.respiration, gearChanges: data.gearChanges,
+          respiration: data.respiration, gearChanges: data.gearChanges, hrv: data.hrv,
         }).catch(() => {});
         return data;
       }
@@ -30015,7 +30913,166 @@ async function _extractBatteryFromFIT(actId) {
   return data ? data.devices : null;
 }
 
-// General-purpose FIT parser: extracts device_info, record dynamics, temperature, GPS, respiration, gear changes
+// ── fit-decoder library (lazy-loaded from CDN) ──
+let _fitDecoderLoaded = false;
+let _fitDecoderLoading = null;
+async function _loadFitDecoder() {
+  if (_fitDecoderLoaded && window.fitDecoder) return window.fitDecoder;
+  if (_fitDecoderLoading) return _fitDecoderLoading;
+  _fitDecoderLoading = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/fit-decoder@1.0.5/dist/index.js';
+    script.onload = () => { _fitDecoderLoaded = true; resolve(window.fitDecoder); };
+    script.onerror = () => { _fitDecoderLoading = null; reject(new Error('fit-decoder CDN load failed')); };
+    document.head.appendChild(script);
+  });
+  return _fitDecoderLoading;
+}
+
+// Parse FIT using fit-decoder library, map to our data structure
+function _parseFITWithLib(buffer) {
+  const fd = window.fitDecoder;
+  if (!fd) return null;
+
+  const jsonRaw = fd.fit2json(buffer);
+  const json = fd.parseRecords(jsonRaw);
+
+  const result = { devices: [], dynamics: null, temperature: null, gpsAccuracy: null, respiration: null, gearChanges: null };
+  const dyn = { lrBal: [], lte: [], rte: [], lps: [], rps: [], cps: [], lPco: [], rPco: [] };
+  const temp = [], gpsAcc = [], respRate = [], gearChanges = [];
+
+  // Library returns all messages in json.records[] — filter by type
+  const allRecords = json.records || [];
+
+  // Process device_info messages
+  const deviceInfos = allRecords.filter(r => r.type === 'device_info').map(r => r.data);
+  for (const d of deviceInfos) {
+    // Library may use named fields or numeric field IDs depending on SDK profile coverage
+    const dev = {
+      voltage: d.battery_voltage ?? (d[10] != null && d[10] !== 0xFFFF ? d[10] / 256 : null),
+      batStatus: d.battery_status != null
+        ? (typeof d.battery_status === 'string'
+          ? ({ new: 1, good: 2, ok: 3, low: 4, critical: 5, charging: 6 }[d.battery_status.toLowerCase()] ?? null)
+          : d.battery_status)
+        : (d[11] != null && d[11] !== 0xFF ? d[11] : null),
+      manufacturer: d.manufacturer ?? d.manufacturer_id ?? d[2] ?? null,
+      product: d.product ?? d.garmin_product ?? d[3] ?? null,
+      deviceType: d.device_type ?? d.ant_device_type ?? d[25] ?? null,
+      serialNumber: d.serial_number ?? d[4] ?? null,
+      softwareVersion: d.software_version ?? d[5] ?? null,
+      sourceType: d.source_type ?? d[22] ?? null,
+    };
+    // Map string manufacturer to numeric ID for compatibility
+    if (typeof dev.manufacturer === 'string') {
+      const mfrLower = dev.manufacturer.toLowerCase();
+      let found = false;
+      for (const [id, name] of Object.entries(_FIT_MFR)) {
+        if (name.toLowerCase() === mfrLower) { dev.manufacturer = parseInt(id); found = true; break; }
+      }
+      if (!found) {
+        // Store string as-is if no mapping found
+      }
+    }
+    if (dev.manufacturer !== null || dev.deviceType !== null) {
+      result.devices.push(dev);
+    }
+  }
+
+  // Process record messages (cycling dynamics, temp, GPS, respiration)
+  const records = allRecords.filter(r => r.type === 'record').map(r => r.data);
+  // Extract HRV data (beat-to-beat R-R intervals)
+  const hrvRR = [];
+  try {
+    const hrvRecords = allRecords.filter(r => r.type === 'hrv').map(r => r.data);
+    for (const h of hrvRecords) {
+      const t = h.time ?? h[0];
+      if (typeof t === 'number' && t > 0 && t < 5000) hrvRR.push(t);
+      else if (Array.isArray(t)) { for (const v of t) { if (typeof v === 'number' && v > 0 && v < 5000) hrvRR.push(v); } }
+    }
+  } catch (e) { console.warn('[FIT-LIB] HRV extraction error:', e.message); }
+
+  for (const r of records) {
+    // Temperature (named or field 13)
+    const t = r.temperature ?? r[13] ?? null;
+    if (t != null && t !== 0x7F) temp.push(t);
+    // GPS accuracy (only use named field — numeric fallback unreliable)
+    const ga = r.gps_accuracy ?? r.enhanced_gps_accuracy ?? null;
+    if (ga != null && ga < 255 && ga > 0) gpsAcc.push(ga);
+    // Respiration — field 63 (RespirationRate sint8) or field 128 (EnhancedRespirationRate uint16/100)
+    let resp = r.respiration_rate ?? r[63] ?? null;
+    if (resp == null) {
+      const eResp = r.enhanced_respiration_rate ?? r[128] ?? null;
+      if (eResp != null && eResp !== 0xFFFF && eResp > 0) resp = eResp / 100;
+    }
+    if (resp != null && resp > 0 && resp < 80) respRate.push(resp);
+    // Cycling dynamics
+    if (r.left_right_balance != null) dyn.lrBal.push(r.left_right_balance & 0x7F);
+    if (r.left_torque_effectiveness != null) dyn.lte.push(r.left_torque_effectiveness);
+    if (r.right_torque_effectiveness != null) dyn.rte.push(r.right_torque_effectiveness);
+    if (r.left_pedal_smoothness != null) dyn.lps.push(r.left_pedal_smoothness);
+    if (r.right_pedal_smoothness != null) dyn.rps.push(r.right_pedal_smoothness);
+    if (r.combined_pedal_smoothness != null) dyn.cps.push(r.combined_pedal_smoothness);
+    const lPcoVal = r.left_platform_center_offset ?? r.left_pco ?? r[54] ?? null;
+    const rPcoVal = r.right_platform_center_offset ?? r.right_pco ?? r[55] ?? null;
+    if (lPcoVal != null) dyn.lPco.push(lPcoVal);
+    if (rPcoVal != null) dyn.rPco.push(rPcoVal);
+  }
+
+  // Process event messages (gear changes)
+  const events = allRecords.filter(r => r.type === 'event').map(r => r.data);
+  for (const e of events) {
+    const evtName = typeof e.event === 'string' ? e.event.toLowerCase() : e.event;
+    if (evtName === 'gear_change' || evtName === 'rear_gear_change' || evtName === 'front_gear_change'
+        || evtName === 42 || evtName === 43) {
+      // Library may parse gear fields directly, or we decode from packed data
+      let front = e.front_gear ?? e.front_gear_num_teeth ?? 0;
+      let rear = e.rear_gear ?? e.rear_gear_num_teeth ?? 0;
+      let frontNum = e.front_gear_num ?? 0;
+      let rearNum = e.rear_gear_num ?? 0;
+      // If named fields not available, decode from packed uint32 data field
+      if (!front && !rear && e.data != null && typeof e.data === 'number' && e.data > 255) {
+        rearNum = e.data & 0xFF;
+        rear = (e.data >> 8) & 0xFF;
+        frontNum = (e.data >> 16) & 0xFF;
+        front = (e.data >> 24) & 0xFF;
+      }
+      // Also check gear_change_data field (field 11)
+      if (!front && !rear && e.gear_change_data != null) {
+        const gd = e.gear_change_data;
+        rearNum = gd & 0xFF;
+        rear = (gd >> 8) & 0xFF;
+        frontNum = (gd >> 16) & 0xFF;
+        front = (gd >> 24) & 0xFF;
+      }
+      const timestamp = e.timestamp ? Math.round(new Date(e.timestamp).getTime() / 1000) : (e[253] ?? null);
+      if (front || rear) {
+        gearChanges.push({ timestamp, front, rear, frontNum, rearNum });
+      }
+    }
+  }
+
+  // Assemble results
+  const hasDyn = dyn.lrBal.length > 0 || dyn.lPco.length > 0;
+  if (hasDyn) {
+    const avg = a => a.length ? a.reduce((s, v) => s + v, 0) / a.length : null;
+    result.dynamics = {
+      avgLRBal: avg(dyn.lrBal),
+      avgLTE: avg(dyn.lte), avgRTE: avg(dyn.rte),
+      avgLPS: avg(dyn.lps), avgRPS: avg(dyn.rps), avgCPS: avg(dyn.cps),
+      avgLPco: avg(dyn.lPco), avgRPco: avg(dyn.rPco),
+      lPcoHist: dyn.lPco, rPcoHist: dyn.rPco,
+    };
+  }
+  if (temp.length > 10) result.temperature = temp;
+  if (gpsAcc.length > 10) result.gpsAccuracy = gpsAcc;
+  if (respRate.length > 10) result.respiration = respRate;
+  if (gearChanges.length) result.gearChanges = gearChanges;
+  if (hrvRR.length > 10) result.hrv = hrvRR;
+
+  return result;
+}
+
+// Legacy general-purpose FIT parser (fallback if library fails to load)
 function _parseFIT(dv) {
   const result = { devices: [], dynamics: null, temperature: null, gpsAccuracy: null, respiration: null, gearChanges: null };
   // Cycling dynamics accumulators
@@ -30083,6 +31140,7 @@ function _parseFIT(dv) {
 
         if (defn.globalMesg === 23) { // device_info
           let voltage = null, batStatus = null, manufacturer = null, product = null, deviceType = null;
+          let serialNumber = null, softwareVersion = null, sourceType = null;
           let fOff = offset;
           for (const f of defn.fields) {
             if (f.num === 10 && f.size === 2) {
@@ -30097,19 +31155,29 @@ function _parseFIT(dv) {
             } else if (f.num === 3 && f.size === 2) {
               const raw = defn.le ? dv.getUint16(fOff, true) : dv.getUint16(fOff, false);
               if (raw !== 0xFFFF) product = raw;
+            } else if (f.num === 4 && f.size === 4) {
+              const raw = defn.le ? dv.getUint32(fOff, true) : dv.getUint32(fOff, false);
+              if (raw !== 0xFFFFFFFF) serialNumber = raw;
+            } else if (f.num === 5 && f.size === 2) {
+              const raw = defn.le ? dv.getUint16(fOff, true) : dv.getUint16(fOff, false);
+              if (raw !== 0xFFFF) softwareVersion = raw / 100;
             } else if (f.num === 25 && f.size === 1) {
               const raw = dv.getUint8(fOff);
               if (raw !== 0xFF) deviceType = raw;
+            } else if (f.num === 22 && f.size === 1) {
+              const raw = dv.getUint8(fOff);
+              if (raw !== 0xFF) sourceType = raw;
             }
             fOff += f.size;
           }
-          if (voltage !== null || batStatus !== null) {
-            result.devices.push({ voltage, batStatus, manufacturer, product, deviceType });
+          // Capture ALL device_info records (with or without battery) for full device inventory
+          if (manufacturer !== null || deviceType !== null) {
+            result.devices.push({ voltage, batStatus, manufacturer, product, deviceType, serialNumber, softwareVersion, sourceType });
           }
         } else if (defn.globalMesg === 20) { // record
           _parseFITRecord(dv, offset, defn, dyn, temp, gpsAcc, respRate);
           hasDyn = true;
-        } else if (defn.globalMesg === 21) { // event — gear_change is event_type 42
+        } else if (defn.globalMesg === 21) { // event — gear_change is event 42/43
           _parseFITEvent(dv, offset, defn, gearChanges);
         }
         offset += defn.size;
@@ -30148,14 +31216,17 @@ function _parseFITRecord(dv, offset, defn, dyn, temp, gpsAcc, respRate) {
       case 45: lps = v8(); if (lps !== null) lps /= 2; break;
       case 46: rps = v8(); if (rps !== null) rps /= 2; break;
       case 47: cps = v8(); if (cps !== null) cps /= 2; break;
-      case 67: lPco = v8s(); break;
-      case 68: rPco = v8s(); break;
+      case 54: lPco = v8s(); break; // LeftPco (sint8, mm)
+      case 55: rPco = v8s(); break; // RightPco (sint8, mm)
+      case 67: if (lPco === null) lPco = v8s(); break; // legacy fallback
+      case 68: if (rPco === null) rPco = v8s(); break; // legacy fallback
       // Temperature (field 13, sint8, °C)
       case 13: if (f.size === 1) t = v8s(); break;
       // GPS accuracy (field 31, uint8, meters)
       case 31: if (f.size === 1) gps = v8(); break;
-      // Respiration rate (field 108, uint8, scale 2, breaths/min) — newer Garmin devices
-      case 108: if (f.size === 1) { resp = v8(); if (resp !== null) resp /= 2; } break;
+      // Respiration rate — field 63 (sint8) or field 128 (uint16, enhanced)
+      case 63: if (f.size === 1) { const rv = v8s(); if (rv !== null && rv > 0 && rv < 80) resp = rv; } break;
+      case 128: if (f.size === 2 && resp === null) { const rv = defn.le ? dv.getUint16(fOff, true) : dv.getUint16(fOff, false); if (rv !== 0xFFFF && rv > 0) resp = rv / 100; } break;
     }
     fOff += f.size;
   }
@@ -30177,7 +31248,7 @@ function _parseFITRecord(dv, offset, defn, dyn, temp, gpsAcc, respRate) {
 // Event mesg (21): field 0 = event (enum), field 1 = event_type, field 3 = data (uint32)
 // Gear change event: event = 42, data encodes front/rear gear teeth
 function _parseFITEvent(dv, offset, defn, gearChanges) {
-  let event = null, eventType = null, data = null, timestamp = null;
+  let event = null, eventType = null, data = null, gearData = null, timestamp = null;
   let fOff = offset;
   for (const f of defn.fields) {
     if (f.num === 0 && f.size === 1) { // event
@@ -30189,21 +31260,28 @@ function _parseFITEvent(dv, offset, defn, gearChanges) {
     } else if (f.num === 3 && f.size === 4) { // data (uint32)
       const r = defn.le ? dv.getUint32(fOff, true) : dv.getUint32(fOff, false);
       if (r !== 0xFFFFFFFF) data = r;
+    } else if (f.num === 11 && f.size === 4) { // gear_change_data (uint32) — preferred field for gear changes
+      const r = defn.le ? dv.getUint32(fOff, true) : dv.getUint32(fOff, false);
+      if (r !== 0xFFFFFFFF) gearData = r;
     } else if (f.num === 253 && f.size === 4) { // timestamp
       const r = defn.le ? dv.getUint32(fOff, true) : dv.getUint32(fOff, false);
       if (r !== 0xFFFFFFFF) timestamp = r;
     }
     fOff += f.size;
   }
-  // event 42 = gear_change_data  (or legacy: event 11 = rear_gear_change, 12 = front_gear_change)
-  if ((event === 42 || event === 11 || event === 12) && data !== null) {
-    // gear_change_data encoding: bits 0-7 = rear_gear_num, 8-15 = rear_gear, 16-23 = front_gear_num, 24-31 = front_gear
-    const rearTeeth  = (data >> 8) & 0xFF;
-    const frontTeeth = (data >> 24) & 0xFF;
-    const rearNum    = data & 0xFF;
-    const frontNum   = (data >> 16) & 0xFF;
-    if (rearTeeth || frontTeeth) {
-      gearChanges.push({ timestamp, front: frontTeeth, rear: rearTeeth, frontNum, rearNum });
+  // event 42 or 43 = gear_change (Garmin uses 43, FIT SDK says 42; legacy: 11 = rear, 12 = front)
+  if (event === 42 || event === 43 || event === 11 || event === 12) {
+    // Prefer field 11 (gear_change_data) over field 3 (generic data)
+    const d = gearData ?? data;
+    if (d !== null) {
+      // gear_change_data encoding: bits 0-7 = rear_gear_num, 8-15 = rear_gear, 16-23 = front_gear_num, 24-31 = front_gear
+      const rearTeeth  = (d >> 8) & 0xFF;
+      const frontTeeth = (d >> 24) & 0xFF;
+      const rearNum    = d & 0xFF;
+      const frontNum   = (d >> 16) & 0xFF;
+      if (rearTeeth || frontTeeth) {
+        gearChanges.push({ timestamp, front: frontTeeth, rear: rearTeeth, frontNum, rearNum });
+      }
     }
   }
 }
@@ -30241,10 +31319,83 @@ const _FIT_MFR = {
   63: 'Magene', 69: 'Lezyne', 70: 'Giant', 71: 'Shimano', 76: 'Stages',
   85: 'Wahoo', 86: 'Sigma', 89: 'Shimano', 95: 'Tacx', 96: 'Polar',
   104: 'Suunto', 110: 'Zwift', 119: 'iGPSPORT', 255: 'Development',
-  258: 'Rotor', 259: 'Elite', 267: '4iiii', 268: 'Power2Max', 269: 'InfoCrank',
+  258: 'Rotor', 259: 'Elite', 263: 'SRAM AXS', 267: '4iiii', 268: 'Power2Max', 269: 'InfoCrank',
   278: 'Campagnolo', 284: 'Wahoo', 286: 'Xplova', 294: 'Hammerhead',
   296: 'Kinetic', 297: 'Bkool', 312: 'CycleOps', 345: 'Xoss',
 };
+
+// ANT+ device type IDs → human names
+const _FIT_DEVICE_TYPE = {
+  0: 'Antfs',
+  1: 'ANT+ Sensor',
+  11: 'Bike Power',
+  12: 'Environment',
+  15: 'Multi-Sport Speed & Distance',
+  17: 'Fitness Equipment',
+  119: 'Heart Rate',
+  120: 'Bike Speed & Cadence',
+  121: 'Bike Cadence',
+  122: 'Bike Speed',
+  123: 'Stride Speed & Distance',
+  124: 'Light',
+  35: 'Gear Shifter',
+  36: 'Light Hub',
+  38: 'Radar',
+  40: 'Dropper Seatpost',
+};
+
+// SRAM AXS product IDs → component names
+const _SRAM_PRODUCTS = {
+  1: 'Rear Derailleur',
+  2: 'Front Derailleur',
+  3: 'Left Shifter',
+  4: 'Right Shifter',
+  5: 'Left Blip',
+  6: 'Right Blip',
+  7: 'Dropper Post',
+  8: 'Rocker Paddle',
+  9: 'AXS Controller',
+};
+
+// Shimano Di2 product IDs → component names
+const _SHIMANO_PRODUCTS = {
+  1: 'Rear Derailleur',
+  2: 'Front Derailleur',
+  3: 'Left Shifter',
+  4: 'Right Shifter',
+  5: 'System Unit',
+  6: 'Battery (Di2)',
+  7: 'Junction Box',
+};
+
+// Get a friendly device name from FIT data
+function _fitDeviceName(mfrId, productId, deviceType) {
+  const mfrName = _FIT_MFR[mfrId] || '';
+  // SRAM-specific product names
+  if ((mfrId === 7 || mfrId === 263) && _SRAM_PRODUCTS[productId]) {
+    return `SRAM ${_SRAM_PRODUCTS[productId]}`;
+  }
+  // SRAM AXS with no product ID — aggregated system battery
+  if (mfrId === 263 && !productId) {
+    return 'SRAM AXS System';
+  }
+  // Shimano-specific product names
+  if ((mfrId === 71 || mfrId === 89) && _SHIMANO_PRODUCTS[productId]) {
+    return `Shimano ${_SHIMANO_PRODUCTS[productId]}`;
+  }
+  // Garmin head units
+  if ((mfrId === 1 || mfrId === 2) && deviceType == null) {
+    return 'Garmin Head Unit';
+  }
+  // ANT+ device type fallback
+  if (deviceType != null && _FIT_DEVICE_TYPE[deviceType]) {
+    return mfrName ? `${mfrName} ${_FIT_DEVICE_TYPE[deviceType]}` : _FIT_DEVICE_TYPE[deviceType];
+  }
+  // If we have a manufacturer name, use it
+  if (mfrName) return mfrName;
+  // Unknown manufacturer — show ID for identification
+  return mfrId ? `Unknown Sensor (${mfrId})` : 'Internal Sensor';
+}
 
 // After activity sync: extract battery data from the most recent ride's FIT file
 async function _syncBatteryFromLastRide() {
@@ -30328,7 +31479,12 @@ function _syncFITReadingsToBatteries(readings) {
   let changed = false;
   for (const bat of bats) {
     if (!bat.fitDeviceKey) continue;
-    const reading = readings.find(r => `${r.manufacturer}_${r.product}` === bat.fitDeviceKey);
+    // Match by full key or partial key (for backward compat with old keys)
+    const reading = readings.find(r => {
+      const fullKey = `${r.manufacturer}_${r.product}_${r.deviceType ?? ''}_${r.serialNumber ?? ''}`;
+      const shortKey = `${r.manufacturer}_${r.product}`;
+      return fullKey === bat.fitDeviceKey || shortKey === bat.fitDeviceKey;
+    });
     if (!reading) continue;
     // Store the sensor reading directly on the battery
     bat.fitSensorPercent = reading.percent;
@@ -37441,6 +38597,22 @@ function _devToggleExpand() {
   }
 }
 window._devToggleExpand = _devToggleExpand;
+
+// Keyboard shortcut: "-" key toggles dev tools visibility
+document.addEventListener('keydown', e => {
+  // Don't trigger when typing in an input/textarea/select
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT' || e.target.isContentEditable) return;
+  if (e.key === '-' || e.key === 'Minus') {
+    e.preventDefault();
+    const panel = document.getElementById('devPanel');
+    if (!panel) return;
+    const isOn = panel.style.display !== 'none';
+    _togglePerfMon(!isOn);
+    // Also sync the settings toggle if visible
+    const toggle = document.getElementById('devToolsToggle');
+    if (toggle) toggle.checked = !isOn;
+  }
+});
 
 // Filter log messages
 function _devSetFilter(filter) {
