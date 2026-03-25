@@ -1217,7 +1217,7 @@ async function handleConnect() {
     }
   } finally {
     btn.disabled = false;
-    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Connect &amp; Sync`;
+    btn.innerHTML = `<svg class="icon"><use href="icons.svg#icon-check"/></svg> Connect &amp; Sync`;
   }
 }
 
@@ -1419,7 +1419,7 @@ function applyAvatar(src) {
     if (sidebarAv) { sidebarAv.textContent = initial; sidebarAv.style.background = ''; }
     if (previewAv) { previewAv.textContent = initial; previewAv.style.background = ''; }
     if (connAv)    { connAv.textContent = initial; connAv.style.background = ''; }
-    if (floatAv)   { floatAv.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/></svg><span class="floating-profile-lvl" id="floatingProfileLvl"></span>'; floatAv.style.background = ''; }
+    if (floatAv)   { floatAv.innerHTML = '<svg class="icon"><use href="icons.svg#icon-user"/></svg><span class="floating-profile-lvl" id="floatingProfileLvl"></span>'; floatAv.style.background = ''; }
     if (removeBtn) removeBtn.style.display = 'none';
   }
 }
@@ -1579,27 +1579,27 @@ const _iosSubpageNames = {
 let _iosSourceRow = null;
 let _iosNavLocked = false;
 const _STT_HERO_DATA = {
-  account:      { bg: 'linear-gradient(135deg,rgba(0,122,255,0.15),rgba(0,229,160,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>', desc: 'Your profile, avatar, and account connections.' },
-  apptheme:     { bg: 'linear-gradient(135deg,rgba(88,86,214,0.15),rgba(0,229,160,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>', desc: 'Choose between dark, light, or system theme.' },
+  account:      { bg: 'linear-gradient(135deg,rgba(0,122,255,0.15),rgba(0,229,160,0.1))', icon: '<svg class="icon" width="36" height="36" style="stroke:var(--accent)"><use href="icons.svg#icon-user"/></svg>', desc: 'Your profile, avatar, and account connections.' },
+  apptheme:     { bg: 'linear-gradient(135deg,rgba(88,86,214,0.15),rgba(0,229,160,0.1))', icon: '<svg class="icon" width="36" height="36" style="stroke:var(--accent)"><use href="icons.svg#icon-moon"/></svg>', desc: 'Choose between dark, light, or system theme.' },
   font:         { bg: 'linear-gradient(135deg,rgba(255,149,0,0.15),rgba(0,229,160,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>', desc: 'Pick the typeface that feels right for you.' },
-  maptheme:     { bg: 'linear-gradient(135deg,rgba(52,211,153,0.15),rgba(0,229,160,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>', desc: 'Map style for activity views and route builder.' },
+  maptheme:     { bg: 'linear-gradient(135deg,rgba(52,211,153,0.15),rgba(0,229,160,0.1))', icon: '<svg class="icon" width="36" height="36" style="stroke:var(--accent)"><use href="icons.svg#icon-map"/></svg>', desc: 'Map style for activity views and route builder.' },
   weather:      { bg: 'linear-gradient(135deg,rgba(90,200,250,0.15),rgba(0,229,160,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M17 18a5 5 0 0 0 0-10H6a4 4 0 1 0 0 8"/><line x1="12" y1="9" x2="12" y2="2"/><path d="M4.22 10.22l1.42 1.42M1 18h2M20 18h2M18.36 11.64l1.42-1.42"/></svg>', desc: 'Weather forecast source and location settings.' },
-  icu:          { bg: 'linear-gradient(135deg,rgba(0,229,160,0.15),rgba(0,122,255,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>', desc: 'Intervals.icu sync, credentials, and data range.' },
+  icu:          { bg: 'linear-gradient(135deg,rgba(0,229,160,0.15),rgba(0,122,255,0.1))', icon: '<svg class="icon" width="36" height="36" style="stroke:var(--accent)"><use href="icons.svg#icon-link"/></svg>', desc: 'Intervals.icu sync, credentials, and data range.' },
   strava:       { bg: 'linear-gradient(135deg,rgba(252,82,0,0.15),rgba(255,149,0,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="#fc5200" stroke-width="1.5"><polyline points="15 18 18 12 21 18"/><polyline points="6 18 12 6 18 18"/></svg>', desc: 'Strava connection and activity import.' },
-  dashsections: { bg: 'linear-gradient(135deg,rgba(175,82,222,0.15),rgba(0,229,160,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>', desc: 'Show or hide dashboard cards and sections.' },
-  actsections:  { bg: 'linear-gradient(135deg,rgba(255,204,0,0.15),rgba(0,229,160,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>', desc: 'Customize which sections appear on activity pages.' },
-  backup:       { bg: 'linear-gradient(135deg,rgba(48,209,88,0.15),rgba(0,229,160,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>', desc: 'Export, import, and transfer your data.' },
-  routebuilder: { bg: 'linear-gradient(135deg,rgba(0,229,160,0.15),rgba(52,211,153,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M3 17l6-6 4 4 8-8"/><path d="M17 7h4v4"/></svg>', desc: 'Route builder preferences and API keys.' },
-  share:        { bg: 'linear-gradient(135deg,rgba(0,122,255,0.15),rgba(88,86,214,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>', desc: 'Share cards, social links, and export options.' },
-  leveling:     { bg: 'linear-gradient(135deg,rgba(255,204,0,0.15),rgba(255,149,0,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="#ffcc00" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>', desc: 'Your cycling level, XP, and progression.' },
-  defaultrange: { bg: 'linear-gradient(135deg,rgba(175,82,222,0.15),rgba(0,229,160,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>', desc: 'Default time range for dashboard and charts.' },
-  changelog:    { bg: 'linear-gradient(135deg,rgba(94,92,230,0.15),rgba(0,229,160,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>', desc: 'What\'s new in the latest version.' },
-  feedback:     { bg: 'linear-gradient(135deg,rgba(255,59,48,0.15),rgba(255,149,0,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>', desc: 'Send feedback, report bugs, or suggest features.' },
-  licenses:     { bg: 'linear-gradient(135deg,rgba(142,142,147,0.15),rgba(0,229,160,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>', desc: 'Open-source licenses and attributions.' },
-  donate:       { bg: 'linear-gradient(135deg,rgba(255,45,85,0.15),rgba(255,149,0,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="#ff2d55" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>', desc: 'Support development and keep CycleIQ free.' },
-  mygarage:     { bg: 'linear-gradient(135deg,rgba(139,92,246,0.15),rgba(0,229,160,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5L9 11l-3.5 3.5M15 6l-4 5.5H5.5M15 6l3 5.5"/></svg>', desc: 'Manage your bike fleet, track components, and enable brand logos.' },
-  navigation:   { bg: 'linear-gradient(135deg,rgba(88,86,214,0.15),rgba(0,229,160,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>', desc: 'Customize your tab bar order and quick action button.' },
-  accentcolor:  { bg: 'linear-gradient(135deg,rgba(0,229,160,0.15),rgba(175,82,222,0.15))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>', desc: 'Choose your app accent color.' },
+  dashsections: { bg: 'linear-gradient(135deg,rgba(175,82,222,0.15),rgba(0,229,160,0.1))', icon: '<svg class="icon" width="36" height="36" style="stroke:var(--accent)"><use href="icons.svg#icon-grid"/></svg>', desc: 'Show or hide dashboard cards and sections.' },
+  actsections:  { bg: 'linear-gradient(135deg,rgba(255,204,0,0.15),rgba(0,229,160,0.1))', icon: '<svg class="icon" width="36" height="36" style="stroke:var(--accent)"><use href="icons.svg#icon-activity"/></svg>', desc: 'Customize which sections appear on activity pages.' },
+  backup:       { bg: 'linear-gradient(135deg,rgba(48,209,88,0.15),rgba(0,229,160,0.1))', icon: '<svg class="icon" width="36" height="36" style="stroke:var(--accent)"><use href="icons.svg#icon-save"/></svg>', desc: 'Export, import, and transfer your data.' },
+  routebuilder: { bg: 'linear-gradient(135deg,rgba(0,229,160,0.15),rgba(52,211,153,0.1))', icon: '<svg class="icon" width="36" height="36" style="stroke:var(--accent)"><use href="icons.svg#icon-trend-up"/></svg>', desc: 'Route builder preferences and API keys.' },
+  share:        { bg: 'linear-gradient(135deg,rgba(0,122,255,0.15),rgba(88,86,214,0.1))', icon: '<svg class="icon" width="36" height="36" style="stroke:var(--accent)"><use href="icons.svg#icon-share"/></svg>', desc: 'Share cards, social links, and export options.' },
+  leveling:     { bg: 'linear-gradient(135deg,rgba(255,204,0,0.15),rgba(255,149,0,0.1))', icon: '<svg class="icon" width="36" height="36" style="stroke:#ffcc00"><use href="icons.svg#icon-star"/></svg>', desc: 'Your cycling level, XP, and progression.' },
+  defaultrange: { bg: 'linear-gradient(135deg,rgba(175,82,222,0.15),rgba(0,229,160,0.1))', icon: '<svg class="icon" width="36" height="36" style="stroke:var(--accent)"><use href="icons.svg#icon-activity"/></svg>', desc: 'Default time range for dashboard and charts.' },
+  changelog:    { bg: 'linear-gradient(135deg,rgba(94,92,230,0.15),rgba(0,229,160,0.1))', icon: '<svg class="icon" width="36" height="36" style="stroke:var(--accent)"><use href="icons.svg#icon-file-text"/></svg>', desc: 'What\'s new in the latest version.' },
+  feedback:     { bg: 'linear-gradient(135deg,rgba(255,59,48,0.15),rgba(255,149,0,0.1))', icon: '<svg class="icon" width="36" height="36" style="stroke:var(--accent)"><use href="icons.svg#icon-message"/></svg>', desc: 'Send feedback, report bugs, or suggest features.' },
+  licenses:     { bg: 'linear-gradient(135deg,rgba(142,142,147,0.15),rgba(0,229,160,0.1))', icon: '<svg class="icon" width="36" height="36" style="stroke:var(--accent)"><use href="icons.svg#icon-flag"/></svg>', desc: 'Open-source licenses and attributions.' },
+  donate:       { bg: 'linear-gradient(135deg,rgba(255,45,85,0.15),rgba(255,149,0,0.1))', icon: '<svg class="icon" width="36" height="36" style="stroke:#ff2d55"><use href="icons.svg#icon-heart"/></svg>', desc: 'Support development and keep CycleIQ free.' },
+  mygarage:     { bg: 'linear-gradient(135deg,rgba(139,92,246,0.15),rgba(0,229,160,0.1))', icon: '<svg class="icon" width="36" height="36" style="stroke:var(--accent)"><use href="icons.svg#icon-bike"/></svg>', desc: 'Manage your bike fleet, track components, and enable brand logos.' },
+  navigation:   { bg: 'linear-gradient(135deg,rgba(88,86,214,0.15),rgba(0,229,160,0.1))', icon: '<svg class="icon" width="36" height="36" style="stroke:var(--accent)"><use href="icons.svg#icon-grid-rounded"/></svg>', desc: 'Customize your tab bar order and quick action button.' },
+  accentcolor:  { bg: 'linear-gradient(135deg,rgba(0,229,160,0.15),rgba(175,82,222,0.15))', icon: '<svg class="icon" width="36" height="36" style="stroke:var(--accent)"><use href="icons.svg#icon-target"/></svg>', desc: 'Choose your app accent color.' },
 };
 
 function _syncThemePicker() {
@@ -2817,13 +2817,13 @@ function _peerShowQR() {
   const isVisible = canvas.style.display !== 'none';
   if (isVisible) {
     canvas.style.display = 'none';
-    if (btn) btn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="3" height="3"/><line x1="20" y1="14" x2="20" y2="20"/><line x1="14" y1="20" x2="20" y2="20"/></svg> Show QR';
+    if (btn) btn.innerHTML = '<svg class="icon" width="14" height="14"><use href="icons.svg#icon-grid"/></svg> Show QR';
     return;
   }
   // Use QR code API as image
   const img = new Image();
   img.crossOrigin = 'anonymous';
-  const _qrShownLabel = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Hide QR';
+  const _qrShownLabel = '<svg class="icon" width="14" height="14"><use href="icons.svg#icon-x"/></svg> Hide QR';
   const _qrSize = 400;
   img.onload = () => {
     canvas.style.display = 'block';
@@ -4731,7 +4731,7 @@ function _refreshWxLocSettings() {
       <span class="wx-loc-dot${l.active ? ' wx-loc-dot--on' : ''}"></span>
       <span class="ios-row-label">${l.city}</span>
       <button class="wx-loc-remove btn btn-ghost btn-sm" onclick="event.stopPropagation();removeWxLocation(${l.id})" title="Remove">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--text-muted)" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <svg class="icon" width="14" height="14" style="stroke:var(--text-muted)"><use href="icons.svg#icon-x"/></svg>
       </button>
     </div>
   `).join('');
@@ -4758,7 +4758,7 @@ function renderWxLocationSwitcher() {
         </button>`;
       }).join('')}
       <button class="wx-loc-pill wx-loc-pill--add" onclick="navigate('settings')" title="Add location">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <svg class="icon" width="14" height="14"><use href="icons.svg#icon-plus"/></svg>
       </button>
     </div>`;
 }
@@ -5095,7 +5095,7 @@ function _runActivitySearch(q) {
         <div class="act-search-row-name">${name}</div>
         <div class="act-search-row-sub">${sub}</div>
       </div>
-      <div class="act-search-row-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      <div class="act-search-row-chevron"><svg class="icon"><use href="icons.svg#icon-chevron-right"/></svg></div>
     </div>`;
   }
   if (matches.length > 50) {
@@ -5296,7 +5296,7 @@ function renderActivityCardGrid(containerId, activities) {
   }
 
   if (!filtered.length) {
-    el.innerHTML = `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><p>No activities in this period.</p></div>`;
+    el.innerHTML = `<div class="empty-state"><svg class="icon"><use href="icons.svg#icon-activity"/></svg><p>No activities in this period.</p></div>`;
     window._actCardGridState[containerId] = null;
     return;
   }
@@ -5512,7 +5512,7 @@ function renderActivityZonesView(containerId, activities) {
   if (prev && prev.observer) prev.observer.disconnect();
 
   if (!filtered.length) {
-    el.innerHTML = `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><p>No activities in this period.</p></div>`;
+    el.innerHTML = `<div class="empty-state"><svg class="icon"><use href="icons.svg#icon-activity"/></svg><p>No activities in this period.</p></div>`;
     window._actZonesState[containerId] = null;
     return;
   }
@@ -5801,7 +5801,7 @@ function _heroAchBadge(a) {
   const label = labels[type] || 'PR';
   const count = achs.length > 1 ? ` ×${achs.length}` : '';
   return `<span class="hero-ach-badge" style="color:${color};border-color:${color}">
-    <svg viewBox="0 0 24 24" width="12" height="12" fill="${color}" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+    <svg class="icon" width="12" height="12"><use href="icons.svg#icon-star"/></svg>
     ${label}${count}
   </span>`;
 }
@@ -6156,11 +6156,11 @@ function _initRecentActDots(rail, count) {
    WIDGET SYSTEM — show/hide/reorder dashboard sections
 ==================================================== */
 const _WIDGET_DEFS = [
-  { id: 'recentCarousel',  label: 'Recent Activities',   icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>' },
-  { id: 'goalsTargets',    label: 'Goals',               icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>' },
+  { id: 'recentCarousel',  label: 'Recent Activities',   icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-activity"/></svg>' },
+  { id: 'goalsTargets',    label: 'Goals',               icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-target"/></svg>' },
   { id: 'vitality',        label: 'Week Summary',        icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>' },
   { id: 'todaySuggestion', label: 'Today Suggestion',    icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>' },
-  { id: 'weekProgress',    label: 'Week Progress',       icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>' },
+  { id: 'weekProgress',    label: 'Week Progress',       icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-activity"/></svg>' },
   { id: 'quickLinks',      label: 'Garage & Route',      icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="18" r="3"/><circle cx="19" cy="18" r="3"/><path d="M5 18h3l2-5 2-5h4l2 5 1 2.5"/></svg>' },
   { id: 'weather',         label: 'Riding Forecast',     icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>' },
   { id: 'batteryStatus',   label: 'Batteries',           icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="18" height="10" rx="2"/><line x1="22" y1="11" x2="22" y2="13"/></svg>' },
@@ -6239,7 +6239,7 @@ function openWidgetEditor() {
   html += `</div>
   <div style="padding:16px">
     <button class="btn btn-ghost" onclick="_resetWidgetLayout()" style="width:100%;height:44px;font-size:14px;font-weight:500;color:var(--red);border-radius:12px">
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+      <svg class="icon" width="16" height="16"><use href="icons.svg#icon-undo"/></svg>
       Reset Layout
     </button>
   </div>`;
@@ -6620,7 +6620,7 @@ function _injectEditWidgetsBtn() {
   if (!dash || dash.querySelector('.dash-edit-widgets-btn')) return;
   const btn = document.createElement('button');
   btn.className = 'dash-edit-widgets-btn';
-  btn.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> Edit Widgets`;
+  btn.innerHTML = `<svg class="icon" width="16" height="16"><use href="icons.svg#icon-grid"/></svg> Edit Widgets`;
   btn.onclick = () => openWidgetEditor();
   dash.appendChild(btn);
 }
@@ -6953,7 +6953,7 @@ function resetDashboard() {
   const _actList = document.getElementById('activityList');
   if (_actList) _actList.innerHTML = `
     <div class="empty-state">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      <svg class="icon"><use href="icons.svg#icon-activity"/></svg>
       <p>Connect your account to see activities.</p>
       <button class="btn btn-primary" onclick="openModal()">Connect intervals.icu</button>
     </div>`;
@@ -6978,8 +6978,8 @@ function resetDashboard() {
    ACTIVITY LIST
 ==================================================== */
 const sportIcon = {
-  ride:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M5.5 17.5l3-7h4l2.5 3.5"/><path d="M15 14l3.5 3.5"/><path d="M8.5 10.5l3.5 0"/><circle cx="13" cy="6" r="1.5"/></svg>`,
-  virtual:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M5.5 17.5l3-7h4l2.5 3.5"/><path d="M15 14l3.5 3.5"/><path d="M8.5 10.5l3.5 0"/><circle cx="13" cy="6" r="1.5"/><path d="M2 4l3 2-3 2" opacity="0.5"/><path d="M20 2l2 2-2 2" opacity="0.5"/></svg>`,
+  ride:     `<svg class="icon"><use href="icons.svg#icon-bike"/></svg>`,
+  virtual:  `<svg class="icon"><use href="icons.svg#icon-bike"/></svg>`,
   run:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="14" cy="4" r="2"/><path d="M8 21l2-6"/><path d="M10 15l-2-4 4-2 3 3 3 1"/><path d="M6 12l2-4"/></svg>`,
   swim:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="6" r="2"/><path d="M18 8v4l-4-1-3 3"/><path d="M2 18c1.5-1.5 3-2 4.5-2s3 .5 4.5 2 3 2 4.5 2 3-.5 4.5-2"/></svg>`,
   walk:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4" r="2"/><path d="M14 10l-1 4-3 5"/><path d="M10 14l-2 7"/><path d="M10 10l2-2"/><path d="M14 10l2 1"/></svg>`,
@@ -6988,7 +6988,7 @@ const sportIcon = {
   yoga:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4" r="2"/><path d="M12 6v6"/><path d="M12 12l-5 5"/><path d="M12 12l5 5"/><path d="M8 8l-4 1"/><path d="M16 8l4 1"/></svg>`,
   row:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l3-3 4 1 4-5 4 2 3-3"/><path d="M2 20c3-1 7-1 10 0s7 1 10 0"/></svg>`,
   ski:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="14" cy="4" r="2"/><path d="M8 21l6-9"/><path d="M14 12l-4-4-3 6"/><path d="M5 20l14-3"/></svg>`,
-  default:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`
+  default:  `<svg class="icon"><use href="icons.svg#icon-activity"/></svg>`
 };
 
 // Resolve the sport type string, checking all known field variants
@@ -7209,7 +7209,7 @@ function renderActivityList(containerId, activities) {
   if (prev && prev.observer) prev.observer.disconnect();
 
   if (!filtered.length) {
-    el.innerHTML = `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><p>No activities in this period.</p></div>`;
+    el.innerHTML = `<div class="empty-state"><svg class="icon"><use href="icons.svg#icon-activity"/></svg><p>No activities in this period.</p></div>`;
     window._actListState[containerId] = null;
     return;
   }
@@ -8867,10 +8867,10 @@ const TODAY_SUGGESTIONS = [
 const _sgIcons = {
   rest:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 18a5 5 0 0 0-10 0"/><line x1="12" y1="9" x2="12" y2="2"/><line x1="4.22" y1="10.22" x2="5.64" y2="11.64"/><line x1="1" y1="18" x2="3" y2="18"/><line x1="21" y1="18" x2="23" y2="18"/><line x1="18.36" y1="11.64" x2="19.78" y2="10.22"/></svg>',
   recovery: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>',
-  easy:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
-  moderate: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>',
-  quality:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
-  hard:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>',
+  easy:     '<svg class="icon"><use href="icons.svg#icon-clock"/></svg>',
+  moderate: '<svg class="icon"><use href="icons.svg#icon-activity"/></svg>',
+  quality:  '<svg class="icon"><use href="icons.svg#icon-bolt"/></svg>',
+  hard:     '<svg class="icon"><use href="icons.svg#icon-heart"/></svg>',
   peak:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 3 18 9"/><polyline points="6 15 12 9 18 15"/><line x1="12" y1="9" x2="12" y2="21"/></svg>',
 };
 
@@ -11541,7 +11541,7 @@ function renderPwrHero(ftp, weight, wkg, days) {
 
   const cards = [
     {
-      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
+      icon: `<svg class="icon"><use href="icons.svg#icon-bolt"/></svg>`,
       label: 'FTP',
       value: ftp ? `${ftp}` : '—',
       unit:  ftp ? 'w' : '',
@@ -11549,7 +11549,7 @@ function renderPwrHero(ftp, weight, wkg, days) {
       color: 'var(--accent)',
     },
     {
-      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>`,
+      icon: `<svg class="icon"><use href="icons.svg#icon-trend-up"/></svg>`,
       label: '20min Peak',
       value: best20m ? `${Math.round(best20m)}` : '—',
       unit:  best20m ? 'w' : '',
@@ -11557,7 +11557,7 @@ function renderPwrHero(ftp, weight, wkg, days) {
       color: 'var(--yellow)',
     },
     {
-      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+      icon: `<svg class="icon"><use href="icons.svg#icon-clock"/></svg>`,
       label: '5min Peak',
       value: best5m ? `${Math.round(best5m)}` : '—',
       unit:  best5m ? 'w' : '',
@@ -11989,7 +11989,7 @@ function renderPwrInsights(ftp, weight, wkg, days) {
       } else if (implied < ftp * 0.88) {
         insights.push({
           color: 'var(--blue)',
-          icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>`,
+          icon: `<svg class="icon"><use href="icons.svg#icon-trend-up"/></svg>`,
           title: 'Grow into your FTP',
           body: `Your 20min peak is below your set FTP of ${ftp}w — a sign of room to grow. Focused threshold intervals (4×8min, 2×20min) can help you close that gap.`,
         });
@@ -12021,14 +12021,14 @@ function renderPwrInsights(ftp, weight, wkg, days) {
     if (z12 < 0.50) {
       insights.push({
         color: 'var(--blue)',
-        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
+        icon: `<svg class="icon"><use href="icons.svg#icon-home"/></svg>`,
         title: 'Build more aerobic base',
         body: `Only <strong>${Math.round(z12 * 100)}%</strong> of your training is in Z1–Z2. Research shows 70–80% easy riding builds long-term capacity. Try adding longer, low-intensity rides to unlock faster adaptation.`,
       });
     } else if (z12 >= 0.65 && z56 >= 0.10) {
       insights.push({
         color: 'var(--accent)',
-        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>`,
+        icon: `<svg class="icon"><use href="icons.svg#icon-check"/></svg>`,
         title: 'Polarized training — great work',
         body: `<strong>${Math.round(z12 * 100)}%</strong> easy + <strong>${Math.round(z56 * 100)}%</strong> hard. This polarized split matches what elite endurance athletes use and is linked to superior long-term performance gains.`,
       });
@@ -12049,7 +12049,7 @@ function renderPwrInsights(ftp, weight, wkg, days) {
   if (poweredCount >= 6) {
     insights.push({
       color: 'var(--accent)',
-      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
+      icon: `<svg class="icon" width="2" height="18"><use href="icons.svg#icon-calendar"/></svg>`,
       title: `${poweredCount} powered rides in ${days} days`,
       body: `Ride frequency is one of the strongest predictors of improvement. ${poweredCount} power-tracked sessions in ${days} days — that's solid consistency. Keep showing up!`,
     });
@@ -16152,7 +16152,7 @@ function renderNotifSheet() {
         <div class="notif-msg">${n.message}</div>
       </div>
       <button class="notif-dismiss" onclick="event.stopPropagation();_notifDismiss('${n.id}')" title="Dismiss">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <svg class="icon" width="14" height="14"><use href="icons.svg#icon-x"/></svg>
       </button>
     </div>`).join('');
     html += '</div>';
@@ -16378,7 +16378,7 @@ function renderCalListView() {
     dates.push(toDateStr(dt));
   }
   let html = '', currentMonth = '';
-  const chevron = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
+  const chevron = `<svg class="icon" width="14" height="14"><use href="icons.svg#icon-chevron-right"/></svg>`;
 
   for (const dateStr of dates) {
     const items = actMap[dateStr] || [];
@@ -17333,7 +17333,7 @@ function _upgradeDateInput(input) {
   valSpan.className = 'dp-value';
   trigger.appendChild(valSpan);
   trigger.insertAdjacentHTML('beforeend',
-    '<svg class="dp-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>');
+    '<svg class="icon" width="16" height="16"><use href="icons.svg#icon-calendar"/></svg>');
   wrap.appendChild(trigger);
 
   const dd = document.createElement('div');
@@ -17363,9 +17363,9 @@ function _upgradeDateInput(input) {
     if (state.weekStartDay === 0) { dowNames.unshift(dowNames.pop()); }
 
     let h = `<div class="dp-head">
-      <button type="button" class="dp-nav" data-d="-1"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+      <button type="button" class="dp-nav" data-d="-1"><svg class="icon" width="14" height="14"><use href="icons.svg#icon-chevron-left"/></svg></button>
       <span class="dp-month">${mLabel}</span>
-      <button type="button" class="dp-nav" data-d="1"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+      <button type="button" class="dp-nav" data-d="1"><svg class="icon" width="14" height="14"><use href="icons.svg#icon-chevron-right"/></svg></button>
     </div>`;
     h += '<div class="dp-dow">' + dowNames.map(d => `<span>${d.slice(0,2)}</span>`).join('') + '</div>';
     h += '<div class="dp-grid">';
@@ -18497,7 +18497,7 @@ function renderCalDayList(dateStr, actMap) {
     return;
   }
 
-  const chevronSvg = `<svg class="cal-list-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
+  const chevronSvg = `<svg class="icon" width="16" height="16"><use href="icons.svg#icon-chevron-right"/></svg>`;
 
   // Render planned events first
   const evHtml = events.map(({ a }) => {
@@ -19987,7 +19987,7 @@ function _openActCardInfo(cardId, info) {
         <div class="act-card-info-data" id="actCardInfoData"></div>
       </div>
       <button class="fab-back act-card-info-back" onclick="_closeActCardInfo()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><polyline points="15 18 9 12 15 6"/></svg>
+        <svg class="icon" width="2" height="22"><use href="icons.svg#icon-chevron-left"/></svg>
       </button>`;
     document.body.appendChild(overlay);
   }
@@ -20105,7 +20105,7 @@ function _openActCardInfo(cardId, info) {
   ctrlHTML += '<div class="aci-controls-row">';
   ctrlHTML += `<div class="aci-view-toggle">
       <button class="aci-view-btn aci-view-btn--active" data-view="chart" onclick="_aciSwitchView('chart')">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        <svg class="icon" width="16" height="16"><use href="icons.svg#icon-activity"/></svg>
         Chart
       </button>
       <button class="aci-view-btn" data-view="table" onclick="_aciSwitchView('table')">
@@ -20172,11 +20172,11 @@ function _openActCardInfo(cardId, info) {
       </div>
       <div class="aci-tools-grid">
         <button class="aci-tool-btn" onclick="_aciExportCSV('${cardId}')">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <svg class="icon" width="18" height="18"><use href="icons.svg#icon-download"/></svg>
           Export CSV
         </button>
         <button class="aci-tool-btn" onclick="_aciShareImage('${cardId}')">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          <svg class="icon" width="18" height="18"><use href="icons.svg#icon-share"/></svg>
           Share
         </button>
         <button class="aci-tool-btn" onclick="_aciFullscreen('${cardId}')">
@@ -20589,11 +20589,11 @@ function _renderStreamsBreakdown(container, streams, activity) {
 
     const canvasId = `aciStream_${m.key}`;
     const icons = {
-      watts: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="${m.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
-      heartrate: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="${m.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.42 4.58a5.4 5.4 0 0 0-7.65 0L12 5.34l-.77-.76a5.4 5.4 0 0 0-7.65 7.65l.77.77L12 20.65l7.65-7.65.77-.77a5.4 5.4 0 0 0 0-7.65z"/></svg>`,
-      cadence: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="${m.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>`,
+      watts: `<svg class="icon" width="16" height="16" style="stroke:${m.color}"><use href="icons.svg#icon-bolt"/></svg>`,
+      heartrate: `<svg class="icon" width="16" height="16" style="stroke:${m.color}"><use href="icons.svg#icon-heart"/></svg>`,
+      cadence: `<svg class="icon" width="16" height="16" style="stroke:${m.color}"><use href="icons.svg#icon-clock"/></svg>`,
       velocity_smooth: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="${m.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>`,
-      altitude: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="${m.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20l5-10 4 6 3-4 6 8H3z"/></svg>`,
+      altitude: `<svg class="icon" width="16" height="16" style="stroke:${m.color}"><use href="icons.svg#icon-mountain"/></svg>`,
     };
     html += `<div class="aci-stream-section">
       <div class="aci-stream-title card-title" style="color:${m.color}">${icons[m.key] || ''}${m.label}</div>
@@ -22439,9 +22439,9 @@ function renderActivityBasic(a) {
   // ── Primary stats: up to 4 hero numbers ───────────────────────────────────
   const P_ICONS = {
     km:         `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0"/><path d="M12 8v4l3 3"/></svg>`,
-    duration:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
-    power:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
-    bpm:        `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`,
+    duration:   `<svg class="icon"><use href="icons.svg#icon-clock"/></svg>`,
+    power:      `<svg class="icon"><use href="icons.svg#icon-bolt"/></svg>`,
+    bpm:        `<svg class="icon"><use href="icons.svg#icon-heart"/></svg>`,
     speed:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><polyline points="12 6 12 12 16 14"/></svg>`,
   };
   const pStat = (val, lbl, accent = false, cmpPct = null, iconKey = '', color = '') => {
@@ -22485,12 +22485,12 @@ function renderActivityBasic(a) {
   const SICONS = {
     elev:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 20 9 8 15 14 20 6"/></svg>`,
     speed:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><polyline points="12 6 12 12 16 14"/></svg>`,
-    zap:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
-    target: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`,
-    heart:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`,
+    zap:    `<svg class="icon"><use href="icons.svg#icon-bolt"/></svg>`,
+    target: `<svg class="icon"><use href="icons.svg#icon-target"/></svg>`,
+    heart:  `<svg class="icon"><use href="icons.svg#icon-heart"/></svg>`,
     cad:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>`,
     fire:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 3z"/></svg>`,
-    pulse:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`,
+    pulse:  `<svg class="icon"><use href="icons.svg#icon-activity"/></svg>`,
   };
   const sStat = (val, lbl, icon, color, cmpPct = null, colored = false) => {
     let cmpHtml = '';
@@ -22546,7 +22546,7 @@ function renderActivityBasic(a) {
   // ── Gear used badge ──────────────────────────────────────────────────
   const gearBadgeEl = document.getElementById('actGearBadge');
   if (gearBadgeEl) {
-    const bikeIcon = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5L9 11l-3.5 3.5M15 6l-4 5.5H5.5M15 6l3 5.5"/></svg>`;
+    const bikeIcon = `<svg class="icon" width="14" height="14"><use href="icons.svg#icon-bike"/></svg>`;
     const gearId = a.gear_id || a.icu_gear_id || '';
     const bikes = state.gearBikes || JSON.parse(localStorage.getItem('icu_gear_bikes') || '[]');
     let bikeName = '';
@@ -22601,10 +22601,10 @@ function _renderAchievements(a) {
   }
 
   const iconMap = {
-    BEST_POWER: `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
-    FTP_UP: `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>`,
-    LTHR_UP: `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`,
-    BEST_PACE: `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+    BEST_POWER: `<svg class="icon" width="22" height="22"><use href="icons.svg#icon-bolt"/></svg>`,
+    FTP_UP: `<svg class="icon" width="22" height="22"><use href="icons.svg#icon-trend-up"/></svg>`,
+    LTHR_UP: `<svg class="icon" width="22" height="22"><use href="icons.svg#icon-heart"/></svg>`,
+    BEST_PACE: `<svg class="icon" width="22" height="22"><use href="icons.svg#icon-clock"/></svg>`,
   };
 
   const themeMap = {
@@ -22988,7 +22988,7 @@ async function renderDetailDynamics(a) {
     const minT = Math.min(...temps);
     const maxT = Math.max(...temps);
     rows += `<div class="detail-zone-summary-row">
-      <span><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#ff9500" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>Temperature</span>
+      <span><svg class="icon" width="14" height="14" style="stroke:#ff9500"><use href="icons.svg#icon-thermometer"/></svg>Temperature</span>
       <span style="font-family:var(--font-num);font-weight:600">${Math.round(avgT)}°C <span style="font-weight:400;color:var(--text-muted);font-size:12px">(${Math.round(minT)}–${Math.round(maxT)}°C)</span></span>
     </div>`;
   }
@@ -23288,7 +23288,7 @@ function renderDetailExport(a) {
   // Download original file (if available)
   buttons.push(`
     <button class="btn btn-ghost detail-export-btn" title="Download original activity file" onclick="downloadActivityFile('${actId}')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      <svg class="icon"><use href="icons.svg#icon-download"/></svg>
       <span>Original File</span>
     </button>
   `);
@@ -23296,7 +23296,7 @@ function renderDetailExport(a) {
   // Download as FIT
   buttons.push(`
     <button class="btn btn-ghost detail-export-btn" title="Download as Garmin FIT format" onclick="downloadFITFile('${actId}')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      <svg class="icon"><use href="icons.svg#icon-download"/></svg>
       <span>Garmin (.fit)</span>
     </button>
   `);
@@ -23304,7 +23304,7 @@ function renderDetailExport(a) {
   // Download as GPX
   buttons.push(`
     <button class="btn btn-ghost detail-export-btn" title="Download as GPX format (GPS data)" onclick="downloadGPXFile('${actId}')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      <svg class="icon"><use href="icons.svg#icon-download"/></svg>
       <span>GPX (GPS)</span>
     </button>
   `);
@@ -23495,12 +23495,12 @@ function buildColoredSegments(points, streams, mode, maxes) {
 // Call this BEFORE adding hover event listeners to avoid re-creating DOM on every event.
 // Feather-style inline SVG icons (24×24 viewBox, sized via CSS)
 const MAP_ICONS = {
-  power: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
-  hr:    `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`,
+  power: `<svg class="icon"><use href="icons.svg#icon-bolt"/></svg>`,
+  hr:    `<svg class="icon"><use href="icons.svg#icon-heart"/></svg>`,
   cad:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`,
   alt:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>`,
   grade: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="20" x2="21" y2="20"/><polyline points="3 20 13 8 17 13 21 4"/></svg>`,
-  time:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+  time:  `<svg class="icon"><use href="icons.svg#icon-clock"/></svg>`,
 };
 
 // HR zone colour based on % of max HR
@@ -24429,7 +24429,7 @@ function renderActivityMap(latlng, streams) {
             const terrainBtn = document.createElement('button');
             terrainBtn.className = 'act-map-tool-btn' + (loadTerrainEnabled() ? ' active' : '');
             terrainBtn.title = 'Toggle 3D terrain';
-            terrainBtn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20l5-10 4 6 3-4 6 8"/><circle cx="17" cy="7" r="2"/></svg>';
+            terrainBtn.innerHTML = '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-mountain"/></svg>';
             terrainBtn.addEventListener('click', () => {
               const on = !loadTerrainEnabled();
               setTerrainEnabled(on);
@@ -27257,7 +27257,7 @@ function renderStreaksPage() {
         <div class="stk-badge-icon">${b.icon}</div>
         <div class="stk-badge-name">${b.name}</div>
         <div class="stk-badge-desc">${b.desc}</div>
-        ${b.earned ? '<div class="stk-badge-check"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>' : ''}
+        ${b.earned ? '<div class="stk-badge-check"><svg class="icon" width="14" height="14"><use href="icons.svg#icon-check"/></svg></div>' : ''}
       </div>`).join('');
   }
 
@@ -28314,7 +28314,7 @@ function renderBikeDetailPage() {
   const svcs = loadGearServices().filter(s => s.bikeId === bikeId);
   const avgBat = bats.length ? Math.round(bats.reduce((s, b) => s + (_gearBatPct(b) || 0), 0) / bats.length) : null;
 
-  const bikeSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" width="64" height="64" style="opacity:0.2"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5L9 11l-3.5 3.5M15 6l-4 5.5H5.5M15 6l3 5.5"/></svg>`;
+  const bikeSvg = `<svg class="icon" width="64" height="64"><use href="icons.svg#icon-bike"/></svg>`;
 
   const bgCol = _gearLoadBgColors()[bikeId] || '';
   const heroPhotoStyle = bgCol ? `style="background:${bgCol}"` : '';
@@ -28325,7 +28325,7 @@ function renderBikeDetailPage() {
       <div class="bkd-hero-photo" ${heroPhotoStyle}>
         ${photo ? `<img src="${photo}" alt="${bike.name}">` : bikeSvg}
         <button class="gar-bike-photo-upload" onclick="gearTriggerPhotoUpload('${bikeId}',event)" title="Upload photo">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          <svg class="icon" width="14" height="14"><use href="icons.svg#icon-camera"/></svg>
         </button>
       </div>
       <div class="bkd-hero-info">
@@ -28336,7 +28336,7 @@ function renderBikeDetailPage() {
         </div>
         <div class="bkd-hero-actions">
           <button class="bkd-action-btn" onclick="gearTriggerPhotoUpload('${bikeId}',event)">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            <svg class="icon" width="16" height="16"><use href="icons.svg#icon-camera"/></svg>
             Photo
           </button>
           <button class="bkd-action-btn" onclick="_gearOpenBgColorPicker('${bikeId}')">
@@ -28372,7 +28372,7 @@ function renderBikeDetailPage() {
       </div>
       <div id="gearComponentsGrid" class="gar-list"></div>
       <button class="gar-add-full-btn" onclick="openGearModal()">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <svg class="icon" width="18" height="18"><use href="icons.svg#icon-plus"/></svg>
         Add Component
       </button>
       <!-- ROI section (below components) -->
@@ -28390,7 +28390,7 @@ function renderBikeDetailPage() {
       </div>
       <div id="gearBatteriesGrid" class="gar-bat-grid"></div>
       <button class="gar-add-full-btn" onclick="openBatteryModal()">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <svg class="icon" width="18" height="18"><use href="icons.svg#icon-plus"/></svg>
         Add Battery
       </button>
     </div>
@@ -28402,7 +28402,7 @@ function renderBikeDetailPage() {
       </div>
       <div id="gearTiresGrid" class="gar-list"></div>
       <button class="gar-add-full-btn" onclick="openTireSheet()">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <svg class="icon" width="18" height="18"><use href="icons.svg#icon-plus"/></svg>
         Add Tire
       </button>
     </div>
@@ -28415,7 +28415,7 @@ function renderBikeDetailPage() {
       </div>
       <div id="gearServiceGrid" class="gar-list"></div>
       <button class="gar-add-full-btn" onclick="openServiceModal()">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <svg class="icon" width="18" height="18"><use href="icons.svg#icon-plus"/></svg>
         Add Service
       </button>
     </div>
@@ -28468,7 +28468,7 @@ function _bkdToggleSwitcher(e) {
   } else {
     const photos = _gearLoadPhotos();
     const currentId = window._garActiveBike;
-    const bikeSvg = '<svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6l-4 8h6l-3 3.5"/><path d="M5.5 17.5L9 9h3"/></svg>';
+    const bikeSvg = '<svg class="icon" width="32" height="32" style="stroke:rgba(255,255,255,0.3)"><use href="icons.svg#icon-bike"/></svg>';
     dd.innerHTML = _gearBikeCache.map(b => {
       const photo = photos[b.id];
       const isCurrent = b.id === currentId;
@@ -28476,7 +28476,7 @@ function _bkdToggleSwitcher(e) {
         ? `<img class="bkd-bike-option-photo" src="${photo}" alt="">`
         : `<div class="bkd-bike-option-photo" style="display:flex;align-items:center;justify-content:center">${bikeSvg}</div>`;
       const check = isCurrent
-        ? `<svg class="bkd-bike-option-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`
+        ? `<svg class="icon"><use href="icons.svg#icon-check"/></svg>`
         : '';
       return `<div class="bkd-bike-option" onclick="_bkdSwitchBike('${b.id}')">
         ${photoHtml}
@@ -28586,7 +28586,7 @@ async function renderGearPage() {
   const photos = _gearLoadPhotos();
 
   // Bike carousel
-  const bikeSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" width="48" height="48" class="gar-bike-photo-placeholder"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5L9 11l-3.5 3.5M15 6l-4 5.5H5.5M15 6l3 5.5"/></svg>`;
+  const bikeSvg = `<svg class="icon" width="48" height="48"><use href="icons.svg#icon-bike"/></svg>`;
   const primaryBikeId = localStorage.getItem('icu_primary_bike') || '';
   const bgColors = _gearLoadBgColors();
 
@@ -28603,13 +28603,13 @@ async function renderGearPage() {
         ${isPrimary ? '<span class="gar-bike-primary-tag">Primary</span>' : ''}
         <div class="gar-bike-photo-actions">
           <button class="gar-bike-photo-action-btn" onclick="gearTriggerPhotoUpload('${b.id}',event)" title="Upload photo">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            <svg class="icon" width="14" height="14"><use href="icons.svg#icon-camera"/></svg>
           </button>
           ${photo ? `<button class="gar-bike-photo-action-btn" onclick="_gearOpenBgColorPicker('${b.id}',event)" title="Background color">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="10.5" r="2.5"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="8.5" cy="10.5" r="2.5"/><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5C11.5 5 10 6.9 8 8.5S5 13 5 15a7 7 0 0 0 7 7z"/></svg>
           </button>` : ''}
           <button class="gar-bike-photo-action-btn${isPrimary ? ' gar-bike-photo-action-btn--active' : ''}" onclick="_gearTogglePrimary('${b.id}',event)" title="${isPrimary ? 'Remove primary' : 'Set as primary'}">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="${isPrimary ? 'var(--accent)' : 'none'}" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg class="icon" width="14" height="14"><use href="icons.svg#icon-star"/></svg>
           </button>
         </div>
       </div>
@@ -28830,7 +28830,7 @@ function openCompDetail(compId) {
 
     <div class="comp-detail-actions">
       <button class="btn btn-ghost" style="flex:1" onclick="closeCompDetailSheet();openGearModal('${c.id}')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
+        <svg class="icon" width="2" height="16"><use href="icons.svg#icon-edit"/></svg>
         Edit
       </button>
       <button class="btn btn-ghost" style="flex:1;color:var(--red)" onclick="closeCompDetailSheet();deleteGearComponent('${c.id}')">
@@ -28853,7 +28853,7 @@ let _gearPickerCallback = null;
 function _gpImgFail(img) {
   const parent = img.parentNode;
   if (parent) {
-    parent.innerHTML = '<svg class="gp-opt-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>';
+    parent.innerHTML = '<svg class="icon"><use href="icons.svg#icon-wheel"/></svg>';
   }
 }
 
@@ -28867,8 +28867,8 @@ function openGearPicker(selectEl) {
   const label = selectEl.closest('.field')?.querySelector('label')?.textContent || 'Select';
   if (titleEl) titleEl.textContent = label;
 
-  const checkSvg = '<svg class="gear-picker-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-  const defaultIcon = '<svg class="gp-opt-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>';
+  const checkSvg = '<svg class="icon"><use href="icons.svg#icon-check"/></svg>';
+  const defaultIcon = '<svg class="icon"><use href="icons.svg#icon-wheel"/></svg>';
 
   // Determine context for image lookup
   const isModel = selectEl.id === 'gearFormModel';
@@ -30294,7 +30294,7 @@ function batteryCard(bat) {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><path d="M3 10h10a5 5 0 0 1 0 10H12"/><polyline points="7 6 3 10 7 14"/></svg>
         </button>`
       : `<button class="gar-bat-charge-fab" title="Charge" onclick="event.stopPropagation();chargeBattery('${bat.id}')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          <svg class="icon" width="14" height="14"><use href="icons.svg#icon-bolt"/></svg>
         </button>`) : ''}
     <div class="gar-bat-card-top">
       <div class="gar-bat-img${hasComponentImg ? '' : ' gar-bat-img--icon'}">${imgHtml}</div>
@@ -30487,7 +30487,7 @@ function chargeBattery(id) {
         <div class="bat-charge-pct">${pct}%</div>
       </div>
       <div class="bat-charge-bolt">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        <svg class="icon" width="20" height="20"><use href="icons.svg#icon-bolt"/></svg>
       </div>
       <button class="bat-charge-btn" id="_batChargeBtn">${isCoin ? 'Replace Battery' : 'Charge Now'}</button>
       <button class="bat-charge-cancel" onclick="document.getElementById('_batChargeOverlay')?.remove()">Cancel</button>
@@ -30616,15 +30616,15 @@ function openBatDetailSheet(id) {
 
     <div class="comp-detail-actions">
       <button class="btn btn-ghost" style="flex:1" onclick="closeBatDetailSheet();chargeBattery('${bat.id}')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        <svg class="icon" width="2" height="16"><use href="icons.svg#icon-bolt"/></svg>
         Charge
       </button>
       <button class="btn btn-ghost" style="flex:1" onclick="closeBatDetailSheet();openBatteryModal('${bat.id}')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
+        <svg class="icon" width="2" height="16"><use href="icons.svg#icon-edit"/></svg>
         Edit
       </button>
       <button class="btn btn-ghost" style="flex:1;color:var(--red)" onclick="closeBatDetailSheet();deleteBattery('${bat.id}')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        <svg class="icon" width="2" height="16"><use href="icons.svg#icon-trash"/></svg>
         Delete
       </button>
     </div>`;
@@ -30764,9 +30764,9 @@ function serviceCard(bikeId, services) {
   if (prog?.overdue) cardClass += ' service-card--overdue';
   else if (prog?.warn) cardClass += ' service-card--warn';
 
-  const editSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>`;
-  const histSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`;
-  const plusSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13" height="13"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
+  const editSvg = `<svg class="icon" width="2" height="13"><use href="icons.svg#icon-edit"/></svg>`;
+  const histSvg = `<svg class="icon" width="2" height="13"><use href="icons.svg#icon-activity"/></svg>`;
+  const plusSvg = `<svg class="icon" width="13" height="13"><use href="icons.svg#icon-plus"/></svg>`;
 
   let barHtml = '';
   if (prog) {
@@ -31247,12 +31247,12 @@ function renderServicePage() {
         <div class="svc-shops-scroll">
           ${shops.map(sh => `
             <div class="svc-shop-chip" onclick="openServiceShopModal('${sh.id}')">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              <svg class="icon" width="14" height="14"><use href="icons.svg#icon-home"/></svg>
               <span>${sh.name}</span>
             </div>
           `).join('')}
           <div class="svc-shop-chip svc-shop-chip--add" onclick="openServiceShopModal()">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <svg class="icon" width="14" height="14"><use href="icons.svg#icon-plus"/></svg>
             <span>Add</span>
           </div>
         </div>
@@ -31297,7 +31297,7 @@ function renderServicePage() {
 
       <!-- Add Service button -->
       <button class="svc-add-btn" onclick="openServiceModal()">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <svg class="icon" width="18" height="18"><use href="icons.svg#icon-plus"/></svg>
         Add Service
       </button>
     </div>`;
@@ -31555,7 +31555,7 @@ function renderServiceShopList() {
     container.innerHTML = '<div style="color:var(--text-muted);font-size:var(--text-sm);padding:8px 0">No shops saved yet.</div>';
     return;
   }
-  const editSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>`;
+  const editSvg = `<svg class="icon" width="2" height="13"><use href="icons.svg#icon-edit"/></svg>`;
   const delSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
   container.innerHTML = shops.map(s => {
     const phoneHref = s.phone ? s.phone.replace(/[\s\-()]/g, '') : '';
@@ -31646,7 +31646,7 @@ function renderServiceHistoryList(bikeId) {
   }
 
   const totalCost = all.reduce((sum, s) => sum + (s.cost || 0), 0);
-  const editSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>`;
+  const editSvg = `<svg class="icon" width="2" height="13"><use href="icons.svg#icon-edit"/></svg>`;
   const delSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
 
   const summaryHtml = `
@@ -32931,7 +32931,7 @@ function renderGoalsPage() {
   const periodLabel = { week: 'This Week', month: 'This Month', year: 'This Year' };
   let html = sectionDivider + `<div class="goals-header">
     <button class="btn btn-primary btn-sm" onclick="showGoalForm()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <svg class="icon" width="2" height="14"><use href="icons.svg#icon-plus"/></svg>
       Add Goal
     </button>
   </div>
@@ -32963,7 +32963,7 @@ function renderGoalsPage() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           </button>
           <button class="btn btn-ghost btn-xs" onclick="deleteGoal(${goal.id})" title="Delete">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            <svg class="icon" width="2" height="14"><use href="icons.svg#icon-x"/></svg>
           </button>
         </div>
       </div>
@@ -34853,7 +34853,7 @@ function _mrRideCard(act, type) {
       <div class="mr-card-top">
         <span class="mr-card-name">${name}</span>
         <button class="mr-fav${isFav ? ' mr-fav--active' : ''}" data-id="${id}" onclick="event.stopPropagation();mrToggleFav('${id}')" aria-label="Favorite">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="${isFav ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          <svg class="icon" width="18" height="18"><use href="icons.svg#icon-heart"/></svg>
         </button>
       </div>
       <div class="mr-card-stats">${[dist, elev, time].filter(Boolean).join(' \u00b7 ')}</div>
@@ -34880,7 +34880,7 @@ function _mrRouteCard(route) {
       <div class="mr-card-top">
         <span class="mr-card-name">${name}</span>
         <button class="mr-fav${isFav ? ' mr-fav--active' : ''}" data-id="${id}" onclick="event.stopPropagation();mrToggleFav('${id}')" aria-label="Favorite">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="${isFav ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          <svg class="icon" width="18" height="18"><use href="icons.svg#icon-heart"/></svg>
         </button>
       </div>
       <div class="mr-card-stats">${[dist, elev].filter(Boolean).join(' \u00b7 ')}</div>
@@ -34921,7 +34921,7 @@ function _mrWorkoutCard(workout) {
       <div class="mr-card-top">
         <span class="mr-card-name">${name}</span>
         <button class="mr-fav${isFav ? ' mr-fav--active' : ''}" data-id="${id}" onclick="event.stopPropagation();mrToggleFav('${id}')" aria-label="Favorite">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="${isFav ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          <svg class="icon" width="18" height="18"><use href="icons.svg#icon-heart"/></svg>
         </button>
       </div>
       <div class="mr-card-stats">${[dur, tss, segCount].filter(Boolean).join(' \u00b7 ')}</div>
@@ -35264,9 +35264,9 @@ function _mrBuildSuggestions() {
 
 const _SGN_INTENSITY = {
   recovery: { color: '#4a9eff', icon: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>', label: 'Recovery' },
-  easy:     { color: '#00e5a0', icon: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>', label: 'Easy' },
+  easy:     { color: '#00e5a0', icon: '<svg class="icon" width="16" height="16"><use href="icons.svg#icon-activity"/></svg>', label: 'Easy' },
   moderate: { color: '#ffcc00', icon: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>', label: 'Moderate' },
-  hard:     { color: '#ff6b35', icon: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12c2-2.96 0-7-1-8 0 3.038-1.773 4.741-3 6-1.226 1.26-2 3.24-2 5a6 6 0 1 0 12 0c0-1.532-1.056-3.94-2-5-1.786 3-2.791 3-4 2z"/></svg>', label: 'High Intensity' },
+  hard:     { color: '#ff6b35', icon: '<svg class="icon" width="16" height="16"><use href="icons.svg#icon-flame"/></svg>', label: 'High Intensity' },
 };
 
 function _mrSuggestionCard(s) {
@@ -35286,7 +35286,7 @@ function _mrSuggestionCard(s) {
     }).join('');
     preview = `<div class="sgn-card-bars">${bars}</div>`;
   } else {
-    preview = `<div class="sgn-card-route-icon"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M17 7h4v4"/></svg></div>`;
+    preview = `<div class="sgn-card-route-icon"><svg class="icon" width="28" height="28"><use href="icons.svg#icon-trend-up"/></svg></div>`;
   }
 
   return `<div class="sgn-card" onclick="_mrOpenSuggestion('${s.id}')" style="--sgn-color:${int.color}">
@@ -35369,7 +35369,7 @@ function renderSuggestionPage() {
         Load in Workout Builder
       </button>`
     : `<button class="wrk-save-btn" onclick="navigateToActivity(window._mrActiveSuggestion.activityRef)">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M17 7h4v4"/></svg>
+        <svg class="icon" width="20" height="20"><use href="icons.svg#icon-trend-up"/></svg>
         View Ride Details
       </button>`;
 
@@ -35520,7 +35520,7 @@ function openGlobalSearch() {
   }
   document.getElementById('gsClear').style.display = 'none';
   document.getElementById('gsResults').innerHTML = `<div class="gs-placeholder">
-    <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <svg class="icon" width="40" height="40"><use href="icons.svg#icon-search"/></svg>
     <div>Search across your rides, routes, gear & settings</div>
   </div>`;
   gsSetFilter('all');
@@ -35537,7 +35537,7 @@ function gsClearInput() {
   if (inp) { inp.value = ''; inp.focus(); }
   document.getElementById('gsClear').style.display = 'none';
   document.getElementById('gsResults').innerHTML = `<div class="gs-placeholder">
-    <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <svg class="icon" width="40" height="40"><use href="icons.svg#icon-search"/></svg>
     <div>Search across your rides, routes, gear & settings</div>
   </div>`;
 }
@@ -35588,7 +35588,7 @@ function _gsRunSearch(q) {
         const gsKey = '_gs_' + _gi;
         window._actLookup[gsKey] = a;
         html += `<div class="gs-item" onclick="closeGlobalSearch();navigateToActivity('${gsKey}')">
-          <div class="gs-item-icon" style="color:var(--accent)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+          <div class="gs-item-icon" style="color:var(--accent)"><svg class="icon"><use href="icons.svg#icon-activity"/></svg></div>
           <div class="gs-item-body">
             <div class="gs-item-title">${_escHtml(name)}</div>
             <div class="gs-item-sub">${dateStr}${dist ? ' · ' + dist : ''} · ${_escHtml(type)}</div>
@@ -35630,7 +35630,7 @@ function _gsRunSearch(q) {
       workouts.forEach(w => {
         const dur = w.totalDuration ? _fmtDuration(w.totalDuration) : '';
         html += `<div class="gs-item" onclick="closeGlobalSearch();wrkLoadWorkout(window._mrSavedWorkouts.find(x=>x.id==='${w.id}'));navigate('workout')">
-          <div class="gs-item-icon" style="color:#ff9500"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+          <div class="gs-item-icon" style="color:#ff9500"><svg class="icon"><use href="icons.svg#icon-bolt"/></svg></div>
           <div class="gs-item-body">
             <div class="gs-item-title">${_escHtml(w.name || 'Untitled Workout')}</div>
             <div class="gs-item-sub">${dur || 'Saved workout'}</div>
@@ -35658,7 +35658,7 @@ function _gsRunSearch(q) {
       html += `<div class="gs-group"><div class="gs-group-title">Gear</div>`;
       bikes.forEach(b => {
         html += `<div class="gs-item" onclick="closeGlobalSearch();navigate('gear');setTimeout(()=>gearSelectBike('${b.id}'),100)">
-          <div class="gs-item-icon" style="color:var(--accent)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5L9 11l-3.5 3.5M15 6l-4 5.5H5.5M15 6l3 5.5"/></svg></div>
+          <div class="gs-item-icon" style="color:var(--accent)"><svg class="icon"><use href="icons.svg#icon-bike"/></svg></div>
           <div class="gs-item-body">
             <div class="gs-item-title">${_escHtml(b.name)}</div>
             <div class="gs-item-sub">${b.km ? b.km.toLocaleString() + ' km' : b.type || 'Bike'}</div>
@@ -35710,7 +35710,7 @@ function _gsRunSearch(q) {
       html += `<div class="gs-group"><div class="gs-group-title">Settings</div>`;
       matched.forEach(s => {
         html += `<div class="gs-item" onclick="closeGlobalSearch();navigate('${s.page}',{settingsSubpage:'${s.subpage}'})">
-          <div class="gs-item-icon" style="color:var(--text-secondary)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
+          <div class="gs-item-icon" style="color:var(--text-secondary)"><svg class="icon"><use href="icons.svg#icon-settings"/></svg></div>
           <div class="gs-item-body">
             <div class="gs-item-title">${s.label}</div>
             <div class="gs-item-sub">${s.sub}</div>
@@ -35725,7 +35725,7 @@ function _gsRunSearch(q) {
 
   if (totalCount === 0) {
     html = `<div class="gs-no-results">
-      <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.3;margin-bottom:8px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <svg class="icon" width="32" height="32"><use href="icons.svg#icon-search"/></svg>
       <div>No results for "${_escHtml(q)}"</div>
     </div>`;
   }
@@ -35859,7 +35859,7 @@ function renderNavSettings() {
     });
     if (cfg.tabs.length < 5) {
       html += `<div class="ios-row" onclick="addNavTab()" style="cursor:pointer">
-        <div class="ios-row-icon" style="background:var(--accent)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+        <div class="ios-row-icon" style="background:var(--accent)"><svg class="icon"><use href="icons.svg#icon-plus"/></svg></div>
         <span class="ios-row-label" style="color:var(--accent)">Add Tab</span>
       </div>`;
     }
@@ -35876,7 +35876,7 @@ function renderNavSettings() {
       html += `<div class="ios-row${active ? ' nav-fab-active' : ''}" onclick="setFabAction('${a.id}')" style="cursor:pointer">
         <div class="ios-row-icon" style="background:${active ? 'var(--accent)' : 'rgba(255,255,255,0.08)'}"><svg viewBox="0 0 24 24" fill="none" stroke="${active ? '#000' : 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${a.icon}</svg></div>
         <span class="ios-row-label">${a.label}</span>
-        ${active ? '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+        ${active ? '<svg class="icon" width="20" height="20" style="stroke:var(--accent)"><use href="icons.svg#icon-check"/></svg>' : ''}
       </div>`;
     });
     fabPicker.innerHTML = html;
@@ -36080,7 +36080,7 @@ function _fuelGenerate() {
   h += `<div class="fuel-tl-item fuel-tl-item--start"><div class="fuel-tl-time">0:00</div><div class="fuel-tl-dot"></div><div class="fuel-tl-body"><div class="fuel-tl-title">Ride Start</div><div class="fuel-tl-desc">Glycogen stores \u2014 no fueling needed yet</div></div></div>`;
   sched.forEach(i => { h += `<div class="fuel-tl-item"><div class="fuel-tl-time">${i.ts}</div><div class="fuel-tl-dot" style="background:#00e5a0"></div><div class="fuel-tl-body"><div class="fuel-tl-title">${i.item}</div><div class="fuel-tl-desc">${i.c}g carbs \u00B7 ${i.cal} cal</div></div></div>`; });
   h += `<div class="fuel-tl-item fuel-tl-item--end"><div class="fuel-tl-time">${Math.floor(tot / 60)}:${String(tot % 60).padStart(2, '0')}</div><div class="fuel-tl-dot"></div><div class="fuel-tl-body"><div class="fuel-tl-title">Ride End</div><div class="fuel-tl-desc">Recovery meal within 30 min</div></div></div></div>`;
-  h += `<button class="fuel-back-btn" onclick="_fuelShowForm()"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg> Adjust Inputs</button>`;
+  h += `<button class="fuel-back-btn" onclick="_fuelShowForm()"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-chevron-left"/></svg> Adjust Inputs</button>`;
   o.innerHTML = h;
 }
 function _fuelShowForm() { const f = document.getElementById('fuelPlanForm'), o = document.getElementById('fuelPlanOutput'); if (f) f.style.display = ''; if (o) o.style.display = 'none'; }
@@ -36198,7 +36198,7 @@ function _wifUpdate(){var wT=parseInt(document.getElementById('wifTss').value)||
 function openPacingSheet(){var w=document.getElementById('pacingWeight'),f=document.getElementById('pacingFtp');if(w&&!w.value&&state.athlete?.weight)w.value=Math.round(state.athlete.weight);if(f&&!f.value){var v=state.athlete?.ftp||localStorage.getItem('icu_ftp');if(v)f.value=Math.round(parseFloat(v));}var fm=document.getElementById('pacingForm'),o=document.getElementById('pacingOutput');if(fm)fm.style.display='';if(o)o.style.display='none';_openOverlaySheet('pacingSheet');_initPacingScrubbers();_syncPacingScrubbers();}
 function _closePacing(){_closeOverlaySheet('pacingSheet');}
 function _pacingAddSeg(){var c=document.getElementById('pacingSegments');if(!c)return;var r=document.createElement('div');r.className='pacing-seg-row';r.innerHTML='<input type="number" placeholder="km" class="pacing-seg-km" value="5"><input type="number" placeholder="%" class="pacing-seg-grade" value="0"><span class="pacing-seg-label">Flat</span><button class="pacing-seg-del" onclick="this.parentElement.remove()">\u00D7</button>';c.appendChild(r);}
-function _pacingGenerate(){var wt=parseFloat(document.getElementById('pacingWeight').value)||75,ftp=parseFloat(document.getElementById('pacingFtp').value)||250,tP=parseInt(document.getElementById('pacingIF').value)||75,tW=Math.round(ftp*tP/100);var sg=[];document.querySelectorAll('.pacing-seg-row').forEach(function(r){var k=parseFloat(r.querySelector('.pacing-seg-km')?.value)||0,gr=parseFloat(r.querySelector('.pacing-seg-grade')?.value)||0;if(k>0)sg.push({km:k,grade:gr});});if(!sg.length){showToast('Add a segment','error');return;}var CdA=0.32,Crr=0.005,rho=1.225,gv=9.81,tw=wt+8;var rs=sg.map(function(s){var pw;if(s.grade>3)pw=Math.min(ftp,Math.round(tW*(1+s.grade*0.03)));else if(s.grade<-2)pw=Math.round(tW*0.3);else pw=tW;var gR=Math.atan(s.grade/100),Fg=tw*gv*Math.sin(gR),Fr=Crr*tw*gv*Math.cos(gR);var v=8;for(var i=0;i<20;i++){v=pw/Math.max(Fg+Fr+0.5*rho*CdA*v*v,1);v=Math.max(1,Math.min(25,v));}var sp=v*3.6,tH=s.km/sp,tM=Math.round(tH*60),kj=Math.round(pw*tH*3.6);var lb=s.grade>3?'Climb':s.grade<-2?'Descent':s.grade>0.5?'Rolling':'Flat';return Object.assign({},s,{pw:pw,sp:Math.round(sp*10)/10,tm:tM,kj:kj,lb:lb});});var tK=rs.reduce(function(a,r){return a+r.km},0),tT=rs.reduce(function(a,r){return a+r.tm},0),tJ=rs.reduce(function(a,r){return a+r.kj},0),aP=Math.round(rs.reduce(function(a,r){return a+r.pw*r.tm},0)/tT);var fm=document.getElementById('pacingForm'),o=document.getElementById('pacingOutput');if(fm)fm.style.display='none';if(o)o.style.display='';var h='<div class="fuel-summary"><div class="fuel-summary-card"><div class="fuel-summary-val">'+tK+'km</div><div class="fuel-summary-lbl">Distance</div></div><div class="fuel-summary-card"><div class="fuel-summary-val">'+(tT>=60?Math.floor(tT/60)+'h '+(tT%60)+'m':tT+'m')+'</div><div class="fuel-summary-lbl">Est. Time</div></div><div class="fuel-summary-card"><div class="fuel-summary-val">'+aP+'W</div><div class="fuel-summary-lbl">Avg Power</div></div><div class="fuel-summary-card"><div class="fuel-summary-val">'+tJ+'</div><div class="fuel-summary-lbl">kJ</div></div></div><div class="pacing-plan">';var ck=0;rs.forEach(function(r,i){var c=r.grade>3?'#ff453a':r.grade<-2?'#4a9eff':'#00e5a0';ck+=r.km;h+='<div class="pacing-seg"><div class="pacing-seg-header"><span class="pacing-seg-num" style="background:'+c+'">'+(i+1)+'</span><span class="pacing-seg-type">'+r.lb+' \u2014 '+r.km+'km @ '+r.grade+'%</span><span class="pacing-seg-dist">km '+Math.round(ck-r.km)+'\u2013'+Math.round(ck)+'</span></div><div class="pacing-seg-metrics"><div class="pacing-seg-metric"><span class="pacing-seg-val" style="color:'+c+'">'+r.pw+'W</span><span class="pacing-seg-lbl">Target</span></div><div class="pacing-seg-metric"><span class="pacing-seg-val">'+r.sp+'</span><span class="pacing-seg-lbl">km/h</span></div><div class="pacing-seg-metric"><span class="pacing-seg-val">'+r.tm+'m</span><span class="pacing-seg-lbl">Time</span></div><div class="pacing-seg-metric"><span class="pacing-seg-val">'+r.kj+'</span><span class="pacing-seg-lbl">kJ</span></div></div></div>';});h+='</div><button class="fuel-back-btn" onclick="_pacingShowForm()"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg> Adjust</button>';o.innerHTML=h;}
+function _pacingGenerate(){var wt=parseFloat(document.getElementById('pacingWeight').value)||75,ftp=parseFloat(document.getElementById('pacingFtp').value)||250,tP=parseInt(document.getElementById('pacingIF').value)||75,tW=Math.round(ftp*tP/100);var sg=[];document.querySelectorAll('.pacing-seg-row').forEach(function(r){var k=parseFloat(r.querySelector('.pacing-seg-km')?.value)||0,gr=parseFloat(r.querySelector('.pacing-seg-grade')?.value)||0;if(k>0)sg.push({km:k,grade:gr});});if(!sg.length){showToast('Add a segment','error');return;}var CdA=0.32,Crr=0.005,rho=1.225,gv=9.81,tw=wt+8;var rs=sg.map(function(s){var pw;if(s.grade>3)pw=Math.min(ftp,Math.round(tW*(1+s.grade*0.03)));else if(s.grade<-2)pw=Math.round(tW*0.3);else pw=tW;var gR=Math.atan(s.grade/100),Fg=tw*gv*Math.sin(gR),Fr=Crr*tw*gv*Math.cos(gR);var v=8;for(var i=0;i<20;i++){v=pw/Math.max(Fg+Fr+0.5*rho*CdA*v*v,1);v=Math.max(1,Math.min(25,v));}var sp=v*3.6,tH=s.km/sp,tM=Math.round(tH*60),kj=Math.round(pw*tH*3.6);var lb=s.grade>3?'Climb':s.grade<-2?'Descent':s.grade>0.5?'Rolling':'Flat';return Object.assign({},s,{pw:pw,sp:Math.round(sp*10)/10,tm:tM,kj:kj,lb:lb});});var tK=rs.reduce(function(a,r){return a+r.km},0),tT=rs.reduce(function(a,r){return a+r.tm},0),tJ=rs.reduce(function(a,r){return a+r.kj},0),aP=Math.round(rs.reduce(function(a,r){return a+r.pw*r.tm},0)/tT);var fm=document.getElementById('pacingForm'),o=document.getElementById('pacingOutput');if(fm)fm.style.display='none';if(o)o.style.display='';var h='<div class="fuel-summary"><div class="fuel-summary-card"><div class="fuel-summary-val">'+tK+'km</div><div class="fuel-summary-lbl">Distance</div></div><div class="fuel-summary-card"><div class="fuel-summary-val">'+(tT>=60?Math.floor(tT/60)+'h '+(tT%60)+'m':tT+'m')+'</div><div class="fuel-summary-lbl">Est. Time</div></div><div class="fuel-summary-card"><div class="fuel-summary-val">'+aP+'W</div><div class="fuel-summary-lbl">Avg Power</div></div><div class="fuel-summary-card"><div class="fuel-summary-val">'+tJ+'</div><div class="fuel-summary-lbl">kJ</div></div></div><div class="pacing-plan">';var ck=0;rs.forEach(function(r,i){var c=r.grade>3?'#ff453a':r.grade<-2?'#4a9eff':'#00e5a0';ck+=r.km;h+='<div class="pacing-seg"><div class="pacing-seg-header"><span class="pacing-seg-num" style="background:'+c+'">'+(i+1)+'</span><span class="pacing-seg-type">'+r.lb+' \u2014 '+r.km+'km @ '+r.grade+'%</span><span class="pacing-seg-dist">km '+Math.round(ck-r.km)+'\u2013'+Math.round(ck)+'</span></div><div class="pacing-seg-metrics"><div class="pacing-seg-metric"><span class="pacing-seg-val" style="color:'+c+'">'+r.pw+'W</span><span class="pacing-seg-lbl">Target</span></div><div class="pacing-seg-metric"><span class="pacing-seg-val">'+r.sp+'</span><span class="pacing-seg-lbl">km/h</span></div><div class="pacing-seg-metric"><span class="pacing-seg-val">'+r.tm+'m</span><span class="pacing-seg-lbl">Time</span></div><div class="pacing-seg-metric"><span class="pacing-seg-val">'+r.kj+'</span><span class="pacing-seg-lbl">kJ</span></div></div></div>';});h+='</div><button class="fuel-back-btn" onclick="_pacingShowForm()"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-chevron-left"/></svg> Adjust</button>';o.innerHTML=h;}
 function _pacingShowForm(){var f=document.getElementById('pacingForm'),o=document.getElementById('pacingOutput');if(f)f.style.display='';if(o)o.style.display='none';}
 
 // ── Heat & Altitude Acclimatization ──
@@ -36281,7 +36281,7 @@ function _openWifInfo() {
     overlay.className = 'act-card-info-overlay';
     overlay.innerHTML = `<div class="act-card-info-page aci-custom-page" id="wifInfoPage" style="overflow-y:auto;-webkit-overflow-scrolling:touch"></div>
       <button class="fab-back act-card-info-back" onclick="_closeWifInfo()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><polyline points="15 18 9 12 15 6"/></svg>
+        <svg class="icon" width="2" height="22"><use href="icons.svg#icon-chevron-left"/></svg>
       </button>`;
     document.body.appendChild(overlay);
   }
@@ -36400,7 +36400,7 @@ function _taperGenerate() {
   let h = `<div class="taper-projection"><div class="taper-proj-title">Projected Race Day Form</div><div class="taper-proj-stats"><div class="taper-proj-stat"><span class="taper-proj-val" style="color:#00e5a0">${proj.ctl}</span><span class="taper-proj-lbl">CTL</span></div><div class="taper-proj-stat"><span class="taper-proj-val" style="color:#ff9500">${proj.atl}</span><span class="taper-proj-lbl">ATL</span></div><div class="taper-proj-stat"><span class="taper-proj-val" style="color:${tc}">${proj.tsb > 0 ? '+' : ''}${proj.tsb}</span><span class="taper-proj-lbl">TSB</span></div></div></div>`;
   h += `<div class="taper-chart-wrap"><canvas id="taperChart"></canvas></div><div class="taper-days">`;
   plan.forEach(d => { const dt = new Date(d.date + 'T12:00:00'), dn = dt.toLocaleDateString('en-US', { weekday: 'short' }), df = dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), isR = d.dtr === 0; let c = 'rgba(255,255,255,0.4)'; if (d.tss > 0 && d.tss < 30) c = '#00e5a0'; else if (d.tss >= 30 && d.tss < 60) c = '#f0c429'; else if (d.tss >= 60) c = '#ff9500'; h += `<div class="taper-day${isR ? ' taper-day--race' : ''}"><div class="taper-day-date"><span class="taper-day-name">${dn}</span><span class="taper-day-num">${df}</span></div><div class="taper-day-info"><span class="taper-day-label">${d.label}</span>${d.dtr > 0 ? `<span class="taper-day-countdown">${d.dtr}d to race</span>` : ''}</div><div class="taper-day-tss" style="color:${isR ? '#00e5a0' : c}">${isR ? 'RACE' : d.tss > 0 ? d.tss + ' TSS' : '\u2014'}</div></div>`; });
-  h += `</div><div class="taper-actions"><button class="taper-back-btn" onclick="_taperShowStep1()"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg> Back</button><button class="taper-apply-btn" onclick="_taperApplyToCalendar()">Apply to Calendar</button></div>`;
+  h += `</div><div class="taper-actions"><button class="taper-back-btn" onclick="_taperShowStep1()"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-chevron-left"/></svg> Back</button><button class="taper-apply-btn" onclick="_taperApplyToCalendar()">Apply to Calendar</button></div>`;
   s2.innerHTML = h; window._taperPlan = plan;
   const cv = document.getElementById('taperChart'); if (cv) { if (state._taperChart) { state._taperChart.destroy(); state._taperChart = null; } const days = plan.filter(d => d.dtr > 0); state._taperChart = new Chart(cv, { type: 'bar', data: { labels: days.map(d => { const dt = new Date(d.date + 'T12:00:00'); return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); }), datasets: [{ data: days.map(d => d.tss || 0), backgroundColor: days.map(d => d.rest ? 'rgba(255,255,255,0.1)' : d.opener ? '#4a9eff' : '#00e5a0'), borderRadius: 4, borderSkipped: false }] }, options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP, callbacks: { label: ctx => ctx.raw + ' TSS' } } }, scales: { x: { grid: { display: false }, ticks: { ...C_TICK, maxRotation: 45 } }, y: { grid: C_GRID, beginAtZero: true, ticks: { ...C_TICK, callback: (v, i) => i === 0 ? 'TSS' : Math.round(v) } } } } }); }
 }
