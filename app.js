@@ -570,17 +570,26 @@ function _cleanupPageDOM(leavingPage) {
 
   // Activity detail — heaviest page: streams chart, zones, intervals, climbs, etc.
   if (leavingPage === 'activity') {
+    // Remove all canvases first (Chart.js instances)
+    document.querySelectorAll('#page-activity canvas').forEach(c => c.remove());
     const ids = [
       'detailStreamsCard', 'detailChartsRow', 'detailIntervalsBody',
       'detailCurvesRow', 'detailGradientCard', 'detailClimbsCard',
       'detailCadenceCard', 'detailHistogramCard', 'detailTempCard',
       'detailPwrHRCard', 'detailNPTimelineCard', 'detailSpeedGradeCard',
       'detailDynamicsCard', 'detailGearShiftsCard', 'detailDevicesCard',
+      'detailZonesCarouselCard', 'detailLapSplitsCard', 'detailWeatherCard',
+      'detailNotesCard', 'detailCompareCard', 'detailPerfCard',
+      'detailDecoupleCard', 'detailLRBalanceCard',
+      'actSecondaryStats', 'detailAchievements',
     ];
     ids.forEach(id => {
       const el = document.getElementById(id);
       if (el) el.innerHTML = '';
     });
+    // Strip map
+    const mapCard = document.getElementById('detailMapCard');
+    if (mapCard) mapCard.innerHTML = '';
   }
 
   // Goals page — badges grid, lifetime stats, monthly grid
@@ -597,20 +606,29 @@ function _cleanupPageDOM(leavingPage) {
     if (grid) grid.innerHTML = '';
   }
 
-  // Fitness page — many chart cards
+  // Fitness page — strip dynamic chart bodies, keep card shells
   if (leavingPage === 'fitness') {
-    ['fitWhatIfCard', 'fitAcclimCard', 'fitFatigueCard', 'fitInjuryRiskCard', 'fitRecoveryCard'].forEach(id => {
+    // Remove all canvases
+    document.querySelectorAll('#page-fitness canvas').forEach(c => c.remove());
+    // Strip heavy dynamic content
+    ['fitWhatIfCard', 'fitAcclimCard', 'fitFatigueCard', 'fitInjuryRiskCard',
+     'fitRecoveryCard', 'fitRacePredCard', 'fitWeekTargetCard',
+     'fitWellnessPillsRow', 'guidePageContentInline'
+    ].forEach(id => {
       const el = document.getElementById(id);
-      if (el) {
-        const canvas = el.querySelector('canvas');
-        if (canvas) canvas.remove();
-      }
+      if (el) el.innerHTML = '';
     });
   }
 
-  // Power page — chart canvases
+  // Power page — chart canvases + dynamic content
   if (leavingPage === 'power') {
     document.querySelectorAll('#page-power canvas').forEach(c => c.remove());
+  }
+
+  // Calendar page — day cells and event cards
+  if (leavingPage === 'calendar') {
+    const grid = document.getElementById('calGrid');
+    if (grid) grid.innerHTML = '';
   }
 }
 
