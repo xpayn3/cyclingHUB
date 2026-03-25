@@ -1742,28 +1742,29 @@ function openSettingsSubpage(id) {
   if (!isDesktop) setTimeout(() => { main.style.display = 'none'; }, 380);
 
   // Update page headline to subpage name after slide-out starts
-  setTimeout(() => {
-    const title = document.getElementById('pageTitle');
-    const subtitle = document.getElementById('pageSubtitle');
-    const hasHero = !!_STT_HERO_DATA[id];
-    if (title) title.textContent = hasHero ? '' : (_iosSubpageNames[id] || id);
-    if (subtitle) subtitle.textContent = '';
-    const _st = document.getElementById('stickyPageTitleText');
-    if (_st) _st.textContent = hasHero ? '' : (_iosSubpageNames[id] || id);
-    const backBtn = document.getElementById('settingsBackBtn');
-    if (backBtn) backBtn.style.display = '';
-    if (headline) {
-      headline.classList.add('page-headline--subpage');
-      headline.classList.remove('ios-nav-out');
-      headline.classList.add('ios-nav-in');
-      headline.offsetHeight;
-      headline.classList.remove('ios-nav-in');
-      if (hasHero) headline.style.display = 'none';
-    }
-  }, 180);
-
-  _iosSettingsScrollY = window.scrollY;
-  window.scrollTo(0, 0);
+  if (!isDesktop) {
+    setTimeout(() => {
+      const title = document.getElementById('pageTitle');
+      const subtitle = document.getElementById('pageSubtitle');
+      const hasHero = !!_STT_HERO_DATA[id];
+      if (title) title.textContent = hasHero ? '' : (_iosSubpageNames[id] || id);
+      if (subtitle) subtitle.textContent = '';
+      const _st = document.getElementById('stickyPageTitleText');
+      if (_st) _st.textContent = hasHero ? '' : (_iosSubpageNames[id] || id);
+      const backBtn = document.getElementById('settingsBackBtn');
+      if (backBtn) backBtn.style.display = '';
+      if (headline) {
+        headline.classList.add('page-headline--subpage');
+        headline.classList.remove('ios-nav-out');
+        headline.classList.add('ios-nav-in');
+        headline.offsetHeight;
+        headline.classList.remove('ios-nav-in');
+        if (hasHero) headline.style.display = 'none';
+      }
+    }, 180);
+    _iosSettingsScrollY = window.scrollY;
+    window.scrollTo(0, 0);
+  }
 
   // Subpage-specific init
   if (id === 'leveling') {
