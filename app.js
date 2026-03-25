@@ -22364,7 +22364,7 @@ function openSimilarRidesModal() {
   } else {
     window._simLookup = {};
     results.forEach(({ activity: r }) => { window._simLookup[r.id || r.icu_activity_id] = r; });
-    listHTML = results.map(({ activity: r, score }) => {
+    listHTML = results.map(({ activity: r, score }, idx) => {
       const dist = actVal(r, 'distance', 'icu_distance');
       const secs = actVal(r, 'moving_time', 'elapsed_time', 'icu_moving_time');
       const pwr  = actVal(r, 'icu_weighted_avg_watts', 'average_watts');
@@ -22372,37 +22372,35 @@ function openSimilarRidesModal() {
       const name = (r.name || r.icu_name || 'Activity').slice(0, 40);
       const date = fmtDate(r.start_date_local || r.start_date);
       const actId = r.id || r.icu_activity_id;
-      return `<div class="sim-ride-card card" onclick="closeSimilarRidesModal();navigateToActivity(window._simLookup['${actId}'])">
-        <div class="sim-ride-top">
-          <div class="sim-ride-info">
-            <div class="sim-ride-name">${_escHtml(name)}</div>
-            <div class="sim-ride-date">${date}</div>
-          </div>
-          <div class="sim-ride-ring">
-            <svg viewBox="0 0 48 48" width="48" height="48">
-              <circle cx="24" cy="24" r="20" fill="none" stroke="${_isDark() ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)'}" stroke-width="4"/>
-              <circle cx="24" cy="24" r="20" fill="none" stroke="var(--accent)" stroke-width="4"
-                stroke-linecap="round" stroke-dasharray="${2 * Math.PI * 20}"
-                stroke-dashoffset="${2 * Math.PI * 20 - (score / 100) * 2 * Math.PI * 20}"
-                transform="rotate(-90 24 24)"/>
-              <text x="24" y="25" text-anchor="middle" dominant-baseline="central"
-                fill="${_isDark() ? '#fff' : '#111'}" font-size="11" font-weight="700" font-family="var(--font-num)">${score}%</text>
-            </svg>
-          </div>
+      const scoreColor = score >= 80 ? 'var(--accent)' : score >= 60 ? '#f0c429' : score >= 40 ? '#ff9500' : 'var(--text-muted)';
+      const circ = 2 * Math.PI * 18;
+      const statsArr = [dFmt ? `${dFmt.val} ${dFmt.unit}` : '', secs ? fmtDur(secs) : '', pwr ? `${Math.round(pwr)}W` : ''].filter(Boolean);
+      const divider = idx > 0 ? '<div style="height:0.5px;background:var(--border,rgba(255,255,255,0.08));margin:0 16px"></div>' : '';
+      return `${divider}<div class="sim-ride-row" onclick="closeSimilarRidesModal();navigateToActivity(window._simLookup['${actId}'])">
+        <div class="sim-ride-ring">
+          <svg viewBox="0 0 44 44" width="44" height="44">
+            <circle cx="22" cy="22" r="18" fill="none" stroke="${_isDark() ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)'}" stroke-width="3"/>
+            <circle cx="22" cy="22" r="18" fill="none" stroke="${scoreColor}" stroke-width="3"
+              stroke-linecap="round" stroke-dasharray="${circ}"
+              stroke-dashoffset="${circ - (score / 100) * circ}"
+              transform="rotate(-90 22 22)"/>
+            <text x="22" y="23" text-anchor="middle" dominant-baseline="central"
+              fill="${_isDark() ? '#fff' : '#111'}" font-size="11" font-weight="700" font-family="var(--font-num)">${score}%</text>
+          </svg>
         </div>
-        <div class="sim-ride-stats">
-          ${dFmt ? `<span>${dFmt.val} ${dFmt.unit}</span>` : ''}
-          ${secs ? `<span>${fmtDur(secs)}</span>` : ''}
-          ${pwr ? `<span>${Math.round(pwr)} W</span>` : ''}
+        <div class="sim-ride-body">
+          <div class="sim-ride-name">${_escHtml(name)}</div>
+          <div class="sim-ride-meta">${date}${statsArr.length ? ' · ' + statsArr.join(' · ') : ''}</div>
         </div>
+        <svg class="sim-ride-chevron" viewBox="0 0 7 12" width="7" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </div>`;
     }).join('');
   }
 
   _openUniSheet({
     title: 'Similar Rides',
-    body: `<p style="font-size:13px;color:var(--text-muted);margin:0 0 12px">${descText}</p>
-           <div class="sim-rides-list">${listHTML}</div>`,
+    body: `<p style="font-size:13px;color:var(--text-muted);margin:0 0 16px">${descText}</p>
+           <div class="sim-rides-group">${listHTML}</div>`,
     maxWidth: 560,
     partial: false
   });
