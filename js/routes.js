@@ -627,49 +627,49 @@ export function _rbInitMap() {
       // Zoom +/- removed — pinch/scroll to zoom
 
       mkBtn('', 'My location',
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2"/><circle cx="12" cy="12" r="9" opacity="0.3"/></svg>',
+        '<svg class="icon" width="16" height="16"><use href="icons.svg#icon-locate-fixed"/></svg>',
         _rbGeolocate);
 
       mkBtn('', 'Switch map layer',
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>',
+        '<svg class="icon" width="16" height="16"><use href="icons.svg#icon-layers"/></svg>',
         _rbCycleMapLayer).id = 'rbLayerBtn';
 
       mkBtn('', 'Toggle points of interest',
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>',
+        '<svg class="icon" width="16" height="16"><use href="icons.svg#icon-map-pin"/></svg>',
         _rbTogglePoi).id = 'rbPoiBtn';
 
       const frameBtn = mkBtn('', 'Frame route',
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M3 8V5a2 2 0 0 1 2-2h3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M21 16v3a2 2 0 0 1-2 2h-3"/><path d="M8 21H5a2 2 0 0 1-2-2v-3"/></svg>',
+        '<svg class="icon" width="16" height="16"><use href="icons.svg#icon-maximize"/></svg>',
         _rbFrameRoute);
       frameBtn.id = 'rbFrameBtn';
       frameBtn.classList.add('rb-tool-disabled');
 
       const surfaceBtn = mkBtn('', 'Surface colors',
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M2 20h20"/><path d="M5 20v-6l4-4 3 3 5-5 4 4v8"/></svg>',
+        '<svg class="icon" width="16" height="16"><use href="icons.svg#icon-climbing"/></svg>',
         _rbToggleSurfaceMode);
       surfaceBtn.id = 'rbSurfaceToggleBtn';
 
       // ── Road Safety overlay button ──
       const rsBtn = mkBtn(_rb._roadSafetyOn ? 'active' : '', 'Road safety overlay',
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3z"/><path d="M9 12l2 2 4-4"/></svg>',
+        '<svg class="icon" width="16" height="16"><use href="icons.svg#icon-shield-check"/></svg>',
         _rbToggleRoadSafety);
       rsBtn.id = 'rbRoadSafetyBtn';
 
       // ── CyclOSM overlay button ──
       const cosmBtn = mkBtn(_rb._cyclOSMOn ? 'active' : '', 'CyclOSM cycling overlay',
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="6" cy="17" r="3.5"/><circle cx="18" cy="17" r="3.5"/><path d="M6 17l3-7h6l3 7"/><circle cx="12" cy="7" r="1.5"/></svg>',
+        '<svg class="icon" width="16" height="16"><use href="icons.svg#icon-bike"/></svg>',
         _rbToggleCyclOSM);
       cosmBtn.id = 'rbCyclOSMBtn';
 
       // ── 3D Terrain toggle button ──
       const terrBtn = mkBtn(loadTerrainEnabled() ? 'active' : '', 'Toggle 3D terrain',
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M3 20l5-10 4 6 3-4 6 8"/><circle cx="17" cy="7" r="2"/></svg>',
+        '<svg class="icon" width="16" height="16"><use href="icons.svg#icon-mountain"/></svg>',
         _rbToggleTerrain);
       terrBtn.id = 'rbTerrainBtn';
 
       // ── Map info / attribution button ──
       const infoBtn = mkBtn('', 'Map information',
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="8"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
+        '<svg class="icon" width="16" height="16"><use href="icons.svg#icon-info"/></svg>',
         () => {
           let overlay = document.getElementById('rbAttrOverlay');
           if (!overlay) {
@@ -691,7 +691,7 @@ export function _rbInitMap() {
       this._container.appendChild(sep2);
 
       const fsBtn = mkBtn('', 'Toggle fullscreen',
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" id="rbFsSvg"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>',
+        '<svg class="icon" width="16" height="16" id="rbFsSvg"><use href="icons.svg#icon-maximize-2"/></svg>',
         _rbToggleFullscreen);
       fsBtn.id = 'rbFullscreenBtn';
 

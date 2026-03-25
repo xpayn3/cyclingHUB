@@ -21439,12 +21439,18 @@ function activateSheetMode() {
           if (state.flythrough && state.flythrough.playing) window.ftTogglePlay();
         }
       }
-      // Resize map and refit route
+      // Resize map — only refit bounds when sheet moves DOWN (revealing more map)
+      const stateOrder = { hidden: 0, peek: 1, expanded: 2 };
+      const prevOrder = stateOrder[_sheet._prevSnapState || 'peek'] ?? 1;
+      const newOrder = stateOrder[newState] ?? 1;
+      _sheet._prevSnapState = newState;
+
       const vh = window.innerHeight;
       setTimeout(() => {
         if (state.activityMap) {
           state.activityMap.resize();
-          if (_sheet.routeBounds) {
+          // Only recenter when sheet shrinks (goes down) — more map visible
+          if (_sheet.routeBounds && newOrder <= prevOrder) {
             const bPad = newState === 'hidden'
               ? Math.round(vh * (1 - _sheet.SNAP_HIDDEN)) + 80
               : Math.round(vh * (newState === 'peek' ? _sheet.SNAP_PEEK : 0.15)) + 120;
@@ -24555,7 +24561,7 @@ function renderActivityMap(latlng, streams) {
             const satBtn = document.createElement('button');
             satBtn.className = 'act-map-tool-btn';
             satBtn.title = 'Toggle satellite imagery';
-            satBtn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><ellipse cx="12" cy="12" rx="5" ry="10"/></svg>';
+            satBtn.innerHTML = '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-layers"/></svg>';
             // Persistent handler: re-add route layers after any style swap
             function _readdRouteLayers() {
               try {
@@ -24601,7 +24607,7 @@ function renderActivityMap(latlng, streams) {
             const recentreBtn = document.createElement('button');
             recentreBtn.className = 'act-map-tool-btn';
             recentreBtn.title = 'Recentre map';
-            recentreBtn.innerHTML = '<svg viewBox="0 0 18 18" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="9" r="3"/><line x1="9" y1="1" x2="9" y2="5"/><line x1="9" y1="13" x2="9" y2="17"/><line x1="1" y1="9" x2="5" y2="9"/><line x1="13" y1="9" x2="17" y2="9"/></svg>';
+            recentreBtn.innerHTML = '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-locate-fixed"/></svg>';
             recentreBtn.addEventListener('click', () => {
               const rPad = _sheet.active ? Math.round(window.innerHeight * _sheet.SNAP_PEEK) : 0;
               map.fitBounds(routeBounds, { padding: { top: 64, right: 40, bottom: rPad + 120, left: 40 }, duration: 600 });
