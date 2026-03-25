@@ -557,78 +557,7 @@
         </div>
 
         <!-- ============================================================  GOAL FORM SHEET  ============================================================ -->
-        <div class="wxd-overlay" id="goalFormOverlay" style="display:none">
-            <div class="wxd-backdrop" onclick="hideGoalForm()"></div>
-            <div class="wxd-sheet wxd-sheet--partial" style="max-width:480px">
-                <div class="modal-drag-indicator"></div>
-                <div class="wxd-sheet-body">
-                    <div id="goalFormPreview" class="goal-form-preview"></div>
-                    <div class="modal-title" id="goalFormTitle" style="margin-bottom:16px;text-align:center">Add Goal</div>
-                    <input type="hidden" id="goalFormId" value="">
-                    <div class="goal-form-field">
-                        <label>Metric</label>
-                        <select id="goalFormMetric" class="app-select"></select>
-                    </div>
-                    <div class="goal-form-field">
-                        <label>Period</label>
-                        <select id="goalFormPeriod" class="app-select">
-                            <option value="week">Weekly</option>
-                            <option value="month">Monthly</option>
-                            <option value="year">Yearly</option>
-                        </select>
-                    </div>
-                    <div class="cev-target-card" id="goalTargetCard">
-                        <button class="cev-undo-btn" style="display:none" aria-label="Undo"><svg class="icon" width="14" height="14"><use href="icons.svg#icon-undo"/></svg></button>
-                        <input type="hidden" id="goalFormTarget">
-                        <div class="cev-scrubber" id="goalTargetScrubber">
-                            <div class="cev-scrubber-value-row">
-                                <div class="cev-scrubber-value">—</div>
-                                <span class="cev-scrubber-unit">km</span>
-                            </div>
-                            <div class="cev-scrubber-track">
-                                <div class="cev-scrubber-ruler"></div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="goal-form-actions">
-                        <button class="btn btn-ghost" onclick="hideGoalForm()">Cancel</button>
-                        <button class="btn btn-primary" onclick="submitGoalForm()">Save Goal</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Accent color picker is now in settings subpage -->
-
-        <!-- ============================================================  COLOR PICKER SHEET  ============================================================ -->
-        <div class="wxd-overlay" id="calEvColorSheet" style="display:none">
-            <div class="wxd-backdrop" onclick="closeCalEvColorPicker()"></div>
-            <div class="wxd-sheet wxd-sheet--partial" style="max-width:420px">
-                <div class="modal-drag-indicator"></div>
-                <div class="wxd-sheet-body" style="padding:16px 20px 28px">
-                    <div class="ccp-section-label">Presets</div>
-                    <div class="ccp-swatches" id="ccpSwatches"></div>
-
-                    <div class="ccp-section-label" style="margin-top:20px">Custom</div>
-                    <div class="ccp-canvas-wrap">
-                        <canvas id="ccpGradient" class="ccp-gradient" width="320" height="200"></canvas>
-                        <div class="ccp-crosshair" id="ccpCrosshair"></div>
-                    </div>
-                    <div class="ccp-hue-bar">
-                        <canvas id="ccpHueCanvas" class="ccp-hue-canvas" width="320" height="20"></canvas>
-                        <div class="ccp-hue-thumb" id="ccpHueThumb"></div>
-                    </div>
-                    <div class="ccp-bottom-row">
-                        <div class="ccp-preview" id="ccpPreview"></div>
-                        <div class="ccp-hex-wrap">
-                            <span class="ccp-hex-hash">#</span>
-                            <input class="ccp-hex-input" id="ccpHexInput" maxlength="6" placeholder="00e5a0" oninput="_ccpHexInput(this.value)">
-                        </div>
-                        <button class="ccp-done-btn" onclick="closeCalEvColorPicker()">Done</button>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <!-- goalFormOverlay + calEvColorSheet migrated to universal sheet system -->
 
         <!-- ============================================================  GLOBAL SEARCH SHEET  ============================================================ -->
         <div class="wxd-overlay" id="globalSearchSheet" style="display:none">

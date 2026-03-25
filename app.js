@@ -16851,22 +16851,52 @@ function _pickCalEvColor(color) {
 let _ccpHue = 0, _ccpSat = 100, _ccpBri = 50;
 let _ccpGradInited = false;
 
+function _buildColorPickerHTML() {
+  return `
+    <div class="ccp-section-label">Presets</div>
+    <div class="ccp-swatches" id="ccpSwatches"></div>
+    <div class="ccp-section-label" style="margin-top:20px">Custom</div>
+    <div class="ccp-canvas-wrap">
+      <canvas id="ccpGradient" class="ccp-gradient" width="320" height="200"></canvas>
+      <div class="ccp-crosshair" id="ccpCrosshair"></div>
+    </div>
+    <div class="ccp-hue-bar">
+      <canvas id="ccpHueCanvas" class="ccp-hue-canvas" width="320" height="20"></canvas>
+      <div class="ccp-hue-thumb" id="ccpHueThumb"></div>
+    </div>
+    <div class="ccp-bottom-row">
+      <div class="ccp-preview" id="ccpPreview"></div>
+      <div class="ccp-hex-wrap">
+        <span class="ccp-hex-hash">#</span>
+        <input class="ccp-hex-input" id="ccpHexInput" maxlength="6" placeholder="00e5a0" oninput="_ccpHexInput(this.value)">
+      </div>
+      <button class="ccp-done-btn" onclick="closeCalEvColorPicker()">Done</button>
+    </div>`;
+}
+
 function openCalEvColorPicker() {
-  _openOverlaySheet('calEvColorSheet');
-  _ccpRenderSwatches();
-  const currentColor = document.getElementById('calEvColor')?.value;
-  _ccpSyncUI(currentColor);
-  if (!_ccpGradInited) {
-    _ccpGradInited = true;
-    _ccpInitGradient();
-    _ccpInitHueBar();
-  }
-  // Redraw after sheet animation settles
-  setTimeout(() => { _ccpDrawGradient(); _ccpDrawHueBar(); }, 50);
+  _openUniSheet({
+    title: 'Event Color',
+    body: _buildColorPickerHTML,
+    maxWidth: 420,
+    partial: true,
+    stacked: true,  // opens on top of calendar event modal
+    onOpen: () => {
+      _ccpRenderSwatches();
+      const currentColor = document.getElementById('calEvColor')?.value;
+      _ccpSyncUI(currentColor);
+      // Always re-init since DOM is fresh each time
+      _ccpGradInited = false;
+      _ccpGradInited = true;
+      _ccpInitGradient();
+      _ccpInitHueBar();
+      setTimeout(() => { _ccpDrawGradient(); _ccpDrawHueBar(); }, 50);
+    }
+  });
 }
 
 function closeCalEvColorPicker() {
-  _closeOverlaySheet('calEvColorSheet');
+  _closeUniSheet2();
 }
 
 function _ccpRenderSwatches() {
@@ -33019,13 +33049,20 @@ function computeGoalProgress(goal) {
   return { current, target: goal.target, pct, pace, status, elapsed, remaining, totalDays };
 }
 
+let _goalMetricOptions = null;
 function _initGoalFormMetrics() {
+  if (!_goalMetricOptions) {
+    _goalMetricOptions = Object.entries(GOAL_METRICS).map(([k, v]) => ({
+      value: k, label: `${v.label} (${v.unit || 'count'})`
+    }));
+  }
+  // Legacy: also populate existing <select> if present
   const sel = document.getElementById('goalFormMetric');
   if (!sel || sel.options.length > 0) return;
-  Object.entries(GOAL_METRICS).forEach(([k, v]) => {
+  _goalMetricOptions.forEach(o => {
     const opt = document.createElement('option');
-    opt.value = k;
-    opt.textContent = `${v.label} (${v.unit || 'count'})`;
+    opt.value = o.value;
+    opt.textContent = o.label;
     sel.appendChild(opt);
   });
 }
@@ -33285,61 +33322,105 @@ function _updateGoalPreview() {
     </div>`;
 }
 
-function showGoalForm(editId) {
+function _buildGoalFormHTML() {
   _initGoalFormMetrics();
-  _openOverlaySheet('goalFormOverlay');
-  const overlay = document.getElementById('goalFormOverlay');
-  if (!overlay) return;
-  initCustomDropdowns(overlay);
-  const titleEl = document.getElementById('goalFormTitle');
-  const idEl = document.getElementById('goalFormId');
-  const metricEl = document.getElementById('goalFormMetric');
-  const targetEl = document.getElementById('goalFormTarget');
-  const periodEl = document.getElementById('goalFormPeriod');
+  const metricOpts = (_goalMetricOptions || []).map(o =>
+    `<option value="${o.value}">${o.label}</option>`
+  ).join('');
+  return `
+    <div id="goalFormPreview" class="goal-form-preview"></div>
+    <input type="hidden" id="goalFormId" value="">
+    <div class="goal-form-field">
+      <label>Metric</label>
+      <select id="goalFormMetric" class="app-select">${metricOpts}</select>
+    </div>
+    <div class="goal-form-field">
+      <label>Period</label>
+      <select id="goalFormPeriod" class="app-select">
+        <option value="week">Weekly</option>
+        <option value="month">Monthly</option>
+        <option value="year">Yearly</option>
+      </select>
+    </div>
+    <div class="cev-target-card" id="goalTargetCard">
+      <button class="cev-undo-btn" style="display:none" aria-label="Undo"><svg class="icon" width="14" height="14"><use href="icons.svg#icon-undo"/></svg></button>
+      <input type="hidden" id="goalFormTarget">
+      <div class="cev-scrubber" id="goalTargetScrubber">
+        <div class="cev-scrubber-value-row">
+          <div class="cev-scrubber-value">—</div>
+          <span class="cev-scrubber-unit">km</span>
+        </div>
+        <div class="cev-scrubber-track"><div class="cev-scrubber-ruler"></div></div>
+      </div>
+    </div>
+    <div class="goal-form-actions">
+      <button class="btn btn-ghost" onclick="hideGoalForm()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitGoalForm()">Save Goal</button>
+    </div>`;
+}
 
-  if (editId) {
-    const g = loadGoals().find(g => g.id === editId);
-    if (g) {
-      titleEl.textContent = 'Edit Goal';
-      idEl.value = g.id;
-      metricEl.value = g.metric;
-      targetEl.value = g.target;
-      periodEl.value = g.period;
-      metricEl._cddRefresh?.();
-      periodEl._cddRefresh?.();
+let _goalFormCtrl = null;
+
+function showGoalForm(editId) {
+  const title = editId ? 'Edit Goal' : 'Add Goal';
+  _openUniSheet({
+    title,
+    body: _buildGoalFormHTML,
+    maxWidth: 480,
+    partial: true,
+    onOpen: (bodyEl) => {
+      const overlay = bodyEl.closest('.wxd-overlay');
+      initCustomDropdowns(overlay || bodyEl);
+      const idEl = document.getElementById('goalFormId');
+      const metricEl = document.getElementById('goalFormMetric');
+      const targetEl = document.getElementById('goalFormTarget');
+      const periodEl = document.getElementById('goalFormPeriod');
+
+      if (editId) {
+        const g = loadGoals().find(g => g.id === editId);
+        if (g) {
+          idEl.value = g.id;
+          metricEl.value = g.metric;
+          targetEl.value = g.target;
+          periodEl.value = g.period;
+          metricEl._cddRefresh?.();
+          periodEl._cddRefresh?.();
+        }
+      } else {
+        idEl.value = '';
+        metricEl.value = 'distance';
+        targetEl.value = '';
+        periodEl.value = 'week';
+        metricEl._cddRefresh?.();
+        periodEl._cddRefresh?.();
+      }
+
+      // Live preview
+      if (_goalFormCtrl) _goalFormCtrl.abort();
+      _goalFormCtrl = new AbortController();
+      const { signal } = _goalFormCtrl;
+      targetEl?.addEventListener('input', _updateGoalPreview, { signal });
+      targetEl?.addEventListener('change', _updateGoalPreview, { signal });
+      metricEl?.addEventListener('change', () => { _updateGoalPreview(); _syncGoalScrubber(); }, { signal });
+      periodEl?.addEventListener('change', _updateGoalPreview, { signal });
+      if (overlay) overlay.addEventListener('click', e => {
+        if (e.target.closest('.cdd-option')) setTimeout(() => { _updateGoalPreview(); _syncGoalScrubber(); }, 0);
+      }, { signal });
+
+      // Reset scrubber init flag so it re-inits with fresh DOM
+      _goalScrubInited = false;
+      _syncGoalScrubber();
+      _updateGoalPreview();
+    },
+    onClose: () => {
+      if (_goalFormCtrl) { _goalFormCtrl.abort(); _goalFormCtrl = null; }
     }
-  } else {
-    titleEl.textContent = 'Add Goal';
-    idEl.value = '';
-    metricEl.value = 'distance';
-    targetEl.value = '';
-    periodEl.value = 'week';
-    metricEl._cddRefresh?.();
-    periodEl._cddRefresh?.();
-  }
-
-  // Live preview — re-render on any field change
-  if (overlay._previewCtrl) overlay._previewCtrl.abort();
-  const ctrl = new AbortController();
-  overlay._previewCtrl = ctrl;
-  const { signal } = ctrl;
-  targetEl?.addEventListener('input', _updateGoalPreview, { signal });
-  targetEl?.addEventListener('change', _updateGoalPreview, { signal });
-  metricEl?.addEventListener('change', () => { _updateGoalPreview(); _syncGoalScrubber(); }, { signal });
-  periodEl?.addEventListener('change', _updateGoalPreview, { signal });
-  // CDD clicks fire before the underlying select updates, so defer
-  overlay.addEventListener('click', e => {
-    if (e.target.closest('.cdd-option')) setTimeout(() => { _updateGoalPreview(); _syncGoalScrubber(); }, 0);
-  }, { signal });
-
-  _syncGoalScrubber();
-  _updateGoalPreview();
+  });
 }
 
 function hideGoalForm() {
-  const overlay = document.getElementById('goalFormOverlay');
-  if (overlay?._previewCtrl) { overlay._previewCtrl.abort(); delete overlay._previewCtrl; }
-  _closeOverlaySheet('goalFormOverlay');
+  if (_goalFormCtrl) { _goalFormCtrl.abort(); _goalFormCtrl = null; }
+  _closeUniSheet();
 }
 
 function submitGoalForm() {
