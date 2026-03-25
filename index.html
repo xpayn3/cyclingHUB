@@ -343,18 +343,7 @@
         </div>
 
         <!-- ============================================================  COMPONENT DETAIL SHEET  ============================================================ -->
-        <div class="wxd-overlay" id="compDetailSheet" style="display:none">
-            <div class="wxd-backdrop" onclick="closeCompDetailSheet()"></div>
-            <div class="wxd-sheet wxd-sheet--partial" style="max-width:480px">
-                <div class="modal-drag-indicator"></div>
-                <div style="display:flex;justify-content:flex-end;padding:8px 16px 0">
-                    <button class="modal-close" onclick="closeCompDetailSheet()">
-                        <svg class="icon"><use href="icons.svg#icon-x"/></svg>
-                    </button>
-                </div>
-                <div class="wxd-sheet-body" id="compDetailBody"></div>
-            </div>
-        </div>
+        <!-- compDetailSheet migrated to universal sheet system -->
 
         <!-- ============================================================  TIRE PRESSURE SHEET  ============================================================ -->
         <div class="wxd-overlay" id="tireSheet" style="display:none">
@@ -529,18 +518,7 @@
             </div>
         </div>
 
-        <div class="wxd-overlay" id="batDetailSheet" style="display:none">
-            <div class="wxd-backdrop" onclick="closeBatDetailSheet()"></div>
-            <div class="wxd-sheet wxd-sheet--partial" style="max-width:480px">
-                <div class="modal-drag-indicator"></div>
-                <div style="display:flex;justify-content:flex-end;padding:8px 16px 0">
-                    <button class="modal-close" onclick="closeBatDetailSheet()">
-                        <svg class="icon"><use href="icons.svg#icon-x"/></svg>
-                    </button>
-                </div>
-                <div class="wxd-sheet-body" id="batDetailBody"></div>
-            </div>
-        </div>
+        <!-- batDetailSheet migrated to universal sheet system -->
 
         <!-- ============================================================  WEATHER DAY SHEET (overlay, not dialog)  ============================================================ -->
         <div class="wxd-overlay" id="wxDaySheet" style="display:none">
@@ -1023,27 +1001,7 @@
         </div>
 
         <!-- ==================== SERVICE HISTORY MODAL ==================== -->
-        <div class="wxd-overlay" id="serviceHistoryModal" style="display:none">
-            <div class="wxd-backdrop" onclick="closeServiceHistory()"></div>
-            <div class="wxd-sheet" style="max-width:560px;max-height:80vh;display:flex;flex-direction:column">
-                <div class="modal-drag-indicator"></div>
-                <div class="modal-header">
-                    <div>
-                        <div class="modal-header-icon">
-                            <svg class="icon" width="2" height="22"><use href="icons.svg#icon-activity"/></svg>
-                        </div>
-                        <div class="modal-title" id="serviceHistoryTitle">Service History</div>
-                        <div class="modal-desc" id="serviceHistoryDesc">All services for this bike</div>
-                    </div>
-                    <button class="modal-close" onclick="closeServiceHistory()" aria-label="Close">
-                        <svg class="icon"><use href="icons.svg#icon-x"/></svg>
-                    </button>
-                </div>
-                <div class="wxd-sheet-body" style="overflow-y:auto;flex:1">
-                    <div id="serviceHistoryList"></div>
-                </div>
-            </div>
-        </div>
+        <!-- serviceHistoryModal migrated to universal sheet system -->
 
         <!-- Export Helper Dialog -->
         <dialog class="modal-dialog" id="exportHelperModal" aria-labelledby="exportHelperTitle">

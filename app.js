@@ -28332,13 +28332,14 @@ function _gearOpenBgColorPicker(bikeId, e) {
     </div>
   </div>`;
 
-  // Show in a sheet
-  const body = document.getElementById('compDetailBody');
-  const sheet = document.getElementById('compDetailSheet');
-  if (body && sheet) {
-    body.innerHTML = html;
-    _openOverlaySheet('compDetailSheet');
-  }
+  // Show in universal sheet
+  _openUniSheet({
+    title: 'Photo Background',
+    body: html,
+    maxWidth: 480,
+    partial: true,
+    hideHeader: true
+  });
 }
 window._gearOpenBgColorPicker = _gearOpenBgColorPicker;
 
@@ -28971,7 +28972,7 @@ function openCompDetail(compId) {
   if (purchaseDate) rows.push(['Purchased', purchaseDate]);
   if (c.kmAtInstall) rows.push(['Installed at', `${parseFloat(c.kmAtInstall).toLocaleString()} km`]);
 
-  body.innerHTML = `
+  const bodyHtml = `
     ${imgHtml}
     <div class="comp-detail-name">${c.name || 'Component'}</div>
     ${c.brand ? `<div class="comp-detail-brand">${[c.brand, c.model].filter(Boolean).join(' ')}</div>` : ''}
@@ -28985,22 +28986,28 @@ function openCompDetail(compId) {
     </div>` : ''}
 
     <div class="comp-detail-actions">
-      <button class="btn btn-ghost" style="flex:1" onclick="closeCompDetailSheet();openGearModal('${c.id}')">
+      <button class="btn btn-ghost" style="flex:1" onclick="_closeUniSheet();openGearModal('${c.id}')">
         <svg class="icon" width="2" height="16"><use href="icons.svg#icon-edit"/></svg>
         Edit
       </button>
-      <button class="btn btn-ghost" style="flex:1;color:var(--red)" onclick="closeCompDetailSheet();deleteGearComponent('${c.id}')">
+      <button class="btn btn-ghost" style="flex:1;color:var(--red)" onclick="_closeUniSheet();deleteGearComponent('${c.id}')">
         <svg class="icon" width="2" height="16"><use href="icons.svg#icon-trash"/></svg>
         Delete
       </button>
     </div>
   `;
 
-  _openOverlaySheet('compDetailSheet');
+  _openUniSheet({
+    title: c.name || 'Component',
+    body: bodyHtml,
+    maxWidth: 480,
+    partial: true,
+    hideHeader: true
+  });
 }
 
 function closeCompDetailSheet() {
-  _closeOverlaySheet('compDetailSheet');
+  _closeUniSheet();
 }
 
 /* ── Gear picker sheet — replaces dropdowns inside gear modals only ── */
@@ -30748,7 +30755,7 @@ function openBatDetailSheet(id) {
   if (bat.ratedLifeHours) rows.push(['Rated Life', bat.ratedLifeHours + ' hours']);
   if (bat.notes) rows.push(['Notes', bat.notes]);
 
-  body.innerHTML = `
+  const batBodyHtml = `
     ${imgHtml}
     <div class="comp-detail-name">${bat.name || 'Battery'}</div>
     ${system ? `<div class="comp-detail-brand">${system}</div>` : ''}
@@ -30785,11 +30792,17 @@ function openBatDetailSheet(id) {
       </button>
     </div>`;
 
-  _openOverlaySheet('batDetailSheet');
+  _openUniSheet({
+    title: bat.name || 'Battery',
+    body: batBodyHtml,
+    maxWidth: 480,
+    partial: true,
+    hideHeader: true
+  });
 }
 
 function closeBatDetailSheet() {
-  _closeOverlaySheet('batDetailSheet');
+  _closeUniSheet();
 }
 function deleteBattery(id) {
   const all = loadGearBatteries();
@@ -31778,16 +31791,20 @@ function deleteServiceShop(id) {
 
 // ── Service History Modal ───────────────────────────────────────────────────
 function openServiceHistory(bikeId) {
-  const modal = document.getElementById('serviceHistoryModal');
-  if (!modal) return;
   const bike = _gearBikeCache.find(b => b.id === bikeId);
-  document.getElementById('serviceHistoryDesc').textContent = bike ? `All services for ${bike.name}` : 'All services for this bike';
-  renderServiceHistoryList(bikeId);
-  _openOverlaySheet('serviceHistoryModal');
+  const desc = bike ? `All services for ${bike.name}` : 'All services for this bike';
+  _openUniSheet({
+    title: 'Service History',
+    body: `<p style="color:var(--text-muted);font-size:13px;margin:0 0 12px">${desc}</p>
+           <div id="serviceHistoryList"></div>`,
+    maxWidth: 520,
+    partial: false,
+    onOpen: () => renderServiceHistoryList(bikeId)
+  });
 }
 
 function closeServiceHistory() {
-  _closeOverlaySheet('serviceHistoryModal');
+  _closeUniSheet();
 }
 
 function renderServiceHistoryList(bikeId) {
