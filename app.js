@@ -624,6 +624,38 @@ function _cleanupPageDOM(leavingPage) {
     const grid = document.getElementById('calGrid');
     if (grid) grid.innerHTML = '';
   }
+
+  // Weather page — all dynamic content (rebuilt from scratch each visit)
+  if (leavingPage === 'weather') {
+    const wxBody = document.getElementById('wxPageBody');
+    if (wxBody) wxBody.innerHTML = '';
+    document.querySelectorAll('#page-weather canvas').forEach(c => c.remove());
+  }
+
+  // Gear page — carousel, stats (rebuilt on navigate)
+  if (leavingPage === 'gear') {
+    ['garCarouselScroll', 'garStats', 'garAlerts'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = '';
+    });
+  }
+
+  // Bike detail — full dynamic content
+  if (leavingPage === 'bikedetail') {
+    const el = document.getElementById('bikeDetailContent');
+    if (el) el.innerHTML = '';
+  }
+
+  // Service history — full dynamic content
+  if (leavingPage === 'service') {
+    const el = document.getElementById('servicePageContent');
+    if (el) el.innerHTML = '';
+  }
+
+  // Workout builder — strip canvases
+  if (leavingPage === 'workout') {
+    document.querySelectorAll('#page-workout canvas').forEach(c => c.remove());
+  }
 }
 
 /** Update the sidebar CTL badge from state.fitness — call any time fitness data is available */
