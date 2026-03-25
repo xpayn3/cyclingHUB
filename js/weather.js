@@ -1832,6 +1832,7 @@ async function _initWxRadar(lat, lng) {
     // Add all radar frames as sources + layers (hidden initially)
     frames.forEach((f, i) => {
       const id = 'radar-' + i;
+      if (_wxRadarMap.getSource(id)) return; // already added
       _wxRadarMap.addSource(id, {
         type: 'raster',
         tiles: [`https://tilecache.rainviewer.com${f.path}/256/{z}/{x}/{y}/6/1_1.png`],
