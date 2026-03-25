@@ -6407,9 +6407,10 @@ input[type="number"] {
         overflow: hidden !important;
         height: 100vh;
         max-height: 100vh;
+        padding-bottom: 0 !important;
     }
     #page-settings {
-        height: calc(100vh - var(--nav-h, 60px));
+        height: 100%;
         overflow: hidden;
         display: flex;
         flex-direction: column;
