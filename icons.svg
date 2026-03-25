@@ -1,10 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
 
   <!-- Small chevron (7x12 viewBox, for settings rows) -->
-  <symbol id="icon-chevron-sm" viewBox="0 0 7 12">
-    <path d="M1 1l5 5-5 5"/>
-  </symbol>
-
   <!-- Close / X -->
   <symbol id="icon-x" viewBox="0 0 24 24">
     <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -36,10 +32,6 @@
   </symbol>
 
   <!-- Zap (rounded bolt) -->
-  <symbol id="icon-zap" viewBox="0 0 24 24">
-    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-  </symbol>
-
   <!-- Activity / Pulse -->
   <symbol id="icon-activity" viewBox="0 0 24 24">
     <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
@@ -51,10 +43,6 @@
   </symbol>
 
   <!-- Heart (alt - activity detail variant) -->
-  <symbol id="icon-heart-alt" viewBox="0 0 24 24">
-    <path d="M20.42 4.58a5.4 5.4 0 0 0-7.65 0L12 5.34l-.77-.76a5.4 5.4 0 0 0-7.65 7.65l.77.77L12 20.65l7.65-7.65.77-.77a5.4 5.4 0 0 0 0-7.65z"/>
-  </symbol>
-
   <!-- Clock -->
   <symbol id="icon-clock" viewBox="0 0 24 24">
     <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
@@ -66,10 +54,6 @@
   </symbol>
 
   <!-- Mountain (closed path - elevation profile) -->
-  <symbol id="icon-mountain-fill" viewBox="0 0 24 24">
-    <path d="M3 20l5-10 4 6 3-4 6 8H3z"/>
-  </symbol>
-
   <!-- Search -->
   <symbol id="icon-search" viewBox="0 0 24 24">
     <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -106,10 +90,6 @@
   </symbol>
 
   <!-- Refresh CCW (recovery) -->
-  <symbol id="icon-refresh-ccw" viewBox="0 0 24 24">
-    <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-  </symbol>
-
   <!-- Camera -->
   <symbol id="icon-camera" viewBox="0 0 24 24">
     <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
@@ -121,20 +101,8 @@
   </symbol>
 
   <!-- Calendar (with plus) -->
-  <symbol id="icon-calendar-plus" viewBox="0 0 24 24">
-    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="10" y1="14" x2="14" y2="14"/><line x1="12" y1="12" x2="12" y2="16"/>
-  </symbol>
-
   <!-- Calendar (with week lines) -->
-  <symbol id="icon-calendar-week" viewBox="0 0 24 24">
-    <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
-  </symbol>
-
   <!-- Calendar (with dots) -->
-  <symbol id="icon-calendar-dots" viewBox="0 0 24 24">
-    <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/>
-  </symbol>
-
   <!-- Bell -->
   <symbol id="icon-bell" viewBox="0 0 24 24">
     <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
@@ -146,10 +114,6 @@
   </symbol>
 
   <!-- User (with body) -->
-  <symbol id="icon-user-full" viewBox="0 0 24 24">
-    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-  </symbol>
-
   <!-- Users / Group -->
   <symbol id="icon-users" viewBox="0 0 24 24">
     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
@@ -191,10 +155,6 @@
   </symbol>
 
   <!-- X in Circle (error) -->
-  <symbol id="icon-x-circle" viewBox="0 0 24 24">
-    <circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/>
-  </symbol>
-
   <!-- Info Circle -->
   <symbol id="icon-info" viewBox="0 0 24 24">
     <circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>
@@ -206,10 +166,6 @@
   </symbol>
 
   <!-- Alert Triangle / Warning -->
-  <symbol id="icon-alert-triangle" viewBox="0 0 24 24">
-    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-  </symbol>
-
   <!-- Settings / Gear -->
   <symbol id="icon-settings" viewBox="0 0 24 24">
     <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
@@ -221,20 +177,12 @@
   </symbol>
 
   <!-- Trend Down (altitude) -->
-  <symbol id="icon-trend-down" viewBox="0 0 24 24">
-    <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/>
-  </symbol>
-
   <!-- Bar Chart -->
   <symbol id="icon-bar-chart" viewBox="0 0 24 24">
     <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
   </symbol>
 
   <!-- Bar Chart (vertical) -->
-  <symbol id="icon-bar-chart-2" viewBox="0 0 24 24">
-    <path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/>
-  </symbol>
-
   <!-- Shuffle / Repeat -->
   <symbol id="icon-repeat" viewBox="0 0 24 24">
     <path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>
@@ -251,20 +199,12 @@
   </symbol>
 
   <!-- Edit (pen only) -->
-  <symbol id="icon-pen" viewBox="0 0 24 24">
-    <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
-  </symbol>
-
   <!-- Trash -->
   <symbol id="icon-trash" viewBox="0 0 24 24">
     <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
   </symbol>
 
   <!-- Trash (with lines) -->
-  <symbol id="icon-trash-2" viewBox="0 0 24 24">
-    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
-  </symbol>
-
   <!-- Cloud -->
   <symbol id="icon-cloud" viewBox="0 0 24 24">
     <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
@@ -286,10 +226,6 @@
   </symbol>
 
   <!-- Home (with door) -->
-  <symbol id="icon-home-door" viewBox="0 0 24 24">
-    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
-  </symbol>
-
   <!-- Grid -->
   <symbol id="icon-grid" viewBox="0 0 24 24">
     <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
@@ -301,65 +237,25 @@
   </symbol>
 
   <!-- List -->
-  <symbol id="icon-list" viewBox="0 0 24 24">
-    <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/>
-  </symbol>
-
   <!-- Menu / Hamburger -->
   <symbol id="icon-menu" viewBox="0 0 24 24">
     <line x1="5" y1="6" x2="19" y2="6"/><line x1="5" y1="12" x2="19" y2="12"/><line x1="5" y1="18" x2="19" y2="18"/>
   </symbol>
 
   <!-- Drag Handle (narrow) -->
-  <symbol id="icon-drag-handle" viewBox="0 0 24 24">
-    <line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="16" y2="18"/>
-  </symbol>
-
   <!-- Thermometer -->
   <symbol id="icon-thermometer" viewBox="0 0 24 24">
     <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/>
   </symbol>
 
   <!-- Sun (half - sunrise) -->
-  <symbol id="icon-sunrise" viewBox="0 0 24 24">
-    <path d="M17 18a5 5 0 0 0-10 0"/><line x1="12" y1="9" x2="12" y2="2"/><line x1="4.22" y1="10.22" x2="5.64" y2="11.64"/><line x1="1" y1="18" x2="3" y2="18"/><line x1="21" y1="18" x2="23" y2="18"/><line x1="18.36" y1="11.64" x2="19.78" y2="10.22"/>
-  </symbol>
-
   <!-- Sun -->
-  <symbol id="icon-sun" viewBox="0 0 24 24">
-    <circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
-  </symbol>
-
   <!-- Wrench / Tool -->
-  <symbol id="icon-wrench" viewBox="0 0 24 24">
-    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-  </symbol>
-
   <!-- Cube / 3D Box -->
-  <symbol id="icon-cube" viewBox="0 0 24 24">
-    <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4M4 7l8 4M4 7v10l8 4m0-10v10"/>
-  </symbol>
-
   <!-- Hexagon -->
-  <symbol id="icon-hexagon" viewBox="0 0 24 24">
-    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-  </symbol>
-
   <!-- Crosshair / GPS -->
-  <symbol id="icon-crosshair" viewBox="0 0 24 24">
-    <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/>
-  </symbol>
-
   <!-- Target (concentric with dot) -->
-  <symbol id="icon-target-simple" viewBox="0 0 24 24">
-    <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/>
-  </symbol>
-
   <!-- Sidebar / Layout -->
-  <symbol id="icon-sidebar" viewBox="0 0 24 24">
-    <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/>
-  </symbol>
-
   <!-- Image -->
   <symbol id="icon-image" viewBox="0 0 24 24">
     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
@@ -396,10 +292,6 @@
   </symbol>
 
   <!-- Battery (slim) -->
-  <symbol id="icon-battery-slim" viewBox="0 0 24 24">
-    <rect x="1" y="6" width="22" height="12" rx="2"/><line x1="12" y1="6" x2="12" y2="18"/>
-  </symbol>
-
   <!-- Bike -->
   <symbol id="icon-bike" viewBox="0 0 24 24">
     <circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/>
@@ -411,15 +303,7 @@
   </symbol>
 
   <!-- Trophy (alt - personal records) -->
-  <symbol id="icon-trophy-alt" viewBox="0 0 24 24">
-    <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5C7 4 6 9 6 9Zm12 0h1.5a2.5 2.5 0 0 0 0-5C17 4 18 9 18 9Zm-1 0H7l1 10a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2l1-10Z"/>
-  </symbol>
-
   <!-- Medal / Award -->
-  <symbol id="icon-medal" viewBox="0 0 24 24">
-    <circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/>
-  </symbol>
-
   <!-- Award -->
   <symbol id="icon-award" viewBox="0 0 24 24">
     <circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/>
@@ -436,110 +320,46 @@
   </symbol>
 
   <!-- Font / Type -->
-  <symbol id="icon-type" viewBox="0 0 24 24">
-    <polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/>
-  </symbol>
-
   <!-- Maximize / Expand -->
   <symbol id="icon-maximize" viewBox="0 0 24 24">
     <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
   </symbol>
 
   <!-- Minimize / Shrink -->
-  <symbol id="icon-minimize" viewBox="0 0 24 24">
-    <polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/>
-  </symbol>
-
   <!-- Spinner / Loading -->
   <symbol id="icon-spinner" viewBox="0 0 24 24">
     <path d="M21 12a9 9 0 1 1-6.22-8.56"/>
   </symbol>
 
   <!-- Circle Check (success) -->
-  <symbol id="icon-circle-check" viewBox="0 0 24 24">
-    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
-  </symbol>
-
   <!-- Success (simple check) -->
-  <symbol id="icon-success" viewBox="0 0 24 24">
-    <path d="M20 6 9 17l-5-5"/>
-  </symbol>
-
   <!-- Arrow Right -->
   <symbol id="icon-arrow-right" viewBox="0 0 24 24">
     <path d="M5 12h14"/><polyline points="12 5 19 12 12 19"/>
   </symbol>
 
   <!-- Arrow Right (forward only) -->
-  <symbol id="icon-arrow-forward" viewBox="0 0 24 24">
-    <path d="M17 3l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/>
-  </symbol>
-
   <!-- Distance (arrows expand) -->
-  <symbol id="icon-distance" viewBox="0 0 24 24">
-    <line x1="3" y1="12" x2="21" y2="12"/><polyline points="8 7 3 12 8 17"/><polyline points="16 7 21 12 16 17"/>
-  </symbol>
-
   <!-- Flame / Fire -->
   <symbol id="icon-flame" viewBox="0 0 24 24">
     <path d="M12 12c2-2.96 0-7-1-8 0 3.038-1.773 4.741-3 6-1.226 1.26-2 3.24-2 5a6 6 0 1 0 12 0c0-1.532-1.056-3.94-2-5-1.786 3-2.791 3-4 2z"/>
   </symbol>
 
   <!-- Flame (campfire) -->
-  <symbol id="icon-campfire" viewBox="0 0 24 24">
-    <path d="M12 12c2-2.96 0-7-1-8 0 3.038-1.773 4.741-3 6-1.226 1.26-2 3.24-2 5a6 6 0 1 0 12 0c0-1.532-1.056-3.94-2-5-1.786 3-2.791 3-4 2z"/>
-  </symbol>
-
   <!-- Fire (with inner flame) -->
-  <symbol id="icon-fire" viewBox="0 0 24 24">
-    <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 3z"/>
-  </symbol>
-
   <!-- Droplet -->
-  <symbol id="icon-droplet" viewBox="0 0 24 24">
-    <path d="M12 2c0 6-6 8-6 13a6 6 0 0 0 12 0c0-5-6-7-6-13z"/><path d="M12 12c0 3-2 4-2 6a2 2 0 0 0 4 0c0-2-2-3-2-6z"/>
-  </symbol>
-
   <!-- Wind / Endurance drop -->
-  <symbol id="icon-wind" viewBox="0 0 24 24">
-    <path d="M12 2c1 3 3.5 5 6 7-2 4-4 8-6 10-2-2-4-6-6-10 2.5-2 5-4 6-7z"/>
-  </symbol>
-
   <!-- Smile / Happy -->
   <symbol id="icon-smile" viewBox="0 0 24 24">
     <circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/>
   </symbol>
 
   <!-- Smile (with eyes) -->
-  <symbol id="icon-smile-eyes" viewBox="0 0 24 24">
-    <circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>
-  </symbol>
-
   <!-- Clock (with speedometer feel) -->
-  <symbol id="icon-stopwatch" viewBox="0 0 24 24">
-    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/><path d="M16.5 7.5L19 5"/><path d="M12 2v2"/>
-  </symbol>
-
   <!-- Clock (speed variant) -->
-  <symbol id="icon-speed" viewBox="0 0 24 24">
-    <path d="M12 2a10 10 0 1 0 10 10"/><polyline points="12 6 12 12 16 14"/>
-  </symbol>
-
   <!-- Clock (with full circle and clock hands) -->
-  <symbol id="icon-clock-full" viewBox="0 0 24 24">
-    <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M12 6v6l4 2"/>
-  </symbol>
-
   <!-- Clock (alt) -->
-  <symbol id="icon-clock-alt" viewBox="0 0 24 24">
-    <path d="M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0"/><path d="M12 8v4l3 3"/>
-  </symbol>
-
   <!-- Circle with clock hands (time) -->
-  <symbol id="icon-timer" viewBox="0 0 24 24">
-    <circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>
-  </symbol>
-
   <!-- Climbing -->
   <symbol id="icon-climbing" viewBox="0 0 24 24">
     <path d="M3 20l5-10 4 6 3-4 6 8H3z"/><path d="M17 6l-2.5 5"/>
@@ -551,40 +371,16 @@
   </symbol>
 
   <!-- Elevation line -->
-  <symbol id="icon-elevation-line" viewBox="0 0 24 24">
-    <polyline points="3 20 9 8 15 14 20 6"/>
-  </symbol>
-
   <!-- Grade line -->
-  <symbol id="icon-grade" viewBox="0 0 24 24">
-    <line x1="3" y1="20" x2="21" y2="20"/><polyline points="3 20 13 8 17 13 21 4"/>
-  </symbol>
-
   <!-- Aerobic Decoupling -->
   <symbol id="icon-git-branch" viewBox="0 0 24 24">
     <circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/>
   </symbol>
 
   <!-- Scatter Plot -->
-  <symbol id="icon-scatter" viewBox="0 0 24 24">
-    <circle cx="8" cy="16" r="2"/><circle cx="16" cy="8" r="2"/><circle cx="12" cy="12" r="1.5"/>
-  </symbol>
-
   <!-- Scatter Plot (with more dots) -->
-  <symbol id="icon-scatter-alt" viewBox="0 0 24 24">
-    <circle cx="8" cy="16" r="2"/><circle cx="16" cy="8" r="2"/><circle cx="6" cy="9" r="1.5"/><circle cx="18" cy="15" r="1.5"/><circle cx="12" cy="12" r="1.5"/>
-  </symbol>
-
   <!-- Power Curve -->
-  <symbol id="icon-power-curve" viewBox="0 0 24 24">
-    <path d="M3 20h18"/><path d="M3 20C3 8 8 4 12 4s9 4 9 16"/>
-  </symbol>
-
   <!-- Peak (double chevron up) -->
-  <symbol id="icon-peak" viewBox="0 0 24 24">
-    <polyline points="6 9 12 3 18 9"/><polyline points="6 15 12 9 18 15"/><line x1="12" y1="9" x2="12" y2="21"/>
-  </symbol>
-
   <!-- Terminal / Console -->
   <symbol id="icon-terminal" viewBox="0 0 24 24">
     <polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>
@@ -616,20 +412,12 @@
   </symbol>
 
   <!-- Smartphone -->
-  <symbol id="icon-smartphone" viewBox="0 0 24 24">
-    <rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>
-  </symbol>
-
   <!-- Monitor / Desktop -->
   <symbol id="icon-monitor" viewBox="0 0 24 24">
     <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
   </symbol>
 
   <!-- Week Summary / Table -->
-  <symbol id="icon-table" viewBox="0 0 24 24">
-    <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
-  </symbol>
-
   <!-- Data Grid -->
   <symbol id="icon-data-grid" viewBox="0 0 24 24">
     <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/>
@@ -641,50 +429,22 @@
   </symbol>
 
   <!-- Barbell -->
-  <symbol id="icon-barbell" viewBox="0 0 24 24">
-    <path d="M6 5v14"/><path d="M18 5v14"/><path d="M6 12h12"/><rect x="3" y="7" width="2" height="10" rx="1"/><rect x="19" y="7" width="2" height="10" rx="1"/>
-  </symbol>
-
   <!-- Radio / Broadcast -->
-  <symbol id="icon-radio" viewBox="0 0 24 24">
-    <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
-  </symbol>
-
   <!-- Crosshair (GPS accuracy) -->
-  <symbol id="icon-crosshair-gps" viewBox="0 0 24 24">
-    <circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8" stroke-dasharray="2 3"/>
-  </symbol>
-
   <!-- GPS Target -->
-  <symbol id="icon-gps-target" viewBox="0 0 24 24">
-    <circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/><circle cx="12" cy="12" r="8"/>
-  </symbol>
-
   <!-- Wheel / Loading -->
   <symbol id="icon-wheel" viewBox="0 0 24 24">
     <circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/><line x1="12" y1="3" x2="12" y2="10"/><line x1="12" y1="14" x2="12" y2="21"/><line x1="3" y1="12" x2="10" y2="12"/><line x1="14" y1="12" x2="21" y2="12"/>
   </symbol>
 
   <!-- Cadence (sun-like) -->
-  <symbol id="icon-cadence" viewBox="0 0 24 24">
-    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
-  </symbol>
-
   <!-- Clipboard -->
   <symbol id="icon-clipboard" viewBox="0 0 24 24">
     <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/>
   </symbol>
 
   <!-- QR Code -->
-  <symbol id="icon-qr" viewBox="0 0 24 24">
-    <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="3" height="3"/><line x1="20" y1="14" x2="20" y2="20"/><line x1="14" y1="20" x2="20" y2="20"/>
-  </symbol>
-
   <!-- Play -->
-  <symbol id="icon-play" viewBox="0 0 24 24">
-    <path d="M5 3l14 9-14 9V3z"/>
-  </symbol>
-
   <!-- Mail -->
   <symbol id="icon-mail" viewBox="0 0 24 24">
     <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
@@ -696,30 +456,14 @@
   </symbol>
 
   <!-- Slash (diagonal line) -->
-  <symbol id="icon-slash" viewBox="0 0 24 24">
-    <line x1="4" y1="4" x2="20" y2="20"/>
-  </symbol>
-
   <!-- Minus / Horizontal line -->
   <symbol id="icon-minus" viewBox="0 0 24 24">
     <path d="M5 12h14"/>
   </symbol>
 
   <!-- Undo arrow (back) -->
-  <symbol id="icon-undo-arrow" viewBox="0 0 24 24">
-    <path d="M3 10h10a5 5 0 0 1 0 10H12"/><polyline points="7 6 3 10 7 14"/>
-  </symbol>
-
   <!-- Circle spinner / Spiral -->
-  <symbol id="icon-spiral" viewBox="0 0 24 24">
-    <circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20 7 7 0 0 1 0-14 3 3 0 0 1 0 6"/>
-  </symbol>
-
   <!-- Color wheel (hexagon lines) -->
-  <symbol id="icon-hexagon-lines" viewBox="0 0 24 24">
-    <circle cx="12" cy="12" r="10"/><path d="M14.31 8l5.74 9.94M9.69 8h11.48M7.38 12l5.74-9.94M9.69 16L3.95 6.06M14.31 16H2.83M16.62 12l-5.74 9.94"/>
-  </symbol>
-
   <!-- Database -->
   <symbol id="icon-database" viewBox="0 0 24 24">
     <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
@@ -731,118 +475,34 @@
   </symbol>
 
   <!-- Terrain -->
-  <symbol id="icon-terrain" viewBox="0 0 24 24">
-    <path d="M3 20l5-10 4 6 3-4 6 8"/><circle cx="17" cy="7" r="2"/>
-  </symbol>
-
   <!-- Chart image / Photo chart -->
-  <symbol id="icon-chart-image" viewBox="0 0 24 24">
-    <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 15l4-4 4 4 4-6 6 6"/>
-  </symbol>
-
   <!-- Respiration -->
-  <symbol id="icon-respiration" viewBox="0 0 24 24">
-    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7S2 12 2 12z"/>
-  </symbol>
-
   <!-- Paint drops -->
-  <symbol id="icon-paint-drops" viewBox="0 0 24 24">
-    <circle cx="13.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="10.5" r="2.5"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="8.5" cy="10.5" r="2.5"/><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5C11.5 5 10 6.9 8 8.5S5 13 5 15a7 7 0 0 0 7 7z"/>
-  </symbol>
-
   <!-- Rounded rectangle -->
   <symbol id="icon-rounded-rect" viewBox="0 0 24 24">
     <rect x="3" y="3" width="18" height="18" rx="6"/>
   </symbol>
 
   <!-- Halfpipe / Training load -->
-  <symbol id="icon-halfpipe" viewBox="0 0 24 24">
-    <path d="M3 18h18v-3l-4-6H7l-4 6v3z"/><path d="M7 9V6a2 2 0 0 1 2-2h2"/>
-  </symbol>
-
   <!-- Handlebar / Stem -->
-  <symbol id="icon-handlebar" viewBox="0 0 24 24">
-    <rect x="2" y="7" width="20" height="10" rx="2"/><line x1="6" y1="12" x2="18" y2="12"/>
-  </symbol>
-
   <!-- Alert circle (empty / no data) -->
-  <symbol id="icon-alert-empty" viewBox="0 0 24 24">
-    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16.5" r="1"/>
-  </symbol>
-
   <!-- Circle (time half) -->
-  <symbol id="icon-circle-time" viewBox="0 0 24 24">
-    <path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6"/>
-  </symbol>
-
   <!-- Map (simple variant) -->
-  <symbol id="icon-map-simple" viewBox="0 0 24 24">
-    <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/>
-  </symbol>
-
   <!-- Cloud (simple weather) -->
-  <symbol id="icon-cloud-simple" viewBox="0 0 24 24">
-    <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9z"/>
-  </symbol>
-
   <!-- Weather (cloud with sun lines) -->
-  <symbol id="icon-weather" viewBox="0 0 24 24">
-    <path d="M17 18a5 5 0 0 0 0-10H6a4 4 0 1 0 0 8"/><line x1="12" y1="9" x2="12" y2="2"/><path d="M4.22 10.22l1.42 1.42M1 18h2M20 18h2M18.36 11.64l1.42-1.42"/>
-  </symbol>
-
   <!-- Align left / Paragraph -->
-  <symbol id="icon-align-left" viewBox="0 0 24 24">
-    <line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/>
-  </symbol>
-
   <!-- Battery (add) -->
-  <symbol id="icon-battery-device" viewBox="0 0 24 24">
-    <rect x="6" y="4" width="12" height="18" rx="2"/><line x1="10" y1="1" x2="14" y2="1"/><rect x="8" y="12" width="8" height="8" rx="1"/>
-  </symbol>
-
   <!-- Strava (non-social, functional icon) -->
-  <symbol id="icon-strava" viewBox="0 0 24 24">
-    <polyline points="15 18 18 12 21 18"/><polyline points="6 18 12 6 18 18"/>
-  </symbol>
-
   <!-- Bike (ride variant with rider) -->
-  <symbol id="icon-bike-rider" viewBox="0 0 24 24">
-    <circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M5.5 17.5l3-7h4l2.5 3.5"/><path d="M15 14l3.5 3.5"/><path d="M8.5 10.5l3.5 0"/><circle cx="13" cy="6" r="1.5"/>
-  </symbol>
-
   <!-- Run -->
   <symbol id="icon-run" viewBox="0 0 24 24">
     <circle cx="14" cy="4" r="2"/><path d="M8 21l2-6"/><path d="M10 15l-2-4 4-2 3 3 3 1"/><path d="M6 12l2-4"/>
   </symbol>
 
   <!-- Swim -->
-  <symbol id="icon-swim" viewBox="0 0 24 24">
-    <circle cx="18" cy="6" r="2"/><path d="M18 8v4l-4-1-3 3"/><path d="M2 18c1.5-1.5 3-2 4.5-2s3 .5 4.5 2 3 2 4.5 2 3-.5 4.5-2"/>
-  </symbol>
-
   <!-- Walk -->
-  <symbol id="icon-walk" viewBox="0 0 24 24">
-    <circle cx="12" cy="4" r="2"/><path d="M14 10l-1 4-3 5"/><path d="M10 14l-2 7"/><path d="M10 10l2-2"/><path d="M14 10l2 1"/>
-  </symbol>
-
   <!-- Yoga -->
-  <symbol id="icon-yoga" viewBox="0 0 24 24">
-    <circle cx="12" cy="4" r="2"/><path d="M12 6v6"/><path d="M12 12l-5 5"/><path d="M12 12l5 5"/><path d="M8 8l-4 1"/><path d="M16 8l4 1"/>
-  </symbol>
-
   <!-- Row -->
-  <symbol id="icon-row" viewBox="0 0 24 24">
-    <path d="M3 17l3-3 4 1 4-5 4 2 3-3"/><path d="M2 20c3-1 7-1 10 0s7 1 10 0"/>
-  </symbol>
-
   <!-- Ski -->
-  <symbol id="icon-ski" viewBox="0 0 24 24">
-    <circle cx="14" cy="4" r="2"/><path d="M8 21l6-9"/><path d="M14 12l-4-4-3 6"/><path d="M5 20l14-3"/>
-  </symbol>
-
   <!-- Cycling (steak style) -->
-  <symbol id="icon-cycling-steak" viewBox="0 0 24 24">
-    <circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/>
-  </symbol>
-
-</svg>
+  </svg>

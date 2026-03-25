@@ -2440,8 +2440,33 @@ function _peerRememberSuffix(deviceType, suffix) {
   } catch {}
 }
 
+/* ── Lazy-load PeerJS on demand ── */
+let _peerJsLoading = false;
+function _loadPeerJS() {
+  return new Promise((resolve, reject) => {
+    if (typeof Peer !== 'undefined') { resolve(); return; }
+    if (_peerJsLoading) { const w = setInterval(() => { if (typeof Peer !== 'undefined') { clearInterval(w); resolve(); } }, 100); return; }
+    _peerJsLoading = true;
+    const s = document.createElement('script');
+    s.src = 'https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js';
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('Failed to load PeerJS'));
+    document.head.appendChild(s);
+  });
+}
+function _loadJsQR() {
+  return new Promise((resolve, reject) => {
+    if (typeof jsQR !== 'undefined') { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('Failed to load jsQR'));
+    document.head.appendChild(s);
+  });
+}
+
 /* ── P2P Toggle: ON/OFF ── */
-function _peerToggle(on) {
+async function _peerToggle(on) {
   if (_peerToggling) return; // guard against overlapping calls
   _peerToggling = true;
   _peerGeneration++; // invalidate all stale handlers
@@ -2477,7 +2502,7 @@ function _peerToggle(on) {
   if (!state.athleteId) { showToast('Log in first to use P2P sync', 'error'); _peerToggling = false; return; }
   const myId = _peerMakeId();
   if (!myId) { showToast('No athlete ID', 'error'); _peerToggling = false; return; }
-  if (typeof Peer === 'undefined') { showToast('PeerJS not loaded', 'error'); _peerToggling = false; return; }
+  try { await _loadPeerJS(); } catch { showToast('Failed to load P2P library', 'error'); _peerToggling = false; return; }
 
   _peerManualDisconnect = false;
   _peerMyId = myId;
@@ -3158,9 +3183,9 @@ function _peerAutoReconnect(remoteId, attempt) {
   }, delay + jitter);
 }
 
-function _peerStart() {
-  if (typeof Peer === 'undefined') {
-    showToast('PeerJS not loaded — check your connection', 'error');
+async function _peerStart() {
+  try { await _loadPeerJS(); } catch {
+    showToast('Failed to load P2P library', 'error');
     _peerUpdateUI('error');
     return;
   }
@@ -3206,7 +3231,7 @@ function _peerStart() {
   });
 }
 
-function _peerConnect(peerId) {
+async function _peerConnect(peerId) {
   if (!peerId || peerId.length < 4) { showToast('Enter a valid peer ID', 'error'); return; }
   _peerAutoStarting = false; // cancel auto-start
   const clean = peerId.trim().toUpperCase();
@@ -3232,7 +3257,7 @@ function _peerConnect(peerId) {
   // If no instance, destroyed, or stuck — create a fresh one
   if (!_peerInstance || _peerInstance.destroyed || !_peerInstance.open) {
     _peerDestroyInstance();
-    if (typeof Peer === 'undefined') { showToast('PeerJS not loaded', 'error'); return; }
+    try { await _loadPeerJS(); } catch { showToast('Failed to load P2P library', 'error'); return; }
     const myId = 'CIQ-' + Array.from(crypto.getRandomValues(new Uint8Array(3)))
       .map(b => b.toString(36)).join('').toUpperCase().slice(0, 6);
     _peerInstance = new Peer(myId, _peerOpts);
@@ -3351,9 +3376,8 @@ window._gunDisconnect = _peerDisconnect;
 (function _peerAutoEnable() {
   if (localStorage.getItem('icu_p2p_enabled') !== 'true') return;
   const _wait = () => {
-    if (typeof Peer === 'undefined' || !state.athleteId) { setTimeout(_wait, 1000); return; }
-    _peerToggle(true);
-    // Restore toggle checkbox state
+    if (!state.athleteId) { setTimeout(_wait, 1000); return; }
+    _peerToggle(true); // _peerToggle now lazy-loads PeerJS itself
     const cb = document.getElementById('syncP2pToggle');
     if (cb) cb.checked = true;
   };
@@ -5936,6 +5960,7 @@ async function renderRecentActCardMap(a, idx, idPrefix = 'recentActCard', mapSto
       img.src = cached;
       img.className = 'ra-card-map-img';
       img.alt = '';
+      img.loading = 'lazy';
       mapEl.innerHTML = '';
       mapEl.appendChild(img);
       return;
@@ -6726,7 +6751,7 @@ async function _renderDashGear() {
   scroll.innerHTML = gear.map(g => {
     const photo = photos[g.id];
     const imgHtml = photo
-      ? `<img class="dash-gear-photo" src="${photo}" alt="">`
+      ? `<img class="dash-gear-photo" loading="lazy" src="${photo}" alt="">`
       : `<div class="dash-gear-icon">${_gearIcon(g.type)}</div>`;
     const partCount = components.filter(c => c.bikeId === g.id && !c.retired).length;
     const batList = batteries.filter(b => b.bikeId === g.id && !b.obsolete);
@@ -6740,7 +6765,7 @@ async function _renderDashGear() {
     const slideStyle = photo ? `background:${bgCol || '#111'}` : '';
 
     return `<div class="dash-gear-slide${photo ? ' dash-gear-slide--photo' : ''}" onclick="navigate('gear')" ${slideStyle ? `style="${slideStyle}"` : ''}>
-      ${photo ? `<img class="dash-gear-photo" src="${photo}" alt="${g.name}">` : imgHtml}
+      ${photo ? `<img class="dash-gear-photo" loading="lazy" src="${photo}" alt="${g.name}">` : imgHtml}
       <div class="dash-gear-overlay">
         <div class="dash-gear-name">${g.name}</div>
       </div>
@@ -28896,7 +28921,7 @@ function gearComponentCard(c) {
   const resolvedImg = c.image || _gearGetDefaultImage(c.brand, c.model, c.name, c.category) || _gearBrandLogoUrl(c.brand);
   const hasImg = !!resolvedImg;
   const imgHtml = hasImg
-    ? `<img src="${resolvedImg}" alt="${c.name || ''}" onerror="_gearImgFallback(this,'${(c.name||'').replace(/'/g,'')}','${(c.category||'').replace(/'/g,'')}')">`
+    ? `<img src="${resolvedImg}" alt="${c.name || ''}" loading="lazy" onerror="_gearImgFallback(this,'${(c.name||'').replace(/'/g,'')}','${(c.category||'').replace(/'/g,'')}')">`
     : (c.category || 'O')[0];
 
   const kmStr = ridden > 0 ? `${Math.round(ridden).toLocaleString()} km` : '';
@@ -28934,7 +28959,7 @@ function openCompDetail(compId) {
   const resolvedImg = c.image || _gearGetDefaultImage(c.brand, c.model, c.name, c.category) || _gearBrandLogoUrl(c.brand);
 
   const imgHtml = resolvedImg
-    ? `<div class="comp-detail-img"><img src="${resolvedImg}" alt="${c.name}" onerror="_gearImgFallback(this,'${(c.name||'').replace(/'/g,'')}','${(c.category||'').replace(/'/g,'')}')"></div>`
+    ? `<div class="comp-detail-img"><img src="${resolvedImg}" alt="${c.name}" loading="lazy" onerror="_gearImgFallback(this,'${(c.name||'').replace(/'/g,'')}','${(c.category||'').replace(/'/g,'')}')"></div>`
     : `<div class="comp-detail-img" style="background:${color};display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;color:#fff">${(c.category || 'O')[0]}</div>`;
 
   const pctColor = pct >= 100 ? 'var(--red)' : pct >= 90 ? '#ff9500' : 'var(--accent)';
@@ -29047,23 +29072,23 @@ function openGearPicker(selectEl) {
     let imgHtml = '';
     if (isModel && currentBrand && opt.value) {
       const img = _gearGetDefaultImage(currentBrand, opt.value);
-      imgHtml = img ? `<img class="gp-opt-img" src="${img}" alt="" onerror="_gpImgFail(this)">` : defaultIcon;
+      imgHtml = img ? `<img class="gp-opt-img" src="${img}" alt="" loading="lazy" onerror="_gpImgFail(this)">` : defaultIcon;
     } else if (isBrand && opt.value) {
       const img = _gearGetDefaultImage(opt.value, '') || _gearBrandLogoUrl(opt.value);
-      imgHtml = img ? `<img class="gp-opt-img" src="${img}" alt="" onerror="_gpImgFail(this)">` : defaultIcon;
+      imgHtml = img ? `<img class="gp-opt-img" src="${img}" alt="" loading="lazy" onerror="_gpImgFail(this)">` : defaultIcon;
     } else if (selectEl.id === 'gearFormCategory' && opt.value) {
       const catSlug = opt.value.toLowerCase().replace(/\s+/g, '-');
-      imgHtml = `<img class="gp-opt-img" src="img/components/categories/${catSlug}.webp" alt="" onerror="_gpImgFail(this)">`;
+      imgHtml = `<img class="gp-opt-img" src="img/components/categories/${catSlug}.webp" alt="" loading="lazy" onerror="_gpImgFail(this)">`;
     } else if (selectEl.id === 'batteryFormComponent' && opt.value) {
       const batSys = document.getElementById('batteryFormSystem')?.value || '';
       if (batSys === 'sram_axs' && opt.value === 'shifter_left') {
-        imgHtml = `<img class="gp-opt-img" src="img/components/sram/rival-ed-left-front.webp" alt="Left Shifter" onerror="_gpImgFail(this)">`;
+        imgHtml = `<img class="gp-opt-img" src="img/components/sram/rival-ed-left-front.webp" alt="Left Shifter" loading="lazy" onerror="_gpImgFail(this)">`;
       } else if (batSys === 'sram_axs' && opt.value === 'shifter_right') {
-        imgHtml = `<img class="gp-opt-img" src="img/components/sram/rival-ed-right-front.webp" alt="Right Shifter" onerror="_gpImgFail(this)">`;
+        imgHtml = `<img class="gp-opt-img" src="img/components/sram/rival-ed-right-front.webp" alt="Right Shifter" loading="lazy" onerror="_gpImgFail(this)">`;
       } else if (batSys === 'sram_axs' && (opt.value === 'rear_derailleur' || opt.value === 'rear_derailleur_eagle')) {
-        imgHtml = `<img class="gp-opt-img" src="img/components/sram/rear-derailleur.webp" alt="Rear Derailleur" onerror="_gpImgFail(this)">`;
+        imgHtml = `<img class="gp-opt-img" src="img/components/sram/rear-derailleur.webp" alt="Rear Derailleur" loading="lazy" onerror="_gpImgFail(this)">`;
       } else if (batSys === 'sram_axs' && opt.value === 'front_derailleur') {
-        imgHtml = `<img class="gp-opt-img" src="img/components/sram/front-derailleur.webp" alt="Front Derailleur" onerror="_gpImgFail(this)">`;
+        imgHtml = `<img class="gp-opt-img" src="img/components/sram/front-derailleur.webp" alt="Front Derailleur" loading="lazy" onerror="_gpImgFail(this)">`;
       } else {
         imgHtml = defaultIcon;
       }
@@ -31342,7 +31367,7 @@ function _tireCard(c) {
 
   const resolvedImg = c.image || _gearGetDefaultImage(c.brand, c.model, c.name, c.category) || '';
   const imgHtml = resolvedImg
-    ? `<img src="${resolvedImg}" alt="${c.name}" onerror="_gearImgFallback(this,'${(c.name||'').replace(/'/g,'')}','${(c.category||'').replace(/'/g,'')}')">`
+    ? `<img src="${resolvedImg}" alt="${c.name}" loading="lazy" onerror="_gearImgFallback(this,'${(c.name||'').replace(/'/g,'')}','${(c.category||'').replace(/'/g,'')}')">`
     : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:var(--text-muted)">T</div>`;
 
   const width = c.tireWidth ? c.tireWidth + 'mm' : '';
