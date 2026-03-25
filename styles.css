@@ -6401,24 +6401,32 @@ input[type="number"] {
 }
 /* ── Desktop split-pane settings (iPad-style) ── */
 @media (min-width: 900px) {
+    #page-settings {
+        height: calc(100vh - var(--nav-h, 60px));
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
     .ios-settings {
         display: flex;
         flex-direction: row;
         max-width: 1100px;
         gap: 0;
-        overflow: visible;
+        overflow: hidden;
+        flex: 1;
+        min-height: 0;
     }
     .ios-settings-main {
         flex: 0 0 340px;
         min-width: 340px;
-        max-height: calc(100vh - 120px);
         overflow-y: auto;
         overscroll-behavior: contain;
-        position: sticky;
-        top: 80px;
         border-right: 0.5px solid var(--border, rgba(255,255,255,0.08));
         padding-right: 16px;
+        padding-bottom: 40px;
     }
+    .ios-settings-main::-webkit-scrollbar { display: none; }
+    .ios-settings-main { scrollbar-width: none; }
     /* Never hide main list on desktop */
     .ios-settings-main.ios-nav-out {
         transform: none !important;
@@ -6430,11 +6438,16 @@ input[type="number"] {
         flex: 1;
         min-width: 0;
         padding-left: 24px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding-bottom: 40px;
         /* No slide animation on desktop */
         transform: none !important;
         opacity: 1 !important;
         transition: none !important;
     }
+    .ios-subpage::-webkit-scrollbar { display: none; }
+    .ios-subpage { scrollbar-width: none; }
     .ios-subpage.active {
         display: block;
         transform: none;
@@ -6453,6 +6466,10 @@ input[type="number"] {
     .page-headline.ios-nav-in {
         transform: none;
         opacity: 1;
+    }
+    /* Hide sticky title on desktop settings — subpages have their own headers */
+    .sticky-page-title--settings {
+        display: none !important;
     }
     /* Active row highlight in main list */
     .ios-settings-main .ios-row.stt-active-row {
