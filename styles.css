@@ -9364,6 +9364,7 @@ body.show-save-fab #actSaveRouteFab {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
+    padding-bottom: 20px;
 }
 /* Sticky compact header — hidden by default, shown on scroll */
 .prof-sticky-hdr {

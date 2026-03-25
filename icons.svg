@@ -441,6 +441,12 @@
     <line x1="2" x2="22" y1="2" y2="22"/><path d="M10.41 10.41a2 2 0 1 1-2.83-2.83"/><line x1="13.5" x2="6" y1="13.5" y2="21"/><line x1="18" x2="21" y1="12" y2="15"/><path d="M3.59 3.59A1.99 1.99 0 0 0 3 5v14a2 2 0 0 0 2 2h14c.55 0 1.052-.22 1.41-.59"/><path d="M21 15V5a2 2 0 0 0-2-2H9"/>
   </symbol>
 
+  <symbol id="icon-trending-up" viewBox="0 0 24 24">
+    <path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/>
+  </symbol>
+  <symbol id="icon-alert-triangle" viewBox="0 0 24 24">
+    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>
+  </symbol>
   <symbol id="icon-wind" viewBox="0 0 24 24">
     <path d="M12.8 19.6A2 2 0 1 0 14 16H2"/><path d="M17.5 8a2.5 2.5 0 1 1 2 4H2"/><path d="M9.8 4.4A2 2 0 1 1 11 8H2"/>
   </symbol>

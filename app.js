@@ -572,7 +572,7 @@ function _cleanupPageDOM(leavingPage) {
   if (leavingPage === 'activity') {
     // Charts are already destroyed by cleanupPageCharts() — don't double-destroy
     // Strip only fully-dynamic containers (content rebuilt from scratch each time)
-    ['detailIntervalsBody', 'detailDynamicsCard', 'detailGearShiftsCard', 'detailGpsCard', 'detailRespCard', 'detailHrvCard', 'detailDevicesCard'].forEach(id => {
+    ['detailIntervalsBody', 'detailDynamicsCard', 'detailGearShiftsCard', 'detailGpsCard', 'detailRespCard', 'detailHrvCard', 'detailDriftCard', 'detailHRRecoveryCard', 'detailTempPowerCard', 'detailDevicesCard'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.innerHTML = '';
     });
@@ -5542,6 +5542,7 @@ async function renderZonesCardIntervals(a, idx) {
     }
 
     const intervals = raw?.icu_intervals;
+    state._actIntervals = intervals || []; // store for info subpage
     if (!Array.isArray(intervals) || intervals.length < 1) {
       if (!raw?.__noIntervals) actCachePut(actId, 'intervals', { __noIntervals: true });
       graphEl.innerHTML = '<div class="zc-empty">No interval data</div>';
@@ -7463,6 +7464,40 @@ let C_TICK  = { color: _chartTick(), font: { size: 10 }, precision: 0 };
 let C_GRID  = { color: _chartGrid() };
 const C_NOGRID = { display: false };
 window.C_TICK = C_TICK; window.C_GRID = C_GRID; window.C_TOOLTIP = C_TOOLTIP;
+
+// Shared scatter chart crosshair plugin — dashed V+H lines, draws under dots
+const _scatterCrosshairPlugin = {
+  id: 'scatterCrosshair',
+  beforeDatasetsDraw(chart) {
+    const active = chart.tooltip?.getActiveElements();
+    if (!active?.length) return;
+    const { x, y } = active[0].element;
+    const { top, bottom, left, right } = chart.chartArea;
+    const ctx = chart.ctx;
+    ctx.save();
+    ctx.setLineDash([4, 3]);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = _isDark() ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.15)';
+    ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bottom); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(right, y); ctx.stroke();
+    ctx.restore();
+  }
+};
+
+// Shared scatter dataset style defaults
+function _scatterDatasetStyle(color) {
+  return {
+    backgroundColor: color.replace(/[\d.]+\)$/, '0.15)'),
+    borderColor: color,
+    pointBorderColor: color.replace(/[\d.]+\)$/, '0.3)'),
+    borderWidth: 1,
+    pointRadius: 3,
+    hoverRadius: 5,
+    hoverBackgroundColor: color,
+    hoverBorderColor: '#ffffff',
+    hoverBorderWidth: 2,
+  };
+}
 // Shared grow-from-bottom animation applied globally to all charts
 const C_ANIM = {
   x: { duration: 0 },
@@ -7636,6 +7671,7 @@ document.addEventListener('scroll', _hideTooltipOnScroll, { passive: true, captu
 Chart.register({
   id: 'crosshairLine',
   afterDraw(chart) {
+    if (chart.config.options?._noCrosshair) return; // opt-out for scatter charts etc.
     const active = chart.tooltip?._active;
     if (!active || !active.length) return;
     const { ctx, chartArea: { top, bottom } } = chart;
@@ -9617,11 +9653,11 @@ function renderWellnessInsights(days) {
     state.insightStepsHrvChart = new Chart(ctx, {
       type: 'scatter',
       data: { datasets: [
-        { label: 'Rest Days', data: points, pointRadius: 4, pointHoverRadius: 6, pointBackgroundColor: pColors, pointBorderColor: pColors, pointBorderWidth: 0 },
+        { label: 'Rest Days', data: points, ...{ pointRadius: 3, hoverRadius: 5, pointBackgroundColor: pColors, pointBorderColor: pColors.map(c => c.replace(/[\d.]+\)$/, '0.3)')), pointBorderWidth: 1, hoverBorderColor: '#fff', hoverBorderWidth: 2 } },
         { label: 'Trend', data: trend, type: 'line', borderColor: 'rgba(255,255,255,0.3)', borderWidth: 1.5, borderDash: [5, 3], pointRadius: 0, pointHoverRadius: 0, fill: false },
       ]},
       options: {
-        responsive: true, maintainAspectRatio: false,
+        responsive: true, maintainAspectRatio: false, _noCrosshair: true,
         interaction: { mode: 'nearest', intersect: true },
         plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP, callbacks: { label: c => c.datasetIndex === 0 ? `Steps: ${c.raw.x.toLocaleString()} · HRV: ${c.raw.y} ms` : null } } },
         scales: {
@@ -9629,6 +9665,7 @@ function renderWellnessInsights(days) {
           y: { ticks: { ...C_TICK, maxTicksLimit: 4 }, grid: C_GRID, border: { display: false } },
         },
       },
+      plugins: [_scatterCrosshairPlugin],
     });
   })();
 }
@@ -9942,11 +9979,14 @@ function renderPwrHrScatter(activities) {
       {
         label: 'Rides',
         data: points,
-        pointRadius: 5,
-        pointHoverRadius: 7,
-        pointBackgroundColor: colors,
-        pointBorderColor: colors,
-        pointBorderWidth: 0,
+        pointRadius: 3,
+        hoverRadius: 5,
+        pointBackgroundColor: colors.map(c => c.replace(/0\.\d+\)$/, '0.15)')),
+        pointBorderColor: colors.map(c => c.replace(/0\.\d+\)$/, '0.3)')),
+        hoverBackgroundColor: colors,
+        hoverBorderColor: '#fff',
+        hoverBorderWidth: 2,
+        pointBorderWidth: 1,
       },
       {
         label: 'Trend',
@@ -9979,6 +10019,7 @@ function renderPwrHrScatter(activities) {
           },
         },
       },
+      _noCrosshair: true,
       scales: {
         x: {
           type: 'linear',
@@ -9996,6 +10037,7 @@ function renderPwrHrScatter(activities) {
         },
       },
     },
+    plugins: [_scatterCrosshairPlugin],
   });
 }
 
@@ -11521,10 +11563,24 @@ function _renderPwrPageScatter(activities) {
   if (state._pwrPageScatterChart) state._pwrPageScatterChart.destroy();
   state._pwrPageScatterChart = new Chart(ctx, {
     type: 'scatter',
-    data: { datasets: [{ data: points, backgroundColor: colors, pointRadius: 5, pointHoverRadius: 8 }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP, callbacks: { label: ctx => `${Math.round(ctx.raw.y)}W @ ${Math.round(ctx.raw.x)}bpm${ctx.raw.temp != null ? ' · ' + Math.round(ctx.raw.temp) + '°C' : ''}` } } },
+    data: { datasets: [{
+      data: points,
+      backgroundColor: colors.map(c => c.replace(/0\.\d+\)$/, '0.15)')),
+      pointBorderColor: colors.map(c => c.replace(/0\.\d+\)$/, '0.3)')),
+      borderColor: '#00e5a0',
+      pointBorderWidth: 1,
+      pointRadius: 3,
+      hoverRadius: 5,
+      hoverBackgroundColor: colors,
+      hoverBorderColor: '#fff',
+      hoverBorderWidth: 2,
+    }] },
+    options: { responsive: true, maintainAspectRatio: false, _noCrosshair: true,
+      interaction: { mode: 'nearest', intersect: true },
+      plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP, callbacks: { label: ctx => `${Math.round(ctx.raw.y)}W @ ${Math.round(ctx.raw.x)}bpm${ctx.raw.temp != null ? ' · ' + Math.round(ctx.raw.temp) + '°C' : ''}` } } },
       scales: { x: { ...cScales({}).x, title: { display: true, text: 'Heart Rate (bpm)', color: _chartLabel(), font: { size: 11 } } }, y: { ...cScales({}).y, title: { display: true, text: 'Power (W)', color: _chartLabel(), font: { size: 11 } } } }
-    }
+    },
+    plugins: [_scatterCrosshairPlugin],
   });
 }
 
@@ -19069,6 +19125,13 @@ async function navigateToActivity(actKey, fromStep = false) {
     _renderDetailPwrHR(normStreams, richActivity);
     _renderDetailNPTimeline(normStreams, richActivity);
     _renderDetailSpeedGrade(normStreams, richActivity);
+    _renderCardiacDrift(normStreams, richActivity);
+    _renderTempVsPower(normStreams, richActivity);
+    // HR Recovery needs interval data — retry after delay if not loaded yet
+    _renderHRRecovery(normStreams, richActivity);
+    if (!state._actIntervals?.length) {
+      setTimeout(() => _renderHRRecovery(normStreams, richActivity), 3000);
+    }
 
     // Inject info buttons and dividers on all visible activity cards
     setTimeout(() => { _injectActCardInfoBtns(); _injectActCardDividers(); }, 300);
@@ -19114,17 +19177,40 @@ function _renderDetailPwrHR(streams, activity) {
   if (!canvas) return;
 
   state._detailPwrHRChart = destroyChart(state._detailPwrHRChart);
+
+  // Use shared scatter crosshair plugin
+
   state._detailPwrHRChart = new Chart(canvas, {
     type: 'scatter',
-    data: { datasets: [{ data: points, backgroundColor: 'rgba(0,229,160,0.5)', pointRadius: 3, pointHoverRadius: 6 }] },
+    data: { datasets: [{
+      data: points,
+      backgroundColor: 'rgba(0,229,160,0.15)',
+      borderColor: '#00e5a0',
+      pointBorderColor: 'rgba(0,229,160,0.3)',
+      borderWidth: 1,
+      pointRadius: 3,
+      hoverRadius: 5,
+      hoverBackgroundColor: '#00e5a0',
+      hoverBorderColor: '#ffffff',
+      hoverBorderWidth: 2,
+    }] },
     options: {
       responsive: true, maintainAspectRatio: false, animation: false,
-      plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP, callbacks: { label: ctx => `${ctx.raw.y}W @ ${ctx.raw.x}bpm` } } },
+      _noCrosshair: true, // disable global solid crosshair — we use our own dashed one
+      interaction: { mode: 'nearest', intersect: true },
+      plugins: {
+        legend: { display: false },
+        tooltip: { ...C_TOOLTIP, callbacks: {
+          title: () => '',
+          label: ctx => `${ctx.raw.y}W @ ${ctx.raw.x} bpm`
+        }},
+      },
       scales: {
-        x: { ticks: { ...C_TICK, callback: (v,i) => i === 0 ? 'bpm' : v }, grid: C_GRID, border: { display: false } },
-        y: { ticks: { ...C_TICK, callback: (v,i) => i === 0 ? 'W' : v }, grid: C_GRID, border: { display: false } }
+        x: { ticks: { ...C_TICK, callback: (v,i) => i === 0 ? 'bpm' : v }, grid: { ...C_GRID }, border: { display: false } },
+        y: { ticks: { ...C_TICK, callback: (v,i) => i === 0 ? 'W' : v }, grid: { ...C_GRID }, border: { display: false } }
       }
-    }
+    },
+    plugins: [_scatterCrosshairPlugin]
   });
 
   // Add summary row
@@ -19182,7 +19268,16 @@ function _renderDetailNPTimeline(streams, activity) {
     data: { labels, datasets },
     options: {
       responsive: true, maintainAspectRatio: false, animation: false,
-      plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP } },
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: { ...C_TOOLTIP,
+          filter: item => item.datasetIndex === 0, // only show NP, not FTP line
+          callbacks: {
+            label: ctx => `NP: ${ctx.raw}W${ftp > 0 ? ` (FTP: ${ftp}W)` : ''}`,
+          }
+        }
+      },
       scales: {
         x: { ticks: { ...C_TICK, maxTicksLimit: 8 }, grid: { display: false }, border: { display: false } },
         y: { ticks: { ...C_TICK, callback: (v,i) => i === 0 ? 'W' : v }, grid: C_GRID, border: { display: false } }
@@ -19236,15 +19331,301 @@ function _renderDetailSpeedGrade(streams, activity) {
   state._detailSpeedGrade = destroyChart(state._detailSpeedGrade);
   state._detailSpeedGrade = new Chart(canvas, {
     type: 'scatter',
-    data: { datasets: [{ data: points, backgroundColor: colors, pointRadius: 3, pointHoverRadius: 6 }] },
+    data: { datasets: [{
+      data: points,
+      backgroundColor: colors.map(c => c.replace(/0\.\d+\)$/, '0.15)')),
+      pointBorderColor: colors.map(c => c.replace(/0\.\d+\)$/, '0.3)')),
+      borderColor: '#00e5a0',
+      pointBorderWidth: 1,
+      pointRadius: 3,
+      hoverRadius: 5,
+      hoverBackgroundColor: colors,
+      hoverBorderColor: '#fff',
+      hoverBorderWidth: 2,
+    }] },
     options: {
-      responsive: true, maintainAspectRatio: false, animation: false,
+      responsive: true, maintainAspectRatio: false, animation: false, _noCrosshair: true,
+      interaction: { mode: 'nearest', intersect: true },
       plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP, callbacks: { label: ctx => `${ctx.raw.y} km/h @ ${ctx.raw.x}% grade` } } },
       scales: {
         x: { ticks: { ...C_TICK, callback: (v,i) => i === 0 ? '%' : v }, grid: C_GRID, border: { display: false }, title: { display: false } },
         y: { ticks: { ...C_TICK, callback: (v,i) => i === 0 ? 'kph' : v }, grid: C_GRID, border: { display: false } }
       }
+    },
+    plugins: [_scatterCrosshairPlugin],
+  });
+}
+
+// ── Cardiac Drift: HR rise at constant power over the ride ──
+function _renderCardiacDrift(streams, activity) {
+  const card = document.getElementById('detailDriftCard');
+  if (!card) return;
+  card.style.display = 'none';
+  card.innerHTML = '';
+
+  const watts = streams?.watts || streams?.power, hr = streams?.heartrate || streams?.heart_rate, time = streams?.time;
+  console.log('[Drift] data check:', { hasWatts: !!watts?.length, wattsLen: watts?.length, hasHR: !!hr?.length, hasTime: !!time?.length });
+  if (!watts?.length || !hr?.length || !time?.length) return;
+  if (watts.length < 120) return; // need at least ~2 minutes of data
+
+  // Split ride into 5-minute windows, compute avg power and avg HR
+  const windowSec = 300;
+  const windows = [];
+  for (let i = 0; i < time.length; i++) {
+    const wIdx = Math.floor(time[i] / windowSec);
+    if (!windows[wIdx]) windows[wIdx] = { wSum: 0, hSum: 0, cnt: 0 };
+    if (watts[i] > 30 && hr[i] > 60) {
+      windows[wIdx].wSum += watts[i];
+      windows[wIdx].hSum += hr[i];
+      windows[wIdx].cnt++;
     }
+  }
+  const valid = windows.filter(w => w && w.cnt > 10).map(w => ({
+    power: Math.round(w.wSum / w.cnt),
+    hr: Math.round(w.hSum / w.cnt),
+    ef: +(w.wSum / w.hSum).toFixed(2),
+  }));
+  console.log('[Drift] windows:', windows.length, 'valid:', valid.length, 'first:', valid[0]);
+  if (valid.length < 4) return;
+
+  // Cardiac drift = % HR increase from first half to second half at similar power
+  const half = Math.floor(valid.length / 2);
+  const firstHalf = valid.slice(0, half);
+  const secondHalf = valid.slice(half);
+  const avgHR1 = firstHalf.reduce((s, w) => s + w.hr, 0) / firstHalf.length;
+  const avgHR2 = secondHalf.reduce((s, w) => s + w.hr, 0) / secondHalf.length;
+  const avgPwr1 = firstHalf.reduce((s, w) => s + w.power, 0) / firstHalf.length;
+  const avgPwr2 = secondHalf.reduce((s, w) => s + w.power, 0) / secondHalf.length;
+  const drift = ((avgHR2 - avgHR1) / avgHR1 * 100);
+  const ef1 = (avgPwr1 / avgHR1).toFixed(2);
+  const ef2 = (avgPwr2 / avgHR2).toFixed(2);
+  const efDrop = ((ef2 - ef1) / ef1 * 100).toFixed(1);
+
+  const driftColor = drift < 3 ? 'var(--accent)' : drift < 5 ? '#f0c429' : drift < 8 ? '#ff9500' : 'var(--red)';
+  const driftLabel = drift < 3 ? 'Excellent' : drift < 5 ? 'Good' : drift < 8 ? 'Moderate' : 'High';
+
+  // EF trend sparkline
+  const efData = valid.map(w => w.ef);
+  const labels = valid.map((_, i) => `${(i * 5)}m`);
+
+  card.innerHTML = `
+    <div class="card-header">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="card-title" style="flex:1 1 0%">
+          <svg class="icon" width="16" height="16"><use href="icons.svg#icon-trending-up"/></svg>
+          Cardiac Drift
+        </div>
+        <span style="font-size:13px;font-weight:600;color:${driftColor};font-family:var(--font-num)">${driftLabel}</span>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;padding:4px 0 12px">
+      <div style="flex:1;text-align:center;padding:10px 8px;background:var(--surface-1);border-radius:var(--radius-sm)">
+        <div style="font-family:var(--font-num);font-size:22px;font-weight:700;color:${driftColor}">${drift.toFixed(1)}%</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">HR Drift</div>
+      </div>
+      <div style="flex:1;text-align:center;padding:10px 8px;background:var(--surface-1);border-radius:var(--radius-sm)">
+        <div style="font-family:var(--font-num);font-size:22px;font-weight:700;color:var(--text-primary)">${ef1}→${ef2}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">EF (W/bpm)</div>
+      </div>
+    </div>
+    <div class="detail-zone-summary">
+      <div class="detail-zone-summary-row"><span>1st Half HR</span><span class="detail-zone-summary-val">${Math.round(avgHR1)} bpm · ${Math.round(avgPwr1)}W</span></div>
+      <div class="detail-zone-summary-row"><span>2nd Half HR</span><span class="detail-zone-summary-val">${Math.round(avgHR2)} bpm · ${Math.round(avgPwr2)}W</span></div>
+      <div class="detail-zone-summary-row"><span>EF Change</span><span class="detail-zone-summary-val" style="color:${parseFloat(efDrop) < -2 ? 'var(--red)' : 'var(--accent)'}">${efDrop}%</span></div>
+    </div>
+  `;
+  card.style.display = '';
+}
+
+// ── HR Recovery between intervals ──
+function _renderHRRecovery(streams, activity) {
+  const card = document.getElementById('detailHRRecoveryCard');
+  if (!card) return;
+  card.style.display = 'none';
+  card.innerHTML = '';
+
+  const hr = streams?.heartrate, time = streams?.time;
+  const intervals = state._actIntervals;
+  if (!hr?.length || !time?.length || !intervals?.length) return;
+
+  const workInts = intervals.filter(iv => iv.type === 'WORK');
+  console.log('[HRRecovery] intervals:', intervals.length, 'work:', workInts.length, 'sample:', workInts[0] ? JSON.stringify(Object.keys(workInts[0])).slice(0, 200) : 'none');
+  if (workInts.length < 2) return;
+
+  // For each work interval, measure HR at end and HR 30s/60s after
+  const recoveries = [];
+  for (const iv of workInts) {
+    // Find end of interval using end_index (stream index) or elapsed time
+    let endIdx;
+    if (iv.end_index != null && iv.end_index < hr.length) {
+      endIdx = iv.end_index;
+    } else if (iv.start_index != null && iv.moving_time) {
+      // Estimate end index from start + duration
+      const endTime = time[iv.start_index] + (iv.moving_time || iv.elapsed_time || 0);
+      endIdx = time.findIndex(t => t >= endTime);
+    } else {
+      continue;
+    }
+    if (endIdx < 0 || endIdx >= hr.length) continue;
+    const peakHR = hr[endIdx];
+    const endTime = time[endIdx];
+
+    // Find HR 30s and 60s after
+    const idx30 = time.findIndex(t => t >= endTime + 30);
+    const idx60 = time.findIndex(t => t >= endTime + 60);
+    const hr30 = idx30 >= 0 ? hr[idx30] : null;
+    const hr60 = idx60 >= 0 ? hr[idx60] : null;
+
+    if (peakHR > 100 && hr30) {
+      recoveries.push({
+        peak: peakHR,
+        drop30: peakHR - hr30,
+        drop60: hr60 ? peakHR - hr60 : null,
+        pwr: Math.round(iv.average_watts || 0),
+      });
+    }
+  }
+  if (recoveries.length < 2) return;
+
+  const avgDrop30 = Math.round(recoveries.reduce((s, r) => s + r.drop30, 0) / recoveries.length);
+  const avgDrop60 = recoveries.filter(r => r.drop60 != null);
+  const avgDrop60Val = avgDrop60.length ? Math.round(avgDrop60.reduce((s, r) => s + r.drop60, 0) / avgDrop60.length) : null;
+
+  const recColor = avgDrop30 > 25 ? 'var(--accent)' : avgDrop30 > 15 ? '#4a9eff' : avgDrop30 > 8 ? '#f0c429' : 'var(--red)';
+  const recLabel = avgDrop30 > 25 ? 'Excellent' : avgDrop30 > 15 ? 'Good' : avgDrop30 > 8 ? 'Fair' : 'Slow';
+
+  const recRows = recoveries.map((r, i) => `
+    <div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:0.5px solid var(--border, rgba(255,255,255,0.06))">
+      <span style="font-size:12px;color:var(--text-muted);min-width:20px">#${i + 1}</span>
+      <span style="font-family:var(--font-num);font-size:13px;min-width:40px">${r.peak} bpm</span>
+      <div style="flex:1;height:4px;background:var(--surface-2);border-radius:2px;overflow:hidden">
+        <div style="width:${Math.min(100, r.drop30 * 3)}%;height:100%;background:${recColor};border-radius:2px"></div>
+      </div>
+      <span style="font-family:var(--font-num);font-size:13px;font-weight:600;color:${recColor};min-width:48px;text-align:right">-${r.drop30} bpm</span>
+    </div>
+  `).join('');
+
+  card.innerHTML = `
+    <div class="card-header">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="card-title" style="flex:1 1 0%">
+          <svg class="icon" width="16" height="16"><use href="icons.svg#icon-heart"/></svg>
+          HR Recovery
+        </div>
+        <span style="font-size:13px;font-weight:600;color:${recColor};font-family:var(--font-num)">${recLabel}</span>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;padding:4px 0 12px">
+      <div style="flex:1;text-align:center;padding:10px 8px;background:var(--surface-1);border-radius:var(--radius-sm)">
+        <div style="font-family:var(--font-num);font-size:22px;font-weight:700;color:${recColor}">-${avgDrop30}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Avg 30s Recovery</div>
+      </div>
+      ${avgDrop60Val != null ? `<div style="flex:1;text-align:center;padding:10px 8px;background:var(--surface-1);border-radius:var(--radius-sm)">
+        <div style="font-family:var(--font-num);font-size:22px;font-weight:700;color:#4a9eff">-${avgDrop60Val}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Avg 60s Recovery</div>
+      </div>` : ''}
+      <div style="flex:1;text-align:center;padding:10px 8px;background:var(--surface-1);border-radius:var(--radius-sm)">
+        <div style="font-family:var(--font-num);font-size:22px;font-weight:700;color:var(--text-primary)">${recoveries.length}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Intervals</div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em">Per-Interval Recovery (30s)</div>
+    ${recRows}
+  `;
+  card.style.display = '';
+}
+
+// ── Temperature vs Power (from FIT temp + API power) ──
+function _renderTempVsPower(streams, activity) {
+  const card = document.getElementById('detailTempPowerCard');
+  if (!card) return;
+  card.style.display = 'none';
+  card.innerHTML = '';
+
+  const watts = streams?.watts;
+  const time = streams?.time;
+  const fitData = window._lastFITParse?.data;
+  const temps = fitData?.temperature;
+  if (!watts?.length || !temps?.length || temps.length < 100) return;
+
+  // Build 5-minute window averages of temp and power
+  const windowSec = 300;
+  const windows = [];
+  const step = Math.max(1, Math.floor(watts.length / temps.length));
+  for (let i = 0; i < watts.length && i < temps.length * step; i++) {
+    const tIdx = Math.min(temps.length - 1, Math.floor(i / step));
+    const t = time?.[i] ?? i;
+    const wIdx = Math.floor(t / windowSec);
+    if (!windows[wIdx]) windows[wIdx] = { tSum: 0, wSum: 0, cnt: 0 };
+    if (watts[i] > 30 && temps[tIdx] != null) {
+      windows[wIdx].tSum += temps[tIdx];
+      windows[wIdx].wSum += watts[i];
+      windows[wIdx].cnt++;
+    }
+  }
+  const valid = windows.filter(w => w && w.cnt > 30).map(w => ({
+    x: Math.round(w.tSum / w.cnt),
+    y: Math.round(w.wSum / w.cnt),
+  }));
+  if (valid.length < 3) return;
+
+  const avgTemp = Math.round(valid.reduce((s, p) => s + p.x, 0) / valid.length);
+  const avgPwr = Math.round(valid.reduce((s, p) => s + p.y, 0) / valid.length);
+
+  // Color by power zone
+  const ftp = state.ftp || activity?.icu_ftp || 200;
+  const colors = valid.map(p => {
+    const pct = p.y / ftp;
+    if (pct > 1.05) return 'rgba(255,69,58,0.5)';
+    if (pct > 0.9) return 'rgba(255,149,0,0.5)';
+    if (pct > 0.75) return 'rgba(240,196,41,0.5)';
+    return 'rgba(0,229,160,0.5)';
+  });
+
+  const canvasId = 'actTempPowerChart';
+  card.innerHTML = `
+    <div class="card-header">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="card-title" style="flex:1 1 0%">
+          <svg class="icon" width="16" height="16"><use href="icons.svg#icon-thermometer"/></svg>
+          Temperature vs Power
+        </div>
+      </div>
+    </div>
+    <div style="height:180px;margin-bottom:8px">
+      <canvas id="${canvasId}" style="width:100%;height:180px"></canvas>
+    </div>
+    <div class="detail-zone-summary">
+      <div class="detail-zone-summary-row"><span>Avg Temperature</span><span class="detail-zone-summary-val">${avgTemp}°C</span></div>
+      <div class="detail-zone-summary-row"><span>Avg Power</span><span class="detail-zone-summary-val">${avgPwr}W</span></div>
+    </div>
+  `;
+  card.style.display = '';
+
+  requestAnimationFrame(() => {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    state._actTempPowerChart = destroyChart(state._actTempPowerChart);
+    state._actTempPowerChart = new Chart(canvas, {
+      type: 'scatter',
+      data: { datasets: [{
+        data: valid,
+        ..._scatterDatasetStyle('rgba(0,229,160,1)'),
+        backgroundColor: colors.map(c => c.replace(/0\.\d+\)$/, '0.15)')),
+        pointBorderColor: colors.map(c => c.replace(/0\.\d+\)$/, '0.3)')),
+        hoverBackgroundColor: colors,
+      }] },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false, _noCrosshair: true,
+        interaction: { mode: 'nearest', intersect: true },
+        plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP, callbacks: { title: () => '', label: ctx => `${ctx.raw.y}W @ ${ctx.raw.x}°C` } } },
+        scales: {
+          x: { ticks: { ...C_TICK, callback: (v, i) => i === 0 ? '°C' : v }, grid: C_GRID, border: { display: false } },
+          y: { ticks: { ...C_TICK, callback: (v, i) => i === 0 ? 'W' : v }, grid: C_GRID, border: { display: false } },
+        }
+      },
+      plugins: [_scatterCrosshairPlugin],
+    });
   });
 }
 
@@ -21611,6 +21992,7 @@ function destroyChartInstances() {
   state._detailLRBalChart = destroyChart(state._detailLRBalChart);
   state._actHrvChart = destroyChart(state._actHrvChart);
   state._actRespChart = destroyChart(state._actRespChart);
+  state._actTempPowerChart = destroyChart(state._actTempPowerChart);
   // Clear NA overlays so they don't double-up
   _DETAIL_CARD_IDS.forEach(id => {
     const el = document.getElementById(id);
@@ -23310,6 +23692,79 @@ function _renderGearShiftsCard(a, fitData) {
     </div>`;
   }).join('');
 
+  // ── 1. Cross-chain detection ──
+  const frontArr = [...fronts].sort((a, b) => a - b);
+  const rearArr = [...rears].sort((a, b) => a - b);
+  const crossChained = [];
+  if (frontArr.length >= 2 && rearArr.length >= 3) {
+    const bigRing = Math.max(...frontArr);
+    const smallRing = Math.min(...frontArr);
+    const bigCogs = rearArr.slice(-3); // 3 largest cogs
+    const smallCogs = rearArr.slice(0, 3); // 3 smallest cogs
+    sorted.forEach(([gear, time]) => {
+      const [f, r] = gear.split('×').map(Number);
+      if (!f || !r) return;
+      const pct = Math.round((time / totalTime) * 100);
+      if (pct < 1) return; // ignore negligible time
+      // Big ring + big cogs = cross-chain
+      if (f === bigRing && bigCogs.includes(r)) crossChained.push({ gear, pct, type: 'big-big' });
+      // Small ring + small cogs = cross-chain
+      if (f === smallRing && smallCogs.includes(r)) crossChained.push({ gear, pct, type: 'small-small' });
+    });
+  }
+
+  const crossChainHtml = crossChained.length ? `
+    <div style="padding:8px 0;border-top:0.5px solid var(--border, rgba(255,255,255,0.06))">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+        <svg class="icon" width="14" height="14" style="stroke:${C_YELLOW}"><use href="icons.svg#icon-alert-triangle"/></svg>
+        <span style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:${C_YELLOW}">Cross-Chain Alert</span>
+      </div>
+      ${crossChained.map(cc => `<div style="display:flex;align-items:center;gap:8px;padding:3px 0">
+        <span style="font-family:var(--font-num);font-size:13px;font-weight:600;min-width:56px;color:${C_YELLOW}">${cc.gear}</span>
+        <span style="font-size:12px;color:var(--text-muted)">${cc.pct}% of ride · ${cc.type === 'big-big' ? 'big ring + big cog' : 'small ring + small cog'}</span>
+      </div>`).join('')}
+      <div style="font-size:11px;color:var(--text-faint);margin-top:4px">Cross-chaining increases drivetrain wear and reduces efficiency</div>
+    </div>
+  ` : '';
+
+  // ── 2. Gear wear heatmap (grid visualization) ──
+  let gearGridHtml = '';
+  if (frontArr.length > 0 && rearArr.length > 0) {
+    const maxPct = Math.max(...sorted.map(([, t]) => t / totalTime), 0.01);
+    const gridCells = rearArr.map(r => {
+      return frontArr.map(f => {
+        const key = `${f}×${r}`;
+        const time = gearTime[key] || 0;
+        const pct = time / totalTime;
+        const intensity = pct / maxPct;
+        const isCross = crossChained.some(cc => cc.gear === key);
+        let bg;
+        if (pct === 0) bg = 'var(--surface-1)';
+        else if (isCross) bg = `rgba(240,196,41,${0.2 + intensity * 0.6})`;
+        else bg = `rgba(0,229,160,${0.1 + intensity * 0.7})`;
+        const pctText = pct > 0.005 ? Math.round(pct * 100) + '%' : '';
+        return `<div style="display:flex;align-items:center;justify-content:center;height:28px;border-radius:4px;background:${bg};font-family:var(--font-num);font-size:10px;font-weight:600;color:${pct > 0.1 ? '#000' : 'var(--text-faint)'}" title="${key}: ${Math.round(pct * 100)}%">${pctText}</div>`;
+      }).join('');
+    });
+
+    gearGridHtml = `
+    <div style="padding:8px 0;border-top:0.5px solid var(--border, rgba(255,255,255,0.06))">
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em">Gear Heatmap</div>
+      <div style="display:grid;grid-template-columns:32px repeat(${frontArr.length}, 1fr);gap:2px">
+        <div></div>
+        ${frontArr.map(f => `<div style="text-align:center;font-size:10px;color:var(--text-faint);font-family:var(--font-num)">${f}T</div>`).join('')}
+        ${rearArr.map((r, ri) => `
+          <div style="display:flex;align-items:center;justify-content:flex-end;font-size:10px;color:var(--text-faint);font-family:var(--font-num);padding-right:4px">${r}T</div>
+          ${gridCells[ri]}
+        `).join('')}
+      </div>
+      <div style="display:flex;justify-content:center;gap:12px;margin-top:6px;font-size:10px;color:var(--text-faint)">
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--accent);vertical-align:middle;margin-right:3px"></span>Used</span>
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${C_YELLOW};vertical-align:middle;margin-right:3px"></span>Cross-chain</span>
+      </div>
+    </div>`;
+  }
+
   el.innerHTML = `
     <div class="card-header">
       <div style="display:flex;align-items:center;gap:8px">
@@ -23338,6 +23793,8 @@ function _renderGearShiftsCard(a, fitData) {
       ${gearRows}
       ${sorted.length > 6 ? `<div style="font-size:11px;color:var(--text-faint);text-align:center;padding:4px 0">+ ${sorted.length - 6} more gears</div>` : ''}
     </div>
+    ${crossChainHtml}
+    ${gearGridHtml}
   `;
   el.style.display = '';
 }
@@ -23823,15 +24280,23 @@ function _renderDevicesCard(a, fitData) {
     });
   }
 
-  const batIcon = (pct) => {
-    const color = pct == null ? 'var(--text-muted)' : pct > 50 ? 'var(--accent)' : pct > 25 ? C_YELLOW : pct > 10 ? C_ORANGE : 'var(--red)';
-    return `<svg class="icon" width="16" height="16" style="stroke:${color}"><use href="icons.svg#icon-battery"/></svg>`;
+  // Device type icon mapping
+  const devIcon = (name) => {
+    const n = (name || '').toLowerCase();
+    if (n.includes('sram') || n.includes('shimano') || n.includes('di2') || n.includes('axs')) return 'icon-settings';
+    if (n.includes('garmin') || n.includes('wahoo') || n.includes('gps') || n.includes('edge')) return 'icon-navigation';
+    if (n.includes('power') || n.includes('stages') || n.includes('quarq') || n.includes('favero')) return 'icon-zap';
+    if (n.includes('heart') || n.includes('hr') || n.includes('polar')) return 'icon-heart';
+    if (n.includes('speed') || n.includes('cadence')) return 'icon-activity';
+    if (n.includes('light') || n.includes('varia') || n.includes('radar')) return 'icon-radio';
+    return 'icon-radio';
   };
 
-  const rows = unique.map(r => {
+  // Build battery device cards
+  const batCards = unique.map(r => {
     const pct = r.percent;
     const pctColor = pct == null ? 'var(--text-muted)' : pct > 50 ? 'var(--accent)' : pct > 25 ? C_YELLOW : pct > 10 ? C_ORANGE : 'var(--red)';
-    const pctText = pct != null ? `${pct}%` : (r.status || '—');
+    const pctText = pct != null ? `${pct}%` : '—';
     const isCarried = r._carriedForward;
     const voltText = r.voltage ? `${r.voltage.toFixed(2)}V` : '';
     const statusText = r.status && r.status !== 'Unknown' ? r.status : '';
@@ -23839,7 +24304,6 @@ function _renderDevicesCard(a, fitData) {
 
     let linkedName, linkedAccIdx, fitKey = '';
     if (isCarried) {
-      // Carried-forward: already linked by definition
       linkedName = r.friendlyName;
       linkedAccIdx = r._accIdx ?? -1;
     } else {
@@ -23852,64 +24316,64 @@ function _renderDevicesCard(a, fitData) {
       linkedAccIdx = linkedAcc ? accs.indexOf(linkedAcc) : -1;
     }
 
-    // Device name: use linked name if available, then friendly FIT name, then manufacturer
     const displayName = linkedName || r.friendlyName || r.manufacturer;
+    const icon = devIcon(displayName);
     const addBtn = !linkedName
-      ? `<button onclick="_fitAddBattery('${_escHtml(fitKey)}','${_escHtml(r.friendlyName || r.manufacturer)}',${pct != null ? pct : 'null'})" style="font-size:11px;color:var(--accent);background:none;border:none;padding:2px 6px;cursor:pointer;font-weight:600">+ Add</button>`
-      : '';
-    const editBtn = linkedAccIdx >= 0
-      ? `<button onclick="_openAddAccessory(${linkedAccIdx})" style="font-size:11px;color:var(--text-muted);background:none;border:none;padding:2px 4px;cursor:pointer">
-          <svg class="icon" width="12" height="12"><use href="icons.svg#icon-edit"/></svg>
-        </button>`
+      ? `<button onclick="_fitAddBattery('${_escHtml(fitKey)}','${_escHtml(r.friendlyName || r.manufacturer)}',${pct != null ? pct : 'null'})" style="font-size:12px;color:var(--accent);background:var(--surface-1);border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-weight:600">+ Add</button>`
       : '';
 
-    return `<div class="detail-zone-summary-row" style="flex-wrap:wrap;row-gap:4px">
-      <span style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
-        ${batIcon(pct)}
-        <span style="font-weight:${linkedName ? '600' : '400'}">${_escHtml(displayName)}</span>
-        ${editBtn}
-      </span>
-      <span style="display:flex;align-items:center;gap:6px">
-        ${addBtn}
-        ${detail ? `<span style="font-size:12px;color:var(--text-muted)">${detail}</span>` : ''}
-        <span class="detail-zone-summary-val" style="color:${pctColor};min-width:36px;text-align:right">${pctText}</span>
-      </span>
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--border, rgba(255,255,255,0.06))">
+      <div style="width:36px;height:36px;border-radius:10px;background:var(--surface-1);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <svg class="icon" width="18" height="18" style="stroke:${pctColor}"><use href="icons.svg#${icon}"/></svg>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:14px;font-weight:${linkedName ? '600' : '500'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_escHtml(displayName)}</span>
+          ${detail ? `<span style="font-size:11px;color:var(--text-faint);flex-shrink:0">${detail}</span>` : ''}
+        </div>
+        ${pct != null ? `<div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+          <div style="flex:1;height:4px;background:var(--surface-2);border-radius:2px;overflow:hidden">
+            <div style="width:${pct}%;height:100%;background:${pctColor};border-radius:2px;transition:width 0.3s"></div>
+          </div>
+          <span style="font-size:13px;font-weight:700;color:${pctColor};font-family:var(--font-num);min-width:36px;text-align:right">${pctText}</span>
+        </div>` : ''}
+      </div>
+      ${addBtn}
     </div>`;
   }).join('');
 
-  // "Other Connected Devices" — already deduped, just filter non-battery + remove internals
+  // Other connected sensors (no battery)
   const otherUnique = allUnique.filter(d => !d.hasBattery).filter(d => {
     const name = d.friendlyName || '';
     return name && !name.includes('Internal') && d.manufacturer !== 'Internal';
   });
 
-  const otherRows = otherUnique.map(d => {
+  const otherCards = otherUnique.map(d => {
     const name = d.friendlyName || d.manufacturer;
     const typeLabel = _FIT_DEVICE_TYPE[d.deviceType] || '';
     const fitKey = `${d.manufacturer}_${d.product}_${d.deviceType ?? ''}_${d.serialNumber ?? ''}`;
     const linkedAcc = accs.find(a => a.fitDeviceKey === fitKey);
     const linkedName = linkedAcc ? (linkedAcc.name || linkedAcc.type) : null;
     const displayName = linkedName || name;
+    const icon = devIcon(displayName);
     const addBtn = !linkedName
       ? `<button onclick="_fitAddBattery('${_escHtml(fitKey)}','${_escHtml(name)}',null)" style="font-size:11px;color:var(--accent);background:none;border:none;padding:2px 6px;cursor:pointer;font-weight:600">+ Add</button>`
       : '';
 
-    return `<div class="detail-zone-summary-row" style="min-height:32px">
-      <span style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
-        <svg class="icon" width="14" height="14" style="stroke:var(--text-faint)"><use href="icons.svg#icon-radio"/></svg>
-        <span style="font-size:13px;color:var(--text-muted)">${_escHtml(displayName)}</span>
-      </span>
-      <span style="display:flex;align-items:center;gap:6px">
-        ${addBtn}
-        ${typeLabel ? `<span style="font-size:11px;color:var(--text-faint)">${typeLabel}</span>` : ''}
-      </span>
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0">
+      <div style="width:28px;height:28px;border-radius:8px;background:var(--surface-1);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <svg class="icon" width="14" height="14" style="stroke:var(--text-faint)"><use href="icons.svg#${icon}"/></svg>
+      </div>
+      <span style="flex:1;font-size:13px;color:var(--text-muted)">${_escHtml(displayName)}</span>
+      ${addBtn}
+      ${typeLabel ? `<span style="font-size:11px;color:var(--text-faint)">${typeLabel}</span>` : ''}
     </div>`;
   }).join('');
 
   const otherSection = otherUnique.length ? `
-    <div style="padding:8px 0 0;border-top:0.5px solid var(--border, rgba(255,255,255,0.06))">
-      <div style="font-size:11px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.05em;padding:4px 0 2px">Connected Sensors</div>
-      <div class="detail-zone-summary">${otherRows}</div>
+    <div style="margin-top:4px">
+      <div style="font-size:11px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.05em;padding:8px 0 4px">Connected Sensors</div>
+      ${otherCards}
     </div>
   ` : '';
 
@@ -23917,13 +24381,13 @@ function _renderDevicesCard(a, fitData) {
     <div class="card-header">
       <div style="display:flex;align-items:center;gap:8px">
         <div class="card-title" style="flex:1 1 0%">
-          <svg class="icon" width="16" height="16"><use href="icons.svg#icon-battery"/></svg>
+          <svg class="icon" width="16" height="16"><use href="icons.svg#icon-radio"/></svg>
           Devices
         </div>
-        <span style="font-size:12px;color:var(--text-faint)">${unique.length + otherUnique.length} sensors</span>
+        <span style="font-size:12px;color:var(--text-faint)">${unique.length + otherUnique.length} paired</span>
       </div>
     </div>
-    <div class="detail-zone-summary">${rows}</div>
+    <div style="padding:0">${batCards}</div>
     ${otherSection}
   `;
   el.style.display = '';
@@ -25850,14 +26314,17 @@ function renderStreamCharts(streams, activity) {
       responsive: true,
       maintainAspectRatio: false,
       layout: { padding: { left: 0, right: 0 } },
-      interaction: { mode: 'indexEager', intersect: false },
+      interaction: { mode: 'index', intersect: false, axis: 'x' },
       plugins: {
         legend: { display: false },
         tooltip: {
           ...C_TOOLTIP,
-          filter: () => !state._streamsPanning,
+          mode: 'index',
+          intersect: false,
+          filter: (item) => item.parsed.y != null,
           callbacks: {
             title: items => {
+              if (!items.length) return '';
               const s = rawTime[items[0].dataIndex];
               if (s == null) return '';
               const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
@@ -25869,7 +26336,7 @@ function renderStreamCharts(streams, activity) {
               if (ctx.parsed.y == null) return null;
               const units = { watts: 'w', heartrate: ' bpm', cadence: ' rpm', velocity_smooth: ' km/h', altitude: ' m' };
               const v = Math.round(ctx.parsed.y * 10) / 10;
-              return ` ${ctx.dataset.label}: ${v}${units[ctx.dataset.streamKey] || ''}`;
+              return `${ctx.dataset.label}: ${v}${units[ctx.dataset.streamKey] || ''}`;
             },
           },
         },
@@ -25883,7 +26350,8 @@ function renderStreamCharts(streams, activity) {
           pan: {
             enabled: true,
             mode:    'x',
-            onPanStart:    () => { state._streamsPanning = true;  _getTooltipEl().style.opacity = '0'; },
+            threshold: 10,
+            onPanStart:    () => { state._streamsPanning = true; },
             onPanComplete: () => { state._streamsPanning = false; streamsUpdateZoomState(); },
           },
           limits: {
@@ -26993,6 +27461,31 @@ function renderDetailGradientProfile(streams, activity) {
 
   card.style.display = '';
   unskeletonCard('detailGradientCard');
+
+  // Build gear-at-distance lookup from FIT data for tooltip + markers
+  let gearAtDist = null;
+  try {
+    const fitData = window._lastFITParse?.data;
+    const gears = fitData?.gearChanges;
+    const timeStream = streams?.time;
+    if (gears?.length > 2 && timeStream?.length && dist?.length) {
+      // Map gear timestamp → distance by finding nearest time index
+      const startTs = gears[0].timestamp - (timeStream[0] || 0);
+      gearAtDist = [];
+      for (const g of gears) {
+        const elapsed = g.timestamp - startTs;
+        // Find closest time index
+        let bestIdx = 0, bestDiff = Infinity;
+        for (let j = 0; j < timeStream.length; j += 5) {
+          const d = Math.abs(timeStream[j] - elapsed);
+          if (d < bestDiff) { bestDiff = d; bestIdx = j; }
+        }
+        const km = dist[bestIdx] ? +(dist[bestIdx] / 1000).toFixed(2) : null;
+        if (km != null) gearAtDist.push({ km, front: g.front, rear: g.rear, gear: `${g.front}×${g.rear}` });
+      }
+    }
+  } catch (_) {}
+
   // Build line chart
   const ctx2d = document.getElementById('detailGradientChart').getContext('2d');
 
@@ -27025,7 +27518,15 @@ function renderDetailGradientProfile(streams, activity) {
               title: items => `${items[0].label} km`,
               label: item => {
                 const g = gradeDS[item.dataIndex];
-                return [`${Math.round(item.raw)}m elevation`, `${g > 0 ? '+' : ''}${g}% grade`];
+                const lines = [`${Math.round(item.raw)}m elevation`, `${g > 0 ? '+' : ''}${g}% grade`];
+                // Show current gear at this distance
+                if (gearAtDist?.length) {
+                  const km = distDS[item.dataIndex];
+                  let currentGear = null;
+                  for (const gd of gearAtDist) { if (gd.km <= km) currentGear = gd.gear; else break; }
+                  if (currentGear) lines.push(`⚙ ${currentGear}`);
+                }
+                return lines;
               }
             },
           }
@@ -27501,7 +28002,7 @@ function renderClimbDetection(streams, activity) {
       </div>
       <div class="act-climb-extras">
         ${c.duration > 0 ? `<span class="act-climb-extra">${fmtDur(c.duration)}</span>` : ''}
-        ${c.vam > 0 ? `<span class="act-climb-extra">${c.vam} VAM</span>` : ''}
+        ${c.vam > 0 ? `<span class="act-climb-extra" style="${c.vam >= 1500 ? 'color:var(--red)' : c.vam >= 1200 ? 'color:#ff9500' : c.vam >= 900 ? 'color:#f0c429' : ''}">${c.vam} VAM${c.vam >= 1500 ? ' 🏔 Pro' : c.vam >= 1200 ? ' · Elite' : c.vam >= 900 ? ' · Strong' : ''}</span>` : ''}
         ${c.avgPower > 0 ? `<span class="act-climb-extra">${c.avgPower}w</span>` : ''}
       </div>
     </div>`;
