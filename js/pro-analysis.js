@@ -135,6 +135,7 @@ function _proInit(streams, activity, intervals) {
   _buildChart();
   _updateStats();
   _bindControls();
+  _initRangeBar();
 
   // Refresh rides panel if open
   const rp = document.getElementById('proRidesPanel');
@@ -225,6 +226,8 @@ function _proClose() {
   document.getElementById('proTooltip')?.remove();
   // Clear smooth cache
   _smoothCache.clear();
+  // Reset range bar state
+  _rS = 0; _rE = 1; _rangeBound = false;
 }
 window._proClose = _proClose;
 
@@ -924,6 +927,11 @@ function _buildChart() {
       scales,
     },
     plugins: [zonePlugin, intervalPlugin, lapPlugin, climbPlugin, brushPlugin, crosshairPlugin]
+  });
+
+  // Redraw range minimap after chart builds
+  requestAnimationFrame(() => {
+    if (window._proDrawMinimap) window._proDrawMinimap();
   });
 }
 
@@ -1686,7 +1694,8 @@ function _bindControls() {
   }
 
   // Clear brush on click without shift
-  canvas.addEventListener('click', (e) => {
+  const _brushCanvas = document.getElementById('proAnalysisChart');
+  _brushCanvas?.addEventListener('click', (e) => {
     if (!e.shiftKey && _proBrushStart != null) {
       _proBrushStart = null;
       _proBrushEnd = null;
@@ -1718,9 +1727,121 @@ function _bindControls() {
     climbCheck.onchange = () => { _proShowClimbs = climbCheck.checked; _proChart?.update(); };
   }
 
+  // Range bar is initialized separately after _bindControls
+  // (see _initRangeBar below)
+
   // Keyboard shortcuts — remove old first to prevent accumulation
   document.removeEventListener('keydown', _proKeyHandler);
   document.addEventListener('keydown', _proKeyHandler);
+}
+
+/* ── Range Bar — module-level, outside _bindControls ──────── */
+let _rS = 0, _rE = 1, _rangeMode = null, _rangeBound = false;
+
+function _initRangeBar() {
+  const bar = document.getElementById('proRange');
+  if (!bar) return;
+
+  _rS = 0; _rE = 1;
+
+  // Draw minimap
+  function drawMini() {
+    const c = document.getElementById('proRangeMini');
+    if (!c || !_proStreams) return;
+    const w = bar.offsetWidth, h = bar.offsetHeight;
+    if (w < 20) return;
+    c.width = w; c.height = h;
+    const ctx = c.getContext('2d');
+    ctx.clearRect(0, 0, w, h);
+    for (const s of PRO_STREAMS) {
+      if (!_proActiveStreams.has(s.key)) continue;
+      const d = _proStreams[s.key];
+      if (!d?.length) continue;
+      let mn = Infinity, mx = -Infinity;
+      for (const v of d) if (v != null) { if (v < mn) mn = v; if (v > mx) mx = v; }
+      if (mx <= mn) mx = mn + 1;
+      ctx.beginPath(); ctx.moveTo(0, h);
+      for (let i = 0; i < d.length; i++) {
+        const x = i / (d.length - 1) * w;
+        const y = h - ((d[i] != null ? d[i] : mn) - mn) / (mx - mn) * h * 0.85;
+        ctx.lineTo(x, y);
+      }
+      ctx.lineTo(w, h); ctx.closePath();
+      ctx.fillStyle = s.color + '18'; ctx.fill();
+      ctx.beginPath();
+      for (let i = 0; i < d.length; i++) {
+        const x = i / (d.length - 1) * w;
+        const y = h - ((d[i] != null ? d[i] : mn) - mn) / (mx - mn) * h * 0.85;
+        i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      }
+      ctx.strokeStyle = s.color + '55'; ctx.lineWidth = 1; ctx.stroke();
+    }
+  }
+  window._proDrawMinimap = drawMini;
+
+  // Sync visual + chart zoom
+  function sync() {
+    bar.style.setProperty('--sel-left', (_rS * 100) + '%');
+    bar.style.setProperty('--sel-right', ((1 - _rE) * 100) + '%');
+    if (_proChart?.data?.labels) {
+      const n = _proChart.data.labels.length;
+      _proChart.options.scales.x.min = Math.round(_rS * (n - 1));
+      _proChart.options.scales.x.max = Math.round(_rE * (n - 1));
+      _proChart.update('none');
+      _updateStats(Math.round(_rS * (n - 1)), Math.round(_rE * (n - 1)));
+    }
+  }
+
+  // Draw + sync after short delay for layout
+  setTimeout(() => { drawMini(); sync(); }, 300);
+
+  // Only bind events once
+  if (_rangeBound) return;
+  _rangeBound = true;
+
+  let mode = null, sx = 0, sL = 0, sR = 0;
+
+  bar.addEventListener('mousedown', e => {
+    const rect = bar.getBoundingClientRect();
+    const pct = (e.clientX - rect.left) / rect.width;
+    sx = e.clientX; sL = _rS; sR = _rE;
+
+    const t = e.target;
+    if (t.id === 'proGrabL' || t.closest?.('.pro-range-grab--l')) {
+      mode = 'L';
+    } else if (t.id === 'proGrabR' || t.closest?.('.pro-range-grab--r')) {
+      mode = 'R';
+    } else if (pct > _rS + 0.03 && pct < _rE - 0.03) {
+      mode = 'M';
+    } else if (Math.abs(pct - _rS) < Math.abs(pct - _rE)) {
+      _rS = Math.max(0, Math.min(_rE - 0.02, pct)); sL = _rS; mode = 'L';
+    } else {
+      _rE = Math.min(1, Math.max(_rS + 0.02, pct)); sR = _rE; mode = 'R';
+    }
+    sync();
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!mode) return;
+    const w = bar.offsetWidth;
+    if (w < 10) return;
+    const dx = (e.clientX - sx) / w;
+    if (mode === 'L') _rS = Math.max(0, Math.min(_rE - 0.02, sL + dx));
+    else if (mode === 'R') _rE = Math.min(1, Math.max(_rS + 0.02, sR + dx));
+    else {
+      const span = sR - sL;
+      let nL = sL + dx, nR = sR + dx;
+      if (nL < 0) { nL = 0; nR = span; }
+      if (nR > 1) { nR = 1; nL = 1 - span; }
+      _rS = nL; _rE = nR;
+    }
+    sync();
+  });
+
+  document.addEventListener('mouseup', () => { mode = null; });
+  bar.addEventListener('dblclick', () => { _rS = 0; _rE = 1; sync(); });
+
 }
 
 _proKeyHandler = function(e) {
