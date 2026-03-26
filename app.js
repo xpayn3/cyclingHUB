@@ -36902,12 +36902,22 @@ document.addEventListener('visibilitychange', () => {
     if (typeof _stopVitality === 'function') _stopVitality();
     // Stop weather radar animation
     pauseWeatherRadar();
+    // Pause P2P discovery scanning (saves network + battery)
+    if (_peerDiscoverTimer) { clearInterval(_peerDiscoverTimer); _peerDiscoverTimer = null; }
     // Pause CSS animations globally
     document.documentElement.classList.add('tab-hidden');
   } else {
     if (state.currentPage === 'settings') _rlStartTick();
     // Restart vitality if on dashboard
     if (state.currentPage === 'dashboard' && typeof _startVitality === 'function') _startVitality();
+    // Resume P2P discovery if enabled and connected
+    if (_peerInstance && !_peerDiscoverTimer && localStorage.getItem('icu_p2p_enabled') === 'true') {
+      _peerDiscoverDevices();
+      _peerDiscoverTimer = setInterval(() => {
+        window._peerFailedIds?.clear();
+        _peerDiscoverDevices();
+      }, 30000);
+    }
     document.documentElement.classList.remove('tab-hidden');
   }
 });

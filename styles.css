@@ -7672,6 +7672,25 @@ input[type="number"] {
 @layer utilities {
 [data-dash-section].dash-hidden { display: none !important; }
 .act-hidden { display: none !important; }
+/* Layout utilities — replace repeated inline styles */
+.flex-center { display: flex; align-items: center; }
+.flex-center-8 { display: flex; align-items: center; gap: 8px; }
+.flex-center-6 { display: flex; align-items: center; gap: 6px; }
+.flex-center-12 { display: flex; align-items: center; gap: 12px; }
+.flex-col { display: flex; flex-direction: column; }
+.flex-col-4 { display: flex; flex-direction: column; gap: 4px; }
+.flex-col-8 { display: flex; flex-direction: column; gap: 8px; }
+.flex-1 { flex: 1; min-width: 0; }
+.text-muted { color: var(--text-muted); }
+.text-faint { color: var(--text-faint); }
+.text-accent { color: var(--accent); }
+.fw-600 { font-weight: 600; }
+.fw-700 { font-weight: 700; }
+.fs-11 { font-size: 11px; }
+.fs-12 { font-size: 12px; }
+.fs-13 { font-size: 13px; }
+.fs-14 { font-size: 14px; }
+.font-num { font-family: var(--font-num); }
 } /* end @layer utilities */
 
 @layer pages {
