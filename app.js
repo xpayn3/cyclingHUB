@@ -5989,15 +5989,15 @@ function buildHeroActCardHTML(a, idx) {
   return `<div class="hero-act-wrap" id="recentActCard_${idx}">
     <div class="card card--clickable hero-act-card"${_hacBorder}>
       <div class="hero-act-map" id="recentActCardMap_${idx}"></div>
-      <div class="hero-act-category">${sportLabel}</div>
-      ${_heroAchBadge(a)}
-      <div class="hero-act-inner-header">
+      <div class="hero-act-content">
+        <div class="hero-act-top-row">
+          <span class="hero-act-category">${sportLabel}</span>
+          ${_heroAchBadge(a)}
+        </div>
         <div class="hero-act-title">${name}</div>
         <div class="hero-act-subtitle">${dateFmt}${timeFmt ? ' \u00B7 ' + timeFmt : ''}${platformTag ? ` \u00B7 ${platformTag}` : ''}</div>
-      </div>
-      <div class="hero-act-bottom">
         <div class="hero-act-stats">${statsHTML}</div>
-        ${(tssBadge || wxChip) ? `<div class="hero-act-trailing">${tssBadge}${wxChip}</div>` : ''}
+        ${tssBadge ? `<div class="hero-act-trailing">${tssBadge}</div>` : ''}
       </div>
     </div>
   </div>`;
