@@ -20740,12 +20740,18 @@ async function _loadGridStack() {
     return;
   }
   _gsLoading = true;
+  // Load CSS first and wait for it
   if (!document.querySelector('link[href*="gridstack"]')) {
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = 'https://cdn.jsdelivr.net/npm/gridstack@10/dist/gridstack.min.css';
-    document.head.appendChild(link);
+    await new Promise((resolve) => {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'https://cdn.jsdelivr.net/npm/gridstack@10/dist/gridstack.min.css';
+      link.onload = resolve;
+      link.onerror = resolve; // continue even if CSS fails
+      document.head.appendChild(link);
+    });
   }
+  // Then load JS
   await new Promise((resolve, reject) => {
     const s = document.createElement('script');
     s.src = 'https://cdn.jsdelivr.net/npm/gridstack@10/dist/gridstack-all.js';
@@ -20860,7 +20866,8 @@ async function _initGridStackNow() {
     disableOneColumnMode: true,
   }, gridEl);
 
-  console.info('[GridStack] Initialized:', _gsInstance.getGridItems().length, 'cards');
+  const itemCount = _gsInstance.getGridItems().length;
+  console.info('[GridStack] Initialized:', itemCount, 'cards, container:', gridEl.offsetWidth + 'x' + gridEl.offsetHeight);
 
   // Save on change
   _gsInstance.on('change', () => {
