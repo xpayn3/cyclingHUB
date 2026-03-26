@@ -20774,9 +20774,9 @@ async function _initActCardsGrid() {
   }
   if (gridStartIdx < 0 || gridStartIdx >= children.length) return;
 
-  // Create wrapper
+  // Create wrapper — needs grid-stack class for GridStack to find it
   const gridEl = document.createElement('div');
-  gridEl.className = 'act-cards-grid';
+  gridEl.className = 'act-cards-grid grid-stack';
   const toMove = children.slice(gridStartIdx).filter(el =>
     !el.classList?.contains('act-card-divider')
   );
@@ -20829,14 +20829,17 @@ async function _initActCardsGrid() {
 
     _gsInstance = GridStack.init({
       column: 2,
-      cellHeight: 'auto',
+      cellHeight: 320,
       margin: 8,
       float: false,
       animate: true,
       draggable: { handle: '.card-header' },
       resizable: { handles: 'se' },
       disableOneColumnMode: true,
+      staticGrid: false,
     }, gridEl);
+
+    console.info('[GridStack] Initialized with', _gsInstance.getGridItems().length, 'items');
 
     // Save layout on change
     _gsInstance.on('change', () => {
