@@ -20810,12 +20810,41 @@ async function _initSortableCards() {
         if (c.id) order.push(c.id);
       });
       try { localStorage.setItem('icu_act_card_order', JSON.stringify(order)); } catch {}
+      // Update full-width detection
+      _updateActCardWidths(scroll);
     }
   });
 
   console.info('[Sortable] Initialized on activity cards');
+  // Initial full-width detection
+  _updateActCardWidths(scroll);
 }
 
+
+// Detect cards that are alone in their flex row and make them full-width
+function _updateActCardWidths(scroll) {
+  if (window.innerWidth < 900 || !scroll) return;
+  const gap = parseFloat(getComputedStyle(scroll).gap) || 16;
+  const containerW = scroll.clientWidth;
+  const halfW = (containerW - gap) / 2;
+
+  // Get all visible half-width cards (not full-width elements)
+  const fullWidthIds = new Set([
+    'detailCompareCard', 'detailMapCard', 'detailStreamsCard',
+    'detailLapSplitsCard', 'detailNotesCard', 'detailGradientCard'
+  ]);
+  const cards = [...scroll.querySelectorAll(':scope > .card')].filter(c =>
+    c.style.display !== 'none' && c.offsetHeight > 0 && !fullWidthIds.has(c.id)
+  );
+
+  // Remove old full-width marks
+  cards.forEach(c => c.classList.remove('act-card-full'));
+
+  // If odd number of half-width cards, last one gets full width
+  if (cards.length % 2 === 1) {
+    cards[cards.length - 1].classList.add('act-card-full');
+  }
+}
 
 function _destroyActCardsGrid() {
   if (_sortableInstance) {
