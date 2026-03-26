@@ -19304,9 +19304,10 @@ async function navigateToActivity(actKey, fromStep = false) {
     // Inject info buttons and dividers on all visible activity cards
     setTimeout(() => {
       _injectActCardInfoBtns(); _injectActCardDividers();
+      _updateActCardWidths(document.getElementById('actSheetScroll'));
     }, 300);
     // Re-run after async cards (intervals, curves) finish loading
-    setTimeout(() => _injectActCardDividers(), 1500);
+    setTimeout(() => { _injectActCardDividers(); _updateActCardWidths(document.getElementById('actSheetScroll')); }, 1500);
     setTimeout(() => _injectActCardDividers(), 3000);
   } catch (err) {
     console.error('[Activity detail] Unhandled error:', err);

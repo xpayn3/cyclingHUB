@@ -11291,7 +11291,7 @@ body.show-save-fab #actSaveRouteFab {
     .act-sheet-scroll > .card .card-header:active { cursor: grabbing; }
     /* Card marked as alone in its row expands to full width */
     .act-sheet-scroll > .card.act-card-full {
-        width: 100%;
+        width: 100% !important;
     }
     /* SortableJS drag states */
     .act-sheet-scroll > .card.sortable-ghost {
