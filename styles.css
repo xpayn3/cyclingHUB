@@ -11236,9 +11236,7 @@ body.show-save-fab #actSaveRouteFab {
     padding-left: var(--pad-page);
     padding-right: var(--pad-page);
 }
-/* Desktop GridStack: cards inside grid-stack-item-content are no longer
-   direct children of .act-sheet-scroll, so the mobile > .card rule
-   doesn't apply. These rules ensure proper appearance inside GridStack. */
+/* Card header + subtitle styles */
 .act-sheet-scroll .card > .card-header {
     margin-bottom: 16px;
 }
@@ -11287,6 +11285,18 @@ body.show-save-fab #actSaveRouteFab {
     .act-sheet-scroll > .act-sheet-handle { width: 100%; }
     .act-sheet-scroll > .act-card-divider {
         display: none; width: 0; height: 0;
+    }
+    /* Drag handle on card headers */
+    .act-sheet-scroll > .card .card-header { cursor: grab; }
+    .act-sheet-scroll > .card .card-header:active { cursor: grabbing; }
+    /* SortableJS drag states */
+    .act-sheet-scroll > .card.sortable-ghost {
+        opacity: 0.2;
+        border: 2px dashed var(--accent);
+    }
+    .act-sheet-scroll > .card.sortable-chosen {
+        box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        z-index: 10;
     }
 }
 
