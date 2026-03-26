@@ -11286,9 +11286,36 @@ body.show-save-fab #actSaveRouteFab {
     /* Drag handle */
     .act-sheet-scroll > .card .card-header { cursor: grab; }
     .act-sheet-scroll > .card .card-header:active { cursor: grabbing; }
-    /* Card expands to full width when alone */
+    /* Card expands to full width */
     .act-sheet-scroll > .card.act-card-full {
         width: 100% !important;
+    }
+    /* Width toggle button */
+    .act-card-width-toggle {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        border: none;
+        background: var(--surface-1);
+        color: var(--text-muted);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.2s;
+        z-index: 5;
+        padding: 0;
+    }
+    .act-sheet-scroll > .card:hover .act-card-width-toggle {
+        opacity: 1;
+    }
+    .act-card-width-toggle:hover {
+        background: var(--surface-2);
+        color: var(--text-primary);
     }
     /* SortableJS drag states */
     .act-sheet-scroll > .card.sortable-ghost {

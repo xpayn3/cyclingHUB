@@ -19305,6 +19305,7 @@ async function navigateToActivity(actKey, fromStep = false) {
     setTimeout(() => {
       _injectActCardInfoBtns(); _injectActCardDividers();
       _updateActCardWidths(document.getElementById('actSheetScroll'));
+      _injectActCardWidthToggles();
     }, 300);
     // Re-run after async cards (intervals, curves) finish loading
     setTimeout(() => { _injectActCardDividers(); _updateActCardWidths(document.getElementById('actSheetScroll')); }, 1500);
@@ -20821,6 +20822,67 @@ async function _initSortableCards() {
   _updateActCardWidths(scroll);
 }
 
+
+// Inject width toggle buttons on desktop cards
+function _injectActCardWidthToggles() {
+  if (window.innerWidth < 900) return;
+  const scroll = document.getElementById('actSheetScroll');
+  if (!scroll) return;
+
+  const fullWidthIds = new Set([
+    'detailMapCard', 'detailStreamsCard', 'detailLapSplitsCard', 'detailNotesCard'
+  ]);
+
+  scroll.querySelectorAll(':scope > .card').forEach(card => {
+    if (fullWidthIds.has(card.id)) return;
+    if (card.querySelector('.act-card-width-toggle')) return; // already has one
+
+    const btn = document.createElement('button');
+    btn.className = 'act-card-width-toggle';
+    btn.title = 'Toggle full width';
+    btn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>';
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      card.classList.toggle('act-card-full');
+      // Update icon
+      const isFullNow = card.classList.contains('act-card-full');
+      btn.innerHTML = isFullNow
+        ? '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 14h6v6M14 10h6V4M10 14l-7 7M21 3l-7 7"/></svg>'
+        : '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>';
+      // Save width preferences
+      _saveActCardWidths();
+      // Resize chart inside
+      requestAnimationFrame(() => {
+        card.querySelectorAll('canvas').forEach(c => {
+          const chart = Chart.getChart?.(c);
+          if (chart) chart.resize();
+        });
+      });
+    };
+    card.appendChild(btn);
+  });
+
+  // Restore saved width preferences
+  const saved = JSON.parse(localStorage.getItem('icu_act_card_widths') || '{}');
+  Object.entries(saved).forEach(([id, full]) => {
+    const card = document.getElementById(id);
+    if (card && full) {
+      card.classList.add('act-card-full');
+      const btn = card.querySelector('.act-card-width-toggle');
+      if (btn) btn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 14h6v6M14 10h6V4M10 14l-7 7M21 3l-7 7"/></svg>';
+    }
+  });
+}
+
+function _saveActCardWidths() {
+  const scroll = document.getElementById('actSheetScroll');
+  if (!scroll) return;
+  const widths = {};
+  scroll.querySelectorAll(':scope > .card.act-card-full').forEach(c => {
+    if (c.id) widths[c.id] = true;
+  });
+  try { localStorage.setItem('icu_act_card_widths', JSON.stringify(widths)); } catch {}
+}
 
 // Detect cards that are alone in their flex row and make them full-width
 function _updateActCardWidths(scroll) {
