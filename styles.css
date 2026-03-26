@@ -11236,16 +11236,9 @@ body.show-save-fab #actSaveRouteFab {
     padding-left: var(--pad-page);
     padding-right: var(--pad-page);
 }
-/* Desktop GridStack: reset mobile edge-bleed, restore card appearance */
-@media (min-width: 900px) {
-    .act-cards-grid .card {
-        margin-left: 0 !important;
-        margin-right: 0 !important;
-        background: transparent !important;
-        border-radius: 0 !important;
-        padding: var(--pad-card) !important;
-    }
-}
+/* Desktop GridStack: cards inside grid-stack-item-content are no longer
+   direct children of .act-sheet-scroll, so the mobile > .card rule
+   doesn't apply. These rules ensure proper appearance inside GridStack. */
 .act-sheet-scroll .card > .card-header {
     margin-bottom: 16px;
 }
@@ -11283,14 +11276,16 @@ body.show-save-fab #actSaveRouteFab {
     /* GridStack container */
     .act-cards-grid.grid-stack {
         background: transparent !important;
+        overflow: visible !important;
     }
     /* Item content = the visible card surface */
     .act-cards-grid .grid-stack-item-content {
         overflow: hidden;
         border-radius: var(--radius);
         background: var(--bg-card);
-        /* Ensure it fills the grid-stack-item */
         inset: 4px !important;
+        /* DEBUG: red border to see items */
+        outline: 1px solid rgba(255,0,0,0.3);
     }
     /* Charts expand to fill card */
     .act-cards-grid .card > .chart-wrap {
