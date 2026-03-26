@@ -11290,6 +11290,10 @@ body.show-save-fab #actSaveRouteFab {
     .act-sheet-scroll > .card.act-card-full {
         width: 100% !important;
     }
+    /* Full-width charts get more height */
+    .act-sheet-scroll > .card.act-card-full .chart-wrap {
+        height: 300px !important;
+    }
     /* Width toggle button */
     .act-card-width-toggle {
         position: absolute;
