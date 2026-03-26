@@ -20758,9 +20758,9 @@ async function _loadGridStack() {
 }
 
 function _initActCardsGrid() {
-  if (window.innerWidth < 900) return;
-  // Delay to let all async cards render first
-  setTimeout(() => _initActCardsGridNow(), 4000);
+  // GridStack disabled temporarily — CSS flex-wrap handles 2-col layout
+  // TODO: re-enable once CSS layout is stable
+  return;
 }
 
 async function _initActCardsGridNow() {
