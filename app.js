@@ -4976,7 +4976,7 @@ function renderWxLocationSwitcher() {
         const code = wxCodes[l.id];
         const icon = code != null
           ? `<span class="wx-pill-icon">${wmoIcon(code)}</span>`
-          : `<svg class="icon" width="2" height="12"><use href="icons.svg#icon-map-pin"/></svg>`;
+          : `<svg class="icon" width="12" height="12"><use href="icons.svg#icon-map-pin"/></svg>`;
         return `<button class="wx-loc-pill${l.active ? ' wx-loc-pill--active' : ''}" onclick="setActiveWxLocation(${l.id})">
           ${icon}
           ${l.city}
@@ -12331,7 +12331,7 @@ function renderPwrInsights(ftp, weight, wkg, days) {
   if (poweredCount >= 6) {
     insights.push({
       color: 'var(--accent)',
-      icon: `<svg class="icon" width="2" height="18"><use href="icons.svg#icon-calendar"/></svg>`,
+      icon: `<svg class="icon" width="18" height="18"><use href="icons.svg#icon-calendar"/></svg>`,
       title: `${poweredCount} powered rides in ${days} days`,
       body: `Ride frequency is one of the strongest predictors of improvement. ${poweredCount} power-tracked sessions in ${days} days — that's solid consistency. Keep showing up!`,
     });
@@ -21064,7 +21064,7 @@ function _openActCardInfo(cardId, info) {
         <div class="act-card-info-data" id="actCardInfoData"></div>
       </div>
       <button class="fab-back act-card-info-back" onclick="_closeActCardInfo()">
-        <svg class="icon" width="2" height="22"><use href="icons.svg#icon-chevron-left"/></svg>
+        <svg class="icon" width="22" height="22"><use href="icons.svg#icon-chevron-left"/></svg>
       </button>`;
     document.body.appendChild(overlay);
   }
@@ -25077,7 +25077,7 @@ function renderDetailExport(a) {
   // Share route image
   buttons.push(`
     <button class="btn btn-ghost detail-export-btn" title="Generate a shareable route image" onclick="openShareModal('${actId}')">
-      <svg class="icon" width="2" height="18"><use href="icons.svg#icon-image"/></svg>
+      <svg class="icon" width="18" height="18"><use href="icons.svg#icon-image"/></svg>
       <span>Share</span>
     </button>
   `);
@@ -26106,7 +26106,7 @@ function renderActivityMap(latlng, streams) {
           mtWrap.className = 'map-toggle-wrap';
           const mtTrigger = document.createElement('button');
           mtTrigger.className = 'map-toggle-trigger';
-          mtTrigger.innerHTML = `<span class="map-mode-icon">${modes[0].icon}</span><span class="map-toggle-label">${modes[0].label}</span><svg class="icon map-toggle-chevron" width="2" height="10"><use href="icons.svg#icon-chevron-down"/></svg>`;
+          mtTrigger.innerHTML = `<span class="map-mode-icon">${modes[0].icon}</span><span class="map-toggle-label">${modes[0].label}</span><svg class="icon map-toggle-chevron" width="10" height="10"><use href="icons.svg#icon-chevron-down"/></svg>`;
           const mtMenu = document.createElement('div');
           mtMenu.className = 'map-toggle-menu';
           modes.forEach(m => {
@@ -30891,11 +30891,11 @@ function openCompDetail(compId) {
 
     <div class="comp-detail-actions">
       <button class="btn btn-ghost" style="flex:1" onclick="_closeUniSheet();openGearModal('${c.id}')">
-        <svg class="icon" width="2" height="16"><use href="icons.svg#icon-edit"/></svg>
+        <svg class="icon" width="16" height="16"><use href="icons.svg#icon-edit"/></svg>
         Edit
       </button>
       <button class="btn btn-ghost" style="flex:1;color:var(--red)" onclick="_closeUniSheet();deleteGearComponent('${c.id}')">
-        <svg class="icon" width="2" height="16"><use href="icons.svg#icon-trash"/></svg>
+        <svg class="icon" width="16" height="16"><use href="icons.svg#icon-trash"/></svg>
         Delete
       </button>
     </div>
@@ -32979,15 +32979,15 @@ function openBatDetailSheet(id) {
 
     <div class="comp-detail-actions">
       <button class="btn btn-ghost" style="flex:1" onclick="closeBatDetailSheet();chargeBattery('${bat.id}')">
-        <svg class="icon" width="2" height="16"><use href="icons.svg#icon-bolt"/></svg>
+        <svg class="icon" width="16" height="16"><use href="icons.svg#icon-bolt"/></svg>
         Charge
       </button>
       <button class="btn btn-ghost" style="flex:1" onclick="closeBatDetailSheet();openBatteryModal('${bat.id}')">
-        <svg class="icon" width="2" height="16"><use href="icons.svg#icon-edit"/></svg>
+        <svg class="icon" width="16" height="16"><use href="icons.svg#icon-edit"/></svg>
         Edit
       </button>
       <button class="btn btn-ghost" style="flex:1;color:var(--red)" onclick="closeBatDetailSheet();deleteBattery('${bat.id}')">
-        <svg class="icon" width="2" height="16"><use href="icons.svg#icon-trash"/></svg>
+        <svg class="icon" width="16" height="16"><use href="icons.svg#icon-trash"/></svg>
         Delete
       </button>
     </div>`;
@@ -33136,8 +33136,8 @@ function serviceCard(bikeId, services) {
   if (prog?.overdue) cardClass += ' service-card--overdue';
   else if (prog?.warn) cardClass += ' service-card--warn';
 
-  const editSvg = `<svg class="icon" width="2" height="13"><use href="icons.svg#icon-edit"/></svg>`;
-  const histSvg = `<svg class="icon" width="2" height="13"><use href="icons.svg#icon-activity"/></svg>`;
+  const editSvg = `<svg class="icon" width="13" height="13"><use href="icons.svg#icon-edit"/></svg>`;
+  const histSvg = `<svg class="icon" width="13" height="13"><use href="icons.svg#icon-activity"/></svg>`;
   const plusSvg = `<svg class="icon" width="13" height="13"><use href="icons.svg#icon-plus"/></svg>`;
 
   let barHtml = '';
@@ -33999,8 +33999,8 @@ function renderServiceShopList() {
     container.innerHTML = '<div style="color:var(--text-muted);font-size:var(--text-sm);padding:8px 0">No shops saved yet.</div>';
     return;
   }
-  const editSvg = `<svg class="icon" width="2" height="13"><use href="icons.svg#icon-edit"/></svg>`;
-  const delSvg = `<svg class="icon" width="2" height="13"><use href="icons.svg#icon-trash"/></svg>`;
+  const editSvg = `<svg class="icon" width="13" height="13"><use href="icons.svg#icon-edit"/></svg>`;
+  const delSvg = `<svg class="icon" width="13" height="13"><use href="icons.svg#icon-trash"/></svg>`;
   container.innerHTML = shops.map(s => {
     const phoneHref = s.phone ? s.phone.replace(/[\s\-()]/g, '') : '';
     return `
@@ -34094,8 +34094,8 @@ function renderServiceHistoryList(bikeId) {
   }
 
   const totalCost = all.reduce((sum, s) => sum + (s.cost || 0), 0);
-  const editSvg = `<svg class="icon" width="2" height="13"><use href="icons.svg#icon-edit"/></svg>`;
-  const delSvg = `<svg class="icon" width="2" height="13"><use href="icons.svg#icon-trash"/></svg>`;
+  const editSvg = `<svg class="icon" width="13" height="13"><use href="icons.svg#icon-edit"/></svg>`;
+  const delSvg = `<svg class="icon" width="13" height="13"><use href="icons.svg#icon-trash"/></svg>`;
 
   const summaryHtml = `
     <div class="service-history-summary">
@@ -35384,7 +35384,7 @@ function renderGoalsPage() {
   const periodLabel = { week: 'This Week', month: 'This Month', year: 'This Year' };
   let html = sectionDivider + `<div class="goals-header">
     <button class="btn btn-primary btn-sm" onclick="showGoalForm()">
-      <svg class="icon" width="2" height="14"><use href="icons.svg#icon-plus"/></svg>
+      <svg class="icon" width="14" height="14"><use href="icons.svg#icon-plus"/></svg>
       Add Goal
     </button>
   </div>
@@ -35398,11 +35398,12 @@ function renderGoalsPage() {
     const statusCls = { ahead: 'green', 'on-track': 'green', caution: 'yellow', behind: 'red' };
 
     html += `
-    <div class="goal-card">
+    <div class="goal-card hero-glow">
+      <div class="hero-glow-outer"></div><div class="hero-glow-shine"></div>
       <div class="goal-card-header">
         <div class="goal-card-metric">
           <div class="goal-metric-icon ${m.icon}">
-            <svg class="icon" width="2" height="16"><use href="icons.svg#icon-clock"/></svg>
+            <svg class="icon" width="16" height="16"><use href="icons.svg#icon-clock"/></svg>
           </div>
           <div>
             <div class="goal-card-title">${m.label}</div>
@@ -35411,10 +35412,10 @@ function renderGoalsPage() {
         </div>
         <div class="goal-card-actions">
           <button class="btn btn-ghost btn-xs" onclick="showGoalForm(${goal.id})" title="Edit">
-            <svg class="icon" width="2" height="14"><use href="icons.svg#icon-edit"/></svg>
+            <svg class="icon" width="14" height="14"><use href="icons.svg#icon-edit"/></svg>
           </button>
           <button class="btn btn-ghost btn-xs" onclick="deleteGoal(${goal.id})" title="Delete">
-            <svg class="icon" width="2" height="14"><use href="icons.svg#icon-x"/></svg>
+            <svg class="icon" width="14" height="14"><use href="icons.svg#icon-x"/></svg>
           </button>
         </div>
       </div>
@@ -36627,20 +36628,20 @@ document.getElementById('connectModal').addEventListener('click', function(e) {
     });
   };
 
-  // Hero-glow cursor tracker — per-card local coordinates + hue shift (mouse + touch)
-  {
+  // Hero-glow cursor tracker — desktop only, per-card local coordinates + hue shift
+  if (!isTouchDevice) {
     let _heroGlowRAF = 0;
-    const updateGlow = (cx, cy) => {
+    document.body.addEventListener('pointermove', e => {
       if (_heroGlowRAF) return;
       _heroGlowRAF = requestAnimationFrame(() => {
         _heroGlowRAF = 0;
-        const xp = cx / window.innerWidth;
+        const xp = e.clientX / window.innerWidth;
         const cards = document.querySelectorAll('.hero-glow');
         for (const el of cards) {
           const r = el.getBoundingClientRect();
           if (r.width === 0) continue;
-          el.style.setProperty('--gx', ((cx - r.left) / r.width * 100).toFixed(1) + '%');
-          el.style.setProperty('--gy', ((cy - r.top) / r.height * 100).toFixed(1) + '%');
+          el.style.setProperty('--gx', ((e.clientX - r.left) / r.width * 100).toFixed(1) + '%');
+          el.style.setProperty('--gy', ((e.clientY - r.top) / r.height * 100).toFixed(1) + '%');
           if (!el.dataset.baseHue) {
             el.dataset.baseHue = el.classList.contains('stk-hero-card--day') ? '210' :
                                   el.classList.contains('stk-hero-card--month') ? '270' : '330';
@@ -36648,24 +36649,6 @@ document.getElementById('connectModal').addEventListener('click', function(e) {
           el.style.setProperty('--hue', ((+el.dataset.baseHue) + xp * 530) % 360);
         }
       });
-    };
-    document.body.addEventListener('pointermove', e => updateGlow(e.clientX, e.clientY), { passive: true });
-    // Touch: activate glow only on goals/streaks page
-    document.body.addEventListener('touchstart', e => {
-      const goalsPage = e.target.closest('#page-goals');
-      if (!goalsPage) return;
-      const card = e.target.closest('.hero-glow');
-      if (card) {
-        card.classList.add('hero-glow--active');
-        updateGlow(e.touches[0].clientX, e.touches[0].clientY);
-      }
-    }, { passive: true });
-    document.body.addEventListener('touchmove', e => {
-      if (!document.querySelector('.hero-glow--active')) return;
-      if (e.touches[0]) updateGlow(e.touches[0].clientX, e.touches[0].clientY);
-    }, { passive: true });
-    document.body.addEventListener('touchend', () => {
-      document.querySelectorAll('.hero-glow--active').forEach(el => el.classList.remove('hero-glow--active'));
     }, { passive: true });
   }
 })();
@@ -38905,7 +38888,7 @@ function _openWifInfo() {
     overlay.className = 'act-card-info-overlay';
     overlay.innerHTML = `<div class="act-card-info-page aci-custom-page" id="wifInfoPage" style="overflow-y:auto;-webkit-overflow-scrolling:touch"></div>
       <button class="fab-back act-card-info-back" onclick="_closeWifInfo()">
-        <svg class="icon" width="2" height="22"><use href="icons.svg#icon-chevron-left"/></svg>
+        <svg class="icon" width="22" height="22"><use href="icons.svg#icon-chevron-left"/></svg>
       </button>`;
     document.body.appendChild(overlay);
   }

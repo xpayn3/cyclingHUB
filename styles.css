@@ -3289,17 +3289,42 @@ input[type="number"] {
     pointer-events: none;
     z-index: 0;
 }
-/* Layer 2: Border glow — radial gradient masked to border edge */
+/* Layer 2: Border glow — neon-bright edge with bloom */
 .hero-glow::after {
     content: '';
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    padding: 1.5px;
+    padding: 2px;
     background: radial-gradient(
         var(--spotlight) circle at var(--gx) var(--gy),
-        hsl(var(--hue) 100% 65% / 1),
-        transparent 60%
+        hsl(var(--hue) 100% 60% / 1),
+        transparent 55%
+    );
+    -webkit-mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    filter: brightness(2);
+    opacity: 0;
+    transition: opacity 0.35s;
+    pointer-events: none;
+    z-index: 1;
+}
+/* Layer 3: White shine — specular highlight on border */
+.hero-glow > .hero-glow-shine {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 2px;
+    background: radial-gradient(
+        calc(var(--spotlight) * 0.4) circle at var(--gx) var(--gy),
+        hsl(0 0% 100% / 1),
+        transparent 100%
     );
     -webkit-mask:
         linear-gradient(#fff 0 0) content-box,
@@ -3312,9 +3337,14 @@ input[type="number"] {
     opacity: 0;
     transition: opacity 0.35s;
     pointer-events: none;
-    z-index: 1;
+    z-index: 2;
 }
-/* Layer 3: Outer blur glow — bleeds outside the card */
+.hero-glow:hover > .hero-glow-shine {
+    opacity: 1;
+}
+[data-theme="light"] .hero-glow > .hero-glow-shine,
+[data-theme="editorial"] .hero-glow > .hero-glow-shine { display: none; }
+/* Layer 4: Outer blur glow — bleeds outside the card */
 .hero-glow > .hero-glow-outer {
     position: absolute;
     inset: -20px;
@@ -3333,12 +3363,6 @@ input[type="number"] {
 .hero-glow:hover::before,
 .hero-glow:hover::after,
 .hero-glow:hover > .hero-glow-outer {
-    opacity: 1;
-}
-/* Touch: show glow when actively touching */
-.hero-glow.hero-glow--active::before,
-.hero-glow.hero-glow--active::after,
-.hero-glow.hero-glow--active > .hero-glow-outer {
     opacity: 1;
 }
 /* Light themes — disable */
@@ -24057,6 +24081,11 @@ body:has(.act-sheet-mode) .topbar {
 .goal-card:hover {
     border-color: var(--accent);
     box-shadow: 0 4px 20px rgba(0, 229, 160, 0.08);
+}
+/* Hero-glow goal cards — no green border hover, glow handles it */
+.goal-card.hero-glow:hover {
+    border-color: rgba(255,255,255,0.08);
+    box-shadow: none;
 }
 
 .goal-card-header {
