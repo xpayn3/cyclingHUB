@@ -4427,7 +4427,9 @@ function navigate(page, opts) {
   const _actFab = document.getElementById('actSearchFab');
   const _dashFab = document.getElementById('dashRouteFab');
   const _saveRouteFab = document.getElementById('actSaveRouteFab');
+  const _proFab = document.getElementById('actProFab');
   if (_calFab)  { _calFab.style.visibility  = page === 'calendar'   ? '' : 'hidden'; _calFab.style.pointerEvents  = page === 'calendar'   ? '' : 'none'; }
+  if (_proFab) { const showPro = page === 'activity' && window.innerWidth >= 900; _proFab.style.visibility = showPro ? '' : 'hidden'; _proFab.style.pointerEvents = showPro ? '' : 'none'; }
   if (_actFab)  { _actFab.style.visibility  = page === 'activities' ? '' : 'hidden'; _actFab.style.pointerEvents  = page === 'activities' ? '' : 'none'; }
   if (_dashFab) { _dashFab.style.visibility = page === 'dashboard'  ? '' : 'hidden'; _dashFab.style.pointerEvents = page === 'dashboard'  ? '' : 'none'; }
   const _actBackFab = document.getElementById('actBackFab');
@@ -19017,6 +19019,9 @@ async function navigateToActivity(actKey, fromStep = false) {
   state.currentPage = 'activity';
   const _pillEl = document.getElementById('dashPillNav');
   if (_pillEl) { _pillEl.style.visibility = 'hidden'; _pillEl.style.pointerEvents = 'none'; }
+  // Show Pro Analysis FAB on desktop
+  const _proFab2 = document.getElementById('actProFab');
+  if (_proFab2) { const show = window.innerWidth >= 900; _proFab2.style.visibility = show ? '' : 'hidden'; _proFab2.style.pointerEvents = show ? '' : 'none'; }
 
   // Track position in the non-empty pool for prev/next navigation
   const pool = state.activities.filter(a => !isEmptyActivity(a));
@@ -19306,6 +19311,7 @@ async function navigateToActivity(actKey, fromStep = false) {
       _injectActCardInfoBtns(); _injectActCardDividers();
       _updateActCardWidths(document.getElementById('actSheetScroll'));
       _injectActCardWidthToggles();
+      _injectActResetBtn();
     }, 300);
     // Re-run after async cards (intervals, curves) finish loading
     setTimeout(() => { _injectActCardDividers(); _updateActCardWidths(document.getElementById('actSheetScroll')); }, 1500);
@@ -20775,6 +20781,11 @@ async function _initSortableCards() {
 
   if (state.currentPage !== 'activity') return;
 
+  // Stamp default order on cards (before any reordering)
+  scroll.querySelectorAll(':scope > .card').forEach((c, i) => {
+    if (!c.dataset.defaultOrder) c.dataset.defaultOrder = i;
+  });
+
   // Restore saved order
   const savedOrder = JSON.parse(localStorage.getItem('icu_act_card_order') || 'null');
   if (savedOrder && Array.isArray(savedOrder)) {
@@ -20907,7 +20918,130 @@ function _updateActCardWidths(scroll) {
   if (cards.length % 2 === 1) {
     cards[cards.length - 1].classList.add('act-card-full');
   }
+
+  // Trigger Chart.js resize on all canvases after layout change
+  requestAnimationFrame(() => {
+    scroll.querySelectorAll('canvas').forEach(c => {
+      const chart = Chart.getChart?.(c);
+      if (chart) chart.resize();
+    });
+  });
 }
+
+// Inject "Reset Layout" button at the bottom of activity cards on desktop
+function _injectActResetBtn() {
+  if (window.innerWidth < 900) return;
+  const scroll = document.getElementById('actSheetScroll');
+  if (!scroll || scroll.querySelector('.act-reset-layout')) return;
+  const btn = document.createElement('button');
+  btn.className = 'act-reset-layout';
+  btn.innerHTML = `<svg class="icon" width="14" height="14"><use href="icons.svg#icon-rotate-ccw"></use></svg> Reset Layout`;
+  btn.onclick = _resetActLayout;
+  scroll.appendChild(btn);
+}
+window._injectActResetBtn = _injectActResetBtn;
+
+function _resetActLayout() {
+  localStorage.removeItem('icu_act_card_order');
+  localStorage.removeItem('icu_act_card_widths');
+  const scroll = document.getElementById('actSheetScroll');
+  if (!scroll) return;
+
+  // Remove all full-width classes
+  scroll.querySelectorAll('.act-card-full').forEach(c => c.classList.remove('act-card-full'));
+
+  // Restore default DOM order — sort cards by their original HTML position
+  // Cards without saved order go back to their data-default-order or DOM index
+  const allCards = [...scroll.querySelectorAll(':scope > .card')];
+  const nonCards = [...scroll.querySelectorAll(':scope > :not(.card)')];
+
+  // Get default order from data attribute (set during first render)
+  allCards.sort((a, b) => {
+    const ai = parseInt(a.dataset.defaultOrder || '999');
+    const bi = parseInt(b.dataset.defaultOrder || '999');
+    return ai - bi;
+  });
+
+  // Rebuild: non-card elements (hero, stats, etc.) stay at top, then cards in default order
+  // Don't move non-card elements — they're already in correct position
+  // Just re-append cards in default order (moves them after all non-cards)
+  allCards.forEach(c => scroll.appendChild(c));
+
+  // Move reset button to the end
+  const resetBtn = scroll.querySelector('.act-reset-layout');
+  if (resetBtn) scroll.appendChild(resetBtn);
+
+  // Destroy and re-create sortable
+  _destroyActCardsGrid();
+  _initActCardsGrid();
+
+  // Update widths
+  _updateActCardWidths(scroll);
+
+  // Resize charts
+  requestAnimationFrame(() => {
+    scroll.querySelectorAll('canvas').forEach(c => {
+      const chart = Chart.getChart?.(c);
+      if (chart) chart.resize();
+    });
+  });
+}
+window._resetActLayout = _resetActLayout;
+
+/* ══════════════════════════════════════════════════════════════
+   PRO ANALYSIS — Fullscreen desktop activity workbench
+══════════════════════════════════════════════════════════════ */
+async function openProAnalysis() {
+  const el = document.getElementById('proAnalysis');
+  if (!el || window.innerWidth < 900) return;
+  const activity = state.activities?.[state.currentActivityIdx];
+  if (!state.normStreams || !activity) {
+    showToast('No activity data loaded', 'warn');
+    return;
+  }
+
+  // Set title
+  const titleEl = document.getElementById('proTitle');
+  if (titleEl) titleEl.textContent = activity.name || 'Pro Analysis';
+
+  // Show fullscreen
+  el.style.display = 'flex';
+  document.body.classList.add('pro-analysis-open');
+
+  // Lazy load the script
+  if (!window._proAnalysisLoaded) {
+    try {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'js/pro-analysis.js';
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      });
+      window._proAnalysisLoaded = true;
+    } catch (e) {
+      console.error('[ProAnalysis] Failed to load script:', e);
+      showToast('Failed to load Pro Analysis', 'error');
+      el.style.display = 'none';
+      document.body.classList.remove('pro-analysis-open');
+      return;
+    }
+  }
+
+  // Init the module
+  if (window._proInit) {
+    window._proInit(state.normStreams, activity, state._actIntervals);
+  }
+}
+window.openProAnalysis = openProAnalysis;
+
+function closeProAnalysis() {
+  const el = document.getElementById('proAnalysis');
+  if (el) el.style.display = 'none';
+  document.body.classList.remove('pro-analysis-open');
+  if (window._proClose) window._proClose();
+}
+window.closeProAnalysis = closeProAnalysis;
 
 function _destroyActCardsGrid() {
   if (_sortableInstance) {
@@ -28727,7 +28861,7 @@ function renderStreaksPage() {
   // Animate hero flame based on streak size
   const weekHero = document.getElementById('stkWeekHero');
   if (weekHero) {
-    weekHero.className = 'stk-hero-card' +
+    weekHero.className = 'stk-hero-card hero-glow' +
       (weekStreaks.current >= 12 ? ' stk-hero--legendary' :
        weekStreaks.current >= 6  ? ' stk-hero--hot' :
        weekStreaks.current >= 2  ? ' stk-hero--warm' : '');
@@ -36469,7 +36603,7 @@ document.getElementById('connectModal').addEventListener('click', function(e) {
   // expose so other parts of the app can attach glow to late-rendered elements
   window.attachCardGlow = attachGlow;
 
-  const GLOW_SEL = '.stat-card, .recent-act-card, .hero-act-card, .perf-metric, .act-pstat, .act-similar-card, .mm-cell, .wxp-day-card, .fit-kpi-card, .fit-wcard, .wx-day, .wx-day-card, .znp-kpi-card, .wxp-st, .wxp-best-card, .stk-hero-card, .stk-pb-card, .stk-badge--earned, .stk-stat-tile, .goal-dash-card, .fit-rec-metric, .fit-rp-card';
+  const GLOW_SEL = '.stat-card, .recent-act-card, .hero-act-card, .perf-metric, .act-pstat, .act-similar-card, .mm-cell, .wxp-day-card, .fit-kpi-card, .fit-wcard, .wx-day, .wx-day-card, .znp-kpi-card, .wxp-st, .wxp-best-card, .stk-pb-card, .stk-badge--earned, .stk-stat-tile, .goal-dash-card, .fit-rec-metric, .fit-rp-card';
 
   function attachGlowAndPress(el) {
     attachGlow(el);
@@ -36492,6 +36626,48 @@ document.getElementById('connectModal').addEventListener('click', function(e) {
       attachGlowAndPress(el);
     });
   };
+
+  // Hero-glow cursor tracker — per-card local coordinates + hue shift (mouse + touch)
+  {
+    let _heroGlowRAF = 0;
+    const updateGlow = (cx, cy) => {
+      if (_heroGlowRAF) return;
+      _heroGlowRAF = requestAnimationFrame(() => {
+        _heroGlowRAF = 0;
+        const xp = cx / window.innerWidth;
+        const cards = document.querySelectorAll('.hero-glow');
+        for (const el of cards) {
+          const r = el.getBoundingClientRect();
+          if (r.width === 0) continue;
+          el.style.setProperty('--gx', ((cx - r.left) / r.width * 100).toFixed(1) + '%');
+          el.style.setProperty('--gy', ((cy - r.top) / r.height * 100).toFixed(1) + '%');
+          if (!el.dataset.baseHue) {
+            el.dataset.baseHue = el.classList.contains('stk-hero-card--day') ? '210' :
+                                  el.classList.contains('stk-hero-card--month') ? '270' : '330';
+          }
+          el.style.setProperty('--hue', ((+el.dataset.baseHue) + xp * 530) % 360);
+        }
+      });
+    };
+    document.body.addEventListener('pointermove', e => updateGlow(e.clientX, e.clientY), { passive: true });
+    // Touch: activate glow only on goals/streaks page
+    document.body.addEventListener('touchstart', e => {
+      const goalsPage = e.target.closest('#page-goals');
+      if (!goalsPage) return;
+      const card = e.target.closest('.hero-glow');
+      if (card) {
+        card.classList.add('hero-glow--active');
+        updateGlow(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    }, { passive: true });
+    document.body.addEventListener('touchmove', e => {
+      if (!document.querySelector('.hero-glow--active')) return;
+      if (e.touches[0]) updateGlow(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: true });
+    document.body.addEventListener('touchend', () => {
+      document.querySelectorAll('.hero-glow--active').forEach(el => el.classList.remove('hero-glow--active'));
+    }, { passive: true });
+  }
 })();
 
 /* ====================================================
