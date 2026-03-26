@@ -579,6 +579,7 @@ function _cleanupPageDOM(leavingPage) {
 
   // Activity detail — remove canvases and dynamic generated content, keep card shells
   if (leavingPage === 'activity') {
+    _destroyActCardsGrid(); // restore cards to scroll container before stripping
     // Charts are already destroyed by cleanupPageCharts() — don't double-destroy
     // Strip only fully-dynamic containers (content rebuilt from scratch each time)
     ['detailIntervalsBody', 'detailDynamicsCard', 'detailGearShiftsCard', 'detailGpsCard', 'detailRespCard', 'detailHrvCard', 'detailDriftCard', 'detailHRRecoveryCard', 'detailTempPowerCard', 'detailDevicesCard'].forEach(id => {
@@ -19298,7 +19299,7 @@ async function navigateToActivity(actKey, fromStep = false) {
     }
 
     // Inject info buttons and dividers on all visible activity cards
-    setTimeout(() => { _injectActCardInfoBtns(); _injectActCardDividers(); }, 300);
+    setTimeout(() => { _injectActCardInfoBtns(); _injectActCardDividers(); _initActCardsGrid(); }, 300);
     // Re-run after async cards (intervals, curves) finish loading
     setTimeout(() => _injectActCardDividers(), 1500);
     setTimeout(() => _injectActCardDividers(), 3000);
@@ -20723,6 +20724,70 @@ function _injectActCardDividers() {
     div.className = 'act-card-divider';
     el.after(div);
   });
+}
+
+// Desktop 2-column grid: wrap chart cards in a grid container
+// Only activates on screens >= 900px. Skips hero/map/streams (stay full-width).
+function _initActCardsGrid() {
+  if (window.innerWidth < 900) return;
+  const scroll = document.getElementById('actSheetScroll');
+  if (!scroll || scroll.querySelector('.act-cards-grid')) return; // already done
+
+  // IDs that stay ABOVE the grid (full-width)
+  const fullWidthIds = new Set([
+    'actSheetScroll', // not a child, just the container itself
+  ]);
+  const fullWidthClasses = ['act-hero', 'act-secondary-strip', 'act-gear-badge',
+    'ach-card', 'act-card-divider', 'detail-charts-loading', 'detail-charts-row',
+    'act-sheet-handle'];
+  const fullWidthCardIds = new Set(['detailCompareCard', 'detailMapCard', 'detailStreamsCard']);
+
+  function isFullWidth(el) {
+    if (fullWidthCardIds.has(el.id)) return true;
+    for (const cls of fullWidthClasses) {
+      if (el.classList?.contains(cls)) return true;
+    }
+    return false;
+  }
+
+  // Find the first chart card (after streams/map)
+  const children = [...scroll.children];
+  let gridStartIdx = -1;
+  for (let i = 0; i < children.length; i++) {
+    const el = children[i];
+    if (el.id === 'detailStreamsCard' || (el.classList?.contains('detail-charts-row'))) {
+      gridStartIdx = i + 1;
+    }
+  }
+  if (gridStartIdx < 0 || gridStartIdx >= children.length) return;
+
+  // Wrap everything after streams in a grid div
+  const grid = document.createElement('div');
+  grid.className = 'act-cards-grid';
+
+  // Move all children from gridStartIdx onward into the grid
+  const toMove = children.slice(gridStartIdx);
+  toMove.forEach(el => grid.appendChild(el));
+  scroll.appendChild(grid);
+
+  // Save card order
+  const saved = JSON.parse(localStorage.getItem('icu_act_card_order') || 'null');
+  if (saved && Array.isArray(saved)) {
+    saved.forEach(id => {
+      const card = grid.querySelector('#' + id);
+      if (card) grid.appendChild(card);
+    });
+  }
+}
+
+// Tear down grid on page leave (restore cards to scroll container)
+function _destroyActCardsGrid() {
+  const scroll = document.getElementById('actSheetScroll');
+  const grid = scroll?.querySelector('.act-cards-grid');
+  if (!grid) return;
+  // Move children back to scroll
+  while (grid.firstChild) scroll.appendChild(grid.firstChild);
+  grid.remove();
 }
 
 function _openActCardInfo(cardId, info) {

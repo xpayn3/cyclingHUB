@@ -11260,37 +11260,37 @@ body.show-save-fab #actSaveRouteFab {
 }
 /* ── Desktop 2-column layout for activity chart cards ── */
 @media (min-width: 900px) {
-    .act-sheet-scroll {
+    /* The grid wrapper is injected by JS around chart cards only */
+    .act-cards-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: var(--gap-layout);
         align-items: start;
     }
-    /* Full-width items span both columns */
-    .act-sheet-scroll > .act-hero,
-    .act-sheet-scroll > .act-secondary-strip,
-    .act-sheet-scroll > .act-gear-badge,
-    .act-sheet-scroll > #detailCompareCard,
-    .act-sheet-scroll > #detailMapCard,
-    .act-sheet-scroll > #detailStreamsCard,
-    .act-sheet-scroll > .detail-charts-loading,
-    .act-sheet-scroll > .detail-charts-row,
-    .act-sheet-scroll > .act-card-divider {
-        grid-column: 1 / -1;
-    }
-    /* Cards get contained background on desktop */
-    .act-sheet-scroll .card {
+    .act-cards-grid > .card {
+        margin-left: 0;
+        margin-right: 0;
         background: var(--bg-card);
         border-radius: var(--radius);
         padding: var(--pad-card);
+        overflow: hidden;
     }
-    .act-sheet-scroll > .card {
-        margin-left: 0;
-        margin-right: 0;
+    /* Hidden cards collapse in grid */
+    .act-cards-grid > .card[style*="display: none"],
+    .act-cards-grid > .card[style*="display:none"] {
+        display: none !important;
     }
-    /* Dividers hidden in grid layout */
-    .act-sheet-scroll > .act-card-divider {
-        display: none;
+    /* Dividers hidden in grid */
+    .act-cards-grid > .act-card-divider {
+        display: none !important;
+    }
+    /* Cards being dragged */
+    .act-cards-grid > .card.sortable-ghost {
+        opacity: 0.3;
+    }
+    .act-cards-grid > .card.sortable-chosen {
+        box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        z-index: 10;
     }
 }
 
