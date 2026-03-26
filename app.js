@@ -20803,7 +20803,7 @@ async function _initSortableCards() {
     ghostClass: 'sortable-ghost',
     chosenClass: 'sortable-chosen',
     dragClass: 'sortable-drag',
-    filter: '.act-hero, .act-secondary-strip, .act-gear-badge, .ach-card, #detailCompareCard, #detailMapCard, #detailStreamsCard, .detail-charts-loading, .detail-charts-row, .act-sheet-handle, .act-card-divider',
+    filter: '.act-hero, .act-secondary-strip, .act-gear-badge, #detailMapCard, #detailStreamsCard, .detail-charts-loading, .detail-charts-row, .act-sheet-handle, .act-card-divider',
     onEnd: () => {
       // Save card order (only chart cards)
       const order = [];
