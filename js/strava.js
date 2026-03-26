@@ -1,8 +1,6 @@
 /* Strava Integration module — extracted from app.js */
-import { state, STRAVA_API_BASE, STRAVA_AUTH_BASE, STRAVA_AUTH_URL } from './state.js';
+import { state, STRAVA_API_BASE, STRAVA_AUTH_BASE, STRAVA_AUTH_URL, _app } from './state.js';
 
-/* ── Lazy proxies for functions defined in other modules ── */
-const _app = (fn) => (...a) => window[fn](...a);
 const showToast             = _app('showToast');
 const navigate              = _app('navigate');
 const showConfirmDialog     = _app('showConfirmDialog');

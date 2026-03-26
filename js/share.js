@@ -1,8 +1,6 @@
 /* Share Modal module — extracted from app.js */
-import { state } from './state.js';
+import { state, _app } from './state.js';
 
-/* ── Lazy proxies for functions defined in other modules ── */
-const _app = (fn) => (...a) => window[fn](...a);
 const showToast    = _app('showToast');
 const fetchMapGPS  = _app('fetchMapGPS');
 const _mlGetStyle  = _app('_mlGetStyle');

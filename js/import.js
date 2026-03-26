@@ -1,8 +1,6 @@
 /* Import Page module — extracted from app.js */
-import { state } from './state.js';
+import { state, _app } from './state.js';
 
-/* ── Lazy proxies for functions defined in other modules ── */
-const _app = (fn) => (...a) => window[fn](...a);
 const showToast           = _app('showToast');
 const showConfirmDialog   = _app('showConfirmDialog');
 const getAllActivities     = _app('getAllActivities');
@@ -88,7 +86,7 @@ export function impAddFiles(fileList) {
   }
   impRenderQueue();
   // Early-parse to detect available data streams
-  for (const item of newItems) impEarlyParse(item);
+  for (const item of newItems) impEarlyParse(item).catch(() => {});
 }
 
 /* ── Early-parse FIT to detect streams ── */

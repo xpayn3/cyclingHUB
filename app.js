@@ -498,7 +498,7 @@ function lazyRenderChart(canvasId, renderFn) {
 /* ── Chart cleanup on page navigation ── */
 const _pageChartKeys = {
   dashboard: ['weekProgressChart', 'fitnessChart', '_dashFormChart', 'weeklyChart', 'avgPowerChart', 'efSparkChart', 'powerCurveChart', 'powerProfileRadarChart', 'cyclingTrendsChart', 'monotonyChart', 'aeChart', 'rampRateChart', 'pwrHrScatterChart'],
-  fitness:   ['fitnessPageChart', '_fitFormChart', 'fitnessWeeklyPageChart', '_fitZonePieChart', 'fitFatigueChart', 'fitFtpHistChart', 'fitPeriodChart', 'healthRHRChart', 'healthHRVChart', 'healthStepsChart', 'healthWeightChart', 'insightHrvTssChart', 'insightRhrCtlChart', 'insightTssWeightChart', 'insightStepsHrvChart', '_fitCTChart', '_fitWTChart', '_fitMonoChart', '_fitAeChart', '_fitRampChart'],
+  fitness:   ['fitnessPageChart', '_fitFormChart', 'fitnessWeeklyPageChart', '_fitZonePieChart', 'fitFatigueChart', 'fitFtpHistChart', 'fitPeriodChart', 'healthRHRChart', 'healthHRVChart', 'healthStepsChart', 'healthWeightChart', 'insightHrvTssChart', 'insightRhrCtlChart', 'insightTssWeightChart', 'insightStepsHrvChart', '_fitCTChart', '_fitWTChart', '_fitMonoChart', '_fitAeChart', '_fitRampChart', '_fitWxChart', '_wifChart', '_fitStrainRecovChart'],
   power:     ['powerPageChart', 'powerTrendChart', '_pwrPageScatterChart', '_pwrPageProfileChart', '_pwrPageAvgChart'],
   zones:     ['znpZoneTimeChart', '_znpDecoupleChart'],
   activity:  ['activityStreamsChart', 'activityPowerChart', 'activityHRChart',
@@ -508,6 +508,15 @@ const _pageChartKeys = {
 };
 
 const _pageCleanupFns = [];
+
+/** Register an event listener that auto-removes on page navigate.
+ *  Usage: _pageListener(el, 'click', handler)  */
+function _pageListener(el, event, handler, opts) {
+  if (!el) return;
+  el.addEventListener(event, handler, opts);
+  _pageCleanupFns.push(() => el.removeEventListener(event, handler, opts));
+}
+
 function cleanupPageCharts(leavingPage) {
   // Stop vitality shader animation when leaving dashboard
   if (leavingPage === 'dashboard' && typeof _stopVitality === 'function') _stopVitality();
@@ -16378,13 +16387,13 @@ function renderNotifSheet() {
   let html = '';
   for (const [type, items] of Object.entries(groups)) {
     html += `<div class="notif-group-title">${groupLabels[type] || type}</div><div class="notif-list">`;
-    html += items.map(n => `<div class="notif-row" onclick="if(window._notifActions?.['${n.id}'])window._notifActions['${n.id}']();document.getElementById('notifSheet')?.close()">
+    html += items.map(n => `<div class="notif-row" data-notif-id="${n.id}">
       <span class="notif-dot notif-dot--${n.severity}"></span>
       <div class="notif-content">
         <div class="notif-title">${n.title}</div>
         <div class="notif-msg">${n.message}</div>
       </div>
-      <button class="notif-dismiss" onclick="event.stopPropagation();_notifDismiss('${n.id}')" title="Dismiss">
+      <button class="notif-dismiss" data-dismiss-id="${n.id}" title="Dismiss">
         <svg class="icon" width="14" height="14"><use href="icons.svg#icon-x"/></svg>
       </button>
     </div>`).join('');
@@ -16398,6 +16407,14 @@ function renderNotifSheet() {
   notifs.forEach(n => { if (n.action) window._notifActions[n.id] = n.action; });
 
   body.innerHTML = html;
+
+  // Event delegation for notification rows (avoids inline onclick + XSS risk)
+  body.addEventListener('click', e => {
+    const dismiss = e.target.closest('[data-dismiss-id]');
+    if (dismiss) { e.stopPropagation(); _notifDismiss(dismiss.dataset.dismissId); return; }
+    const row = e.target.closest('[data-notif-id]');
+    if (row) { const id = row.dataset.notifId; if (window._notifActions?.[id]) window._notifActions[id](); _closeOverlaySheet('notifSheet'); }
+  });
 }
 
 // Push notification support (local, client-side)
@@ -38592,7 +38609,7 @@ Object.assign(window, {
   pollRestore, rlUpdateUI,
   // Functions called by modules via window proxy
   skeletonCards, unskeletonCard, destroyChartInstances,
-  icuFetch, authHeader, destroyChart, cleanupPageCharts, lazyRenderChart,
+  icuFetch, authHeader, destroyChart, cleanupPageCharts, lazyRenderChart, _pageListener,
   getAllActivities, fetchMapGPS, actCacheGet, actCachePut,
   _isMobile, getActiveWxLocation, showCardNA, clearCardNA,
   _mlGetStyle, _mlApplyTerrain,
@@ -39025,9 +39042,9 @@ function _perfMonLoop(ts) {
     } else if (heapEl) {
       heapEl.textContent = 'N/A';
     }
-    if (domEl) {
-      const total = document.querySelectorAll('*').length;
-      domEl.textContent = total.toLocaleString();
+    if (domEl && (!window._lastDomCount || ts - window._lastDomCount > 2000)) {
+      window._lastDomCount = ts;
+      domEl.textContent = document.querySelectorAll('*').length.toLocaleString();
       // Log breakdown every 10 seconds
       if (!window._lastDomLog || ts - window._lastDomLog > 10000) {
         window._lastDomLog = ts;
@@ -39035,7 +39052,8 @@ function _perfMonLoop(ts) {
       }
     }
     if (chartsEl) chartsEl.textContent = Object.values(Chart.instances || {}).length;
-    if (storageEl) {
+    if (storageEl && (!window._lastStorageCount || ts - window._lastStorageCount > 5000)) {
+      window._lastStorageCount = ts;
       try {
         let total = 0;
         for (let i = 0; i < localStorage.length; i++) {

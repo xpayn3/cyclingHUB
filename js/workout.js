@@ -1,8 +1,6 @@
 /* Workout Builder module — v424 */
-import { state } from './state.js';
+import { state, _app } from './state.js';
 
-/* ── Lazy proxies for functions defined in other modules ── */
-const _app = (fn) => (...a) => window[fn](...a);
 const showToast            = _app('showToast');
 const cleanupPageCharts    = _app('cleanupPageCharts');
 const _mlGetStyle          = _app('_mlGetStyle');

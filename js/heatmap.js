@@ -1,8 +1,6 @@
 /* Heatmap module — extracted from app.js */
-import { state } from './state.js';
+import { state, _app } from './state.js';
 
-/* ── Lazy proxies for functions defined in other modules ── */
-const _app = (fn) => (...a) => window[fn](...a);
 const showToast        = _app('showToast');
 const getAllActivities  = _app('getAllActivities');
 const fetchMapGPS      = _app('fetchMapGPS');
@@ -156,7 +154,7 @@ export function renderHeatmapPage() {
 
   // Load routes
   if (!_hm.loaded) {
-    hmLoadAllRoutes();
+    hmLoadAllRoutes().catch(e => console.warn('Heatmap load error:', e));
   } else {
     // Already loaded — wait for map style to be ready, then draw
     const ld = document.getElementById('hmLoading');
@@ -566,7 +564,7 @@ export async function hmRescanGPS() {
   _hm.loaded = false;
   _hm.loading = false;
   showToast('Re-scanning GPS data…', 'info');
-  hmLoadAllRoutes();
+  hmLoadAllRoutes().catch(e => console.warn('Heatmap reload error:', e));
 }
 
 /* ── Last background-update timestamp ── */

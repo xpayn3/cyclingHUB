@@ -249,7 +249,7 @@
                     <!-- Setup link section -->
                     <div class="conn-link-section">
                         <div class="conn-link-row">
-                            <input type="text" id="modalSetupLinkInput" class="conn-link-input" placeholder="Paste setup link...">
+                            <input type="text" id="modalSetupLinkInput" class="conn-link-input" placeholder="Paste setup link..." aria-label="Setup link">
                             <button class="conn-link-btn" onclick="applySetupLink('modalSetupLinkInput')">Apply</button>
                         </div>
                         <button class="conn-copy-link" id="connCopyLinkBtn" onclick="copySetupLink()">
@@ -347,7 +347,7 @@
                 <div class="gs-bar">
                     <div class="gs-input-wrap">
                         <svg class="icon gs-bar-icon" width="18" height="18"><use href="icons.svg#icon-search"/></svg>
-                        <input id="gsInput" type="text" placeholder="Search" autocomplete="off">
+                        <input id="gsInput" type="text" placeholder="Search" aria-label="Global search" autocomplete="off">
                         <button class="gs-clear" id="gsClear" onclick="gsClearInput()" style="display:none">
                             <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" stroke="none"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15" stroke="#000" stroke-width="2" stroke-linecap="round"/><line x1="9" y1="9" x2="15" y2="15" stroke="#000" stroke-width="2" stroke-linecap="round"/></svg>
                         </button>
@@ -580,7 +580,7 @@
                                     Upload
                                 </button>
                             </div>
-                            <input type="text" id="gearFormImage" placeholder="or paste image path (e.g. img/components/sram/red-axs.webp)" style="margin-top:6px;font-size:13px"/>
+                            <input type="text" id="gearFormImage" placeholder="or paste image path" aria-label="Component image path (e.g. img/components/sram/red-axs.webp)" style="margin-top:6px;font-size:13px"/>
                         </div>
                     </div>
                     <div style="display: flex; gap: 10px; margin-top: 8px">
@@ -646,7 +646,7 @@
                         </div>
                         <div class="field">
                             <label for="batteryFormName">DISPLAY NAME</label>
-                            <input type="text" id="batteryFormName" placeholder="e.g. Rear Derailleur Battery">
+                            <input type="text" id="batteryFormName" placeholder="e.g. Rear Derailleur Battery" aria-label="Battery name">
                         </div>
                         <div class="field">
                             <label for="batteryFormChargeDate">LAST CHARGED / REPLACED</label>
@@ -668,7 +668,7 @@
                         </div>
                         <div class="field" style="grid-column:1/-1">
                             <label for="batteryFormNotes">NOTES</label>
-                            <input type="text" id="batteryFormNotes" placeholder="Optional notes...">
+                            <input type="text" id="batteryFormNotes" placeholder="Optional notes..." aria-label="Battery notes">
                         </div>
                     </div>
                     <div style="display:flex;gap:10px;margin-top:8px">
@@ -1516,7 +1516,7 @@
                                     <svg class="acts-search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
                                         <circle cx="8.5" cy="8.5" r="5.5"/><line x1="13" y1="13" x2="18" y2="18"/>
                                     </svg>
-                                    <input class="acts-search-input" id="activitiesSearch" type="text" placeholder="Search activities…" oninput="setActivitiesSearch(this.value)" autocomplete="off"/>
+                                    <input class="acts-search-input" id="activitiesSearch" type="text" placeholder="Search activities" aria-label="Search activities…" oninput="setActivitiesSearch(this.value)" autocomplete="off"/>
                                     <kbd class="acts-search-kbd" id="searchKbd">S</kbd>
                                 </div>
                                 <select class="app-select app-select--sm" id="activitiesYearSelect" onchange="setActivitiesYear(this.value)">
@@ -1567,7 +1567,7 @@
                                     <svg class="act-search-bar-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
                                         <circle cx="8.5" cy="8.5" r="5.5"/><line x1="13" y1="13" x2="18" y2="18"/>
                                     </svg>
-                                    <input id="actSearchInput" type="text" placeholder="Search activities…" autocomplete="off" />
+                                    <input id="actSearchInput" type="text" placeholder="Search activities" aria-label="Search activities…" autocomplete="off" />
                                     <button class="act-search-clear" id="actSearchClear" onclick="clearActivitySearch()" aria-label="Clear">
                                         <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18"><circle cx="10" cy="10" r="8" opacity="0.4"/><path d="M7.5 7.5l5 5M12.5 7.5l-5 5" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
                                     </button>
@@ -2511,7 +2511,7 @@
 
                                 <!-- Title input — standalone prominent field -->
                                 <div class="cev-title-field">
-                                    <input type="text" id="calEvName" placeholder="Event title" autocomplete="off">
+                                    <input type="text" id="calEvName" placeholder="Event title" aria-label="Event title" autocomplete="off">
                                 </div>
 
                                 <!-- Details group -->
@@ -2567,7 +2567,7 @@
                                         <span class="cev-group-icon">
                                             <svg class="icon" width="18" height="18"><use href="icons.svg#icon-map-pin"/></svg>
                                         </span>
-                                        <input type="text" id="calEvLocation" placeholder="Location" autocomplete="off">
+                                        <input type="text" id="calEvLocation" placeholder="Location" aria-label="Location" autocomplete="off">
                                     </div>
                                     <div class="cev-group-row cev-group-row--input cev-group-row--textarea">
                                         <span class="cev-group-icon" style="align-self:flex-start;margin-top:2px">
@@ -3765,7 +3765,7 @@
                     <!-- Hero header -->
                     <div class="wrk-hero">
                         <div class="wrk-hero-top">
-                            <input class="wrk-name-input" id="wrkNameInput" placeholder="Workout name" value="New Workout" oninput="wrkSetName(this.value)"/>
+                            <input class="wrk-name-input" id="wrkNameInput" placeholder="Workout name" aria-label="Workout name" value="New Workout" oninput="wrkSetName(this.value)"/>
                             <button class="wrk-new-btn" onclick="wrkClear()" title="New workout">
                                 <svg class="icon" width="18" height="18"><use href="icons.svg#icon-plus"/></svg>
                             </button>

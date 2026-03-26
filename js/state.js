@@ -92,3 +92,9 @@ export const GREETINGS = [
   "Pain is temporary. Fitness is forever.",
   "Looking strong — keep pushing forward!",
 ];
+
+/** Lazy proxy to call a function on window by name.
+ *  Avoids circular imports — modules call app.js functions via window.
+ *  Usage: const showToast = _app('showToast'); showToast('msg','success');
+ */
+export const _app = (fn) => (...a) => window[fn](...a);

@@ -1,8 +1,6 @@
 /* Weather module — extracted from app.js */
-import { state, ICU_BASE } from './state.js';
+import { state, ICU_BASE, _app } from './state.js';
 
-/* ── Lazy proxies for functions defined in other modules ── */
-const _app = (fn) => (...a) => window[fn](...a);
 const showToast         = _app('showToast');
 const navigate          = _app('navigate');
 const icuFetch          = _app('icuFetch');

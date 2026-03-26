@@ -1,9 +1,7 @@
 /* Route Builder module — extracted from app.js */
-import { state } from './state.js';
+import { state, _app } from './state.js';
 import { wmoIcon, wmoLabel, windDir } from './weather.js';
 
-/* ── Lazy proxies for functions defined in other modules ── */
-const _app = (fn) => (...a) => window[fn](...a);
 const showToast            = _app('showToast');
 const navigate             = _app('navigate');
 const destroyChart         = _app('destroyChart');
