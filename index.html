@@ -6055,6 +6055,26 @@
                 </button>
                 <div class="pro-title" id="proTitle">Pro Analysis</div>
                 <div class="pro-topbar-actions">
+                    <button class="pro-nav-btn" id="proPrevAct" title="Previous activity" onclick="_proNavActivity(-1)">
+                        <svg class="icon" width="16" height="16"><use href="icons.svg#icon-chevron-left"/></svg>
+                    </button>
+                    <button class="pro-nav-btn" id="proNextAct" title="Next activity" onclick="_proNavActivity(1)">
+                        <svg class="icon" width="16" height="16"><use href="icons.svg#icon-chevron-right"/></svg>
+                    </button>
+                    <div style="width:1px;height:20px;background:rgba(255,255,255,0.1);margin:0 4px"></div>
+                    <div class="pro-player" id="proPlayer">
+                        <button class="pro-player-close" id="proPlayerClose" title="Close player">
+                            <svg class="icon" width="12" height="12"><use href="icons.svg#icon-x"/></svg>
+                        </button>
+                        <div class="pro-player-track" id="proPlayerTrack">
+                            <div class="pro-player-fill" id="proPlayerFill"></div>
+                            <span class="pro-player-time" id="proPlayerTime">0:00</span>
+                        </div>
+                        <div class="pro-player-speed" id="proPlayerSpeed" title="Playback speed">1×</div>
+                        <button class="pro-player-btn" id="proPlayBtn" title="Play ride (Space)">
+                            <svg class="icon" width="14" height="14"><use href="icons.svg#icon-play"/></svg>
+                        </button>
+                    </div>
                     <button class="pro-topbar-btn" id="proExportCsv" title="Export CSV">
                         <svg class="icon" width="16" height="16"><use href="icons.svg#icon-file-text"/></svg>
                     </button>
@@ -6071,15 +6091,45 @@
                     </div>
                     <div class="pro-sidebar-section">
                         <div class="pro-sidebar-label">TOOLS</div>
-                        <div class="pro-tool-row">
-                            <span>Smoothing</span>
-                            <select class="app-select pro-smooth-select" id="proSmoothing">
-                                <option value="1">1s</option>
-                                <option value="5" selected>5s</option>
-                                <option value="10">10s</option>
-                                <option value="30">30s</option>
-                                <option value="60">60s</option>
-                            </select>
+                        <div class="pro-pill-slider" id="proSmoothPill" data-min="1" data-max="60" data-value="5">
+                            <div class="pro-pill-fill" id="proSmoothFill"></div>
+                            <span class="pro-pill-label">Smoothing</span>
+                            <span class="pro-pill-val" id="proSmoothVal">5s</span>
+                        </div>
+                        <div class="pro-pill-slider" id="proLineWidthPill" data-value="1.5">
+                            <div class="pro-pill-fill"></div>
+                            <span class="pro-pill-label">Line Width</span>
+                            <span class="pro-pill-val">1.5px</span>
+                        </div>
+                        <div class="pro-pill-slider" id="proOpacityPill" data-value="100">
+                            <div class="pro-pill-fill"></div>
+                            <span class="pro-pill-label">Opacity</span>
+                            <span class="pro-pill-val">100%</span>
+                        </div>
+                        <div class="pro-pill-slider" id="proFillPill" data-value="0">
+                            <div class="pro-pill-fill"></div>
+                            <span class="pro-pill-label">Fill</span>
+                            <span class="pro-pill-val">0%</span>
+                        </div>
+                        <div class="pro-pill-slider" id="proZoomPill" data-value="100">
+                            <div class="pro-pill-fill"></div>
+                            <span class="pro-pill-label">Zoom</span>
+                            <span class="pro-pill-val">100%</span>
+                        </div>
+                        <div class="pro-pill-slider" id="proFatiguePill" data-value="0">
+                            <div class="pro-pill-fill"></div>
+                            <span class="pro-pill-label">Fatigue Filter</span>
+                            <span class="pro-pill-val">Off</span>
+                        </div>
+                        <div class="pro-pill-slider" id="proAnomalyPill" data-value="0">
+                            <div class="pro-pill-fill"></div>
+                            <span class="pro-pill-label">Anomalies</span>
+                            <span class="pro-pill-val">Off</span>
+                        </div>
+                        <div class="pro-pill-slider" id="proDensityPill" data-value="100">
+                            <div class="pro-pill-fill"></div>
+                            <span class="pro-pill-label">Data Density</span>
+                            <span class="pro-pill-val">100%</span>
                         </div>
                         <div class="pro-tool-row">
                             <span>X-Axis</span>
@@ -6090,6 +6140,7 @@
                         </div>
                         <div class="pro-tool-row" style="margin-top:8px">
                             <button class="pro-mode-btn" id="proHistogramBtn">Histogram</button>
+                            <button class="pro-mode-btn" id="proStackedBtn">Stacked</button>
                             <button class="pro-mode-btn" id="proCompareBtn">Compare</button>
                         </div>
                     </div>

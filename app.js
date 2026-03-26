@@ -19316,6 +19316,10 @@ async function navigateToActivity(actKey, fromStep = false) {
     // Re-run after async cards (intervals, curves) finish loading
     setTimeout(() => { _injectActCardDividers(); _updateActCardWidths(document.getElementById('actSheetScroll')); }, 1500);
     setTimeout(() => _injectActCardDividers(), 3000);
+    // Auto-reopen Pro Analysis if it was open before refresh
+    if (sessionStorage.getItem('icu_pro_open') === '1') {
+      setTimeout(() => openProAnalysis(), 500);
+    }
   } catch (err) {
     console.error('[Activity detail] Unhandled error:', err);
     _loadingEl.style.display = 'none';
@@ -21007,6 +21011,7 @@ async function openProAnalysis() {
   // Show fullscreen
   el.style.display = 'flex';
   document.body.classList.add('pro-analysis-open');
+  sessionStorage.setItem('icu_pro_open', '1');
 
   // Lazy load the script
   if (!window._proAnalysisLoaded) {
@@ -21039,9 +21044,27 @@ function closeProAnalysis() {
   const el = document.getElementById('proAnalysis');
   if (el) el.style.display = 'none';
   document.body.classList.remove('pro-analysis-open');
+  sessionStorage.removeItem('icu_pro_open');
   if (window._proClose) window._proClose();
 }
 window.closeProAnalysis = closeProAnalysis;
+
+// Navigate to prev/next activity while staying in Pro Analysis
+function _proNavActivity(dir) {
+  const idx = state.currentActivityIdx;
+  const acts = state.activities;
+  if (!acts?.length) return;
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= acts.length) return;
+  // Close current pro analysis
+  if (window._proClose) window._proClose();
+  // Navigate to new activity (this reloads streams)
+  state.currentActivityIdx = newIdx;
+  const act = acts[newIdx];
+  sessionStorage.setItem('icu_pro_open', '1'); // auto-reopen
+  navigateToActivity(act);
+}
+window._proNavActivity = _proNavActivity;
 
 function _destroyActCardsGrid() {
   if (_sortableInstance) {

@@ -32,8 +32,77 @@ let _proBrushStart = null;
 let _proClimbs = null;
 let _proBrushEnd = null;
 let _proChartMode = 'timeseries'; // 'timeseries' | 'histogram'
+let _proStacked = false;
+let _proStackedCharts = [];
+let _playInterval = null;
+let _playIdx = 0;
+const PLAY_SPEEDS = [1, 2, 5, 10, 20, 50];
+let _playSpeedIdx = 0;
+let _proLineWidth = 1.5;
+let _proOpacity = 1;
+let _proFillOpacity = 0;
+let _proZoomLevel = 1;
+let _proFatigueThreshold = 0; // 0 = off, 0.1–1 = filter intensity
+let _proAnomalySensitivity = 0; // 0 = off, 0.1–1 = highlight sensitivity
+let _proDensity = 1; // 1 = all points, 0.1 = every 10th point
 let _proCompareStreams = null;
 let _proCompareActivity = null;
+let _proLaps = null;
+let _proKeyHandler = null; // named ref for cleanup
+const _smoothCache = new Map(); // cache smoothed arrays
+
+/* ── Shared Helpers ─────────────────────────────────── */
+function _fmtTime(sec) {
+  const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function _fmtStreamVal(val, unit) {
+  if (val == null) return '—';
+  const noDecimal = ['bpm', 'rpm', 'm', 'W', '%'].includes(unit);
+  return noDecimal ? Math.round(val) : (Math.round(val * 100) / 100);
+}
+
+function _buildXLabels() {
+  const time = _proStreams?.time || [];
+  const dist = _proStreams?.distance || [];
+  let labels = _proXAxis === 'distance' && dist.length
+    ? dist.map(d => (d / 1000).toFixed(1))
+    : time.map(t => _fmtTime(t));
+  if (_proDensity < 1 && labels.length > 100) {
+    const nth = Math.max(1, Math.round(1 / _proDensity));
+    labels = labels.filter((_, i) => i % nth === 0);
+  }
+  return labels;
+}
+
+function _smoothCached(data, key, win) {
+  if (!data || win <= 1) return data;
+  const ck = `${key}_${win}`;
+  if (_smoothCache.has(ck)) return _smoothCache.get(ck);
+  const result = _smooth(data, win);
+  _smoothCache.set(ck, result);
+  return result;
+}
+
+function _activateCrosshairAtIndex(idx) {
+  if (!_proChart) return;
+  const n = _proChart.data.datasets.length;
+  const els = [];
+  let pt = null;
+  for (let di = 0; di < n; di++) {
+    const m = _proChart.getDatasetMeta(di);
+    if (m?.data?.[idx]) {
+      els.push({ datasetIndex: di, index: idx });
+      if (!pt) pt = m.data[idx];
+    }
+  }
+  if (pt && els.length) {
+    _proChart.tooltip.setActiveElements(els, { x: pt.x, y: pt.y });
+    _proChart.setActiveElements(els);
+    _proChart.update('none');
+  }
+}
 
 const ZONE_COLORS = [
   { min: 0,   max: 0.55, color: 'rgba(74,158,255,0.06)',  label: 'Z1' },
@@ -45,8 +114,6 @@ const ZONE_COLORS = [
 ];
 
 /* ── Init ─────────────────────────────────────────────── */
-let _proLaps = null;
-
 function _proInit(streams, activity, intervals) {
   _proStreams = streams;
   _proActivity = activity;
@@ -55,6 +122,12 @@ function _proInit(streams, activity, intervals) {
 
   // Compute derived channels
   _computeDerivedStreams();
+
+  // Set default active streams — always show elevation + first available data stream
+  _proActiveStreams.clear();
+  if (_proStreams.altitude?.length) _proActiveStreams.add('altitude');
+  if (_proStreams.watts?.length) _proActiveStreams.add('watts');
+  else if (_proStreams.heartrate?.length) _proActiveStreams.add('heartrate');
 
   _buildStreamList();
   _buildChart();
@@ -131,8 +204,148 @@ function _proClose() {
   _proBrushStart = null;
   _proBrushEnd = null;
   _proChartMode = 'timeseries';
+  _proStacked = false;
+  _destroyStackedCharts();
+  // Stop playback
+  if (_playInterval) { clearInterval(_playInterval); _playInterval = null; }
+  // Remove keyboard listener
+  if (_proKeyHandler) { document.removeEventListener('keydown', _proKeyHandler); _proKeyHandler = null; }
+  // Clean tooltip DOM
+  document.getElementById('proTooltip')?.remove();
+  // Clear smooth cache
+  _smoothCache.clear();
 }
 window._proClose = _proClose;
+
+/* ── Stacked charts — each stream in its own horizontal strip ── */
+function _destroyStackedCharts() {
+  for (const c of _proStackedCharts) c.destroy();
+  _proStackedCharts = [];
+  const container = document.getElementById('proStackedWrap');
+  if (container) container.remove();
+}
+
+function _buildStackedCharts() {
+  _destroyStackedCharts();
+  // Hide main chart
+  if (_proChart) { _proChart.destroy(); _proChart = null; }
+  const mainCanvas = document.getElementById('proAnalysisChart');
+  if (mainCanvas) mainCanvas.style.display = 'none';
+
+  const wrap = document.createElement('div');
+  wrap.id = 'proStackedWrap';
+  wrap.style.cssText = 'position:absolute;inset:0;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:12px 16px';
+  mainCanvas.parentElement.appendChild(wrap);
+
+  // Build labels (shared X axis)
+  const timeArr = _proStreams?.time;
+  const distArr = _proStreams?.distance;
+  const xLabels = _proXAxis === 'distance' && distArr
+    ? distArr.map(d => (d / 1000).toFixed(1))
+    : (timeArr || []).map(t => {
+        const m = Math.floor(t / 60), s = Math.floor(t % 60);
+        return `${m}:${s.toString().padStart(2, '0')}`;
+      });
+
+  const activeStreams = PRO_STREAMS.filter(s => _proActiveStreams.has(s.key) && _proStreams[s.key]?.length);
+  const minStripHeight = 120;
+  const availH = wrap.parentElement?.clientHeight || 600;
+  const stripHeight = Math.max(minStripHeight, Math.floor((availH - activeStreams.length * 24) / Math.max(activeStreams.length, 1)));
+
+  for (const s of activeStreams) {
+    // Title above strip
+    const titleEl = document.createElement('div');
+    titleEl.style.cssText = `font-size:13px;font-weight:600;color:${s.color};padding:0 4px;font-family:var(--font-num)`;
+    titleEl.textContent = s.label;
+    wrap.appendChild(titleEl);
+
+    const strip = document.createElement('div');
+    strip.style.cssText = `min-height:${stripHeight}px;height:${stripHeight}px;flex-shrink:0;position:relative;background:rgba(255,255,255,0.02);border-radius:6px;overflow:hidden`;
+    const canvas = document.createElement('canvas');
+    strip.appendChild(canvas);
+    wrap.appendChild(strip);
+
+    const data = _smooth(_proStreams[s.key], _proSmoothing);
+    const chart = new Chart(canvas.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: xLabels,
+        datasets: [{
+          label: s.label,
+          data: data,
+          borderColor: s.color,
+          backgroundColor: s.color + '18',
+          fill: true,
+          borderWidth: 1.5,
+          pointRadius: 0,
+          tension: 0.2,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        interaction: { mode: 'index', intersect: false, axis: 'x' },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            enabled: false,
+            external: (context) => {
+              const { chart: c, tooltip: tt } = context;
+              let el = c.canvas.parentElement.querySelector('.pro-stack-tip');
+              if (!el) {
+                el = document.createElement('div');
+                el.className = 'pro-stack-tip';
+                c.canvas.parentElement.appendChild(el);
+              }
+              if (tt.opacity === 0) { el.style.opacity = '0'; return; }
+              el.style.opacity = '1';
+              const items = tt.dataPoints || [];
+              if (!items.length) { el.style.opacity = '0'; return; }
+              const item = items[0];
+              const val = item.parsed?.y;
+              if (val == null) { el.style.opacity = '0'; return; }
+              const noDecimal = ['bpm', 'rpm', 'm', 'W', '%'].includes(s.unit);
+              el.style.background = s.color;
+              el.style.borderColor = s.color;
+              el.innerHTML = `<span style="color:#000;font-weight:700">${noDecimal ? Math.round(val) : (Math.round(val * 10) / 10)}</span><span style="color:rgba(0,0,0,0.5);margin-left:3px">${s.unit}</span>`;
+              const cx = tt.caretX || 0;
+              const elW = el.offsetWidth || 60;
+              let xp = cx + 12;
+              if (xp + elW > c.width) xp = cx - elW - 12;
+              el.style.left = xp + 'px';
+              el.style.top = '4px';
+            }
+          },
+        },
+        scales: {
+          x: {
+            display: true,
+            ticks: { color: 'rgba(255,255,255,0.3)', maxTicksLimit: 15, font: { size: 9 } },
+            grid: { color: 'rgba(255,255,255,0.04)' },
+          },
+          y: {
+            display: true,
+            position: 'left',
+            ticks: {
+              color: s.color + 'aa',
+              font: { size: 9, family: 'var(--font-num)' },
+              maxTicksLimit: 4,
+              callback: (v, i) => i === 0 ? s.unit : Math.round(v),
+            },
+            grid: { color: 'rgba(255,255,255,0.04)' },
+          }
+        }
+      }
+    });
+
+
+    _proStackedCharts.push(chart);
+  }
+
+  // Update stats bar
+  _updateStats();
+}
 
 /* ── Build sidebar stream list ────────────────────────── */
 function _buildStreamList() {
@@ -166,20 +379,22 @@ function _proToggleStream(key) {
   const chip = document.querySelector(`.pro-stream-chip[data-stream="${key}"]`);
   if (chip) chip.classList.toggle('active', _proActiveStreams.has(key));
 
-  // Rebuild chart with new streams
-  _buildChart();
+  // Rebuild chart — stop playback if active
+  if (_playInterval) { clearInterval(_playInterval); _playInterval = null; }
+  if (_proStacked) _buildStackedCharts(); else _buildChart();
   _updateStats();
 }
 window._proToggleStream = _proToggleStream;
 
 /* ── Smooth data with moving average ──────────────────── */
-function _smooth(data, window) {
-  if (!data || window <= 1) return data;
-  const out = new Array(data.length);
-  const half = Math.floor(window / 2);
-  for (let i = 0; i < data.length; i++) {
+function _smooth(data, win) {
+  if (!data || win <= 1) return data;
+  const n = data.length, out = new Array(n);
+  const half = Math.floor(win / 2);
+  for (let i = 0; i < n; i++) {
     let sum = 0, cnt = 0;
-    for (let j = Math.max(0, i - half); j <= Math.min(data.length - 1, i + half); j++) {
+    const lo = Math.max(0, i - half), hi = Math.min(n - 1, i + half);
+    for (let j = lo; j <= hi; j++) {
       if (data[j] != null && !isNaN(data[j])) { sum += data[j]; cnt++; }
     }
     out[i] = cnt > 0 ? sum / cnt : null;
@@ -200,19 +415,26 @@ function _buildChart() {
   if (len === 0) return;
 
   // Build x-axis labels
-  const labels = _proXAxis === 'distance'
+  let labels = _proXAxis === 'distance'
     ? dist.map(d => (d / 1000).toFixed(1))
     : time.map(t => {
         const m = Math.floor(t / 60), s = Math.floor(t % 60);
         return `${m}:${s.toString().padStart(2, '0')}`;
       });
+  // Downsample labels to match data density
+  if (_proDensity < 1 && labels.length > 100) {
+    const nth = Math.max(1, Math.round(1 / _proDensity));
+    labels = labels.filter((_, i) => i % nth === 0);
+  }
 
-  // Detect climbs from elevation + distance + gradient
-  _proClimbs = _detectClimbs(
-    _proStreams.altitude,
-    _proStreams.distance,
-    _proStreams.grade_smooth
-  );
+  // Detect climbs — cache, only compute once per activity
+  if (!_proClimbs) {
+    _proClimbs = _detectClimbs(
+      _proStreams.altitude,
+      _proStreams.distance,
+      _proStreams.grade_smooth
+    );
+  }
 
   // Build datasets + axes
   const datasets = [];
@@ -224,22 +446,25 @@ function _buildChart() {
     const firstStream = PRO_STREAMS.find(s => _proActiveStreams.has(s.key) && _proStreams[s.key]?.length);
     if (!firstStream) return;
     const raw = _proStreams[firstStream.key];
-    const vals = raw.filter(v => v != null && v > 0);
-    if (!vals.length) return;
-    const min = Math.floor(Math.min(...vals));
-    const max = Math.ceil(Math.max(...vals));
-    const binCount = Math.min(30, max - min);
-    const binSize = (max - min) / binCount || 1;
+    const vals = raw.filter(v => v != null && !isNaN(v));
+    if (vals.length < 10) return;
+    let min = Infinity, max = -Infinity;
+    for (const v of vals) { if (v < min) min = v; if (v > max) max = v; }
+    min = Math.floor(min); max = Math.ceil(max);
+    if (max <= min) max = min + 1;
+    const binCount = Math.min(25, Math.max(10, max - min));
+    const binSize = (max - min) / binCount;
     const bins = new Array(binCount).fill(0);
     const binLabels = [];
+    // Single pass binning
+    for (const v of vals) {
+      const bi = Math.min(Math.floor((v - min) / binSize), binCount - 1);
+      if (bi >= 0) bins[bi]++;
+    }
     for (let i = 0; i < binCount; i++) {
       binLabels.push(Math.round(min + i * binSize));
-      for (const v of vals) {
-        const bi = Math.min(Math.floor((v - min) / binSize), binCount - 1);
-        if (bi === i) bins[i]++;
-      }
     }
-    // Convert to time in minutes
+    // Convert seconds count to minutes
     const timeBins = bins.map(b => Math.round(b / 60 * 10) / 10);
 
     datasets.push({
@@ -278,13 +503,13 @@ function _buildChart() {
     scales.x = {
       display: true,
       ticks: { color: 'rgba(255,255,255,0.4)', font: { size: 11 } },
-      grid: { color: 'rgba(255,255,255,0.04)' },
+      grid: { color: 'rgba(255,255,255,0.08)' },
       title: { display: true, text: firstStream.unit, color: 'rgba(255,255,255,0.3)', font: { size: 11 } }
     };
     scales.y = {
       display: true,
       ticks: { color: 'rgba(255,255,255,0.4)', font: { size: 10 }, callback: v => Math.round(v) + 'm' },
-      grid: { color: 'rgba(255,255,255,0.04)' },
+      grid: { color: 'rgba(255,255,255,0.08)' },
       title: { display: true, text: 'minutes', color: 'rgba(255,255,255,0.3)', font: { size: 11 } }
     };
   } else {
@@ -292,31 +517,38 @@ function _buildChart() {
     scales.x = {
       display: true,
       ticks: { color: 'rgba(255,255,255,0.4)', maxTicksLimit: 20, font: { size: 11 } },
-      grid: { color: 'rgba(255,255,255,0.04)' },
+      grid: { color: 'rgba(255,255,255,0.08)' },
       title: { display: true, text: _proXAxis === 'distance' ? 'km' : 'time', color: 'rgba(255,255,255,0.3)', font: { size: 11 } }
     };
 
     let axisIdx = 0;
+    const alphaHex = Math.round(_proOpacity * 255).toString(16).padStart(2, '0');
+    const fillAlpha = Math.round(_proFillOpacity * 255).toString(16).padStart(2, '0');
     for (const s of PRO_STREAMS) {
       if (!_proActiveStreams.has(s.key)) continue;
       const raw = _proStreams[s.key];
       if (!raw || raw.length === 0) continue;
 
-      const data = _smooth(raw, _proSmoothing);
+      let data = _smooth(raw, _proSmoothing);
+      // Data density — downsample for performance
+      if (_proDensity < 1 && data.length > 100) {
+        const nth = Math.max(1, Math.round(1 / _proDensity));
+        data = data.filter((_, i) => i % nth === 0);
+      }
       const axisId = `y_${s.key}`;
       const isLeft = axisIdx % 2 === 0;
 
       datasets.push({
         label: s.label,
         data: data,
-        borderColor: s.color,
-        backgroundColor: s.color + '15',
-        borderWidth: 1.5,
+        borderColor: s.color + alphaHex,
+        backgroundColor: s.color + fillAlpha,
+        borderWidth: _proLineWidth,
         pointRadius: 0,
         pointHoverRadius: 4,
         pointHoverBackgroundColor: s.color,
         tension: 0.2,
-        fill: s.key === 'altitude',
+        fill: _proFillOpacity > 0 || s.key === 'altitude',
         yAxisID: axisId,
       });
 
@@ -616,24 +848,53 @@ function _buildChart() {
       plugins: {
         legend: { display: false },
         tooltip: {
-          enabled: true,
-          mode: 'index',
-          intersect: false,
-          backgroundColor: 'rgba(0,0,0,0.9)',
-          titleColor: '#fff',
-          bodyColor: '#fff',
-          borderColor: 'rgba(255,255,255,0.1)',
-          borderWidth: 1,
-          padding: 10,
-          cornerRadius: 8,
-          bodyFont: { family: 'var(--font-num)', size: 12 },
-          callbacks: {
-            label: ctx => {
-              const s = PRO_STREAMS.find(p => p.label === ctx.dataset.label);
-              const v = ctx.parsed?.y;
-              if (v == null) return '';
-              return ` ${ctx.dataset.label}: ${Math.round(v * 10) / 10} ${s?.unit || ''}`;
+          enabled: false,
+          external: (context) => {
+            const { chart, tooltip } = context;
+            let el = document.getElementById('proTooltip');
+            if (!el) {
+              el = document.createElement('div');
+              el.id = 'proTooltip';
+              el.className = 'pro-tip';
+              chart.canvas.parentElement.appendChild(el);
             }
+            if (tooltip.opacity === 0) { el.style.visibility = 'hidden'; return; }
+            el.style.visibility = 'visible';
+            // Follow crosshair X, mouse Y — clamped to chart area
+            const caretX = tooltip.caretX || 0;
+            const caretY = tooltip.caretY || 0;
+            const area = chart.chartArea || {};
+            const chartLeft = area.left || 0;
+            const chartRight = area.right || chart.width;
+            const chartTop = area.top || 0;
+            const chartBottom = area.bottom || chart.height;
+            const elW = el.offsetWidth || 200;
+            const elH = el.offsetHeight || 40;
+            // X: follow crosshair, offset from line
+            let xPos = caretX + 24;
+            if (xPos + elW > chartRight) xPos = caretX - elW - 24;
+            if (xPos < chartLeft) xPos = chartLeft;
+            // Y: always pin to bottom of chart
+            let yPos = chartBottom - elH - 8;
+            el.style.left = xPos + 'px';
+            el.style.top = yPos + 'px';
+            const items = tooltip.dataPoints || [];
+            if (!items.length) return;
+            // Time label
+            const timeLabel = items[0]?.label || '';
+            let html = `<span class="pro-tip-label">${timeLabel}</span>`;
+            // Show ALL active streams — use "—" for missing data (prevents height jump)
+            for (const stream of PRO_STREAMS) {
+              if (!_proActiveStreams.has(stream.key)) continue;
+              const item = items.find(it => it.dataset.label === stream.label);
+              const val = item?.parsed?.y;
+              const unit = stream.unit || '';
+              const noDecimal = ['bpm', 'rpm', 'm', 'W', '%'].includes(unit);
+              const formatted = val != null ? (noDecimal ? Math.round(val) : (Math.round(val * 100) / 100)) : '—';
+              const color = val != null ? stream.color : 'var(--text-faint)';
+              html += `<span class="pro-tip-val" style="color:${color}">${formatted}<span class="pro-tip-unit">${unit}</span></span>`;
+            }
+            el.innerHTML = html;
           }
         },
         zoom: {
@@ -653,11 +914,6 @@ function _buildChart() {
     },
     plugins: [zonePlugin, intervalPlugin, lapPlugin, climbPlugin, brushPlugin, crosshairPlugin]
   });
-}
-
-function _fmtTime(t) {
-  const m = Math.floor(t / 60), s = Math.floor(t % 60);
-  return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
 /* ── Update stats bar ─────────────────────────────────── */
@@ -716,17 +972,19 @@ function _updateStats(startIdx, endIdx) {
 /* ── Compute Normalized Power ─────────────────────────── */
 function _computeNP(watts, s, e) {
   if (!watts) return 0;
-  // 30s rolling average, then 4th power
-  const window = 30;
-  let sum4 = 0, cnt = 0;
-  for (let i = s + window; i <= e; i++) {
-    let avg = 0, n = 0;
-    for (let j = i - window; j < i; j++) {
-      if (watts[j] != null) { avg += watts[j]; n++; }
-    }
-    if (n > 0) { avg /= n; sum4 += Math.pow(avg, 4); cnt++; }
+  const win = 30;
+  if (e - s < win) return 0;
+  // O(n) running sum approach
+  let runSum = 0, validN = 0, sum4 = 0, cnt = 0;
+  for (let j = s; j < s + win && j <= e; j++) {
+    if (watts[j] != null) { runSum += watts[j]; validN++; }
   }
-  return cnt > 0 ? Math.pow(sum4 / cnt, 0.25) : 0;
+  for (let i = s + win; i <= e; i++) {
+    if (watts[i] != null) { runSum += watts[i]; validN++; }
+    if (watts[i - win] != null) { runSum -= watts[i - win]; validN--; }
+    if (validN > 0) { const avg = runSum / validN; sum4 += avg ** 4; cnt++; }
+  }
+  return cnt > 0 ? (sum4 / cnt) ** 0.25 : 0;
 }
 
 /* ── Format duration ──────────────────────────────────── */
@@ -741,15 +999,285 @@ function _fmtDuration(secs) {
 
 /* ── Bind sidebar controls ────────────────────────────── */
 function _bindControls() {
-  // Smoothing
-  const smoothSel = document.getElementById('proSmoothing');
-  if (smoothSel) {
-    smoothSel.value = _proSmoothing;
-    smoothSel.onchange = () => {
-      _proSmoothing = parseInt(smoothSel.value) || 5;
-      _buildChart();
+  // Smoothing pill — snaps to 1, 5, 10, 30, 60 with rebuild on release
+  const sPill = document.getElementById('proSmoothPill');
+  const sFill = sPill?.querySelector('.pro-pill-fill');
+  const sVal = sPill?.querySelector('.pro-pill-val');
+  if (sPill && !sPill._inited) {
+    sPill._inited = true;
+    const STEPS = [1, 5, 10, 30, 60];
+    let sDrag = false, sDebounce = 0;
+    const sApply = (pct) => {
+      pct = Math.max(0, Math.min(1, pct));
+      const idx = Math.round(pct * (STEPS.length - 1));
+      const v = STEPS[Math.max(0, Math.min(STEPS.length - 1, idx))];
+      const realPct = idx / (STEPS.length - 1);
+      _proSmoothing = v;
+      if (sFill) sFill.style.width = (realPct * 100) + '%';
+      if (sVal) sVal.textContent = v + 's';
     };
+    // Init
+    const initIdx = STEPS.indexOf(_proSmoothing);
+    sApply(initIdx >= 0 ? initIdx / (STEPS.length - 1) : 0.25);
+    sPill.addEventListener('pointerdown', e => {
+      sDrag = true; sPill.setPointerCapture(e.pointerId);
+      const r = sPill.getBoundingClientRect();
+      sApply((e.clientX - r.left) / r.width);
+    });
+    sPill.addEventListener('pointermove', e => {
+      if (!sDrag) return;
+      const r = sPill.getBoundingClientRect();
+      const raw = (e.clientX - r.left) / r.width;
+      sApply(raw);
+      if (raw < -0.05 || raw > 1.05) {
+        const over = Math.min(0.03, Math.abs(raw < 0 ? raw + 0.05 : raw - 1.05) * 0.15);
+        sPill.style.transform = `scaleX(${1 + over})`;
+      } else sPill.style.transform = '';
+    });
+    const sEnd = () => {
+      if (!sDrag) return; sDrag = false; sPill.style.transform = '';
+      clearTimeout(sDebounce);
+      sDebounce = setTimeout(() => { _buildChart(); }, 50);
+    };
+    sPill.addEventListener('pointerup', sEnd);
+    sPill.addEventListener('pointercancel', sEnd);
+    sPill.addEventListener('wheel', e => {
+      e.preventDefault();
+      const cur = STEPS.indexOf(_proSmoothing);
+      const dir = e.deltaY > 0 ? -1 : 1;
+      const ni = Math.max(0, Math.min(STEPS.length - 1, cur + dir));
+      sApply(ni / (STEPS.length - 1));
+      clearTimeout(sDebounce);
+      sDebounce = setTimeout(() => { _buildChart(); }, 200);
+    }, { passive: false });
   }
+
+  // Generic pill slider factory
+  function _initPill(id, { min, max, step, value, fmt, onUpdate }) {
+    const el = document.getElementById(id);
+    if (!el || el._inited) return;
+    el._inited = true;
+    const fill = el.querySelector('.pro-pill-fill');
+    const valEl = el.querySelector('.pro-pill-val');
+    let cur = value, drag = false, debounce = 0;
+    const apply = (pct) => {
+      pct = Math.max(0, Math.min(1, pct));
+      cur = min + pct * (max - min);
+      if (step) cur = Math.round(cur / step) * step;
+      cur = Math.max(min, Math.min(max, cur));
+      if (fill) fill.style.width = (((cur - min) / (max - min)) * 100) + '%';
+      if (valEl) valEl.textContent = fmt(cur);
+      onUpdate(cur);
+    };
+    apply(((value - min) / (max - min)));
+    el.addEventListener('pointerdown', e => {
+      drag = true; el.setPointerCapture(e.pointerId);
+      const r = el.getBoundingClientRect();
+      apply((e.clientX - r.left) / r.width);
+    });
+    el.addEventListener('pointermove', e => {
+      if (!drag) return;
+      const r = el.getBoundingClientRect();
+      const raw = (e.clientX - r.left) / r.width;
+      apply(raw);
+      // Rubber band
+      if (raw < -0.05 || raw > 1.05) {
+        const over = Math.min(0.03, Math.abs(raw < 0 ? raw + 0.05 : raw - 1.05) * 0.15);
+        el.style.transform = `scaleX(${1 + over})`;
+      } else el.style.transform = '';
+    });
+    const end = () => { if (!drag) return; drag = false; el.style.transform = ''; clearTimeout(debounce); debounce = setTimeout(() => { if (_proStacked) _buildStackedCharts(); else _buildChart(); }, 150); };
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+    el.addEventListener('wheel', e => { e.preventDefault(); const d = e.deltaY > 0 ? -1 : 1; const s = step || ((max - min) / 20); cur = Math.max(min, Math.min(max, cur + d * s)); const pct = (cur - min) / (max - min); if (fill) fill.style.width = (pct * 100) + '%'; if (valEl) valEl.textContent = fmt(cur); onUpdate(cur); clearTimeout(debounce); debounce = setTimeout(() => { if (_proStacked) _buildStackedCharts(); else _buildChart(); }, 300); }, { passive: false });
+  }
+
+  // Helper: live-update chart datasets without full rebuild
+  function _liveUpdateChart() {
+    if (!_proChart) return;
+    _proChart.data.datasets.forEach(ds => {
+      if (ds._isCompare || ds._isFatigue || ds._isAnomaly) return;
+      const alphaHex = Math.round(_proOpacity * 255).toString(16).padStart(2, '0');
+      const fillHex = Math.round(_proFillOpacity * 255).toString(16).padStart(2, '0');
+      const baseColor = ds.borderColor?.slice(0, 7) || '#ffffff';
+      ds.borderColor = baseColor + alphaHex;
+      ds.backgroundColor = baseColor + fillHex;
+      ds.borderWidth = _proLineWidth;
+      ds.fill = _proFillOpacity > 0;
+    });
+    _proChart.update('none');
+  }
+
+  // Fatigue filter — dims non-fatigued sections, highlights fatigue
+  function _liveUpdateFatigue() {
+    if (!_proChart || !_proStreams) return;
+    // Remove existing fatigue overlay
+    _proChart.data.datasets = _proChart.data.datasets.filter(ds => !ds._isFatigue);
+    if (_proFatigueThreshold <= 0) { _proChart.update('none'); return; }
+
+    // Find fatigue from HR or power data
+    const hr = _proStreams.heartrate;
+    const watts = _proStreams.watts;
+    const source = hr?.length ? hr : watts;
+    if (!source?.length) return;
+
+    // Compute rolling max and flag sections where value > threshold% of max
+    let maxVal = 0;
+    for (const v of source) { if (v > maxVal) maxVal = v; }
+    const threshold = maxVal * (1 - _proFatigueThreshold * 0.3); // e.g., at 100% filter, shows >70% of max
+    const fatigueData = source.map(v => v >= threshold ? v : null);
+
+    _proChart.data.datasets.push({
+      label: 'Fatigue',
+      data: fatigueData,
+      borderColor: 'rgba(255,69,58,0.8)',
+      backgroundColor: 'rgba(255,69,58,0.12)',
+      borderWidth: 2.5,
+      pointRadius: 0,
+      tension: 0.2,
+      fill: true,
+      yAxisID: hr?.length ? 'y_heartrate' : 'y_watts',
+      _isFatigue: true,
+    });
+    _proChart.update('none');
+  }
+
+  // Anomaly detection — highlights spikes and drops
+  function _liveUpdateAnomalies() {
+    if (!_proChart || !_proStreams) return;
+    _proChart.data.datasets = _proChart.data.datasets.filter(ds => !ds._isAnomaly);
+    if (_proAnomalySensitivity <= 0) { _proChart.update('none'); return; }
+
+    // Detect anomalies in all active streams
+    for (const s of PRO_STREAMS) {
+      if (!_proActiveStreams.has(s.key)) continue;
+      const raw = _proStreams[s.key];
+      if (!raw?.length) continue;
+
+      // Compute rolling mean and stddev (30s window)
+      const win = 30;
+      const anomalyPoints = raw.map((v, i) => {
+        if (v == null || i < win) return null;
+        let sum = 0, cnt = 0;
+        for (let j = i - win; j < i; j++) { if (raw[j] != null) { sum += raw[j]; cnt++; } }
+        if (cnt < 10) return null;
+        const mean = sum / cnt;
+        let sqSum = 0;
+        for (let j = i - win; j < i; j++) { if (raw[j] != null) sqSum += (raw[j] - mean) ** 2; }
+        const std = Math.sqrt(sqSum / cnt);
+        // Threshold: lower sensitivity = only big spikes (3σ), higher = small deviations (1σ)
+        const sigmas = 3 - _proAnomalySensitivity * 2; // 3σ at 0%, 1σ at 100%
+        return Math.abs(v - mean) > std * sigmas ? v : null;
+      });
+
+      const hasAnomalies = anomalyPoints.some(v => v !== null);
+      if (!hasAnomalies) continue;
+
+      _proChart.data.datasets.push({
+        label: `${s.label} anomaly`,
+        data: anomalyPoints,
+        borderColor: 'transparent',
+        backgroundColor: '#ffcc00',
+        pointRadius: anomalyPoints.map(v => v !== null ? 4 : 0),
+        pointBackgroundColor: '#ffcc00',
+        pointBorderColor: 'rgba(255,204,0,0.4)',
+        pointBorderWidth: 6,
+        showLine: false,
+        yAxisID: `y_${s.key}`,
+        _isAnomaly: true,
+      });
+    }
+    _proChart.update('none');
+  }
+
+  // Line width pill (0.5–4px)
+  _initPill('proLineWidthPill', {
+    min: 0.5, max: 4, step: 0.5, value: _proLineWidth,
+    fmt: v => v.toFixed(1) + 'px',
+    onUpdate: v => { _proLineWidth = v; _liveUpdateChart(); }
+  });
+
+  // Opacity pill (20–100%)
+  _initPill('proOpacityPill', {
+    min: 0.2, max: 1, step: 0.05, value: _proOpacity,
+    fmt: v => Math.round(v * 100) + '%',
+    onUpdate: v => { _proOpacity = v; _liveUpdateChart(); }
+  });
+
+  // Fill opacity pill (0–50%)
+  _initPill('proFillPill', {
+    min: 0, max: 0.5, step: 0.05, value: _proFillOpacity,
+    fmt: v => Math.round(v * 100) + '%',
+    onUpdate: v => { _proFillOpacity = v; _liveUpdateChart(); }
+  });
+
+  // Zoom pill (50–500%) — applies live via scale manipulation, no rebuild
+  const zoomPillEl = document.getElementById('proZoomPill');
+  if (zoomPillEl && !zoomPillEl._inited) {
+    zoomPillEl._inited = true;
+    const zFill = zoomPillEl.querySelector('.pro-pill-fill');
+    const zVal = zoomPillEl.querySelector('.pro-pill-val');
+    let zDrag = false, zDebounce = 0;
+    const zApply = (pct) => {
+      pct = Math.max(0, Math.min(1, pct));
+      const v = Math.round(50 + pct * 450);
+      _proZoomLevel = v / 100;
+      if (zFill) zFill.style.width = (pct * 100) + '%';
+      if (zVal) zVal.textContent = v + '%';
+      // Apply zoom by adjusting x-axis min/max
+      if (_proChart && _proChart.data.labels?.length) {
+        const total = _proChart.data.labels.length;
+        const visible = Math.max(10, Math.round(total / _proZoomLevel));
+        const center = Math.round(total / 2);
+        const half = Math.round(visible / 2);
+        _proChart.options.scales.x.min = Math.max(0, center - half);
+        _proChart.options.scales.x.max = Math.min(total - 1, center + half);
+        _proChart.update('none');
+      }
+    };
+    // Init
+    zApply((100 - 50) / 450);
+    zoomPillEl.addEventListener('pointerdown', e => {
+      zDrag = true; zoomPillEl.setPointerCapture(e.pointerId);
+      const r = zoomPillEl.getBoundingClientRect();
+      zApply((e.clientX - r.left) / r.width);
+    });
+    zoomPillEl.addEventListener('pointermove', e => {
+      if (!zDrag) return;
+      const r = zoomPillEl.getBoundingClientRect();
+      zApply((e.clientX - r.left) / r.width);
+    });
+    const zEnd = () => { if (!zDrag) return; zDrag = false; };
+    zoomPillEl.addEventListener('pointerup', zEnd);
+    zoomPillEl.addEventListener('pointercancel', zEnd);
+    zoomPillEl.addEventListener('wheel', e => {
+      e.preventDefault();
+      const cur = _proZoomLevel * 100;
+      const nv = Math.max(50, Math.min(500, cur + (e.deltaY > 0 ? -10 : 10)));
+      zApply((nv - 50) / 450);
+    }, { passive: false });
+  }
+
+  // Fatigue filter pill (0 = off, 100 = max filter)
+  _initPill('proFatiguePill', {
+    min: 0, max: 100, step: 5, value: 0,
+    fmt: v => v === 0 ? 'Off' : Math.round(v) + '%',
+    onUpdate: v => { _proFatigueThreshold = v / 100; _liveUpdateFatigue(); }
+  });
+
+  // Anomaly sensitivity pill (0 = off, 100 = max)
+  _initPill('proAnomalyPill', {
+    min: 0, max: 100, step: 5, value: 0,
+    fmt: v => v === 0 ? 'Off' : Math.round(v) + '%',
+    onUpdate: v => { _proAnomalySensitivity = v / 100; _liveUpdateAnomalies(); }
+  });
+
+  // Data density pill (10–100%)
+  _initPill('proDensityPill', {
+    min: 10, max: 100, step: 5, value: 100,
+    fmt: v => Math.round(v) + '%',
+    onUpdate: v => { _proDensity = v / 100; }
+  });
 
   // X-axis toggle
   document.querySelectorAll('.pro-xaxis-btn').forEach(btn => {
@@ -799,6 +1327,129 @@ function _bindControls() {
     };
   }
 
+  // ── Ride Playback (expandable button → progress scrubber) ──
+  const player = document.getElementById('proPlayer');
+  const playBtn = document.getElementById('proPlayBtn');
+  const playerTrack = document.getElementById('proPlayerTrack');
+  const playerFill = document.getElementById('proPlayerFill');
+  const playerTime = document.getElementById('proPlayerTime');
+  const playerSpeed = document.getElementById('proPlayerSpeed');
+
+  function _updatePlayerProgress() {
+    if (!_proChart) return;
+    const total = _proChart.data.labels?.length || 1;
+    const pct = (_playIdx / total * 100).toFixed(1);
+    if (playerFill) playerFill.style.width = pct + '%';
+    // Show current time
+    const timeArr = _proStreams?.time;
+    if (timeArr && playerTime) {
+      const sec = timeArr[Math.min(_playIdx, timeArr.length - 1)] || 0;
+      const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
+      playerTime.textContent = `${m}:${s.toString().padStart(2, '0')}`;
+    }
+  }
+
+  function _stopPlayback() {
+    if (_playInterval) { clearInterval(_playInterval); _playInterval = null; }
+    if (playBtn) playBtn.innerHTML = '<svg class="icon" width="14" height="14"><use href="icons.svg#icon-play"/></svg>';
+    // Keep chart locked — only _closePlayer unlocks
+  }
+
+  function _closePlayer() {
+    _stopPlayback();
+    if (player) player.classList.remove('pro-player--open');
+    _playIdx = 0;
+    if (playerFill) playerFill.style.width = '0%';
+    if (playerTime) playerTime.textContent = '0:00';
+    // Re-enable chart interaction only on close
+    if (_proChart) {
+      _proChart.options.interaction.mode = 'index';
+      _proChart.options.events = ['mousemove', 'mouseout', 'click', 'touchstart', 'touchmove'];
+      _proChart.update('none');
+    }
+    const canvas = document.getElementById('proAnalysisChart');
+    if (canvas) canvas.style.pointerEvents = '';
+  }
+
+  function _startPlayback() {
+    if (!_proChart) return;
+    const total = _proChart.data.labels?.length || 0;
+    if (total < 10) return;
+    // Open the player bar
+    if (player) player.classList.add('pro-player--open');
+    if (playBtn) playBtn.innerHTML = '<svg class="icon" width="14" height="14"><use href="icons.svg#icon-pause"/></svg>';
+    // Disable chart interaction
+    _proChart.options.interaction.mode = null;
+    _proChart.options.events = [];
+    _proChart.update('none');
+    const canvas = document.getElementById('proAnalysisChart');
+    if (canvas) canvas.style.pointerEvents = 'none';
+
+    const fps = 30;
+    _playInterval = setInterval(() => {
+      _playIdx += PLAY_SPEEDS[_playSpeedIdx];
+      if (_playIdx >= total) { _playIdx = 0; _stopPlayback(); return; }
+      _activateCrosshairAtIndex(_playIdx);
+      _updatePlayerProgress();
+      // Throttle stats to every 5th frame
+      if (_playIdx % 5 === 0) _updateStats(_playIdx, _playIdx);
+    }, 1000 / fps);
+  }
+
+  if (playBtn) {
+    playBtn.onclick = () => {
+      if (_playInterval) _stopPlayback();
+      else _startPlayback();
+    };
+  }
+
+  if (playerSpeed) {
+    playerSpeed.onclick = () => {
+      _playSpeedIdx = (_playSpeedIdx + 1) % PLAY_SPEEDS.length;
+      playerSpeed.textContent = PLAY_SPEEDS[_playSpeedIdx] + '×';
+    };
+  }
+
+  const playerClose = document.getElementById('proPlayerClose');
+  if (playerClose) {
+    playerClose.onclick = () => _closePlayer();
+  }
+
+  // Track scrubbing — drag to seek
+  if (playerTrack) {
+    let _trackDrag = false;
+    const scrubTo = (clientX) => {
+      if (!_proChart) return;
+      const r = playerTrack.getBoundingClientRect();
+      const pct = Math.max(0, Math.min(1, (clientX - r.left) / r.width));
+      const total = _proChart.data.labels?.length || 1;
+      _playIdx = Math.round(pct * (total - 1));
+      _updatePlayerProgress();
+      _activateCrosshairAtIndex(_playIdx);
+      _updateStats(_playIdx, _playIdx);
+    };
+    playerTrack.addEventListener('pointerdown', e => {
+      _trackDrag = true;
+      playerTrack.setPointerCapture(e.pointerId);
+      // Pause during scrub
+      if (_playInterval) { clearInterval(_playInterval); _playInterval = null; }
+      scrubTo(e.clientX);
+    });
+    playerTrack.addEventListener('pointermove', e => {
+      if (_trackDrag) scrubTo(e.clientX);
+    });
+    playerTrack.addEventListener('pointerup', () => { _trackDrag = false; });
+    playerTrack.addEventListener('pointercancel', () => { _trackDrag = false; });
+  }
+
+  // Space bar toggles playback
+  document.getElementById('proAnalysis')?.addEventListener('keydown', e => {
+    if (e.code === 'Space' && !e.target.matches('input,select,textarea')) {
+      e.preventDefault();
+      if (_playInterval) _stopPlayback(); else _startPlayback();
+    }
+  });
+
   // Histogram mode toggle
   const histBtn = document.getElementById('proHistogramBtn');
   if (histBtn) {
@@ -809,10 +1460,29 @@ function _bindControls() {
     };
   }
 
-  // Compare button — load another activity overlay
+  // Stacked toggle
+  const stackBtn = document.getElementById('proStackedBtn');
+  if (stackBtn) {
+    stackBtn.onclick = () => {
+      _proStacked = !_proStacked;
+      stackBtn.classList.toggle('pro-mode-active', _proStacked);
+      if (_proStacked) {
+        _buildStackedCharts();
+      } else {
+        _destroyStackedCharts();
+        const mc = document.getElementById('proAnalysisChart');
+        if (mc) mc.style.display = '';
+        _buildChart();
+      }
+    };
+  }
+
+  // Compare button — opens ride picker panel on right side
   const compareBtn = document.getElementById('proCompareBtn');
+  let _comparePanel = null;
   if (compareBtn) {
     compareBtn.onclick = async () => {
+      // If already comparing, remove comparison
       if (_proCompareStreams) {
         _proCompareStreams = null;
         _proCompareActivity = null;
@@ -821,46 +1491,84 @@ function _bindControls() {
         _buildProChart();
         return;
       }
-      compareBtn.textContent = 'Loading...';
+      // If panel already open, close it
+      if (_comparePanel) {
+        _comparePanel.remove();
+        _comparePanel = null;
+        return;
+      }
+      // Build and show the ride picker panel
+      _comparePanel = document.createElement('div');
+      _comparePanel.className = 'pro-compare-panel';
+      _comparePanel.innerHTML = `
+        <div class="pro-compare-header">
+          <span style="font-weight:600;font-size:15px">Select Ride to Compare</span>
+          <button class="pro-compare-close" onclick="this.closest('.pro-compare-panel').remove();window._proComparePanel=null">
+            <svg class="icon" width="18" height="18"><use href="icons.svg#icon-x"/></svg>
+          </button>
+        </div>
+        <div class="pro-compare-list" style="padding:8px;overflow-y:auto;flex:1">
+          <div style="text-align:center;color:var(--text-muted);padding:20px">Loading rides...</div>
+        </div>
+      `;
+      document.getElementById('proAnalysis').appendChild(_comparePanel);
+
+      // Fetch recent activities
       try {
-        // Fetch recent activities to find a similar one
         const actId = _proActivity?.id;
-        let compareId = null;
-        let compareName = '';
-
-        // Try similar rides first
-        const similar = window.state?._similarRides;
-        if (similar?.length) {
-          compareId = similar[0].id;
-          compareName = similar[0].name || 'Similar ride';
-        } else {
-          // Fallback: fetch recent activities and pick previous one
-          const recent = await window.icuFetch?.(`/activities?oldest=${new Date(Date.now() - 90*86400000).toISOString().split('T')[0]}&newest=${new Date().toISOString().split('T')[0]}`);
-          if (recent?.length > 1) {
-            const other = recent.find(a => a.id !== actId);
-            if (other) { compareId = other.id; compareName = other.name || 'Previous ride'; }
-          }
-        }
-
-        if (!compareId) {
-          compareBtn.textContent = 'Compare';
-          if (window._showToast) window._showToast('No comparable ride found', 'warning');
+        const oldest = new Date(Date.now() - 180 * 86400000).toISOString().split('T')[0];
+        const newest = new Date().toISOString().split('T')[0];
+        const activities = await window.icuFetch?.(`/activities?oldest=${oldest}&newest=${newest}`);
+        const list = _comparePanel.querySelector('.pro-compare-list');
+        if (!activities?.length) {
+          list.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:20px">No rides found</div>';
           return;
         }
+        // Filter out current activity, show last 30
+        const rides = activities.filter(a => a.id !== actId).slice(0, 30);
+        list.innerHTML = rides.map(a => {
+          const d = a.start_date_local ? new Date(a.start_date_local) : null;
+          const dateStr = d ? d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
+          const dist = a.distance ? (a.distance / 1000).toFixed(1) + ' km' : '';
+          const dur = a.moving_time ? _fmtDuration(a.moving_time) : '';
+          const tss = a.icu_training_load ? Math.round(a.icu_training_load) + ' TSS' : '';
+          return `<div class="pro-compare-ride" data-id="${a.id}" data-name="${(a.name || '').replace(/"/g, '&quot;')}">
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.name || 'Ride'}</div>
+              <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${dateStr} · ${dist} · ${dur}</div>
+            </div>
+            <div style="font-size:12px;color:var(--text-faint);flex-shrink:0">${tss}</div>
+          </div>`;
+        }).join('');
 
-        const resp = await window.icuFetch?.(`/activity/${compareId}/streams?types=watts,heartrate,cadence,velocity_smooth,altitude,time,distance`);
-        if (resp) {
-          _proCompareStreams = resp;
-          _proCompareActivity = { id: compareId, name: compareName };
-          compareBtn.classList.add('pro-mode-active');
-          compareBtn.textContent = `✕ ${compareName.substring(0, 15)}`;
-          _buildProChart();
-        } else {
-          compareBtn.textContent = 'Compare';
-        }
+        // Click handler for ride selection
+        list.addEventListener('click', async (e) => {
+          const ride = e.target.closest('.pro-compare-ride');
+          if (!ride) return;
+          const id = ride.dataset.id;
+          const name = ride.dataset.name;
+          ride.style.opacity = '0.5';
+          ride.textContent = 'Loading...';
+          try {
+            const resp = await window.icuFetch?.(`/activity/${id}/streams?types=watts,heartrate,cadence,velocity_smooth,altitude,time,distance`);
+            if (resp) {
+              _proCompareStreams = resp;
+              _proCompareActivity = { id, name };
+              compareBtn.classList.add('pro-mode-active');
+              compareBtn.textContent = `✕ ${name.substring(0, 12)}`;
+              _buildProChart();
+              // Close panel
+              _comparePanel.remove();
+              _comparePanel = null;
+            }
+          } catch (err) {
+            ride.style.opacity = '1';
+            ride.textContent = 'Failed — try again';
+          }
+        });
       } catch (e) {
-        compareBtn.textContent = 'Compare';
-        if (window._showToast) window._showToast('Failed to load comparison', 'error');
+        const list = _comparePanel?.querySelector('.pro-compare-list');
+        if (list) list.innerHTML = '<div style="text-align:center;color:var(--red);padding:20px">Failed to load rides</div>';
       }
     };
   }
@@ -898,11 +1606,12 @@ function _bindControls() {
     climbCheck.onchange = () => { _proShowClimbs = climbCheck.checked; _proChart?.update(); };
   }
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts — remove old first to prevent accumulation
+  document.removeEventListener('keydown', _proKeyHandler);
   document.addEventListener('keydown', _proKeyHandler);
 }
 
-function _proKeyHandler(e) {
+_proKeyHandler = function(e) {
   const el = document.getElementById('proAnalysis');
   if (!el || el.style.display === 'none') return;
 
@@ -945,6 +1654,6 @@ function _proKeyHandler(e) {
     e.preventDefault();
     _proToggleStream(PRO_STREAMS[num - 1].key);
   }
-}
+};
 
 console.info('[ProAnalysis] Module loaded');
