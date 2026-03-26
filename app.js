@@ -1773,45 +1773,46 @@ function _syncThemePicker() {
   );
 }
 
-// Lazy subpage cache — stores innerHTML of settings subpages
+// Lazy subpage cache — DocumentFragment approach
+// Moves DOM nodes to a fragment (preserves event listeners, dropdown state, scrubber positions)
+// Restore is instant — no HTML parsing, just move nodes back
 const _subpageCache = {};
 let _subpageCacheReady = false;
 
-// NOTE: Aggressive page/sheet stripping on startup was removed because it breaks
-// render functions that expect static HTML elements to exist (e.g. form fields,
-// card containers, chart canvases). The safe DOM optimizations are:
-// 1. content-visibility: hidden on inactive pages (CSS-only, no DOM removal)
-// 2. _cleanupPageDOM() strips DYNAMIC content when leaving pages
-// 3. Settings subpage lazy cache (subpages are self-contained)
-
 function _initSubpageCache() {
   if (_subpageCacheReady) return;
+  let count = 0;
   document.querySelectorAll('.ios-subpage').forEach(sub => {
     const key = sub.id.replace('iosSubpage-', '');
-    if (sub.innerHTML.trim()) {
-      _subpageCache[key] = sub.innerHTML;
-      sub.innerHTML = ''; // strip DOM
+    if (sub.childNodes.length) {
+      const frag = document.createDocumentFragment();
+      while (sub.firstChild) frag.appendChild(sub.firstChild);
+      _subpageCache[key] = frag;
+      count++;
     }
   });
   _subpageCacheReady = true;
-  console.info('Lazy subpages: cached ' + Object.keys(_subpageCache).length + ' subpages');
+  console.info('Lazy subpages: cached ' + count + ' subpages (DocumentFragment)');
 }
 
-// Restore subpage content from cache
+// Restore subpage content from fragment cache (instant, no HTML parse)
 function _restoreSubpage(id) {
   const sub = document.getElementById('iosSubpage-' + id);
   if (!sub) return;
-  if (!sub.innerHTML.trim() && _subpageCache[id]) {
-    sub.innerHTML = _subpageCache[id];
+  if (!sub.childNodes.length && _subpageCache[id]) {
+    sub.appendChild(_subpageCache[id]);
+    // Fragment is now empty (nodes moved to sub) — recreate for next strip
+    _subpageCache[id] = null;
   }
 }
 
-// Strip subpage content (after close animation)
+// Strip subpage content back to fragment cache
 function _stripSubpage(id) {
   const sub = document.getElementById('iosSubpage-' + id);
-  if (sub && _subpageCache[id]) {
-    sub.innerHTML = '';
-  }
+  if (!sub || !sub.childNodes.length) return;
+  const frag = document.createDocumentFragment();
+  while (sub.firstChild) frag.appendChild(sub.firstChild);
+  _subpageCache[id] = frag;
 }
 
 function _isDesktopSettings() { return window.innerWidth >= 900; }
