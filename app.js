@@ -19093,6 +19093,10 @@ async function navigateToActivity(actKey, fromStep = false) {
   // Pre-warm the MapLibre map immediately (loads style + tiles in parallel with API fetches)
   _preWarmActivityMap();
 
+  // Init GridStack BEFORE charts render — cards are empty shells,
+  // charts will render INTO the already-positioned grid items
+  _initActCardsGrid();
+
   try {
     const [detailResult, streamsResult] = await Promise.allSettled([
       fetchActivityDetail(actId),
@@ -19299,7 +19303,7 @@ async function navigateToActivity(actKey, fromStep = false) {
     }
 
     // Inject info buttons and dividers on all visible activity cards
-    setTimeout(() => { _injectActCardInfoBtns(); _injectActCardDividers(); _initActCardsGrid(); }, 300);
+    setTimeout(() => { _injectActCardInfoBtns(); _injectActCardDividers(); }, 300);
     // Re-run after async cards (intervals, curves) finish loading
     setTimeout(() => _injectActCardDividers(), 1500);
     setTimeout(() => _injectActCardDividers(), 3000);
@@ -20763,10 +20767,116 @@ async function _loadGridStack() {
   _gsLoading = false;
 }
 
-function _initActCardsGrid() {
-  // GridStack disabled — moving canvas elements destroys Chart.js contexts
-  // CSS flex-wrap handles 2-col layout, SortableJS can add drag-to-reorder later
-  return;
+// Init GridStack BEFORE charts render — cards stay in grid items, canvases created inside them
+async function _initActCardsGrid() {
+  if (window.innerWidth < 900) return;
+  const scroll = document.getElementById('actSheetScroll');
+  if (!scroll || _gsInstance || document.getElementById('_actGrid')) return;
+
+  // Load GridStack (CSS + JS)
+  try {
+    await _loadGridStack();
+    if (typeof GridStack === 'undefined') return;
+  } catch (e) {
+    console.warn('[GridStack] Load failed:', e);
+    return;
+  }
+
+  if (state.currentPage !== 'activity') return;
+
+  // Collect ALL chart cards (visible or hidden — they'll show when data arrives)
+  const children = [...scroll.children];
+  let afterStreams = false;
+  const cards = [];
+  for (const el of children) {
+    if (el.id === 'detailStreamsCard' || el.classList?.contains('detail-charts-row')) {
+      afterStreams = true;
+      continue;
+    }
+    if (!afterStreams) continue;
+    if (el.classList?.contains('act-card-divider')) { el.remove(); continue; }
+    if (!el.classList?.contains('card') && !el.classList?.contains('ach-card')) continue;
+    cards.push(el);
+  }
+  if (!cards.length) return;
+
+  // Load saved layout
+  const savedLayout = JSON.parse(localStorage.getItem('icu_act_grid_layout') || 'null');
+  const savedMap = {};
+  if (savedLayout) savedLayout.forEach(s => { if (s.id) savedMap[s.id] = s; });
+
+  // Build grid container
+  const gridEl = document.createElement('div');
+  gridEl.className = 'grid-stack act-cards-grid';
+  gridEl.id = '_actGrid';
+
+  let col = 0, row = 0;
+  cards.forEach(card => {
+    const item = document.createElement('div');
+    item.className = 'grid-stack-item';
+    const s = savedMap[card.id];
+    if (s) {
+      item.setAttribute('gs-x', s.x);
+      item.setAttribute('gs-y', s.y);
+      item.setAttribute('gs-w', s.w);
+      item.setAttribute('gs-h', s.h);
+    } else {
+      item.setAttribute('gs-x', col);
+      item.setAttribute('gs-y', row);
+      item.setAttribute('gs-w', 1);
+      item.setAttribute('gs-h', 1);
+    }
+    item.setAttribute('gs-id', card.id || '');
+    const content = document.createElement('div');
+    content.className = 'grid-stack-item-content';
+    // Move card into grid item — card is empty shell at this point, no charts yet
+    content.appendChild(card);
+    item.appendChild(content);
+    gridEl.appendChild(item);
+    if (!s) { col++; if (col >= 2) { col = 0; row++; } }
+  });
+
+  // Insert grid after streams
+  const streamsCard = document.getElementById('detailStreamsCard');
+  const chartsRow = scroll.querySelector('.detail-charts-row');
+  const insertAfter = chartsRow || streamsCard;
+  if (insertAfter?.nextSibling) {
+    scroll.insertBefore(gridEl, insertAfter.nextSibling);
+  } else {
+    scroll.appendChild(gridEl);
+  }
+
+  // Init GridStack
+  _gsInstance = GridStack.init({
+    column: 2,
+    cellHeight: 380,
+    margin: 8,
+    float: false,
+    animate: true,
+    draggable: { handle: '.card-header' },
+    resizable: { handles: 'se' },
+    disableOneColumnMode: true,
+  }, gridEl);
+
+  console.info('[GridStack] Initialized:', _gsInstance.getGridItems().length, 'cards (pre-render)');
+
+  // Save layout on change + resize charts
+  _gsInstance.on('change', () => {
+    const layout = [];
+    _gsInstance.getGridItems().forEach(item => {
+      const node = item.gridstackNode;
+      if (node) layout.push({ id: node.id, x: node.x, y: node.y, w: node.w, h: node.h });
+    });
+    try { localStorage.setItem('icu_act_grid_layout', JSON.stringify(layout)); } catch {}
+  });
+
+  _gsInstance.on('resizestop', (event, el) => {
+    // Resize Chart.js canvases inside the resized item
+    el.querySelectorAll('canvas').forEach(c => {
+      const chart = Chart.getChart?.(c);
+      if (chart) { chart.resize(); chart.update('none'); }
+    });
+  });
 }
 
 async function _initGridStackNow() {
