@@ -19094,8 +19094,9 @@ async function navigateToActivity(actKey, fromStep = false) {
   _preWarmActivityMap();
 
   // Init GridStack BEFORE charts render — cards are empty shells,
-  // charts will render INTO the already-positioned grid items
-  _initActCardsGrid();
+  // charts will render INTO the already-positioned grid items.
+  // MUST await so cards are wrapped before any chart creation.
+  await _initActCardsGrid();
 
   try {
     const [detailResult, streamsResult] = await Promise.allSettled([
