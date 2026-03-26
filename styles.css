@@ -11264,14 +11264,17 @@ body.show-save-fab #actSaveRouteFab {
     }
     /* Reset mobile edge-bleed on cards inside GridStack */
     .act-cards-grid .card {
-        margin: 0;
-        background: transparent;
-        border-radius: 0;
-        padding: var(--pad-card);
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
+        margin: 0 !important;
+        background: transparent !important;
+        border-radius: 0 !important;
+        padding: var(--pad-card) !important;
+        height: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: visible !important;
+        color: var(--text-primary) !important;
+        /* DEBUG */
+        outline: 1px solid rgba(0,255,0,0.3);
     }
     /* GridStack container */
     .act-cards-grid.grid-stack {
