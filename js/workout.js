@@ -1244,8 +1244,8 @@ export function loadMapTheme() {
 export function setMapTheme(key) {
   if (!(window.MAP_STYLES || {})[key] || key === 'satellite') return;
   try { localStorage.setItem('icu_map_theme', key); } catch (e) { console.warn('localStorage.setItem failed:', e); }
-  // Update active state on picker buttons
-  document.querySelectorAll('#mapThemePicker .app-theme-card').forEach(b =>
+  // Update active state on picker buttons (carousel cards + legacy)
+  document.querySelectorAll('#mapThemePicker .theme-card, #mapThemePicker .app-theme-card').forEach(b =>
     b.classList.toggle('active', b.dataset.theme === key));
 
   const style = _mlGetStyle(key);
@@ -1328,8 +1328,8 @@ export function setAppFont(key) {
   const family = FONT_OPTIONS[key];
   document.documentElement.style.setProperty('--font-ui', family);
   document.documentElement.style.setProperty('--font-num', family);
-  // Update active pill
-  document.querySelectorAll('.font-option').forEach(b =>
+  // Update active pill (specimen cards + legacy)
+  document.querySelectorAll('.font-specimen, .font-option').forEach(b =>
     b.classList.toggle('active', b.dataset.font === key));
 }
 
@@ -1341,8 +1341,8 @@ export function setAppFont(key) {
     document.documentElement.style.setProperty('--font-ui', family);
     document.documentElement.style.setProperty('--font-num', family);
   }
-  // Set active state on buttons
-  document.querySelectorAll('.font-option').forEach(b =>
+  // Set active state on buttons (specimen cards + legacy)
+  document.querySelectorAll('.font-specimen, .font-option').forEach(b =>
     b.classList.toggle('active', b.dataset.font === saved));
 })();
 
@@ -1406,6 +1406,10 @@ export function _updateChartColors() {
 
 function _resolveTheme(mode) {
   if (mode === 'auto') return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  if (mode === 'scheduled') {
+    const hour = new Date().getHours();
+    return (hour >= 7 && hour < 19) ? 'light' : 'dark'; // Light 7am-7pm, dark otherwise
+  }
   return mode;
 }
 
@@ -1442,13 +1446,13 @@ export function setTheme(mode) {
     b.classList.toggle('active', b.dataset.themeVal === mode)
   );
 
-  // Update theme picker active states (new UI)
-  document.querySelectorAll('#appThemePicker .app-theme-card').forEach(c => {
+  // Update theme picker active states (carousel cards + legacy)
+  document.querySelectorAll('#appThemePicker .theme-card, #appThemePicker .app-theme-card').forEach(c => {
     c.classList.toggle('active', c.dataset.themeVal === mode);
   });
   const themeLabel = document.getElementById('iosCurrentTheme');
   if (themeLabel) {
-    const labels = { dark: 'Dark', light: 'Light', tdf: 'Tour de France', auto: 'Auto' };
+    const labels = { dark: 'Dark', light: 'Light', tdf: 'Tour de France', auto: 'Auto', scheduled: 'Scheduled', awwwards: 'Editorial' };
     themeLabel.textContent = labels[mode] || mode;
   }
 

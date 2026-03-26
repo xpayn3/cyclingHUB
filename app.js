@@ -1647,15 +1647,127 @@ const _STT_HERO_DATA = {
   mygarage:     { bg: 'linear-gradient(135deg,rgba(139,92,246,0.15),rgba(0,229,160,0.1))', icon: '<svg class="icon" width="36" height="36" style="stroke:var(--accent)"><use href="icons.svg#icon-bike"/></svg>', desc: 'Manage your bike fleet, track components, and enable brand logos.' },
   navigation:   { bg: 'linear-gradient(135deg,rgba(88,86,214,0.15),rgba(0,229,160,0.1))', icon: '<svg class="icon" width="36" height="36" style="stroke:var(--accent)"><use href="icons.svg#icon-grid-rounded"/></svg>', desc: 'Customize your tab bar order and quick action button.' },
   accentcolor:  { bg: 'linear-gradient(135deg,rgba(0,229,160,0.15),rgba(175,82,222,0.15))', icon: '<svg class="icon" width="36" height="36" style="stroke:var(--accent)"><use href="icons.svg#icon-target"/></svg>', desc: 'Choose your app accent color.' },
+  notifications:{ bg: 'linear-gradient(135deg,rgba(255,59,48,0.15),rgba(255,149,0,0.1))', icon: '<svg class="icon" width="36" height="36" style="stroke:#ff3b30"><use href="icons.svg#icon-bell"/></svg>', desc: 'Control push notifications and alert preferences.' },
 };
+
+const _THEME_DEFS = [
+  { key: 'dark',     name: 'Dark',           desc: 'Pure black, green accent',
+    bg: '#000', card: 'rgba(255,255,255,0.04)', text: '#fff', muted: 'rgba(255,255,255,0.55)', accent: '#00e5a0', chart: '#00e5a0' },
+  { key: 'light',    name: 'Light',          desc: 'Clean, bright surfaces',
+    bg: '#f2f2f7', card: '#fff', text: '#1c1c1e', muted: 'rgba(0,0,0,0.45)', accent: '#00e5a0', chart: '#00c48a' },
+  { key: 'tdf',      name: 'Tour de France', desc: 'Maillot jaune, gold on black',
+    bg: '#000', card: 'rgba(255,215,0,0.06)', text: '#fff', muted: 'rgba(255,255,255,0.55)', accent: '#FFD700', chart: '#FFD700' },
+  { key: 'auto',     name: 'Auto',           desc: 'Follow system setting',
+    bg: 'linear-gradient(135deg,#000 50%,#f2f2f7 50%)', card: 'rgba(255,255,255,0.04)', text: '#fff', muted: 'rgba(255,255,255,0.55)', accent: '#00e5a0', chart: '#00e5a0' },
+  { key: 'scheduled',name: 'Scheduled',      desc: 'Dark at night, light by day',
+    bg: 'linear-gradient(180deg,#1c1c1e 0%,#f2f2f7 100%)', card: 'rgba(255,255,255,0.06)', text: '#fff', muted: 'rgba(255,255,255,0.5)', accent: '#00e5a0', chart: '#00e5a0' },
+  { key: 'awwwards', name: 'Editorial',      desc: 'Off-white, soft blue accent',
+    bg: '#F0EDE8', card: '#fff', text: '#1a1a1a', muted: 'rgba(0,0,0,0.4)', accent: '#7CB9C8', chart: '#7CB9C8' },
+];
+
+function _buildThemeCarousel() {
+  const container = document.getElementById('appThemePicker');
+  if (!container) return;
+  const current = localStorage.getItem('icu_theme') || 'dark';
+
+  container.innerHTML = _THEME_DEFS.map(t => {
+    const isAuto = t.key === 'auto' || t.key === 'scheduled';
+    const bgStyle = t.bg.includes('gradient') ? `background:${t.bg}` : `background:${t.bg}`;
+    return `
+    <button class="theme-card${t.key === current ? ' active' : ''}" data-theme-val="${t.key}" onclick="setTheme('${t.key}')">
+      <div class="theme-card-mock" style="${bgStyle}">
+        <div class="theme-mock-header">
+          <div class="theme-mock-avatar" style="background:${t.accent}"></div>
+          <div class="theme-mock-pills">
+            <div style="background:${t.accent};width:24px;height:6px;border-radius:3px;opacity:0.8"></div>
+            <div style="background:${t.muted};width:18px;height:6px;border-radius:3px;opacity:0.4"></div>
+            <div style="background:${t.muted};width:18px;height:6px;border-radius:3px;opacity:0.4"></div>
+          </div>
+        </div>
+        <div class="theme-mock-stats">
+          <div class="theme-mock-stat" style="background:${t.card}">
+            <div style="font-size:14px;font-weight:700;color:${t.accent};font-family:var(--font-num)">24</div>
+            <div style="font-size:6px;color:${t.muted};margin-top:1px">CTL</div>
+          </div>
+          <div class="theme-mock-stat" style="background:${t.card}">
+            <div style="font-size:14px;font-weight:700;color:${t.text};font-family:var(--font-num)">13</div>
+            <div style="font-size:6px;color:${t.muted};margin-top:1px">ATL</div>
+          </div>
+        </div>
+        <div class="theme-mock-chart">
+          <svg viewBox="0 0 120 28" preserveAspectRatio="none" style="width:100%;height:100%">
+            <polyline points="0,22 15,20 30,18 45,14 60,10 75,8 90,6 105,5 120,4" fill="none" stroke="${t.chart}" stroke-width="1.5" stroke-linecap="round"/>
+            <polyline points="0,24 15,23 30,22 45,20 60,18 75,22 90,24 105,23 120,22" fill="none" stroke="${t.muted}" stroke-width="1" opacity="0.3"/>
+          </svg>
+        </div>
+        <div class="theme-mock-rows">
+          <div style="height:4px;border-radius:2px;background:${t.card};width:90%"></div>
+          <div style="height:4px;border-radius:2px;background:${t.card};width:75%"></div>
+          <div style="height:4px;border-radius:2px;background:${t.card};width:85%"></div>
+        </div>
+      </div>
+      <div class="theme-card-info">
+        <div class="theme-card-name">${t.name}</div>
+        <div class="theme-card-desc">${t.desc}</div>
+      </div>
+      <svg class="icon theme-card-check" width="20" height="20"><use href="icons.svg#icon-check"/></svg>
+    </button>`;
+  }).join('');
+}
+
+const _MAP_THEME_DEFS = [
+  { key: 'liberty',  name: 'Liberty',  desc: 'Classic, warm tones',
+    land: '#f0ede4', water: '#b8cca0', roads: '#d9d4c5', text: '#555', route: '#ff6b35' },
+  { key: 'positron', name: 'Positron', desc: 'Clean, minimal light',
+    land: '#f8f8f5', water: '#d4d4cc', roads: '#ebebea', text: '#888', route: '#4a9eff' },
+  { key: 'dark',     name: 'Dark',     desc: 'Dark neutral tones',
+    land: '#1e2028', water: '#14151a', roads: '#2a2d35', text: '#666', route: '#00e5a0' },
+  { key: 'strava',   name: 'Strava',   desc: 'Dark with green hues',
+    land: '#1a1e24', water: '#1a2a36', roads: '#1a3028', text: '#4a7a5a', route: '#00e5a0' },
+];
+
+function _buildMapThemeCarousel() {
+  const container = document.getElementById('mapThemePicker');
+  if (!container) return;
+  const current = localStorage.getItem('icu_map_theme') || 'liberty';
+
+  container.innerHTML = _MAP_THEME_DEFS.map(m => `
+    <button class="theme-card${m.key === current ? ' active' : ''}" data-theme="${m.key}" onclick="setMapTheme('${m.key}')">
+      <div class="theme-card-mock" style="background:${m.land};min-height:140px">
+        <svg viewBox="0 0 220 110" preserveAspectRatio="none" style="width:100%;height:100%;position:absolute;inset:0">
+          <!-- Water body -->
+          <path d="M0,80 Q40,60 80,75 T160,65 L220,70 L220,110 L0,110 Z" fill="${m.water}" opacity="0.6"/>
+          <!-- Roads -->
+          <line x1="30" y1="10" x2="190" y2="50" stroke="${m.roads}" stroke-width="3" stroke-linecap="round"/>
+          <line x1="10" y1="40" x2="210" y2="30" stroke="${m.roads}" stroke-width="2" stroke-linecap="round"/>
+          <line x1="60" y1="5" x2="80" y2="90" stroke="${m.roads}" stroke-width="2" stroke-linecap="round"/>
+          <!-- Route overlay -->
+          <polyline points="20,70 50,45 80,50 120,25 160,35 200,20" fill="none" stroke="${m.route}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <!-- Route dots -->
+          <circle cx="20" cy="70" r="3" fill="${m.route}"/>
+          <circle cx="200" cy="20" r="3" fill="${m.route}"/>
+          <!-- Labels -->
+          <text x="100" y="95" fill="${m.text}" font-size="7" text-anchor="middle" font-family="var(--font-ui)">Ljubljana</text>
+        </svg>
+      </div>
+      <div class="theme-card-info">
+        <div class="theme-card-name">${m.name}</div>
+        <div class="theme-card-desc">${m.desc}</div>
+      </div>
+      <svg class="icon theme-card-check" width="20" height="20"><use href="icons.svg#icon-check"/></svg>
+    </button>
+  `).join('');
+}
 
 function _syncThemePicker() {
   const current = localStorage.getItem('icu_theme') || 'dark';
-  document.querySelectorAll('#appThemePicker .app-theme-card').forEach(c =>
+  _buildThemeCarousel();
+  _buildMapThemeCarousel();
+  document.querySelectorAll('#appThemePicker .theme-card').forEach(c =>
     c.classList.toggle('active', c.dataset.themeVal === current)
   );
   const mapCurrent = localStorage.getItem('icu_map_theme') || 'liberty';
-  document.querySelectorAll('#mapThemePicker .app-theme-card').forEach(c =>
+  document.querySelectorAll('#mapThemePicker .theme-card').forEach(c =>
     c.classList.toggle('active', c.dataset.theme === mapCurrent)
   );
 }
@@ -1774,6 +1886,19 @@ function openSettingsSubpage(id) {
     });
   }
   if (id === 'apptheme' || id === 'maptheme') { _syncThemePicker(); _syncSquircleToggle(); }
+  if (id === 'notifications') {
+    // Sync toggle states from localStorage
+    const g = document.getElementById('notifGearToggle');
+    const t = document.getElementById('notifTrainingToggle');
+    const s = document.getElementById('notifStreaksToggle');
+    const gl = document.getElementById('notifGoalsToggle');
+    if (g) g.checked = localStorage.getItem('icu_notif_gear') !== 'false';
+    if (t) t.checked = localStorage.getItem('icu_notif_training') !== 'false';
+    if (s) s.checked = localStorage.getItem('icu_notif_streaks') !== 'false';
+    if (gl) gl.checked = localStorage.getItem('icu_notif_goals') !== 'false';
+    const p = document.getElementById('notifPushToggle');
+    if (p) p.checked = localStorage.getItem('icu_notif_push') === 'true';
+  }
 
   // Inject hero intro if not already present
   if (!sub.querySelector('.stt-hero') && _STT_HERO_DATA[id]) {
@@ -4462,6 +4587,7 @@ function navigate(page, opts) {
     _initSubpageCache(); // lazy-strip all subpage DOM on first visit
     renderDashSectionToggles(); renderActSectionToggles();
     _updateStorageSizeLabel();
+    _updateNotifSummary();
     if (window._pendingSettingsSubpage) {
       const _psub = window._pendingSettingsSubpage;
       window._pendingSettingsSubpage = null;
@@ -16353,6 +16479,15 @@ function _notifRefreshBell() {
   // Update title with count
   document.title = count > 0 ? `(${count}) CycleIQ` : 'CycleIQ';
 }
+
+function _updateNotifSummary() {
+  const el = document.getElementById('iosNotifSummary');
+  if (!el) return;
+  const types = ['gear', 'training', 'streaks', 'goals'];
+  const on = types.filter(t => localStorage.getItem('icu_notif_' + t) !== 'false');
+  el.textContent = on.length === types.length ? 'All on' : on.length === 0 ? 'All off' : `${on.length} of ${types.length}`;
+}
+window._updateNotifSummary = _updateNotifSummary;
 
 function openNotifSheet() {
   renderNotifSheet();

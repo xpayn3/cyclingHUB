@@ -4012,45 +4012,11 @@
                             <!-- NOTIFICATIONS -->
                             <div class="ios-group-label">Notifications</div>
                             <div class="ios-group">
-                                <div class="ios-row">
+                                <div class="ios-row" data-nav onclick="openSettingsSubpage('notifications')">
                                     <div class="ios-row-icon" style="background:#ff3b30"><svg class="icon"><use href="icons.svg#icon-bell"/></svg></div>
-                                    <span class="ios-row-label">Push notifications</span>
-                                    <label class="settings-ios-toggle">
-                                        <input type="checkbox" id="notifPushToggle" onchange="_notifRequestPush(this.checked)"/>
-                                        <span class="settings-ios-slider"></span>
-                                    </label>
-                                </div>
-                                <div class="ios-row">
-                                    <div class="ios-row-icon" style="background:#ff9500"><svg class="icon"><use href="icons.svg#icon-wheel"/></svg></div>
-                                    <span class="ios-row-label">Gear alerts</span>
-                                    <label class="settings-ios-toggle">
-                                        <input type="checkbox" id="notifGearToggle" checked onchange="localStorage.setItem('icu_notif_gear',this.checked);_notifRefreshBell()"/>
-                                        <span class="settings-ios-slider"></span>
-                                    </label>
-                                </div>
-                                <div class="ios-row">
-                                    <div class="ios-row-icon" style="background:#30d158"><svg class="icon"><use href="icons.svg#icon-activity"/></svg></div>
-                                    <span class="ios-row-label">Training alerts</span>
-                                    <label class="settings-ios-toggle">
-                                        <input type="checkbox" id="notifTrainingToggle" checked onchange="localStorage.setItem('icu_notif_training',this.checked);_notifRefreshBell()"/>
-                                        <span class="settings-ios-slider"></span>
-                                    </label>
-                                </div>
-                                <div class="ios-row">
-                                    <div class="ios-row-icon" style="background:#5856d6"><svg class="icon"><use href="icons.svg#icon-flame"/></svg></div>
-                                    <span class="ios-row-label">Streak reminders</span>
-                                    <label class="settings-ios-toggle">
-                                        <input type="checkbox" id="notifStreaksToggle" checked onchange="localStorage.setItem('icu_notif_streaks',this.checked);_notifRefreshBell()"/>
-                                        <span class="settings-ios-slider"></span>
-                                    </label>
-                                </div>
-                                <div class="ios-row">
-                                    <div class="ios-row-icon" style="background:#007aff"><svg class="icon"><use href="icons.svg#icon-clock"/></svg></div>
-                                    <span class="ios-row-label">Goal reminders</span>
-                                    <label class="settings-ios-toggle">
-                                        <input type="checkbox" id="notifGoalsToggle" checked onchange="localStorage.setItem('icu_notif_goals',this.checked);_notifRefreshBell()"/>
-                                        <span class="settings-ios-slider"></span>
-                                    </label>
+                                    <span class="ios-row-label">Notifications</span>
+                                    <span class="ios-row-value" id="iosNotifSummary">All on</span>
+                                    <svg class="icon ios-row-chevron"><use href="icons.svg#icon-chevron-right"/></svg>
                                 </div>
                             </div>
 
@@ -4070,12 +4036,7 @@
                             <!-- MAP -->
                             <div class="ios-group-label">Map</div>
                             <div class="ios-group">
-                                <div class="ios-row" data-nav onclick="openSettingsSubpage('maptheme')">
-                                    <div class="ios-row-icon" style="background:#007aff"><svg class="icon"><use href="icons.svg#icon-map"/></svg></div>
-                                    <span class="ios-row-label">Map Theme</span>
-                                    <span class="ios-row-value" id="iosCurrentMapTheme">Strava</span>
-                                    <svg class="icon ios-row-chevron"><use href="icons.svg#icon-chevron-right"/></svg>
-                                </div>
+                                <!-- Map Theme moved to App Theme subpage -->
                                 <div class="ios-row">
                                     <span class="ios-row-label">Smooth flyover</span>
                                     <label class="settings-ios-toggle"><input type="checkbox" id="smoothFlyoverToggle" onchange="toggleSmoothFlyover(this.checked)"/><span class="settings-ios-slider"></span></label>
@@ -4324,99 +4285,16 @@
 
                         <!-- Font subpage -->
 
-                        <!-- Map Theme subpage -->
-                        <div class="ios-subpage" id="iosSubpage-maptheme">
-                            <div class="ios-group-label">Map Theme</div>
-                            <div class="ios-group">
-                                <div class="app-theme-grid" id="mapThemePicker">
-                                    <button class="app-theme-card" data-theme="liberty" onclick="setMapTheme('liberty')">
-                                        <span class="app-theme-preview">
-                                            <span class="app-theme-bg" style="background:linear-gradient(145deg,#f0ede4 0%,#d9d4c5 50%,#b8cca0 100%)"></span>
-                                        </span>
-                                        <span class="app-theme-name">Liberty</span>
-                                        <span class="app-theme-desc">Classic, warm tones</span>
-                                        <svg class="icon app-theme-check" width="20" height="20" style="stroke:var(--accent)"><use href="icons.svg#icon-check"/></svg>
-                                    </button>
-                                    <button class="app-theme-card" data-theme="positron" onclick="setMapTheme('positron')">
-                                        <span class="app-theme-preview">
-                                            <span class="app-theme-bg" style="background:linear-gradient(145deg,#f8f8f5 0%,#ebebea 50%,#d4d4cc 100%)"></span>
-                                        </span>
-                                        <span class="app-theme-name">Positron</span>
-                                        <span class="app-theme-desc">Clean, minimal light</span>
-                                        <svg class="icon app-theme-check" width="20" height="20" style="stroke:var(--accent)"><use href="icons.svg#icon-check"/></svg>
-                                    </button>
-                                    <button class="app-theme-card" data-theme="dark" onclick="setMapTheme('dark')">
-                                        <span class="app-theme-preview">
-                                            <span class="app-theme-bg" style="background:linear-gradient(145deg,#2a2d35 0%,#1e2028 50%,#14151a 100%)"></span>
-                                        </span>
-                                        <span class="app-theme-name">Dark</span>
-                                        <span class="app-theme-desc">Dark neutral tones</span>
-                                        <svg class="icon app-theme-check" width="20" height="20" style="stroke:var(--accent)"><use href="icons.svg#icon-check"/></svg>
-                                    </button>
-                                    <button class="app-theme-card" data-theme="strava" onclick="setMapTheme('strava')">
-                                        <span class="app-theme-preview">
-                                            <span class="app-theme-bg" style="background:linear-gradient(145deg,#1a3028 0%,#1a1e24 50%,#1a2a36 100%)"></span>
-                                        </span>
-                                        <span class="app-theme-name">Strava</span>
-                                        <span class="app-theme-desc">Dark with green hues</span>
-                                        <svg class="icon app-theme-check" width="20" height="20" style="stroke:var(--accent)"><use href="icons.svg#icon-check"/></svg>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+                        <!-- Map Theme subpage (merged into apptheme) -->
+                        <div class="ios-subpage" id="iosSubpage-maptheme"></div>
 
                         <!-- Weather subpage -->
                         <div class="ios-subpage" id="iosSubpage-apptheme">
                             <div class="ios-group-label">App Theme</div>
-                            <div class="ios-group">
-                                <div class="app-theme-grid" id="appThemePicker">
-                                    <button class="app-theme-card active" data-theme-val="dark" onclick="setTheme('dark')">
-                                        <span class="app-theme-preview">
-                                            <span class="app-theme-bg" style="background:linear-gradient(145deg,#000 0%,#1C1C1E 60%,#2C2C2E 100%)"></span>
-                                            <span class="app-theme-accent" style="background:#00e5a0"></span>
-                                        </span>
-                                        <span class="app-theme-name">Dark</span>
-                                        <span class="app-theme-desc">Pure black, green accent</span>
-                                        <svg class="icon app-theme-check" width="20" height="20" style="stroke:var(--accent)"><use href="icons.svg#icon-check"/></svg>
-                                    </button>
-                                    <button class="app-theme-card" data-theme-val="light" onclick="setTheme('light')">
-                                        <span class="app-theme-preview">
-                                            <span class="app-theme-bg" style="background:linear-gradient(145deg,#f2f3f5 0%,#fff 60%,#edeef2 100%)"></span>
-                                            <span class="app-theme-accent" style="background:#00e5a0"></span>
-                                        </span>
-                                        <span class="app-theme-name">Light</span>
-                                        <span class="app-theme-desc">Clean, bright surfaces</span>
-                                        <svg class="icon app-theme-check" width="20" height="20" style="stroke:var(--accent)"><use href="icons.svg#icon-check"/></svg>
-                                    </button>
-                                    <button class="app-theme-card" data-theme-val="tdf" onclick="setTheme('tdf')">
-                                        <span class="app-theme-preview">
-                                            <span class="app-theme-bg" style="background:linear-gradient(145deg,#000 0%,#0C0C0C 40%,#FFD700 100%)"></span>
-                                            <span class="app-theme-accent" style="background:#FFD700"></span>
-                                        </span>
-                                        <span class="app-theme-name">Tour de France</span>
-                                        <span class="app-theme-desc">Maillot jaune, gold on black</span>
-                                        <svg class="icon app-theme-check" width="20" height="20" style="stroke:var(--accent)"><use href="icons.svg#icon-check"/></svg>
-                                    </button>
-                                    <button class="app-theme-card" data-theme-val="auto" onclick="setTheme('auto')">
-                                        <span class="app-theme-preview">
-                                            <span class="app-theme-bg" style="background:linear-gradient(145deg,#000 0%,#666 50%,#f2f3f5 100%)"></span>
-                                            <span class="app-theme-accent" style="background:#00e5a0"></span>
-                                        </span>
-                                        <span class="app-theme-name">Auto</span>
-                                        <span class="app-theme-desc">Follow system setting</span>
-                                        <svg class="icon app-theme-check" width="20" height="20" style="stroke:var(--accent)"><use href="icons.svg#icon-check"/></svg>
-                                    </button>
-                                    <button class="app-theme-card" data-theme-val="awwwards" onclick="setTheme('awwwards')">
-                                        <span class="app-theme-preview">
-                                            <span class="app-theme-bg" style="background:linear-gradient(145deg,#F0EDE8 0%,#FFFFFF 50%,#E8E4DE 100%)"></span>
-                                            <span class="app-theme-accent" style="background:#7CB9C8"></span>
-                                        </span>
-                                        <span class="app-theme-name">Editorial</span>
-                                        <span class="app-theme-desc">Off-white, soft blue accent</span>
-                                        <svg class="icon app-theme-check" width="20" height="20" style="stroke:var(--accent)"><use href="icons.svg#icon-check"/></svg>
-                                    </button>
-                                </div>
-                            </div>
+                            <div class="theme-carousel" id="appThemePicker"></div>
+
+                            <div class="ios-group-label" style="margin-top:20px">Map Style</div>
+                            <div class="theme-carousel" id="mapThemePicker"></div>
 
                             <div class="ios-group-label" style="margin-top:20px">Accent Color</div>
                             <div class="ios-group">
@@ -4443,29 +4321,47 @@
                             </div>
 
                             <div class="ios-group-label" style="margin-top:20px">Font</div>
-                            <div class="ios-group" style="margin-top:8px">
-                                <div class="font-picker" id="fontPicker">
-                                    <button class="font-option" data-font="inter" onclick="setAppFont('inter')">
-                                        <span class="font-preview" style="font-family:'Inter',sans-serif">Ag</span>
-                                        <span class="font-option-label">Inter</span>
-                                    </button>
-                                    <button class="font-option" data-font="dm-sans" onclick="setAppFont('dm-sans')">
-                                        <span class="font-preview" style="font-family:'DM Sans',sans-serif">Ag</span>
-                                        <span class="font-option-label">DM Sans</span>
-                                    </button>
-                                    <button class="font-option" data-font="outfit" onclick="setAppFont('outfit')">
-                                        <span class="font-preview" style="font-family:'Outfit',sans-serif">Ag</span>
-                                        <span class="font-option-label">Outfit</span>
-                                    </button>
-                                    <button class="font-option" data-font="space-grotesk" onclick="setAppFont('space-grotesk')">
-                                        <span class="font-preview" style="font-family:'Space Grotesk',sans-serif">Ag</span>
-                                        <span class="font-option-label">Space Grotesk</span>
-                                    </button>
-                                    <button class="font-option" data-font="source-serif" onclick="setAppFont('source-serif')">
-                                        <span class="font-preview" style="font-family:'Source Serif 4',Georgia,serif">Ag</span>
-                                        <span class="font-option-label">Source Serif</span>
-                                    </button>
-                                </div>
+                            <div class="font-specimen-grid" id="fontPicker">
+                                <button class="font-specimen" data-font="inter" onclick="setAppFont('inter')">
+                                    <div class="font-specimen-meta">
+                                        <div class="font-specimen-name" style="font-family:'Inter',sans-serif">Inter</div>
+                                        <div class="font-specimen-info">Variable + 9 weights</div>
+                                    </div>
+                                    <div class="font-specimen-preview" style="font-family:'Inter',sans-serif">Aa</div>
+                                    <svg class="font-specimen-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                                </button>
+                                <button class="font-specimen" data-font="dm-sans" onclick="setAppFont('dm-sans')">
+                                    <div class="font-specimen-meta">
+                                        <div class="font-specimen-name" style="font-family:'DM Sans',sans-serif">DM Sans</div>
+                                        <div class="font-specimen-info">Variable + Italics</div>
+                                    </div>
+                                    <div class="font-specimen-preview" style="font-family:'DM Sans',sans-serif">Aa</div>
+                                    <svg class="font-specimen-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                                </button>
+                                <button class="font-specimen" data-font="outfit" onclick="setAppFont('outfit')">
+                                    <div class="font-specimen-meta">
+                                        <div class="font-specimen-name" style="font-family:'Outfit',sans-serif">Outfit</div>
+                                        <div class="font-specimen-info">Variable + 9 weights</div>
+                                    </div>
+                                    <div class="font-specimen-preview" style="font-family:'Outfit',sans-serif">Aa</div>
+                                    <svg class="font-specimen-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                                </button>
+                                <button class="font-specimen" data-font="space-grotesk" onclick="setAppFont('space-grotesk')">
+                                    <div class="font-specimen-meta">
+                                        <div class="font-specimen-name" style="font-family:'Space Grotesk',sans-serif">Space Grotesk</div>
+                                        <div class="font-specimen-info">Variable + 5 weights</div>
+                                    </div>
+                                    <div class="font-specimen-preview" style="font-family:'Space Grotesk',sans-serif">Aa</div>
+                                    <svg class="font-specimen-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                                </button>
+                                <button class="font-specimen" data-font="source-serif" onclick="setAppFont('source-serif')">
+                                    <div class="font-specimen-meta">
+                                        <div class="font-specimen-name" style="font-family:'Source Serif 4',Georgia,serif">Source Serif</div>
+                                        <div class="font-specimen-info">Variable + Italics</div>
+                                    </div>
+                                    <div class="font-specimen-preview" style="font-family:'Source Serif 4',Georgia,serif">Aa</div>
+                                    <svg class="font-specimen-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                                </button>
                             </div>
                         </div>
 
@@ -4849,6 +4745,59 @@
                         <div class="ios-subpage" id="iosSubpage-widgets">
                             <p style="color:var(--text-muted);font-size:13px;padding:8px 0 12px">Drag to reorder. Toggle to show or hide widgets on your dashboard.</p>
                             <div class="ios-group" id="settingsWidgetList"></div>
+                        </div>
+
+                        <!-- Notifications subpage -->
+                        <div class="ios-subpage" id="iosSubpage-notifications">
+                            <div class="ios-group-label">Push</div>
+                            <div class="ios-group">
+                                <div class="ios-row">
+                                    <div class="ios-row-icon" style="background:#ff3b30"><svg class="icon"><use href="icons.svg#icon-bell"/></svg></div>
+                                    <span class="ios-row-label">Push notifications</span>
+                                    <label class="settings-ios-toggle">
+                                        <input type="checkbox" id="notifPushToggle" onchange="_notifRequestPush(this.checked)"/>
+                                        <span class="settings-ios-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div style="padding:0 16px 12px;font-size:12px;color:var(--text-muted)">Enable browser push notifications for alerts when the app is in the background.</div>
+
+                            <div class="ios-group-label">Alert Types</div>
+                            <div class="ios-group">
+                                <div class="ios-row">
+                                    <div class="ios-row-icon" style="background:#ff9500"><svg class="icon"><use href="icons.svg#icon-wheel"/></svg></div>
+                                    <span class="ios-row-label">Gear alerts</span>
+                                    <label class="settings-ios-toggle">
+                                        <input type="checkbox" id="notifGearToggle" checked onchange="localStorage.setItem('icu_notif_gear',this.checked);_notifRefreshBell();_updateNotifSummary()"/>
+                                        <span class="settings-ios-slider"></span>
+                                    </label>
+                                </div>
+                                <div class="ios-row">
+                                    <div class="ios-row-icon" style="background:#30d158"><svg class="icon"><use href="icons.svg#icon-activity"/></svg></div>
+                                    <span class="ios-row-label">Training alerts</span>
+                                    <label class="settings-ios-toggle">
+                                        <input type="checkbox" id="notifTrainingToggle" checked onchange="localStorage.setItem('icu_notif_training',this.checked);_notifRefreshBell();_updateNotifSummary()"/>
+                                        <span class="settings-ios-slider"></span>
+                                    </label>
+                                </div>
+                                <div class="ios-row">
+                                    <div class="ios-row-icon" style="background:#5856d6"><svg class="icon"><use href="icons.svg#icon-flame"/></svg></div>
+                                    <span class="ios-row-label">Streak reminders</span>
+                                    <label class="settings-ios-toggle">
+                                        <input type="checkbox" id="notifStreaksToggle" checked onchange="localStorage.setItem('icu_notif_streaks',this.checked);_notifRefreshBell();_updateNotifSummary()"/>
+                                        <span class="settings-ios-slider"></span>
+                                    </label>
+                                </div>
+                                <div class="ios-row">
+                                    <div class="ios-row-icon" style="background:#007aff"><svg class="icon"><use href="icons.svg#icon-clock"/></svg></div>
+                                    <span class="ios-row-label">Goal reminders</span>
+                                    <label class="settings-ios-toggle">
+                                        <input type="checkbox" id="notifGoalsToggle" checked onchange="localStorage.setItem('icu_notif_goals',this.checked);_notifRefreshBell();_updateNotifSummary()"/>
+                                        <span class="settings-ios-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div style="padding:0 16px 12px;font-size:12px;color:var(--text-muted)">Choose which types of alerts appear in your notification center and badge count.</div>
                         </div>
 
                         <!-- Activity Sections subpage -->
