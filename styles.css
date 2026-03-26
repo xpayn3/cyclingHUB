@@ -11256,59 +11256,37 @@ body.show-save-fab #actSaveRouteFab {
     padding: 0;
     height: 0;
 }
-/* ── Desktop GridStack layout for activity cards ── */
+/* ── Desktop 2-column layout for activity cards ── */
 @media (min-width: 900px) {
-    .act-sheet-scroll > .act-card-divider {
-        display: none !important;
+    .act-sheet-scroll {
+        flex-direction: row;
+        flex-wrap: wrap;
     }
-    .act-cards-grid.grid-stack {
-        background: transparent !important;
-        overflow: visible !important;
-    }
-    .act-cards-grid .grid-stack-item-content {
-        overflow: hidden;
-        border-radius: var(--radius);
+    .act-sheet-scroll > * { flex-shrink: 0; }
+    .act-sheet-scroll > .card {
+        width: calc(50% - var(--gap-layout) / 2);
+        margin-left: 0;
+        margin-right: 0;
         background: var(--bg-card);
-    }
-    .act-cards-grid .card {
-        margin: 0;
-        background: transparent;
-        border-radius: 0;
+        border-radius: var(--radius);
         padding: var(--pad-card);
-        height: 100%;
-        display: flex;
-        flex-direction: column;
         overflow: hidden;
     }
-    .act-cards-grid .card > .chart-wrap {
-        flex: 1;
-        min-height: 180px;
-    }
-    .act-cards-grid .card > .detail-zone-summary {
-        margin-top: auto;
-    }
-    .act-cards-grid .card-header { cursor: grab; }
-    .act-cards-grid .card-header:active { cursor: grabbing; }
-    .act-cards-grid .grid-stack-placeholder > .placeholder-content {
-        border: 2px dashed var(--accent);
-        border-radius: var(--radius);
-        background: rgba(0,229,160,0.05);
-    }
-    .grid-stack > .grid-stack-item > .ui-resizable-se {
-        width: 16px !important; height: 16px !important;
-        background: none !important;
-    }
-    .grid-stack > .grid-stack-item > .ui-resizable-se::after {
-        content: '';
-        position: absolute;
-        bottom: 6px; right: 6px;
-        width: 8px; height: 8px;
-        border-right: 2px solid var(--text-faint);
-        border-bottom: 2px solid var(--text-faint);
-        opacity: 0; transition: opacity 0.2s;
-    }
-    .grid-stack > .grid-stack-item:hover > .ui-resizable-se::after {
-        opacity: 1;
+    .act-sheet-scroll > .act-hero,
+    .act-sheet-scroll > .act-secondary-strip,
+    .act-sheet-scroll > .act-gear-badge,
+    .act-sheet-scroll > .ach-card,
+    .act-sheet-scroll > #detailCompareCard,
+    .act-sheet-scroll > #detailMapCard,
+    .act-sheet-scroll > #detailStreamsCard,
+    .act-sheet-scroll > .detail-charts-loading,
+    .act-sheet-scroll > .detail-charts-row,
+    .act-sheet-scroll > #detailLapSplitsCard,
+    .act-sheet-scroll > #detailNotesCard,
+    .act-sheet-scroll > #detailGradientCard,
+    .act-sheet-scroll > .act-sheet-handle { width: 100%; }
+    .act-sheet-scroll > .act-card-divider {
+        display: none; width: 0; height: 0;
     }
 }
 

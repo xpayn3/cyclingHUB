@@ -20777,8 +20777,10 @@ async function _loadGridStack() {
   _gsLoading = false;
 }
 
-// Init GridStack BEFORE charts render — cards stay in grid items, canvases created inside them
+// GridStack disabled — Chart.js creates at 0x0 inside hidden grid-stack-items.
+// CSS flex-wrap handles 2-col. SortableJS for drag reorder (no DOM reparenting).
 async function _initActCardsGrid() {
+  return; // disabled
   if (window.innerWidth < 900) return;
   const scroll = document.getElementById('actSheetScroll');
   if (!scroll || _gsInstance || document.getElementById('_actGrid')) return;
