@@ -4020,32 +4020,7 @@
                                 </div>
                             </div>
 
-                            <!-- DISPLAY -->
-                            <div class="ios-group-label">Display</div>
-                            <div class="ios-group">
-                                <div class="ios-row">
-                                    <span class="ios-row-label">Physics Scroll</span>
-                                    <label class="settings-ios-toggle"><input type="checkbox" id="physicsScrollToggle" onchange="setPhysicsScroll(this.checked)"/><span class="settings-ios-slider"></span></label>
-                                </div>
-                                <div class="ios-row">
-                                    <span class="ios-row-label">Hide empty cards</span>
-                                    <label class="settings-ios-toggle"><input type="checkbox" id="hideEmptyCardsToggle" onchange="setHideEmptyCards(this.checked)"/><span class="settings-ios-slider"></span></label>
-                                </div>
-                            </div>
-
-                            <!-- MAP -->
-                            <div class="ios-group-label">Map</div>
-                            <div class="ios-group">
-                                <!-- Map Theme moved to App Theme subpage -->
-                                <div class="ios-row">
-                                    <span class="ios-row-label">Smooth flyover</span>
-                                    <label class="settings-ios-toggle"><input type="checkbox" id="smoothFlyoverToggle" onchange="toggleSmoothFlyover(this.checked)"/><span class="settings-ios-slider"></span></label>
-                                </div>
-                                <div class="ios-row">
-                                    <span class="ios-row-label">3D terrain</span>
-                                    <label class="settings-ios-toggle"><input type="checkbox" id="terrain3dToggle" onchange="toggleTerrain3d(this.checked)"/><span class="settings-ios-slider"></span></label>
-                                </div>
-                            </div>
+                            <!-- Display + Map toggles moved to Theme subpage -->
 
                             <!-- WEATHER -->
                             <div class="ios-group-label">Weather</div>
@@ -4088,11 +4063,7 @@
                                     <span class="ios-row-detail" id="syncStatusLabel" style="font-size:12px"></span>
                                     <svg class="icon ios-row-chevron"><use href="icons.svg#icon-chevron-right"/></svg>
                                 </div>
-                                <div class="ios-row" data-nav onclick="openSettingsSubpage('routebuilder')">
-                                    <div class="ios-row-icon" style="background:#30d158"><svg class="icon"><use href="icons.svg#icon-trend-up"/></svg></div>
-                                    <span class="ios-row-label">Route Builder API</span>
-                                    <svg class="icon ios-row-chevron"><use href="icons.svg#icon-chevron-right"/></svg>
-                                </div>
+                                <!-- Route Builder API moved to Connections -->
                                 <div class="ios-row" onclick="_showStorageInfo()">
                                     <div class="ios-row-icon" style="background:#8e8e93"><svg class="icon"><use href="icons.svg#icon-database"/></svg></div>
                                     <span class="ios-row-label">Storage</span>
@@ -4263,8 +4234,23 @@
                                 </div>
                             </div>
 
-                            <!-- CONNECTIONS -->
+                            <!-- CONNECTIONS — moved to dedicated subpage -->
                             <div class="ios-group-label">Connections</div>
+                            <div class="ios-group">
+                                <div class="ios-row" data-nav onclick="openSettingsSubpage('connections')">
+                                    <div class="ios-row-icon" style="background:#30d158"><svg class="icon"><use href="icons.svg#icon-link"/></svg></div>
+                                    <span class="ios-row-label">Services &amp; APIs</span>
+                                    <span class="ios-row-value" id="iosConnSummary">—</span>
+                                    <svg class="icon ios-row-chevron"><use href="icons.svg#icon-chevron-right"/></svg>
+                                </div>
+                            </div>
+                        </div><!-- close account subpage -->
+
+                        <!-- Font subpage -->
+
+                        <!-- Connections subpage -->
+                        <div class="ios-subpage" id="iosSubpage-connections">
+                            <div class="ios-group-label">Data Sources</div>
                             <div class="ios-group">
                                 <div class="ios-row" data-nav onclick="openSettingsSubpage('icu')">
                                     <div class="ios-row-icon" style="background:#30d158"><svg class="icon"><use href="icons.svg#icon-link"/></svg></div>
@@ -4281,9 +4267,16 @@
                                     <svg class="icon ios-row-chevron"><use href="icons.svg#icon-chevron-right"/></svg>
                                 </div>
                             </div>
-                        </div><!-- close account subpage -->
 
-                        <!-- Font subpage -->
+                            <div class="ios-group-label" style="margin-top:20px">API Keys</div>
+                            <div class="ios-group">
+                                <div class="ios-row" data-nav onclick="openSettingsSubpage('routebuilder')">
+                                    <div class="ios-row-icon" style="background:#30d158"><svg class="icon"><use href="icons.svg#icon-trend-up"/></svg></div>
+                                    <span class="ios-row-label">Route Builder API</span>
+                                    <svg class="icon ios-row-chevron"><use href="icons.svg#icon-chevron-right"/></svg>
+                                </div>
+                            </div>
+                        </div>
 
                         <!-- Map Theme subpage (merged into apptheme) -->
                         <div class="ios-subpage" id="iosSubpage-maptheme"></div>
@@ -4362,6 +4355,30 @@
                                     <div class="font-specimen-preview" style="font-family:'Source Serif 4',Georgia,serif">Aa</div>
                                     <svg class="font-specimen-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
                                 </button>
+                            </div>
+
+                            <div class="ios-group-label" style="margin-top:20px">Display</div>
+                            <div class="ios-group">
+                                <div class="ios-row">
+                                    <span class="ios-row-label">Physics Scroll</span>
+                                    <label class="settings-ios-toggle"><input type="checkbox" id="physicsScrollToggle" onchange="setPhysicsScroll(this.checked)"/><span class="settings-ios-slider"></span></label>
+                                </div>
+                                <div class="ios-row">
+                                    <span class="ios-row-label">Hide empty cards</span>
+                                    <label class="settings-ios-toggle"><input type="checkbox" id="hideEmptyCardsToggle" onchange="setHideEmptyCards(this.checked)"/><span class="settings-ios-slider"></span></label>
+                                </div>
+                            </div>
+
+                            <div class="ios-group-label" style="margin-top:20px">Map</div>
+                            <div class="ios-group">
+                                <div class="ios-row">
+                                    <span class="ios-row-label">Smooth flyover</span>
+                                    <label class="settings-ios-toggle"><input type="checkbox" id="smoothFlyoverToggle" onchange="toggleSmoothFlyover(this.checked)"/><span class="settings-ios-slider"></span></label>
+                                </div>
+                                <div class="ios-row">
+                                    <span class="ios-row-label">3D terrain</span>
+                                    <label class="settings-ios-toggle"><input type="checkbox" id="terrain3dToggle" onchange="toggleTerrain3d(this.checked)"/><span class="settings-ios-slider"></span></label>
+                                </div>
                             </div>
                         </div>
 

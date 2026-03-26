@@ -1627,7 +1627,7 @@ let _iosSourceRow = null;
 let _iosNavLocked = false;
 const _STT_HERO_DATA = {
   account:      { bg: 'linear-gradient(135deg,rgba(0,122,255,0.15),rgba(0,229,160,0.1))', icon: '<svg class="icon" width="36" height="36" style="stroke:var(--accent)"><use href="icons.svg#icon-user"/></svg>', desc: 'Your profile, avatar, and account connections.' },
-  apptheme:     { bg: 'linear-gradient(135deg,rgba(88,86,214,0.15),rgba(0,229,160,0.1))', icon: '<svg class="icon" width="36" height="36" style="stroke:var(--accent)"><use href="icons.svg#icon-moon"/></svg>', desc: 'Choose between dark, light, or system theme.' },
+  apptheme:     { bg: 'linear-gradient(135deg,rgba(88,86,214,0.15),rgba(0,229,160,0.1))', icon: '<svg class="icon" width="36" height="36" style="stroke:var(--accent)"><use href="icons.svg#icon-moon"/></svg>', desc: 'Theme, map style, font, accent color, and display settings.' },
   font:         { bg: 'linear-gradient(135deg,rgba(255,149,0,0.15),rgba(0,229,160,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>', desc: 'Pick the typeface that feels right for you.' },
   maptheme:     { bg: 'linear-gradient(135deg,rgba(52,211,153,0.15),rgba(0,229,160,0.1))', icon: '<svg class="icon" width="36" height="36" style="stroke:var(--accent)"><use href="icons.svg#icon-map"/></svg>', desc: 'Map style for activity views and route builder.' },
   weather:      { bg: 'linear-gradient(135deg,rgba(90,200,250,0.15),rgba(0,229,160,0.1))', icon: '<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--accent)" stroke-width="1.5"><path d="M17 18a5 5 0 0 0 0-10H6a4 4 0 1 0 0 8"/><line x1="12" y1="9" x2="12" y2="2"/><path d="M4.22 10.22l1.42 1.42M1 18h2M20 18h2M18.36 11.64l1.42-1.42"/></svg>', desc: 'Weather forecast source and location settings.' },
@@ -1648,6 +1648,7 @@ const _STT_HERO_DATA = {
   navigation:   { bg: 'linear-gradient(135deg,rgba(88,86,214,0.15),rgba(0,229,160,0.1))', icon: '<svg class="icon" width="36" height="36" style="stroke:var(--accent)"><use href="icons.svg#icon-grid-rounded"/></svg>', desc: 'Customize your tab bar order and quick action button.' },
   accentcolor:  { bg: 'linear-gradient(135deg,rgba(0,229,160,0.15),rgba(175,82,222,0.15))', icon: '<svg class="icon" width="36" height="36" style="stroke:var(--accent)"><use href="icons.svg#icon-target"/></svg>', desc: 'Choose your app accent color.' },
   notifications:{ bg: 'linear-gradient(135deg,rgba(255,59,48,0.15),rgba(255,149,0,0.1))', icon: '<svg class="icon" width="36" height="36" style="stroke:#ff3b30"><use href="icons.svg#icon-bell"/></svg>', desc: 'Control push notifications and alert preferences.' },
+  connections:  { bg: 'linear-gradient(135deg,rgba(48,209,88,0.15),rgba(0,122,255,0.1))', icon: '<svg class="icon" width="36" height="36" style="stroke:var(--accent)"><use href="icons.svg#icon-link"/></svg>', desc: 'Manage data sources, API keys, and service connections.' },
 };
 
 const _THEME_DEFS = [
@@ -4588,6 +4589,7 @@ function navigate(page, opts) {
     renderDashSectionToggles(); renderActSectionToggles();
     _updateStorageSizeLabel();
     _updateNotifSummary();
+    _updateConnSummary();
     if (window._pendingSettingsSubpage) {
       const _psub = window._pendingSettingsSubpage;
       window._pendingSettingsSubpage = null;
@@ -16488,6 +16490,15 @@ function _updateNotifSummary() {
   el.textContent = on.length === types.length ? 'All on' : on.length === 0 ? 'All off' : `${on.length} of ${types.length}`;
 }
 window._updateNotifSummary = _updateNotifSummary;
+
+function _updateConnSummary() {
+  const el = document.getElementById('iosConnSummary');
+  if (!el) return;
+  const icu = !!(state.athleteId && state.apiKey);
+  const strava = !!localStorage.getItem('icu_strava_token');
+  const count = (icu ? 1 : 0) + (strava ? 1 : 0);
+  el.textContent = count === 0 ? 'Not connected' : `${count} connected`;
+}
 
 function openNotifSheet() {
   renderNotifSheet();
