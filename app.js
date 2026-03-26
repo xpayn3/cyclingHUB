@@ -20774,84 +20774,79 @@ async function _initActCardsGrid() {
   }
   if (gridStartIdx < 0 || gridStartIdx >= children.length) return;
 
-  // Create wrapper — needs grid-stack class for GridStack to find it
-  const gridEl = document.createElement('div');
-  gridEl.className = 'act-cards-grid grid-stack';
+  // Collect visible chart cards
   const toMove = children.slice(gridStartIdx).filter(el =>
-    !el.classList?.contains('act-card-divider')
+    el.classList?.contains('card') && el.style.display !== 'none' && el.offsetHeight > 0
   );
+  if (!toMove.length) return;
 
-  // Load saved layout
-  const savedLayout = JSON.parse(localStorage.getItem('icu_act_grid_layout') || 'null');
-  const savedMap = {};
-  if (savedLayout) savedLayout.forEach(s => { if (s.id) savedMap[s.id] = s; });
+  // Simple CSS grid wrapper (no GridStack for now — too complex for async cards)
+  const gridEl = document.createElement('div');
+  gridEl.className = 'act-cards-grid';
 
-  // Wrap each card in a grid-stack-item
-  let col = 0, row = 0;
-  toMove.forEach(el => {
-    if (el.offsetHeight === 0 && el.style.display === 'none') return; // skip hidden
-
-    const item = document.createElement('div');
-    item.className = 'grid-stack-item';
-    const content = document.createElement('div');
-    content.className = 'grid-stack-item-content';
-
-    // Get saved position or auto-place
-    const s = savedMap[el.id];
-    if (s) {
-      item.setAttribute('gs-x', s.x);
-      item.setAttribute('gs-y', s.y);
-      item.setAttribute('gs-w', s.w);
-      item.setAttribute('gs-h', s.h);
-    } else {
-      item.setAttribute('gs-x', col);
-      item.setAttribute('gs-y', row);
-      item.setAttribute('gs-w', 1);
-      item.setAttribute('gs-h', 1);
-      col++;
-      if (col >= 2) { col = 0; row++; }
-    }
-    item.setAttribute('gs-id', el.id || '');
-    item.setAttribute('gs-min-w', 1);
-    item.setAttribute('gs-min-h', 1);
-
-    content.appendChild(el);
-    item.appendChild(content);
-    gridEl.appendChild(item);
-  });
+  // Load saved order
+  const savedOrder = JSON.parse(localStorage.getItem('icu_act_card_order') || 'null');
+  if (savedOrder && Array.isArray(savedOrder)) {
+    const orderMap = new Map(toMove.map(el => [el.id, el]));
+    const ordered = [];
+    savedOrder.forEach(id => {
+      if (orderMap.has(id)) { ordered.push(orderMap.get(id)); orderMap.delete(id); }
+    });
+    orderMap.forEach(el => ordered.push(el)); // remaining unordered
+    ordered.forEach(el => gridEl.appendChild(el));
+  } else {
+    toMove.forEach(el => gridEl.appendChild(el));
+  }
 
   scroll.appendChild(gridEl);
 
-  // Load and init GridStack
+  // Try to load GridStack for drag/resize
   try {
     await _loadGridStack();
-    if (typeof GridStack === 'undefined') return;
+    if (typeof GridStack === 'undefined') {
+      console.info('[GridStack] Not available, using CSS grid fallback');
+      return;
+    }
+
+    // Add grid-stack class for GridStack
+    gridEl.classList.add('grid-stack');
+
+    // Wrap each card in grid-stack-item
+    [...gridEl.children].forEach(card => {
+      const item = document.createElement('div');
+      item.className = 'grid-stack-item';
+      item.setAttribute('gs-w', 1);
+      item.setAttribute('gs-h', 1);
+      item.setAttribute('gs-id', card.id || '');
+      const content = document.createElement('div');
+      content.className = 'grid-stack-item-content';
+      card.before(item);
+      content.appendChild(card);
+      item.appendChild(content);
+    });
 
     _gsInstance = GridStack.init({
       column: 2,
-      cellHeight: 320,
+      cellHeight: 350,
       margin: 8,
       float: false,
       animate: true,
       draggable: { handle: '.card-header' },
       resizable: { handles: 'se' },
       disableOneColumnMode: true,
-      staticGrid: false,
     }, gridEl);
 
     console.info('[GridStack] Initialized with', _gsInstance.getGridItems().length, 'items');
 
     // Save layout on change
     _gsInstance.on('change', () => {
-      const layout = _gsInstance.save(false).map(n => ({
-        id: n.id, x: n.x, y: n.y, w: n.w, h: n.h
-      }));
-      try { localStorage.setItem('icu_act_grid_layout', JSON.stringify(layout)); } catch {}
+      const items = _gsInstance.getGridItems();
+      const order = items.map(i => i.getAttribute('gs-id')).filter(Boolean);
+      try { localStorage.setItem('icu_act_card_order', JSON.stringify(order)); } catch {}
     });
 
   } catch (e) {
-    console.warn('GridStack init failed:', e);
-    // Fallback: just use CSS grid
+    console.warn('[GridStack] Init failed, CSS grid fallback:', e);
   }
 }
 
@@ -20867,13 +20862,13 @@ function _destroyActCardsGrid() {
     _gsInstance = null;
   }
 
-  // Unwrap cards: grid-stack-item-content > card → back to scroll
+  // Unwrap cards from grid-stack-items back to scroll
   gridEl.querySelectorAll('.grid-stack-item-content > .card').forEach(card => {
     scroll.appendChild(card);
   });
-  // Also move non-card elements
-  gridEl.querySelectorAll('.grid-stack-item-content > *').forEach(el => {
-    if (!el.classList?.contains('card')) scroll.appendChild(el);
+  // Also move bare cards (CSS grid fallback, no wrapper)
+  gridEl.querySelectorAll(':scope > .card').forEach(card => {
+    scroll.appendChild(card);
   });
   gridEl.remove();
 }
