@@ -129,10 +129,21 @@ function _proInit(streams, activity, intervals) {
   if (_proStreams.watts?.length) _proActiveStreams.add('watts');
   else if (_proStreams.heartrate?.length) _proActiveStreams.add('heartrate');
 
+  _smoothCache.clear();
+  _proClimbs = null;
   _buildStreamList();
   _buildChart();
   _updateStats();
   _bindControls();
+
+  // Refresh rides panel if open
+  const rp = document.getElementById('proRidesPanel');
+  if (rp && rp.classList.contains('pro-rides-open')) {
+    setTimeout(() => {
+      const rl = document.getElementById('proRidesList');
+      if (rl && window._proPopulateRides) window._proPopulateRides();
+    }, 100);
+  }
 
   console.info('[ProAnalysis] Initialized with', Object.keys(streams || {}).length, 'stream keys');
 }
@@ -265,7 +276,7 @@ function _buildStackedCharts() {
     strip.appendChild(canvas);
     wrap.appendChild(strip);
 
-    const data = _smooth(_proStreams[s.key], _proSmoothing);
+    const data = _smoothCached(_proStreams[s.key], s.key, _proSmoothing);
     const chart = new Chart(canvas.getContext('2d'), {
       type: 'line',
       data: {
@@ -529,7 +540,7 @@ function _buildChart() {
       const raw = _proStreams[s.key];
       if (!raw || raw.length === 0) continue;
 
-      let data = _smooth(raw, _proSmoothing);
+      let data = _smoothCached(raw, s.key, _proSmoothing);
       // Data density — downsample for performance
       if (_proDensity < 1 && data.length > 100) {
         const nth = Math.max(1, Math.round(1 / _proDensity));
@@ -577,7 +588,7 @@ function _buildChart() {
         const axisId = `y_${s.key}`;
         datasets.push({
           label: `${s.label} (compare)`,
-          data: _smooth(compRaw, _proSmoothing),
+          data: _smoothCached(compRaw, 'comp_' + s.key, _proSmoothing),
           borderColor: s.color + '60',
           backgroundColor: 'transparent',
           borderWidth: 1,
@@ -1013,6 +1024,7 @@ function _bindControls() {
       const v = STEPS[Math.max(0, Math.min(STEPS.length - 1, idx))];
       const realPct = idx / (STEPS.length - 1);
       _proSmoothing = v;
+      _smoothCache.clear();
       if (sFill) sFill.style.width = (realPct * 100) + '%';
       if (sVal) sVal.textContent = v + 's';
     };
@@ -1029,13 +1041,21 @@ function _bindControls() {
       const r = sPill.getBoundingClientRect();
       const raw = (e.clientX - r.left) / r.width;
       sApply(raw);
-      if (raw < -0.05 || raw > 1.05) {
-        const over = Math.min(0.03, Math.abs(raw < 0 ? raw + 0.05 : raw - 1.05) * 0.15);
-        sPill.style.transform = `scaleX(${1 + over})`;
-      } else sPill.style.transform = '';
+      if (raw < -0.02) {
+        const pull = Math.min(12, Math.abs(raw) * 60);
+        sPill.style.borderRadius = `${10 + pull}px 10px 10px ${10 + pull}px`;
+        sPill.style.transform = `translateX(${-pull * 0.4}px)`;
+      } else if (raw > 1.02) {
+        const pull = Math.min(12, (raw - 1) * 60);
+        sPill.style.borderRadius = `10px ${10 + pull}px ${10 + pull}px 10px`;
+        sPill.style.transform = `translateX(${pull * 0.4}px)`;
+      } else { sPill.style.borderRadius = ''; sPill.style.transform = ''; }
     });
     const sEnd = () => {
-      if (!sDrag) return; sDrag = false; sPill.style.transform = '';
+      if (!sDrag) return; sDrag = false;
+      sPill.style.transition = 'transform 0.4s cubic-bezier(0.34,1.56,0.64,1), border-radius 0.4s cubic-bezier(0.34,1.56,0.64,1)';
+      sPill.style.transform = ''; sPill.style.borderRadius = '';
+      setTimeout(() => { sPill.style.transition = ''; }, 450);
       clearTimeout(sDebounce);
       sDebounce = setTimeout(() => { _buildChart(); }, 50);
     };
@@ -1080,13 +1100,30 @@ function _bindControls() {
       const r = el.getBoundingClientRect();
       const raw = (e.clientX - r.left) / r.width;
       apply(raw);
-      // Rubber band
-      if (raw < -0.05 || raw > 1.05) {
-        const over = Math.min(0.03, Math.abs(raw < 0 ? raw + 0.05 : raw - 1.05) * 0.15);
-        el.style.transform = `scaleX(${1 + over})`;
-      } else el.style.transform = '';
+      // Rubber band — stretch only the edge being dragged past
+      if (raw < -0.02) {
+        const pull = Math.min(12, Math.abs(raw) * 60);
+        el.style.borderRadius = `${10 + pull}px 10px 10px ${10 + pull}px`;
+        el.style.transform = `translateX(${-pull * 0.4}px)`;
+      } else if (raw > 1.02) {
+        const pull = Math.min(12, (raw - 1) * 60);
+        el.style.borderRadius = `10px ${10 + pull}px ${10 + pull}px 10px`;
+        el.style.transform = `translateX(${pull * 0.4}px)`;
+      } else {
+        el.style.borderRadius = '';
+        el.style.transform = '';
+      }
     });
-    const end = () => { if (!drag) return; drag = false; el.style.transform = ''; clearTimeout(debounce); debounce = setTimeout(() => { if (_proStacked) _buildStackedCharts(); else _buildChart(); }, 150); };
+    const end = () => {
+      if (!drag) return; drag = false;
+      // Spring snap back
+      el.style.transition = 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), border-radius 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
+      el.style.transform = '';
+      el.style.borderRadius = '';
+      setTimeout(() => { el.style.transition = ''; }, 450);
+      clearTimeout(debounce);
+      debounce = setTimeout(() => { if (_proStacked) _buildStackedCharts(); else _buildChart(); }, 150);
+    };
     el.addEventListener('pointerup', end);
     el.addEventListener('pointercancel', end);
     el.addEventListener('wheel', e => { e.preventDefault(); const d = e.deltaY > 0 ? -1 : 1; const s = step || ((max - min) / 20); cur = Math.max(min, Math.min(max, cur + d * s)); const pct = (cur - min) / (max - min); if (fill) fill.style.width = (pct * 100) + '%'; if (valEl) valEl.textContent = fmt(cur); onUpdate(cur); clearTimeout(debounce); debounce = setTimeout(() => { if (_proStacked) _buildStackedCharts(); else _buildChart(); }, 300); }, { passive: false });
@@ -1245,9 +1282,24 @@ function _bindControls() {
     zoomPillEl.addEventListener('pointermove', e => {
       if (!zDrag) return;
       const r = zoomPillEl.getBoundingClientRect();
-      zApply((e.clientX - r.left) / r.width);
+      const raw = (e.clientX - r.left) / r.width;
+      zApply(raw);
+      if (raw < -0.02) {
+        const pull = Math.min(12, Math.abs(raw) * 60);
+        zoomPillEl.style.borderRadius = `${10 + pull}px 10px 10px ${10 + pull}px`;
+        zoomPillEl.style.transform = `translateX(${-pull * 0.4}px)`;
+      } else if (raw > 1.02) {
+        const pull = Math.min(12, (raw - 1) * 60);
+        zoomPillEl.style.borderRadius = `10px ${10 + pull}px ${10 + pull}px 10px`;
+        zoomPillEl.style.transform = `translateX(${pull * 0.4}px)`;
+      } else { zoomPillEl.style.borderRadius = ''; zoomPillEl.style.transform = ''; }
     });
-    const zEnd = () => { if (!zDrag) return; zDrag = false; };
+    const zEnd = () => {
+      if (!zDrag) return; zDrag = false;
+      zoomPillEl.style.transition = 'transform 0.4s cubic-bezier(0.34,1.56,0.64,1), border-radius 0.4s cubic-bezier(0.34,1.56,0.64,1)';
+      zoomPillEl.style.transform = ''; zoomPillEl.style.borderRadius = '';
+      setTimeout(() => { zoomPillEl.style.transition = ''; }, 450);
+    };
     zoomPillEl.addEventListener('pointerup', zEnd);
     zoomPillEl.addEventListener('pointercancel', zEnd);
     zoomPillEl.addEventListener('wheel', e => {
@@ -1477,6 +1529,68 @@ function _bindControls() {
     };
   }
 
+  // Rides panel — toggle open/close, populate with state.activities
+  const ridesBtn = document.getElementById('proRidesBtn');
+  const ridesPanel = document.getElementById('proRidesPanel');
+  const ridesList = document.getElementById('proRidesList');
+  const ridesClose = document.getElementById('proRidesClose');
+
+  function _toggleRidesPanel() {
+    if (!ridesPanel) return;
+    const isOpen = ridesPanel.classList.contains('pro-rides-open');
+    if (isOpen) {
+      ridesPanel.classList.remove('pro-rides-open');
+      ridesBtn?.classList.remove('pro-mode-active');
+      return;
+    }
+    ridesPanel.classList.add('pro-rides-open');
+    ridesBtn?.classList.add('pro-mode-active');
+    _populateRidesList();
+  }
+
+  function _populateRidesList() {
+    if (!ridesList) return;
+    const activities = window.state?.activities || [];
+    const actId = _proActivity?.id;
+    if (!activities.length) {
+      ridesList.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:20px">No rides loaded</div>';
+      return;
+    }
+    ridesList.innerHTML = activities.map(a => {
+      const d = a.start_date_local ? new Date(a.start_date_local) : null;
+      const dateStr = d ? d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
+      const dist = a.distance ? (a.distance / 1000).toFixed(1) + ' km' : '';
+      const dur = a.moving_time ? _fmtDuration(a.moving_time) : '';
+      const tss = a.icu_training_load ? Math.round(a.icu_training_load) : '';
+      const isCurrent = String(a.id) === String(actId);
+      return `<div class="pro-ride-item ${isCurrent ? 'pro-ride-active' : ''}" data-id="${a.id}" data-idx="${activities.indexOf(a)}">
+        <div class="pro-ride-info">
+          <div class="pro-ride-name">${a.name || 'Ride'}</div>
+          <div class="pro-ride-meta">${dateStr} · ${dist} · ${dur}</div>
+        </div>
+        ${tss ? `<div class="pro-ride-tss">${tss}</div>` : ''}
+      </div>`;
+    }).join('');
+
+    // Click to navigate or compare
+    ridesList.onclick = (e) => {
+      const item = e.target.closest('.pro-ride-item');
+      if (!item) return;
+      const idx = parseInt(item.dataset.idx);
+      if (isNaN(idx)) return;
+      // Navigate to this activity
+      if (window._proNavActivity) {
+        const currentIdx = window.state?.currentActivityIdx || 0;
+        const diff = idx - currentIdx;
+        if (diff !== 0) window._proNavActivity(diff);
+      }
+    };
+  }
+
+  if (ridesBtn) ridesBtn.onclick = _toggleRidesPanel;
+  if (ridesClose) ridesClose.onclick = _toggleRidesPanel;
+  window._proPopulateRides = _populateRidesList;
+
   // Compare button — opens ride picker panel on right side
   const compareBtn = document.getElementById('proCompareBtn');
   let _comparePanel = null;
@@ -1513,12 +1627,10 @@ function _bindControls() {
       `;
       document.getElementById('proAnalysis').appendChild(_comparePanel);
 
-      // Fetch recent activities
+      // Use already-loaded activities from state
       try {
         const actId = _proActivity?.id;
-        const oldest = new Date(Date.now() - 180 * 86400000).toISOString().split('T')[0];
-        const newest = new Date().toISOString().split('T')[0];
-        const activities = await window.icuFetch?.(`/activities?oldest=${oldest}&newest=${newest}`);
+        const activities = window.state?.activities;
         const list = _comparePanel.querySelector('.pro-compare-list');
         if (!activities?.length) {
           list.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:20px">No rides found</div>';

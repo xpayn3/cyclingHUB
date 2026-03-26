@@ -29948,7 +29948,7 @@ html[data-theme="awwwards"] {
 .pro-pill-slider {
     width: 100%;
     height: 36px;
-    background: rgba(255,255,255,0.08);
+    background: #1c1d1f;
     border-radius: 10px;
     position: relative;
     overflow: hidden;
@@ -29966,25 +29966,91 @@ html[data-theme="awwwards"] {
     top: 0;
     left: 0;
     bottom: 0;
-    background: rgba(255,255,255,0.25);
+    background: #2e2f31;
     border-radius: 0;
     pointer-events: none;
 }
 .pro-pill-label {
-    font-size: 13px;
-    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 400;
+    color: rgba(255,255,255,0.85);
     pointer-events: none;
     z-index: 1;
     position: relative;
 }
 .pro-pill-val {
-    font-size: 14px;
-    font-weight: 500;
+    font-size: 12px;
+    font-weight: 400;
     font-family: var(--font-num);
-    color: var(--text-muted);
+    color: rgba(255,255,255,0.85);
     pointer-events: none;
     z-index: 1;
     position: relative;
+}
+
+/* Rides panel — pushes chart content */
+.pro-rides-panel {
+    width: 0;
+    flex-shrink: 0;
+    border-right: 1px solid rgba(255,255,255,0.06);
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-base);
+    overflow: hidden;
+    transition: width 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.pro-rides-panel.pro-rides-open {
+    width: 280px;
+}
+.pro-rides-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.pro-rides-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+}
+.pro-rides-close:hover { color: var(--text-primary); }
+.pro-rides-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+}
+.pro-ride-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.pro-ride-item:hover { background: rgba(255,255,255,0.06); }
+.pro-ride-item.pro-ride-active { background: rgba(0,229,160,0.08); border: 1px solid rgba(0,229,160,0.2); }
+.pro-ride-info { flex: 1; min-width: 0; }
+.pro-ride-name {
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.pro-ride-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+.pro-ride-tss {
+    font-size: 12px;
+    color: var(--text-faint);
+    font-family: var(--font-num);
+    flex-shrink: 0;
 }
 
 /* Compare ride picker panel */

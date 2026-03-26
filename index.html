@@ -6151,6 +6151,22 @@
                         <label class="pro-toggle-row"><input type="checkbox" id="proShowZones"><span>Power Zones</span></label>
                         <label class="pro-toggle-row"><input type="checkbox" id="proShowClimbs"><span>Climbs</span></label>
                     </div>
+                    <div class="pro-sidebar-section" style="margin-top:auto;padding-top:12px">
+                        <button class="pro-mode-btn" id="proRidesBtn" style="width:100%">
+                            <svg class="icon" width="14" height="14"><use href="icons.svg#icon-list"/></svg>
+                            Rides
+                        </button>
+                    </div>
+                </aside>
+                <!-- Rides panel — pushes content, not overlay -->
+                <aside class="pro-rides-panel" id="proRidesPanel">
+                    <div class="pro-rides-header">
+                        <span style="font-weight:600;font-size:14px">Rides</span>
+                        <button class="pro-rides-close" id="proRidesClose">
+                            <svg class="icon" width="16" height="16"><use href="icons.svg#icon-x"/></svg>
+                        </button>
+                    </div>
+                    <div class="pro-rides-list" id="proRidesList"></div>
                 </aside>
                 <main class="pro-main">
                     <div class="pro-chart-wrap" id="proChartWrap">
