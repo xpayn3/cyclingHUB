@@ -19304,7 +19304,16 @@ async function navigateToActivity(actKey, fromStep = false) {
     }
 
     // Inject info buttons and dividers on all visible activity cards
-    setTimeout(() => { _injectActCardInfoBtns(); _injectActCardDividers(); }, 300);
+    setTimeout(() => {
+      _injectActCardInfoBtns(); _injectActCardDividers();
+      // Force all Chart.js instances to resize (GridStack may have changed container dimensions)
+      if (_gsInstance) {
+        document.querySelectorAll('#_actGrid canvas').forEach(c => {
+          const chart = Chart.getChart?.(c);
+          if (chart) { chart.resize(); }
+        });
+      }
+    }, 500);
     // Re-run after async cards (intervals, curves) finish loading
     setTimeout(() => _injectActCardDividers(), 1500);
     setTimeout(() => _injectActCardDividers(), 3000);
@@ -20870,6 +20879,24 @@ async function _initActCardsGrid() {
     });
     try { localStorage.setItem('icu_act_grid_layout', JSON.stringify(layout)); } catch {}
   });
+
+  // Watch for cards becoming visible — resize their charts
+  const observer = new MutationObserver((mutations) => {
+    for (const m of mutations) {
+      if (m.type !== 'attributes' || m.attributeName !== 'style') continue;
+      const card = m.target;
+      if (!card.classList?.contains('card')) continue;
+      if (card.style.display === 'none') continue;
+      // Card just became visible — resize charts inside after a tick
+      requestAnimationFrame(() => {
+        card.querySelectorAll('canvas').forEach(c => {
+          const chart = Chart.getChart?.(c);
+          if (chart) chart.resize();
+        });
+      });
+    }
+  });
+  observer.observe(gridEl, { subtree: true, attributes: true, attributeFilter: ['style'] });
 
   _gsInstance.on('resizestop', (event, el) => {
     // Resize Chart.js canvases inside the resized item
