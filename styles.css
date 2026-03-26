@@ -11257,12 +11257,12 @@ body.show-save-fab #actSaveRouteFab {
 /* ── Desktop 2-column layout for activity cards ── */
 @media (min-width: 900px) {
     .act-sheet-scroll {
-        flex-direction: row;
-        flex-wrap: wrap;
+        display: grid !important;
+        grid-template-columns: 1fr 1fr;
+        align-items: start;
+        flex-direction: unset;
     }
-    .act-sheet-scroll > * { flex-shrink: 0; }
     .act-sheet-scroll > .card {
-        width: calc(50% - var(--gap-layout) / 2);
         margin-left: 0;
         margin-right: 0;
         background: var(--bg-card);
@@ -11270,6 +11270,7 @@ body.show-save-fab #actSaveRouteFab {
         padding: var(--pad-card);
         overflow: hidden;
     }
+    /* Full-width: span both columns */
     .act-sheet-scroll > .act-hero,
     .act-sheet-scroll > .act-secondary-strip,
     .act-sheet-scroll > .act-gear-badge,
@@ -11282,16 +11283,18 @@ body.show-save-fab #actSaveRouteFab {
     .act-sheet-scroll > #detailLapSplitsCard,
     .act-sheet-scroll > #detailNotesCard,
     .act-sheet-scroll > #detailGradientCard,
-    .act-sheet-scroll > .act-sheet-handle { width: 100%; }
-    .act-sheet-scroll > .act-card-divider {
-        display: none; width: 0; height: 0;
+    .act-sheet-scroll > .act-sheet-handle {
+        grid-column: 1 / -1;
     }
-    /* Drag handle on card headers */
+    .act-sheet-scroll > .act-card-divider {
+        display: none !important;
+    }
+    /* Drag handle */
     .act-sheet-scroll > .card .card-header { cursor: grab; }
     .act-sheet-scroll > .card .card-header:active { cursor: grabbing; }
-    /* Card marked as alone in its row expands to full width */
+    /* Card spans full width */
     .act-sheet-scroll > .card.act-card-full {
-        width: 100% !important;
+        grid-column: 1 / -1;
     }
     /* SortableJS drag states */
     .act-sheet-scroll > .card.sortable-ghost {
