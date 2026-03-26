@@ -663,6 +663,21 @@ code {
     color: var(--accent);
     font-weight: 600;
 }
+@media (max-width: 768px) {
+    .nav-item {
+        padding: 12px 12px;
+        min-height: 44px;
+        font-size: 15px;
+        gap: 10px;
+    }
+    .nav-item svg {
+        width: 20px;
+        height: 20px;
+    }
+    .sidebar-nav {
+        gap: 4px;
+    }
+}
 .nav-item .badge {
     margin-left: auto;
     background: var(--accent);
@@ -20146,7 +20161,7 @@ body:has(.act-sheet-mode) .topbar {
     height: 120px;
     border-radius: var(--radius);
     overflow: visible;
-    margin: 0 auto 16px;
+    margin: 32px auto 16px;
     background: transparent;
     flex-shrink: 0;
     position: relative;
