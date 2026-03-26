@@ -11258,81 +11258,73 @@ body.show-save-fab #actSaveRouteFab {
     padding: 0;
     height: 0;
 }
-/* ── Desktop 2-column layout for activity cards ── */
+/* ── Desktop GridStack layout (sole layout manager on ≥900px) ── */
 @media (min-width: 900px) {
-    /* Flex row-wrap gives immediate 2-col before GridStack loads */
-    .act-sheet-scroll {
-        flex-direction: row;
-        flex-wrap: wrap;
-    }
-    .act-sheet-scroll > * {
-        flex-shrink: 0;
-    }
-    .act-sheet-scroll > .card {
-        width: calc(50% - var(--gap-layout) / 2);
-        margin-left: 0;
-        margin-right: 0;
-        background: var(--bg-card);
-        border-radius: var(--radius);
-        padding: var(--pad-card);
-        overflow: hidden;
-    }
-    /* Full-width elements stay 100% */
-    .act-sheet-scroll > .act-hero,
-    .act-sheet-scroll > .act-secondary-strip,
-    .act-sheet-scroll > .act-gear-badge,
-    .act-sheet-scroll > .ach-card,
-    .act-sheet-scroll > #detailCompareCard,
-    .act-sheet-scroll > #detailMapCard,
-    .act-sheet-scroll > #detailStreamsCard,
-    .act-sheet-scroll > .detail-charts-loading,
-    .act-sheet-scroll > .detail-charts-row,
-    .act-sheet-scroll > #detailLapSplitsCard,
-    .act-sheet-scroll > #detailNotesCard,
-    .act-sheet-scroll > #detailGradientCard,
-    .act-sheet-scroll > .act-cards-grid {
-        width: 100%;
-    }
+    /* Hide dividers — GridStack manages spacing */
     .act-sheet-scroll > .act-card-divider {
-        display: none;
-        width: 0; height: 0;
+        display: none !important;
     }
-    /* GridStack container */
-    .act-cards-grid.grid-stack {
-        background: transparent !important;
-    }
-    .act-cards-grid .grid-stack-item-content {
-        overflow: hidden;
-        border-radius: var(--radius);
-        background: var(--bg-card);
-    }
-    .act-cards-grid .grid-stack-item-content > .card {
+    /* Reset mobile edge-bleed on cards inside GridStack */
+    .act-cards-grid .card {
         margin: 0;
-        width: auto;
         background: transparent;
         border-radius: 0;
         padding: var(--pad-card);
         height: 100%;
         display: flex;
         flex-direction: column;
+        overflow: hidden;
     }
-    .act-cards-grid .grid-stack-item-content > .card > .chart-wrap {
+    /* GridStack container */
+    .act-cards-grid.grid-stack {
+        background: transparent !important;
+    }
+    /* Item content = the visible card surface */
+    .act-cards-grid .grid-stack-item-content {
+        overflow: hidden;
+        border-radius: var(--radius);
+        background: var(--bg-card);
+    }
+    /* Charts expand to fill card */
+    .act-cards-grid .card > .chart-wrap {
         flex: 1;
         min-height: 180px;
         height: auto !important;
     }
-    .act-cards-grid .grid-stack-item-content > .card > .chart-wrap canvas {
+    .act-cards-grid .card > .chart-wrap canvas {
         height: 100% !important;
     }
-    .act-cards-grid .grid-stack-item-content > .card > .detail-zone-summary {
+    /* Summary rows pin to bottom */
+    .act-cards-grid .card > .detail-zone-summary {
         margin-top: auto;
     }
-    .act-cards-grid.grid-stack .card-header { cursor: grab; }
-    .act-cards-grid.grid-stack .card-header:active { cursor: grabbing; }
+    /* Drag handle */
+    .act-cards-grid .card-header { cursor: grab; }
+    .act-cards-grid .card-header:active { cursor: grabbing; }
+    /* Drag placeholder */
     .act-cards-grid .grid-stack-placeholder > .placeholder-content {
         border: 2px dashed var(--accent);
         border-radius: var(--radius);
         background: rgba(0,229,160,0.05);
+    }
+    /* Resize handle */
+    .grid-stack > .grid-stack-item > .ui-resizable-se {
+        width: 16px !important;
+        height: 16px !important;
+        background: none !important;
+    }
+    .grid-stack > .grid-stack-item > .ui-resizable-se::after {
+        content: '';
+        position: absolute;
+        bottom: 6px; right: 6px;
+        width: 8px; height: 8px;
+        border-right: 2px solid var(--text-faint);
+        border-bottom: 2px solid var(--text-faint);
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+    .grid-stack > .grid-stack-item:hover > .ui-resizable-se::after {
+        opacity: 1;
     }
 }
 
