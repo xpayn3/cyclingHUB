@@ -11257,10 +11257,9 @@ body.show-save-fab #actSaveRouteFab {
 /* ── Desktop 2-column layout for activity cards ── */
 @media (min-width: 900px) {
     .act-sheet-scroll {
-        display: grid !important;
+        display: grid;
         grid-template-columns: 1fr 1fr;
         align-items: start;
-        flex-direction: unset;
     }
     .act-sheet-scroll > .card {
         margin-left: 0;
