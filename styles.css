@@ -11258,39 +11258,95 @@ body.show-save-fab #actSaveRouteFab {
     padding: 0;
     height: 0;
 }
-/* ── Desktop 2-column layout for activity chart cards ── */
+/* ── Desktop GridStack layout for activity chart cards ── */
 @media (min-width: 900px) {
-    /* The grid wrapper is injected by JS around chart cards only */
     .act-cards-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: var(--gap-layout);
-        align-items: start;
+        margin-top: var(--gap-layout);
     }
-    .act-cards-grid > .card {
-        margin-left: 0;
-        margin-right: 0;
-        background: var(--bg-card);
-        border-radius: var(--radius);
-        padding: var(--pad-card);
+    /* Cards inside GridStack items */
+    .act-cards-grid .grid-stack-item-content {
         overflow: hidden;
+        border-radius: var(--radius);
+        background: var(--bg-card);
     }
-    /* Hidden cards collapse in grid */
-    .act-cards-grid > .card[style*="display: none"],
-    .act-cards-grid > .card[style*="display:none"] {
-        display: none !important;
+    .act-cards-grid .grid-stack-item-content > .card {
+        margin: 0;
+        background: transparent;
+        border-radius: 0;
+        padding: var(--pad-card);
+        height: 100%;
+        display: flex;
+        flex-direction: column;
     }
-    /* Dividers hidden in grid */
-    .act-cards-grid > .act-card-divider {
-        display: none !important;
+    /* Charts fill available height */
+    .act-cards-grid .grid-stack-item-content > .card > .chart-wrap {
+        flex: 1;
+        min-height: 180px;
+        height: auto !important;
     }
-    /* Cards being dragged */
-    .act-cards-grid > .card.sortable-ghost {
+    .act-cards-grid .grid-stack-item-content > .card > .chart-wrap canvas {
+        height: 100% !important;
+    }
+    /* Summary rows at bottom */
+    .act-cards-grid .grid-stack-item-content > .card > .detail-zone-summary {
+        margin-top: auto;
+    }
+    /* Drag handle cursor on card headers */
+    .act-cards-grid .card-header {
+        cursor: grab;
+    }
+    .act-cards-grid .card-header:active {
+        cursor: grabbing;
+    }
+    /* Placeholder during drag */
+    .act-cards-grid .grid-stack-placeholder > .placeholder-content {
+        border: 2px dashed var(--accent);
+        border-radius: var(--radius);
         opacity: 0.3;
     }
-    .act-cards-grid > .card.sortable-chosen {
-        box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-        z-index: 10;
+    /* Dividers hidden */
+    .act-cards-grid .act-card-divider {
+        display: none !important;
+    }
+}
+/* GridStack overrides for dark theme */
+.grid-stack {
+    background: transparent !important;
+}
+.grid-stack > .grid-stack-item > .grid-stack-item-content {
+    inset: 4px !important; /* tighter than default 10px */
+}
+.grid-stack > .grid-stack-item > .ui-resizable-se {
+    background: none !important;
+    /* Custom resize handle */
+    width: 20px !important;
+    height: 20px !important;
+    bottom: 4px !important;
+    right: 4px !important;
+}
+.grid-stack > .grid-stack-item > .ui-resizable-se::after {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    width: 10px;
+    height: 10px;
+    border-right: 2px solid var(--text-faint);
+    border-bottom: 2px solid var(--text-faint);
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.grid-stack > .grid-stack-item:hover > .ui-resizable-se::after {
+    opacity: 1;
+}
+/* Mobile: no GridStack, cards stay in scroll flow */
+@media (max-width: 899px) {
+    .act-cards-grid {
+        display: contents; /* unwrap on mobile if somehow present */
+    }
+    .grid-stack-item,
+    .grid-stack-item-content {
+        display: contents;
     }
 }
 

@@ -20726,68 +20726,153 @@ function _injectActCardDividers() {
   });
 }
 
-// Desktop 2-column grid: wrap chart cards in a grid container
-// Only activates on screens >= 900px. Skips hero/map/streams (stay full-width).
-function _initActCardsGrid() {
+// Desktop GridStack: wrap chart cards in a draggable/resizable grid
+// Only activates on screens >= 900px. Lazy-loads GridStack from CDN.
+let _gsInstance = null;
+let _gsLoaded = false;
+let _gsLoading = false;
+
+async function _loadGridStack() {
+  if (_gsLoaded) return;
+  if (_gsLoading) {
+    await new Promise(r => { const w = setInterval(() => { if (_gsLoaded) { clearInterval(w); r(); } }, 100); });
+    return;
+  }
+  _gsLoading = true;
+  // Load CSS
+  if (!document.querySelector('link[href*="gridstack"]')) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://cdn.jsdelivr.net/npm/gridstack@10/dist/gridstack.min.css';
+    document.head.appendChild(link);
+  }
+  // Load JS
+  await new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/gridstack@10/dist/gridstack-all.js';
+    s.onload = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+  _gsLoaded = true;
+  _gsLoading = false;
+}
+
+async function _initActCardsGrid() {
   if (window.innerWidth < 900) return;
   const scroll = document.getElementById('actSheetScroll');
-  if (!scroll || scroll.querySelector('.act-cards-grid')) return; // already done
+  if (!scroll || scroll.querySelector('.act-cards-grid')) return;
 
-  // IDs that stay ABOVE the grid (full-width)
-  const fullWidthIds = new Set([
-    'actSheetScroll', // not a child, just the container itself
-  ]);
-  const fullWidthClasses = ['act-hero', 'act-secondary-strip', 'act-gear-badge',
-    'ach-card', 'act-card-divider', 'detail-charts-loading', 'detail-charts-row',
-    'act-sheet-handle'];
-  const fullWidthCardIds = new Set(['detailCompareCard', 'detailMapCard', 'detailStreamsCard']);
-
-  function isFullWidth(el) {
-    if (fullWidthCardIds.has(el.id)) return true;
-    for (const cls of fullWidthClasses) {
-      if (el.classList?.contains(cls)) return true;
-    }
-    return false;
-  }
-
-  // Find the first chart card (after streams/map)
+  // Find where chart cards start (after streams/charts row)
   const children = [...scroll.children];
   let gridStartIdx = -1;
   for (let i = 0; i < children.length; i++) {
     const el = children[i];
-    if (el.id === 'detailStreamsCard' || (el.classList?.contains('detail-charts-row'))) {
+    if (el.id === 'detailStreamsCard' || el.classList?.contains('detail-charts-row')) {
       gridStartIdx = i + 1;
     }
   }
   if (gridStartIdx < 0 || gridStartIdx >= children.length) return;
 
-  // Wrap everything after streams in a grid div
-  const grid = document.createElement('div');
-  grid.className = 'act-cards-grid';
+  // Create wrapper
+  const gridEl = document.createElement('div');
+  gridEl.className = 'act-cards-grid';
+  const toMove = children.slice(gridStartIdx).filter(el =>
+    !el.classList?.contains('act-card-divider')
+  );
 
-  // Move all children from gridStartIdx onward into the grid
-  const toMove = children.slice(gridStartIdx);
-  toMove.forEach(el => grid.appendChild(el));
-  scroll.appendChild(grid);
+  // Load saved layout
+  const savedLayout = JSON.parse(localStorage.getItem('icu_act_grid_layout') || 'null');
+  const savedMap = {};
+  if (savedLayout) savedLayout.forEach(s => { if (s.id) savedMap[s.id] = s; });
 
-  // Save card order
-  const saved = JSON.parse(localStorage.getItem('icu_act_card_order') || 'null');
-  if (saved && Array.isArray(saved)) {
-    saved.forEach(id => {
-      const card = grid.querySelector('#' + id);
-      if (card) grid.appendChild(card);
+  // Wrap each card in a grid-stack-item
+  let col = 0, row = 0;
+  toMove.forEach(el => {
+    if (el.offsetHeight === 0 && el.style.display === 'none') return; // skip hidden
+
+    const item = document.createElement('div');
+    item.className = 'grid-stack-item';
+    const content = document.createElement('div');
+    content.className = 'grid-stack-item-content';
+
+    // Get saved position or auto-place
+    const s = savedMap[el.id];
+    if (s) {
+      item.setAttribute('gs-x', s.x);
+      item.setAttribute('gs-y', s.y);
+      item.setAttribute('gs-w', s.w);
+      item.setAttribute('gs-h', s.h);
+    } else {
+      item.setAttribute('gs-x', col);
+      item.setAttribute('gs-y', row);
+      item.setAttribute('gs-w', 1);
+      item.setAttribute('gs-h', 1);
+      col++;
+      if (col >= 2) { col = 0; row++; }
+    }
+    item.setAttribute('gs-id', el.id || '');
+    item.setAttribute('gs-min-w', 1);
+    item.setAttribute('gs-min-h', 1);
+
+    content.appendChild(el);
+    item.appendChild(content);
+    gridEl.appendChild(item);
+  });
+
+  scroll.appendChild(gridEl);
+
+  // Load and init GridStack
+  try {
+    await _loadGridStack();
+    if (typeof GridStack === 'undefined') return;
+
+    _gsInstance = GridStack.init({
+      column: 2,
+      cellHeight: 'auto',
+      margin: 8,
+      float: false,
+      animate: true,
+      draggable: { handle: '.card-header' },
+      resizable: { handles: 'se' },
+      disableOneColumnMode: true,
+    }, gridEl);
+
+    // Save layout on change
+    _gsInstance.on('change', () => {
+      const layout = _gsInstance.save(false).map(n => ({
+        id: n.id, x: n.x, y: n.y, w: n.w, h: n.h
+      }));
+      try { localStorage.setItem('icu_act_grid_layout', JSON.stringify(layout)); } catch {}
     });
+
+  } catch (e) {
+    console.warn('GridStack init failed:', e);
+    // Fallback: just use CSS grid
   }
 }
 
-// Tear down grid on page leave (restore cards to scroll container)
+// Tear down grid on page leave
 function _destroyActCardsGrid() {
   const scroll = document.getElementById('actSheetScroll');
-  const grid = scroll?.querySelector('.act-cards-grid');
-  if (!grid) return;
-  // Move children back to scroll
-  while (grid.firstChild) scroll.appendChild(grid.firstChild);
-  grid.remove();
+  const gridEl = scroll?.querySelector('.act-cards-grid');
+  if (!gridEl) return;
+
+  // Destroy GridStack instance
+  if (_gsInstance) {
+    try { _gsInstance.destroy(false); } catch {}
+    _gsInstance = null;
+  }
+
+  // Unwrap cards: grid-stack-item-content > card → back to scroll
+  gridEl.querySelectorAll('.grid-stack-item-content > .card').forEach(card => {
+    scroll.appendChild(card);
+  });
+  // Also move non-card elements
+  gridEl.querySelectorAll('.grid-stack-item-content > *').forEach(el => {
+    if (!el.classList?.contains('card')) scroll.appendChild(el);
+  });
+  gridEl.remove();
 }
 
 function _openActCardInfo(cardId, info) {
