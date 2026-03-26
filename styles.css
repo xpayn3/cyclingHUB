@@ -11260,9 +11260,13 @@ body.show-save-fab #actSaveRouteFab {
 }
 /* ── Desktop 2-column layout for activity cards ── */
 @media (min-width: 900px) {
-    /* Flex-wrap gives immediate 2-col before GridStack loads */
+    /* Flex row-wrap gives immediate 2-col before GridStack loads */
     .act-sheet-scroll {
+        flex-direction: row;
         flex-wrap: wrap;
+    }
+    .act-sheet-scroll > * {
+        flex-shrink: 0;
     }
     .act-sheet-scroll > .card {
         width: calc(50% - var(--gap-layout) / 2);
@@ -11272,7 +11276,6 @@ body.show-save-fab #actSaveRouteFab {
         border-radius: var(--radius);
         padding: var(--pad-card);
         overflow: hidden;
-        flex-shrink: 0;
     }
     /* Full-width elements stay 100% */
     .act-sheet-scroll > .act-hero,
