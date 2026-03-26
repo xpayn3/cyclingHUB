@@ -11283,10 +11283,6 @@ body.show-save-fab #actSaveRouteFab {
     .act-cards-grid .card > .chart-wrap {
         flex: 1;
         min-height: 180px;
-        height: auto !important;
-    }
-    .act-cards-grid .card > .chart-wrap canvas {
-        height: 100% !important;
     }
     .act-cards-grid .card > .detail-zone-summary {
         margin-top: auto;
