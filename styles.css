@@ -11226,20 +11226,25 @@ body.show-save-fab #actSaveRouteFab {
     flex-shrink: 0;
 }
 /* Activity detail: chart cards edge-to-edge + transparent */
-.act-sheet-scroll .card {
+/* Mobile: cards edge-to-edge, transparent bg */
+.act-sheet-scroll > .card {
     background: transparent;
     border-radius: 0;
-}
-.act-sheet-scroll > .card {
+    position: relative;
     margin-left: calc(-1 * var(--pad-page));
     margin-right: calc(-1 * var(--pad-page));
     padding-left: var(--pad-page);
     padding-right: var(--pad-page);
 }
-/* Zones carousel wrapper — match other cards */
-/* Info button on activity cards */
-.act-sheet-scroll .card {
-    position: relative;
+/* Desktop GridStack: reset mobile edge-bleed, restore card appearance */
+@media (min-width: 900px) {
+    .act-cards-grid .card {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        background: transparent !important;
+        border-radius: 0 !important;
+        padding: var(--pad-card) !important;
+    }
 }
 .act-sheet-scroll .card > .card-header {
     margin-bottom: 16px;
@@ -11284,6 +11289,8 @@ body.show-save-fab #actSaveRouteFab {
         overflow: hidden;
         border-radius: var(--radius);
         background: var(--bg-card);
+        /* Ensure it fills the grid-stack-item */
+        inset: 4px !important;
     }
     /* Charts expand to fill card */
     .act-cards-grid .card > .chart-wrap {
