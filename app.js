@@ -20726,8 +20726,9 @@ function _injectActCardDividers() {
   });
 }
 
-// Desktop GridStack: wrap chart cards in a draggable/resizable grid
-// Only activates on screens >= 900px. Lazy-loads GridStack from CDN.
+// Desktop GridStack for activity chart cards
+// CSS flex-wrap provides immediate 2-col layout
+// GridStack enhances with drag/resize after all cards render
 let _gsInstance = null;
 let _gsLoaded = false;
 let _gsLoading = false;
@@ -20739,14 +20740,12 @@ async function _loadGridStack() {
     return;
   }
   _gsLoading = true;
-  // Load CSS
   if (!document.querySelector('link[href*="gridstack"]')) {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = 'https://cdn.jsdelivr.net/npm/gridstack@10/dist/gridstack.min.css';
     document.head.appendChild(link);
   }
-  // Load JS
   await new Promise((resolve, reject) => {
     const s = document.createElement('script');
     s.src = 'https://cdn.jsdelivr.net/npm/gridstack@10/dist/gridstack-all.js';
@@ -20758,116 +20757,100 @@ async function _loadGridStack() {
   _gsLoading = false;
 }
 
-async function _initActCardsGrid() {
+function _initActCardsGrid() {
   if (window.innerWidth < 900) return;
+  // Delay to let all async cards render first
+  setTimeout(() => _initActCardsGridNow(), 4000);
+}
+
+async function _initActCardsGridNow() {
+  if (window.innerWidth < 900) return;
+  if (state.currentPage !== 'activity') return;
   const scroll = document.getElementById('actSheetScroll');
-  if (!scroll || scroll.querySelector('.act-cards-grid')) return;
+  if (!scroll || _gsInstance) return;
 
-  // Find where chart cards start (after streams/charts row)
+  try {
+    await _loadGridStack();
+    if (typeof GridStack === 'undefined') return;
+  } catch (e) {
+    console.warn('[GridStack] Failed to load:', e);
+    return;
+  }
+
+  // Collect visible chart cards (after streams)
   const children = [...scroll.children];
-  let gridStartIdx = -1;
-  for (let i = 0; i < children.length; i++) {
-    const el = children[i];
+  let afterStreams = false;
+  const cards = [];
+  children.forEach(el => {
     if (el.id === 'detailStreamsCard' || el.classList?.contains('detail-charts-row')) {
-      gridStartIdx = i + 1;
+      afterStreams = true;
+      return;
     }
-  }
-  if (gridStartIdx < 0 || gridStartIdx >= children.length) return;
+    if (!afterStreams) return;
+    if (el.classList?.contains('act-card-divider')) return;
+    if (!el.classList?.contains('card')) return;
+    if (el.style.display === 'none') return;
+    cards.push(el);
+  });
 
-  // Collect visible chart cards
-  const toMove = children.slice(gridStartIdx).filter(el =>
-    el.classList?.contains('card') && el.style.display !== 'none' && el.offsetHeight > 0
-  );
-  if (!toMove.length) return;
+  if (cards.length < 2) return;
 
-  // Simple CSS grid wrapper (no GridStack for now — too complex for async cards)
+  // Create grid-stack container
   const gridEl = document.createElement('div');
-  gridEl.className = 'act-cards-grid';
+  gridEl.className = 'act-cards-grid grid-stack';
+  gridEl.id = '_actGrid';
 
-  // Load saved order
-  const savedOrder = JSON.parse(localStorage.getItem('icu_act_card_order') || 'null');
-  if (savedOrder && Array.isArray(savedOrder)) {
-    const orderMap = new Map(toMove.map(el => [el.id, el]));
-    const ordered = [];
-    savedOrder.forEach(id => {
-      if (orderMap.has(id)) { ordered.push(orderMap.get(id)); orderMap.delete(id); }
-    });
-    orderMap.forEach(el => ordered.push(el)); // remaining unordered
-    ordered.forEach(el => gridEl.appendChild(el));
-  } else {
-    toMove.forEach(el => gridEl.appendChild(el));
-  }
+  // Wrap each card
+  let col = 0, row = 0;
+  cards.forEach(card => {
+    const item = document.createElement('div');
+    item.className = 'grid-stack-item';
+    item.setAttribute('gs-w', 1);
+    item.setAttribute('gs-h', 1);
+    item.setAttribute('gs-x', col);
+    item.setAttribute('gs-y', row);
+    item.setAttribute('gs-id', card.id || '');
+    const content = document.createElement('div');
+    content.className = 'grid-stack-item-content';
+    content.appendChild(card);
+    item.appendChild(content);
+    gridEl.appendChild(item);
+    col++;
+    if (col >= 2) { col = 0; row++; }
+  });
 
   scroll.appendChild(gridEl);
 
-  // Try to load GridStack for drag/resize
-  try {
-    await _loadGridStack();
-    if (typeof GridStack === 'undefined') {
-      console.info('[GridStack] Not available, using CSS grid fallback');
-      return;
-    }
+  _gsInstance = GridStack.init({
+    column: 2,
+    cellHeight: 380,
+    margin: 8,
+    float: false,
+    animate: true,
+    draggable: { handle: '.card-header' },
+    resizable: { handles: 'se' },
+    disableOneColumnMode: true,
+  }, gridEl);
 
-    // Add grid-stack class for GridStack
-    gridEl.classList.add('grid-stack');
+  console.info('[GridStack] Initialized with', _gsInstance.getGridItems().length, 'items');
 
-    // Wrap each card in grid-stack-item
-    [...gridEl.children].forEach(card => {
-      const item = document.createElement('div');
-      item.className = 'grid-stack-item';
-      item.setAttribute('gs-w', 1);
-      item.setAttribute('gs-h', 1);
-      item.setAttribute('gs-id', card.id || '');
-      const content = document.createElement('div');
-      content.className = 'grid-stack-item-content';
-      card.before(item);
-      content.appendChild(card);
-      item.appendChild(content);
-    });
-
-    _gsInstance = GridStack.init({
-      column: 2,
-      cellHeight: 350,
-      margin: 8,
-      float: false,
-      animate: true,
-      draggable: { handle: '.card-header' },
-      resizable: { handles: 'se' },
-      disableOneColumnMode: true,
-    }, gridEl);
-
-    console.info('[GridStack] Initialized with', _gsInstance.getGridItems().length, 'items');
-
-    // Save layout on change
-    _gsInstance.on('change', () => {
-      const items = _gsInstance.getGridItems();
-      const order = items.map(i => i.getAttribute('gs-id')).filter(Boolean);
-      try { localStorage.setItem('icu_act_card_order', JSON.stringify(order)); } catch {}
-    });
-
-  } catch (e) {
-    console.warn('[GridStack] Init failed, CSS grid fallback:', e);
-  }
+  _gsInstance.on('change', () => {
+    const order = _gsInstance.getGridItems()
+      .map(i => i.getAttribute('gs-id')).filter(Boolean);
+    try { localStorage.setItem('icu_act_card_order', JSON.stringify(order)); } catch {}
+  });
 }
 
-// Tear down grid on page leave
 function _destroyActCardsGrid() {
   const scroll = document.getElementById('actSheetScroll');
-  const gridEl = scroll?.querySelector('.act-cards-grid');
-  if (!gridEl) return;
-
-  // Destroy GridStack instance
   if (_gsInstance) {
     try { _gsInstance.destroy(false); } catch {}
     _gsInstance = null;
   }
-
-  // Unwrap cards from grid-stack-items back to scroll
+  const gridEl = document.getElementById('_actGrid');
+  if (!gridEl || !scroll) return;
+  // Unwrap cards back to scroll
   gridEl.querySelectorAll('.grid-stack-item-content > .card').forEach(card => {
-    scroll.appendChild(card);
-  });
-  // Also move bare cards (CSS grid fallback, no wrapper)
-  gridEl.querySelectorAll(':scope > .card').forEach(card => {
     scroll.appendChild(card);
   });
   gridEl.remove();

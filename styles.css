@@ -11258,26 +11258,45 @@ body.show-save-fab #actSaveRouteFab {
     padding: 0;
     height: 0;
 }
-/* ── Desktop activity cards grid (CSS fallback + GridStack enhancement) ── */
+/* ── Desktop 2-column layout for activity cards ── */
 @media (min-width: 900px) {
-    /* CSS grid fallback — works even without GridStack */
-    .act-cards-grid:not(.grid-stack) {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: var(--gap-layout);
-        margin-top: var(--gap-layout);
+    /* Flex-wrap gives immediate 2-col before GridStack loads */
+    .act-sheet-scroll {
+        flex-wrap: wrap;
     }
-    .act-cards-grid:not(.grid-stack) > .card {
-        margin: 0;
+    .act-sheet-scroll > .card {
+        width: calc(50% - var(--gap-layout) / 2);
+        margin-left: 0;
+        margin-right: 0;
         background: var(--bg-card);
         border-radius: var(--radius);
         padding: var(--pad-card);
         overflow: hidden;
+        flex-shrink: 0;
     }
-    /* GridStack mode — override grid with GridStack's absolute positioning */
+    /* Full-width elements stay 100% */
+    .act-sheet-scroll > .act-hero,
+    .act-sheet-scroll > .act-secondary-strip,
+    .act-sheet-scroll > .act-gear-badge,
+    .act-sheet-scroll > .ach-card,
+    .act-sheet-scroll > #detailCompareCard,
+    .act-sheet-scroll > #detailMapCard,
+    .act-sheet-scroll > #detailStreamsCard,
+    .act-sheet-scroll > .detail-charts-loading,
+    .act-sheet-scroll > .detail-charts-row,
+    .act-sheet-scroll > #detailLapSplitsCard,
+    .act-sheet-scroll > #detailNotesCard,
+    .act-sheet-scroll > #detailGradientCard,
+    .act-sheet-scroll > .act-cards-grid {
+        width: 100%;
+    }
+    .act-sheet-scroll > .act-card-divider {
+        display: none;
+        width: 0; height: 0;
+    }
+    /* GridStack container */
     .act-cards-grid.grid-stack {
         background: transparent !important;
-        margin-top: var(--gap-layout);
     }
     .act-cards-grid .grid-stack-item-content {
         overflow: hidden;
@@ -11286,6 +11305,7 @@ body.show-save-fab #actSaveRouteFab {
     }
     .act-cards-grid .grid-stack-item-content > .card {
         margin: 0;
+        width: auto;
         background: transparent;
         border-radius: 0;
         padding: var(--pad-card);
@@ -11304,20 +11324,13 @@ body.show-save-fab #actSaveRouteFab {
     .act-cards-grid .grid-stack-item-content > .card > .detail-zone-summary {
         margin-top: auto;
     }
-    /* Drag cursor */
     .act-cards-grid.grid-stack .card-header { cursor: grab; }
     .act-cards-grid.grid-stack .card-header:active { cursor: grabbing; }
-    /* Placeholder */
     .act-cards-grid .grid-stack-placeholder > .placeholder-content {
         border: 2px dashed var(--accent);
         border-radius: var(--radius);
         background: rgba(0,229,160,0.05);
     }
-}
-/* Mobile: unwrap grid if somehow present */
-@media (max-width: 899px) {
-    .act-cards-grid { display: contents; }
-    .grid-stack-item, .grid-stack-item-content { display: contents; }
 }
 
 .act-card-info-btn {
