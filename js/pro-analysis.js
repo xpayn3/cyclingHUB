@@ -916,11 +916,19 @@ function _buildChart() {
             wheel: { enabled: true, speed: 0.1 },
             pinch: { enabled: true },
             mode: 'x',
+            onZoom: _syncRangeFromChart,
+            onZoomComplete: _syncRangeFromChart,
           },
           pan: {
             enabled: true,
             mode: 'x',
             threshold: 10,
+            onPan({ chart }) {
+              _syncRangeFromChart({ chart });
+              const tip = document.getElementById('proTooltip');
+              if (tip) tip.style.visibility = 'hidden';
+            },
+            onPanComplete: _syncRangeFromChart,
           }
         }
       },
@@ -928,6 +936,14 @@ function _buildChart() {
     },
     plugins: [zonePlugin, intervalPlugin, lapPlugin, climbPlugin, brushPlugin, crosshairPlugin]
   });
+
+  // Restore zoom range if not full
+  if (_rS > 0.001 || _rE < 0.999) {
+    const n = labels.length;
+    _proChart.options.scales.x.min = Math.round(_rS * (n - 1));
+    _proChart.options.scales.x.max = Math.round(_rE * (n - 1));
+    _proChart.update('none');
+  }
 
   // Redraw range minimap after chart builds
   requestAnimationFrame(() => {
@@ -1050,19 +1066,19 @@ function _bindControls() {
       const raw = (e.clientX - r.left) / r.width;
       sApply(raw);
       if (raw < -0.02) {
-        const pull = Math.min(12, Math.abs(raw) * 60);
-        sPill.style.borderRadius = `${10 + pull}px 10px 10px ${10 + pull}px`;
-        sPill.style.transform = `translateX(${-pull * 0.4}px)`;
+        const pull = Math.min(10, Math.abs(raw) * 50);
+        sPill.style.transformOrigin = 'right center';
+        sPill.style.transform = `translateX(${-pull * 0.4}px) scaleX(${1 + pull * 0.003})`;
       } else if (raw > 1.02) {
-        const pull = Math.min(12, (raw - 1) * 60);
-        sPill.style.borderRadius = `10px ${10 + pull}px ${10 + pull}px 10px`;
-        sPill.style.transform = `translateX(${pull * 0.4}px)`;
-      } else { sPill.style.borderRadius = ''; sPill.style.transform = ''; }
+        const pull = Math.min(10, (raw - 1) * 50);
+        sPill.style.transformOrigin = 'left center';
+        sPill.style.transform = `translateX(${pull * 0.4}px) scaleX(${1 + pull * 0.003})`;
+      } else { sPill.style.transform = ''; sPill.style.transformOrigin = ''; }
     });
     const sEnd = () => {
       if (!sDrag) return; sDrag = false;
-      sPill.style.transition = 'transform 0.4s cubic-bezier(0.34,1.56,0.64,1), border-radius 0.4s cubic-bezier(0.34,1.56,0.64,1)';
-      sPill.style.transform = ''; sPill.style.borderRadius = '';
+      sPill.style.transition = 'transform 0.5s cubic-bezier(0.22, 1.8, 0.36, 1)';
+      sPill.style.transform = '';
       setTimeout(() => { sPill.style.transition = ''; }, 450);
       clearTimeout(sDebounce);
       sDebounce = setTimeout(() => { _buildChart(); }, 50);
@@ -1108,27 +1124,26 @@ function _bindControls() {
       const r = el.getBoundingClientRect();
       const raw = (e.clientX - r.left) / r.width;
       apply(raw);
-      // Rubber band — stretch only the edge being dragged past
+      // Rubber band — stretch only the dragged edge, anchor the opposite
       if (raw < -0.02) {
-        const pull = Math.min(12, Math.abs(raw) * 60);
-        el.style.borderRadius = `${10 + pull}px 10px 10px ${10 + pull}px`;
-        el.style.transform = `translateX(${-pull * 0.4}px)`;
+        const pull = Math.min(10, Math.abs(raw) * 50);
+        el.style.transformOrigin = 'right center';
+        el.style.transform = `translateX(${-pull * 0.4}px) scaleX(${1 + pull * 0.003})`;
       } else if (raw > 1.02) {
-        const pull = Math.min(12, (raw - 1) * 60);
-        el.style.borderRadius = `10px ${10 + pull}px ${10 + pull}px 10px`;
-        el.style.transform = `translateX(${pull * 0.4}px)`;
+        const pull = Math.min(10, (raw - 1) * 50);
+        el.style.transformOrigin = 'left center';
+        el.style.transform = `translateX(${pull * 0.4}px) scaleX(${1 + pull * 0.003})`;
       } else {
-        el.style.borderRadius = '';
         el.style.transform = '';
+        el.style.transformOrigin = '';
       }
     });
     const end = () => {
       if (!drag) return; drag = false;
       // Spring snap back
-      el.style.transition = 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), border-radius 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
+      el.style.transition = 'transform 0.5s cubic-bezier(0.22, 1.8, 0.36, 1)';
       el.style.transform = '';
-      el.style.borderRadius = '';
-      setTimeout(() => { el.style.transition = ''; }, 450);
+      setTimeout(() => { el.style.transition = ''; }, 550);
       clearTimeout(debounce);
       debounce = setTimeout(() => { if (_proStacked) _buildStackedCharts(); else _buildChart(); }, 150);
     };
@@ -1293,19 +1308,19 @@ function _bindControls() {
       const raw = (e.clientX - r.left) / r.width;
       zApply(raw);
       if (raw < -0.02) {
-        const pull = Math.min(12, Math.abs(raw) * 60);
-        zoomPillEl.style.borderRadius = `${10 + pull}px 10px 10px ${10 + pull}px`;
-        zoomPillEl.style.transform = `translateX(${-pull * 0.4}px)`;
+        const pull = Math.min(10, Math.abs(raw) * 50);
+        zoomPillEl.style.transformOrigin = 'right center';
+        zoomPillEl.style.transform = `translateX(${-pull * 0.4}px) scaleX(${1 + pull * 0.003})`;
       } else if (raw > 1.02) {
-        const pull = Math.min(12, (raw - 1) * 60);
-        zoomPillEl.style.borderRadius = `10px ${10 + pull}px ${10 + pull}px 10px`;
-        zoomPillEl.style.transform = `translateX(${pull * 0.4}px)`;
-      } else { zoomPillEl.style.borderRadius = ''; zoomPillEl.style.transform = ''; }
+        const pull = Math.min(10, (raw - 1) * 50);
+        zoomPillEl.style.transformOrigin = 'left center';
+        zoomPillEl.style.transform = `translateX(${pull * 0.4}px) scaleX(${1 + pull * 0.003})`;
+      } else { zoomPillEl.style.transform = ''; zoomPillEl.style.transformOrigin = ''; }
     });
     const zEnd = () => {
       if (!zDrag) return; zDrag = false;
-      zoomPillEl.style.transition = 'transform 0.4s cubic-bezier(0.34,1.56,0.64,1), border-radius 0.4s cubic-bezier(0.34,1.56,0.64,1)';
-      zoomPillEl.style.transform = ''; zoomPillEl.style.borderRadius = '';
+      zoomPillEl.style.transition = 'transform 0.5s cubic-bezier(0.22, 1.8, 0.36, 1)';
+      zoomPillEl.style.transform = '';
       setTimeout(() => { zoomPillEl.style.transition = ''; }, 450);
     };
     zoomPillEl.addEventListener('pointerup', zEnd);
@@ -1446,13 +1461,38 @@ function _bindControls() {
     if (canvas) canvas.style.pointerEvents = 'none';
 
     const fps = 30;
+    // Auto-pan: keep a ~15% window centered on playhead
+    const windowSize = Math.max(Math.round(total * 0.15), 60);
+
     _playInterval = setInterval(() => {
       _playIdx += PLAY_SPEEDS[_playSpeedIdx];
       if (_playIdx >= total) { _playIdx = 0; _stopPlayback(); return; }
       _activateCrosshairAtIndex(_playIdx);
       _updatePlayerProgress();
+
+      // Follow playhead: zoom to a window around current position
+      const halfWin = Math.round(windowSize / 2);
+      let xMin = Math.max(0, _playIdx - halfWin);
+      let xMax = Math.min(total - 1, _playIdx + halfWin);
+      // Keep window size consistent at edges
+      if (xMin === 0) xMax = Math.min(total - 1, windowSize);
+      if (xMax === total - 1) xMin = Math.max(0, total - 1 - windowSize);
+
+      _proChart.options.scales.x.min = xMin;
+      _proChart.options.scales.x.max = xMax;
+      _proChart.update('none');
+
+      // Sync range bar
+      _rS = xMin / (total - 1);
+      _rE = xMax / (total - 1);
+      const bar = document.getElementById('proRange');
+      if (bar) {
+        bar.style.setProperty('--sel-left', (_rS * 100) + '%');
+        bar.style.setProperty('--sel-right', ((1 - _rE) * 100) + '%');
+      }
+
       // Throttle stats to every 5th frame
-      if (_playIdx % 5 === 0) _updateStats(_playIdx, _playIdx);
+      if (_playIdx % 5 === 0) _updateStats(xMin, xMax);
     }, 1000 / fps);
   }
 
@@ -1738,6 +1778,21 @@ function _bindControls() {
 /* ── Range Bar — module-level, outside _bindControls ──────── */
 let _rS = 0, _rE = 1, _rangeMode = null, _rangeBound = false;
 
+// Called by Chart.js zoom/pan plugin to sync range bar with chart view
+function _syncRangeFromChart({ chart }) {
+  const n = chart.data.labels?.length || 1;
+  const xMin = chart.scales.x?.min ?? 0;
+  const xMax = chart.scales.x?.max ?? (n - 1);
+  _rS = Math.max(0, xMin / (n - 1));
+  _rE = Math.min(1, xMax / (n - 1));
+  const bar = document.getElementById('proRange');
+  if (bar) {
+    bar.style.setProperty('--sel-left', (_rS * 100) + '%');
+    bar.style.setProperty('--sel-right', ((1 - _rE) * 100) + '%');
+  }
+  _updateStats(Math.round(_rS * (n - 1)), Math.round(_rE * (n - 1)));
+}
+
 function _initRangeBar() {
   const bar = document.getElementById('proRange');
   if (!bar) return;
@@ -1807,13 +1862,18 @@ function _initRangeBar() {
     sx = e.clientX; sL = _rS; sR = _rE;
 
     const t = e.target;
-    if (t.id === 'proGrabL' || t.closest?.('.pro-range-grab--l')) {
+    const w = rect.width;
+    const pxFromL = Math.abs(pct - _rS) * w;
+    const pxFromR = Math.abs(pct - _rE) * w;
+    const grabZone = 10; // px — prioritize handles within this distance
+
+    if (t.id === 'proGrabL' || t.closest?.('.pro-range-grab--l') || pxFromL < grabZone) {
       mode = 'L';
-    } else if (t.id === 'proGrabR' || t.closest?.('.pro-range-grab--r')) {
+    } else if (t.id === 'proGrabR' || t.closest?.('.pro-range-grab--r') || pxFromR < grabZone) {
       mode = 'R';
-    } else if (pct > _rS + 0.03 && pct < _rE - 0.03) {
+    } else if (pct > _rS && pct < _rE) {
       mode = 'M';
-    } else if (Math.abs(pct - _rS) < Math.abs(pct - _rE)) {
+    } else if (pxFromL < pxFromR) {
       _rS = Math.max(0, Math.min(_rE - 0.02, pct)); sL = _rS; mode = 'L';
     } else {
       _rE = Math.min(1, Math.max(_rS + 0.02, pct)); sR = _rE; mode = 'R';
