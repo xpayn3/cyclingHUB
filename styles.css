@@ -11281,7 +11281,6 @@ body.show-save-fab #actSaveRouteFab {
     .act-sheet-scroll > .detail-charts-row,
     .act-sheet-scroll > #detailLapSplitsCard,
     .act-sheet-scroll > #detailNotesCard,
-    .act-sheet-scroll > #detailGradientCard,
     .act-sheet-scroll > .act-sheet-handle { width: 100%; }
     .act-sheet-scroll > .act-card-divider {
         display: none; width: 0; height: 0;
