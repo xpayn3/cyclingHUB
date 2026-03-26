@@ -20764,9 +20764,9 @@ async function _loadGridStack() {
 }
 
 function _initActCardsGrid() {
-  if (window.innerWidth < 900) return;
-  // Wait for async cards to render, then init GridStack
-  setTimeout(() => _initGridStackNow(), 3000);
+  // GridStack disabled — moving canvas elements destroys Chart.js contexts
+  // CSS flex-wrap handles 2-col layout, SortableJS can add drag-to-reorder later
+  return;
 }
 
 async function _initGridStackNow() {
