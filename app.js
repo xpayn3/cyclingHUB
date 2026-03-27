@@ -33383,7 +33383,7 @@ async function openBadgeViewer(badgeId, name, desc) {
     overlay.style.display = 'flex';
     requestAnimationFrame(() => overlay.classList.add('badge-dialog--open'));
   } else {
-    _openUniSheet({ id: 'badgeViewer', body: bodyHtml, partial: true, maxWidth: 400 });
+    _openUniSheet({ id: 'badgeViewer', body: bodyHtml, partial: true, maxWidth: 400, hideHeader: true });
   }
 
   await _loadBadgeCard(badgeId, name, desc);

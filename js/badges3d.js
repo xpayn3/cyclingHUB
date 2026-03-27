@@ -1348,26 +1348,39 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   const envC = document.createElement('canvas'); envC.width = 1024; envC.height = 512;
   const ec = envC.getContext('2d');
   ec.fillStyle = '#0c0c0c'; ec.fillRect(0, 0, 1024, 512);
-  const sb = ec.createRadialGradient(512, 256, 0, 512, 256, 350);
+  const sb = ec.createRadialGradient(440, 240, 0, 440, 240, 350);
   sb.addColorStop(0, '#ffffff'); sb.addColorStop(0.2, '#dddddd'); sb.addColorStop(0.5, '#444444'); sb.addColorStop(1, 'transparent');
   ec.fillStyle = sb; ec.fillRect(0, 0, 1024, 512);
   const ac = ec.createRadialGradient(200, 120, 0, 200, 120, 150);
   ac.addColorStop(0, `rgba(${r},${g},${b},0.5)`); ac.addColorStop(1, 'transparent');
   ec.fillStyle = ac; ec.fillRect(0, 0, 1024, 512);
-  // Rainbow bands for holographic diffraction
-  const rainbow = ec.createLinearGradient(0, 0, 1024, 0);
-  rainbow.addColorStop(0, 'rgba(255,0,60,0.2)');
-  rainbow.addColorStop(0.15, 'rgba(255,140,0,0.2)');
-  rainbow.addColorStop(0.3, 'rgba(255,255,0,0.18)');
-  rainbow.addColorStop(0.45, 'rgba(0,255,120,0.2)');
-  rainbow.addColorStop(0.6, 'rgba(0,140,255,0.2)');
-  rainbow.addColorStop(0.75, 'rgba(120,0,255,0.2)');
-  rainbow.addColorStop(0.9, 'rgba(255,0,180,0.2)');
-  rainbow.addColorStop(1, 'rgba(255,0,60,0.2)');
-  ec.fillStyle = rainbow; ec.fillRect(0, 100, 1024, 300);
-  // Extra scattered color spots
-  const spots = [[150,80,'#ff006644'],[400,350,'#00ff8844'],[700,150,'#4488ff44'],[900,300,'#ff44cc44'],[300,200,'#ffcc0044']];
-  spots.forEach(([x,y,c]) => { const s = ec.createRadialGradient(x,y,0,x,y,80); s.addColorStop(0,c); s.addColorStop(1,'transparent'); ec.fillStyle = s; ec.fillRect(0,0,1024,512); });
+  // Strong rainbow bands — full coverage, vivid
+  const rb1 = ec.createLinearGradient(0, 0, 1024, 0);
+  rb1.addColorStop(0, 'rgba(255,0,60,0.45)');
+  rb1.addColorStop(0.15, 'rgba(255,140,0,0.45)');
+  rb1.addColorStop(0.3, 'rgba(255,255,0,0.4)');
+  rb1.addColorStop(0.45, 'rgba(0,255,120,0.45)');
+  rb1.addColorStop(0.6, 'rgba(0,140,255,0.45)');
+  rb1.addColorStop(0.75, 'rgba(150,0,255,0.45)');
+  rb1.addColorStop(0.9, 'rgba(255,0,180,0.45)');
+  rb1.addColorStop(1, 'rgba(255,0,60,0.45)');
+  ec.fillStyle = rb1; ec.fillRect(0, 0, 1024, 512);
+  // Second rainbow layer — vertical for cross-holo effect
+  const rb2 = ec.createLinearGradient(0, 0, 0, 512);
+  rb2.addColorStop(0, 'rgba(0,255,200,0.2)');
+  rb2.addColorStop(0.25, 'rgba(255,100,0,0.2)');
+  rb2.addColorStop(0.5, 'rgba(100,0,255,0.2)');
+  rb2.addColorStop(0.75, 'rgba(255,255,0,0.2)');
+  rb2.addColorStop(1, 'rgba(0,150,255,0.2)');
+  ec.fillStyle = rb2; ec.fillRect(0, 0, 1024, 512);
+  // Vivid color spots
+  const spots = [
+    [150,80,'rgba(255,0,100,0.5)'],[400,350,'rgba(0,255,136,0.5)'],
+    [700,150,'rgba(68,136,255,0.5)'],[900,300,'rgba(255,68,204,0.5)'],
+    [300,200,'rgba(255,204,0,0.5)'],[550,100,'rgba(0,255,255,0.4)'],
+    [800,400,'rgba(255,100,0,0.4)'],[100,350,'rgba(160,0,255,0.4)'],
+  ];
+  spots.forEach(([x,y,c]) => { const s = ec.createRadialGradient(x,y,0,x,y,100); s.addColorStop(0,c); s.addColorStop(1,'transparent'); ec.fillStyle = s; ec.fillRect(0,0,1024,512); });
   const envTex = new THREE.CanvasTexture(envC); envTex.mapping = THREE.EquirectangularReflectionMapping;
 
   // Card geometry
@@ -1404,13 +1417,13 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   // Colored ribbon at top with repeating name
   const ribbonH = 56;
   fc.fillStyle = `rgb(${r},${g},${b})`; fc.fillRect(0, 40, fW, ribbonH);
-  fc.font = '900 38px Inter, system-ui, sans-serif';
-  fc.letterSpacing = '2px';
+  fc.font = '900 italic 38px "Source Serif 4", Georgia, "Times New Roman", serif';
+  fc.letterSpacing = '0px';
   fc.fillStyle = 'rgba(0,0,0,0.6)'; fc.textBaseline = 'middle';
   const ribbonText = (name.toUpperCase() + '  ·  ').repeat(20);
-  fc.fillText(ribbonText, 0, 40 + ribbonH / 2);
+  fc.fillText(ribbonText, 0, 40 + ribbonH / 2 + 2);
   // Second pass slightly offset for faux extra bold
-  fc.fillText(ribbonText, 0.5, 40 + ribbonH / 2);
+  fc.fillText(ribbonText, 0.5, 40 + ribbonH / 2 + 2);
 
   // Icon — large, centered
   try {
@@ -1576,6 +1589,10 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     }
   }
 
+  // Ribbon — same chrome as icon
+  mc.fillStyle = 'rgb(0,5,255)';
+  mc.fillRect(0, 40, fW, ribbonH);
+
   // Icon area — full chrome on top of pattern
   try {
     mc.save();
@@ -1594,7 +1611,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   for (let i = 0; i < bd.length; i += 4) { const n = Math.random() * 6 - 3; bd[i] = Math.max(0, bd[i] + n); bd[i+1] = Math.max(0, bd[i+1] + n); bd[i+2] = Math.max(0, bd[i+2] + n); }
   bc.putImageData(bDither, 0, 0);
   bc.fillStyle = `rgb(${r},${g},${b})`; bc.fillRect(0, fH - ribbonH, fW, ribbonH);
-  bc.font = '900 38px Inter, system-ui, sans-serif'; bc.letterSpacing = '2px'; bc.fillStyle = 'rgba(0,0,0,0.6)'; bc.textBaseline = 'middle';
+  bc.font = '900 italic 38px "Source Serif 4", Georgia, "Times New Roman", serif'; bc.letterSpacing = '0px'; bc.fillStyle = 'rgba(0,0,0,0.6)'; bc.textBaseline = 'middle';
   bc.fillText(ribbonText, 0, fH - ribbonH / 2);
   bc.fillText(ribbonText, 0.5, fH - ribbonH / 2);
   bc.font = '800 140px Inter, system-ui, sans-serif'; bc.fillStyle = `rgba(${r},${g},${b},0.15)`; bc.textAlign = 'center';
@@ -1611,7 +1628,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   const frontMat = new THREE.MeshStandardMaterial({
     map: faceTex, normalMap: normalTex, normalScale: new THREE.Vector2(1, 1),
     metalnessMap: mrTex, roughnessMap: mrTex, metalness: 1, roughness: 1,
-    envMap: envTex, envMapIntensity: 1.5, side: THREE.FrontSide
+    envMap: envTex, envMapIntensity: 2.5, side: THREE.FrontSide
   });
   const backMat = new THREE.MeshStandardMaterial({ map: backTex, metalness: 0.5, roughness: 0.4, envMap: envTex, envMapIntensity: 0.6 });
   const edgeMat = new THREE.MeshStandardMaterial({ color: def.color, metalness: 1, roughness: 0.08, envMap: envTex, envMapIntensity: 2 });
