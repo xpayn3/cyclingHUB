@@ -22958,12 +22958,32 @@ body:has(.act-sheet-mode) .topbar {
 /* Streak hero cards — plain grey base, hero-glow on hover */
 .stk-hero-card {
     border-radius: var(--radius-lg);
-    padding: 24px 20px 20px;
+    padding: 20px;
     display: flex;
     flex-direction: column;
     align-items: center;
     text-align: center;
     position: relative;
+    overflow: hidden;
+}
+/* Week streak hero — larger, horizontal layout on wider screens */
+@media (min-width: 420px) {
+  .stk-hero-row > .stk-hero-card:first-child {
+    flex-direction: row;
+    align-items: center;
+    text-align: left;
+    gap: 16px;
+    padding: 24px;
+  }
+  .stk-hero-row > .stk-hero-card:first-child .stk-hero-flame {
+    width: 56px;
+    height: 56px;
+    flex-shrink: 0;
+  }
+  .stk-hero-row > .stk-hero-card:first-child .stk-hero-num {
+    font-size: 3.6rem;
+    margin-bottom: 2px;
+  }
 }
 /* Day card — blue hue shift */
 .stk-hero-card--day { --hue: 210; }
@@ -23075,7 +23095,7 @@ body:has(.act-sheet-mode) .topbar {
 .stk-cal-month-row,
 .stk-cal-cells {
     display: flex;
-    gap: 2px;
+    gap: 4px;
 }
 .stk-cal-month-lbl,
 .stk-cell {
