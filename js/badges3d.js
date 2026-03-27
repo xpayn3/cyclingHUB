@@ -2352,6 +2352,12 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     if (!_bcMesh) return;
     if (_bcIdle) return;
 
+    // Always update glitter uniforms
+    const t = Date.now() * 0.001;
+    glitterMat.uniforms.time.value = t;
+    glitterMat.uniforms.rotY.value = _bcMesh.rotation.y || 0;
+    glitterMat.uniforms.rotX.value = _bcMesh.rotation.x || 0;
+
     // Intro animation
     const introElapsed = Date.now() - _bcIntroStart;
     if (introElapsed < _bcIntroDur) {
@@ -2360,6 +2366,8 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
       _bcMesh.rotation.y = -Math.PI * 0.6 + (REST_Y - (-Math.PI * 0.6)) * p;
       _bcMesh.rotation.z = 0.15 * (1 - p);
       _bcMesh.scale.setScalar(0.7 + 0.3 * p);
+      glitterMat.uniforms.rotY.value = _bcMesh.rotation.y;
+      glitterMat.uniforms.rotX.value = _bcMesh.rotation.x;
       _bcRenderer.render(_bcScene, _bcCamera);
       return;
     } else if (!_bcAutoSpin && !_bcSpinning && !_bcDragging) {
@@ -2372,7 +2380,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     } else { _bcFrameSkip = 0; }
 
     // Holo shimmer — sweep rainbow env map based on rotation angle
-    const t = Date.now() * 0.001, ry = _bcMesh.rotation.y || 0, rx = _bcMesh.rotation.x || 0;
+    const ry = _bcMesh.rotation.y || 0, rx = _bcMesh.rotation.x || 0;
     if (!isMountain) {
       // Subtle env map offset sweep — gentle rainbow shift with rotation
       envTex.offset.x = (ry * 0.4) % 1;
@@ -2388,10 +2396,6 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     holoSpot.position.y = Math.sin(rx) * 2 + 1;
     holoSpot.position.z = Math.cos(ry) * 3 + 1;
     holoSpot.intensity = 2 + Math.max(0, Math.cos(ry)) * 4;
-    // Glitter uniforms
-    glitterMat.uniforms.time.value = t;
-    glitterMat.uniforms.rotY.value = ry;
-    glitterMat.uniforms.rotX.value = rx;
     if (!_bcDragging) {
       const timeSinceRelease = Date.now() - _bcReleaseTime;
       if (_bcSpinning) {
