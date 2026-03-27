@@ -1209,7 +1209,7 @@ export async function initRiderCard3D(canvasEl, data) {
     const dx = (e.clientX - _rcStartX) * 0.005;
     const dy = (e.clientY - _rcStartY) * 0.005;
     const newY = _rcRotY + dx;
-    const newX = _rcRotX - dy;
+    const newX = _rcRotX + dy;
     // Track velocity for momentum spin
     _rcDragVelX = _rcMesh.rotation.x - _rcLastMoveX;
     _rcDragVelY = _rcMesh.rotation.y - _rcLastMoveY;
