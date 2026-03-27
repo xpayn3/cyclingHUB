@@ -2065,7 +2065,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
       mg.addColorStop(0,'rgba(255,248,230,0.95)'); mg.addColorStop(0.3,'rgba(255,240,200,0.4)'); mg.addColorStop(1,'transparent');
       ctx.fillStyle = mg; ctx.fillRect(mx-mr2*2,my-mr2*2,mr2*4,mr2*4);
       ctx.fillStyle = '#fffae8'; ctx.beginPath(); ctx.arc(mx,my,mr2,0,Math.PI*2); ctx.fill();
-    }, -14, 2.2);
+    }, -14, 6);
 
     // Layer 1: Far mountains
     const farMtn = makeLayer((ctx, w2, h2) => {
@@ -2079,7 +2079,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
         ctx.beginPath(); ctx.moveTo(w2*px,h2*py);
         ctx.lineTo(w2*(px-0.04),h2*(py+0.07)); ctx.lineTo(w2*(px+0.04),h2*(py+0.07)); ctx.fill();
       });
-    }, -9, 1.8);
+    }, -9, 4.5);
 
     // Layer 2: Mid hills
     const midHill = makeLayer((ctx, w2, h2) => {
@@ -2089,7 +2089,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
       ctx.quadraticCurveTo(w2*0.6,h2*0.62,w2*0.8,h2*0.5);
       ctx.quadraticCurveTo(w2*0.95,h2*0.42,w2,h2*0.52);
       ctx.lineTo(w2,h2); ctx.lineTo(0,h2); ctx.fill();
-    }, -5, 1.5);
+    }, -5, 3.2);
 
     // Layer 3: Foreground trees
     const fg = makeLayer((ctx, w2, h2) => {
@@ -2111,7 +2111,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
         ctx.fillStyle = `rgba(200,210,255,${0.1+Math.random()*0.2})`;
         ctx.beginPath(); ctx.arc(Math.random()*w2,Math.random()*h2,1+Math.random()*2,0,Math.PI*2); ctx.fill();
       }
-    }, -2, 1.2);
+    }, -2, 2.2);
 
     // Camera for the portal scene — looks into the mountain world
     const portalCam = new THREE.PerspectiveCamera(50, w / h, 0.1, 100);

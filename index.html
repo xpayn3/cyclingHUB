@@ -859,6 +859,17 @@
                     Fitness
                     <span class="badge" id="sidebarCTL">—</span>
                 </div>
+                <div
+                    class="nav-item"
+                    data-page="goals"
+                    onclick="
+                        navigate('goals');
+                        closeSidebar();
+                    "
+                >
+                    <svg class="icon"><use href="icons.svg#icon-target"/></svg>
+                    Goals & Streaks
+                </div>
                 <span class="nav-section-label">Analysis</span>
                 <div
                     class="nav-item"
@@ -936,17 +947,6 @@
                 <div class="nav-item" data-page="workout" onclick="navigate('workout');closeSidebar();">
                     <svg class="icon"><use href="icons.svg#icon-dumbbell"/></svg>
                     Workout Builder
-                </div>
-                <div
-                    class="nav-item"
-                    data-page="goals"
-                    onclick="
-                        navigate('goals');
-                        closeSidebar();
-                    "
-                >
-                    <svg class="icon"><use href="icons.svg#icon-target"/></svg>
-                    Goals & Streaks
                 </div>
                 <!-- Settings nav link removed — accessible via gear FAB in footer -->
             </nav>
@@ -5736,9 +5736,7 @@
                             </div>
                         </div>
 
-                        <!-- Year overview -->
-                        <div class="page-headline" style="margin-bottom:8px" id="stkYearTitle">This Year</div>
-                        <div class="stk-months-grid" id="stkMonthsGrid"></div>
+                        <!-- Year overview removed -->
 
                         <!-- Achievements -->
                         <div class="page-headline" style="margin-bottom:8px">Achievements</div>
