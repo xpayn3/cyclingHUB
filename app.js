@@ -4646,11 +4646,12 @@ function navigate(page, opts) {
   if (page === 'fitness')  { renderFitnessPage(); _renderGuideInline(); }
   if (page === 'power')    renderPowerPage();
   if (page === 'compare')  { ensureLifetimeLoaded(); renderComparePage(); }
-  if (page === 'heatmap')  { ensureLifetimeLoaded(); renderHeatmapPage(); }
+  // Redirect old pages to library
+  if (page === 'heatmap' || page === 'myroutes') { navigate('library'); return; }
+  if (page === 'library')  { ensureLifetimeLoaded(); _renderLibraryPage(); }
   if (page === 'goals')    { renderStreaksPage(); renderGoalsPage(); }
   if (page === 'workout')  { wrkRefreshStats(); wrkRender(); document.getElementById('pageContent')?.classList.add('wrk-snap'); }
   else document.getElementById('pageContent')?.classList.remove('wrk-snap');
-  if (page === 'myroutes') renderMyRoutesPage();
   if (page === 'suggestion') renderSuggestionPage();
   if (page === 'bikedetail') renderBikeDetailPage();
   if (page === 'settings') {
@@ -35369,9 +35370,32 @@ function openProfileModal() {
   overlay.offsetHeight;
   overlay.classList.add('prof-open');
   overlay.classList.remove('prof-closing');
+
+  // Init 3D rider card after sheet animates in
+  setTimeout(async () => {
+    const rcCanvas = document.getElementById('riderCard3dCanvas');
+    if (!rcCanvas) return;
+    try {
+      if (!_badges3dModule) _badges3dModule = await import('./js/badges3d.js');
+      if (_badges3dModule.destroyRiderCard3D) _badges3dModule.destroyRiderCard3D();
+      const athleteName = state.athlete ? (state.athlete.name || state.athlete.firstname || 'Cyclist') : 'Cyclist';
+      await _badges3dModule.initRiderCard3D(rcCanvas, {
+        name: athleteName,
+        level: stats.level,
+        title: levelTitle,
+        totalRides: stats.totalRides.toLocaleString(),
+        totalDist: stats.totalDist.toLocaleString(),
+        totalElev: stats.totalElev.toLocaleString(),
+        currentXP: stats.currentXP,
+        nextXP: stats.nextLevelXP,
+        xpPct: stats.nextLevelXP > 0 ? Math.min(stats.currentXP / stats.nextLevelXP, 1) : 1,
+      });
+    } catch (e) { console.warn('Rider card 3D failed:', e); }
+  }, 500);
 }
 
 function closeProfileModal() {
+  if (_badges3dModule?.destroyRiderCard3D) _badges3dModule.destroyRiderCard3D();
   const overlay = document.getElementById('profileOverlay');
   if (!overlay) return;
   overlay.classList.remove('prof-open');
@@ -36716,7 +36740,7 @@ function _h2hCalcDiffs(values, higherIsBetter) {
 
 // Capture any saved route before navigate() overwrites sessionStorage
 const _initRoute = (() => { try { return JSON.parse(sessionStorage.getItem('icu_route')); } catch { return null; } })();
-const _validInitPages = ['dashboard','activities','calendar','fitness','power','zones','weather','settings','workout','guide','compare','heatmap','goals','import','gear','myroutes','routes'];
+const _validInitPages = ['dashboard','activities','calendar','fitness','power','zones','weather','settings','workout','guide','compare','heatmap','goals','import','gear','myroutes','routes','library'];
 const _startPage = (_initRoute && _initRoute.type === 'page' && _validInitPages.includes(_initRoute.page)) ? _initRoute.page : 'dashboard';
 
 // navigate(_startPage) is called after cache loading below
@@ -38176,6 +38200,228 @@ function renderSuggestionPage() {
   `;
 }
 
+/* ═══════════════════════════════════════════════════════════
+   LIBRARY PAGE — Merged heatmap + routes explorer
+═══════════════════════════════════════════════════════════ */
+let _libActiveTab = 'heatmap';
+let _libMapReady = false;
+
+function _renderLibraryPage() {
+  // Init heatmap on the library map container
+  const mapEl = document.getElementById('libMap');
+  if (mapEl && !_libMapReady) {
+    // Render heatmap into #libMap instead of #heatmapMap
+    _libMapReady = true;
+    renderHeatmapPage('libMap');
+  } else if (_libMapReady) {
+    // Map already initialized, just refresh
+    if (window.hmRedraw) hmRedraw();
+  }
+  // Build active tab content
+  _libBuildTab(_libActiveTab);
+}
+
+function _libSwitchTab(tab) {
+  _libActiveTab = tab;
+  document.querySelectorAll('.lib-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.querySelectorAll('.lib-pane').forEach(p => p.classList.toggle('active', p.id === 'libPane' + tab.charAt(0).toUpperCase() + tab.slice(1)));
+  _libBuildTab(tab);
+}
+window._libSwitchTab = _libSwitchTab;
+
+function _libBuildTab(tab) {
+  if (tab === 'heatmap') _libBuildHeatmapTab();
+  else if (tab === 'rides') _libBuildRidesTab();
+  else if (tab === 'routes') _libBuildRoutesTab();
+  else if (tab === 'discover') _libBuildDiscoverTab();
+}
+
+function _libBuildHeatmapTab() {
+  const pane = document.getElementById('libPaneHeatmap');
+  if (!pane || pane.dataset.built) return;
+  pane.dataset.built = '1';
+  pane.innerHTML = `
+    <div class="lib-section">
+      <div class="lib-section-title">Map Style</div>
+      <div class="lib-pills">
+        <button class="lib-pill active" onclick="_libSetHeatMode('heat',this)">Heat</button>
+        <button class="lib-pill" onclick="_libSetHeatMode('lines',this)">Lines</button>
+        <button class="lib-pill" onclick="_libSetHeatMode('speed',this)">Speed</button>
+        <button class="lib-pill" onclick="_libSetHeatMode('year',this)">Year</button>
+      </div>
+    </div>
+    <div class="lib-section">
+      <div class="lib-section-title">Time Period</div>
+      <div class="lib-pills">
+        <button class="lib-pill" onclick="_libSetHeatPeriod('90d',this)">90d</button>
+        <button class="lib-pill" onclick="_libSetHeatPeriod('year',this)">1 Year</button>
+        <button class="lib-pill active" onclick="_libSetHeatPeriod('all',this)">All Time</button>
+      </div>
+    </div>
+    <div class="lib-section" id="libHeatStats"></div>
+  `;
+}
+
+function _libBuildRidesTab() {
+  const pane = document.getElementById('libPaneRides');
+  if (!pane) return;
+  const acts = (state.activities || []).filter(a => a.type === 'Ride' && a.distance > 1000).slice(0, 50);
+  if (!acts.length) { pane.innerHTML = '<div class="lib-empty">No rides yet</div>'; return; }
+  pane.innerHTML = acts.map(a => {
+    const km = (a.distance / 1000).toFixed(1);
+    const dur = a.moving_time ? Math.round(a.moving_time / 60) + 'm' : '';
+    const d = a.start_date_local ? new Date(a.start_date_local) : null;
+    const dateStr = d ? d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : '';
+    return `<div class="lib-ride-card" onclick="_libShowRide('${a.id}')">
+      <div class="lib-ride-info">
+        <div class="lib-ride-name">${a.name || 'Ride'}</div>
+        <div class="lib-ride-meta">${dateStr} · ${km} km · ${dur}</div>
+      </div>
+      <svg class="icon" width="14" height="14" style="color:var(--text-faint);flex-shrink:0"><use href="icons.svg#icon-chevron-right"/></svg>
+    </div>`;
+  }).join('');
+}
+
+function _libBuildRoutesTab() {
+  const pane = document.getElementById('libPaneRoutes');
+  if (!pane) return;
+  const favs = JSON.parse(localStorage.getItem('icu_fav_routes') || '[]');
+  const acts = (state.activities || []).filter(a => a.type === 'Ride' && a.distance > 1000);
+  // Show favorites first, then recent
+  let html = '';
+  if (favs.length) {
+    html += '<div class="lib-section-title">Favorites</div>';
+    html += favs.map(id => {
+      const a = acts.find(x => x.id === id);
+      if (!a) return '';
+      const km = (a.distance / 1000).toFixed(1);
+      return `<div class="lib-ride-card" onclick="_libShowRide('${a.id}')">
+        <svg class="icon" width="14" height="14" style="color:#f0c429;flex-shrink:0"><use href="icons.svg#icon-star"/></svg>
+        <div class="lib-ride-info"><div class="lib-ride-name">${a.name || 'Ride'}</div><div class="lib-ride-meta">${km} km</div></div>
+        <svg class="icon" width="14" height="14" style="color:var(--text-faint);flex-shrink:0"><use href="icons.svg#icon-chevron-right"/></svg>
+      </div>`;
+    }).join('');
+  }
+  html += '<div class="lib-section-title" style="margin-top:16px">Saved Routes</div>';
+  html += '<div class="lib-empty">Route builder routes coming soon</div>';
+  pane.innerHTML = html;
+}
+
+function _libBuildDiscoverTab() {
+  const pane = document.getElementById('libPaneDiscover');
+  if (!pane || pane.dataset.built) return;
+  pane.dataset.built = '1';
+  const acts = (state.activities || []).filter(a => a.type === 'Ride' && a.distance > 1000);
+  const totalKm = acts.reduce((s, a) => s + (a.distance || 0) / 1000, 0);
+  const totalElev = acts.reduce((s, a) => s + (a.total_elevation_gain || 0), 0);
+  const longestRide = acts.reduce((best, a) => (a.distance || 0) > (best?.distance || 0) ? a : best, null);
+
+  pane.innerHTML = `
+    <div class="lib-discover-stats">
+      <div class="lib-discover-stat">
+        <span class="lib-discover-val" style="color:var(--accent)">${Math.round(totalKm).toLocaleString()}</span>
+        <span class="lib-discover-label">km ridden</span>
+      </div>
+      <div class="lib-discover-stat">
+        <span class="lib-discover-val" style="color:#9b59ff">${Math.round(totalElev).toLocaleString()}</span>
+        <span class="lib-discover-label">m climbed</span>
+      </div>
+      <div class="lib-discover-stat">
+        <span class="lib-discover-val" style="color:#4a9eff">${acts.length}</span>
+        <span class="lib-discover-label">rides</span>
+      </div>
+    </div>
+    <div class="lib-section-title">Most Ridden</div>
+    <div class="lib-most-ridden" id="libMostRidden"></div>
+    <div class="lib-section-title" style="margin-top:16px">Longest Rides</div>
+    <div id="libLongest"></div>
+    <div class="lib-section-title" style="margin-top:16px">Most Climbing</div>
+    <div id="libClimbers"></div>
+  `;
+
+  // Populate longest
+  const longest = [...acts].sort((a, b) => (b.distance || 0) - (a.distance || 0)).slice(0, 5);
+  const longestEl = document.getElementById('libLongest');
+  if (longestEl) longestEl.innerHTML = longest.map(a => `<div class="lib-ride-card" onclick="_libShowRide('${a.id}')">
+    <div class="lib-ride-info"><div class="lib-ride-name">${a.name || 'Ride'}</div><div class="lib-ride-meta">${(a.distance / 1000).toFixed(1)} km</div></div>
+    <svg class="icon" width="14" height="14" style="color:var(--text-faint)"><use href="icons.svg#icon-chevron-right"/></svg>
+  </div>`).join('');
+
+  // Populate climbers
+  const climbers = [...acts].sort((a, b) => (b.total_elevation_gain || 0) - (a.total_elevation_gain || 0)).slice(0, 5);
+  const climbEl = document.getElementById('libClimbers');
+  if (climbEl) climbEl.innerHTML = climbers.map(a => `<div class="lib-ride-card" onclick="_libShowRide('${a.id}')">
+    <div class="lib-ride-info"><div class="lib-ride-name">${a.name || 'Ride'}</div><div class="lib-ride-meta">${Math.round(a.total_elevation_gain || 0)} m</div></div>
+    <svg class="icon" width="14" height="14" style="color:var(--text-faint)"><use href="icons.svg#icon-chevron-right"/></svg>
+  </div>`).join('');
+}
+
+function _libShowRide(actId) {
+  // Highlight ride on map + show detail panel
+  const act = (state.activities || []).find(a => a.id === actId || a.id === +actId);
+  if (!act) return;
+  const detail = document.getElementById('libDetail');
+  const titleEl = document.getElementById('libDetailTitle');
+  const bodyEl = document.getElementById('libDetailBody');
+  if (!detail || !bodyEl) return;
+
+  titleEl.textContent = act.name || 'Ride';
+  const km = ((act.distance || 0) / 1000).toFixed(1);
+  const dur = act.moving_time ? Math.round(act.moving_time / 60) : 0;
+  const d = act.start_date_local ? new Date(act.start_date_local) : null;
+  const dateStr = d ? d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : '';
+
+  bodyEl.innerHTML = `
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px">${dateStr}</div>
+    <div class="lib-detail-stats">
+      <div class="lib-detail-stat"><span class="lib-detail-stat-val">${km}</span><span class="lib-detail-stat-label">km</span></div>
+      <div class="lib-detail-stat"><span class="lib-detail-stat-val">${dur}m</span><span class="lib-detail-stat-label">duration</span></div>
+      <div class="lib-detail-stat"><span class="lib-detail-stat-val">${Math.round(act.total_elevation_gain || 0)}</span><span class="lib-detail-stat-label">m elevation</span></div>
+    </div>
+    ${act.icu_average_watts ? `<div class="lib-detail-row"><span>Avg Power</span><span style="color:var(--accent);font-weight:600">${Math.round(act.icu_average_watts)} W</span></div>` : ''}
+    ${act.average_heartrate ? `<div class="lib-detail-row"><span>Avg HR</span><span style="color:#ff6b35;font-weight:600">${Math.round(act.average_heartrate)} bpm</span></div>` : ''}
+    ${act.icu_training_load ? `<div class="lib-detail-row"><span>TSS</span><span style="font-weight:600">${Math.round(act.icu_training_load)}</span></div>` : ''}
+    <div style="margin-top:20px;display:flex;gap:8px">
+      <button class="btn btn-accent" style="flex:1" onclick="navigateToActivity(state.activities.find(a=>a.id==='${actId}'||a.id===${actId}));_libCloseDetail()">View Activity</button>
+    </div>
+  `;
+
+  detail.style.display = 'flex';
+  requestAnimationFrame(() => detail.classList.add('lib-detail--open'));
+
+  // Highlight on map
+  if (window.hmShowRoute && act.id) {
+    hmShowRoute(act.id);
+  }
+}
+window._libShowRide = _libShowRide;
+
+function _libCloseDetail() {
+  const detail = document.getElementById('libDetail');
+  if (detail) {
+    detail.classList.remove('lib-detail--open');
+    setTimeout(() => { detail.style.display = 'none'; }, 300);
+  }
+  // Remove map highlight
+  if (window.hmClearHighlight) hmClearHighlight();
+}
+window._libCloseDetail = _libCloseDetail;
+
+function _libSetHeatMode(mode, btn) {
+  btn.parentElement.querySelectorAll('.lib-pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  if (window.hmSetColorMode) hmSetColorMode(mode);
+}
+window._libSetHeatMode = _libSetHeatMode;
+
+function _libSetHeatPeriod(period, btn) {
+  btn.parentElement.querySelectorAll('.lib-pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  if (window.hmSetPeriod) hmSetPeriod(period);
+}
+window._libSetHeatPeriod = _libSetHeatPeriod;
+
+// Legacy redirect
 async function renderMyRoutesPage() {
   if (!state.synced) return;
 
@@ -38537,8 +38783,7 @@ const NAV_PAGES = [
   { id: 'power',      label: 'Power',       icon: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/><circle cx="12" cy="12" r="1"/>' },
   { id: 'zones',      label: 'Zones',       icon: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16"/><path d="M10 4v16"/>' },
   { id: 'compare',    label: 'Compare',     icon: '<path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/>' },
-  { id: 'heatmap',    label: 'Heat Map',    icon: '<circle cx="12" cy="10" r="3"/><path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 7 8 11.7z"/>' },
-  { id: 'myroutes',   label: 'My Routes',   icon: '<path d="M3 6h18"/><path d="M3 12h18"/><path d="M3 18h18"/>' },
+  { id: 'library',    label: 'Library',     icon: '<circle cx="12" cy="10" r="3"/><path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 7 8 11.7z"/>' },
   { id: 'import',     label: 'Import',      icon: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>' },
   { id: 'settings',   label: 'Settings',    icon: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>' },
 ];

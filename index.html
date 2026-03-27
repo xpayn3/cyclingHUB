@@ -130,6 +130,10 @@
                             <div class="prof-xp-fill" id="profileXpBar"></div>
                         </div>
                     </div>
+                    <!-- 3D Rider Card -->
+                    <div class="rider-card-wrap">
+                        <canvas id="riderCard3dCanvas" style="width:100%;height:320px;touch-action:none;cursor:grab;border-radius:16px"></canvas>
+                    </div>
                     <!-- Rider Profile Radar -->
                     <div class="prof-radar-section">
                         <div class="prof-radar-title">Rider Profile</div>
@@ -5564,57 +5568,67 @@
                     </div><!-- close ios-settings -->
                 </div>
 
-                <!-- ==================== MY ROUTES PAGE ==================== -->
-                <div class="page" id="page-myroutes">
-                    <div class="mr-tabs" id="mrTabs">
-                        <button class="mr-tab active" data-tab="explore" onclick="mrSwitchTab('explore')">Explore</button>
-                        <button class="mr-tab" data-tab="collection" onclick="mrSwitchTab('collection')">My Collection</button>
-                        <div class="mr-tab-indicator"></div>
+                <!-- ==================== LIBRARY PAGE (merged heatmap + routes) ==================== -->
+                <div class="page" id="page-library">
+                    <!-- Map container (fullscreen, behind panel) -->
+                    <div class="lib-map-wrap" id="libMapWrap">
+                        <div id="libMap" class="lib-map"></div>
+                        <!-- Floating map controls (heatmap filters) -->
+                        <div class="lib-map-controls" id="libMapControls"></div>
                     </div>
 
-                    <div class="mr-tab-content active" id="mrExplore">
-                        <div class="mr-hero" id="mrHero"></div>
-                        <div class="mr-section" id="mrSuggestedSection">
-                            <div class="mr-section-header"><span class="mr-section-title">Suggested For You</span></div>
-                            <div class="mr-scroll" id="mrSuggestedScroll"></div>
+                    <!-- Right panel (desktop) / Bottom sheet (mobile) -->
+                    <div class="lib-panel" id="libPanel">
+                        <div class="lib-panel-handle"></div>
+                        <div class="lib-panel-header">
+                            <h2 class="lib-panel-title">Library</h2>
+                            <div class="lib-search-wrap">
+                                <svg class="icon" width="16" height="16"><use href="icons.svg#icon-search"/></svg>
+                                <input type="text" class="lib-search" id="libSearch" placeholder="Search rides, routes...">
+                            </div>
                         </div>
-                        <div class="mr-section" id="mrRecentSection">
-                            <div class="mr-section-header"><span class="mr-section-title">Recent Rides</span><svg class="icon" ><use href="icons.svg#icon-chevron-right"/></svg></div>
-                            <div class="mr-scroll" id="mrRecentScroll"></div>
+                        <!-- Tab pills -->
+                        <div class="lib-tabs" id="libTabs">
+                            <button class="lib-tab active" data-tab="heatmap" onclick="_libSwitchTab('heatmap')">
+                                <svg class="icon" width="14" height="14"><use href="icons.svg#icon-flame"/></svg>
+                                Heatmap
+                            </button>
+                            <button class="lib-tab" data-tab="rides" onclick="_libSwitchTab('rides')">
+                                <svg class="icon" width="14" height="14"><use href="icons.svg#icon-bike"/></svg>
+                                Rides
+                            </button>
+                            <button class="lib-tab" data-tab="routes" onclick="_libSwitchTab('routes')">
+                                <svg class="icon" width="14" height="14"><use href="icons.svg#icon-map-pin"/></svg>
+                                Routes
+                            </button>
+                            <button class="lib-tab" data-tab="discover" onclick="_libSwitchTab('discover')">
+                                <svg class="icon" width="14" height="14"><use href="icons.svg#icon-compass"/></svg>
+                                Discover
+                            </button>
                         </div>
-                        <div class="mr-section" id="mrSavedSection">
-                            <div class="mr-section-header"><span class="mr-section-title">Saved Routes</span><svg class="icon" ><use href="icons.svg#icon-chevron-right"/></svg></div>
-                            <div class="mr-scroll" id="mrSavedScroll"></div>
-                        </div>
-                        <div class="mr-section" id="mrWorkoutSection" style="display:none">
-                            <div class="mr-section-header"><span class="mr-section-title">Saved Workouts</span><svg class="icon" ><use href="icons.svg#icon-chevron-right"/></svg></div>
-                            <div class="mr-scroll" id="mrWorkoutScroll"></div>
-                        </div>
-                        <div class="mr-section" id="mrLongestSection">
-                            <div class="mr-section-header"><span class="mr-section-title">Longest Rides</span><svg class="icon" ><use href="icons.svg#icon-chevron-right"/></svg></div>
-                            <div class="mr-scroll" id="mrLongestScroll"></div>
-                        </div>
-                        <div class="mr-section" id="mrClimbSection">
-                            <div class="mr-section-header"><span class="mr-section-title">Most Elevation</span><svg class="icon" ><use href="icons.svg#icon-chevron-right"/></svg></div>
-                            <div class="mr-scroll" id="mrClimbScroll"></div>
+                        <!-- Tab content (lazy-built) -->
+                        <div class="lib-tab-content" id="libTabContent">
+                            <div class="lib-pane active" id="libPaneHeatmap"></div>
+                            <div class="lib-pane" id="libPaneRides"></div>
+                            <div class="lib-pane" id="libPaneRoutes"></div>
+                            <div class="lib-pane" id="libPaneDiscover"></div>
                         </div>
                     </div>
 
-                    <div class="mr-tab-content" id="mrCollection" style="display:none">
-                        <div class="mr-filters" id="mrFilters">
-                            <button class="mr-pill active" data-filter="all" onclick="mrFilter('all')">All</button>
-                            <button class="mr-pill" data-filter="saved" onclick="mrFilter('saved')">Routes</button>
-                            <button class="mr-pill" data-filter="workouts" onclick="mrFilter('workouts')">Workouts</button>
-                            <button class="mr-pill" data-filter="favorites" onclick="mrFilter('favorites')">Favorites</button>
+                    <!-- Route detail overlay (slides in when a ride/route is selected) -->
+                    <div class="lib-detail" id="libDetail" style="display:none">
+                        <div class="lib-detail-header">
+                            <button class="lib-detail-back" onclick="_libCloseDetail()">
+                                <svg class="icon" width="18" height="18"><use href="icons.svg#icon-chevron-left"/></svg>
+                            </button>
+                            <span class="lib-detail-title" id="libDetailTitle"></span>
                         </div>
-                        <div class="mr-list" id="mrList"></div>
-                        <div class="mr-empty" id="mrEmpty" style="display:none">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                            <p>Nothing here yet</p>
-                            <button class="btn btn-primary" onclick="navigate('routes')">Create a route</button>
-                        </div>
+                        <div class="lib-detail-body" id="libDetailBody"></div>
                     </div>
                 </div>
+
+                <!-- Keep old page IDs as hidden redirects -->
+                <div class="page" id="page-myroutes" style="display:none"></div>
 
                 <!-- ==================== SUGGESTION DETAIL PAGE ==================== -->
                 <div class="page" id="page-suggestion">
@@ -5800,9 +5814,7 @@
                 </div>
 
                 <!-- ==================== HEAT MAP PAGE ==================== -->
-                <div class="page" id="page-heatmap">
-                    <div id="heatmapPageContent"></div>
-                </div>
+                <div class="page" id="page-heatmap" style="display:none"></div>
 
                 <!-- ==================== COMPARE PAGE ==================== -->
                 <div class="page" id="page-compare">

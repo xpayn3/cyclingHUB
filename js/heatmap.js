@@ -33,7 +33,23 @@ const _hm = {
 window._hm = _hm;
 
 /* ── Render the page shell ── */
-export function renderHeatmapPage() {
+export function renderHeatmapPage(mapContainerId) {
+  // Library mode: render map directly into provided container
+  if (mapContainerId) {
+    const mapEl = document.getElementById(mapContainerId);
+    if (!mapEl || _hm.map) return; // already initialized
+    mapEl.innerHTML = `
+      <div id="heatmapMap" class="hm-map" style="width:100%;height:100%"></div>
+      <div class="hm-loading" id="hmLoading" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.8);z-index:5">
+        <div class="hm-loading-spinner"></div>
+        <div class="hm-loading-text">Loading GPS routes…</div>
+        <div class="hm-loading-sub" id="hmLoadingSub">0 of 0</div>
+      </div>
+    `;
+    _hmInitMap();
+    hmLoadAllRoutes();
+    return;
+  }
   const container = document.getElementById('heatmapPageContent');
   if (!container) return;
 
