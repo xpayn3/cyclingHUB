@@ -169,9 +169,8 @@ function _loadGLB(THREE, path) {
 // Badge GLB file mapping — keys are badge IDs, values are paths to .glb files
 // Use '_default' as fallback for all badges without a specific model
 const BADGE_GLB_MAP = {
-  _default: 'img/badges/achievment.glb',
-  // 'b1': 'img/badges/on-fire.glb',
-  // 'b2': 'img/badges/week-warrior.glb',
+  _default: null,
+  'b2': 'img/badges/Week_Warrior.glb',
 };
 
 // Initialize the 3D scene in a canvas

@@ -2157,6 +2157,28 @@ html:has(body.sheet-locked) {
     background: var(--hover-overlay);
     color: var(--accent);
 }
+.conn-import-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 40px;
+    border: 1px dashed rgba(255,255,255,0.15);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    width: 100%;
+}
+.conn-import-btn:hover {
+    background: var(--surface-1);
+    color: var(--text-primary);
+    border-color: rgba(255,255,255,0.25);
+}
+.conn-import-btn:active { color: var(--accent); }
 
 /* ── Custom Select (iOS-style) ──────────────────────── */
 .cs-wrap {
@@ -29775,14 +29797,15 @@ html[data-theme="awwwards"] {
     align-items: center;
     gap: 0;
     height: 32px;
-    border-radius: 10px;
-    background: rgba(255,255,255,0.06);
+    border-radius: 8px;
+    background: #1c1d1f;
     overflow: hidden;
     transition: width 0.35s cubic-bezier(0.22, 1, 0.36, 1);
     width: 32px; /* collapsed = just the play button */
 }
 .pro-player.pro-player--open {
     width: 220px;
+    background: #1c1d1f;
 }
 .pro-player-close {
     width: 24px; height: 24px;
@@ -29847,15 +29870,15 @@ html[data-theme="awwwards"] {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: none;
+    background: #1c1d1f;
     border: none;
-    color: var(--text-primary);
+    color: var(--text-muted);
     cursor: pointer;
     flex-shrink: 0;
-    border-radius: 10px;
-    transition: background 0.15s;
+    border-radius: 8px;
+    transition: background 0.15s, color 0.15s;
 }
-.pro-player-btn:hover { background: rgba(255,255,255,0.08); }
+.pro-player-btn:hover { background: #2e2f31; color: var(--text-primary); }
 .pro-player--open .pro-player-btn { color: var(--accent); }
 
 /* Pro tooltip — shared style for all pro analysis tooltips */

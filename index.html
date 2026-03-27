@@ -257,6 +257,22 @@
                             Copy my setup link
                         </button>
                     </div>
+
+                    <!-- Import divider -->
+                    <div class="conn-divider">
+                        <div class="conn-divider-line"></div>
+                        <span>or restore from backup</span>
+                        <div class="conn-divider-line"></div>
+                    </div>
+
+                    <!-- Import JSON section -->
+                    <div class="conn-link-section">
+                        <button class="conn-import-btn" onclick="document.getElementById('connImportFile').click()">
+                            <svg class="icon" width="16" height="16"><use href="icons.svg#icon-upload"/></svg>
+                            Import from JSON backup
+                        </button>
+                        <input type="file" id="connImportFile" accept=".json" style="display:none" onchange="importBackupFromConnect(this)">
+                    </div>
                 </div>
             </div>
         </div>

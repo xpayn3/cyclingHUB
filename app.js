@@ -3950,6 +3950,40 @@ function importFullBackup() {
   input.click();
 }
 
+// Import backup directly from a file input (used by connect modal)
+function importBackupFromConnect(inputEl) {
+  const file = inputEl?.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async ev => {
+    try {
+      showToast('Restoring backup…', 'info');
+      const backup = JSON.parse(ev.target.result);
+      if (!backup.version || !backup.localStorage) {
+        showToast('Invalid backup file', 'error'); return;
+      }
+      const ls = backup.localStorage;
+      for (const k of Object.keys(ls)) localStorage.setItem(k, ls[k]);
+      const idb = backup.indexedDB || {};
+      await Promise.all([
+        idb.actcache       ? _idbWriteAll(_actCacheDB,   'items',        idb.actcache)        : null,
+        idb.heatmap_routes ? _idbWriteAll(_hmOpenDB,     'routes',       idb.heatmap_routes)  : null,
+        idb.heatmap_meta   ? _idbWriteAll(_hmOpenDB,     'meta',         idb.heatmap_meta)    : null,
+        idb.strava         ? _idbWriteAll(_stravaOpenDB, 'streams',      idb.strava, true)    : null,
+        idb.routes         ? _idbWriteAll(_rbOpenDB,     'routes',       idb.routes)          : null,
+      ]);
+      showToast('Backup restored — reloading…', 'success');
+      setTimeout(() => location.reload(), 1200);
+    } catch (err) {
+      console.error('Backup import failed:', err);
+      showToast('Import failed: ' + (err.message || 'parse error'), 'error');
+    }
+  };
+  reader.readAsText(file);
+  inputEl.value = '';
+}
+window.importBackupFromConnect = importBackupFromConnect;
+
 /* ── Gear & Settings Export/Import (lightweight) ── */
 function exportGearData() {
   const keys = [
