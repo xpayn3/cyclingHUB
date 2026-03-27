@@ -23061,9 +23061,12 @@ body:has(.act-sheet-mode) .topbar {
 }
 
 .stk-cal-wrap {
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
     padding-bottom: 4px;
+    scrollbar-width: none;
 }
+.stk-cal-wrap::-webkit-scrollbar { display: none; }
 .stk-cal-grid {
     display: flex;
     flex-direction: column;
@@ -23072,22 +23075,26 @@ body:has(.act-sheet-mode) .topbar {
 }
 .stk-cal-month-row,
 .stk-cal-cells {
-    display: grid;
-    grid-template-columns: repeat(52, 1fr);
+    display: flex;
     gap: 2px;
 }
+.stk-cal-month-lbl,
+.stk-cell {
+    flex: 0 0 auto;
+}
 .stk-cal-month-lbl {
+    width: 14px;
     font-size: 9px;
     color: var(--text-faint);
     white-space: nowrap;
     overflow: visible;
     text-align: left;
-    min-width: 0;
+    flex-shrink: 0;
 }
 .stk-cell {
-    aspect-ratio: 1;
-    border-radius: 2px;
-    min-width: 0;
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
     cursor: default;
     transition:
         transform 0.1s,
@@ -23217,13 +23224,18 @@ body:has(.act-sheet-mode) .topbar {
 /* ── This-year monthly grid ── */
 .stk-months-grid {
     display: grid;
-    grid-template-columns: repeat(12, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 6px;
     padding-top: 4px;
 }
 .stk-month-tile {
     border-radius: var(--radius-sm);
-    padding: 10px 6px 8px;
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
     text-align: center;
     background: var(--bg-elevated);
     position: relative;

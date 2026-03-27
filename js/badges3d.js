@@ -16,6 +16,41 @@ let _badgeRotY = 0;
 
 let _GLTFLoader = null;
 
+// ── Shared renderer pool ─────────────────────────────────────────────────────
+// One WebGLRenderer reused across rider card, badge card, and badge viewer.
+// Creating a WebGL context is expensive (~50-100ms); reusing saves that cost.
+let _sharedRenderer = null;
+let _sharedRendererCanvas = null; // the canvas currently bound
+
+function _getRenderer(THREE, canvasEl, opts) {
+  if (_sharedRenderer && _sharedRendererCanvas === canvasEl) return _sharedRenderer;
+  // If bound to a different canvas, we must create a new renderer
+  // (WebGL context is tied to its canvas and can't be moved)
+  if (_sharedRenderer) {
+    // Don't dispose — just lose the reference. Old context will be GC'd.
+    _sharedRenderer = null;
+  }
+  _sharedRenderer = new THREE.WebGLRenderer({
+    canvas: canvasEl, alpha: true, antialias: true, stencil: true,
+    powerPreference: 'high-performance'
+  });
+  _sharedRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+  _sharedRenderer.toneMappingExposure = 1.0;
+  _sharedRenderer.sortObjects = false;
+  _sharedRenderer.localClippingEnabled = true;
+  _sharedRendererCanvas = canvasEl;
+  return _sharedRenderer;
+}
+
+function _releaseRenderer() {
+  // Don't dispose — keep it alive for reuse if same canvas comes back
+}
+
+// ── Cached env maps ──────────────────────────────────────────────────────────
+// Env maps are expensive (1024x512 canvas + gradient fills). Cache by type.
+let _cachedRiderEnvTex = null;
+let _cachedBadgeEnvTexMap = {}; // keyed by badge color hex
+
 // Lazy-load Three.js + GLTFLoader from CDN
 async function _loadThreeJS() {
   if (_THREE) return _THREE;
@@ -637,11 +672,9 @@ export async function initRiderCard3D(canvasEl, data) {
   _rcCamera = new THREE.PerspectiveCamera(30, w / h, 0.1, 100);
   _rcCamera.position.set(0, 0, 6.2);
 
-  _rcRenderer = new THREE.WebGLRenderer({ canvas: canvasEl, alpha: true, antialias: true });
+  _rcRenderer = _getRenderer(THREE, canvasEl);
   _rcRenderer.setSize(w, h);
   _rcRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  _rcRenderer.toneMapping = THREE.ACESFilmicToneMapping;
-  _rcRenderer.toneMappingExposure = 1.0;
 
   // Dramatic spotlight lighting
   _rcScene.add(new THREE.AmbientLight(0x0a0a14, 0.1));
@@ -695,13 +728,13 @@ export async function initRiderCard3D(canvasEl, data) {
     }
   }
 
-  // Card material — dark metallic with accent edge glow
+  // Card material — dark metallic with accent edge glow (cached env map)
+  if (!_cachedRiderEnvTex) {
   const envCanvas = document.createElement('canvas');
   const eW = 1024, eH = 512;
   envCanvas.width = eW; envCanvas.height = eH;
   const ctx = envCanvas.getContext('2d');
 
-  // Metallic studio base — dark but not black
   const base = ctx.createLinearGradient(0, 0, 0, eH);
   base.addColorStop(0, '#141414');
   base.addColorStop(0.4, '#0a0a0a');
@@ -805,8 +838,10 @@ export async function initRiderCard3D(canvasEl, data) {
   ctx.fillStyle = rainbow;
   ctx.fillRect(0, eH * 0.25, eW, eH * 0.5);
 
-  const envTex = new THREE.CanvasTexture(envCanvas);
-  envTex.mapping = THREE.EquirectangularReflectionMapping;
+  _cachedRiderEnvTex = new THREE.CanvasTexture(envCanvas);
+  _cachedRiderEnvTex.mapping = THREE.EquirectangularReflectionMapping;
+  }
+  const envTex = _cachedRiderEnvTex;
 
   // Front face texture — vertical name tag layout
   const faceCanvas = document.createElement('canvas');
@@ -1510,12 +1545,9 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   _bcScene = new THREE.Scene();
   _bcCamera = new THREE.PerspectiveCamera(30, w / h, 0.1, 100);
   _bcCamera.position.set(0, 0, 6.8);
-  _bcRenderer = new THREE.WebGLRenderer({ canvas: canvasEl, alpha: true, antialias: true, stencil: true });
+  _bcRenderer = _getRenderer(THREE, canvasEl);
   _bcRenderer.setSize(w, h);
   _bcRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  _bcRenderer.toneMapping = THREE.ACESFilmicToneMapping;
-  _bcRenderer.sortObjects = false;
-  _bcRenderer.localClippingEnabled = true;
 
   // Dramatic lighting
   _bcScene.add(new THREE.AmbientLight(0x0a0a0a, 0.15));
@@ -1531,10 +1563,11 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   holoSpot.position.set(0, 1, 3);
   _bcScene.add(holoSpot);
 
-  // Env map — vivid repeating rainbow bands like Pokemon holo foil
+  // Env map — vivid repeating rainbow bands (cached per badge color)
+  const colorKey = def.color.toString(16);
+  if (!_cachedBadgeEnvTexMap[colorKey]) {
   const envC = document.createElement('canvas'); envC.width = 1024; envC.height = 512;
   const ec = envC.getContext('2d');
-  // Dark base
   ec.fillStyle = '#080808'; ec.fillRect(0, 0, 1024, 512);
   // Studio light — bright center highlight
   const sb = ec.createRadialGradient(440, 220, 0, 440, 220, 400);
@@ -1571,10 +1604,13 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     ec.fillRect(0, y, 1024, 2);
   }
   ec.globalAlpha = 1;
-  const envTex = new THREE.CanvasTexture(envC);
-  envTex.mapping = THREE.EquirectangularReflectionMapping;
-  envTex.wrapS = THREE.RepeatWrapping;
-  envTex.wrapT = THREE.RepeatWrapping;
+  const _et = new THREE.CanvasTexture(envC);
+  _et.mapping = THREE.EquirectangularReflectionMapping;
+  _et.wrapS = THREE.RepeatWrapping;
+  _et.wrapT = THREE.RepeatWrapping;
+  _cachedBadgeEnvTexMap[colorKey] = _et;
+  }
+  const envTex = _cachedBadgeEnvTexMap[colorKey];
 
   // Card geometry
   const cardW = 1.8, cardH = 2.6, cardD = 0.005, cardR = 0.18;
@@ -2283,7 +2319,7 @@ export function destroyBadgeCard3D() {
   if (_bcRaf) cancelAnimationFrame(_bcRaf); _bcRaf = null;
   if (_bcScene) _bcScene.traverse(child => {
     if (child.geometry) child.geometry.dispose();
-    if (child.material) { const mats = Array.isArray(child.material) ? child.material : [child.material]; mats.forEach(m => { if (m.map) m.map.dispose(); if (m.normalMap) m.normalMap.dispose(); if (m.metalnessMap) m.metalnessMap.dispose(); if (m.roughnessMap) m.roughnessMap.dispose(); if (m.envMap) m.envMap.dispose(); m.dispose(); }); }
+    if (child.material) { const mats = Array.isArray(child.material) ? child.material : [child.material]; mats.forEach(m => { if (m.map) m.map.dispose(); if (m.normalMap) m.normalMap.dispose(); if (m.metalnessMap) m.metalnessMap.dispose(); if (m.roughnessMap) m.roughnessMap.dispose(); /* don't dispose envMap — cached */ m.dispose(); }); }
   });
   if (_bcMesh && _bcMesh._portal) {
     _bcMesh._portal.rt.dispose();
@@ -2292,7 +2328,7 @@ export function destroyBadgeCard3D() {
       if (child.material) { if (child.material.map) child.material.map.dispose(); child.material.dispose(); }
     });
   }
-  if (_bcRenderer) _bcRenderer.dispose();
+  _releaseRenderer();
   _bcRenderer = null; _bcScene = null; _bcCamera = null; _bcMesh = null; _bcDragging = false;
 }
 
@@ -2310,13 +2346,13 @@ export function destroyRiderCard3D() {
           if (m.normalMap) m.normalMap.dispose();
           if (m.metalnessMap) m.metalnessMap.dispose();
           if (m.roughnessMap) m.roughnessMap.dispose();
-          if (m.envMap) m.envMap.dispose();
+          /* don't dispose envMap — cached */
           m.dispose();
         });
       }
     });
   }
-  if (_rcRenderer) _rcRenderer.dispose();
+  _releaseRenderer();
   _rcRenderer = null; _rcScene = null; _rcCamera = null; _rcMesh = null;
   _rcDragging = false;
 }
