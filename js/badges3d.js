@@ -2043,28 +2043,109 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
       return m;
     };
 
-    // Layer 0: Night sky + stars + moon (deepest)
+    // Layer 0: Deep night sky — rich nebula, milky way, dense starfield
     const sky = makeLayer((ctx, w2, h2) => {
-      const skyG = ctx.createLinearGradient(0, 0, 0, h2);
-      skyG.addColorStop(0, '#05061a'); skyG.addColorStop(0.15, '#0c1035');
-      skyG.addColorStop(0.35, '#1a1850'); skyG.addColorStop(0.55, '#2d1d4a');
-      skyG.addColorStop(0.7, '#4a2040'); skyG.addColorStop(0.85, '#6b3045');
-      skyG.addColorStop(1, '#1a1a38');
-      ctx.fillStyle = skyG; ctx.fillRect(0, 0, w2, h2);
-      for (let i = 0; i < 120; i++) {
-        ctx.fillStyle = `rgba(255,255,255,${0.15 + Math.random() * 0.7})`;
-        ctx.beginPath(); ctx.arc(Math.random() * w2, Math.random() * h2 * 0.6, 0.5 + Math.random() * 2, 0, Math.PI * 2); ctx.fill();
-      }
-      [[w2*0.15,h2*0.1],[w2*0.72,h2*0.15],[w2*0.45,h2*0.06],[w2*0.88,h2*0.2]].forEach(([sx,sy]) => {
-        const gl = ctx.createRadialGradient(sx,sy,0,sx,sy,8);
-        gl.addColorStop(0,'rgba(200,220,255,0.8)'); gl.addColorStop(0.4,'rgba(150,180,255,0.2)'); gl.addColorStop(1,'transparent');
-        ctx.fillStyle = gl; ctx.fillRect(sx-10,sy-10,20,20);
+      // Deep space base — very dark with slight blue
+      ctx.fillStyle = '#020412'; ctx.fillRect(0, 0, w2, h2);
+
+      // Vertical atmosphere gradient — horizon glow
+      const atmo = ctx.createLinearGradient(0, 0, 0, h2);
+      atmo.addColorStop(0, 'rgba(3,4,20,1)');
+      atmo.addColorStop(0.3, 'rgba(8,10,35,1)');
+      atmo.addColorStop(0.55, 'rgba(15,12,40,0.9)');
+      atmo.addColorStop(0.75, 'rgba(35,18,50,0.7)');
+      atmo.addColorStop(0.88, 'rgba(60,25,45,0.5)');
+      atmo.addColorStop(1, 'rgba(20,15,35,0.3)');
+      ctx.fillStyle = atmo; ctx.fillRect(0, 0, w2, h2);
+
+      // Milky way band — diagonal nebula cloud
+      ctx.save();
+      ctx.translate(w2 * 0.5, h2 * 0.35);
+      ctx.rotate(-0.35);
+      const milky = ctx.createRadialGradient(0, 0, 0, 0, 0, w2 * 0.5);
+      milky.addColorStop(0, 'rgba(80,70,120,0.12)');
+      milky.addColorStop(0.3, 'rgba(60,50,100,0.08)');
+      milky.addColorStop(0.6, 'rgba(40,30,80,0.04)');
+      milky.addColorStop(1, 'transparent');
+      ctx.fillStyle = milky;
+      ctx.fillRect(-w2 * 0.6, -h2 * 0.15, w2 * 1.2, h2 * 0.3);
+      ctx.restore();
+
+      // Nebula patches — colored gas clouds
+      const nebulae = [
+        [w2*0.2, h2*0.25, w2*0.18, 'rgba(60,20,80,0.08)', 'rgba(40,10,60,0.03)'],
+        [w2*0.7, h2*0.3, w2*0.15, 'rgba(20,40,80,0.07)', 'rgba(10,20,50,0.02)'],
+        [w2*0.4, h2*0.15, w2*0.12, 'rgba(80,30,50,0.06)', 'rgba(40,15,30,0.02)'],
+        [w2*0.85, h2*0.45, w2*0.1, 'rgba(30,50,70,0.06)', 'rgba(15,25,40,0.02)'],
+        [w2*0.15, h2*0.5, w2*0.13, 'rgba(50,20,60,0.05)', 'rgba(25,10,35,0.01)'],
+      ];
+      nebulae.forEach(([nx, ny, nr, c1, c2]) => {
+        const ng = ctx.createRadialGradient(nx, ny, 0, nx, ny, nr);
+        ng.addColorStop(0, c1); ng.addColorStop(0.6, c2); ng.addColorStop(1, 'transparent');
+        ctx.fillStyle = ng; ctx.fillRect(0, 0, w2, h2);
       });
-      const mx = w2*0.75, my = h2*0.16, mr2 = 28;
-      const mg = ctx.createRadialGradient(mx,my,0,mx,my,mr2*1.5);
-      mg.addColorStop(0,'rgba(255,248,230,0.95)'); mg.addColorStop(0.3,'rgba(255,240,200,0.4)'); mg.addColorStop(1,'transparent');
-      ctx.fillStyle = mg; ctx.fillRect(mx-mr2*2,my-mr2*2,mr2*4,mr2*4);
-      ctx.fillStyle = '#fffae8'; ctx.beginPath(); ctx.arc(mx,my,mr2,0,Math.PI*2); ctx.fill();
+
+      // Dense starfield — 3 layers of different sizes for depth
+      // Tiny distant stars
+      for (let i = 0; i < 300; i++) {
+        const a = 0.1 + Math.random() * 0.3;
+        ctx.fillStyle = `rgba(180,190,220,${a})`;
+        ctx.fillRect(Math.random() * w2, Math.random() * h2, 1, 1);
+      }
+      // Medium stars
+      for (let i = 0; i < 80; i++) {
+        const a = 0.2 + Math.random() * 0.5;
+        const sz = 1 + Math.random() * 1.5;
+        ctx.fillStyle = `rgba(220,225,255,${a})`;
+        ctx.beginPath(); ctx.arc(Math.random() * w2, Math.random() * h2 * 0.75, sz, 0, Math.PI * 2); ctx.fill();
+      }
+      // Bright stars with color tint and glow
+      const starColors = ['200,220,255', '255,240,220', '180,200,255', '255,220,200', '220,255,240'];
+      for (let i = 0; i < 20; i++) {
+        const sx = Math.random() * w2, sy = Math.random() * h2 * 0.65;
+        const col = starColors[Math.floor(Math.random() * starColors.length)];
+        const sz = 1.5 + Math.random() * 2;
+        // Glow halo
+        const sg = ctx.createRadialGradient(sx, sy, 0, sx, sy, sz * 5);
+        sg.addColorStop(0, `rgba(${col},0.5)`);
+        sg.addColorStop(0.3, `rgba(${col},0.1)`);
+        sg.addColorStop(1, 'transparent');
+        ctx.fillStyle = sg; ctx.fillRect(sx - sz * 6, sy - sz * 6, sz * 12, sz * 12);
+        // Core
+        ctx.fillStyle = `rgba(${col},0.9)`;
+        ctx.beginPath(); ctx.arc(sx, sy, sz, 0, Math.PI * 2); ctx.fill();
+        // Cross spike on brightest
+        if (i < 6) {
+          ctx.strokeStyle = `rgba(${col},0.15)`;
+          ctx.lineWidth = 0.5;
+          ctx.beginPath(); ctx.moveTo(sx - sz * 4, sy); ctx.lineTo(sx + sz * 4, sy); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(sx, sy - sz * 4); ctx.lineTo(sx, sy + sz * 4); ctx.stroke();
+        }
+      }
+
+      // Moon — large, detailed, with halo
+      const mx = w2 * 0.72, my = h2 * 0.18, mr2 = 35;
+      // Outer halo
+      const mh = ctx.createRadialGradient(mx, my, mr2 * 0.8, mx, my, mr2 * 3);
+      mh.addColorStop(0, 'rgba(200,200,180,0.06)');
+      mh.addColorStop(0.5, 'rgba(150,150,140,0.02)');
+      mh.addColorStop(1, 'transparent');
+      ctx.fillStyle = mh; ctx.fillRect(mx - mr2 * 4, my - mr2 * 4, mr2 * 8, mr2 * 8);
+      // Inner glow
+      const mg = ctx.createRadialGradient(mx - 5, my - 5, 0, mx, my, mr2 * 1.3);
+      mg.addColorStop(0, 'rgba(255,252,240,0.95)');
+      mg.addColorStop(0.4, 'rgba(255,245,220,0.5)');
+      mg.addColorStop(0.7, 'rgba(200,190,170,0.15)');
+      mg.addColorStop(1, 'transparent');
+      ctx.fillStyle = mg; ctx.fillRect(mx - mr2 * 2, my - mr2 * 2, mr2 * 4, mr2 * 4);
+      // Moon disc
+      ctx.fillStyle = '#faf6e8'; ctx.beginPath(); ctx.arc(mx, my, mr2, 0, Math.PI * 2); ctx.fill();
+      // Subtle craters
+      ctx.fillStyle = 'rgba(210,200,175,0.3)';
+      ctx.beginPath(); ctx.arc(mx - 10, my - 8, 6, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(mx + 12, my + 10, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(mx + 3, my + 15, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(mx - 15, my + 5, 3, 0, Math.PI * 2); ctx.fill();
     }, -14, 6);
 
     // Layer 1: Far mountains
