@@ -1952,9 +1952,10 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   );
   iconPlane.position.z = cardD * 0.5 + 0.01;
 
-  // Glitter/sparkle layer — tiny dots that flash based on view angle + time
+  // Glitter/sparkle layer — additive blending for bright sparkles
   const glitterMat = new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, side: THREE.FrontSide,
+    blending: THREE.AdditiveBlending,
     uniforms: {
       time: { value: 0 },
       rotY: { value: 0 },
@@ -1981,33 +1982,30 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
       }
 
       void main() {
-        // Grid of sparkle positions
-        vec2 grid = floor(vUv * 45.0);
+        vec2 grid = floor(vUv * 25.0);
         float rnd = hash(grid);
+        if (rnd > 0.45) discard;
 
-        // ~35% of cells have a sparkle
-        if (rnd > 0.35) discard;
-
-        // Sparkle center within cell
-        vec2 cell = fract(vUv * 45.0);
+        vec2 cell = fract(vUv * 25.0);
         vec2 center = vec2(hash(grid + 0.5), hash(grid + 1.3));
         float dist = length(cell - center);
+        if (dist > 0.25) discard;
 
-        if (dist > 0.15) discard;
-
-        // Flash — single sin with combined angle (cheaper than sin*cos+sin)
+        // Each sparkle flashes at unique rotation angles
         float phase = rnd * 6.28;
-        float flash = sin(rotY * 8.0 + rotX * 5.0 + time * 2.5 + phase);
-        flash = step(0.3, flash) * (flash - 0.3) * 1.43;
+        float f1 = sin(rotY * 6.0 + phase);
+        float f2 = sin(rotX * 4.0 + phase * 1.7);
+        float f3 = sin(time * 2.0 + phase * 0.5);
+        float flash = (f1 + f2 + f3) / 3.0;
+        flash = smoothstep(0.15, 0.7, flash);
 
         if (flash < 0.01) discard;
 
-        // White core with subtle colored glow
-        float core = smoothstep(0.06, 0.0, dist);
-        vec3 col = mix(sparkleColor + 0.4, vec3(1.0), core);
-        float brightness = flash * (1.0 - dist / 0.15) * 0.8;
+        // Bright white core
+        float core = 1.0 - smoothstep(0.0, 0.12, dist);
+        vec3 col = mix(sparkleColor + 0.5, vec3(1.0), core);
 
-        gl_FragColor = vec4(col * brightness, brightness * 0.7);
+        gl_FragColor = vec4(col * flash, flash);
       }
     `
   });
