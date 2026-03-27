@@ -1982,14 +1982,14 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
       }
 
       void main() {
-        vec2 grid = floor(vUv * 25.0);
+        vec2 grid = floor(vUv * 60.0);
         float rnd = hash(grid);
-        if (rnd > 0.45) discard;
+        if (rnd > 0.35) discard;
 
-        vec2 cell = fract(vUv * 25.0);
+        vec2 cell = fract(vUv * 60.0);
         vec2 center = vec2(hash(grid + 0.5), hash(grid + 1.3));
         float dist = length(cell - center);
-        if (dist > 0.25) discard;
+        if (dist > 0.06) discard;
 
         // Each sparkle flashes at unique rotation angles
         float phase = rnd * 6.28;
@@ -2002,7 +2002,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
         if (flash < 0.01) discard;
 
         // Bright white core
-        float core = 1.0 - smoothstep(0.0, 0.12, dist);
+        float core = 1.0 - smoothstep(0.0, 0.04, dist);
         vec3 col = mix(sparkleColor + 0.5, vec3(1.0), core);
 
         gl_FragColor = vec4(col * flash, flash);
