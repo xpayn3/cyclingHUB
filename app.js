@@ -19027,6 +19027,10 @@ async function navigateToActivity(actKey, fromStep = false) {
   if (!activity) {
     // Resolve via lookup map (set when the activity list was rendered)
     activity = window._actLookup && window._actLookup[actKey];
+    // Fallback: search by ID in state.activities
+    if (!activity && state.activities) {
+      activity = state.activities.find(a => String(a.id) === String(actKey));
+    }
     // Fallback: numeric index in state.activities (legacy)
     if (!activity) {
       const numIdx = Number(actKey);
@@ -35377,8 +35381,6 @@ function openProfileModal() {
   setTimeout(async () => {
     const rcCanvas = document.getElementById('riderCard3dCanvas');
     if (!rcCanvas) return;
-    // Clear stale frame — reset canvas dimensions to force clear
-    rcCanvas.width = rcCanvas.width;
     try {
       if (!_badges3dModule) _badges3dModule = await import('./js/badges3d.js');
       if (_badges3dModule.destroyRiderCard3D) _badges3dModule.destroyRiderCard3D();
@@ -38459,7 +38461,15 @@ function _libBuildRidesTab() {
         </div>` : ''}
         <div class="lib-ride-elev-wrap" id="libRideElev_${a.id}"><canvas height="60" style="width:100%;height:60px;border-radius:8px;background:var(--surface-1)"></canvas></div>
         <div class="lib-ride-detail-actions">
-          <button class="btn btn-accent btn-sm" onclick="navigateToActivity(state.activities.find(a=>a.id==='${a.id}'||a.id===${a.id}))">View Activity</button>
+          <button class="btn btn-accent btn-sm" onclick="event.stopPropagation();navigateToActivity('${a.id}')">
+            <svg class="icon" width="14" height="14"><use href="icons.svg#icon-eye"/></svg> View
+          </button>
+          <button class="btn btn-sm" style="background:var(--surface-2);color:var(--text-primary)" onclick="event.stopPropagation();_libSaveRoute('${a.id}')">
+            <svg class="icon" width="14" height="14"><use href="icons.svg#icon-bookmark"/></svg> Save
+          </button>
+          <button class="btn btn-sm" style="background:var(--surface-2);color:var(--text-primary)" onclick="event.stopPropagation();_libEditRoute('${a.id}')">
+            <svg class="icon" width="14" height="14"><use href="icons.svg#icon-edit"/></svg> Edit
+          </button>
         </div>
       </div>
     </div>`;
@@ -38479,7 +38489,7 @@ function _libBuildRoutesTab() {
       const a = acts.find(x => x.id === id);
       if (!a) return '';
       const km = (a.distance / 1000).toFixed(1);
-      return `<div class="lib-ride-card" onclick="_libShowRide('${a.id}')">
+      return `<div class="lib-ride-card" onclick="_libToggleRide('${a.id}')">
         <svg class="icon" width="14" height="14" style="color:#f0c429;flex-shrink:0"><use href="icons.svg#icon-star"/></svg>
         <div class="lib-ride-info"><div class="lib-ride-name">${a.name || 'Ride'}</div><div class="lib-ride-meta">${km} km</div></div>
         <svg class="icon" width="14" height="14" style="color:var(--text-faint);flex-shrink:0"><use href="icons.svg#icon-chevron-right"/></svg>
@@ -38526,7 +38536,7 @@ function _libBuildDiscoverTab() {
   // Populate longest
   const longest = [...acts].sort((a, b) => (b.distance || 0) - (a.distance || 0)).slice(0, 5);
   const longestEl = document.getElementById('libLongest');
-  if (longestEl) longestEl.innerHTML = longest.map(a => `<div class="lib-ride-card" onclick="_libShowRide('${a.id}')">
+  if (longestEl) longestEl.innerHTML = longest.map(a => `<div class="lib-ride-card" onclick="_libToggleRide('${a.id}')">
     <div class="lib-ride-info"><div class="lib-ride-name">${a.name || 'Ride'}</div><div class="lib-ride-meta">${(a.distance / 1000).toFixed(1)} km</div></div>
     <svg class="icon" width="14" height="14" style="color:var(--text-faint)"><use href="icons.svg#icon-chevron-right"/></svg>
   </div>`).join('');
@@ -38534,7 +38544,7 @@ function _libBuildDiscoverTab() {
   // Populate climbers
   const climbers = [...acts].sort((a, b) => (b.total_elevation_gain || 0) - (a.total_elevation_gain || 0)).slice(0, 5);
   const climbEl = document.getElementById('libClimbers');
-  if (climbEl) climbEl.innerHTML = climbers.map(a => `<div class="lib-ride-card" onclick="_libShowRide('${a.id}')">
+  if (climbEl) climbEl.innerHTML = climbers.map(a => `<div class="lib-ride-card" onclick="_libToggleRide('${a.id}')">
     <div class="lib-ride-info"><div class="lib-ride-name">${a.name || 'Ride'}</div><div class="lib-ride-meta">${Math.round(a.total_elevation_gain || 0)} m</div></div>
     <svg class="icon" width="14" height="14" style="color:var(--text-faint)"><use href="icons.svg#icon-chevron-right"/></svg>
   </div>`).join('');
@@ -38575,6 +38585,63 @@ function _libToggleRide(row) {
   }
 }
 window._libToggleRide = _libToggleRide;
+
+// Save ride GPS route to library (IndexedDB)
+async function _libSaveRoute(actId) {
+  try {
+    const streams = await icuFetch(`/activity/${actId}/streams?types=latlng,altitude,distance,time`);
+    if (!streams?.latlng?.length) { _showToast('No GPS data for this ride', 'warning'); return; }
+    const act = (state.activities || []).find(a => String(a.id) === String(actId));
+    const route = {
+      id: 'route_' + actId + '_' + Date.now(),
+      activityId: actId,
+      name: act?.name || 'Saved Route',
+      latlng: streams.latlng,
+      altitude: streams.altitude,
+      distance: streams.distance,
+      totalDistance: act?.distance || 0,
+      totalElevation: act?.total_elevation_gain || 0,
+      savedAt: new Date().toISOString()
+    };
+    // Save to IndexedDB
+    const db = await new Promise((resolve, reject) => {
+      const req = indexedDB.open('cycleiq_routes', 1);
+      req.onupgradeneeded = () => req.result.createObjectStore('routes', { keyPath: 'id' });
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    const tx = db.transaction('routes', 'readwrite');
+    tx.objectStore('routes').put(route);
+    await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
+    db.close();
+    _showToast('Route saved to library', 'success');
+  } catch (e) {
+    console.error('[LibSave]', e);
+    _showToast('Failed to save route', 'error');
+  }
+}
+window._libSaveRoute = _libSaveRoute;
+
+// Edit route — load GPS into route builder
+async function _libEditRoute(actId) {
+  try {
+    const streams = await icuFetch(`/activity/${actId}/streams?types=latlng,altitude,distance`);
+    if (!streams?.latlng?.length) { _showToast('No GPS data for this ride', 'warning'); return; }
+    // Store route data for route builder to pick up
+    window._pendingRouteEdit = {
+      latlng: streams.latlng,
+      altitude: streams.altitude,
+      distance: streams.distance,
+      name: (state.activities || []).find(a => String(a.id) === String(actId))?.name || 'Route'
+    };
+    navigate('routes');
+    _showToast('Route loaded in builder', 'success');
+  } catch (e) {
+    console.error('[LibEdit]', e);
+    _showToast('Failed to load route', 'error');
+  }
+}
+window._libEditRoute = _libEditRoute;
 
 async function _libDrawElevation(actId) {
   const wrap = document.getElementById('libRideElev_' + actId);
