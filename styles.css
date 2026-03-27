@@ -31508,6 +31508,9 @@ body.pro-analysis-open .dash-pill-nav { display: none !important; }
    3D RIDER CARD
    ═══════════════════════════════════════════════════════════════ */
 .rider-card-wrap{padding:16px 20px 0;position:relative}
+.card-3d-skeleton{position:absolute;inset:0;border-radius:16px;background:var(--surface-1);overflow:hidden;z-index:2}
+.card-3d-skeleton-shine{position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,0.04) 45%,rgba(255,255,255,0.08) 50%,rgba(255,255,255,0.04) 55%,transparent 70%);animation:cardSkeletonShine 1.8s ease-in-out infinite}
+@keyframes cardSkeletonShine{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
 
 /* ── Badge card navigation ── */
 .badge-nav-btn{position:absolute;top:50%;transform:translateY(-50%);width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.08);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:none;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;transition:background 0.15s}

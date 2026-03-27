@@ -35539,6 +35539,8 @@ function openProfileModal() {
   overlay.classList.remove('prof-closing');
 
   // Init 3D rider card after sheet animates in
+  const skel = document.getElementById('riderCardSkeleton');
+  if (skel) skel.style.display = '';
   setTimeout(async () => {
     const rcCanvas = document.getElementById('riderCard3dCanvas');
     if (!rcCanvas) return;
@@ -35557,6 +35559,9 @@ function openProfileModal() {
         nextXP: stats.nextLevelXP,
         xpPct: stats.nextLevelXP > 0 ? Math.min(stats.currentXP / stats.nextLevelXP, 1) : 1,
       });
+      // Hide skeleton
+      const skel = document.getElementById('riderCardSkeleton');
+      if (skel) skel.style.display = 'none';
     } catch (e) {
       console.warn('Rider card 3D failed:', e);
       // Show error on canvas for debugging on mobile

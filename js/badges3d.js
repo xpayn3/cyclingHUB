@@ -642,7 +642,7 @@ export async function initRiderCard3D(canvasEl, data) {
   _rcScene.add(accent);
 
   // Card geometry — vertical name tag with rounded corners
-  const cardW = 1.8, cardH = 2.6, cardD = 0.01, cardR = 0.18;
+  const cardW = 1.8, cardH = 2.6, cardD = 0.005, cardR = 0.18;
   const shape = new THREE.Shape();
   const hw = cardW / 2, hh = cardH / 2, r = cardR;
   shape.moveTo(-hw + r, -hh);
@@ -1127,76 +1127,27 @@ export async function initRiderCard3D(canvasEl, data) {
     { mesh: lvlPlane, depth: 0.005 },
   ];
 
-  // Cinematic reveal — starts back-facing (180° Y), slight tilt on X/Z
-  _rcMesh.rotation.x = 0.35;
-  _rcMesh.rotation.y = Math.PI;
-  _rcMesh.rotation.z = 0.35;
-  _rcMesh.scale.setScalar(0.9);
+  _rcMesh.rotation.x = 0.06;
+  _rcMesh.rotation.y = 0.08;
   _rcScene.add(_rcMesh);
-
-  // Dim all lights for reveal — they'll fade up
-  const allLights = [];
-  _rcScene.traverse(c => { if (c.isLight && c !== _rcScene) allLights.push({ light: c, target: c.intensity }); });
-  allLights.forEach(l => { l.light.intensity = 0; });
 
   const REST_X = 0.06, REST_Y = 0.08;
   let velX = 0, velY = 0;
   const SPRING = 0.008, DAMP = 0.97;
   let _rcDragVelX = 0, _rcDragVelY = 0, _rcLastMoveX = 0, _rcLastMoveY = 0;
-  let _rcReleaseTime = 0, _rcSpinning = false, _rcIdle = false, _rcAutoSpin = false;
-
-  const introStart = Date.now();
-  const INTRO_DUR = 2500;
-  let _rcIntroFinished = false;
+  let _rcReleaseTime = 0, _rcSpinning = false, _rcIdle = false, _rcAutoSpin = true;
 
   function loop() {
     _rcRaf = requestAnimationFrame(loop);
     if (!_rcMesh) return;
-    if (_rcIdle) return; // Paused — wake on next interaction
+    if (_rcIdle) return;
 
-    const elapsed = Date.now() - introStart;
-    const introT = Math.min(elapsed / INTRO_DUR, 1);
-
-    // Shimmer — subtle variation, not too dramatic
+    // Shimmer
     const rotY = _rcMesh.rotation.y || 0;
     const t = Date.now() * 0.001;
-    if (introT >= 1) {
-      frontMat.envMapIntensity = 1.2 + Math.sin(t * 1.5 + rotY * 5) * 0.5;
-      const ns = 0.85 + Math.sin(t + rotY * 3) * 0.15;
-      frontMat.normalScale.set(ns, ns);
-    }
-
-    // Cinematic intro — skip if user grabs the card
-    if (introT < 1 && !_rcDragging) {
-      // Gentle elastic ease — smooth flip with soft overshoot then settle
-      const e = 1 - Math.pow(1 - introT, 4);
-      const overshoot = 1 + Math.sin(introT * Math.PI * 2) * 0.04 * (1 - introT);
-
-      _rcMesh.rotation.x = 0.35 + (REST_X - 0.35) * e * overshoot;
-      _rcMesh.rotation.y = Math.PI + (REST_Y - Math.PI) * e * overshoot;
-      _rcMesh.rotation.z = 0.35 * (1 - e * overshoot);
-      _rcMesh.scale.setScalar(0.9 + 0.1 * e);
-
-      // Lights fade in — early reveal
-      const lightE = Math.pow(Math.min(introT * 2, 1), 1.5); // reach full brightness at 50% of intro
-      allLights.forEach(l => { l.light.intensity = l.target * lightE; });
-
-      // Env map intensity builds up — match shimmer's resting value
-      frontMat.envMapIntensity = lightE * 1.2;
-      const ins = 0.85;
-      frontMat.normalScale.set(ins, ins);
-
-      _rcRenderer.render(_rcScene, _rcCamera);
-      return;
-    }
-
-    // Restore final light intensities — only once
-    if (!_rcIntroFinished) {
-      _rcIntroFinished = true;
-      allLights.forEach(l => { l.light.intensity = l.target; });
-      frontMat.envMapIntensity = 1.2;
-      frontMat.normalScale.set(0.85, 0.85);
-    }
+    frontMat.envMapIntensity = 1.2 + Math.sin(t * 1.5 + rotY * 5) * 0.5;
+    const ns = 0.85 + Math.sin(t + rotY * 3) * 0.15;
+    frontMat.normalScale.set(ns, ns);
 
     if (!_rcDragging) {
       const timeSinceRelease = Date.now() - _rcReleaseTime;
@@ -1204,8 +1155,10 @@ export async function initRiderCard3D(canvasEl, data) {
       // Auto-spin after 2s of no input
       if (_rcAutoSpin || timeSinceRelease > 2000) {
         _rcAutoSpin = true;
-        _rcMesh.rotation.y += 0.003;
-        _rcMesh.rotation.x += (REST_X - _rcMesh.rotation.x) * 0.05; // ease X to rest
+        const ast = Date.now() * 0.001;
+        _rcMesh.rotation.y += 0.006;
+        _rcMesh.rotation.x += (REST_X + Math.sin(ast * 0.8) * 0.2 - _rcMesh.rotation.x) * 0.04;
+        _rcMesh.rotation.z += (Math.sin(ast * 0.5 + 1) * 0.05 - _rcMesh.rotation.z) * 0.03;
       } else if (_rcSpinning) {
         // Coast with momentum
         _rcDragVelX *= 0.985;
@@ -1363,7 +1316,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   const envTex = new THREE.CanvasTexture(envC); envTex.mapping = THREE.EquirectangularReflectionMapping;
 
   // Card geometry
-  const cardW = 1.8, cardH = 2.6, cardD = 0.01, cardR = 0.18;
+  const cardW = 1.8, cardH = 2.6, cardD = 0.005, cardR = 0.18;
   const shape = new THREE.Shape();
   const hw = cardW / 2, hh = cardH / 2, cr = cardR;
   shape.moveTo(-hw + cr, -hh); shape.lineTo(hw - cr, -hh);
@@ -1700,8 +1653,10 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
       const timeSinceRelease = Date.now() - _bcReleaseTime;
       if (_bcAutoSpin || timeSinceRelease > 2000) {
         _bcAutoSpin = true;
-        _bcMesh.rotation.y += 0.003;
-        _bcMesh.rotation.x += (REST_X - _bcMesh.rotation.x) * 0.05;
+        const bst = Date.now() * 0.001;
+        _bcMesh.rotation.y += 0.006;
+        _bcMesh.rotation.x += (REST_X + Math.sin(bst * 0.8) * 0.2 - _bcMesh.rotation.x) * 0.04;
+        _bcMesh.rotation.z += (Math.sin(bst * 0.5 + 1) * 0.05 - _bcMesh.rotation.z) * 0.03;
       } else if (_bcSpinning) {
         _bcDragVelX *= 0.985; _bcDragVelY *= 0.985;
         _bcMesh.rotation.x += _bcDragVelX; _bcMesh.rotation.y += _bcDragVelY;
@@ -1738,7 +1693,8 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     _bcTrail.push({ x: e.clientX, y: e.clientY, t: Date.now() });
     if (_bcTrail.length > 3) _bcTrail.shift();
   });
-  canvasEl.addEventListener('touchmove', e => { if (_bcDragging) e.preventDefault(); }, { passive: false });
+  canvasEl.addEventListener('touchstart', e => { e.stopPropagation(); }, { passive: true });
+  canvasEl.addEventListener('touchmove', e => { e.preventDefault(); e.stopPropagation(); }, { passive: false });
   const endDrag = () => {
     if (!_bcDragging) return;
     _bcDragging = false; canvasEl.style.cursor = 'grab';
