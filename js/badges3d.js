@@ -1282,9 +1282,9 @@ export async function initRiderCard3D(canvasEl, data) {
       if (_rcSpinning) {
         // Coast with momentum — gradual friction
         const speed = Math.abs(_rcDragVelX) + Math.abs(_rcDragVelY);
-        if (speed > 0.0003) {
-          _rcDragVelX *= 0.992;
-          _rcDragVelY *= 0.992;
+        if (speed > 0.002) {
+          _rcDragVelX *= 0.96;
+          _rcDragVelY *= 0.96;
           _rcMesh.rotation.x += _rcDragVelX;
           _rcMesh.rotation.y += _rcDragVelY;
           _rcMesh.rotation.x += (REST_X - _rcMesh.rotation.x) * 0.005;
@@ -2277,8 +2277,8 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
       const timeSinceRelease = Date.now() - _bcReleaseTime;
       if (_bcSpinning) {
         const speed = Math.abs(_bcDragVelX) + Math.abs(_bcDragVelY);
-        if (speed > 0.0003) {
-          _bcDragVelX *= 0.992; _bcDragVelY *= 0.992;
+        if (speed > 0.002) {
+          _bcDragVelX *= 0.96; _bcDragVelY *= 0.96;
           _bcMesh.rotation.x += _bcDragVelX; _bcMesh.rotation.y += _bcDragVelY;
           _bcMesh.rotation.x += (REST_X - _bcMesh.rotation.x) * 0.005;
         } else {
