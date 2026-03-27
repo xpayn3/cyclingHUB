@@ -171,12 +171,14 @@ function _createGoldMaterial(THREE) {
   envTexture.mapping = THREE.EquirectangularReflectionMapping;
 
   // True gold RGB: slightly darker than pure #FFD700 for realism
-  return new THREE.MeshStandardMaterial({
+  return new THREE.MeshPhysicalMaterial({
     color: 0xD4A843,       // warm gold (not bright yellow)
     metalness: 1.0,
     roughness: 0.12,       // very smooth — more reflective
     envMap: envTexture,
     envMapIntensity: 2.5,  // strong reflections
+    clearcoat: 0.8,
+    clearcoatRoughness: 0.1,
   });
 }
 
@@ -184,12 +186,14 @@ function _createGoldMaterial(THREE) {
 function _createIconMesh(THREE, svgPath, scale) {
   // Simple approach: create a plane with the icon as a slightly raised surface
   const iconGeo = new THREE.PlaneGeometry(scale, scale, 1, 1);
-  const iconMat = new THREE.MeshStandardMaterial({
+  const iconMat = new THREE.MeshPhysicalMaterial({
     color: 0xb8860b,
     metalness: 0.9,
     roughness: 0.3,
     transparent: true,
     opacity: 0.6,
+    clearcoat: 0.5,
+    clearcoatRoughness: 0.2,
   });
   const mesh = new THREE.Mesh(iconGeo, iconMat);
   mesh.position.z = 0.12; // Slightly in front of shield
@@ -377,8 +381,8 @@ export async function initBadge3D(canvasEl, badgeId) {
   let h = canvasEl.clientHeight;
   if (!w || w < 50) w = canvasEl.parentElement?.clientWidth || 280;
   if (!h || h < 50) h = 280;
-  canvasEl.width = w * Math.min(window.devicePixelRatio, 1.5);
-  canvasEl.height = h * Math.min(window.devicePixelRatio, 1.5);
+  canvasEl.width = w * Math.min(window.devicePixelRatio, 2.0);
+  canvasEl.height = h * Math.min(window.devicePixelRatio, 2.0);
   canvasEl.style.width = w + 'px';
   canvasEl.style.height = h + 'px';
 
@@ -396,7 +400,7 @@ export async function initBadge3D(canvasEl, badgeId) {
     antialias: true,
   });
   _badgeRenderer.setSize(w, h);
-  _badgeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  _badgeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
   _badgeRenderer.toneMapping = THREE.ACESFilmicToneMapping;
   _badgeRenderer.toneMappingExposure = 1.2;
 
@@ -484,9 +488,15 @@ export async function initBadge3D(canvasEl, badgeId) {
         const x = bPos.getX(i), y = bPos.getY(i);
         bUv.setXY(i, (x - bMin.x) / bW, (y - bMin.y) / bH);
       }
+      geo.attributes.uv.needsUpdate = true;
       const texSize = 512;
       const faceTex = _createBadgeFaceTexture(THREE, def, texSize);
       const normTex = _createBadgeNormalMap(THREE, def, texSize);
+      if (_badgeRenderer) {
+        const maxAniso = _badgeRenderer.capabilities.getMaxAnisotropy();
+        faceTex.anisotropy = maxAniso;
+        normTex.anisotropy = maxAniso;
+      }
 
       // Rich env map for this badge's color
       const envC = document.createElement('canvas');
@@ -512,13 +522,16 @@ export async function initBadge3D(canvasEl, badgeId) {
       const envTex = new THREE.CanvasTexture(envC);
       envTex.mapping = THREE.EquirectangularReflectionMapping;
 
-      const mat = new THREE.MeshStandardMaterial({
+      const mat = new THREE.MeshPhysicalMaterial({
         map: faceTex, normalMap: normTex, normalScale: new THREE.Vector2(0.8, 0.8),
         metalness: 0.85, roughness: 0.15, envMap: envTex, envMapIntensity: 1.5,
+        clearcoat: 0.8, clearcoatRoughness: 0.1,
+        iridescence: 1.0, iridescenceIOR: 1.3,
       });
       // Edge material — silver chrome
-      const edgeMat = new THREE.MeshStandardMaterial({
+      const edgeMat = new THREE.MeshPhysicalMaterial({
         color: def.color, metalness: 1.0, roughness: 0.1, envMap: envTex, envMapIntensity: 1.8,
+        clearcoat: 0.8, clearcoatRoughness: 0.1,
       });
 
       _badgeMesh = new THREE.Mesh(geo, [mat, edgeMat]);
@@ -673,8 +686,8 @@ export async function initRiderCard3D(canvasEl, data) {
 
   let w = canvasEl.clientWidth || 340;
   let h = canvasEl.clientHeight || 220;
-  canvasEl.width = w * Math.min(window.devicePixelRatio, 1.5);
-  canvasEl.height = h * Math.min(window.devicePixelRatio, 1.5);
+  canvasEl.width = w * Math.min(window.devicePixelRatio, 2.0);
+  canvasEl.height = h * Math.min(window.devicePixelRatio, 2.0);
   canvasEl.style.width = w + 'px';
   canvasEl.style.height = h + 'px';
 
@@ -684,7 +697,7 @@ export async function initRiderCard3D(canvasEl, data) {
 
   _rcRenderer = _getRenderer(THREE, canvasEl);
   _rcRenderer.setSize(w, h);
-  _rcRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  _rcRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
 
   // Lighting — 3 lights (ambient + key + rim) for fast shader compile
   _rcScene.add(new THREE.AmbientLight(0x1a1a2e, 0.3));
@@ -708,7 +721,7 @@ export async function initRiderCard3D(canvasEl, data) {
   shape.quadraticCurveTo(-hw, hh, -hw, hh - r);
   shape.lineTo(-hw, -hh + r);
   shape.quadraticCurveTo(-hw, -hh, -hw + r, -hh);
-  const cardGeo = new THREE.ExtrudeGeometry(shape, { depth: cardD, bevelEnabled: true, bevelThickness: 0.008, bevelSize: 0.008, bevelSegments: 3, curveSegments: 16 });
+  const cardGeo = new THREE.ExtrudeGeometry(shape, { depth: cardD, bevelEnabled: true, bevelThickness: 0.008, bevelSize: 0.008, bevelSegments: 6, curveSegments: 16 });
   cardGeo.center();
   // Fix UV mapping per face group
   const pos = cardGeo.attributes.position;
@@ -725,6 +738,7 @@ export async function initRiderCard3D(canvasEl, data) {
       uv.setXY(i, 1 - (x + hw) / cardW, (y + hh) / cardH);
     }
   }
+  cardGeo.attributes.uv.needsUpdate = true;
 
   // Card material — dark metallic with accent edge glow (cached env map)
   if (!_cachedRiderEnvTex) {
@@ -1089,21 +1103,25 @@ export async function initRiderCard3D(canvasEl, data) {
   backTex.anisotropy = _rcRenderer.capabilities.getMaxAnisotropy();
 
   // ExtrudeGeometry groups: 0 = faces, 1 = sides (extruded edges)
-  const edgeMat = new THREE.MeshStandardMaterial({
-    color: 0xc0c0c0, metalness: 1.0, roughness: 0.08, envMap: envTex, envMapIntensity: 2.0
+  const edgeMat = new THREE.MeshPhysicalMaterial({
+    color: 0xc0c0c0, metalness: 1.0, roughness: 0.08, envMap: envTex, envMapIntensity: 2.0,
+    clearcoat: 0.8, clearcoatRoughness: 0.1,
   });
-  const frontMat = new THREE.MeshStandardMaterial({
+  const frontMat = new THREE.MeshPhysicalMaterial({
     map: faceTex,
     normalMap: normalTex, normalScale: new THREE.Vector2(1.0, 1.0),
     metalnessMap: mrTex, roughnessMap: mrTex,
     metalness: 1.0, roughness: 1.0,
     envMap: envTex, envMapIntensity: 2.5,
-    side: THREE.FrontSide
+    side: THREE.FrontSide,
+    clearcoat: 0.8, clearcoatRoughness: 0.1,
+    iridescence: 1.0, iridescenceIOR: 1.3,
   });
 
   // Split ExtrudeGeometry into 3 material groups: front, back, sides
-  const backMat = new THREE.MeshStandardMaterial({
-    map: backTex, metalness: 0.7, roughness: 0.3, envMap: envTex, envMapIntensity: 0.8
+  const backMat = new THREE.MeshPhysicalMaterial({
+    map: backTex, metalness: 0.7, roughness: 0.3, envMap: envTex, envMapIntensity: 0.8,
+    clearcoat: 0.5, clearcoatRoughness: 0.15,
   });
 
   // Ensure geometry is indexed so we can split groups
@@ -1164,9 +1182,10 @@ export async function initRiderCard3D(canvasEl, data) {
   const lvlTex = new THREE.CanvasTexture(lvlCanvas);
   const lvlPlane = new THREE.Mesh(
     new THREE.PlaneGeometry(cardW * 0.95, cardH * 0.95),
-    new THREE.MeshStandardMaterial({
+    new THREE.MeshPhysicalMaterial({
       map: lvlTex, transparent: true, depthWrite: false,
-      metalness: 0.8, roughness: 0.15, envMap: envTex, envMapIntensity: 2.0
+      metalness: 0.8, roughness: 0.15, envMap: envTex, envMapIntensity: 2.0,
+      clearcoat: 0.6, clearcoatRoughness: 0.1,
     })
   );
   lvlPlane.position.z = cardD * 0.5 + 0.02;
@@ -1564,15 +1583,15 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   if (!def) return;
 
   let w = canvasEl.clientWidth || 340, h = canvasEl.clientHeight || 380;
-  canvasEl.width = w * Math.min(window.devicePixelRatio, 1.5);
-  canvasEl.height = h * Math.min(window.devicePixelRatio, 1.5);
+  canvasEl.width = w * Math.min(window.devicePixelRatio, 2.0);
+  canvasEl.height = h * Math.min(window.devicePixelRatio, 2.0);
 
   _bcScene = new THREE.Scene();
   _bcCamera = new THREE.PerspectiveCamera(30, w / h, 0.1, 100);
   _bcCamera.position.set(0, 0, 6.8);
   _bcRenderer = _getRenderer(THREE, canvasEl);
   _bcRenderer.setSize(w, h);
-  _bcRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  _bcRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
 
   // Dramatic lighting
   _bcScene.add(new THREE.AmbientLight(0x0a0a0a, 0.15));
@@ -1631,8 +1650,8 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   ec.globalAlpha = 1;
   const _et = new THREE.CanvasTexture(envC);
   _et.mapping = THREE.EquirectangularReflectionMapping;
-  _et.wrapS = THREE.RepeatWrapping;
-  _et.wrapT = THREE.RepeatWrapping;
+  _et.wrapS = THREE.ClampToEdgeWrapping;
+  _et.wrapT = THREE.ClampToEdgeWrapping;
   _cachedBadgeEnvTexMap[colorKey] = _et;
   _evictEnvCache();
   }
@@ -1647,7 +1666,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   shape.quadraticCurveTo(hw, hh, hw - cr, hh); shape.lineTo(-hw + cr, hh);
   shape.quadraticCurveTo(-hw, hh, -hw, hh - cr); shape.lineTo(-hw, -hh + cr);
   shape.quadraticCurveTo(-hw, -hh, -hw + cr, -hh);
-  const cardGeo = new THREE.ExtrudeGeometry(shape, { depth: cardD, bevelEnabled: true, bevelThickness: 0.008, bevelSize: 0.008, bevelSegments: 3, curveSegments: 16 });
+  const cardGeo = new THREE.ExtrudeGeometry(shape, { depth: cardD, bevelEnabled: true, bevelThickness: 0.008, bevelSize: 0.008, bevelSegments: 6, curveSegments: 16 });
   cardGeo.center();
 
   // Fix UVs
@@ -1657,6 +1676,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     if (nz > 0.5) uv.setXY(i, (x + hw) / cardW, (y + hh) / cardH);
     else if (nz < -0.5) uv.setXY(i, 1 - (x + hw) / cardW, (y + hh) / cardH);
   }
+  cardGeo.attributes.uv.needsUpdate = true;
 
   // Front face texture
   const fW = 720, fH = Math.round(fW * (cardH / cardW));
@@ -1720,6 +1740,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   }
 
   const faceTex = new THREE.CanvasTexture(fCanvas);
+  faceTex.anisotropy = _bcRenderer.capabilities.getMaxAnisotropy();
 
   // Normal map
   const nCanvas = document.createElement('canvas'); nCanvas.width = fW; nCanvas.height = fH;
@@ -1748,6 +1769,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     } catch(_) {}
   }
   const normalTex = new THREE.CanvasTexture(nCanvas);
+  normalTex.anisotropy = _bcRenderer.capabilities.getMaxAnisotropy();
 
   // Metalness/roughness map — unique holographic pattern per badge
   const mCanvas = document.createElement('canvas'); mCanvas.width = fW; mCanvas.height = fH;
@@ -1889,6 +1911,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     } catch(_) {}
   }
   const mrTex = new THREE.CanvasTexture(mCanvas);
+  mrTex.anisotropy = _bcRenderer.capabilities.getMaxAnisotropy();
 
   // Back face — badge info
   const bCanvas = document.createElement('canvas'); bCanvas.width = fW; bCanvas.height = fH;
@@ -1910,17 +1933,26 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   bc.font = '500 22px Inter, system-ui, sans-serif'; bc.fillStyle = 'rgba(255,255,255,0.15)';
   bc.fillText('CycleIQ', fW / 2, fH * 0.85);
   const backTex = new THREE.CanvasTexture(bCanvas);
+  backTex.anisotropy = _bcRenderer.capabilities.getMaxAnisotropy();
 
   // Materials
   const isMountain = def.scene === 'mountain';
-  const frontMat = new THREE.MeshStandardMaterial({
+  const frontMat = new THREE.MeshPhysicalMaterial({
     map: faceTex, normalMap: normalTex, normalScale: new THREE.Vector2(isMountain ? 0.3 : 1.2, isMountain ? 0.3 : 1.2),
     metalnessMap: mrTex, roughnessMap: mrTex, metalness: 1, roughness: 1,
     envMap: envTex, envMapIntensity: isMountain ? 0.8 : 2.0, side: THREE.FrontSide,
-    transparent: isMountain, alphaTest: isMountain ? 0.01 : 0
+    transparent: isMountain, alphaTest: isMountain ? 0.01 : 0,
+    clearcoat: 0.8, clearcoatRoughness: 0.1,
+    iridescence: 1.0, iridescenceIOR: 1.3,
   });
-  const backMat = new THREE.MeshStandardMaterial({ map: backTex, metalness: 0.6, roughness: 0.3, envMap: envTex, envMapIntensity: 0.8 });
-  const edgeMat = new THREE.MeshStandardMaterial({ color: def.color, metalness: 1, roughness: 0.05, envMap: envTex, envMapIntensity: 3 });
+  const backMat = new THREE.MeshPhysicalMaterial({
+    map: backTex, metalness: 0.6, roughness: 0.3, envMap: envTex, envMapIntensity: 0.8,
+    clearcoat: 0.5, clearcoatRoughness: 0.15,
+  });
+  const edgeMat = new THREE.MeshPhysicalMaterial({
+    color: def.color, metalness: 1, roughness: 0.05, envMap: envTex, envMapIntensity: 3,
+    clearcoat: 0.8, clearcoatRoughness: 0.05,
+  });
 
   // Split geometry groups
   if (!cardGeo.index) { const indices = []; for (let i = 0; i < cardGeo.attributes.position.count; i++) indices.push(i); cardGeo.setIndex(indices); }
@@ -2034,7 +2066,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
 
     // Portal scene — the mountain world rendered offscreen
     const portalScene = new THREE.Scene();
-    const dpr = Math.min(window.devicePixelRatio, 1.5);
+    const dpr = Math.min(window.devicePixelRatio, 2.0);
     const rtW = Math.round(w * dpr), rtH = Math.round(h * dpr);
     const portalRT = new THREE.WebGLRenderTarget(rtW, rtH);
 
