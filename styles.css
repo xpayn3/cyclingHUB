@@ -2547,8 +2547,7 @@ input[type="number"] {
     padding: 0 !important;
     display: flex;
     flex-direction: column;
-    aspect-ratio: 16 / 9;
-    min-height: 160px;
+    aspect-ratio: 1 / 1;
     overflow: hidden;
     position: relative;
     isolation: isolate;
@@ -23533,6 +23532,7 @@ body.goals-bg {
     font-weight: 600;
     cursor: pointer;
     transition: background 0.15s, color 0.15s;
+    grid-column: 1 / -1;
 }
 .stk-stat-show-more:active { background: rgba(255,255,255,0.04); color: var(--text-primary); }
 .stk-stat-fun {
