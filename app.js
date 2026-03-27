@@ -33327,36 +33327,91 @@ window.deleteBattery = deleteBattery;
 
 // ── 3D Badge Viewer ──
 let _badges3dModule = null;
+let _badgeViewerList = []; // earned badges for navigation
+let _badgeViewerIdx = 0;
+
 async function openBadgeViewer(badgeId, name, desc) {
+  // Build earned badges list if not set
+  if (!_badgeViewerList.length) {
+    document.querySelectorAll('.stk-badge--earned').forEach(el => {
+      const onclick = el.getAttribute('onclick') || '';
+      const m = onclick.match(/openBadgeViewer\('([^']+)','([^']+)','([^']+)'\)/);
+      if (m) _badgeViewerList.push({ id: m[1], name: m[2], desc: m[3] });
+    });
+  }
+  _badgeViewerIdx = _badgeViewerList.findIndex(b => b.id === badgeId);
+  if (_badgeViewerIdx < 0) _badgeViewerIdx = 0;
+
+  const count = _badgeViewerList.length;
   const bodyHtml = `
-    <div style="text-align:center">
+    <div style="position:relative">
       <canvas id="badge3dCanvas" style="width:100%;height:380px;touch-action:none;cursor:grab;border-radius:16px"></canvas>
+      ${count > 1 ? `
+        <button class="badge-nav-btn badge-nav-prev" onclick="_badgeNavPrev()" aria-label="Previous">
+          <svg class="icon" width="20" height="20"><use href="icons.svg#icon-chevron-left"/></svg>
+        </button>
+        <button class="badge-nav-btn badge-nav-next" onclick="_badgeNavNext()" aria-label="Next">
+          <svg class="icon" width="20" height="20"><use href="icons.svg#icon-chevron-right"/></svg>
+        </button>
+        <div class="badge-nav-dots" id="badgeNavDots">
+          ${_badgeViewerList.map((_, i) => `<span class="badge-nav-dot${i === _badgeViewerIdx ? ' active' : ''}"></span>`).join('')}
+        </div>
+      ` : ''}
     </div>`;
   _openUniSheet({ id: 'badgeViewer', body: bodyHtml, partial: true, maxWidth: 400 });
 
-  await new Promise(r => setTimeout(r, 100));
-  const canvas = document.getElementById('badge3dCanvas');
-  if (!canvas) return;
+  await _loadBadgeCard(badgeId, name, desc);
+}
+
+async function _loadBadgeCard(badgeId, name, desc) {
+  if (!_badges3dModule) _badges3dModule = await import('./js/badges3d.js');
+  if (_badges3dModule.destroyBadgeCard3D) _badges3dModule.destroyBadgeCard3D();
+
+  // Replace canvas to get a fresh WebGL context
+  const old = document.getElementById('badge3dCanvas');
+  if (!old) return;
+  const fresh = document.createElement('canvas');
+  fresh.id = 'badge3dCanvas';
+  fresh.style.cssText = old.style.cssText;
+  old.replaceWith(fresh);
+
+  // Update dots
+  const dots = document.getElementById('badgeNavDots');
+  if (dots) dots.querySelectorAll('.badge-nav-dot').forEach((d, i) => d.classList.toggle('active', i === _badgeViewerIdx));
+
+  await new Promise(r => setTimeout(r, 50));
 
   try {
-    if (!_badges3dModule) _badges3dModule = await import('./js/badges3d.js');
-    if (_badges3dModule.destroyBadgeCard3D) _badges3dModule.destroyBadgeCard3D();
-    if (_badges3dModule.destroyBadge3D) _badges3dModule.destroyBadge3D();
-    await new Promise(r => setTimeout(r, 100));
-    await _badges3dModule.initBadgeCard3D(canvas, badgeId, name, desc);
+    await _badges3dModule.initBadgeCard3D(fresh, badgeId, name, desc);
   } catch (e) {
     console.error('3D badge failed:', e);
-    canvas.style.background = 'var(--surface-1)';
-    canvas.style.borderRadius = '16px';
+    fresh.style.background = 'var(--surface-1)';
   }
+}
+
+function _badgeNavPrev() {
+  if (!_badgeViewerList.length) return;
+  _badgeViewerIdx = (_badgeViewerIdx - 1 + _badgeViewerList.length) % _badgeViewerList.length;
+  const b = _badgeViewerList[_badgeViewerIdx];
+  _loadBadgeCard(b.id, b.name, b.desc);
+}
+
+function _badgeNavNext() {
+  if (!_badgeViewerList.length) return;
+  _badgeViewerIdx = (_badgeViewerIdx + 1) % _badgeViewerList.length;
+  const b = _badgeViewerList[_badgeViewerIdx];
+  _loadBadgeCard(b.id, b.name, b.desc);
 }
 
 function closeBadgeViewer() {
   if (_badges3dModule?.destroyBadgeCard3D) _badges3dModule.destroyBadgeCard3D();
   if (_badges3dModule?.destroyBadge3D) _badges3dModule.destroyBadge3D();
+  _badgeViewerList = [];
   _closeUniSheet();
 }
 window.openBadgeViewer = openBadgeViewer;
+window._badgeNavPrev = _badgeNavPrev;
+window._badgeNavNext = _badgeNavNext;
 window.closeBadgeViewer = closeBadgeViewer;
 
 function undoChargeBattery(id) {

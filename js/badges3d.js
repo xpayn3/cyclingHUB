@@ -527,7 +527,7 @@ function _animate_spring(restX, restY, spring, damping) {
       if (dist < 0.01) {
         const t = Date.now() * 0.001;
         _badgeMesh.rotation.y = _springRestY + Math.sin(t * 0.8) * 0.015;
-        _badgeMesh.rotation.x = _springRestX + Math.sin(t * 0.6 + 1) * 0.008;
+        _badgeMesh.rotation.x = _springRestX + Math.sin(t * 0.6 + 1) * 0.015;
       }
     }
 
@@ -1139,7 +1139,7 @@ export async function initRiderCard3D(canvasEl, data) {
   _rcScene.traverse(c => { if (c.isLight && c !== _rcScene) allLights.push({ light: c, target: c.intensity }); });
   allLights.forEach(l => { l.light.intensity = 0; });
 
-  const REST_X = 0.05, REST_Y = 0;
+  const REST_X = 0.06, REST_Y = 0.08;
   let velX = 0, velY = 0;
   const SPRING = 0.008, DAMP = 0.97;
   let _rcDragVelX = 0, _rcDragVelY = 0, _rcLastMoveX = 0, _rcLastMoveY = 0;
@@ -1199,16 +1199,18 @@ export async function initRiderCard3D(canvasEl, data) {
     }
 
     if (!_rcDragging) {
-      // Free spin phase — coast with drag velocity before spring kicks in
       const timeSinceRelease = Date.now() - _rcReleaseTime;
-      const freeSpinDur = 2000;
+      const holdDur = 2000; // hold position for 2s before spring kicks in
 
-      if (_rcSpinning && timeSinceRelease < freeSpinDur) {
-        // Coast — apply drag velocity with friction
-        _rcDragVelX *= 0.985;
-        _rcDragVelY *= 0.985;
-        _rcMesh.rotation.x += _rcDragVelX;
-        _rcMesh.rotation.y += _rcDragVelY;
+      if (timeSinceRelease < holdDur) {
+        // Coast with momentum or just hold still
+        if (_rcSpinning) {
+          _rcDragVelX *= 0.985;
+          _rcDragVelY *= 0.985;
+          _rcMesh.rotation.x += _rcDragVelX;
+          _rcMesh.rotation.y += _rcDragVelY;
+        }
+        // else: just hold current position, don't spring yet
       } else {
         // Spring back to rest
         if (_rcSpinning) { _rcSpinning = false; velX = _rcDragVelX; velY = _rcDragVelY; }
@@ -1271,43 +1273,37 @@ export async function initRiderCard3D(canvasEl, data) {
       return;
     }
     _rcLastTap = now;
-    _rcDragging = true; _rcStartX = e.clientX; _rcStartY = e.clientY;
+    _rcDragging = true;
+    _rcStartX = e.clientX; _rcStartY = e.clientY;
     _rcRotX = _rcMesh.rotation.x; _rcRotY = _rcMesh.rotation.y;
+    // Track last 3 positions with timestamps for velocity
+    _rcTrail = [{ x: e.clientX, y: e.clientY, t: Date.now() }];
     canvasEl.setPointerCapture(e.pointerId);
     canvasEl.style.cursor = 'grabbing';
   });
   canvasEl.addEventListener('pointermove', e => {
     if (!_rcDragging || !_rcMesh) return;
-    const dx = (e.clientX - _rcStartX) * 0.005;
-    const dy = (e.clientY - _rcStartY) * 0.005;
-    const newY = _rcRotY + dx;
-    const newX = _rcRotX + dy;
-    // Track velocity — smoothed average, clamped
-    const vx = _rcMesh.rotation.x - _rcLastMoveX;
-    const vy = _rcMesh.rotation.y - _rcLastMoveY;
-    _rcDragVelX = _rcDragVelX * 0.5 + vx * 0.5; // smooth
-    _rcDragVelY = _rcDragVelY * 0.5 + vy * 0.5;
-    // Clamp max velocity
-    _rcDragVelX = Math.max(-0.15, Math.min(0.15, _rcDragVelX));
-    _rcDragVelY = Math.max(-0.15, Math.min(0.15, _rcDragVelY));
-    _rcMesh.rotation.y = newY;
-    _rcMesh.rotation.x = newX;
-    _rcLastMoveX = newX;
-    _rcLastMoveY = newY;
+    _rcMesh.rotation.y = _rcRotY + (e.clientX - _rcStartX) * 0.015;
+    _rcMesh.rotation.x = _rcRotX + (e.clientY - _rcStartY) * 0.015;
+    // Keep trail of last 3 positions
+    _rcTrail.push({ x: e.clientX, y: e.clientY, t: Date.now() });
+    if (_rcTrail.length > 3) _rcTrail.shift();
   });
-  // Block sheet scroll while dragging the card
-  canvasEl.addEventListener('touchmove', e => {
-    if (_rcDragging) e.preventDefault();
-  }, { passive: false });
+  canvasEl.addEventListener('touchmove', e => { if (_rcDragging) e.preventDefault(); }, { passive: false });
   const endDrag = () => {
+    if (!_rcDragging) return;
     _rcDragging = false;
     canvasEl.style.cursor = 'grab';
-    // Discard if velocity is suspiciously high (glitch)
-    if (Math.abs(_rcDragVelX) > 0.12 || Math.abs(_rcDragVelY) > 0.12) {
-      _rcDragVelX = 0; _rcDragVelY = 0;
+    // Compute velocity from trail
+    _rcDragVelX = 0; _rcDragVelY = 0;
+    if (_rcTrail.length >= 2) {
+      const a = _rcTrail[0], b = _rcTrail[_rcTrail.length - 1];
+      const dt = Math.max(1, b.t - a.t);
+      _rcDragVelY = (b.x - a.x) / dt * 0.12;  // px/ms → rotation/frame
+      _rcDragVelX = (b.y - a.y) / dt * 0.12;
     }
     _rcReleaseTime = Date.now();
-    _rcSpinning = Math.abs(_rcDragVelY) > 0.002 || Math.abs(_rcDragVelX) > 0.002;
+    _rcSpinning = true;
   };
   canvasEl.addEventListener('pointerup', endDrag);
   canvasEl.addEventListener('pointercancel', endDrag);
@@ -1546,7 +1542,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   const allLights = []; _bcScene.traverse(c => { if (c.isLight) allLights.push({ light: c, target: c.intensity }); });
   allLights.forEach(l => { l.light.intensity = 0; });
 
-  const REST_X = 0.05, REST_Y = 0;
+  const REST_X = 0.06, REST_Y = 0.08;
   let velX = 0, velY = 0;
   const SPRING = 0.008, DAMP = 0.97;
   const introStart = Date.now(), INTRO_DUR = 2500;
@@ -1579,9 +1575,11 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     if (!introFinished) { introFinished = true; allLights.forEach(l => { l.light.intensity = l.target; }); }
     if (!_bcDragging) {
       const timeSinceRelease = Date.now() - _bcReleaseTime;
-      if (_bcSpinning && timeSinceRelease < 2000) {
-        _bcDragVelX *= 0.985; _bcDragVelY *= 0.985;
-        _bcMesh.rotation.x += _bcDragVelX; _bcMesh.rotation.y += _bcDragVelY;
+      if (timeSinceRelease < 2000) {
+        if (_bcSpinning) {
+          _bcDragVelX *= 0.985; _bcDragVelY *= 0.985;
+          _bcMesh.rotation.x += _bcDragVelX; _bcMesh.rotation.y += _bcDragVelY;
+        }
       } else {
         if (_bcSpinning) { _bcSpinning = false; velX = _bcDragVelX; velY = _bcDragVelY; }
         const dx = REST_X - _bcMesh.rotation.x;
@@ -1616,24 +1614,29 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     lastTap = now;
     _bcDragging = true; _bcStartX = e.clientX; _bcStartY = e.clientY;
     _bcRotX = _bcMesh.rotation.x; _bcRotY = _bcMesh.rotation.y;
+    _bcTrail = [{ x: e.clientX, y: e.clientY, t: Date.now() }];
     canvasEl.setPointerCapture(e.pointerId); canvasEl.style.cursor = 'grabbing';
   });
   canvasEl.addEventListener('pointermove', e => {
     if (!_bcDragging || !_bcMesh) return;
-    const newY = _bcRotY + (e.clientX - _bcStartX) * 0.005;
-    const newX = _bcRotX + (e.clientY - _bcStartY) * 0.005;
-    const vx = _bcMesh.rotation.x - _bcLastMoveX, vy = _bcMesh.rotation.y - _bcLastMoveY;
-    _bcDragVelX = Math.max(-0.15, Math.min(0.15, _bcDragVelX * 0.5 + vx * 0.5));
-    _bcDragVelY = Math.max(-0.15, Math.min(0.15, _bcDragVelY * 0.5 + vy * 0.5));
-    _bcMesh.rotation.y = newY; _bcMesh.rotation.x = newX;
-    _bcLastMoveX = newX; _bcLastMoveY = newY;
+    _bcMesh.rotation.y = _bcRotY + (e.clientX - _bcStartX) * 0.015;
+    _bcMesh.rotation.x = _bcRotX + (e.clientY - _bcStartY) * 0.015;
+    _bcTrail.push({ x: e.clientX, y: e.clientY, t: Date.now() });
+    if (_bcTrail.length > 3) _bcTrail.shift();
   });
   canvasEl.addEventListener('touchmove', e => { if (_bcDragging) e.preventDefault(); }, { passive: false });
   const endDrag = () => {
+    if (!_bcDragging) return;
     _bcDragging = false; canvasEl.style.cursor = 'grab';
-    if (Math.abs(_bcDragVelX) > 0.12 || Math.abs(_bcDragVelY) > 0.12) { _bcDragVelX = 0; _bcDragVelY = 0; }
+    _bcDragVelX = 0; _bcDragVelY = 0;
+    if (_bcTrail && _bcTrail.length >= 2) {
+      const a = _bcTrail[0], b = _bcTrail[_bcTrail.length - 1];
+      const dt = Math.max(1, b.t - a.t);
+      _bcDragVelY = (b.x - a.x) / dt * 0.12;
+      _bcDragVelX = (b.y - a.y) / dt * 0.12;
+    }
     _bcReleaseTime = Date.now();
-    _bcSpinning = Math.abs(_bcDragVelY) > 0.002 || Math.abs(_bcDragVelX) > 0.002;
+    _bcSpinning = true;
   };
   canvasEl.addEventListener('pointerup', endDrag);
   canvasEl.addEventListener('pointercancel', endDrag);
