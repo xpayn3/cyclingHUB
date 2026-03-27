@@ -175,6 +175,7 @@ const BADGE_GLB_MAP = {
 // Procedural badge definitions — shape, color, icon SVG path
 const BADGE_PROCEDURAL = {
   b1:  { shape: 'circle',  color: 0xff6b35, accent: 0xffaa00, label: 'ON FIRE',       iconPath: 'M12 12c2-2.96 0-7-1-8 0 3.038-1.773 4.741-3 6-1.226 1.26-2 3.24-2 5a6 6 0 1 0 12 0c0-1.532-1.056-3.94-2-5-1.786 3-2.791 3-4 2z' },
+  b2:  { shape: 'shield',  color: 0x00e5a0, accent: 0x44ffbb, label: 'WARRIOR',       iconPath: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' },
   b3:  { shape: 'diamond', color: 0x9b59ff, accent: 0xcc88ff, label: 'DIAMOND',       iconPath: 'M6 3h12l4 6-10 12L2 9z' },
   b4:  { shape: 'shield',  color: 0xffd700, accent: 0xffee88, label: 'KING',          iconPath: 'm2 4 3 12h14l3-12-5 4-5-6-5 6Z' },
   b5:  { shape: 'hexagon', color: 0x4a9eff, accent: 0x88ccff, label: 'GRINDER',       iconPath: 'M13 2 3 14h9l-1 8 10-12h-9l1-8z' },
@@ -238,11 +239,6 @@ function _createBadgeFaceTexture(THREE, def, size) {
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, size, size);
 
-  // Brushed metal — very subtle
-  for (let y = 0; y < size; y += 2) {
-    ctx.fillStyle = `rgba(255,255,255,${Math.random() * 0.01})`;
-    ctx.fillRect(0, y, size, 1);
-  }
 
   // Icon — centered, large, SVG paths use 0-24 coordinate space
   ctx.save();
@@ -616,7 +612,7 @@ export async function initRiderCard3D(canvasEl, data) {
 
   _rcScene = new THREE.Scene();
   _rcCamera = new THREE.PerspectiveCamera(30, w / h, 0.1, 100);
-  _rcCamera.position.set(0, 0, 5.5);
+  _rcCamera.position.set(0, 0, 6.8);
 
   _rcRenderer = new THREE.WebGLRenderer({ canvas: canvasEl, alpha: true, antialias: true });
   _rcRenderer.setSize(w, h);
@@ -797,24 +793,21 @@ export async function initRiderCard3D(canvasEl, data) {
 
   // Background — dark with subtle gradient
   const bg = fc.createLinearGradient(0, 0, 0, fH);
-  bg.addColorStop(0, '#0e0e0e');
-  bg.addColorStop(0.5, '#101010');
-  bg.addColorStop(1, '#0a0a0a');
+  bg.addColorStop(0, '#080808');
+  bg.addColorStop(0.5, '#0a0a0a');
+  bg.addColorStop(1, '#060606');
   fc.fillStyle = bg;
   fc.fillRect(0, 0, fW, fH);
-
-  // Brushed metal texture — very subtle
-  for (let y = 0; y < fH; y += 2) {
-    const alpha = Math.random() * 0.012;
-    fc.fillStyle = `rgba(255,255,255,${alpha})`;
-    fc.fillRect(0, y, fW, 1);
+  // Dither noise to break up color banding
+  const dither = fc.getImageData(0, 0, fW, fH);
+  const d = dither.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const n = Math.random() * 6 - 3;
+    d[i] = Math.max(0, Math.min(255, d[i] + n));
+    d[i+1] = Math.max(0, Math.min(255, d[i+1] + n));
+    d[i+2] = Math.max(0, Math.min(255, d[i+2] + n));
   }
-  // Faint vertical grain
-  for (let x = 0; x < fW; x += 4) {
-    const alpha = Math.random() * 0.006;
-    fc.fillStyle = `rgba(255,255,255,${alpha})`;
-    fc.fillRect(x, 0, 1, fH);
-  }
+  fc.putImageData(dither, 0, 0);
 
   // Shared chrome gradient for logo + level number
   const chromeGrad = fc.createLinearGradient(0, 0, fW, fH);
@@ -834,7 +827,7 @@ export async function initRiderCard3D(canvasEl, data) {
   fc.font = '800 280px Inter, system-ui, sans-serif';
   fc.textAlign = 'center';
   const lvlStr = String(data.level || '0');
-  const lvlX = fW / 2, lvlY = fH * 0.52;
+  const lvlX = fW / 2, lvlY = fH * 0.56;
 
   // Layer 1: Dark inner body — base color
   fc.fillStyle = 'rgba(40,40,50,0.5)';
@@ -922,11 +915,11 @@ export async function initRiderCard3D(canvasEl, data) {
   nc.textAlign = 'center';
   // Offset slightly left/up for emboss light direction
   nc.fillStyle = 'rgb(90,90,255)'; // stronger left-down normal = deeper emboss
-  nc.fillText(String(data.level || '0'), fW / 2 - 2, fH * 0.52 - 2);
+  nc.fillText(String(data.level || '0'), fW / 2 - 2, fH * 0.56 - 2);
   nc.fillStyle = 'rgb(166,166,255)'; // stronger right-up = deeper shadow edge
-  nc.fillText(String(data.level || '0'), fW / 2 + 2, fH * 0.52 + 2);
+  nc.fillText(String(data.level || '0'), fW / 2 + 2, fH * 0.56 + 2);
   nc.fillStyle = 'rgb(128,128,255)'; // center pass
-  nc.fillText(String(data.level || '0'), fW / 2, fH * 0.52);
+  nc.fillText(String(data.level || '0'), fW / 2, fH * 0.56);
   // Also emboss CycleIQ logo
   nc.font = '700 32px Inter, system-ui, sans-serif';
   nc.textAlign = 'right';
@@ -944,13 +937,13 @@ export async function initRiderCard3D(canvasEl, data) {
   mrCanvas.width = fW; mrCanvas.height = fH;
   const mc = mrCanvas.getContext('2d');
   // Base: low metalness (30), high roughness (180) = matte card
-  mc.fillStyle = 'rgb(0,180,30)';
+  mc.fillStyle = 'rgb(0,170,50)';
   mc.fillRect(0, 0, fW, fH);
   // Level number: chrome with noise texture
   mc.font = '800 280px Inter, system-ui, sans-serif';
   mc.textAlign = 'center';
   mc.fillStyle = 'rgb(0,8,255)';
-  mc.fillText(String(data.level || '0'), fW / 2, fH * 0.52);
+  mc.fillText(String(data.level || '0'), fW / 2, fH * 0.56);
   // Add roughness noise inside the number only
   // Step 1: noise canvas with random roughness per pixel
   const noiseCanvas = document.createElement('canvas');
@@ -972,7 +965,7 @@ export async function initRiderCard3D(canvasEl, data) {
   mctx.font = '800 280px Inter, system-ui, sans-serif';
   mctx.textAlign = 'center';
   mctx.fillStyle = '#ffffff';
-  mctx.fillText(String(data.level || '0'), fW / 2, fH * 0.52);
+  mctx.fillText(String(data.level || '0'), fW / 2, fH * 0.56);
   // Step 3: use mask to cut noise to number shape
   mctx.globalCompositeOperation = 'source-in';
   mctx.drawImage(noiseCanvas, 0, 0);
@@ -996,24 +989,21 @@ export async function initRiderCard3D(canvasEl, data) {
 
   // Background — darker, metallic
   const bbg = bc.createLinearGradient(0, 0, 0, fH);
-  bbg.addColorStop(0, '#0e0e0e');
-  bbg.addColorStop(0.5, '#101010');
-  bbg.addColorStop(1, '#0a0a0a');
+  bbg.addColorStop(0, '#080808');
+  bbg.addColorStop(0.5, '#0a0a0a');
+  bbg.addColorStop(1, '#060606');
   bc.fillStyle = bbg;
   bc.fillRect(0, 0, fW, fH);
-
-  // Brushed metal texture — very subtle
-  for (let y = 0; y < fH; y += 2) {
-    const alpha = Math.random() * 0.012;
-    bc.fillStyle = `rgba(255,255,255,${alpha})`;
-    bc.fillRect(0, y, fW, 1);
+  // Dither noise
+  const bDither = bc.getImageData(0, 0, fW, fH);
+  const bd = bDither.data;
+  for (let i = 0; i < bd.length; i += 4) {
+    const n = Math.random() * 6 - 3;
+    bd[i] = Math.max(0, Math.min(255, bd[i] + n));
+    bd[i+1] = Math.max(0, Math.min(255, bd[i+1] + n));
+    bd[i+2] = Math.max(0, Math.min(255, bd[i+2] + n));
   }
-  // Faint vertical grain
-  for (let x = 0; x < fW; x += 4) {
-    const alpha = Math.random() * 0.006;
-    bc.fillStyle = `rgba(255,255,255,${alpha})`;
-    bc.fillRect(x, 0, 1, fH);
-  }
+  bc.putImageData(bDither, 0, 0);
 
   const now = new Date();
   const dayName = now.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
@@ -1063,25 +1053,80 @@ export async function initRiderCard3D(canvasEl, data) {
     side: THREE.FrontSide
   });
 
-  // Card body — front faces only (back culled so back plane shows through)
-  const cardMesh = new THREE.Mesh(cardGeo, [frontMat, edgeMat]);
+  // Split ExtrudeGeometry into 3 material groups: front, back, sides
+  const backMat = new THREE.MeshStandardMaterial({
+    map: backTex, metalness: 0.7, roughness: 0.3, envMap: envTex, envMapIntensity: 0.8
+  });
 
-  // Back plane — same rounded shape, flipped, with date texture
-  const backGeo = new THREE.ShapeGeometry(shape, 16);
-  const bPos = backGeo.attributes.position;
-  const bUv = backGeo.attributes.uv;
-  for (let i = 0; i < bUv.count; i++) {
-    bUv.setXY(i, 1 - (bPos.getX(i) + hw) / cardW, (bPos.getY(i) + hh) / cardH);
+  // Ensure geometry is indexed so we can split groups
+  if (!cardGeo.index) {
+    const vCount = cardGeo.attributes.position.count;
+    const indices = [];
+    for (let i = 0; i < vCount; i++) indices.push(i);
+    cardGeo.setIndex(indices);
   }
-  const backPlaneMesh = new THREE.Mesh(backGeo, new THREE.MeshStandardMaterial({
-    map: backTex, metalness: 0.7, roughness: 0.3, envMap: envTex, envMapIntensity: 0.8, side: THREE.DoubleSide
-  }));
-  backPlaneMesh.position.z = -cardD * 0.5;
-  backPlaneMesh.scale.x = -1;
+
+  // Split into front/back/side groups by checking normal Z per triangle
+  const nrm = cardGeo.attributes.normal;
+  const idx = cardGeo.index;
+  const frontIdx = [], backIdx = [], sideIdx = [];
+  for (const grp of cardGeo.groups) {
+    for (let i = grp.start; i < grp.start + grp.count; i += 3) {
+      const a = idx.getX(i), b = idx.getX(i+1), c = idx.getX(i+2);
+      const nz = (nrm.getZ(a) + nrm.getZ(b) + nrm.getZ(c)) / 3;
+      if (grp.materialIndex === 1) { sideIdx.push(a, b, c); }
+      else if (nz > 0.5) { frontIdx.push(a, b, c); }
+      else if (nz < -0.5) { backIdx.push(a, b, c); }
+      else { sideIdx.push(a, b, c); }
+    }
+  }
+  cardGeo.setIndex([...frontIdx, ...backIdx, ...sideIdx]);
+  cardGeo.clearGroups();
+  cardGeo.addGroup(0, frontIdx.length, 0);
+  cardGeo.addGroup(frontIdx.length, backIdx.length, 1);
+  cardGeo.addGroup(frontIdx.length + backIdx.length, sideIdx.length, 2);
+
+  // Fix back face UVs — flip X so date text reads correctly
+  const bkPos = cardGeo.attributes.position;
+  const bkUv = cardGeo.attributes.uv;
+  for (let ii = 0; ii < backIdx.length; ii++) {
+    const vi = backIdx[ii];
+    const x = bkPos.getX(vi), y = bkPos.getY(vi);
+    bkUv.setXY(vi, 1 - (x + hw) / cardW, (y + hh) / cardH);
+  }
+
+  // 0 = front (profile), 1 = back (date), 2 = sides (chrome edge)
+  const cardMesh = new THREE.Mesh(cardGeo, [frontMat, backMat, edgeMat]);
+
+  // Parallax layers — transparent planes at different depths inside the card
+  // Layer 1: Level number (deepest — moves most)
+  const lvlCanvas = document.createElement('canvas');
+  lvlCanvas.width = fW; lvlCanvas.height = fH;
+  const lc = lvlCanvas.getContext('2d');
+  lc.font = '800 280px Inter, system-ui, sans-serif';
+  lc.textAlign = 'center';
+  const lvlGrad2 = lc.createLinearGradient(0, 0, fW, fH);
+  lvlGrad2.addColorStop(0, 'rgba(220,200,160,0.5)');
+  lvlGrad2.addColorStop(0.3, 'rgba(255,255,240,0.6)');
+  lvlGrad2.addColorStop(0.5, 'rgba(180,160,120,0.4)');
+  lvlGrad2.addColorStop(0.7, 'rgba(255,250,230,0.55)');
+  lvlGrad2.addColorStop(1, 'rgba(160,140,100,0.35)');
+  lc.fillStyle = lvlGrad2;
+  lc.fillText(String(data.level || '0'), fW / 2, fH * 0.56);
+  const lvlTex = new THREE.CanvasTexture(lvlCanvas);
+  const lvlPlane = new THREE.Mesh(
+    new THREE.PlaneGeometry(cardW * 0.95, cardH * 0.95),
+    new THREE.MeshBasicMaterial({ map: lvlTex, transparent: true, depthWrite: false })
+  );
+  lvlPlane.position.z = cardD * 0.5 + 0.02;
 
   _rcMesh = new THREE.Group();
   _rcMesh.add(cardMesh);
-  _rcMesh.add(backPlaneMesh);
+  _rcMesh.add(lvlPlane);
+  _rcMesh._parallax = [
+    { mesh: lvlPlane, depth: 0.005 },
+  ];
+
   // Cinematic reveal — starts back-facing (180° Y), slight tilt on X/Z
   _rcMesh.rotation.x = 0.35;
   _rcMesh.rotation.y = Math.PI;
@@ -1096,9 +1141,9 @@ export async function initRiderCard3D(canvasEl, data) {
 
   const REST_X = 0.05, REST_Y = 0;
   let velX = 0, velY = 0;
-  const SPRING = 0.015, DAMP = 0.96;
+  const SPRING = 0.008, DAMP = 0.97;
   let _rcDragVelX = 0, _rcDragVelY = 0, _rcLastMoveX = 0, _rcLastMoveY = 0;
-  let _rcReleaseTime = 0, _rcSpinning = false;
+  let _rcReleaseTime = 0, _rcSpinning = false, _rcIdle = false;
 
   const introStart = Date.now();
   const INTRO_DUR = 2500;
@@ -1107,6 +1152,7 @@ export async function initRiderCard3D(canvasEl, data) {
   function loop() {
     _rcRaf = requestAnimationFrame(loop);
     if (!_rcMesh) return;
+    if (_rcIdle) return; // Paused — wake on next interaction
 
     const elapsed = Date.now() - introStart;
     const introT = Math.min(elapsed / INTRO_DUR, 1);
@@ -1155,7 +1201,7 @@ export async function initRiderCard3D(canvasEl, data) {
     if (!_rcDragging) {
       // Free spin phase — coast with drag velocity before spring kicks in
       const timeSinceRelease = Date.now() - _rcReleaseTime;
-      const freeSpinDur = 3000;
+      const freeSpinDur = 2000;
 
       if (_rcSpinning && timeSinceRelease < freeSpinDur) {
         // Coast — apply drag velocity with friction
@@ -1178,7 +1224,32 @@ export async function initRiderCard3D(canvasEl, data) {
           velX = 0; velY = 0;
           _rcMesh.rotation.x = REST_X;
           _rcMesh.rotation.y = REST_Y;
+          // Reset parallax layers to center
+          if (_rcMesh._parallax) _rcMesh._parallax.forEach(l => { l.mesh.position.x = 0; l.mesh.position.y = 0; });
+          // Render one final frame then pause — save GPU
+          _rcRenderer.render(_rcScene, _rcCamera);
+          _rcIdle = true;
+          return;
         }
+      }
+    }
+    // Parallax — shift layers based on card tilt
+    if (_rcMesh._parallax) {
+      // Offset from rest — small values only when near front view
+      let dy = _rcMesh.rotation.y - REST_Y;
+      dy = dy - Math.round(dy / (Math.PI * 2)) * Math.PI * 2; // normalize to -PI..PI
+      const dx = _rcMesh.rotation.x - REST_X;
+      // Only parallax when close to front view
+      if (Math.abs(dy) < 0.8 && Math.abs(dx) < 0.8) {
+        _rcMesh._parallax.forEach(l => {
+          l.mesh.position.x += (-dy * l.depth * 5 - l.mesh.position.x) * 0.15;
+          l.mesh.position.y += (dx * l.depth * 5 - l.mesh.position.y) * 0.15;
+        });
+      } else {
+        _rcMesh._parallax.forEach(l => {
+          l.mesh.position.x *= 0.85;
+          l.mesh.position.y *= 0.85;
+        });
       }
     }
     _rcRenderer.render(_rcScene, _rcCamera);
@@ -1189,6 +1260,7 @@ export async function initRiderCard3D(canvasEl, data) {
   let _rcLastTap = 0;
   canvasEl.addEventListener('pointerdown', e => {
     const now = Date.now();
+    _rcIdle = false;
     if (now - _rcLastTap < 350 && _rcMesh) {
       _rcDragVelX = 0;
       _rcDragVelY = 0.08;
@@ -1210,9 +1282,14 @@ export async function initRiderCard3D(canvasEl, data) {
     const dy = (e.clientY - _rcStartY) * 0.005;
     const newY = _rcRotY + dx;
     const newX = _rcRotX + dy;
-    // Track velocity for momentum spin
-    _rcDragVelX = _rcMesh.rotation.x - _rcLastMoveX;
-    _rcDragVelY = _rcMesh.rotation.y - _rcLastMoveY;
+    // Track velocity — smoothed average, clamped
+    const vx = _rcMesh.rotation.x - _rcLastMoveX;
+    const vy = _rcMesh.rotation.y - _rcLastMoveY;
+    _rcDragVelX = _rcDragVelX * 0.5 + vx * 0.5; // smooth
+    _rcDragVelY = _rcDragVelY * 0.5 + vy * 0.5;
+    // Clamp max velocity
+    _rcDragVelX = Math.max(-0.15, Math.min(0.15, _rcDragVelX));
+    _rcDragVelY = Math.max(-0.15, Math.min(0.15, _rcDragVelY));
     _rcMesh.rotation.y = newY;
     _rcMesh.rotation.x = newX;
     _rcLastMoveX = newX;
@@ -1225,11 +1302,352 @@ export async function initRiderCard3D(canvasEl, data) {
   const endDrag = () => {
     _rcDragging = false;
     canvasEl.style.cursor = 'grab';
+    // Discard if velocity is suspiciously high (glitch)
+    if (Math.abs(_rcDragVelX) > 0.12 || Math.abs(_rcDragVelY) > 0.12) {
+      _rcDragVelX = 0; _rcDragVelY = 0;
+    }
     _rcReleaseTime = Date.now();
-    _rcSpinning = Math.abs(_rcDragVelY) > 0.001 || Math.abs(_rcDragVelX) > 0.001;
+    _rcSpinning = Math.abs(_rcDragVelY) > 0.002 || Math.abs(_rcDragVelX) > 0.002;
   };
   canvasEl.addEventListener('pointerup', endDrag);
   canvasEl.addEventListener('pointercancel', endDrag);
+  canvasEl.addEventListener('pointerleave', endDrag);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BADGE CARD — Achievement card style (like rider card but per-badge themed)
+// ─────────────────────────────────────────────────────────────────────────────
+let _bcScene, _bcCamera, _bcRenderer, _bcMesh, _bcRaf, _bcDragging = false;
+let _bcStartX = 0, _bcStartY = 0, _bcRotX = 0, _bcRotY = 0;
+let _bcDragVelX = 0, _bcDragVelY = 0, _bcLastMoveX = 0, _bcLastMoveY = 0;
+let _bcReleaseTime = 0, _bcSpinning = false, _bcIdle = false;
+
+export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
+  const THREE = await _loadThreeJS();
+  const def = BADGE_PROCEDURAL[badgeId];
+  if (!def) return;
+
+  let w = canvasEl.clientWidth || 340, h = canvasEl.clientHeight || 380;
+  canvasEl.width = w * Math.min(window.devicePixelRatio, 2);
+  canvasEl.height = h * Math.min(window.devicePixelRatio, 2);
+
+  _bcScene = new THREE.Scene();
+  _bcCamera = new THREE.PerspectiveCamera(30, w / h, 0.1, 100);
+  _bcCamera.position.set(0, 0, 6.8);
+  _bcRenderer = new THREE.WebGLRenderer({ canvas: canvasEl, alpha: true, antialias: true });
+  _bcRenderer.setSize(w, h);
+  _bcRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  _bcRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+
+  // Dramatic lighting
+  _bcScene.add(new THREE.AmbientLight(0x0a0a0a, 0.15));
+  const spot = new THREE.SpotLight(0xffffff, 3.5, 20, Math.PI / 7, 0.5, 1.5);
+  spot.position.set(0, 6, 5); spot.target.position.set(0, 0, 0);
+  _bcScene.add(spot); _bcScene.add(spot.target);
+  const key = new THREE.DirectionalLight(0xffffff, 2.0); key.position.set(5, 4, 2); _bcScene.add(key);
+  const r = (def.color >> 16) & 255, g = (def.color >> 8) & 255, b = def.color & 255;
+  const rim = new THREE.DirectionalLight(def.color, 1.5); rim.position.set(-4, 3, -5); _bcScene.add(rim);
+
+  // Env map
+  const envC = document.createElement('canvas'); envC.width = 1024; envC.height = 512;
+  const ec = envC.getContext('2d');
+  ec.fillStyle = '#0c0c0c'; ec.fillRect(0, 0, 1024, 512);
+  const sb = ec.createRadialGradient(512, 256, 0, 512, 256, 350);
+  sb.addColorStop(0, '#ffffff'); sb.addColorStop(0.2, '#dddddd'); sb.addColorStop(0.5, '#444444'); sb.addColorStop(1, 'transparent');
+  ec.fillStyle = sb; ec.fillRect(0, 0, 1024, 512);
+  const ac = ec.createRadialGradient(200, 120, 0, 200, 120, 150);
+  ac.addColorStop(0, `rgba(${r},${g},${b},0.5)`); ac.addColorStop(1, 'transparent');
+  ec.fillStyle = ac; ec.fillRect(0, 0, 1024, 512);
+  const envTex = new THREE.CanvasTexture(envC); envTex.mapping = THREE.EquirectangularReflectionMapping;
+
+  // Card geometry
+  const cardW = 1.8, cardH = 2.6, cardD = 0.01, cardR = 0.18;
+  const shape = new THREE.Shape();
+  const hw = cardW / 2, hh = cardH / 2, cr = cardR;
+  shape.moveTo(-hw + cr, -hh); shape.lineTo(hw - cr, -hh);
+  shape.quadraticCurveTo(hw, -hh, hw, -hh + cr); shape.lineTo(hw, hh - cr);
+  shape.quadraticCurveTo(hw, hh, hw - cr, hh); shape.lineTo(-hw + cr, hh);
+  shape.quadraticCurveTo(-hw, hh, -hw, hh - cr); shape.lineTo(-hw, -hh + cr);
+  shape.quadraticCurveTo(-hw, -hh, -hw + cr, -hh);
+  const cardGeo = new THREE.ExtrudeGeometry(shape, { depth: cardD, bevelEnabled: true, bevelThickness: 0.008, bevelSize: 0.008, bevelSegments: 8, curveSegments: 32 });
+  cardGeo.center();
+
+  // Fix UVs
+  const pos = cardGeo.attributes.position, uv = cardGeo.attributes.uv, norm = cardGeo.attributes.normal;
+  for (let i = 0; i < uv.count; i++) {
+    const x = pos.getX(i), y = pos.getY(i), nz = norm.getZ(i);
+    if (nz > 0.5) uv.setXY(i, (x + hw) / cardW, (y + hh) / cardH);
+    else if (nz < -0.5) uv.setXY(i, 1 - (x + hw) / cardW, (y + hh) / cardH);
+  }
+
+  // Front face texture
+  const fW = 720, fH = Math.round(fW * (cardH / cardW));
+  const fCanvas = document.createElement('canvas'); fCanvas.width = fW; fCanvas.height = fH;
+  const fc = fCanvas.getContext('2d');
+
+  // Dark background with dither
+  fc.fillStyle = '#080808'; fc.fillRect(0, 0, fW, fH);
+  const dither = fc.getImageData(0, 0, fW, fH); const dd = dither.data;
+  for (let i = 0; i < dd.length; i += 4) { const n = Math.random() * 6 - 3; dd[i] = Math.max(0, dd[i] + n); dd[i+1] = Math.max(0, dd[i+1] + n); dd[i+2] = Math.max(0, dd[i+2] + n); }
+  fc.putImageData(dither, 0, 0);
+
+  // Colored ribbon at top with repeating name
+  const ribbonH = 56;
+  fc.fillStyle = `rgb(${r},${g},${b})`; fc.fillRect(0, 40, fW, ribbonH);
+  fc.font = '900 38px Inter, system-ui, sans-serif';
+  fc.letterSpacing = '2px';
+  fc.fillStyle = 'rgba(0,0,0,0.6)'; fc.textBaseline = 'middle';
+  const ribbonText = (name.toUpperCase() + '  ·  ').repeat(20);
+  fc.fillText(ribbonText, 0, 40 + ribbonH / 2);
+  // Second pass slightly offset for faux extra bold
+  fc.fillText(ribbonText, 0.5, 40 + ribbonH / 2);
+
+  // Icon — large, centered
+  try {
+    fc.save();
+    const iconScale = fW / 30;
+    fc.translate(fW/2 - 12 * iconScale, fH * 0.44 - 12 * iconScale);
+    fc.scale(iconScale, iconScale);
+    const path = new Path2D(def.iconPath);
+    fc.strokeStyle = `rgba(${Math.min(255,r+80)},${Math.min(255,g+80)},${Math.min(255,b+80)},0.6)`;
+    fc.lineWidth = 1.5; fc.stroke(path);
+    const ig = fc.createLinearGradient(0, 0, 24, 24);
+    ig.addColorStop(0, `rgba(${Math.min(255,r+120)},${Math.min(255,g+120)},${Math.min(255,b+120)},0.5)`);
+    ig.addColorStop(1, `rgba(${r},${g},${b},0.3)`);
+    fc.fillStyle = ig; fc.fill(path);
+    fc.restore();
+  } catch(_) {}
+
+  // Achievement name
+  fc.font = '700 52px Inter, system-ui, sans-serif';
+  fc.fillStyle = '#ffffff'; fc.textAlign = 'center';
+  fc.fillText(name, fW / 2, fH * 0.78);
+
+  // Description
+  fc.font = '500 30px Inter, system-ui, sans-serif';
+  fc.fillStyle = `rgba(${r},${g},${b},0.8)`;
+  fc.fillText(desc, fW / 2, fH * 0.78 + 44);
+
+  // "EARNED" label
+  fc.font = '600 22px Inter, system-ui, sans-serif';
+  fc.fillStyle = 'rgba(255,255,255,0.25)';
+  fc.fillText('EARNED', fW / 2, fH * 0.9);
+
+  const faceTex = new THREE.CanvasTexture(fCanvas);
+
+  // Normal map — emboss the icon
+  const nCanvas = document.createElement('canvas'); nCanvas.width = fW; nCanvas.height = fH;
+  const nc = nCanvas.getContext('2d');
+  nc.fillStyle = 'rgb(128,128,255)'; nc.fillRect(0, 0, fW, fH);
+  try {
+    nc.save();
+    const nis = fW / 30;
+    nc.translate(fW/2 - 12 * nis, fH * 0.44 - 12 * nis); nc.scale(nis, nis);
+    const np = new Path2D(def.iconPath);
+    nc.fillStyle = 'rgb(90,90,255)'; nc.translate(-2, -2); nc.fill(np);
+    nc.translate(4, 4); nc.fillStyle = 'rgb(166,166,255)'; nc.fill(np);
+    nc.restore();
+  } catch(_) {}
+  const normalTex = new THREE.CanvasTexture(nCanvas);
+
+  // Metalness/roughness map — icon area is chrome
+  const mCanvas = document.createElement('canvas'); mCanvas.width = fW; mCanvas.height = fH;
+  const mc = mCanvas.getContext('2d');
+  mc.fillStyle = 'rgb(0,170,50)'; mc.fillRect(0, 0, fW, fH);
+  try {
+    mc.save();
+    const mis = fW / 30;
+    mc.translate(fW/2 - 12 * mis, fH * 0.44 - 12 * mis); mc.scale(mis, mis);
+    mc.fillStyle = 'rgb(0,8,255)'; mc.fill(new Path2D(def.iconPath));
+    mc.restore();
+  } catch(_) {}
+  const mrTex = new THREE.CanvasTexture(mCanvas);
+
+  // Back face — badge info
+  const bCanvas = document.createElement('canvas'); bCanvas.width = fW; bCanvas.height = fH;
+  const bc = bCanvas.getContext('2d');
+  bc.fillStyle = '#080808'; bc.fillRect(0, 0, fW, fH);
+  const bDither = bc.getImageData(0, 0, fW, fH); const bd = bDither.data;
+  for (let i = 0; i < bd.length; i += 4) { const n = Math.random() * 6 - 3; bd[i] = Math.max(0, bd[i] + n); bd[i+1] = Math.max(0, bd[i+1] + n); bd[i+2] = Math.max(0, bd[i+2] + n); }
+  bc.putImageData(bDither, 0, 0);
+  bc.fillStyle = `rgb(${r},${g},${b})`; bc.fillRect(0, fH - ribbonH, fW, ribbonH);
+  bc.font = '900 38px Inter, system-ui, sans-serif'; bc.letterSpacing = '2px'; bc.fillStyle = 'rgba(0,0,0,0.6)'; bc.textBaseline = 'middle';
+  bc.fillText(ribbonText, 0, fH - ribbonH / 2);
+  bc.fillText(ribbonText, 0.5, fH - ribbonH / 2);
+  bc.font = '800 140px Inter, system-ui, sans-serif'; bc.fillStyle = `rgba(${r},${g},${b},0.15)`; bc.textAlign = 'center';
+  bc.fillText(def.label, fW / 2, fH * 0.4);
+  bc.font = '600 40px Inter, system-ui, sans-serif'; bc.fillStyle = 'rgba(255,255,255,0.5)';
+  bc.fillText(name, fW / 2, fH * 0.55);
+  bc.font = '400 28px Inter, system-ui, sans-serif'; bc.fillStyle = 'rgba(255,255,255,0.3)';
+  bc.fillText(desc, fW / 2, fH * 0.55 + 42);
+  bc.font = '500 22px Inter, system-ui, sans-serif'; bc.fillStyle = 'rgba(255,255,255,0.15)';
+  bc.fillText('CycleIQ', fW / 2, fH * 0.85);
+  const backTex = new THREE.CanvasTexture(bCanvas);
+
+  // Materials
+  const frontMat = new THREE.MeshStandardMaterial({
+    map: faceTex, normalMap: normalTex, normalScale: new THREE.Vector2(1, 1),
+    metalnessMap: mrTex, roughnessMap: mrTex, metalness: 1, roughness: 1,
+    envMap: envTex, envMapIntensity: 1.5, side: THREE.FrontSide
+  });
+  const backMat = new THREE.MeshStandardMaterial({ map: backTex, metalness: 0.5, roughness: 0.4, envMap: envTex, envMapIntensity: 0.6 });
+  const edgeMat = new THREE.MeshStandardMaterial({ color: def.color, metalness: 1, roughness: 0.08, envMap: envTex, envMapIntensity: 2 });
+
+  // Split geometry groups
+  if (!cardGeo.index) { const indices = []; for (let i = 0; i < cardGeo.attributes.position.count; i++) indices.push(i); cardGeo.setIndex(indices); }
+  const nrm = cardGeo.attributes.normal, idx = cardGeo.index;
+  const fIdx = [], bIdx = [], sIdx = [];
+  for (const grp of cardGeo.groups) {
+    for (let i = grp.start; i < grp.start + grp.count; i += 3) {
+      const a = idx.getX(i), bv = idx.getX(i+1), c = idx.getX(i+2);
+      const nz = (nrm.getZ(a) + nrm.getZ(bv) + nrm.getZ(c)) / 3;
+      if (grp.materialIndex === 1) sIdx.push(a, bv, c);
+      else if (nz > 0.5) fIdx.push(a, bv, c);
+      else if (nz < -0.5) bIdx.push(a, bv, c);
+      else sIdx.push(a, bv, c);
+    }
+  }
+  cardGeo.setIndex([...fIdx, ...bIdx, ...sIdx]);
+  cardGeo.clearGroups();
+  cardGeo.addGroup(0, fIdx.length, 0);
+  cardGeo.addGroup(fIdx.length, bIdx.length, 1);
+  cardGeo.addGroup(fIdx.length + bIdx.length, sIdx.length, 2);
+
+  // Icon parallax layer
+  const iCanvas = document.createElement('canvas'); iCanvas.width = fW; iCanvas.height = fH;
+  const ic = iCanvas.getContext('2d');
+  try {
+    ic.save();
+    const iis = fW / 30;
+    ic.translate(fW/2 - 12 * iis, fH * 0.44 - 12 * iis); ic.scale(iis, iis);
+    const ip = new Path2D(def.iconPath);
+    const iGrad = ic.createLinearGradient(0, 0, 24, 24);
+    iGrad.addColorStop(0, `rgba(${Math.min(255,r+120)},${Math.min(255,g+120)},${Math.min(255,b+120)},0.6)`);
+    iGrad.addColorStop(1, `rgba(${r},${g},${b},0.4)`);
+    ic.fillStyle = iGrad; ic.fill(ip);
+    ic.restore();
+  } catch(_) {}
+  const iconPlane = new THREE.Mesh(
+    new THREE.PlaneGeometry(cardW * 0.95, cardH * 0.95),
+    new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(iCanvas), transparent: true, depthWrite: false })
+  );
+  iconPlane.position.z = cardD * 0.5 + 0.01;
+
+  _bcMesh = new THREE.Group();
+  _bcMesh.add(new THREE.Mesh(cardGeo, [frontMat, backMat, edgeMat]));
+  _bcMesh.add(iconPlane);
+  _bcMesh._parallax = [{ mesh: iconPlane, depth: 0.003 }];
+
+  // Cinematic reveal
+  _bcMesh.rotation.x = 0.35; _bcMesh.rotation.y = Math.PI; _bcMesh.rotation.z = 0.35;
+  _bcMesh.scale.setScalar(0.9);
+  _bcScene.add(_bcMesh);
+
+  const allLights = []; _bcScene.traverse(c => { if (c.isLight) allLights.push({ light: c, target: c.intensity }); });
+  allLights.forEach(l => { l.light.intensity = 0; });
+
+  const REST_X = 0.05, REST_Y = 0;
+  let velX = 0, velY = 0;
+  const SPRING = 0.008, DAMP = 0.97;
+  const introStart = Date.now(), INTRO_DUR = 2500;
+  let introFinished = false;
+
+  function loop() {
+    _bcRaf = requestAnimationFrame(loop);
+    if (!_bcMesh) return;
+    if (_bcIdle) return;
+    const elapsed = Date.now() - introStart;
+    const introT = Math.min(elapsed / INTRO_DUR, 1);
+    // Shimmer
+    if (introT >= 1) {
+      const t = Date.now() * 0.001, ry = _bcMesh.rotation.y || 0;
+      frontMat.envMapIntensity = 1.2 + Math.sin(t * 1.5 + ry * 5) * 0.3;
+    }
+    // Intro
+    if (introT < 1 && !_bcDragging) {
+      const e = 1 - Math.pow(1 - introT, 4);
+      const ov = 1 + Math.sin(introT * Math.PI * 2) * 0.04 * (1 - introT);
+      _bcMesh.rotation.x = 0.35 + (REST_X - 0.35) * e * ov;
+      _bcMesh.rotation.y = Math.PI + (REST_Y - Math.PI) * e * ov;
+      _bcMesh.rotation.z = 0.35 * (1 - e * ov);
+      _bcMesh.scale.setScalar(0.9 + 0.1 * e);
+      const lightE = Math.pow(Math.min(introT * 2, 1), 1.5);
+      allLights.forEach(l => { l.light.intensity = l.target * lightE; });
+      frontMat.envMapIntensity = lightE * 1.2;
+      _bcRenderer.render(_bcScene, _bcCamera); return;
+    }
+    if (!introFinished) { introFinished = true; allLights.forEach(l => { l.light.intensity = l.target; }); }
+    if (!_bcDragging) {
+      const timeSinceRelease = Date.now() - _bcReleaseTime;
+      if (_bcSpinning && timeSinceRelease < 2000) {
+        _bcDragVelX *= 0.985; _bcDragVelY *= 0.985;
+        _bcMesh.rotation.x += _bcDragVelX; _bcMesh.rotation.y += _bcDragVelY;
+      } else {
+        if (_bcSpinning) { _bcSpinning = false; velX = _bcDragVelX; velY = _bcDragVelY; }
+        const dx = REST_X - _bcMesh.rotation.x;
+        let dy = REST_Y - _bcMesh.rotation.y; dy -= Math.round(dy / (Math.PI * 2)) * Math.PI * 2;
+        velX += dx * SPRING; velY += dy * SPRING; velX *= DAMP; velY *= DAMP;
+        _bcMesh.rotation.x += velX; _bcMesh.rotation.y += velY;
+        if (Math.abs(dx) + Math.abs(dy) < 0.001 && Math.abs(velX) < 0.0005 && Math.abs(velY) < 0.0005) {
+          _bcMesh.rotation.x = REST_X; _bcMesh.rotation.y = REST_Y;
+          if (_bcMesh._parallax) _bcMesh._parallax.forEach(l => { l.mesh.position.x = 0; l.mesh.position.y = 0; });
+          _bcRenderer.render(_bcScene, _bcCamera); _bcIdle = true; return;
+        }
+      }
+    }
+    // Parallax
+    if (_bcMesh._parallax) {
+      let dy = _bcMesh.rotation.y - REST_Y; dy -= Math.round(dy / (Math.PI * 2)) * Math.PI * 2;
+      const dx = _bcMesh.rotation.x - REST_X;
+      if (Math.abs(dy) < 0.8 && Math.abs(dx) < 0.8) {
+        _bcMesh._parallax.forEach(l => { l.mesh.position.x += (-dy * l.depth * 6 - l.mesh.position.x) * 0.15; l.mesh.position.y += (dx * l.depth * 6 - l.mesh.position.y) * 0.15; });
+      } else { _bcMesh._parallax.forEach(l => { l.mesh.position.x *= 0.85; l.mesh.position.y *= 0.85; }); }
+    }
+    _bcRenderer.render(_bcScene, _bcCamera);
+  }
+  loop();
+
+  // Interaction
+  let lastTap = 0;
+  canvasEl.addEventListener('pointerdown', e => {
+    _bcIdle = false;
+    const now = Date.now();
+    if (now - lastTap < 350 && _bcMesh) { _bcDragVelX = 0; _bcDragVelY = 0.08; _bcReleaseTime = now; _bcSpinning = true; _bcDragging = false; lastTap = 0; return; }
+    lastTap = now;
+    _bcDragging = true; _bcStartX = e.clientX; _bcStartY = e.clientY;
+    _bcRotX = _bcMesh.rotation.x; _bcRotY = _bcMesh.rotation.y;
+    canvasEl.setPointerCapture(e.pointerId); canvasEl.style.cursor = 'grabbing';
+  });
+  canvasEl.addEventListener('pointermove', e => {
+    if (!_bcDragging || !_bcMesh) return;
+    const newY = _bcRotY + (e.clientX - _bcStartX) * 0.005;
+    const newX = _bcRotX + (e.clientY - _bcStartY) * 0.005;
+    const vx = _bcMesh.rotation.x - _bcLastMoveX, vy = _bcMesh.rotation.y - _bcLastMoveY;
+    _bcDragVelX = Math.max(-0.15, Math.min(0.15, _bcDragVelX * 0.5 + vx * 0.5));
+    _bcDragVelY = Math.max(-0.15, Math.min(0.15, _bcDragVelY * 0.5 + vy * 0.5));
+    _bcMesh.rotation.y = newY; _bcMesh.rotation.x = newX;
+    _bcLastMoveX = newX; _bcLastMoveY = newY;
+  });
+  canvasEl.addEventListener('touchmove', e => { if (_bcDragging) e.preventDefault(); }, { passive: false });
+  const endDrag = () => {
+    _bcDragging = false; canvasEl.style.cursor = 'grab';
+    if (Math.abs(_bcDragVelX) > 0.12 || Math.abs(_bcDragVelY) > 0.12) { _bcDragVelX = 0; _bcDragVelY = 0; }
+    _bcReleaseTime = Date.now();
+    _bcSpinning = Math.abs(_bcDragVelY) > 0.002 || Math.abs(_bcDragVelX) > 0.002;
+  };
+  canvasEl.addEventListener('pointerup', endDrag);
+  canvasEl.addEventListener('pointercancel', endDrag);
+  canvasEl.addEventListener('pointerleave', endDrag);
+}
+
+export function destroyBadgeCard3D() {
+  if (_bcRaf) cancelAnimationFrame(_bcRaf); _bcRaf = null;
+  if (_bcScene) _bcScene.traverse(child => {
+    if (child.geometry) child.geometry.dispose();
+    if (child.material) { const mats = Array.isArray(child.material) ? child.material : [child.material]; mats.forEach(m => { if (m.map) m.map.dispose(); if (m.normalMap) m.normalMap.dispose(); if (m.metalnessMap) m.metalnessMap.dispose(); if (m.roughnessMap) m.roughnessMap.dispose(); if (m.envMap) m.envMap.dispose(); m.dispose(); }); }
+  });
+  if (_bcRenderer) _bcRenderer.dispose();
+  _bcRenderer = null; _bcScene = null; _bcCamera = null; _bcMesh = null; _bcDragging = false;
 }
 
 export function destroyRiderCard3D() {

@@ -33330,34 +33330,30 @@ let _badges3dModule = null;
 async function openBadgeViewer(badgeId, name, desc) {
   const bodyHtml = `
     <div style="text-align:center">
-      <canvas id="badge3dCanvas" style="width:100%;height:280px;touch-action:none;cursor:grab"></canvas>
-      <div id="badgeViewerName" style="font-size:22px;font-weight:700;margin:8px 0 4px">${_escHtml(name)}</div>
-      <div id="badgeViewerDesc" style="font-size:14px;color:var(--text-muted);margin-bottom:12px">${_escHtml(desc)}</div>
-      <div id="badgeViewerDate" style="font-size:12px;color:var(--text-faint)">Earned</div>
+      <canvas id="badge3dCanvas" style="width:100%;height:380px;touch-action:none;cursor:grab;border-radius:16px"></canvas>
     </div>`;
   _openUniSheet({ id: 'badgeViewer', body: bodyHtml, partial: true, maxWidth: 400 });
 
-  // Wait for DOM then init 3D
   await new Promise(r => setTimeout(r, 100));
   const canvas = document.getElementById('badge3dCanvas');
   if (!canvas) return;
 
   try {
-    if (!_badges3dModule) {
-      _badges3dModule = await import('./js/badges3d.js');
-    }
-    _badges3dModule.destroyBadge3D();
-    await new Promise(r => setTimeout(r, 300));
-    await _badges3dModule.initBadge3D(canvas, badgeId);
+    if (!_badges3dModule) _badges3dModule = await import('./js/badges3d.js');
+    if (_badges3dModule.destroyBadgeCard3D) _badges3dModule.destroyBadgeCard3D();
+    if (_badges3dModule.destroyBadge3D) _badges3dModule.destroyBadge3D();
+    await new Promise(r => setTimeout(r, 100));
+    await _badges3dModule.initBadgeCard3D(canvas, badgeId, name, desc);
   } catch (e) {
     console.error('3D badge failed:', e);
     canvas.style.background = 'var(--surface-1)';
-    canvas.style.borderRadius = '12px';
+    canvas.style.borderRadius = '16px';
   }
 }
 
 function closeBadgeViewer() {
-  if (_badges3dModule) _badges3dModule.destroyBadge3D();
+  if (_badges3dModule?.destroyBadgeCard3D) _badges3dModule.destroyBadgeCard3D();
+  if (_badges3dModule?.destroyBadge3D) _badges3dModule.destroyBadge3D();
   _closeUniSheet();
 }
 window.openBadgeViewer = openBadgeViewer;
