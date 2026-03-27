@@ -22945,11 +22945,15 @@ body:has(.act-sheet-mode) .topbar {
 ════════════════════════════════════════════════════════════ */
 
 /* ── Hero row ── */
+#goalsStreaksSection {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
 .stk-hero-row {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    margin-bottom: 12px;
+    gap: 10px;
     overflow: visible;
 }
 /* Streak hero cards — plain grey base, hero-glow on hover */
@@ -22967,10 +22971,10 @@ body:has(.act-sheet-mode) .topbar {
 /* Month card — purple hue shift */
 .stk-hero-card--month { --hue: 270; }
 
-/* Streak intensity — just subtle box-shadow, no border color overrides (hero-glow handles border) */
-.stk-hero--warm { box-shadow: 0 0 24px rgba(0, 229, 160, 0.08); }
-.stk-hero--hot { box-shadow: 0 0 32px rgba(0, 229, 160, 0.14); }
-.stk-hero--legendary { box-shadow: 0 0 40px rgba(0, 229, 160, 0.22); }
+/* Streak intensity — disabled */
+.stk-hero--warm, .stk-hero--hot, .stk-hero--legendary { box-shadow: none; }
+.stk-hero-card .hero-glow-outer,
+.stk-hero-card .hero-glow-shine { display: none; }
 
 .stk-hero-flame {
     font-size: 2rem;
@@ -23057,37 +23061,33 @@ body:has(.act-sheet-mode) .topbar {
 }
 
 .stk-cal-wrap {
-    overflow-x: auto;
-    overflow-y: hidden;
+    overflow: hidden;
     padding-bottom: 4px;
-    scrollbar-width: none;
 }
-.stk-cal-wrap::-webkit-scrollbar { display: none; }
 .stk-cal-grid {
-    display: inline-flex;
+    display: flex;
     flex-direction: column;
-    gap: 3px;
-    min-width: 100%;
+    gap: 2px;
+    width: 100%;
 }
 .stk-cal-month-row,
 .stk-cal-cells {
-    display: flex;
-    gap: 3px;
+    display: grid;
+    grid-template-columns: repeat(52, 1fr);
+    gap: 2px;
 }
 .stk-cal-month-lbl {
-    width: 12px;
-    flex-shrink: 0;
     font-size: 9px;
     color: var(--text-faint);
     white-space: nowrap;
     overflow: visible;
     text-align: left;
+    min-width: 0;
 }
 .stk-cell {
-    width: 12px;
-    height: 12px;
+    aspect-ratio: 1;
     border-radius: 2px;
-    flex-shrink: 0;
+    min-width: 0;
     cursor: default;
     transition:
         transform 0.1s,
@@ -23131,93 +23131,36 @@ body:has(.act-sheet-mode) .topbar {
 
 /* ── Personal bests row ── */
 .stk-pb-row {
-    display: none;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-    margin-bottom: 12px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
 }
 .stk-pb-card {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    text-align: center;
-    padding: 18px 12px;
-    gap: 4px;
-    position: relative;
-    overflow: hidden;
-    transition:
-        border-color var(--transition),
-        box-shadow var(--transition);
+    gap: 10px;
+    padding: 12px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 10px;
+    border: none;
 }
-.stk-pb-card::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    background: radial-gradient(
-        circle at var(--mouse-x) var(--mouse-y),
-        var(--glow-surface) 0%,
-        transparent 65%
-    );
-    opacity: 0;
-    transition: opacity 0.35s ease;
-    pointer-events: none;
-    z-index: 0;
-}
-.stk-pb-card::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    padding: 1px;
-    background: radial-gradient(
-        circle at var(--mouse-x) var(--mouse-y),
-        var(--text-light) 0%,
-        transparent 60%
-    );
-    opacity: 0;
-    transition: opacity 0.35s ease;
-    pointer-events: none;
-    z-index: 0;
-    -webkit-mask:
-        linear-gradient(#fff 0 0) content-box,
-        linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-}
-.stk-pb-card:hover {
-    border-color: transparent;
-    box-shadow: 0 4px 24px var(--shadow-md);
-}
-.stk-pb-card:hover::before,
-.stk-pb-card:hover::after {
-    opacity: 1;
-}
+.stk-pb-card::before,
+.stk-pb-card::after { display: none; }
 .stk-pb-icon {
-    font-size: 1.5rem;
-    margin-bottom: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    flex-shrink: 0;
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.04);
 }
-.stk-pb-icon svg {
-    stroke: var(--accent);
-}
+.stk-pb-icon svg { stroke: var(--text-muted); }
 .stk-pb-val {
-    font-size: 1.25rem;
-    font-weight: 800;
+    font-size: 16px; font-weight: 700;
     font-family: var(--font-num);
-    color: var(--text-primary);
-    line-height: 1.2;
+    color: var(--text-primary); line-height: 1.2;
 }
 .stk-pb-label {
-    font-size: var(--text-xs);
-    font-weight: 600;
-    color: var(--text-secondary);
-    margin-top: 2px;
-}
-.stk-pb-sub {
-    font-size: 10.5px;
+    font-size: 11px; font-weight: 500;
     color: var(--text-muted);
 }
 
@@ -23492,9 +23435,6 @@ body.goals-bg {
     }
     .stk-hero-row > .stk-hero-card:first-child {
         grid-column: 1 / -1;
-    }
-    .stk-pb-row {
-        grid-template-columns: repeat(2, 1fr);
     }
     .stk-months-grid {
         grid-template-columns: repeat(4, 1fr);

@@ -29232,9 +29232,7 @@ function renderStreaksPage() {
       </div>`;
     }).join('');
     monthsGrid.innerHTML = html;
-    if (yearTotal) yearTotal.textContent = `${totalRidesYear} rides this year`;
     setText('stkYearTitle', `${year} Overview`);
-    setText('stkYearSub', `Rides per month · ${year}`);
   }
 
   // ── Achievements / badges ─────────────────────────────────────────────────

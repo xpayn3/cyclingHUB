@@ -5687,156 +5687,67 @@
                     <div id="goalsPageContent"></div>
                     <!-- Streaks section -->
                     <div id="goalsStreaksSection">
-                        <!-- Hero: current week streak -->
+
+                        <!-- Hero streak cards -->
                         <div class="stk-hero-row">
-                            <div class="stk-hero-card hero-glow" id="stkWeekHero">
-                                <div class="hero-glow-outer"></div><div class="hero-glow-shine"></div>
+                            <div class="stk-hero-card" id="stkWeekHero">
                                 <div class="stk-hero-flame"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12c2-2.96 0-7-1-8 0 3.038-1.773 4.741-3 6-1.226 1.26-2 3.24-2 5a6 6 0 1 0 12 0c0-1.532-1.056-3.94-2-5-1.786 3-2.791 3-4 2z"/></svg></div>
-                                <div class="stk-hero-num" id="stkWeekNum">
-                                    —
-                                </div>
+                                <div class="stk-hero-num" id="stkWeekNum">—</div>
                                 <div class="stk-hero-label">Week Streak</div>
-                                <div class="stk-hero-sub" id="stkWeekSub">
-                                    consecutive weeks active
-                                </div>
+                                <div class="stk-hero-sub" id="stkWeekSub">consecutive weeks active</div>
                             </div>
-                            <div
-                                class="stk-hero-card stk-hero-card--day hero-glow"
-                                id="stkDayHero"
-                            >
-                                <div class="hero-glow-outer"></div><div class="hero-glow-shine"></div>
+                            <div class="stk-hero-card stk-hero-card--day" id="stkDayHero">
                                 <div class="stk-hero-flame"><svg class="icon" width="28" height="28"><use href="icons.svg#icon-bolt"/></svg></div>
                                 <div class="stk-hero-num" id="stkDayNum">—</div>
                                 <div class="stk-hero-label">Day Streak</div>
-                                <div class="stk-hero-sub" id="stkDaySub">
-                                    consecutive days active
-                                </div>
+                                <div class="stk-hero-sub" id="stkDaySub">consecutive days active</div>
                             </div>
-                            <div
-                                class="stk-hero-card stk-hero-card--month hero-glow"
-                                id="stkMonthHero"
-                            >
-                                <div class="hero-glow-outer"></div><div class="hero-glow-shine"></div>
+                            <div class="stk-hero-card stk-hero-card--month" id="stkMonthHero">
                                 <div class="stk-hero-flame"><svg class="icon" width="28" height="28"><use href="icons.svg#icon-calendar"/></svg></div>
-                                <div class="stk-hero-num" id="stkMonthNum">
-                                    —
-                                </div>
+                                <div class="stk-hero-num" id="stkMonthNum">—</div>
                                 <div class="stk-hero-label">Month Streak</div>
-                                <div class="stk-hero-sub" id="stkMonthSub">
-                                    consecutive months active
-                                </div>
+                                <div class="stk-hero-sub" id="stkMonthSub">consecutive months active</div>
                             </div>
                         </div>
 
                         <!-- Week calendar heatmap -->
-                        <div class="card stk-cal-card">
-                            <div class="card-header">
-                                <div>
-                                    <div class="card-title">
-                                        Weekly Activity Calendar
-                                    </div>
-                                    <div class="card-subtitle" id="stkCalSub">
-                                        Last 52 weeks
-                                    </div>
-                                </div>
-                                <div class="stk-cal-legend">
-                                    <span class="stk-leg-dot stk-leg-0"></span>
-                                    <span class="stk-leg-label">Rest</span>
-                                    <span class="stk-leg-dot stk-leg-1"></span>
-                                    <span class="stk-leg-label">Light</span>
-                                    <span class="stk-leg-dot stk-leg-2"></span>
-                                    <span class="stk-leg-label">Active</span>
-                                    <span class="stk-leg-dot stk-leg-3"></span>
-                                    <span class="stk-leg-label">Heavy</span>
-                                </div>
-                            </div>
-                            <div class="stk-cal-wrap" id="stkCalWrap"></div>
-                        </div>
+                        <div class="stk-cal-wrap" id="stkCalWrap"></div>
 
                         <!-- Month Calendar -->
-                        <div class="card stk-mcal-card" id="stkMonthCal"></div>
+                        <div id="stkMonthCal"></div>
 
-                        <!-- Personal bests row -->
+                        <!-- Personal bests -->
                         <div class="stk-pb-row">
-                            <div class="card stk-pb-card">
-                                <div class="stk-pb-icon"><svg class="icon" width="22" height="22"><use href="icons.svg#icon-trophy"/></svg></div>
-                                <div class="stk-pb-val" id="stkBestWeekStreak">
-                                    —
-                                </div>
-                                <div class="stk-pb-label">Best Week Streak</div>
-                                <div class="stk-pb-sub" id="stkBestWeekSub">
-                                    all time
-                                </div>
+                            <div class="stk-pb-card">
+                                <div class="stk-pb-icon"><svg class="icon" width="20" height="20"><use href="icons.svg#icon-trophy"/></svg></div>
+                                <div><div class="stk-pb-val" id="stkBestWeekStreak">—</div><div class="stk-pb-label">Best Week Streak</div></div>
                             </div>
-                            <div class="card stk-pb-card">
-                                <div class="stk-pb-icon"><svg class="icon" width="22" height="22"><use href="icons.svg#icon-bolt"/></svg></div>
-                                <div class="stk-pb-val" id="stkBestDayStreak">
-                                    —
-                                </div>
-                                <div class="stk-pb-label">Best Day Streak</div>
-                                <div class="stk-pb-sub" id="stkBestDaySub">
-                                    all time
-                                </div>
+                            <div class="stk-pb-card">
+                                <div class="stk-pb-icon"><svg class="icon" width="20" height="20"><use href="icons.svg#icon-bolt"/></svg></div>
+                                <div><div class="stk-pb-val" id="stkBestDayStreak">—</div><div class="stk-pb-label">Best Day Streak</div></div>
                             </div>
-                            <div class="card stk-pb-card">
-                                <div class="stk-pb-icon"><svg class="icon" width="22" height="22"><use href="icons.svg#icon-calendar"/></svg></div>
-                                <div class="stk-pb-val" id="stkBestMonthStreak">
-                                    —
-                                </div>
-                                <div class="stk-pb-label">
-                                    Best Month Streak
-                                </div>
-                                <div class="stk-pb-sub" id="stkBestMonthSub">
-                                    all time
-                                </div>
+                            <div class="stk-pb-card">
+                                <div class="stk-pb-icon"><svg class="icon" width="20" height="20"><use href="icons.svg#icon-calendar"/></svg></div>
+                                <div><div class="stk-pb-val" id="stkBestMonthStreak">—</div><div class="stk-pb-label">Best Month Streak</div></div>
                             </div>
-                            <div class="card stk-pb-card">
-                                <div class="stk-pb-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/></svg></div>
-                                <div class="stk-pb-val" id="stkTotalWeeks">
-                                    —
-                                </div>
-                                <div class="stk-pb-label">Active Weeks</div>
-                                <div class="stk-pb-sub">
-                                    weeks with at least 1 ride
-                                </div>
+                            <div class="stk-pb-card">
+                                <div class="stk-pb-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/></svg></div>
+                                <div><div class="stk-pb-val" id="stkTotalWeeks">—</div><div class="stk-pb-label">Active Weeks</div></div>
                             </div>
                         </div>
 
-                        <!-- This year monthly breakdown -->
-                        <div class="card">
-                            <div class="card-header">
-                                <div>
-                                    <div class="card-title" id="stkYearTitle">
-                                        This Year
-                                    </div>
-                                    <div class="card-subtitle" id="stkYearSub">
-                                        Rides per month
-                                    </div>
-                                </div>
-                                <div
-                                    class="stk-year-total"
-                                    id="stkYearTotal"
-                                ></div>
-                            </div>
-                            <div
-                                class="stk-months-grid"
-                                id="stkMonthsGrid"
-                            ></div>
-                        </div>
+                        <!-- Year overview -->
+                        <div class="page-headline" style="margin-bottom:8px" id="stkYearTitle">This Year</div>
+                        <div class="stk-months-grid" id="stkMonthsGrid"></div>
 
-                        <!-- Badges / achievements -->
+                        <!-- Achievements -->
                         <div class="page-headline" style="margin-bottom:8px">Achievements</div>
-                        <div
-                            class="stk-badges-grid"
-                            id="stkBadgesGrid"
-                        ></div>
+                        <div class="stk-badges-grid" id="stkBadgesGrid"></div>
 
-                        <!-- Fun lifetime stats -->
+                        <!-- Lifetime Stats -->
                         <div class="page-headline" style="margin-bottom:8px">Lifetime Stats</div>
-                        <div
-                            class="stk-lifetime-grid"
-                            id="stkLifetimeGrid"
-                        ></div>
+                        <div class="stk-lifetime-grid" id="stkLifetimeGrid"></div>
+
                     </div>
 
                 </div>
