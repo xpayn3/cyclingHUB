@@ -7599,6 +7599,21 @@ input[type="number"] {
     content-visibility: visible;
     contain: none;
 }
+/* Library page needs real layout for fullscreen map */
+#page-library.active {
+    display: grid !important;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 10;
+    overflow: hidden;
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+}
+@media (min-width: 769px) {
+    #page-library.active {
+        grid-template-columns: 1fr 380px;
+    }
+}
 
 /* Skip rendering of off-screen dashboard sections until scrolled into view */
 [data-dash-section] {
