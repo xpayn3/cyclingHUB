@@ -116,7 +116,7 @@
                     </div>
                     <!-- 3D Rider Card -->
                     <div class="rider-card-wrap">
-                        <canvas id="riderCard3dCanvas" style="width:100%;height:370px;touch-action:none;cursor:grab;border-radius:16px"></canvas>
+                        <canvas id="riderCard3dCanvas" style="width:100%;height:410px;touch-action:none;cursor:grab;border-radius:16px"></canvas>
                     </div>
                     <!-- Rider Card Radar -->
                     <div class="prof-radar-section" style="margin-top:12px">
@@ -5561,15 +5561,16 @@
                         <div class="lib-map-controls" id="libMapControls"></div>
                         <!-- Timeline scrubber (desktop only) -->
                         <div class="lib-timeline" id="libTimeline">
-                            <div class="lib-timeline-label" id="libTimelineLabel">All Time</div>
+                            <div class="lib-timeline-dates">
+                                <span id="libTimelineStart"></span>
+                                <span id="libTimelineEnd"></span>
+                                <span style="flex:1"></span>
+                                <span class="lib-timeline-label" id="libTimelineLabel">All Time</span>
+                            </div>
                             <div class="lib-timeline-track" id="libTimelineTrack">
                                 <canvas class="lib-timeline-canvas" id="libTimelineCanvas" height="32"></canvas>
                                 <div class="lib-timeline-cursor" id="libTimelineCursor"></div>
                                 <div class="lib-timeline-range" id="libTimelineRange"></div>
-                            </div>
-                            <div class="lib-timeline-dates">
-                                <span id="libTimelineStart"></span>
-                                <span id="libTimelineEnd"></span>
                             </div>
                         </div>
                     </div>

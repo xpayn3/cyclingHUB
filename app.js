@@ -35377,6 +35377,8 @@ function openProfileModal() {
   setTimeout(async () => {
     const rcCanvas = document.getElementById('riderCard3dCanvas');
     if (!rcCanvas) return;
+    // Clear stale frame — reset canvas dimensions to force clear
+    rcCanvas.width = rcCanvas.width;
     try {
       if (!_badges3dModule) _badges3dModule = await import('./js/badges3d.js');
       if (_badges3dModule.destroyRiderCard3D) _badges3dModule.destroyRiderCard3D();
@@ -35385,9 +35387,9 @@ function openProfileModal() {
         name: athleteName,
         level: stats.level,
         title: levelTitle,
-        totalRides: stats.totalRides.toLocaleString(),
-        totalDist: stats.totalDist.toLocaleString(),
-        totalElev: stats.totalElev.toLocaleString(),
+        totalRides: stats.totalRides >= 1000 ? (stats.totalRides / 1000).toFixed(1) + 'K' : String(stats.totalRides),
+        totalDist: stats.totalDist >= 1000 ? Math.round(stats.totalDist / 1000) + 'K' : String(stats.totalDist),
+        totalElev: stats.totalElev >= 1000 ? Math.round(stats.totalElev / 1000) + 'K' : String(stats.totalElev),
         currentXP: stats.currentXP,
         nextXP: stats.nextLevelXP,
         xpPct: stats.nextLevelXP > 0 ? Math.min(stats.currentXP / stats.nextLevelXP, 1) : 1,
@@ -38288,15 +38290,17 @@ function _libInitTimeline() {
     const right = Math.max(selStart, selEnd);
     range.style.left = (left * 100) + '%';
     range.style.width = ((right - left) * 100) + '%';
-    cursor.style.left = (selEnd * 100) + '%';
 
     const dStart = new Date(firstDate.getTime() + left * totalMs);
     const dEnd = new Date(firstDate.getTime() + right * totalMs);
-    const fmt = (d) => d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
     if (left === 0 && right >= 0.99) {
       label.textContent = 'All Time';
     } else {
-      label.textContent = fmt(dStart) + ' → ' + fmt(dEnd);
+      const days = Math.round((dEnd - dStart) / 86400000);
+      if (days < 7) label.textContent = days + (days === 1 ? ' day' : ' days');
+      else if (days < 30) { const w = Math.round(days / 7); label.textContent = w + (w === 1 ? ' week' : ' weeks'); }
+      else if (days < 365) { const m = Math.round(days / 30); label.textContent = m + (m === 1 ? ' month' : ' months'); }
+      else { const y = (days / 365).toFixed(1); label.textContent = y + ' years'; }
     }
   };
 
@@ -38314,23 +38318,56 @@ function _libInitTimeline() {
     if (window.hmFilterByDateRange) hmFilterByDateRange(dStart, dEnd);
   };
 
+  let dragMode = ''; // 'left', 'right', 'middle', 'new'
+  let dragOffset = 0;
+
   track.addEventListener('pointerdown', (e) => {
+    const pos = posFromEvent(e);
+    const left = Math.min(selStart, selEnd);
+    const right = Math.max(selStart, selEnd);
+    const handleZone = 0.02; // 2% of track width
+
+    if (Math.abs(pos - left) < handleZone) {
+      dragMode = 'left';
+    } else if (Math.abs(pos - right) < handleZone) {
+      dragMode = 'right';
+    } else if (pos > left && pos < right) {
+      dragMode = 'middle';
+      dragOffset = pos - left;
+    } else {
+      dragMode = 'new';
+      selStart = pos;
+      selEnd = pos;
+    }
     dragging = true;
-    selStart = posFromEvent(e);
-    selEnd = selStart;
     track.setPointerCapture(e.pointerId);
     updateVisuals();
   });
 
   track.addEventListener('pointermove', (e) => {
     if (!dragging) return;
-    selEnd = posFromEvent(e);
+    const pos = posFromEvent(e);
+    if (dragMode === 'left') {
+      selStart = pos;
+    } else if (dragMode === 'right') {
+      selEnd = pos;
+    } else if (dragMode === 'middle') {
+      const w = Math.abs(selEnd - selStart);
+      const newLeft = Math.max(0, Math.min(1 - w, pos - dragOffset));
+      selStart = newLeft;
+      selEnd = newLeft + w;
+    } else {
+      selEnd = pos;
+    }
     updateVisuals();
   });
 
   track.addEventListener('pointerup', () => {
     if (!dragging) return;
     dragging = false;
+    dragMode = '';
+    // Normalize so start < end
+    if (selStart > selEnd) { const t = selStart; selStart = selEnd; selEnd = t; }
     applyFilter();
   });
 
