@@ -852,17 +852,6 @@
                     Fitness
                     <span class="badge" id="sidebarCTL">—</span>
                 </div>
-                <div
-                    class="nav-item"
-                    data-page="goals"
-                    onclick="
-                        navigate('goals');
-                        closeSidebar();
-                    "
-                >
-                    <svg class="icon"><use href="icons.svg#icon-target"/></svg>
-                    Goals & Streaks
-                </div>
                 <span class="nav-section-label">Analysis</span>
                 <div
                     class="nav-item"
@@ -886,17 +875,7 @@
                     <svg class="icon"><use href="icons.svg#icon-trend-up"/></svg>
                     Compare
                 </div>
-                <div
-                    class="nav-item"
-                    data-page="heatmap"
-                    onclick="
-                        navigate('heatmap');
-                        closeSidebar();
-                    "
-                >
-                    <svg class="icon"><use href="icons.svg#icon-flame"/></svg>
-                    Heat Map
-                </div>
+                <!-- Heat Map merged into Library -->
                 <span class="nav-section-label">Tools</span>
                 <div
                     class="nav-item"
@@ -950,6 +929,17 @@
                 <div class="nav-item" data-page="workout" onclick="navigate('workout');closeSidebar();">
                     <svg class="icon"><use href="icons.svg#icon-dumbbell"/></svg>
                     Workout Builder
+                </div>
+                <div
+                    class="nav-item"
+                    data-page="goals"
+                    onclick="
+                        navigate('goals');
+                        closeSidebar();
+                    "
+                >
+                    <svg class="icon"><use href="icons.svg#icon-target"/></svg>
+                    Goals & Streaks
                 </div>
                 <!-- Settings nav link removed — accessible via gear FAB in footer -->
             </nav>
@@ -3766,6 +3756,53 @@
 
                 <!-- ==================== WORKOUT BUILDER ==================== -->
                 <div class="page" id="page-workout">
+                    <!-- ═══ Workout Discovery Home ═══ -->
+                    <div id="wrkHome" class="wrk-home">
+                        <div class="wrk-home-header">
+                            <h1 class="wrk-home-title">Workouts</h1>
+                            <button class="btn btn-accent btn-sm" onclick="_wrkOpenBuilder()" style="border-radius:20px;padding:8px 16px;font-size:13px">
+                                <svg class="icon" width="14" height="14"><use href="icons.svg#icon-plus"/></svg>
+                                Create Workout
+                            </button>
+                        </div>
+
+                        <!-- Recommended for You -->
+                        <div class="wrk-home-section">
+                            <div class="wrk-home-section-title">Recommended for You</div>
+                            <div class="wrk-home-scroll" id="wrkRecommended"></div>
+                        </div>
+
+                        <!-- Indoor Workouts -->
+                        <div class="wrk-home-section">
+                            <div class="wrk-home-section-title">Indoor Training</div>
+                            <div class="wrk-home-scroll" id="wrkIndoor"></div>
+                        </div>
+
+                        <!-- Outdoor Workouts -->
+                        <div class="wrk-home-section">
+                            <div class="wrk-home-section-title">Outdoor Rides</div>
+                            <div class="wrk-home-scroll" id="wrkOutdoor"></div>
+                        </div>
+
+                        <!-- Saved Workouts -->
+                        <div class="wrk-home-section">
+                            <div class="wrk-home-section-title">Your Workouts</div>
+                            <div id="wrkSavedList" class="wrk-home-grid"></div>
+                            <div class="wrk-home-empty" id="wrkSavedEmpty" style="display:none">
+                                <svg class="icon" width="32" height="32" style="opacity:0.3"><use href="icons.svg#icon-dumbbell"/></svg>
+                                <p>No saved workouts yet</p>
+                                <button class="btn btn-accent btn-sm" onclick="_wrkOpenBuilder()" style="border-radius:20px;margin-top:8px">Create your first workout</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ═══ Workout Builder (subpage, hidden by default) ═══ -->
+                    <div id="wrkBuilder" class="wrk-builder" style="display:none">
+                    <!-- Back to workout home -->
+                    <button class="wrk-back-btn" onclick="_wrkRenderHome()" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:var(--accent);font-size:14px;font-weight:600;cursor:pointer;padding:12px var(--pad-page) 0">
+                        <svg class="icon" width="16" height="16"><use href="icons.svg#icon-chevron-left"/></svg>
+                        Workouts
+                    </button>
                     <!-- Hero header -->
                     <div class="wrk-hero">
                         <div class="wrk-hero-top">
@@ -3899,6 +3936,7 @@
                             <svg class="icon" width="22" height="22"><use href="icons.svg#icon-heart"/></svg>
                         </button>
                     </div>
+                    </div><!-- /wrkBuilder -->
                 </div>
 
                 <!-- ==================== TRAINING GUIDE PAGE ==================== -->

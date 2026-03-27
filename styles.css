@@ -14274,6 +14274,98 @@ body:has(.act-sheet-mode) .topbar {
 
 /* ---- Top bar ---- */
 /* ---- Hero header ---- */
+/* ── Workout Discovery Home ── */
+.wrk-home { padding: 0 var(--pad-page) 80px; }
+.wrk-home-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 0 8px;
+}
+.wrk-home-title {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+.wrk-home-section { margin-top: 24px; }
+.wrk-home-section-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    letter-spacing: -0.01em;
+}
+.wrk-home-scroll {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 4px;
+}
+.wrk-home-scroll::-webkit-scrollbar { display: none; }
+.wrk-home-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+}
+
+/* Workout Card */
+.wrk-card {
+    min-width: 260px;
+    max-width: 320px;
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    padding: 14px;
+    cursor: pointer;
+    scroll-snap-align: start;
+    transition: transform 0.15s;
+    flex-shrink: 0;
+}
+.wrk-card:hover { transform: scale(1.02); }
+.wrk-card-type {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-faint);
+    margin-bottom: 6px;
+}
+.wrk-card-name {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    line-height: 1.2;
+}
+.wrk-card-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+    display: flex;
+    gap: 12px;
+}
+.wrk-card-zones {
+    display: flex;
+    gap: 2px;
+    height: 28px;
+    border-radius: 6px;
+    overflow: hidden;
+}
+.wrk-card-zone {
+    flex-grow: 1;
+    min-width: 2px;
+    transition: flex-grow 0.3s;
+}
+.wrk-home-empty {
+    text-align: center;
+    padding: 40px 0;
+    color: var(--text-muted);
+    font-size: 14px;
+}
+.wrk-home-empty svg { margin-bottom: 8px; }
+
+/* Builder subpage */
+.wrk-builder { padding-bottom: 80px; }
+
 .wrk-hero {
     margin-bottom: -12px;
 }
@@ -24806,6 +24898,7 @@ body:has(.act-sheet-mode) .topbar {
     padding: 12px 16px 0;
     overflow-x: auto;
     scrollbar-width: none;
+    position: relative;
 }
 .lib-tabs::-webkit-scrollbar { display: none; }
 .lib-tab {
@@ -24821,11 +24914,13 @@ body:has(.act-sheet-mode) .topbar {
     font-weight: 500;
     cursor: pointer;
     white-space: nowrap;
-    transition: background 0.2s, color 0.2s;
+    transition: color 0.2s;
+    position: relative;
+    z-index: 1;
 }
-.lib-tab:hover { background: var(--surface-2); color: var(--text-primary); }
+.lib-tab:hover { color: var(--text-primary); }
 .lib-tab.active {
-    background: var(--accent);
+    background: transparent;
     color: #000;
 }
 .lib-tab.active .icon { stroke: #000; }

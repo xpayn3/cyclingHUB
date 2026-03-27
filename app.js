@@ -4650,7 +4650,7 @@ function navigate(page, opts) {
   if (page === 'heatmap' || page === 'myroutes') { navigate('library'); return; }
   if (page === 'library')  { ensureLifetimeLoaded(); _renderLibraryPage(); }
   if (page === 'goals')    { renderStreaksPage(); renderGoalsPage(); }
-  if (page === 'workout')  { wrkRefreshStats(); wrkRender(); document.getElementById('pageContent')?.classList.add('wrk-snap'); }
+  if (page === 'workout')  { _wrkRenderHome(); document.getElementById('pageContent')?.classList.add('wrk-snap'); }
   else document.getElementById('pageContent')?.classList.remove('wrk-snap');
   if (page === 'suggestion') renderSuggestionPage();
   if (page === 'bikedetail') renderBikeDetailPage();
@@ -38216,6 +38216,174 @@ function renderSuggestionPage() {
 /* ═══════════════════════════════════════════════════════════
    LIBRARY PAGE — Merged heatmap + routes explorer
 ═══════════════════════════════════════════════════════════ */
+
+/* ============================================================
+   WORKOUT DISCOVERY HOME
+============================================================ */
+const _WRK_ZONE_COLORS = ['#4a9eff','#00e5a0','#f0c429','#ff9500','#ff453a','#af52de'];
+
+const _WRK_TEMPLATES = [
+  // Recommended
+  { name: 'Sweet Spot Base', type: 'indoor', category: 'recommended', duration: 60, tss: 70, zones: [10,20,5,50,10,5], desc: '2×20min at 88-93% FTP' },
+  { name: 'Threshold Builder', type: 'indoor', category: 'recommended', duration: 75, tss: 95, zones: [10,15,5,55,10,5], desc: '3×12min at 95-100% FTP' },
+  { name: 'VO2max Intervals', type: 'indoor', category: 'recommended', duration: 60, tss: 85, zones: [15,20,5,10,40,10], desc: '5×4min at 106-120% FTP' },
+  { name: 'Endurance Cruise', type: 'outdoor', category: 'recommended', duration: 120, tss: 120, zones: [5,70,15,10,0,0], desc: 'Steady Z2 with tempo bursts' },
+  // Indoor
+  { name: 'FTP Test', type: 'indoor', category: 'indoor', duration: 60, tss: 80, zones: [10,15,5,50,15,5], desc: '20min all-out test protocol' },
+  { name: 'Recovery Spin', type: 'indoor', category: 'indoor', duration: 45, tss: 25, zones: [60,35,5,0,0,0], desc: 'Easy spinning, keep HR low' },
+  { name: 'Tabata Sprints', type: 'indoor', category: 'indoor', duration: 30, tss: 45, zones: [20,10,5,5,20,40], desc: '8×20s max / 10s rest' },
+  { name: 'Over-Unders', type: 'indoor', category: 'indoor', duration: 60, tss: 75, zones: [10,15,10,40,20,5], desc: 'Alternate above/below threshold' },
+  { name: 'Ramp Test', type: 'indoor', category: 'indoor', duration: 25, tss: 40, zones: [15,15,15,20,20,15], desc: 'Progressive ramp to failure' },
+  // Outdoor
+  { name: 'Group Ride Prep', type: 'outdoor', category: 'outdoor', duration: 90, tss: 90, zones: [10,40,20,20,10,0], desc: 'Simulate surges and tempo' },
+  { name: 'Hill Repeats', type: 'outdoor', category: 'outdoor', duration: 75, tss: 85, zones: [15,20,5,30,25,5], desc: '6×5min climb repeats' },
+  { name: 'Long Endurance', type: 'outdoor', category: 'outdoor', duration: 180, tss: 160, zones: [5,75,15,5,0,0], desc: '3hr aerobic base ride' },
+  { name: 'Sprint Practice', type: 'outdoor', category: 'outdoor', duration: 60, tss: 55, zones: [25,30,10,5,10,20], desc: '8×15s max sprints' },
+];
+
+function _wrkBuildCard(w) {
+  const h = Math.floor(w.duration / 60);
+  const m = w.duration % 60;
+  const durStr = h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
+  const zoneBars = w.zones.map((pct, i) =>
+    `<div class="wrk-card-zone" style="flex-grow:${pct};background:${_WRK_ZONE_COLORS[i]}"></div>`
+  ).join('');
+  return `<div class="wrk-card" onclick="_wrkLoadTemplate(${_WRK_TEMPLATES.indexOf(w)})">
+    <div class="wrk-card-type">${w.type === 'indoor' ? 'Indoor' : 'Outdoor'}</div>
+    <div class="wrk-card-name">${w.name}</div>
+    <div class="wrk-card-meta">
+      <span>${durStr}</span>
+      <span>${w.tss} TSS</span>
+    </div>
+    <div class="wrk-card-zones">${zoneBars}</div>
+  </div>`;
+}
+
+function _wrkRenderHome() {
+  const home = document.getElementById('wrkHome');
+  const builder = document.getElementById('wrkBuilder');
+  if (!home) return;
+  home.style.display = '';
+  if (builder) builder.style.display = 'none';
+
+  // Recommended
+  const recEl = document.getElementById('wrkRecommended');
+  if (recEl && !recEl.dataset.built) {
+    recEl.dataset.built = '1';
+    recEl.innerHTML = _WRK_TEMPLATES.filter(w => w.category === 'recommended').map(w => _wrkBuildCard(w)).join('');
+  }
+  // Indoor
+  const indEl = document.getElementById('wrkIndoor');
+  if (indEl && !indEl.dataset.built) {
+    indEl.dataset.built = '1';
+    indEl.innerHTML = _WRK_TEMPLATES.filter(w => w.category === 'indoor').map(w => _wrkBuildCard(w)).join('');
+  }
+  // Outdoor
+  const outEl = document.getElementById('wrkOutdoor');
+  if (outEl && !outEl.dataset.built) {
+    outEl.dataset.built = '1';
+    outEl.innerHTML = _WRK_TEMPLATES.filter(w => w.category === 'outdoor').map(w => _wrkBuildCard(w)).join('');
+  }
+  // Saved workouts
+  _wrkRenderSaved();
+}
+
+async function _wrkRenderSaved() {
+  const listEl = document.getElementById('wrkSavedList');
+  const emptyEl = document.getElementById('wrkSavedEmpty');
+  if (!listEl) return;
+  try {
+    const db = await new Promise((res, rej) => {
+      const req = indexedDB.open('cycleiq_workouts', 1);
+      req.onupgradeneeded = () => req.result.createObjectStore('workouts', { keyPath: 'id' });
+      req.onsuccess = () => res(req.result);
+      req.onerror = () => rej(req.error);
+    });
+    const tx = db.transaction('workouts', 'readonly');
+    const all = await new Promise((res, rej) => {
+      const req = tx.objectStore('workouts').getAll();
+      req.onsuccess = () => res(req.result);
+      req.onerror = () => rej(req.error);
+    });
+    db.close();
+    if (!all.length) {
+      listEl.innerHTML = '';
+      if (emptyEl) emptyEl.style.display = '';
+      return;
+    }
+    if (emptyEl) emptyEl.style.display = 'none';
+    listEl.innerHTML = all.map(w => {
+      const segs = w.segments || [];
+      const totalSec = segs.reduce((s, seg) => s + (seg.duration || 0), 0);
+      const h = Math.floor(totalSec / 3600);
+      const m = Math.floor((totalSec % 3600) / 60);
+      const durStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
+      // Compute zone distribution from segments
+      const zoneTotals = [0,0,0,0,0,0];
+      segs.forEach(seg => {
+        const pct = seg.power || 50;
+        const z = pct < 55 ? 0 : pct < 75 ? 1 : pct < 90 ? 2 : pct < 105 ? 3 : pct < 120 ? 4 : 5;
+        zoneTotals[z] += seg.duration || 0;
+      });
+      const total = zoneTotals.reduce((a, b) => a + b, 1);
+      const zones = zoneTotals.map(t => Math.round(t / total * 100));
+      const zoneBars = zones.map((pct, i) =>
+        `<div class="wrk-card-zone" style="flex-grow:${Math.max(pct, 1)};background:${_WRK_ZONE_COLORS[i]}"></div>`
+      ).join('');
+      return `<div class="wrk-card" style="max-width:none" onclick="_wrkOpenSaved('${w.id}')">
+        <div class="wrk-card-type">Saved</div>
+        <div class="wrk-card-name">${w.name || 'Unnamed'}</div>
+        <div class="wrk-card-meta"><span>${durStr}</span></div>
+        <div class="wrk-card-zones">${zoneBars}</div>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    console.error('[WrkHome]', e);
+  }
+}
+
+function _wrkOpenBuilder() {
+  const home = document.getElementById('wrkHome');
+  const builder = document.getElementById('wrkBuilder');
+  if (home) home.style.display = 'none';
+  if (builder) builder.style.display = '';
+  wrkRefreshStats();
+  wrkRender();
+}
+window._wrkOpenBuilder = _wrkOpenBuilder;
+
+function _wrkLoadTemplate(idx) {
+  const t = _WRK_TEMPLATES[idx];
+  if (!t) return;
+  // Build segments from zone distribution
+  const ftp = state.ftp || 200;
+  const segments = [];
+  const zoneTargets = [0.5, 0.65, 0.82, 0.95, 1.1, 1.3]; // % of FTP per zone
+  t.zones.forEach((pct, z) => {
+    if (pct <= 0) return;
+    const sec = Math.round(t.duration * 60 * pct / 100);
+    segments.push({ duration: sec, power: Math.round(zoneTargets[z] * 100), reps: 1 });
+  });
+  const workout = { id: null, name: t.name, segments, ftpOverride: null };
+  wrkLoadWorkout(workout);
+  _wrkOpenBuilder();
+}
+window._wrkLoadTemplate = _wrkLoadTemplate;
+
+function _wrkOpenSaved(id) {
+  // Load from IndexedDB and open builder
+  indexedDB.open('cycleiq_workouts', 1).onsuccess = function(e) {
+    const db = e.target.result;
+    const tx = db.transaction('workouts', 'readonly');
+    tx.objectStore('workouts').get(id).onsuccess = function(ev) {
+      const w = ev.target.result;
+      db.close();
+      if (w) { wrkLoadWorkout(w); _wrkOpenBuilder(); }
+    };
+  };
+}
+window._wrkOpenSaved = _wrkOpenSaved;
+
 let _libActiveTab = 'heatmap';
 let _libMapReady = false;
 
@@ -38232,6 +38400,11 @@ function _renderLibraryPage() {
   }
   // Build active tab content
   _libBuildTab(_libActiveTab);
+  // Init tab sliding pill
+  setTimeout(() => {
+    const activeTab = document.querySelector('.lib-tab.active');
+    if (activeTab) _libSlidePill(activeTab);
+  }, 300);
   // Init timeline scrubber (desktop only)
   setTimeout(() => _libInitTimeline(), 2000);
 }
@@ -38398,8 +38571,12 @@ function _libInitTimeline() {
 
 function _libSwitchTab(tab) {
   _libActiveTab = tab;
-  document.querySelectorAll('.lib-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  const tabs = document.querySelectorAll('.lib-tab');
+  tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
   document.querySelectorAll('.lib-pane').forEach(p => p.classList.toggle('active', p.id === 'libPane' + tab.charAt(0).toUpperCase() + tab.slice(1)));
+  // Slide pill highlight
+  const activeTab = document.querySelector('.lib-tab.active');
+  if (activeTab) _libSlidePill(activeTab);
   _libBuildTab(tab);
 }
 window._libSwitchTab = _libSwitchTab;
