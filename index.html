@@ -6226,53 +6226,66 @@
                         <div class="pro-stream-list" id="proStreamList"></div>
                     </div>
                     <div class="pro-sidebar-section">
-                        <div class="pro-sidebar-label">TOOLS</div>
-                        <div class="pro-pill-slider" id="proSmoothPill" data-min="1" data-max="60" data-value="5">
-                            <div class="pro-pill-fill" id="proSmoothFill"></div>
-                            <span class="pro-pill-label">Smoothing</span>
-                            <span class="pro-pill-val" id="proSmoothVal">5s</span>
+                        <div class="pro-sidebar-label pro-section-toggle">
+                            GRAPH STYLE
+                            <label class="ios-switch ios-switch--sm" onclick="event.stopPropagation()"><input type="checkbox" checked onchange="this.closest('.pro-sidebar-section').classList.toggle('collapsed',!this.checked)"><span class="ios-switch-slider"></span></label>
                         </div>
-                        <div class="pro-pill-slider" id="proLineWidthPill" data-value="1.5">
-                            <div class="pro-pill-fill"></div>
-                            <span class="pro-pill-label">Line Width</span>
-                            <span class="pro-pill-val">1.5px</span>
+                        <div class="pro-section-body">
+                            <div class="pro-pill-slider" id="proLineWidthPill" data-value="1.5">
+                                <div class="pro-pill-fill"></div>
+                                <span class="pro-pill-label">Line Width</span>
+                                <span class="pro-pill-val">1.5px</span>
+                            </div>
+                            <div class="pro-pill-slider" id="proOpacityPill" data-value="100">
+                                <div class="pro-pill-fill"></div>
+                                <span class="pro-pill-label">Opacity</span>
+                                <span class="pro-pill-val">100%</span>
+                            </div>
+                            <div class="pro-pill-slider" id="proFillPill" data-value="0">
+                                <div class="pro-pill-fill"></div>
+                                <span class="pro-pill-label">Fill</span>
+                                <span class="pro-pill-val">0%</span>
+                            </div>
+                            <div class="pro-pill-slider" id="proGridPill" data-value="50">
+                                <div class="pro-pill-fill"></div>
+                                <span class="pro-pill-label">Grid</span>
+                                <span class="pro-pill-val">50%</span>
+                            </div>
                         </div>
-                        <div class="pro-pill-slider" id="proOpacityPill" data-value="100">
-                            <div class="pro-pill-fill"></div>
-                            <span class="pro-pill-label">Opacity</span>
-                            <span class="pro-pill-val">100%</span>
+                    </div>
+                    <div class="pro-sidebar-section">
+                        <div class="pro-sidebar-label pro-section-toggle">
+                            DATA
+                            <label class="ios-switch ios-switch--sm" onclick="event.stopPropagation()"><input type="checkbox" checked onchange="this.closest('.pro-sidebar-section').classList.toggle('collapsed',!this.checked)"><span class="ios-switch-slider"></span></label>
                         </div>
-                        <div class="pro-pill-slider" id="proFillPill" data-value="0">
-                            <div class="pro-pill-fill"></div>
-                            <span class="pro-pill-label">Fill</span>
-                            <span class="pro-pill-val">0%</span>
-                        </div>
-                        <div class="pro-pill-slider" id="proZoomPill" data-value="100">
-                            <div class="pro-pill-fill"></div>
-                            <span class="pro-pill-label">Zoom</span>
-                            <span class="pro-pill-val">100%</span>
-                        </div>
-                        <div class="pro-pill-slider" id="proFatiguePill" data-value="0">
-                            <div class="pro-pill-fill"></div>
-                            <span class="pro-pill-label">Fatigue Filter</span>
-                            <span class="pro-pill-val">Off</span>
-                        </div>
-                        <div class="pro-pill-slider" id="proDensityPill" data-value="100">
-                            <div class="pro-pill-fill"></div>
-                            <span class="pro-pill-label">Data Density</span>
-                            <span class="pro-pill-val">100%</span>
-                        </div>
-                        <div class="pro-pill-slider" id="proGridPill" data-value="50">
-                            <div class="pro-pill-fill"></div>
-                            <span class="pro-pill-label">Grid Density</span>
-                            <span class="pro-pill-val">50%</span>
-                        </div>
-                        <!-- X-Axis segmented control -->
-                        <div class="pro-seg-row">
-                            <span class="pro-seg-label">X-Axis</span>
-                            <div class="pro-seg-ctrl" id="proXAxisToggle">
-                                <button class="pro-seg-btn active" data-axis="time">Time</button>
-                                <button class="pro-seg-btn" data-axis="distance">Distance</button>
+                        <div class="pro-section-body">
+                            <div class="pro-pill-slider" id="proSmoothPill" data-min="1" data-max="60" data-value="5">
+                                <div class="pro-pill-fill" id="proSmoothFill"></div>
+                                <span class="pro-pill-label">Smoothing</span>
+                                <span class="pro-pill-val" id="proSmoothVal">5s</span>
+                            </div>
+                            <div class="pro-pill-slider" id="proZoomPill" data-value="100">
+                                <div class="pro-pill-fill"></div>
+                                <span class="pro-pill-label">Zoom</span>
+                                <span class="pro-pill-val">100%</span>
+                            </div>
+                            <div class="pro-pill-slider" id="proFatiguePill" data-value="0">
+                                <div class="pro-pill-fill"></div>
+                                <span class="pro-pill-label">Fatigue Filter</span>
+                                <span class="pro-pill-val">Off</span>
+                            </div>
+                            <div class="pro-pill-slider" id="proDensityPill" data-value="100">
+                                <div class="pro-pill-fill"></div>
+                                <span class="pro-pill-label">Data Density</span>
+                                <span class="pro-pill-val">100%</span>
+                            </div>
+                            <!-- X-Axis segmented control -->
+                            <div class="pro-seg-row">
+                                <span class="pro-seg-label">X-Axis</span>
+                                <div class="pro-seg-ctrl" id="proXAxisToggle">
+                                    <button class="pro-seg-btn active" data-axis="time">Time</button>
+                                    <button class="pro-seg-btn" data-axis="distance">Distance</button>
+                                </div>
                             </div>
                         </div>
                     </div>

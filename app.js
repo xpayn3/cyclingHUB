@@ -21085,12 +21085,16 @@ async function openProAnalysis() {
     const mCanvas = document.getElementById('proLoaderMatrix');
     if (mCanvas) {
       const mCtx = mCanvas.getContext('2d');
-      mCanvas.width = window.innerWidth;
-      mCanvas.height = window.innerHeight;
-      const chars = '+-·×#.:⚡♦▪'.split('');
-      const fontSize = 14;
-      const cols = Math.floor(mCanvas.width / fontSize);
-      const rows = Math.floor(mCanvas.height / fontSize);
+      const rect = mCanvas.parentElement.getBoundingClientRect();
+      mCanvas.width = Math.ceil(rect.width);
+      mCanvas.height = Math.ceil(rect.height);
+      mCanvas.style.width = '100%';
+      mCanvas.style.height = '100%';
+      const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef+-.:=#%&@*~^'.split('');
+      const fontSize = 18;
+      const cols = Math.ceil(mCanvas.width / fontSize) + 1;
+      const rows = Math.ceil(mCanvas.height / fontSize) + 1;
+      loader._matrixCols = cols;
       const grid = [];
       for (let i = 0; i < cols * rows; i++) {
         grid.push({
@@ -21100,19 +21104,61 @@ async function openProAnalysis() {
         });
       }
       let raf = 0;
+      const cx = mCanvas.width / 2, cy = mCanvas.height / 2;
+      const maxDist = Math.sqrt(cx * cx + cy * cy);
       const draw = () => {
-        mCtx.fillStyle = '#000';
-        mCtx.fillRect(0, 0, mCanvas.width, mCanvas.height);
+        const dissolving = loader._dissolving;
+        const dStart = loader._dissolveStart || 0;
+        const dCols = loader._dissolveCols || [];
+        const elapsed = Date.now() - dStart;
+
+        // Clear canvas — transparent during dissolve so page shows through
+        mCtx.clearRect(0, 0, mCanvas.width, mCanvas.height);
+
         mCtx.font = `${fontSize}px monospace`;
         mCtx.textAlign = 'center';
         mCtx.textBaseline = 'middle';
+
+        let alive = 0;
         for (let i = 0; i < grid.length; i++) {
           const g = grid[i];
+          const col = i % cols;
+          const row = Math.floor(i / cols);
+          const px = col * fontSize;
+          const py = row * fontSize;
+
+          // Check if this cell has been dissolved — center outward, irregular
+          if (dissolving) {
+            const distFromCenter = Math.sqrt((col - cols/2) ** 2 + (row - rows/2) ** 2);
+            const maxCellDist = Math.sqrt((cols/2) ** 2 + (rows/2) ** 2);
+            // Per-cell random offset for irregular edge
+            if (!g.rnd) g.rnd = Math.random() * 8 - 4;
+            const threshold = (elapsed / 1000) * maxCellDist;
+            if (distFromCenter + g.rnd < threshold) continue;
+          }
+
+          alive++;
           g.a += g.s;
           if (g.a > 0.3 || g.a < 0.03) g.s *= -1;
           if (Math.random() < 0.003) g.c = chars[Math.floor(Math.random() * chars.length)];
-          mCtx.fillStyle = `rgba(255,255,255,${g.a.toFixed(3)})`;
-          mCtx.fillText(g.c, (i % cols) * fontSize + 7, Math.floor(i / cols) * fontSize + 7);
+
+          // Black background per cell
+          mCtx.fillStyle = '#000';
+          mCtx.fillRect(px, py, fontSize, fontSize);
+
+          // Character
+          const dist = Math.sqrt((px + 7 - cx) ** 2 + (py + 7 - cy) ** 2);
+          const fade = Math.min(1, dist / (maxDist * 0.4));
+          mCtx.fillStyle = `rgba(255,255,255,${(g.a * fade).toFixed(3)})`;
+          mCtx.fillText(g.c, px + 7, py + 7);
+        }
+
+        // All cells dissolved — hide loader
+        if (dissolving && alive === 0) {
+          loader.style.display = 'none';
+          loader._dissolving = false;
+          if (loader._stopMatrix) loader._stopMatrix();
+          return;
         }
         if (loader.style.display !== 'none') raf = requestAnimationFrame(draw);
       };
@@ -21161,17 +21207,34 @@ async function openProAnalysis() {
     window._proInit(state.normStreams, activity, state._actIntervals);
   }
 
-  // Dismiss loader with fade-out
+  // Dismiss loader with blocky Tetris wipe
   _updateLoaderStatus('Ready');
   setTimeout(() => {
     if (loader) {
-      loader.classList.add('pro-loader--out');
+      // Start the block dissolve — center outward
+      loader._dissolving = true;
+      loader.style.background = 'transparent';
+      const dCols = loader._matrixCols || 60;
+      const dissolveCols = [];
+      const midCol = Math.floor(dCols / 2);
+      const mCanvas = document.getElementById('proLoaderMatrix');
+      const midRow = mCanvas ? Math.floor((mCanvas.height / 14) / 2) : 30;
+      for (let c = 0; c < dCols; c++) dissolveCols.push({ col: c, delay: 0 });
+      loader._dissolveStart = Date.now();
+      loader._dissolveCols = dissolveCols;
+
+      // Fade out the center content
+      const content = loader.querySelector('.pro-loader-content');
+      if (content) { content.style.transition = 'opacity 0.4s'; content.style.opacity = '0'; }
+
+      // Wait for dissolve to complete: max delay (1200) + all rows (~rows*30ms) + buffer
       setTimeout(() => {
         loader.style.display = 'none';
+        loader._dissolving = false;
         if (loader._stopMatrix) loader._stopMatrix();
-      }, 600);
+      }, 2500);
     }
-  }, 800);
+  }, 400);
 }
 window.openProAnalysis = openProAnalysis;
 
@@ -38705,6 +38768,43 @@ function _libBuildDiscoverTab() {
   const totalElev = acts.reduce((s, a) => s + (a.total_elevation_gain || 0), 0);
   const longestRide = acts.reduce((best, a) => (a.distance || 0) > (best?.distance || 0) ? a : best, null);
 
+  // Build road cards with elevation profiles
+  function buildRoadCard(a, highlight) {
+    const km = (a.distance / 1000).toFixed(1);
+    const elev = Math.round(a.total_elevation_gain || 0);
+    const dur = a.moving_time || a.elapsed_time || 0;
+    const h = Math.floor(dur / 3600); const m = Math.floor((dur % 3600) / 60);
+    const durStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
+    const avgSpd = dur > 0 ? ((a.distance / 1000) / (dur / 3600)).toFixed(1) : '—';
+    const date = a.start_date_local ? new Date(a.start_date_local).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+    return `<div class="lib-road-card" data-actid="${a.id}" onclick="_libToggleRide(this)">
+      <div class="lib-road-top">
+        <div class="lib-road-info">
+          <div class="lib-road-name">${a.name || 'Ride'}</div>
+          <div class="lib-road-date">${date}</div>
+        </div>
+        ${highlight ? `<div class="lib-road-badge" style="color:${highlight.color}">${highlight.label}</div>` : ''}
+      </div>
+      <div class="lib-road-stats">
+        <span><svg class="icon" width="12" height="12"><use href="icons.svg#icon-clock"/></svg> ${km} km</span>
+        <span><svg class="icon" width="12" height="12"><use href="icons.svg#icon-mountain"/></svg> ${elev} m</span>
+        <span><svg class="icon" width="12" height="12"><use href="icons.svg#icon-bolt"/></svg> ${avgSpd} km/h</span>
+        <span>${durStr}</span>
+      </div>
+      <canvas class="lib-road-elev" data-actid="${a.id}" height="40" style="width:100%;height:40px;border-radius:6px;background:var(--surface-1)"></canvas>
+      <div class="lib-ride-detail" style="display:none" data-actid="${a.id}"></div>
+      <svg class="lib-ride-chevron icon" width="12" height="12" style="display:none"><use href="icons.svg#icon-chevron-down"/></svg>
+    </div>`;
+  }
+
+  const longest = [...acts].sort((a, b) => (b.distance || 0) - (a.distance || 0)).slice(0, 6);
+  const climbers = [...acts].sort((a, b) => (b.total_elevation_gain || 0) - (a.total_elevation_gain || 0)).slice(0, 6);
+  const fastest = [...acts].filter(a => a.distance > 20000).sort((a, b) => {
+    const sA = a.moving_time > 0 ? a.distance / a.moving_time : 0;
+    const sB = b.moving_time > 0 ? b.distance / b.moving_time : 0;
+    return sB - sA;
+  }).slice(0, 6);
+
   pane.innerHTML = `
     <div class="lib-discover-stats">
       <div class="lib-discover-stat">
@@ -38720,29 +38820,62 @@ function _libBuildDiscoverTab() {
         <span class="lib-discover-label">rides</span>
       </div>
     </div>
-    <div class="lib-section-title">Most Ridden</div>
-    <div class="lib-most-ridden" id="libMostRidden"></div>
-    <div class="lib-section-title" style="margin-top:16px">Longest Rides</div>
-    <div id="libLongest"></div>
-    <div class="lib-section-title" style="margin-top:16px">Most Climbing</div>
-    <div id="libClimbers"></div>
+    <div class="lib-section-title">Longest Rides</div>
+    <div class="lib-road-list">${longest.map(a => buildRoadCard(a, { label: `${(a.distance/1000).toFixed(0)} km`, color: 'var(--accent)' })).join('')}</div>
+    <div class="lib-section-title" style="margin-top:20px">Most Climbing</div>
+    <div class="lib-road-list">${climbers.map(a => buildRoadCard(a, { label: `${Math.round(a.total_elevation_gain)}m`, color: '#9b59ff' })).join('')}</div>
+    <div class="lib-section-title" style="margin-top:20px">Fastest Rides</div>
+    <div class="lib-road-list">${fastest.map(a => {
+      const spd = a.moving_time > 0 ? ((a.distance/1000)/(a.moving_time/3600)).toFixed(1) : '—';
+      return buildRoadCard(a, { label: `${spd} km/h`, color: '#f0c429' });
+    }).join('')}</div>
   `;
 
-  // Populate longest
-  const longest = [...acts].sort((a, b) => (b.distance || 0) - (a.distance || 0)).slice(0, 5);
-  const longestEl = document.getElementById('libLongest');
-  if (longestEl) longestEl.innerHTML = longest.map(a => `<div class="lib-ride-card" onclick="_libToggleRide('${a.id}')">
-    <div class="lib-ride-info"><div class="lib-ride-name">${a.name || 'Ride'}</div><div class="lib-ride-meta">${(a.distance / 1000).toFixed(1)} km</div></div>
-    <svg class="icon" width="14" height="14" style="color:var(--text-faint)"><use href="icons.svg#icon-chevron-right"/></svg>
-  </div>`).join('');
-
-  // Populate climbers
-  const climbers = [...acts].sort((a, b) => (b.total_elevation_gain || 0) - (a.total_elevation_gain || 0)).slice(0, 5);
-  const climbEl = document.getElementById('libClimbers');
-  if (climbEl) climbEl.innerHTML = climbers.map(a => `<div class="lib-ride-card" onclick="_libToggleRide('${a.id}')">
-    <div class="lib-ride-info"><div class="lib-ride-name">${a.name || 'Ride'}</div><div class="lib-ride-meta">${Math.round(a.total_elevation_gain || 0)} m</div></div>
-    <svg class="icon" width="14" height="14" style="color:var(--text-faint)"><use href="icons.svg#icon-chevron-right"/></svg>
-  </div>`).join('');
+  // Draw mini elevation profiles (lazy, after DOM)
+  setTimeout(() => {
+    pane.querySelectorAll('.lib-road-elev').forEach(async canvas => {
+      const actId = canvas.dataset.actid;
+      if (!actId || canvas.dataset.drawn) return;
+      canvas.dataset.drawn = '1';
+      try {
+        const resp = await icuFetch(`/activity/${actId}/streams?types=altitude`);
+        const alt = resp?.altitude?.data || resp?.altitude || [];
+        if (alt.length < 10) return;
+        const w = canvas.parentElement.clientWidth || 260;
+        canvas.width = w;
+        const h = canvas.height;
+        const ctx = canvas.getContext('2d');
+        const mn = Math.min(...alt.slice(0, 2000));
+        const mx = Math.max(...alt.slice(0, 2000));
+        const range = mx - mn || 1;
+        const step = Math.max(1, Math.floor(alt.length / w));
+        ctx.beginPath();
+        ctx.moveTo(0, h);
+        for (let i = 0; i < w; i++) {
+          const idx = Math.min(Math.floor(i * alt.length / w), alt.length - 1);
+          const y = h - ((alt[idx] - mn) / range) * (h - 4) - 2;
+          ctx.lineTo(i, y);
+        }
+        ctx.lineTo(w, h);
+        ctx.closePath();
+        const grad = ctx.createLinearGradient(0, 0, 0, h);
+        grad.addColorStop(0, 'rgba(155, 89, 255, 0.3)');
+        grad.addColorStop(1, 'rgba(155, 89, 255, 0.02)');
+        ctx.fillStyle = grad;
+        ctx.fill();
+        // Stroke line on top
+        ctx.beginPath();
+        for (let i = 0; i < w; i++) {
+          const idx = Math.min(Math.floor(i * alt.length / w), alt.length - 1);
+          const y = h - ((alt[idx] - mn) / range) * (h - 4) - 2;
+          i === 0 ? ctx.moveTo(i, y) : ctx.lineTo(i, y);
+        }
+        ctx.strokeStyle = 'rgba(155, 89, 255, 0.6)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      } catch {}
+    });
+  }, 500);
 }
 
 function _libToggleRide(row) {

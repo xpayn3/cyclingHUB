@@ -38,9 +38,21 @@ let _playInterval = null;
 let _playIdx = 0;
 const PLAY_SPEEDS = [1, 2, 5, 10, 20, 50];
 let _playSpeedIdx = 0;
-let _proLineWidth = 1.5;
-let _proOpacity = 1;
-let _proFillOpacity = 0;
+let _proLineWidth = 2; // 0.5-5 px
+let _proOpacity = 100; // 0-100 percent
+let _proFillOpacity = 0; // 0-90 percent
+
+/* ── Single source of truth for stream styling ────────────── */
+function _getStreamStyle(streamKey) {
+  const perStream = _proStreamStyles[streamKey];
+  const lw = perStream?.lineWidth ?? _proLineWidth;
+  const op = Math.max(0, Math.min(100, perStream?.opacity ?? _proOpacity));
+  const fill = Math.max(0, Math.min(90, perStream?.fill ?? _proFillOpacity));
+  // Convert opacity percent to 2-char hex
+  const alphaHex = Math.round(op * 2.55).toString(16).padStart(2, '0');
+  const fillHex = fill > 0 ? Math.round(fill * 2.55).toString(16).padStart(2, '0') : '00';
+  return { lineWidth: lw, opacity: op, fill: fill, alphaHex, fillHex };
+}
 let _proZoomLevel = 1;
 let _proFatigueThreshold = 0; // 0 = off, 0.1–1 = filter intensity
 let _proAnomalySensitivity = 0; // 0 = off, 0.1–1 = highlight sensitivity
@@ -382,7 +394,8 @@ function _buildStreamList() {
     const isActive = _proActiveStreams.has(s.key);
     return `<div class="pro-stream-chip ${isActive ? 'active' : ''} ${!hasData ? 'pro-stream-disabled' : ''}"
                  data-stream="${s.key}" onclick="_proToggleStream('${s.key}')">
-      <div class="pro-stream-dot" style="background:${s.color}${!hasData ? ';opacity:0.2' : ''}"></div>
+      <div class="pro-stream-dot" style="background:${s.color}${!hasData ? ';opacity:0.2' : ''}"
+           onclick="event.stopPropagation();_proEditStreamStyle('${s.key}')"></div>
       <span class="pro-stream-name">${s.label}</span>
       <svg class="pro-stream-eye icon" width="16" height="16"><use href="icons.svg#icon-eye"/></svg>
     </div>`;
@@ -404,12 +417,133 @@ function _proToggleStream(key) {
   const chip = document.querySelector(`.pro-stream-chip[data-stream="${key}"]`);
   if (chip) chip.classList.toggle('active', _proActiveStreams.has(key));
 
+  // Exit per-stream style editing if active
+  if (_proStyleEditStream) _proExitStyleEdit();
   // Rebuild chart — stop playback if active
   if (_playInterval) { clearInterval(_playInterval); _playInterval = null; }
-  if (_proStacked) _buildStackedCharts(); else _buildChart();
+  try {
+    if (_proStacked) _buildStackedCharts(); else _buildChart();
+  } catch (e) { console.error('[ProToggle] build error:', e); }
   _updateStats();
 }
 window._proToggleStream = _proToggleStream;
+
+/* ── Per-stream style editing ─────────────────────────── */
+let _proStyleEditStream = null;
+const _proStreamStyles = {}; // { key: { lineWidth, opacity, fill } }
+
+function _proEditStreamStyle(key) {
+  const stream = PRO_STREAMS.find(s => s.key === key);
+  if (!stream) return;
+  // Make sure stream is active
+  if (!_proActiveStreams.has(key)) {
+    _proActiveStreams.add(key);
+    const chip = document.querySelector(`.pro-stream-chip[data-stream="${key}"]`);
+    if (chip) chip.classList.add('active');
+  }
+
+  if (_proStyleEditStream === key) {
+    // Deselect — exit edit mode
+    _proExitStyleEdit();
+    return;
+  }
+
+  _proStyleEditStream = key;
+  const color = stream.color;
+
+  // Color the Graph Style pill fills with stream color
+  const fills = document.querySelectorAll('#proLineWidthPill .pro-pill-fill, #proOpacityPill .pro-pill-fill, #proFillPill .pro-pill-fill');
+  fills.forEach(f => f.style.background = color);
+
+  // Highlight the active dot
+  document.querySelectorAll('.pro-stream-dot').forEach(d => d.classList.remove('pro-dot-editing'));
+  const dot = document.querySelector(`.pro-stream-chip[data-stream="${key}"] .pro-stream-dot`);
+  if (dot) dot.classList.add('pro-dot-editing');
+
+  // Load per-stream values into pills
+  const styles = _proStreamStyles[key] || {};
+  const syncPill = (id, val, min, max, fmt) => {
+    const pill = document.getElementById(id);
+    if (!pill) return;
+    pill.setAttribute('data-value', val);
+    const pct = Math.max(0, Math.min(100, ((val - min) / (max - min)) * 100));
+    const fill = pill.querySelector('.pro-pill-fill');
+    if (fill) fill.style.width = pct + '%';
+    const valEl = pill.querySelector('.pro-pill-val');
+    if (valEl) valEl.textContent = fmt(val);
+  };
+  syncPill('proLineWidthPill', styles.lineWidth ?? _proLineWidth, 0.5, 5, v => v.toFixed(1) + 'px');
+  syncPill('proOpacityPill', styles.opacity ?? _proOpacity, 0, 100, v => Math.round(v) + '%');
+  syncPill('proFillPill', styles.fill ?? _proFillOpacity, 0, 90, v => Math.round(v) + '%');
+
+  // Show save button
+  let saveBtn = document.getElementById('proStyleSaveBtn');
+  if (!saveBtn) {
+    const section = document.querySelector('#proLineWidthPill')?.closest('.pro-section-body');
+    if (section) {
+      saveBtn = document.createElement('button');
+      saveBtn.id = 'proStyleSaveBtn';
+      saveBtn.className = 'btn btn-accent btn-sm';
+      saveBtn.style.cssText = 'width:100%;border-radius:10px;margin-top:8px;font-size:13px;height:36px';
+      saveBtn.textContent = 'Apply to ' + stream.label;
+      saveBtn.onclick = () => _proSaveStreamStyle();
+      section.appendChild(saveBtn);
+    }
+  } else {
+    saveBtn.textContent = 'Apply to ' + stream.label;
+    saveBtn.style.display = '';
+  }
+
+  // Expand Graph Style if collapsed
+  const graphSection = document.querySelector('#proLineWidthPill')?.closest('.pro-sidebar-section');
+  if (graphSection?.classList.contains('collapsed')) {
+    graphSection.classList.remove('collapsed');
+    const toggle = graphSection.querySelector('.ios-switch input');
+    if (toggle) toggle.checked = true;
+  }
+}
+window._proEditStreamStyle = _proEditStreamStyle;
+
+function _proSaveStreamStyle() {
+  if (!_proStyleEditStream) return;
+  // Read current pill values and save as per-stream override
+  const lwPill = document.querySelector('#proLineWidthPill .pro-pill-val');
+  const opPill = document.querySelector('#proOpacityPill .pro-pill-val');
+  const fillPill = document.querySelector('#proFillPill .pro-pill-val');
+  _proStreamStyles[_proStyleEditStream] = {
+    lineWidth: parseFloat(lwPill?.textContent) || 1.5,
+    opacity: parseInt(opPill?.textContent) || 100,
+    fill: parseInt(fillPill?.textContent) || 0,
+  };
+  _proExitStyleEdit();
+  // Rebuild chart with per-stream styles
+  if (_proStacked) _buildStackedCharts(); else _buildChart();
+}
+
+function _proExitStyleEdit() {
+  _proStyleEditStream = null;
+  // Reset pill fill colors to default
+  document.querySelectorAll('.pro-pill-fill').forEach(f => f.style.background = '');
+  // Remove dot highlight
+  document.querySelectorAll('.pro-stream-dot').forEach(d => d.classList.remove('pro-dot-editing'));
+  // Hide save button
+  const saveBtn = document.getElementById('proStyleSaveBtn');
+  if (saveBtn) saveBtn.style.display = 'none';
+  // Restore global values in pills
+  const syncPill = (id, val, min, max, fmt) => {
+    const pill = document.getElementById(id);
+    if (!pill) return;
+    pill.setAttribute('data-value', val);
+    const pct = Math.max(0, Math.min(100, ((val - min) / (max - min)) * 100));
+    const fill = pill.querySelector('.pro-pill-fill');
+    if (fill) fill.style.width = pct + '%';
+    const valEl = pill.querySelector('.pro-pill-val');
+    if (valEl) valEl.textContent = fmt(val);
+  };
+  syncPill('proLineWidthPill', _proLineWidth, 0.5, 5, v => v.toFixed(1) + 'px');
+  syncPill('proOpacityPill', _proOpacity, 0, 100, v => Math.round(v) + '%');
+  syncPill('proFillPill', _proFillOpacity, 0, 90, v => Math.round(v) + '%');
+}
 
 /* ── Smooth data with moving average ──────────────────── */
 function _smooth(data, win) {
@@ -547,15 +681,12 @@ function _buildChart() {
     };
 
     let axisIdx = 0;
-    const alphaHex = Math.round(_proOpacity * 255).toString(16).padStart(2, '0');
-    const fillAlpha = Math.round(_proFillOpacity * 255).toString(16).padStart(2, '0');
     for (const s of PRO_STREAMS) {
       if (!_proActiveStreams.has(s.key)) continue;
       const raw = _proStreams[s.key];
       if (!raw || raw.length === 0) continue;
 
       let data = _smoothCached(raw, s.key, _proSmoothing);
-      // Data density — downsample for performance
       if (_proDensity < 1 && data.length > 100) {
         const nth = Math.max(1, Math.round(1 / _proDensity));
         data = data.filter((_, i) => i % nth === 0);
@@ -563,18 +694,22 @@ function _buildChart() {
       const axisId = `y_${s.key}`;
       const isLeft = axisIdx % 2 === 0;
 
+      // Use single source of truth for styling
+      const st = _getStreamStyle(s.key);
+
       datasets.push({
         label: s.label,
         data: data,
-        borderColor: s.color + alphaHex,
-        backgroundColor: s.color + fillAlpha,
-        borderWidth: _proLineWidth,
+        borderColor: s.color + st.alphaHex,
+        backgroundColor: s.color + (st.fill > 0 ? st.fillHex : '00'),
+        borderWidth: st.lineWidth,
         pointRadius: 0,
         pointHoverRadius: 4,
         pointHoverBackgroundColor: s.color,
         tension: 0.2,
-        fill: _proFillOpacity > 0 || s.key === 'altitude',
+        fill: st.fill > 0 || s.key === 'altitude',
         yAxisID: axisId,
+        _streamKey: s.key,
       });
 
       scales[axisId] = {
@@ -1213,7 +1348,7 @@ function _bindControls() {
   }
 
   // Generic pill slider factory
-  function _initPill(id, { min, max, step, value, fmt, onUpdate }) {
+  function _initPill(id, { min, max, step, value, fmt, onUpdate, noRebuild }) {
     const el = document.getElementById(id);
     if (!el || el._inited) return;
     el._inited = true;
@@ -1260,8 +1395,10 @@ function _bindControls() {
       el.style.transition = 'transform 0.5s cubic-bezier(0.22, 1.8, 0.36, 1)';
       el.style.transform = '';
       setTimeout(() => { el.style.transition = ''; }, 550);
-      clearTimeout(debounce);
-      debounce = setTimeout(() => { if (_proStacked) _buildStackedCharts(); else _buildChart(); }, 150);
+      if (!noRebuild) {
+        clearTimeout(debounce);
+        debounce = setTimeout(() => { if (_proStacked) _buildStackedCharts(); else _buildChart(); }, 150);
+      }
     };
     el.addEventListener('pointerup', end);
     el.addEventListener('pointercancel', end);
@@ -1273,13 +1410,15 @@ function _bindControls() {
     if (!_proChart) return;
     _proChart.data.datasets.forEach(ds => {
       if (ds._isCompare || ds._isFatigue || ds._isAnomaly) return;
-      const alphaHex = Math.round(_proOpacity * 255).toString(16).padStart(2, '0');
-      const fillHex = Math.round(_proFillOpacity * 255).toString(16).padStart(2, '0');
-      const baseColor = ds.borderColor?.slice(0, 7) || '#ffffff';
-      ds.borderColor = baseColor + alphaHex;
-      ds.backgroundColor = baseColor + fillHex;
-      ds.borderWidth = _proLineWidth;
-      ds.fill = _proFillOpacity > 0;
+      const streamKey = ds._streamKey;
+      if (!streamKey) return;
+      const s = PRO_STREAMS.find(p => p.key === streamKey);
+      if (!s) return;
+      const st = _getStreamStyle(streamKey);
+      ds.borderColor = s.color + st.alphaHex;
+      ds.backgroundColor = s.color + (st.fill > 0 ? st.fillHex : '00');
+      ds.borderWidth = st.lineWidth;
+      ds.fill = st.fill > 0 || streamKey === 'altitude';
     });
     _proChart.update('none');
   }
@@ -1370,21 +1509,42 @@ function _bindControls() {
   _initPill('proLineWidthPill', {
     min: 0.5, max: 4, step: 0.5, value: _proLineWidth,
     fmt: v => v.toFixed(1) + 'px',
-    onUpdate: v => { _proLineWidth = v; _liveUpdateChart(); }
+    onUpdate: v => {
+      if (_proStyleEditStream) {
+        if (!_proStreamStyles[_proStyleEditStream]) _proStreamStyles[_proStyleEditStream] = {};
+        _proStreamStyles[_proStyleEditStream].lineWidth = v;
+      } else { _proLineWidth = v; }
+      _liveUpdateChart();
+    },
+    noRebuild: true
   });
 
   // Opacity pill (20–100%)
   _initPill('proOpacityPill', {
-    min: 0.2, max: 1, step: 0.05, value: _proOpacity,
-    fmt: v => Math.round(v * 100) + '%',
-    onUpdate: v => { _proOpacity = v; _liveUpdateChart(); }
+    min: 5, max: 100, step: 5, value: _proOpacity,
+    fmt: v => Math.round(v) + '%',
+    onUpdate: v => {
+      if (_proStyleEditStream) {
+        if (!_proStreamStyles[_proStyleEditStream]) _proStreamStyles[_proStyleEditStream] = {};
+        _proStreamStyles[_proStyleEditStream].opacity = Math.round(v);
+      } else { _proOpacity = Math.round(v); }
+      _liveUpdateChart();
+    },
+    noRebuild: true
   });
 
   // Fill opacity pill (0–50%)
   _initPill('proFillPill', {
-    min: 0, max: 0.5, step: 0.05, value: _proFillOpacity,
-    fmt: v => Math.round(v * 100) + '%',
-    onUpdate: v => { _proFillOpacity = v; _liveUpdateChart(); }
+    min: 0, max: 90, step: 5, value: _proFillOpacity,
+    fmt: v => Math.round(v) + '%',
+    onUpdate: v => {
+      if (_proStyleEditStream) {
+        if (!_proStreamStyles[_proStyleEditStream]) _proStreamStyles[_proStyleEditStream] = {};
+        _proStreamStyles[_proStyleEditStream].fill = Math.round(v);
+      } else { _proFillOpacity = Math.round(v); }
+      _liveUpdateChart();
+    },
+    noRebuild: true
   });
 
   // Zoom pill (50–500%) — applies live via scale manipulation, no rebuild
