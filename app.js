@@ -38920,11 +38920,13 @@ function _libSlidePill(btn) {
     slider.className = 'lib-pills-slider';
     parent.appendChild(slider);
   }
-  // Position slider on active pill
+  // Position slider on active pill (account for container padding)
   const pRect = parent.getBoundingClientRect();
   const bRect = btn.getBoundingClientRect();
   slider.style.left = (bRect.left - pRect.left) + 'px';
+  slider.style.top = (bRect.top - pRect.top) + 'px';
   slider.style.width = bRect.width + 'px';
+  slider.style.height = bRect.height + 'px';
 }
 
 function _libSetHeatMode(mode, btn) {
