@@ -21004,12 +21004,19 @@ async function openProAnalysis() {
     return;
   }
 
-  // Set title
+  // Set title + subtitle
   const titleEl = document.getElementById('proTitle');
   if (titleEl) titleEl.textContent = activity.name || 'Pro Analysis';
+  const subEl = document.getElementById('proSubtitle');
+  if (subEl && activity.start_date_local) {
+    const d = new Date(activity.start_date_local);
+    subEl.textContent = d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) + ' · ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+  } else if (subEl) {
+    subEl.textContent = '';
+  }
 
   // Show fullscreen
-  el.style.display = 'flex';
+  el.style.display = 'grid';
   document.body.classList.add('pro-analysis-open');
   sessionStorage.setItem('icu_pro_open', '1');
 

@@ -6050,11 +6050,43 @@
         <div id="proAnalysis" class="pro-analysis" style="display:none">
             <div class="pro-topbar">
                 <button class="pro-back" onclick="closeProAnalysis()">
-                    <svg class="icon" width="20" height="20"><use href="icons.svg#icon-arrow-left"/></svg>
-                    <span>Back</span>
+                    <svg class="icon" width="18" height="18"><use href="icons.svg#icon-chevron-left"/></svg>
                 </button>
-                <div class="pro-title" id="proTitle">Pro Analysis</div>
+                <div class="pro-badge hero-glow" data-hue="280">
+                    <div class="hero-glow-outer"></div>
+                    <div class="hero-glow-shine"></div>
+                    <span class="pro-badge-text">ProView</span>
+                </div>
+                <div class="pro-title-wrap">
+                    <div class="pro-title" id="proTitle">Pro Analysis</div>
+                    <div class="pro-subtitle" id="proSubtitle"></div>
+                </div>
                 <div class="pro-topbar-actions">
+                    <!-- View mode buttons -->
+                    <button class="pro-topbar-chip" id="proHistogramBtn" title="Histogram (H)">
+                        <svg class="icon" width="14" height="14"><use href="icons.svg#icon-bar-chart"/></svg>
+                        <span class="pro-chip-label">Histogram</span>
+                    </button>
+                    <button class="pro-topbar-chip" id="proStackedBtn" title="Stacked (S)">
+                        <svg class="icon" width="14" height="14"><use href="icons.svg#icon-layers"/></svg>
+                        <span class="pro-chip-label">Stacked</span>
+                    </button>
+                    <button class="pro-topbar-chip" id="proCompareBtn" title="Compare">
+                        <svg class="icon" width="14" height="14"><use href="icons.svg#icon-repeat"/></svg>
+                        <span class="pro-chip-label">Compare</span>
+                    </button>
+                    <div style="width:1px;height:20px;background:rgba(255,255,255,0.1);margin:0 4px"></div>
+                    <!-- Analysis buttons -->
+                    <button class="pro-topbar-chip" id="proPeakBtn" title="Peak Finder (P)">
+                        <svg class="icon" width="14" height="14"><use href="icons.svg#icon-trending-up"/></svg>
+                        <span class="pro-chip-label">Peaks</span>
+                    </button>
+                    <button class="pro-topbar-chip" id="proAnnotateBtn" title="Annotate (A)">
+                        <svg class="icon" width="14" height="14"><use href="icons.svg#icon-edit"/></svg>
+                        <span class="pro-chip-label">Annotate</span>
+                    </button>
+                    <div style="width:1px;height:20px;background:rgba(255,255,255,0.1);margin:0 4px"></div>
+                    <!-- Nav buttons -->
                     <button class="pro-nav-btn" id="proPrevAct" title="Previous activity" onclick="_proNavActivity(-1)">
                         <svg class="icon" width="16" height="16"><use href="icons.svg#icon-chevron-left"/></svg>
                     </button>
@@ -6082,9 +6114,8 @@
                         <svg class="icon" width="16" height="16"><use href="icons.svg#icon-download"/></svg>
                     </button>
                 </div>
-            </div>
-            <div class="pro-body">
-                <aside class="pro-sidebar" id="proSidebar">
+            </div><!-- .pro-topbar -->
+            <aside class="pro-sidebar" id="proSidebar">
                     <div class="pro-sidebar-section">
                         <div class="pro-sidebar-label">DATA STREAMS</div>
                         <div class="pro-stream-list" id="proStreamList"></div>
@@ -6121,43 +6152,57 @@
                             <span class="pro-pill-label">Fatigue Filter</span>
                             <span class="pro-pill-val">Off</span>
                         </div>
-                        <div class="pro-pill-slider" id="proAnomalyPill" data-value="0">
-                            <div class="pro-pill-fill"></div>
-                            <span class="pro-pill-label">Anomalies</span>
-                            <span class="pro-pill-val">Off</span>
-                        </div>
                         <div class="pro-pill-slider" id="proDensityPill" data-value="100">
                             <div class="pro-pill-fill"></div>
                             <span class="pro-pill-label">Data Density</span>
                             <span class="pro-pill-val">100%</span>
                         </div>
-                        <div class="pro-tool-row">
-                            <span>X-Axis</span>
-                            <div class="pro-xaxis-toggle" id="proXAxisToggle">
-                                <button class="pro-xaxis-btn active" data-axis="time">Time</button>
-                                <button class="pro-xaxis-btn" data-axis="distance">Distance</button>
+                        <div class="pro-pill-slider" id="proGridPill" data-value="50">
+                            <div class="pro-pill-fill"></div>
+                            <span class="pro-pill-label">Grid Density</span>
+                            <span class="pro-pill-val">50%</span>
+                        </div>
+                        <!-- X-Axis segmented control -->
+                        <div class="pro-seg-row">
+                            <span class="pro-seg-label">X-Axis</span>
+                            <div class="pro-seg-ctrl" id="proXAxisToggle">
+                                <button class="pro-seg-btn active" data-axis="time">Time</button>
+                                <button class="pro-seg-btn" data-axis="distance">Distance</button>
                             </div>
                         </div>
-                        <div class="pro-tool-row" style="margin-top:8px">
-                            <button class="pro-mode-btn" id="proHistogramBtn">Histogram</button>
-                            <button class="pro-mode-btn" id="proStackedBtn">Stacked</button>
-                            <button class="pro-mode-btn" id="proCompareBtn">Compare</button>
-                        </div>
                     </div>
+                    <!-- Overlays -->
                     <div class="pro-sidebar-section">
                         <div class="pro-sidebar-label">OVERLAYS</div>
-                        <label class="pro-toggle-row"><input type="checkbox" id="proShowIntervals"><span>Intervals</span></label>
-                        <label class="pro-toggle-row"><input type="checkbox" id="proShowLaps"><span>Laps</span></label>
-                        <label class="pro-toggle-row"><input type="checkbox" id="proShowZones"><span>Power Zones</span></label>
-                        <label class="pro-toggle-row"><input type="checkbox" id="proShowClimbs"><span>Climbs</span></label>
+                        <div class="pro-overlay-group">
+                            <div class="pro-overlay-item">
+                                <span>Intervals</span>
+                                <label class="ios-switch ios-switch--sm"><input type="checkbox" id="proShowIntervals"><span class="ios-switch-slider"></span></label>
+                            </div>
+                            <div class="pro-overlay-item">
+                                <span>Laps</span>
+                                <label class="ios-switch ios-switch--sm"><input type="checkbox" id="proShowLaps"><span class="ios-switch-slider"></span></label>
+                            </div>
+                            <div class="pro-overlay-item">
+                                <span>Power Zones</span>
+                                <label class="ios-switch ios-switch--sm"><input type="checkbox" id="proShowZones"><span class="ios-switch-slider"></span></label>
+                            </div>
+                            <div class="pro-overlay-item">
+                                <span>Climbs</span>
+                                <label class="ios-switch ios-switch--sm"><input type="checkbox" id="proShowClimbs"><span class="ios-switch-slider"></span></label>
+                            </div>
+                        </div>
                     </div>
-                    <div class="pro-sidebar-section" style="margin-top:auto;padding-top:12px">
-                        <button class="pro-mode-btn" id="proRidesBtn" style="width:100%">
+                    <!-- Rides -->
+                    <div class="pro-sidebar-section" style="margin-top:auto;padding-top:8px">
+                        <button class="pro-rides-btn" id="proRidesBtn">
                             <svg class="icon" width="14" height="14"><use href="icons.svg#icon-list"/></svg>
-                            Rides
+                            <span>Rides</span>
+                            <svg class="icon" width="12" height="12" style="margin-left:auto;opacity:0.4"><use href="icons.svg#icon-chevron-right"/></svg>
                         </button>
                     </div>
-                </aside>
+            </aside>
+            <div class="pro-body">
                 <!-- Rides panel — pushes content, not overlay -->
                 <aside class="pro-rides-panel" id="proRidesPanel">
                     <div class="pro-rides-header">
@@ -6171,6 +6216,12 @@
                 <main class="pro-main">
                     <div class="pro-chart-wrap" id="proChartWrap">
                         <canvas id="proAnalysisChart"></canvas>
+                    </div>
+                    <div class="pro-range" id="proRange">
+                        <canvas id="proRangeMini"></canvas>
+                        <div class="pro-range-sel" id="proRangeSel"></div>
+                        <div class="pro-range-grab pro-range-grab--l" id="proGrabL"></div>
+                        <div class="pro-range-grab pro-range-grab--r" id="proGrabR"></div>
                     </div>
                     <div class="pro-stats-bar" id="proStatsBar">
                         <div class="pro-stat"><span class="pro-stat-label">Selection</span><span class="pro-stat-val" id="proStatRange">Full Ride</span></div>

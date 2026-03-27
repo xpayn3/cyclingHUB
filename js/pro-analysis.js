@@ -45,6 +45,11 @@ let _proZoomLevel = 1;
 let _proFatigueThreshold = 0; // 0 = off, 0.1–1 = filter intensity
 let _proAnomalySensitivity = 0; // 0 = off, 0.1–1 = highlight sensitivity
 let _proDensity = 1; // 1 = all points, 0.1 = every 10th point
+let _proGridDensity = 0.5; // 0 = no grid, 1 = max grid
+let _proShowPeaks = false; // highlight best efforts
+let _proAnnotateMode = false; // click-to-annotate mode
+let _proAnnotations = []; // [{idx, label, text}]
+let _proPeaks = []; // [{idx, duration, value, stream}]
 let _proCompareStreams = null;
 let _proCompareActivity = null;
 let _proLaps = null;
@@ -228,6 +233,12 @@ function _proClose() {
   _smoothCache.clear();
   // Reset range bar state
   _rS = 0; _rE = 1; _rangeBound = false;
+  // Reset analysis state
+  _proShowPeaks = false;
+  _proAnnotateMode = false;
+  _proAnnotations = [];
+  _proPeaks = [];
+  _proGridDensity = 0.5;
 }
 window._proClose = _proClose;
 
@@ -517,13 +528,13 @@ function _buildChart() {
     scales.x = {
       display: true,
       ticks: { color: 'rgba(255,255,255,0.4)', font: { size: 11 } },
-      grid: { color: 'rgba(255,255,255,0.08)' },
+      grid: { color: `rgba(255,255,255,${(0.02 + _proGridDensity * 0.13).toFixed(3)})` },
       title: { display: true, text: firstStream.unit, color: 'rgba(255,255,255,0.3)', font: { size: 11 } }
     };
     scales.y = {
       display: true,
       ticks: { color: 'rgba(255,255,255,0.4)', font: { size: 10 }, callback: v => Math.round(v) + 'm' },
-      grid: { color: 'rgba(255,255,255,0.08)' },
+      grid: { color: `rgba(255,255,255,${(0.02 + _proGridDensity * 0.13).toFixed(3)})` },
       title: { display: true, text: 'minutes', color: 'rgba(255,255,255,0.3)', font: { size: 11 } }
     };
   } else {
@@ -531,7 +542,7 @@ function _buildChart() {
     scales.x = {
       display: true,
       ticks: { color: 'rgba(255,255,255,0.4)', maxTicksLimit: 20, font: { size: 11 } },
-      grid: { color: 'rgba(255,255,255,0.08)' },
+      grid: { color: `rgba(255,255,255,${(0.02 + _proGridDensity * 0.13).toFixed(3)})` },
       title: { display: true, text: _proXAxis === 'distance' ? 'km' : 'time', color: 'rgba(255,255,255,0.3)', font: { size: 11 } }
     };
 
@@ -833,6 +844,73 @@ function _buildChart() {
     }
   };
 
+  // Peak finder plugin — highlights best efforts with markers
+  const peakPlugin = {
+    id: 'proPeaks',
+    afterDatasetsDraw(chart) {
+      if (!_proShowPeaks || !_proPeaks.length) return;
+      const ctx = chart.ctx;
+      const xAxis = chart.scales.x;
+      const { top } = chart.chartArea;
+      ctx.save();
+      for (const pk of _proPeaks) {
+        const x1 = xAxis.getPixelForValue(pk.startIdx);
+        const x2 = xAxis.getPixelForValue(pk.endIdx);
+        // Draw bracket at top
+        ctx.strokeStyle = 'rgba(240,196,41,0.7)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x1, top + 4); ctx.lineTo(x1, top + 14);
+        ctx.lineTo(x2, top + 14); ctx.lineTo(x2, top + 4);
+        ctx.stroke();
+        // Label
+        ctx.fillStyle = '#f0c429';
+        ctx.font = '600 10px var(--font-num)';
+        ctx.textAlign = 'center';
+        ctx.fillText(pk.label, (x1 + x2) / 2, top + 26);
+      }
+      ctx.restore();
+    }
+  };
+
+  // Annotation plugin — draws user notes on chart
+  const annotationPlugin = {
+    id: 'proAnnotations',
+    afterDatasetsDraw(chart) {
+      if (!_proAnnotations.length) return;
+      const ctx = chart.ctx;
+      const xAxis = chart.scales.x;
+      const { top, bottom } = chart.chartArea;
+      ctx.save();
+      for (const ann of _proAnnotations) {
+        const x = xAxis.getPixelForValue(ann.idx);
+        // Vertical line
+        ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 3]);
+        ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bottom); ctx.stroke();
+        ctx.setLineDash([]);
+        // Note bubble
+        ctx.fillStyle = 'rgba(30,30,34,0.9)';
+        const textW = ctx.measureText(ann.text).width;
+        const bw = Math.min(textW + 12, 140);
+        const bx = Math.max(x - bw / 2, 2);
+        ctx.beginPath();
+        ctx.roundRect(bx, top + 32, bw, 22, 6);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+        // Text
+        ctx.fillStyle = '#fff';
+        ctx.font = '500 10px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(ann.text.substring(0, 20), x, top + 47);
+      }
+      ctx.restore();
+    }
+  };
+
   // Crosshair plugin
   const crosshairPlugin = {
     id: 'proCrosshair',
@@ -934,7 +1012,7 @@ function _buildChart() {
       },
       scales,
     },
-    plugins: [zonePlugin, intervalPlugin, lapPlugin, climbPlugin, brushPlugin, crosshairPlugin]
+    plugins: [zonePlugin, intervalPlugin, lapPlugin, climbPlugin, peakPlugin, annotationPlugin, brushPlugin, crosshairPlugin]
   });
 
   // Restore zoom range if not full
@@ -952,6 +1030,44 @@ function _buildChart() {
 }
 
 /* ── Update stats bar ─────────────────────────────────── */
+/* ── Peak Finder — finds best efforts for active power stream ── */
+function _computePeaks() {
+  _proPeaks = [];
+  const watts = _proStreams?.watts;
+  if (!watts?.length) return;
+  const durations = [
+    { secs: 5, label: '5s Peak' },
+    { secs: 60, label: '1m Peak' },
+    { secs: 300, label: '5m Peak' },
+    { secs: 1200, label: '20m Peak' }
+  ];
+  const time = _proStreams?.time;
+  for (const d of durations) {
+    let bestAvg = 0, bestStart = 0;
+    // Use time-based window if available
+    const windowLen = time ? d.secs : d.secs; // samples ≈ seconds (1Hz data)
+    if (windowLen >= watts.length) continue;
+    // Rolling window
+    let sum = 0;
+    for (let i = 0; i < windowLen; i++) sum += (watts[i] || 0);
+    bestAvg = sum / windowLen;
+    bestStart = 0;
+    for (let i = windowLen; i < watts.length; i++) {
+      sum += (watts[i] || 0) - (watts[i - windowLen] || 0);
+      const avg = sum / windowLen;
+      if (avg > bestAvg) { bestAvg = avg; bestStart = i - windowLen; }
+    }
+    if (bestAvg > 0) {
+      _proPeaks.push({
+        startIdx: bestStart,
+        endIdx: bestStart + windowLen,
+        label: `${d.label}: ${Math.round(bestAvg)}W`,
+        value: Math.round(bestAvg)
+      });
+    }
+  }
+}
+
 function _updateStats(startIdx, endIdx) {
   const bar = document.getElementById('proStatsBar');
   if (!bar || !_proStreams) return;
@@ -1354,10 +1470,68 @@ function _bindControls() {
     onUpdate: v => { _proDensity = v / 100; }
   });
 
+  // Grid density pill
+  _initPill('proGridPill', {
+    min: 0, max: 100, step: 5, value: 50,
+    fmt: v => Math.round(v) + '%',
+    onUpdate: v => {
+      _proGridDensity = v / 100;
+      if (_proChart) {
+        const alpha = Math.max(0.02, _proGridDensity * 0.15);
+        const gridColor = `rgba(255,255,255,${alpha.toFixed(3)})`;
+        Object.values(_proChart.options.scales).forEach(s => {
+          if (s.grid) s.grid.color = gridColor;
+        });
+        _proChart.update('none');
+      }
+    }
+  });
+
+  // Peak finder button
+  const peakBtn = document.getElementById('proPeakBtn');
+  if (peakBtn) {
+    peakBtn.onclick = () => {
+      _proShowPeaks = !_proShowPeaks;
+      peakBtn.classList.toggle('pro-mode-active', _proShowPeaks);
+      if (_proShowPeaks) _computePeaks();
+      if (_proChart) _proChart.update('none');
+    };
+  }
+
+  // Annotation button
+  const annotateBtn = document.getElementById('proAnnotateBtn');
+  if (annotateBtn) {
+    annotateBtn.onclick = () => {
+      _proAnnotateMode = !_proAnnotateMode;
+      annotateBtn.classList.toggle('pro-mode-active', _proAnnotateMode);
+      const canvas = document.getElementById('proAnalysisChart');
+      if (canvas) canvas.style.cursor = _proAnnotateMode ? 'crosshair' : '';
+    };
+  }
+
+  // Chart click handler for annotations
+  const chartCanvas = document.getElementById('proAnalysisChart');
+  if (chartCanvas) {
+    chartCanvas.addEventListener('click', e => {
+      if (!_proAnnotateMode || !_proChart) return;
+      const rect = chartCanvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const xAxis = _proChart.scales.x;
+      if (!xAxis) return;
+      const idx = xAxis.getValueForPixel(x);
+      if (idx == null || idx < 0) return;
+      const label = _proChart.data.labels?.[Math.round(idx)] || '';
+      const text = prompt('Add note at ' + label + ':');
+      if (!text) return;
+      _proAnnotations.push({ idx: Math.round(idx), label, text });
+      _proChart.update('none');
+    });
+  }
+
   // X-axis toggle
-  document.querySelectorAll('.pro-xaxis-btn').forEach(btn => {
+  document.querySelectorAll('.pro-seg-btn').forEach(btn => {
     btn.onclick = () => {
-      document.querySelectorAll('.pro-xaxis-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.pro-seg-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       _proXAxis = btn.dataset.axis;
       _buildChart();
@@ -1556,7 +1730,7 @@ function _bindControls() {
     histBtn.onclick = () => {
       _proChartMode = _proChartMode === 'histogram' ? 'timeseries' : 'histogram';
       histBtn.classList.toggle('pro-mode-active', _proChartMode === 'histogram');
-      _buildProChart();
+      _buildChart();
     };
   }
 
@@ -1650,7 +1824,7 @@ function _bindControls() {
         _proCompareActivity = null;
         compareBtn.classList.remove('pro-mode-active');
         compareBtn.textContent = 'Compare';
-        _buildProChart();
+        _buildChart();
         return;
       }
       // If panel already open, close it
@@ -1716,7 +1890,7 @@ function _bindControls() {
               _proCompareActivity = { id, name };
               compareBtn.classList.add('pro-mode-active');
               compareBtn.textContent = `✕ ${name.substring(0, 12)}`;
-              _buildProChart();
+              _buildChart();
               // Close panel
               _comparePanel.remove();
               _comparePanel = null;
