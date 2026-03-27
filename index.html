@@ -4329,6 +4329,26 @@
                                 <div style="padding:0 16px 12px;font-size:12px;color:var(--text-muted)">Smooth continuous-curvature corners instead of circular arcs</div>
                             </div>
 
+                            <div class="ios-group-label" style="margin-top:20px">Card Style</div>
+                            <div class="ios-group">
+                                <div class="ios-row">
+                                    <span class="ios-row-label">Card Color</span>
+                                    <div style="display:flex;align-items:center;gap:8px">
+                                        <div id="cardColorPreview" style="width:24px;height:24px;border-radius:6px;background:var(--bg-card);border:1px solid rgba(255,255,255,0.1)"></div>
+                                        <input type="color" id="cardColorInput" value="#0a0a0a" onchange="_setCustomCardColor(this.value)" style="width:0;height:0;opacity:0;position:absolute">
+                                        <button class="btn btn-ghost btn-xs" onclick="document.getElementById('cardColorInput').click()" style="font-size:12px">Pick</button>
+                                        <button class="btn btn-ghost btn-xs" onclick="_resetCardColor()" style="font-size:12px;color:var(--text-faint)">Reset</button>
+                                    </div>
+                                </div>
+                                <div class="ios-row" style="flex-direction:column;align-items:stretch;gap:8px;padding:12px 16px">
+                                    <div style="display:flex;justify-content:space-between;align-items:center">
+                                        <span class="ios-row-label" style="padding:0">Corner Radius</span>
+                                        <span id="radiusValue" style="font-size:13px;color:var(--text-muted);font-family:var(--font-num)">16px</span>
+                                    </div>
+                                    <input type="range" id="radiusSlider" min="0" max="32" step="1" value="16" oninput="_setCustomRadius(this.value)" style="width:100%;accent-color:var(--accent)">
+                                </div>
+                            </div>
+
                             <div class="ios-group-label" style="margin-top:20px">Font</div>
                             <div class="font-specimen-grid" id="fontPicker">
                                 <button class="font-specimen" data-font="inter" onclick="setAppFont('inter')">
@@ -5097,6 +5117,24 @@
                                 <div class="ios-row" onclick="importGearData()">
                                     <div class="ios-row-icon" style="background:#007aff"><svg class="icon"><use href="icons.svg#icon-upload"/></svg></div>
                                     <span class="ios-row-label">Import Gear Data</span>
+                                    <svg class="icon ios-row-chevron"><use href="icons.svg#icon-chevron-right"/></svg>
+                                </div>
+                            </div>
+                            <div class="ios-group-label">Sync</div>
+                            <div class="ios-group">
+                                <div class="ios-row" onclick="_gearSyncWithICU('pull')">
+                                    <div class="ios-row-icon" style="background:#5ac8fa"><svg class="icon"><use href="icons.svg#icon-download"/></svg></div>
+                                    <span class="ios-row-label">Pull from intervals.icu</span>
+                                    <svg class="icon ios-row-chevron"><use href="icons.svg#icon-chevron-right"/></svg>
+                                </div>
+                                <div class="ios-row" onclick="_gearSyncWithICU('push')">
+                                    <div class="ios-row-icon" style="background:#ff9500"><svg class="icon"><use href="icons.svg#icon-upload"/></svg></div>
+                                    <span class="ios-row-label">Push to intervals.icu</span>
+                                    <svg class="icon ios-row-chevron"><use href="icons.svg#icon-chevron-right"/></svg>
+                                </div>
+                                <div class="ios-row" onclick="_gearSyncWithICU('both')">
+                                    <div class="ios-row-icon" style="background:var(--accent)"><svg class="icon"><use href="icons.svg#icon-repeat"/></svg></div>
+                                    <span class="ios-row-label">Full Sync (both ways)</span>
                                     <svg class="icon ios-row-chevron"><use href="icons.svg#icon-chevron-right"/></svg>
                                 </div>
                             </div>

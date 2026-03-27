@@ -1488,10 +1488,74 @@ export function _syncSquircleToggle() {
   if (tog) tog.checked = localStorage.getItem('icu_squircle') === 'true';
 }
 
+// Custom card color
+export function _setCustomCardColor(hex) {
+  localStorage.setItem('icu_card_color', hex);
+  document.documentElement.style.setProperty('--bg-card', hex);
+  const preview = document.getElementById('cardColorPreview');
+  if (preview) preview.style.background = hex;
+}
+window._setCustomCardColor = _setCustomCardColor;
+
+export function _resetCardColor() {
+  localStorage.removeItem('icu_card_color');
+  document.documentElement.style.removeProperty('--bg-card');
+  const preview = document.getElementById('cardColorPreview');
+  if (preview) preview.style.background = 'var(--bg-card)';
+  const input = document.getElementById('cardColorInput');
+  if (input) input.value = '#0a0a0a';
+}
+window._resetCardColor = _resetCardColor;
+
+// Custom corner radius
+export function _setCustomRadius(val) {
+  const px = parseInt(val, 10);
+  localStorage.setItem('icu_custom_radius', px);
+  document.documentElement.style.setProperty('--radius', px + 'px');
+  document.documentElement.style.setProperty('--radius-sm', Math.max(4, Math.round(px / 2)) + 'px');
+  const label = document.getElementById('radiusValue');
+  if (label) label.textContent = px + 'px';
+}
+window._setCustomRadius = _setCustomRadius;
+
+export function _syncCardStyleControls() {
+  // Card color
+  const savedColor = localStorage.getItem('icu_card_color');
+  if (savedColor) {
+    document.documentElement.style.setProperty('--bg-card', savedColor);
+    const preview = document.getElementById('cardColorPreview');
+    if (preview) preview.style.background = savedColor;
+    const input = document.getElementById('cardColorInput');
+    if (input) input.value = savedColor;
+  }
+  // Corner radius
+  const savedRadius = localStorage.getItem('icu_custom_radius');
+  if (savedRadius) {
+    const px = parseInt(savedRadius, 10);
+    document.documentElement.style.setProperty('--radius', px + 'px');
+    document.documentElement.style.setProperty('--radius-sm', Math.max(4, Math.round(px / 2)) + 'px');
+    const slider = document.getElementById('radiusSlider');
+    if (slider) slider.value = px;
+    const label = document.getElementById('radiusValue');
+    if (label) label.textContent = px + 'px';
+  }
+}
+window._syncCardStyleControls = _syncCardStyleControls;
+
 (function initTheme() {
   const saved = localStorage.getItem('icu_theme') || 'dark';
   const resolved = _resolveTheme(saved);
   _applyResolvedTheme(resolved);
+
+  // Restore custom card color + radius
+  const cc = localStorage.getItem('icu_card_color');
+  if (cc) document.documentElement.style.setProperty('--bg-card', cc);
+  const cr = localStorage.getItem('icu_custom_radius');
+  if (cr) {
+    const px = parseInt(cr, 10);
+    document.documentElement.style.setProperty('--radius', px + 'px');
+    document.documentElement.style.setProperty('--radius-sm', Math.max(4, Math.round(px / 2)) + 'px');
+  }
 
   // Listen for system theme changes when in auto mode
   window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {

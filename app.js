@@ -1888,7 +1888,7 @@ function openSettingsSubpage(id) {
       cb.checked = toggles[cb.dataset.syncKey] !== false;
     });
   }
-  if (id === 'apptheme' || id === 'maptheme') { _syncThemePicker(); _syncSquircleToggle(); }
+  if (id === 'apptheme' || id === 'maptheme') { _syncThemePicker(); _syncSquircleToggle(); if (window._syncCardStyleControls) window._syncCardStyleControls(); }
   if (id === 'notifications') {
     // Sync toggle states from localStorage
     const g = document.getElementById('notifGearToggle');
@@ -21049,10 +21049,86 @@ async function openProAnalysis() {
     subEl.textContent = '';
   }
 
-  // Show fullscreen
+  // Show fullscreen with loading overlay
   el.style.display = 'grid';
   document.body.classList.add('pro-analysis-open');
   sessionStorage.setItem('icu_pro_open', '1');
+
+  // Build cinematic loading overlay
+  let loader = document.getElementById('proLoader');
+  if (!loader) {
+    loader = document.createElement('div');
+    loader.id = 'proLoader';
+    loader.className = 'pro-loader';
+    loader.innerHTML = `
+      <canvas class="pro-loader-matrix" id="proLoaderMatrix"></canvas>
+      <div class="pro-loader-content">
+        <div class="pro-loader-badge">ProView</div>
+        <div class="pro-loader-scan"></div>
+        <div class="pro-loader-streams" id="proLoaderStreams"></div>
+        <div class="pro-loader-status" id="proLoaderStatus">Initializing...</div>
+      </div>
+    `;
+    el.appendChild(loader);
+  }
+  loader.style.display = 'flex';
+  loader.classList.remove('pro-loader--out');
+
+  // ASCII matrix animation — start fresh each time
+  if (loader._stopMatrix) loader._stopMatrix();
+  requestAnimationFrame(() => {
+    const mCanvas = document.getElementById('proLoaderMatrix');
+    if (mCanvas) {
+      const mCtx = mCanvas.getContext('2d');
+      mCanvas.width = window.innerWidth;
+      mCanvas.height = window.innerHeight;
+      const chars = '+-·×#.:⚡♦▪'.split('');
+      const fontSize = 14;
+      const cols = Math.floor(mCanvas.width / fontSize);
+      const rows = Math.floor(mCanvas.height / fontSize);
+      const grid = [];
+      for (let i = 0; i < cols * rows; i++) {
+        grid.push({
+          c: chars[Math.floor(Math.random() * chars.length)],
+          a: Math.random() * 0.25 + 0.05,
+          s: (Math.random() * 0.015 + 0.005) * (Math.random() < 0.5 ? 1 : -1),
+        });
+      }
+      let raf = 0;
+      const draw = () => {
+        mCtx.fillStyle = '#000';
+        mCtx.fillRect(0, 0, mCanvas.width, mCanvas.height);
+        mCtx.font = `${fontSize}px monospace`;
+        mCtx.textAlign = 'center';
+        mCtx.textBaseline = 'middle';
+        for (let i = 0; i < grid.length; i++) {
+          const g = grid[i];
+          g.a += g.s;
+          if (g.a > 0.3 || g.a < 0.03) g.s *= -1;
+          if (Math.random() < 0.003) g.c = chars[Math.floor(Math.random() * chars.length)];
+          mCtx.fillStyle = `rgba(255,255,255,${g.a.toFixed(3)})`;
+          mCtx.fillText(g.c, (i % cols) * fontSize + 7, Math.floor(i / cols) * fontSize + 7);
+        }
+        if (loader.style.display !== 'none') raf = requestAnimationFrame(draw);
+      };
+      raf = requestAnimationFrame(draw);
+      loader._stopMatrix = () => cancelAnimationFrame(raf);
+    }
+  });
+
+  // Animate stream names cascading in
+  const streamNames = ['Power', 'Heart Rate', 'Cadence', 'Speed', 'Elevation', 'Temperature'];
+  const streamsEl = document.getElementById('proLoaderStreams');
+  if (streamsEl) {
+    streamsEl.innerHTML = streamNames.map((n, i) =>
+      `<span class="pro-loader-stream" style="animation-delay:${0.3 + i * 0.1}s">${n}</span>`
+    ).join('');
+  }
+  const statusEl = document.getElementById('proLoaderStatus');
+
+  // Update status messages
+  const _updateLoaderStatus = (msg) => { if (statusEl) statusEl.textContent = msg; };
+  _updateLoaderStatus('Loading analysis engine...');
 
   // Lazy load the script
   if (!window._proAnalysisLoaded) {
@@ -21075,9 +21151,22 @@ async function openProAnalysis() {
   }
 
   // Init the module
+  _updateLoaderStatus('Building charts...');
   if (window._proInit) {
     window._proInit(state.normStreams, activity, state._actIntervals);
   }
+
+  // Dismiss loader with fade-out
+  _updateLoaderStatus('Ready');
+  setTimeout(() => {
+    if (loader) {
+      loader.classList.add('pro-loader--out');
+      setTimeout(() => {
+        loader.style.display = 'none';
+        if (loader._stopMatrix) loader._stopMatrix();
+      }, 600);
+    }
+  }, 800);
 }
 window.openProAnalysis = openProAnalysis;
 
@@ -31267,6 +31356,91 @@ const _GEAR_SCRUBBER_DEFS = {
 
 function _initGearScrubbers() { _initScrubbers('#gearModal', _GEAR_SCRUBBER_DEFS); }
 function _syncGearScrubbers() { _syncScrubbers('#gearModal', _GEAR_SCRUBBER_DEFS); }
+
+/* ═══════════════════════════════════════════════════════════
+   GEAR SYNC — Bidirectional sync with intervals.icu
+═══════════════════════════════════════════════════════════ */
+async function _gearSyncWithICU(direction) {
+  const apiKey = localStorage.getItem('icu_api_key');
+  const athlete = localStorage.getItem('icu_athlete_id');
+  if (!apiKey || !athlete) {
+    _showToast('Connect to intervals.icu first', 'warning');
+    return;
+  }
+  const headers = { 'Authorization': 'Basic ' + btoa('API_KEY:' + apiKey), 'Content-Type': 'application/json' };
+  const baseUrl = `https://intervals.icu/api/v1/athlete/${athlete}/gear`;
+
+  try {
+    // Fetch remote bikes
+    const resp = await fetch(baseUrl, { headers });
+    if (!resp.ok) throw new Error('API error ' + resp.status);
+    const remoteBikes = await resp.json() || [];
+
+    // Local bikes
+    let localBikes = [];
+    try { localBikes = JSON.parse(localStorage.getItem('icu_gear_bikes') || '[]'); } catch {}
+
+    if (direction === 'pull' || direction === 'both') {
+      // Pull: merge remote bikes into local
+      let added = 0;
+      for (const rb of remoteBikes) {
+        const rid = rb.id;
+        if (!localBikes.find(lb => lb.id === rid)) {
+          let km = 0;
+          if (rb.distance) km = Math.round(rb.distance / 1000);
+          else if (rb.total_distance) km = Math.round(rb.total_distance / 1000);
+          localBikes.push({ id: rid, name: rb.name || 'Unnamed', km, type: rb.type || 'Bike' });
+          added++;
+        } else {
+          // Update km from remote (always more accurate)
+          const lb = localBikes.find(l => l.id === rid);
+          if (lb && rb.distance) lb.km = Math.round(rb.distance / 1000);
+        }
+      }
+      state.gearBikes = localBikes;
+      localStorage.setItem('icu_gear_bikes', JSON.stringify(localBikes));
+      if (added > 0) _showToast(`Pulled ${added} bike(s) from intervals.icu`, 'success');
+    }
+
+    if (direction === 'push' || direction === 'both') {
+      // Push: create local bikes that don't exist on remote
+      let pushed = 0;
+      for (const lb of localBikes) {
+        const existsRemote = remoteBikes.find(rb => rb.id === lb.id || rb.name === lb.name);
+        if (!existsRemote) {
+          try {
+            const createResp = await fetch(baseUrl, {
+              method: 'POST',
+              headers,
+              body: JSON.stringify({ name: lb.name, type: lb.type || 'Bike' })
+            });
+            if (createResp.ok) {
+              const created = await createResp.json();
+              lb.id = created.id; // Update local ID to match remote
+              pushed++;
+            }
+          } catch (e) { console.warn('Push bike error:', e); }
+        }
+      }
+      if (pushed > 0) {
+        localStorage.setItem('icu_gear_bikes', JSON.stringify(localBikes));
+        _showToast(`Pushed ${pushed} bike(s) to intervals.icu`, 'success');
+      }
+    }
+
+    if (direction === 'both') {
+      _showToast('Gear sync complete', 'success');
+    }
+
+    // Re-render garage if on that page
+    if (state.currentPage === 'gear') renderGearPage?.();
+
+  } catch (e) {
+    console.error('Gear sync error:', e);
+    _showToast('Gear sync failed: ' + e.message, 'error');
+  }
+}
+window._gearSyncWithICU = _gearSyncWithICU;
 
 function openGearModal(editId) {
   const modal = document.getElementById('gearModal');
