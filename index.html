@@ -5683,6 +5683,8 @@
 
                 <!-- ==================== GOALS & STREAKS PAGE ==================== -->
                 <div class="page" id="page-goals">
+                    <!-- Goals section (moved to top) -->
+                    <div id="goalsPageContent"></div>
                     <!-- Streaks section -->
                     <div id="goalsStreaksSection">
                         <!-- Hero: current week streak -->
@@ -5750,6 +5752,9 @@
                             </div>
                             <div class="stk-cal-wrap" id="stkCalWrap"></div>
                         </div>
+
+                        <!-- Month Calendar -->
+                        <div class="card stk-mcal-card" id="stkMonthCal"></div>
 
                         <!-- Personal bests row -->
                         <div class="stk-pb-row">
@@ -5820,43 +5825,20 @@
                         </div>
 
                         <!-- Badges / achievements -->
-                        <div class="card">
-                            <div class="card-header">
-                                <div>
-                                    <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-award"/></svg>Achievements</div>
-                                    <div class="card-subtitle">
-                                        Milestones unlocked through consistency
-                                    </div>
-                                </div>
-                            </div>
-                            <div
-                                class="stk-badges-grid"
-                                id="stkBadgesGrid"
-                            ></div>
-                        </div>
+                        <div class="page-headline" style="margin-bottom:8px">Achievements</div>
+                        <div
+                            class="stk-badges-grid"
+                            id="stkBadgesGrid"
+                        ></div>
 
                         <!-- Fun lifetime stats -->
-                        <div class="card">
-                            <div class="card-header">
-                                <div>
-                                    <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-activity"/></svg>Lifetime Stats</div>
-                                    <div
-                                        class="card-subtitle"
-                                        id="stkLifetimeSub"
-                                    >
-                                        Everything you've ever done on the bike
-                                    </div>
-                                </div>
-                            </div>
-                            <div
-                                class="stk-lifetime-grid"
-                                id="stkLifetimeGrid"
-                            ></div>
-                        </div>
+                        <div class="page-headline" style="margin-bottom:8px">Lifetime Stats</div>
+                        <div
+                            class="stk-lifetime-grid"
+                            id="stkLifetimeGrid"
+                        ></div>
                     </div>
 
-                    <!-- Goals section -->
-                    <div id="goalsPageContent"></div>
                 </div>
 
                 <!-- ==================== HEAT MAP PAGE ==================== -->

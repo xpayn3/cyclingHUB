@@ -4431,11 +4431,14 @@ function navigate(page, opts) {
   clearTimeout(_actSearchDebounce);
   clearTimeout(_h2hDebounce);
 
-  // Clear page gradient when leaving weather or dashboard
-  if ((state.currentPage === 'weather' || state.currentPage === 'dashboard') && page !== state.currentPage) {
+  // Clear page gradient when leaving weather, dashboard, or goals
+  if ((state.currentPage === 'weather' || state.currentPage === 'dashboard' || state.currentPage === 'goals') && page !== state.currentPage) {
     const _pc = document.getElementById('pageContent');
     if (_pc) _pc.style.background = '';
+    document.body.classList.remove('goals-bg');
   }
+  // Add dark gradient on goals page
+  if (page === 'goals') document.body.classList.add('goals-bg');
 
   // Clear scroll restore if navigating anywhere other than activities→activity round-trip
   if (!_restoreActScroll) window._actListScrollRestore = null;
@@ -29171,6 +29174,38 @@ function renderStreaksPage() {
       `Last 52 weeks · ${totalActiveWeeks} active · ${WEEKS - totalActiveWeeks} rest`;
   }
 
+  // ── Month Calendar (current month with ride dots) ────────────────────────
+  const monthCalEl = document.getElementById('stkMonthCal');
+  if (monthCalEl) {
+    const now = new Date();
+    const yr = now.getFullYear(), mo = now.getMonth();
+    const firstDay = new Date(yr, mo, 1).getDay(); // 0=Sun
+    const daysInMonth = new Date(yr, mo + 1, 0).getDate();
+    const startOffset = (firstDay + 6) % 7; // shift so Mon=0
+    const moName = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+    let cal = `<div class="stk-mcal-title">${moName}</div>`;
+    cal += '<div class="stk-mcal-grid">';
+    // Day headers
+    ['M','T','W','T','F','S','S'].forEach(d => {
+      cal += `<div class="stk-mcal-hdr">${d}</div>`;
+    });
+    // Empty cells before first day
+    for (let i = 0; i < startOffset; i++) cal += '<div class="stk-mcal-empty"></div>';
+    // Days
+    for (let d = 1; d <= daysInMonth; d++) {
+      const iso = `${yr}-${String(mo + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const isActive = activeDays.has(iso);
+      const isToday = iso === todayStr;
+      cal += `<div class="stk-mcal-day${isActive ? ' stk-mcal-day--active' : ''}${isToday ? ' stk-mcal-day--today' : ''}">
+        <span>${d}</span>
+        ${isActive ? '<div class="stk-mcal-dot"></div>' : ''}
+      </div>`;
+    }
+    cal += '</div>';
+    monthCalEl.innerHTML = cal;
+  }
+
   // ── This year monthly grid ────────────────────────────────────────────────
   const year = new Date().getFullYear();
   const monthsGrid = document.getElementById('stkMonthsGrid');
@@ -29217,6 +29252,21 @@ function renderStreaksPage() {
     star:      '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
     snowflake: '<line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/><path d="m20 16-4-4 4-4"/><path d="m4 8 4 4-4 4"/><path d="m16 4-4 4-4-4"/><path d="m8 20 4-4 4 4"/>',
     sun:       '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
+    mapPin:    '<path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 0 1 0-5 2.5 2.5 0 0 1 0 5z"/>',
+    barChart:  '<path d="M18 20V10M12 20V4M6 20v-6"/>',
+    activity2: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+    mountain:  '<path d="M8 6l4-4 4 4M4 18l4-4 4 4 4-4 4 4"/>',
+    peak:      '<path d="M2 20L8.5 8 12 14l3-4 7 10z"/>',
+    zap:       '<path d="M13 2l-1 5h5l-6 9 1-5H7l6-9z"/>',
+    clock:     '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l3 3"/>',
+    heart:     '<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/>',
+    ghost:     '<circle cx="8.5" cy="9" r="1.5"/><circle cx="15.5" cy="9" r="1.5"/><path d="M12 2C6.48 2 2 6.48 2 12v8l2.5-2 2.5 2 2.5-2 2.5 2 2.5-2 2.5 2v-8c0-5.52-4.48-10-10-10z"/>',
+    firework:  '<path d="M5 8l4 4-4 4M12 4v16M15 8l4 4-4 4"/>',
+    gift:      '<path d="M12 2l1 7h5l-4 4 2 7-6-4-6 4 2-7-4-4h5z"/>',
+    flag:      '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>',
+    pen:       '<path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/>',
+    sunrise:   '<path d="M12 2v4M4.93 4.93l2.83 2.83M2 12h4M12 18a6 6 0 0 0 0-12"/>',
+    moonClock: '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/><path d="M12 8v4l2 2"/>',
   };
   const BADGES = [
     { id:'b1',  icon: svgIcon(BADGE_SVGS.flame),    name:'On Fire',          desc:'3+ week streak',      earned: weekStreaks.current  >= 3  },
@@ -29231,18 +29281,58 @@ function renderStreaksPage() {
     { id:'b10', icon: svgIcon(BADGE_SVGS.star),      name:'Consistent',        desc:'50+ active weeks',    earned: totalActiveWeeks    >= 50  },
     { id:'b11', icon: svgIcon(BADGE_SVGS.snowflake), name:'Winter Warrior',    desc:'Rode in Jan or Feb',  earned: acts.some(a => { const m = +(a.start_date_local||a.start_date||'').slice(5,7); return m===1||m===2; }) },
     { id:'b12', icon: svgIcon(BADGE_SVGS.sun),       name:'Summer Beast',      desc:'Rode in Jul or Aug',  earned: acts.some(a => { const m = +(a.start_date_local||a.start_date||'').slice(5,7); return m===7||m===8; }) },
+    // Distance milestones
+    { id:'b13', icon: svgIcon(BADGE_SVGS.mapPin),    name:'Explorer',          desc:'1,000 km total',      earned: acts.reduce((s,a) => s + (actVal(a,'distance','icu_distance') || 0), 0) / 1000 >= 1000 },
+    { id:'b14', icon: svgIcon(BADGE_SVGS.barChart),   name:'Iron Legs',         desc:'5,000 km total',      earned: acts.reduce((s,a) => s + (actVal(a,'distance','icu_distance') || 0), 0) / 1000 >= 5000 },
+    { id:'b15', icon: svgIcon(BADGE_SVGS.activity2),  name:'Marathon Rider',    desc:'100 km in one ride',  earned: acts.some(a => (actVal(a,'distance','icu_distance') || 0) / 1000 >= 100) },
+    // Climbing
+    { id:'b16', icon: svgIcon(BADGE_SVGS.mountain),   name:'Hill Climber',      desc:'10,000 m total climbing', earned: acts.reduce((s,a) => s + (actVal(a,'total_elevation_gain','icu_total_elevation_gain') || 0), 0) >= 10000 },
+    { id:'b17', icon: svgIcon(BADGE_SVGS.peak),       name:'Everesting',        desc:'8,849 m elevation in one ride', earned: acts.some(a => (actVal(a,'total_elevation_gain','icu_total_elevation_gain') || 0) >= 8849) },
+    // Speed
+    { id:'b18', icon: svgIcon(BADGE_SVGS.zap),        name:'Speedster',         desc:'40+ km/h avg on a ride', earned: acts.some(a => { const d = (actVal(a,'distance','icu_distance') || 0) / 1000; const t = (actVal(a,'moving_time','elapsed_time','icu_moving_time') || 1) / 3600; return d > 5 && (d / t) >= 40; }) },
+    // Time on bike
+    { id:'b19', icon: svgIcon(BADGE_SVGS.clock),      name:'Saddle Time',       desc:'100+ hours total',    earned: acts.reduce((s,a) => s + (actVal(a,'moving_time','elapsed_time','icu_moving_time') || 0), 0) / 3600 >= 100 },
+    { id:'b20', icon: svgIcon(BADGE_SVGS.clock),      name:'Endurance King',    desc:'5+ hour single ride', earned: acts.some(a => (actVal(a,'moving_time','elapsed_time','icu_moving_time') || 0) / 3600 >= 5) },
+    // Special occasions
+    { id:'b21', icon: svgIcon(BADGE_SVGS.heart),      name:'Valentine Rider',   desc:'Rode on Feb 14',      earned: acts.some(a => (a.start_date_local||a.start_date||'').slice(5,10) === '02-14') },
+    { id:'b22', icon: svgIcon(BADGE_SVGS.ghost),      name:'Spooky Rider',      desc:'Rode on Halloween',   earned: acts.some(a => (a.start_date_local||a.start_date||'').slice(5,10) === '10-31') },
+    { id:'b23', icon: svgIcon(BADGE_SVGS.firework),   name:'New Year Ride',     desc:'Rode on Jan 1',       earned: acts.some(a => (a.start_date_local||a.start_date||'').slice(5,10) === '01-01') },
+    { id:'b24', icon: svgIcon(BADGE_SVGS.gift),       name:'Christmas Ride',    desc:'Rode on Dec 25',      earned: acts.some(a => (a.start_date_local||a.start_date||'').slice(5,10) === '12-25') },
+    // Ride count milestones
+    { id:'b25', icon: svgIcon(BADGE_SVGS.flag),       name:'First Ride',        desc:'Logged your first ride', earned: acts.length >= 1 },
+    { id:'b26', icon: svgIcon(BADGE_SVGS.pen),        name:'500 Club',          desc:'500+ rides logged',   earned: acts.length >= 500 },
+    // Early bird / night owl
+    { id:'b27', icon: svgIcon(BADGE_SVGS.sunrise),    name:'Early Bird',        desc:'Rode before 6 AM',    earned: acts.some(a => { const h = +(a.start_date_local||a.start_date||'').slice(11,13); return h < 6; }) },
+    { id:'b28', icon: svgIcon(BADGE_SVGS.moonClock),  name:'Night Owl',         desc:'Rode after 9 PM',     earned: acts.some(a => { const h = +(a.start_date_local||a.start_date||'').slice(11,13); return h >= 21; }) },
   ];
 
   const badgesGrid = document.getElementById('stkBadgesGrid');
   if (badgesGrid) {
-    badgesGrid.innerHTML = BADGES.map(b => `
+    const earned = BADGES.filter(b => b.earned);
+    const preview6 = earned.slice(0, 6);
+    const totalEarned = earned.length;
+    const totalBadges = BADGES.length;
+
+    let _previewModule = null;
+    const renderPreviews = async (list) => {
+      if (!_previewModule) _previewModule = await import('./js/badges3d.js');
+      list.forEach(b => {
+        const img = document.querySelector(`.stk-badge-preview[data-badge="${b.id}"]`);
+        if (img) img.src = _previewModule.renderBadgePreview(b.id, b.name, b.desc, !b.earned);
+      });
+    };
+
+    badgesGrid.innerHTML = (preview6.length ? preview6 : BADGES.slice(0, 6)).map(b => `
       <div class="stk-badge${b.earned ? ' stk-badge--earned' : ''}" onclick="${b.earned ? `openBadgeViewer('${b.id}','${_escHtml(b.name)}','${_escHtml(b.desc)}')` : ''}">
-        <div class="stk-badge-icon">${b.icon}</div>
-        <div class="stk-badge-name">${b.name}</div>
-        <div class="stk-badge-desc">${b.desc}</div>
-        ${b.earned ? '<div class="stk-badge-check"><svg class="icon" width="14" height="14"><use href="icons.svg#icon-check"/></svg></div>' : ''}
-      </div>`).join('');
+        <img class="stk-badge-preview" data-badge="${b.id}" alt="${_escHtml(b.name)}">
+      </div>`).join('')
+      + `<button class="stk-stat-show-more" onclick="_openAchievementsPage()">${totalEarned}/${totalBadges} unlocked · View all</button>`;
+
+    renderPreviews(preview6.length ? preview6 : BADGES.slice(0, 6));
   }
+
+  // Store BADGES for the full achievements subpage
+  window._allBadges = BADGES;
 
   // ── Lifetime fun stats ────────────────────────────────────────────────────
   const lifetimeGrid = document.getElementById('stkLifetimeGrid');
@@ -29386,12 +29476,14 @@ function renderStreaksPage() {
     });
 
     lifetimeGrid.innerHTML = STATS.map((s, i) => `
-      <div class="stk-stat-tile${s.act ? ' stk-stat-tile--link' : ''}" data-stat-idx="${i}">
+      <div class="stk-stat-tile${s.act ? ' stk-stat-tile--link' : ''}${i >= 5 ? ' stk-stat--hidden' : ''}" data-stat-idx="${i}">
         <div class="stk-stat-icon">${s.icon}</div>
-        <div class="stk-stat-val">${s.value}</div>
-        <div class="stk-stat-label">${s.label}</div>
-        <div class="stk-stat-fun">${s.fun}</div>
-      </div>`).join('');
+        <div style="flex:1;min-width:0">
+          <div class="stk-stat-label">${s.label}</div>
+          <div class="stk-stat-val">${s.value}</div>
+          <div class="stk-stat-fun">${s.fun}</div>
+        </div>
+      </div>`).join('') + `<button class="stk-stat-show-more" id="stkStatShowMore" onclick="document.querySelectorAll('.stk-stat--hidden').forEach(e=>e.classList.remove('stk-stat--hidden'));this.remove()">Show all stats</button>`;
 
     lifetimeGrid.querySelectorAll('.stk-stat-tile--link').forEach(el => {
       const s = STATS[+el.dataset.statIdx];
@@ -33430,6 +33522,7 @@ async function _loadBadgeCard(badgeId, name, desc) {
     console.error('3D badge failed:', e);
     fresh.style.background = 'var(--surface-1)';
   }
+
 }
 
 function _badgeNavPrev() {
@@ -33468,6 +33561,45 @@ async function _shareBadge() {
     try { await navigator.clipboard.writeText(text); showToast('Copied to clipboard', 'success'); } catch(_) { showToast('Could not share', 'error'); }
   }
 }
+async function _openAchievementsPage() {
+  const BADGES = window._allBadges || [];
+  const earned = BADGES.filter(b => b.earned);
+  const locked = BADGES.filter(b => !b.earned);
+
+  const body = `
+    <div style="padding:8px 0">
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px">${earned.length} of ${BADGES.length} unlocked</div>
+      ${earned.length ? `<div class="page-headline" style="margin-bottom:8px;font-size:15px">Earned</div>
+      <div class="stk-badges-grid" id="achEarnedGrid">
+        ${earned.map(b => `<div class="stk-badge stk-badge--earned" onclick="openBadgeViewer('${b.id}','${_escHtml(b.name)}','${_escHtml(b.desc)}')">
+          <img class="stk-badge-preview" data-badge="${b.id}" alt="${_escHtml(b.name)}">
+        </div>`).join('')}
+      </div>` : ''}
+      ${locked.length ? `<div class="page-headline" style="margin:20px 0 8px;font-size:15px">Locked</div>
+      <div class="stk-badges-grid" id="achLockedGrid">
+        ${locked.map(b => `<div class="stk-badge">
+          <img class="stk-badge-preview" data-badge="${b.id}" alt="${_escHtml(b.name)}">
+        </div>`).join('')}
+      </div>` : ''}
+    </div>`;
+
+  _openUniSheet({ id: 'achievements', title: 'Achievements', body, partial: false });
+
+  // Render previews + attach tilt
+  let mod = null;
+  try { mod = await import('./js/badges3d.js'); } catch(_) {}
+  if (mod) {
+    BADGES.forEach(b => {
+      const img = document.querySelector(`#_uniSheetBody .stk-badge-preview[data-badge="${b.id}"]`);
+      if (img) img.src = mod.renderBadgePreview(b.id, b.name, b.desc, !b.earned);
+    });
+  }
+  const sheetBody = document.getElementById('_uniSheetBody');
+  if (window.refreshBadgeTilt) refreshBadgeTilt(sheetBody);
+  if (window.refreshGlow) refreshGlow(sheetBody);
+}
+
+window._openAchievementsPage = _openAchievementsPage;
 window.openBadgeViewer = openBadgeViewer;
 window._badgeNavPrev = _badgeNavPrev;
 window._badgeNavNext = _badgeNavNext;
@@ -35854,38 +35986,34 @@ function renderGoalsPage() {
     const statusLabel = { ahead: 'Ahead', 'on-track': 'On Track', caution: 'Caution', behind: 'Behind' };
     const statusCls = { ahead: 'green', 'on-track': 'green', caution: 'yellow', behind: 'red' };
 
+    const pctClamped = Math.min(p.pct, 100);
+    const statusColor = { green: 'var(--accent)', yellow: '#ffcc00', red: C_RED_IOS };
+    const ringColor = statusColor[statusCls[p.status]] || 'var(--accent)';
+    const circR = 36, circC = 2 * Math.PI * circR;
+
     html += `
-    <div class="goal-card hero-glow">
+    <div class="goal-dash-card card hero-glow" onclick="showGoalForm(${goal.id})" style="cursor:pointer">
       <div class="hero-glow-outer"></div><div class="hero-glow-shine"></div>
-      <div class="goal-card-header">
-        <div class="goal-card-metric">
-          <div class="goal-metric-icon ${m.icon}">
-            <svg class="icon" width="16" height="16"><use href="icons.svg#icon-clock"/></svg>
-          </div>
-          <div>
-            <div class="goal-card-title">${m.label}</div>
-            <div class="goal-card-period">${periodLabel[goal.period]} · ${p.remaining}d left</div>
-          </div>
+      <div class="goal-dash-header">
+        <div>
+          <div class="goal-dash-title">${m.label}</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${periodLabel[goal.period]} · ${p.remaining}d left</div>
         </div>
-        <div class="goal-card-actions">
-          <button class="btn btn-ghost btn-xs" onclick="showGoalForm(${goal.id})" title="Edit">
-            <svg class="icon" width="14" height="14"><use href="icons.svg#icon-edit"/></svg>
-          </button>
-          <button class="btn btn-ghost btn-xs" onclick="deleteGoal(${goal.id})" title="Delete">
-            <svg class="icon" width="14" height="14"><use href="icons.svg#icon-x"/></svg>
-          </button>
+        <div class="goal-dash-ring">
+          <svg viewBox="0 0 88 88" width="56" height="56">
+            <circle cx="44" cy="44" r="${circR}" fill="none" stroke="${_isDark() ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)'}" stroke-width="8"/>
+            <circle class="goal-ring-fill" cx="44" cy="44" r="${circR}" fill="none" stroke="${ringColor}" stroke-width="8"
+              stroke-linecap="round" stroke-dasharray="${circC}" stroke-dashoffset="${circC}"
+              data-target-offset="${circC - (pctClamped / 100) * circC}"
+              transform="rotate(-90 44 44)" style="transition:stroke-dashoffset 0.8s cubic-bezier(0.22, 1, 0.36, 1)"/>
+            <text x="44" y="49" text-anchor="middle" fill="var(--text-primary)" font-size="17" font-weight="700" font-family="var(--font-num)">${Math.round(pctClamped)}</text>
+          </svg>
         </div>
       </div>
-      <div class="goal-progress-section">
-        <div class="goal-progress-bar-wrap">
-          <div class="goal-progress-bar goal-progress-bar--${statusCls[p.status]}" style="width:${p.pct.toFixed(1)}%"></div>
-          <div class="goal-progress-expected" style="left:${Math.min(p.elapsed / p.totalDays * 100, 100).toFixed(1)}%"></div>
-        </div>
-        <div class="goal-progress-info">
-          <span class="goal-progress-value">${m.fmt(p.current)} <span class="goal-progress-unit">/ ${m.fmt(p.target)} ${m.unit}</span></span>
-          <span class="goal-progress-badge goal-progress-badge--${statusCls[p.status]}">${statusLabel[p.status]}</span>
-        </div>
-        <div class="goal-progress-pct">${Math.round(p.pct)}% complete</div>
+      <div class="goal-dash-value">${m.fmt(p.current)}<span class="goal-dash-unit"> / ${m.fmt(p.target)} ${m.unit}</span></div>
+      <div class="goal-dash-footer">
+        <span class="goal-progress-badge goal-progress-badge--${statusCls[p.status]}">${statusLabel[p.status]}</span>
+        <span class="goal-dash-days">${p.remaining}d left</span>
       </div>
     </div>`;
   });
@@ -35893,6 +36021,13 @@ function renderGoalsPage() {
   html += '</div>';
 
   container.innerHTML = html;
+
+  // Animate ring fills
+  requestAnimationFrame(() => {
+    container.querySelectorAll('.goal-ring-fill').forEach(circle => {
+      circle.setAttribute('stroke-dashoffset', circle.dataset.targetOffset);
+    });
+  });
 }
 
 function goalNumStep(dir) {
