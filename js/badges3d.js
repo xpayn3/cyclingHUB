@@ -182,7 +182,7 @@ const BADGE_PROCEDURAL = {
   b6:  { shape: 'circle',  color: 0x9b59ff, accent: 0xbb88ff, label: 'MONTH',         iconPath: 'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z', holo: 'ripple' },
   b7:  { shape: 'star',    color: 0xffd700, accent: 0xffee44, label: 'BEST WEEK',     iconPath: 'M6 9H4.5a2.5 2.5 0 0 1 0-5H6 M18 9h1.5a2.5 2.5 0 0 0 0-5H18 M4 22h16 M18 2H6v7a6 6 0 0 0 12 0V2z', holo: 'starburst' },
   b8:  { shape: 'hexagon', color: 0x00e5a0, accent: 0x44ffbb, label: '100 CLUB',      iconPath: 'M18.5 17.5a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0zM5.5 17.5a3.5 3.5 0 1 1-7 0', holo: 'grid' },
-  b9:  { shape: 'circle',  color: 0x4a9eff, accent: 0x88bbff, label: 'HALF YEAR',     iconPath: 'M3 4h18v18H3zM16 2v4M8 2v4M3 10h18', holo: 'wave' },
+  b9:  { shape: 'circle',  color: 0x4a9eff, accent: 0x88bbff, label: 'HALF YEAR',     iconPath: 'M3 4h18v18H3zM16 2v4M8 2v4M3 10h18', holo: 'wave', scene: 'mountain' },
   b10: { shape: 'star',    color: 0xffd700, accent: 0xffdd66, label: 'CONSISTENT',    iconPath: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14l-5-4.87 6.91-1.01z', holo: 'starburst' },
   b11: { shape: 'shield',  color: 0x88ccff, accent: 0xbbddff, label: 'WINTER',        iconPath: 'M2 12h20M12 2v20 M20 16l-4-4 4-4M4 8l4 4-4 4M16 4l-4 4-4-4M8 20l4-4 4 4', holo: 'frost' },
   b12: { shape: 'circle',  color: 0xff9500, accent: 0xffcc44, label: 'SUMMER',        iconPath: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41', holo: 'sunray' },
@@ -612,7 +612,7 @@ export async function initRiderCard3D(canvasEl, data) {
 
   _rcScene = new THREE.Scene();
   _rcCamera = new THREE.PerspectiveCamera(30, w / h, 0.1, 100);
-  _rcCamera.position.set(0, 0, 6.8);
+  _rcCamera.position.set(0, 0, 6.2);
 
   _rcRenderer = new THREE.WebGLRenderer({ canvas: canvasEl, alpha: true, antialias: true });
   _rcRenderer.setSize(w, h);
@@ -791,12 +791,8 @@ export async function initRiderCard3D(canvasEl, data) {
   faceCanvas.width = fW; faceCanvas.height = fH;
   const fc = faceCanvas.getContext('2d');
 
-  // Background — dark with subtle gradient
-  const bg = fc.createLinearGradient(0, 0, 0, fH);
-  bg.addColorStop(0, '#080808');
-  bg.addColorStop(0.5, '#0a0a0a');
-  bg.addColorStop(1, '#060606');
-  fc.fillStyle = bg;
+  // Background — flat dark
+  fc.fillStyle = '#080808';
   fc.fillRect(0, 0, fW, fH);
   // Dither noise to break up color banding
   const dither = fc.getImageData(0, 0, fW, fH);
@@ -987,12 +983,8 @@ export async function initRiderCard3D(canvasEl, data) {
   backCanvas.width = fW; backCanvas.height = fH;
   const bc = backCanvas.getContext('2d');
 
-  // Background — darker, metallic
-  const bbg = bc.createLinearGradient(0, 0, 0, fH);
-  bbg.addColorStop(0, '#080808');
-  bbg.addColorStop(0.5, '#0a0a0a');
-  bbg.addColorStop(1, '#060606');
-  bc.fillStyle = bbg;
+  // Background — flat dark
+  bc.fillStyle = '#080808';
   bc.fillRect(0, 0, fW, fH);
   // Dither noise
   const bDither = bc.getImageData(0, 0, fW, fH);
@@ -1248,7 +1240,7 @@ export async function initRiderCard3D(canvasEl, data) {
 let _bcScene, _bcCamera, _bcRenderer, _bcMesh, _bcRaf, _bcDragging = false;
 let _bcStartX = 0, _bcStartY = 0, _bcRotX = 0, _bcRotY = 0;
 let _bcDragVelX = 0, _bcDragVelY = 0, _bcLastMoveX = 0, _bcLastMoveY = 0;
-let _bcReleaseTime = 0, _bcSpinning = false, _bcIdle = false, _bcAutoSpin = false;
+let _bcReleaseTime = 0, _bcSpinning = false, _bcIdle = false, _bcAutoSpin = true;
 
 export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   const THREE = await _loadThreeJS();
@@ -1340,79 +1332,248 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   const fCanvas = document.createElement('canvas'); fCanvas.width = fW; fCanvas.height = fH;
   const fc = fCanvas.getContext('2d');
 
-  // Dark background with dither
-  fc.fillStyle = '#080808'; fc.fillRect(0, 0, fW, fH);
-  const dither = fc.getImageData(0, 0, fW, fH); const dd = dither.data;
-  for (let i = 0; i < dd.length; i += 4) { const n = Math.random() * 6 - 3; dd[i] = Math.max(0, dd[i] + n); dd[i+1] = Math.max(0, dd[i+1] + n); dd[i+2] = Math.max(0, dd[i+2] + n); }
-  fc.putImageData(dither, 0, 0);
-
-  // Colored ribbon at top with repeating name
   const ribbonH = 56;
-  fc.fillStyle = `rgb(${r},${g},${b})`; fc.fillRect(0, 40, fW, ribbonH);
-  fc.font = '900 italic 38px "Source Serif 4", Georgia, "Times New Roman", serif';
-  fc.letterSpacing = '0px';
-  fc.fillStyle = 'rgba(0,0,0,0.6)'; fc.textBaseline = 'middle';
   const ribbonText = (name.toUpperCase() + '  ·  ').repeat(20);
-  fc.fillText(ribbonText, 0, 40 + ribbonH / 2 + 2);
-  // Second pass slightly offset for faux extra bold
-  fc.fillText(ribbonText, 0.5, 40 + ribbonH / 2 + 2);
 
-  // Icon — large, centered
-  try {
-    fc.save();
-    const iconScale = fW / 30;
-    fc.translate(fW/2 - 12 * iconScale, fH * 0.44 - 12 * iconScale);
-    fc.scale(iconScale, iconScale);
-    const path = new Path2D(def.iconPath);
-    fc.strokeStyle = `rgba(${Math.min(255,r+80)},${Math.min(255,g+80)},${Math.min(255,b+80)},0.6)`;
-    fc.lineWidth = 1.5; fc.stroke(path);
-    const ig = fc.createLinearGradient(0, 0, 24, 24);
-    ig.addColorStop(0, `rgba(${Math.min(255,r+120)},${Math.min(255,g+120)},${Math.min(255,b+120)},0.5)`);
-    ig.addColorStop(1, `rgba(${r},${g},${b},0.3)`);
-    fc.fillStyle = ig; fc.fill(path);
-    fc.restore();
-  } catch(_) {}
+  if (def.scene === 'mountain') {
+    // ── Full mountain landscape artwork ──────────────────────────
+    // Night sky gradient
+    const skyG = fc.createLinearGradient(0, 0, 0, fH);
+    skyG.addColorStop(0, '#05061a'); skyG.addColorStop(0.15, '#0c1035');
+    skyG.addColorStop(0.35, '#1a1850'); skyG.addColorStop(0.55, '#2d1d4a');
+    skyG.addColorStop(0.7, '#4a2040'); skyG.addColorStop(0.85, '#6b3045');
+    skyG.addColorStop(1, '#1a1a38');
+    fc.fillStyle = skyG; fc.fillRect(0, 0, fW, fH);
 
-  // Achievement name
-  fc.font = '700 52px Inter, system-ui, sans-serif';
-  fc.fillStyle = '#ffffff'; fc.textAlign = 'center';
-  fc.fillText(name, fW / 2, fH * 0.78);
+    // Stars — varied sizes and brightness
+    for (let i = 0; i < 120; i++) {
+      const sx = Math.random() * fW, sy = Math.random() * fH * 0.55;
+      const sa = 0.15 + Math.random() * 0.7, ss = 0.5 + Math.random() * 2;
+      fc.fillStyle = `rgba(255,255,255,${sa})`;
+      fc.beginPath(); fc.arc(sx, sy, ss, 0, Math.PI * 2); fc.fill();
+    }
+    // A few bright stars with glow
+    [[fW*0.15, fH*0.08], [fW*0.72, fH*0.12], [fW*0.45, fH*0.05], [fW*0.88, fH*0.18]].forEach(([sx,sy]) => {
+      const glow = fc.createRadialGradient(sx, sy, 0, sx, sy, 8);
+      glow.addColorStop(0, 'rgba(200,220,255,0.8)'); glow.addColorStop(0.4, 'rgba(150,180,255,0.2)'); glow.addColorStop(1, 'transparent');
+      fc.fillStyle = glow; fc.fillRect(sx - 10, sy - 10, 20, 20);
+      fc.fillStyle = 'rgba(255,255,255,0.9)';
+      fc.beginPath(); fc.arc(sx, sy, 1.5, 0, Math.PI * 2); fc.fill();
+    });
 
-  // Description
-  fc.font = '500 30px Inter, system-ui, sans-serif';
-  fc.fillStyle = `rgba(${r},${g},${b},0.8)`;
-  fc.fillText(desc, fW / 2, fH * 0.78 + 44);
+    // Moon
+    const mx = fW * 0.78, my = fH * 0.14, mr = 28;
+    const moonG = fc.createRadialGradient(mx - 4, my - 4, mr * 0.1, mx, my, mr * 1.4);
+    moonG.addColorStop(0, 'rgba(255,248,230,0.95)'); moonG.addColorStop(0.3, 'rgba(255,240,200,0.6)');
+    moonG.addColorStop(0.6, 'rgba(200,180,160,0.15)'); moonG.addColorStop(1, 'transparent');
+    fc.fillStyle = moonG; fc.fillRect(mx - mr * 2, my - mr * 2, mr * 4, mr * 4);
+    fc.fillStyle = '#fffae8'; fc.beginPath(); fc.arc(mx, my, mr, 0, Math.PI * 2); fc.fill();
+    // Moon craters (subtle)
+    fc.fillStyle = 'rgba(220,210,180,0.4)';
+    fc.beginPath(); fc.arc(mx - 8, my - 5, 5, 0, Math.PI * 2); fc.fill();
+    fc.beginPath(); fc.arc(mx + 10, my + 8, 3, 0, Math.PI * 2); fc.fill();
+    fc.beginPath(); fc.arc(mx + 2, my + 12, 4, 0, Math.PI * 2); fc.fill();
 
-  // "EARNED" label
-  fc.font = '600 22px Inter, system-ui, sans-serif';
-  fc.fillStyle = 'rgba(255,255,255,0.25)';
-  fc.fillText('EARNED', fW / 2, fH * 0.9);
+    // Aurora / atmospheric glow
+    const auroG = fc.createLinearGradient(0, fH * 0.15, 0, fH * 0.45);
+    auroG.addColorStop(0, 'transparent'); auroG.addColorStop(0.3, 'rgba(40,180,120,0.06)');
+    auroG.addColorStop(0.6, 'rgba(60,100,180,0.08)'); auroG.addColorStop(1, 'transparent');
+    fc.fillStyle = auroG; fc.fillRect(0, fH * 0.15, fW, fH * 0.3);
+
+    // Far mountain range (dark blue/purple)
+    fc.fillStyle = '#0f0f2a';
+    fc.beginPath(); fc.moveTo(0, fH * 0.52);
+    fc.lineTo(fW * 0.05, fH * 0.4); fc.lineTo(fW * 0.12, fH * 0.44);
+    fc.lineTo(fW * 0.22, fH * 0.3); fc.lineTo(fW * 0.32, fH * 0.42);
+    fc.lineTo(fW * 0.42, fH * 0.22); fc.lineTo(fW * 0.52, fH * 0.35);
+    fc.lineTo(fW * 0.6, fH * 0.28); fc.lineTo(fW * 0.72, fH * 0.18);
+    fc.lineTo(fW * 0.82, fH * 0.3); fc.lineTo(fW * 0.9, fH * 0.25);
+    fc.lineTo(fW, fH * 0.38); fc.lineTo(fW, fH); fc.lineTo(0, fH); fc.fill();
+
+    // Snow on far peaks
+    fc.fillStyle = 'rgba(200,215,255,0.25)';
+    [[0.42, 0.22, 0.06], [0.72, 0.18, 0.05], [0.9, 0.25, 0.04]].forEach(([px, py, sw]) => {
+      fc.beginPath(); fc.moveTo(fW * px, fH * py);
+      fc.lineTo(fW * (px - sw * 0.6), fH * (py + 0.06)); fc.lineTo(fW * (px + sw * 0.6), fH * (py + 0.06)); fc.fill();
+    });
+
+    // Mid hills (dark indigo)
+    fc.fillStyle = '#14142e';
+    fc.beginPath(); fc.moveTo(0, fH * 0.65);
+    fc.quadraticCurveTo(fW * 0.15, fH * 0.52, fW * 0.3, fH * 0.58);
+    fc.quadraticCurveTo(fW * 0.45, fH * 0.64, fW * 0.55, fH * 0.54);
+    fc.quadraticCurveTo(fW * 0.7, fH * 0.44, fW * 0.85, fH * 0.52);
+    fc.quadraticCurveTo(fW * 0.95, fH * 0.56, fW, fH * 0.5);
+    fc.lineTo(fW, fH); fc.lineTo(0, fH); fc.fill();
+
+    // Foreground hills (darkest)
+    fc.fillStyle = '#0e0e24';
+    fc.beginPath(); fc.moveTo(0, fH * 0.76);
+    fc.quadraticCurveTo(fW * 0.2, fH * 0.68, fW * 0.4, fH * 0.73);
+    fc.quadraticCurveTo(fW * 0.6, fH * 0.78, fW * 0.75, fH * 0.7);
+    fc.quadraticCurveTo(fW * 0.9, fH * 0.64, fW, fH * 0.72);
+    fc.lineTo(fW, fH); fc.lineTo(0, fH); fc.fill();
+
+    // Pine trees silhouettes
+    const treeColor = '#0a0a1e';
+    for (let i = 0; i < 18; i++) {
+      const tx = fW * 0.02 + Math.random() * fW * 0.96;
+      const tBase = fH * 0.7 + Math.random() * fH * 0.1;
+      const tHeight = 25 + Math.random() * 50;
+      const tWidth = 8 + Math.random() * 10;
+      fc.fillStyle = treeColor;
+      // Trunk
+      fc.fillRect(tx - 1.5, tBase, 3, 10);
+      // Tree layers
+      for (let j = 0; j < 3; j++) {
+        const ly = tBase - tHeight * (0.3 + j * 0.25);
+        const lw = tWidth * (1 - j * 0.25);
+        fc.beginPath(); fc.moveTo(tx, ly); fc.lineTo(tx - lw, ly + tHeight * 0.35); fc.lineTo(tx + lw, ly + tHeight * 0.35); fc.fill();
+      }
+    }
+
+    // Winding path/river reflection
+    fc.strokeStyle = 'rgba(100,120,180,0.12)'; fc.lineWidth = 3;
+    fc.beginPath(); fc.moveTo(fW * 0.5, fH * 0.85);
+    fc.quadraticCurveTo(fW * 0.45, fH * 0.78, fW * 0.52, fH * 0.7);
+    fc.quadraticCurveTo(fW * 0.58, fH * 0.62, fW * 0.48, fH * 0.55);
+    fc.stroke();
+
+    // Ground fog layer
+    const fogG = fc.createLinearGradient(0, fH * 0.72, 0, fH * 0.85);
+    fogG.addColorStop(0, 'transparent'); fogG.addColorStop(0.5, 'rgba(30,30,60,0.15)'); fogG.addColorStop(1, 'transparent');
+    fc.fillStyle = fogG; fc.fillRect(0, fH * 0.72, fW, fH * 0.13);
+
+    // Dither noise over whole scene
+    const dither = fc.getImageData(0, 0, fW, fH); const dd = dither.data;
+    for (let i = 0; i < dd.length; i += 4) { const n = Math.random() * 4 - 2; dd[i] = Math.max(0, Math.min(255, dd[i] + n)); dd[i+1] = Math.max(0, Math.min(255, dd[i+1] + n)); dd[i+2] = Math.max(0, Math.min(255, dd[i+2] + n)); }
+    fc.putImageData(dither, 0, 0);
+
+    // Achievement text — overlaid at bottom, glowing
+    fc.textAlign = 'center';
+    fc.shadowColor = `rgba(${r},${g},${b},0.6)`; fc.shadowBlur = 20;
+    fc.font = '700 52px Inter, system-ui, sans-serif';
+    fc.fillStyle = '#ffffff';
+    fc.fillText(name, fW / 2, fH * 0.88);
+    fc.shadowBlur = 0;
+
+    fc.font = '500 28px Inter, system-ui, sans-serif';
+    fc.fillStyle = `rgba(${Math.min(255,r+60)},${Math.min(255,g+60)},${Math.min(255,b+60)},0.8)`;
+    fc.fillText(desc, fW / 2, fH * 0.88 + 38);
+
+    // Small "EARNED" at very bottom
+    fc.font = '600 20px Inter, system-ui, sans-serif';
+    fc.fillStyle = 'rgba(255,255,255,0.2)';
+    fc.fillText('EARNED', fW / 2, fH * 0.97);
+
+  } else {
+    // ── Standard dark card ────────────────────────────────────────
+    // Dark background with dither
+    fc.fillStyle = '#080808'; fc.fillRect(0, 0, fW, fH);
+    const dither = fc.getImageData(0, 0, fW, fH); const dd = dither.data;
+    for (let i = 0; i < dd.length; i += 4) { const n = Math.random() * 6 - 3; dd[i] = Math.max(0, dd[i] + n); dd[i+1] = Math.max(0, dd[i+1] + n); dd[i+2] = Math.max(0, dd[i+2] + n); }
+    fc.putImageData(dither, 0, 0);
+
+    // Colored ribbon at top with repeating name
+    fc.fillStyle = `rgb(${r},${g},${b})`; fc.fillRect(0, 40, fW, ribbonH);
+    fc.font = '900 italic 38px "Source Serif 4", Georgia, "Times New Roman", serif';
+    fc.letterSpacing = '0px';
+    fc.fillStyle = 'rgba(0,0,0,0.6)'; fc.textBaseline = 'middle';
+    fc.fillText(ribbonText, 0, 40 + ribbonH / 2 + 2);
+    fc.fillText(ribbonText, 0.5, 40 + ribbonH / 2 + 2);
+
+    // Icon — large, centered
+    try {
+      fc.save();
+      const iconScale = fW / 30;
+      fc.translate(fW/2 - 12 * iconScale, fH * 0.44 - 12 * iconScale);
+      fc.scale(iconScale, iconScale);
+      const path = new Path2D(def.iconPath);
+      fc.strokeStyle = `rgba(${Math.min(255,r+80)},${Math.min(255,g+80)},${Math.min(255,b+80)},0.6)`;
+      fc.lineWidth = 1.5; fc.stroke(path);
+      const ig = fc.createLinearGradient(0, 0, 24, 24);
+      ig.addColorStop(0, `rgba(${Math.min(255,r+120)},${Math.min(255,g+120)},${Math.min(255,b+120)},0.5)`);
+      ig.addColorStop(1, `rgba(${r},${g},${b},0.3)`);
+      fc.fillStyle = ig; fc.fill(path);
+      fc.restore();
+    } catch(_) {}
+
+    // Achievement name
+    fc.font = '700 52px Inter, system-ui, sans-serif';
+    fc.fillStyle = '#ffffff'; fc.textAlign = 'center';
+    fc.fillText(name, fW / 2, fH * 0.78);
+
+    // Description
+    fc.font = '500 30px Inter, system-ui, sans-serif';
+    fc.fillStyle = `rgba(${r},${g},${b},0.8)`;
+    fc.fillText(desc, fW / 2, fH * 0.78 + 44);
+
+    // "EARNED" label
+    fc.font = '600 22px Inter, system-ui, sans-serif';
+    fc.fillStyle = 'rgba(255,255,255,0.25)';
+    fc.fillText('EARNED', fW / 2, fH * 0.9);
+  }
 
   const faceTex = new THREE.CanvasTexture(fCanvas);
 
-  // Normal map — emboss the icon
+  // Normal map
   const nCanvas = document.createElement('canvas'); nCanvas.width = fW; nCanvas.height = fH;
   const nc = nCanvas.getContext('2d');
   nc.fillStyle = 'rgb(128,128,255)'; nc.fillRect(0, 0, fW, fH);
-  try {
-    nc.save();
-    const nis = fW / 30;
-    nc.translate(fW/2 - 12 * nis, fH * 0.44 - 12 * nis); nc.scale(nis, nis);
-    const np = new Path2D(def.iconPath);
-    nc.fillStyle = 'rgb(90,90,255)'; nc.translate(-2, -2); nc.fill(np);
-    nc.translate(4, 4); nc.fillStyle = 'rgb(166,166,255)'; nc.fill(np);
-    nc.restore();
-  } catch(_) {}
+  if (def.scene === 'mountain') {
+    // Subtle terrain-like normal variation for the landscape
+    for (let y = 0; y < fH; y += 4) {
+      for (let x = 0; x < fW; x += 4) {
+        const nx = 128 + (Math.random() - 0.5) * 12;
+        const ny = 128 + (Math.random() - 0.5) * 12;
+        nc.fillStyle = `rgb(${Math.round(nx)},${Math.round(ny)},255)`;
+        nc.fillRect(x, y, 4, 4);
+      }
+    }
+  } else {
+    // Emboss the icon
+    try {
+      nc.save();
+      const nis = fW / 30;
+      nc.translate(fW/2 - 12 * nis, fH * 0.44 - 12 * nis); nc.scale(nis, nis);
+      const np = new Path2D(def.iconPath);
+      nc.fillStyle = 'rgb(90,90,255)'; nc.translate(-2, -2); nc.fill(np);
+      nc.translate(4, 4); nc.fillStyle = 'rgb(166,166,255)'; nc.fill(np);
+      nc.restore();
+    } catch(_) {}
+  }
   const normalTex = new THREE.CanvasTexture(nCanvas);
 
   // Metalness/roughness map — unique holographic pattern per badge
   const mCanvas = document.createElement('canvas'); mCanvas.width = fW; mCanvas.height = fH;
   const mc = mCanvas.getContext('2d');
-  mc.fillStyle = 'rgb(0,170,50)'; mc.fillRect(0, 0, fW, fH);
   const hcx = fW / 2, hcy = fH * 0.44;
   const holo = def.holo || 'starburst';
 
-  if (holo === 'flame') {
+  if (def.scene === 'mountain') {
+    // Landscape card: low metalness, medium roughness — matte painting look
+    // with glossy varnish over the sky portion for subtle reflections
+    mc.fillStyle = 'rgb(0,180,40)'; mc.fillRect(0, 0, fW, fH);
+    // Slightly more reflective in the sky area (moon, stars catch light)
+    const skySheen = mc.createLinearGradient(0, 0, 0, fH * 0.4);
+    skySheen.addColorStop(0, 'rgb(30,120,60)'); skySheen.addColorStop(1, 'transparent');
+    mc.fillStyle = skySheen; mc.fillRect(0, 0, fW, fH * 0.4);
+    // Snow caps get a slight metallic sheen
+    mc.fillStyle = 'rgb(60,80,80)';
+    [[0.42, 0.22, 0.06], [0.72, 0.18, 0.05], [0.9, 0.25, 0.04]].forEach(([px, py, sw]) => {
+      mc.beginPath(); mc.moveTo(fW * px, fH * py);
+      mc.lineTo(fW * (px - sw * 0.6), fH * (py + 0.06)); mc.lineTo(fW * (px + sw * 0.6), fH * (py + 0.06)); mc.fill();
+    });
+    // Text area gets chrome highlight
+    mc.fillStyle = 'rgb(40,60,200)';
+    mc.fillRect(fW * 0.15, fH * 0.84, fW * 0.7, fH * 0.1);
+  } else {
+    mc.fillStyle = 'rgb(0,170,50)'; mc.fillRect(0, 0, fW, fH);
+  }
+
+  if (def.scene === 'mountain') {
+    // Mountain card MR map already set above — skip holo patterns
+  } else if (holo === 'flame') {
     // Wavy horizontal bands — like heat shimmer
     for (let y = 0; y < fH; y += 5) {
       const wave = Math.sin(y * 0.05) * 20;
@@ -1521,18 +1682,20 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     }
   }
 
-  // Ribbon — same chrome as icon
-  mc.fillStyle = 'rgb(0,5,255)';
-  mc.fillRect(0, 40, fW, ribbonH);
+  if (def.scene !== 'mountain') {
+    // Ribbon — same chrome as icon
+    mc.fillStyle = 'rgb(0,5,255)';
+    mc.fillRect(0, 40, fW, ribbonH);
 
-  // Icon area — full chrome on top of pattern
-  try {
-    mc.save();
-    const mis = fW / 30;
-    mc.translate(fW/2 - 12 * mis, fH * 0.44 - 12 * mis); mc.scale(mis, mis);
-    mc.fillStyle = 'rgb(0,5,255)'; mc.fill(new Path2D(def.iconPath));
-    mc.restore();
-  } catch(_) {}
+    // Icon area — full chrome on top of pattern
+    try {
+      mc.save();
+      const mis = fW / 30;
+      mc.translate(fW/2 - 12 * mis, fH * 0.44 - 12 * mis); mc.scale(mis, mis);
+      mc.fillStyle = 'rgb(0,5,255)'; mc.fill(new Path2D(def.iconPath));
+      mc.restore();
+    } catch(_) {}
+  }
   const mrTex = new THREE.CanvasTexture(mCanvas);
 
   // Back face — badge info
@@ -1557,10 +1720,11 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   const backTex = new THREE.CanvasTexture(bCanvas);
 
   // Materials
+  const isMountain = def.scene === 'mountain';
   const frontMat = new THREE.MeshStandardMaterial({
-    map: faceTex, normalMap: normalTex, normalScale: new THREE.Vector2(1, 1),
+    map: faceTex, normalMap: normalTex, normalScale: new THREE.Vector2(isMountain ? 0.3 : 1, isMountain ? 0.3 : 1),
     metalnessMap: mrTex, roughnessMap: mrTex, metalness: 1, roughness: 1,
-    envMap: envTex, envMapIntensity: 2.5, side: THREE.FrontSide
+    envMap: envTex, envMapIntensity: isMountain ? 0.8 : 2.5, side: THREE.FrontSide
   });
   const backMat = new THREE.MeshStandardMaterial({ map: backTex, metalness: 0.5, roughness: 0.4, envMap: envTex, envMapIntensity: 0.6 });
   const edgeMat = new THREE.MeshStandardMaterial({ color: def.color, metalness: 1, roughness: 0.08, envMap: envTex, envMapIntensity: 2 });
@@ -1607,48 +1771,92 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
 
   _bcMesh = new THREE.Group();
   _bcMesh.add(new THREE.Mesh(cardGeo, [frontMat, backMat, edgeMat]));
-  _bcMesh.add(iconPlane);
-  _bcMesh._parallax = [{ mesh: iconPlane, depth: 0.003 }];
 
-  // Cinematic reveal
-  _bcMesh.rotation.x = 0.35; _bcMesh.rotation.y = Math.PI; _bcMesh.rotation.z = 0.35;
-  _bcMesh.scale.setScalar(0.9);
+  if (def.scene === 'mountain') {
+    // Mountain diorama — parallax depth layers floating above the painted face
+    const pw = cardW * 0.92, ph = cardH * 0.92;
+    const makePlane = (drawFn, z) => {
+      const c = document.createElement('canvas'); c.width = fW; c.height = fH;
+      drawFn(c.getContext('2d'), fW, fH);
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(pw, ph), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false }));
+      m.position.z = z;
+      return m;
+    };
+
+    // Layer 1: Floating mist/fog wisps (mid-depth)
+    const mist = makePlane((ctx, w, h) => {
+      for (let i = 0; i < 5; i++) {
+        const my = h * 0.55 + Math.random() * h * 0.2;
+        const mx = Math.random() * w;
+        const mg = ctx.createRadialGradient(mx, my, 0, mx, my, 80 + Math.random() * 60);
+        mg.addColorStop(0, 'rgba(80,80,140,0.08)'); mg.addColorStop(0.5, 'rgba(60,60,120,0.04)'); mg.addColorStop(1, 'transparent');
+        ctx.fillStyle = mg; ctx.fillRect(0, 0, w, h);
+      }
+    }, cardD * 0.5 + 0.015);
+
+    // Layer 2: Snow/dust particles (closer)
+    const snow = makePlane((ctx, w, h) => {
+      for (let i = 0; i < 40; i++) {
+        const sx = Math.random() * w, sy = Math.random() * h;
+        const ss = 1 + Math.random() * 3;
+        const sa = 0.1 + Math.random() * 0.25;
+        ctx.fillStyle = `rgba(200,210,255,${sa})`;
+        ctx.beginPath(); ctx.arc(sx, sy, ss, 0, Math.PI * 2); ctx.fill();
+      }
+    }, cardD * 0.5 + 0.035);
+
+    // Layer 3: Close foreground pine silhouettes (shallowest, most parallax)
+    const closeTrees = makePlane((ctx, w, h) => {
+      ctx.fillStyle = 'rgba(8,8,20,0.7)';
+      // Left tree cluster peeking from edge
+      for (let i = 0; i < 3; i++) {
+        const tx = w * 0.02 + i * 22, tBase = h * 0.82, tH = 60 + i * 15;
+        ctx.beginPath(); ctx.moveTo(tx, tBase - tH); ctx.lineTo(tx - 14, tBase); ctx.lineTo(tx + 14, tBase); ctx.fill();
+      }
+      // Right tree cluster
+      for (let i = 0; i < 3; i++) {
+        const tx = w * 0.88 + i * 22, tBase = h * 0.8, tH = 50 + i * 18;
+        ctx.beginPath(); ctx.moveTo(tx, tBase - tH); ctx.lineTo(tx - 12, tBase); ctx.lineTo(tx + 12, tBase); ctx.fill();
+      }
+    }, cardD * 0.5 + 0.055);
+
+    // Layer 4: Moon glow overlay (subtle, deep)
+    const moonGlow = makePlane((ctx, w, h) => {
+      const gx = w * 0.78, gy = h * 0.14;
+      const mg = ctx.createRadialGradient(gx, gy, 0, gx, gy, 100);
+      mg.addColorStop(0, 'rgba(255,248,220,0.06)'); mg.addColorStop(0.5, 'rgba(200,190,170,0.02)'); mg.addColorStop(1, 'transparent');
+      ctx.fillStyle = mg; ctx.fillRect(0, 0, w, h);
+    }, cardD * 0.5 + 0.008);
+
+    _bcMesh.add(moonGlow); _bcMesh.add(mist); _bcMesh.add(snow); _bcMesh.add(closeTrees);
+    _bcMesh._parallax = [
+      { mesh: moonGlow, depth: 0.002 },
+      { mesh: mist, depth: 0.006 },
+      { mesh: snow, depth: 0.01 },
+      { mesh: closeTrees, depth: 0.015 },
+    ];
+  } else {
+    _bcMesh.add(iconPlane);
+    _bcMesh._parallax = [{ mesh: iconPlane, depth: 0.003 }];
+  }
+
+  _bcMesh.rotation.x = 0.06;
+  _bcMesh.rotation.y = 0.08;
   _bcScene.add(_bcMesh);
-
-  const allLights = []; _bcScene.traverse(c => { if (c.isLight) allLights.push({ light: c, target: c.intensity }); });
-  allLights.forEach(l => { l.light.intensity = 0; });
 
   const REST_X = 0.06, REST_Y = 0.08;
   let velX = 0, velY = 0;
   const SPRING = 0.008, DAMP = 0.97;
-  const introStart = Date.now(), INTRO_DUR = 2500;
-  let introFinished = false;
 
   function loop() {
     _bcRaf = requestAnimationFrame(loop);
     if (!_bcMesh) return;
     if (_bcIdle) return;
-    const elapsed = Date.now() - introStart;
-    const introT = Math.min(elapsed / INTRO_DUR, 1);
     // Shimmer
-    if (introT >= 1) {
-      const t = Date.now() * 0.001, ry = _bcMesh.rotation.y || 0;
-      frontMat.envMapIntensity = 1.2 + Math.sin(t * 1.5 + ry * 5) * 0.3;
-    }
-    // Intro
-    if (introT < 1 && !_bcDragging) {
-      const e = 1 - Math.pow(1 - introT, 4);
-      const ov = 1 + Math.sin(introT * Math.PI * 2) * 0.04 * (1 - introT);
-      _bcMesh.rotation.x = 0.35 + (REST_X - 0.35) * e * ov;
-      _bcMesh.rotation.y = Math.PI + (REST_Y - Math.PI) * e * ov;
-      _bcMesh.rotation.z = 0.35 * (1 - e * ov);
-      _bcMesh.scale.setScalar(0.9 + 0.1 * e);
-      const lightE = Math.pow(Math.min(introT * 2, 1), 1.5);
-      allLights.forEach(l => { l.light.intensity = l.target * lightE; });
-      frontMat.envMapIntensity = lightE * 1.2;
-      _bcRenderer.render(_bcScene, _bcCamera); return;
-    }
-    if (!introFinished) { introFinished = true; allLights.forEach(l => { l.light.intensity = l.target; }); }
+    const t = Date.now() * 0.001, ry = _bcMesh.rotation.y || 0;
+    frontMat.envMapIntensity = isMountain
+      ? 0.5 + Math.sin(t * 0.8 + ry * 3) * 0.15
+      : 1.2 + Math.sin(t * 1.5 + ry * 5) * 0.3;
     if (!_bcDragging) {
       const timeSinceRelease = Date.now() - _bcReleaseTime;
       if (_bcAutoSpin || timeSinceRelease > 2000) {

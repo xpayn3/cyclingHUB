@@ -33347,14 +33347,22 @@ async function openBadgeViewer(badgeId, name, desc) {
     <div style="position:relative">
       <canvas id="badge3dCanvas" style="width:100%;height:480px;touch-action:none;cursor:grab;border-radius:16px"></canvas>
       ${count > 1 ? `
-        <button class="badge-nav-btn badge-nav-prev" onclick="_badgeNavPrev()" aria-label="Previous">
+        <button class="badge-nav-btn badge-nav-prev badge-nav-btn--desktop" onclick="_badgeNavPrev()" aria-label="Previous">
           <svg class="icon" width="20" height="20"><use href="icons.svg#icon-chevron-left"/></svg>
         </button>
-        <button class="badge-nav-btn badge-nav-next" onclick="_badgeNavNext()" aria-label="Next">
+        <button class="badge-nav-btn badge-nav-next badge-nav-btn--desktop" onclick="_badgeNavNext()" aria-label="Next">
           <svg class="icon" width="20" height="20"><use href="icons.svg#icon-chevron-right"/></svg>
         </button>
-        <div class="badge-nav-dots" id="badgeNavDots">
-          ${_badgeViewerList.map((_, i) => `<span class="badge-nav-dot${i === _badgeViewerIdx ? ' active' : ''}"></span>`).join('')}
+        <div class="badge-nav-row">
+          <button class="badge-nav-btn badge-nav-btn--mobile" onclick="_badgeNavPrev()" aria-label="Previous">
+            <svg class="icon" width="20" height="20"><use href="icons.svg#icon-chevron-left"/></svg>
+          </button>
+          <div class="badge-nav-dots" id="badgeNavDots">
+            ${_badgeViewerList.map((_, i) => `<span class="badge-nav-dot${i === _badgeViewerIdx ? ' active' : ''}"></span>`).join('')}
+          </div>
+          <button class="badge-nav-btn badge-nav-btn--mobile" onclick="_badgeNavNext()" aria-label="Next">
+            <svg class="icon" width="20" height="20"><use href="icons.svg#icon-chevron-right"/></svg>
+          </button>
         </div>
       ` : ''}
       <div class="badge-viewer-info" id="badgeViewerInfo">
@@ -33383,7 +33391,12 @@ async function openBadgeViewer(badgeId, name, desc) {
     overlay.style.display = 'flex';
     requestAnimationFrame(() => overlay.classList.add('badge-dialog--open'));
   } else {
-    _openUniSheet({ id: 'badgeViewer', body: bodyHtml, partial: true, maxWidth: 400, hideHeader: true });
+    _openUniSheet({ id: 'badgeViewer', body: bodyHtml, partial: true, maxWidth: 400, hideHeader: true,
+      onClose: () => { const p = document.getElementById('_uniSheetPanel'); p.style.background = ''; p.style.overflow = ''; }
+    });
+    const _bp = document.getElementById('_uniSheetPanel');
+    _bp.style.background = 'linear-gradient(to bottom,#1a1a1a,#0a0a0a)';
+    _bp.style.overflow = 'hidden';
   }
 
   await _loadBadgeCard(badgeId, name, desc);
@@ -35541,6 +35554,8 @@ function openProfileModal() {
   // Init 3D rider card after sheet animates in
   const skel = document.getElementById('riderCardSkeleton');
   if (skel) skel.style.display = '';
+  const rcCanvasEarly = document.getElementById('riderCard3dCanvas');
+  if (rcCanvasEarly) rcCanvasEarly.style.opacity = '0';
   setTimeout(async () => {
     const rcCanvas = document.getElementById('riderCard3dCanvas');
     if (!rcCanvas) return;
@@ -35559,7 +35574,8 @@ function openProfileModal() {
         nextXP: stats.nextLevelXP,
         xpPct: stats.nextLevelXP > 0 ? Math.min(stats.currentXP / stats.nextLevelXP, 1) : 1,
       });
-      // Hide skeleton
+      // Show card, hide skeleton
+      rcCanvas.style.opacity = '1';
       const skel = document.getElementById('riderCardSkeleton');
       if (skel) skel.style.display = 'none';
     } catch (e) {
