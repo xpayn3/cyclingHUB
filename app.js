@@ -35396,7 +35396,14 @@ function openProfileModal() {
         nextXP: stats.nextLevelXP,
         xpPct: stats.nextLevelXP > 0 ? Math.min(stats.currentXP / stats.nextLevelXP, 1) : 1,
       });
-    } catch (e) { console.warn('Rider card 3D failed:', e); }
+    } catch (e) {
+      console.warn('Rider card 3D failed:', e);
+      // Show error on canvas for debugging on mobile
+      rcCanvas.style.background = 'var(--surface-1)';
+      rcCanvas.style.borderRadius = '16px';
+      const wrap = rcCanvas.parentElement;
+      if (wrap) { const err = document.createElement('div'); err.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--text-muted);font-size:12px;text-align:center;max-width:80%'; err.textContent = '3D: ' + (e.message || e); wrap.style.position = 'relative'; wrap.appendChild(err); }
+    }
   }, 500);
 }
 
@@ -38295,14 +38302,18 @@ function _libInitTimeline() {
 
     const dStart = new Date(firstDate.getTime() + left * totalMs);
     const dEnd = new Date(firstDate.getTime() + right * totalMs);
+    const rangeDatesEl = document.getElementById('libTimelineRangeDates');
+    const fmt = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     if (left === 0 && right >= 0.99) {
       label.textContent = 'All Time';
+      if (rangeDatesEl) rangeDatesEl.textContent = '';
     } else {
       const days = Math.round((dEnd - dStart) / 86400000);
       if (days < 7) label.textContent = days + (days === 1 ? ' day' : ' days');
       else if (days < 30) { const w = Math.round(days / 7); label.textContent = w + (w === 1 ? ' week' : ' weeks'); }
       else if (days < 365) { const m = Math.round(days / 30); label.textContent = m + (m === 1 ? ' month' : ' months'); }
       else { const y = (days / 365).toFixed(1); label.textContent = y + ' years'; }
+      if (rangeDatesEl) rangeDatesEl.textContent = fmt(dStart) + ' → ' + fmt(dEnd);
     }
   };
 
@@ -38327,7 +38338,7 @@ function _libInitTimeline() {
     const pos = posFromEvent(e);
     const left = Math.min(selStart, selEnd);
     const right = Math.max(selStart, selEnd);
-    const handleZone = 0.02; // 2% of track width
+    const handleZone = 8 / (track.clientWidth || 1000); // match visual handle width (8px)
 
     if (Math.abs(pos - left) < handleZone) {
       dragMode = 'left';
@@ -38424,6 +38435,13 @@ function _libBuildHeatmapTab() {
     </div>
     <div class="lib-section" id="libHeatStats"></div>
   `;
+  // Init sliding indicators on pill groups (delay for layout)
+  setTimeout(() => {
+    pane.querySelectorAll('.lib-pills').forEach(group => {
+      const active = group.querySelector('.lib-pill.active');
+      if (active) _libSlidePill(active);
+    });
+  }, 300);
 }
 
 function _libBuildRidesTab() {
@@ -38714,16 +38732,32 @@ async function _libDrawElevation(actId) {
   }
 }
 
-function _libSetHeatMode(mode, btn) {
-  btn.parentElement.querySelectorAll('.lib-pill').forEach(p => p.classList.remove('active'));
+function _libSlidePill(btn) {
+  const parent = btn.parentElement;
+  parent.querySelectorAll('.lib-pill').forEach(p => p.classList.remove('active'));
   btn.classList.add('active');
+  // Create or find slider
+  let slider = parent.querySelector('.lib-pills-slider');
+  if (!slider) {
+    slider = document.createElement('div');
+    slider.className = 'lib-pills-slider';
+    parent.appendChild(slider);
+  }
+  // Position slider on active pill
+  const pRect = parent.getBoundingClientRect();
+  const bRect = btn.getBoundingClientRect();
+  slider.style.left = (bRect.left - pRect.left) + 'px';
+  slider.style.width = bRect.width + 'px';
+}
+
+function _libSetHeatMode(mode, btn) {
+  _libSlidePill(btn);
   if (window.hmSetColorMode) hmSetColorMode(mode);
 }
 window._libSetHeatMode = _libSetHeatMode;
 
 function _libSetHeatPeriod(period, btn) {
-  btn.parentElement.querySelectorAll('.lib-pill').forEach(p => p.classList.remove('active'));
-  btn.classList.add('active');
+  _libSlidePill(btn);
   if (window.hmSetPeriod) hmSetPeriod(period);
 }
 window._libSetHeatPeriod = _libSetHeatPeriod;
