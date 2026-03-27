@@ -174,18 +174,18 @@ const BADGE_GLB_MAP = {
 
 // Procedural badge definitions — shape, color, icon SVG path
 const BADGE_PROCEDURAL = {
-  b1:  { shape: 'circle',  color: 0xff6b35, accent: 0xffaa00, label: 'ON FIRE',       iconPath: 'M12 12c2-2.96 0-7-1-8 0 3.038-1.773 4.741-3 6-1.226 1.26-2 3.24-2 5a6 6 0 1 0 12 0c0-1.532-1.056-3.94-2-5-1.786 3-2.791 3-4 2z' },
-  b2:  { shape: 'shield',  color: 0x00e5a0, accent: 0x44ffbb, label: 'WARRIOR',       iconPath: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' },
-  b3:  { shape: 'diamond', color: 0x9b59ff, accent: 0xcc88ff, label: 'DIAMOND',       iconPath: 'M6 3h12l4 6-10 12L2 9z' },
-  b4:  { shape: 'shield',  color: 0xffd700, accent: 0xffee88, label: 'KING',          iconPath: 'm2 4 3 12h14l3-12-5 4-5-6-5 6Z' },
-  b5:  { shape: 'hexagon', color: 0x4a9eff, accent: 0x88ccff, label: 'GRINDER',       iconPath: 'M13 2 3 14h9l-1 8 10-12h-9l1-8z' },
-  b6:  { shape: 'circle',  color: 0x9b59ff, accent: 0xbb88ff, label: 'MONTH',         iconPath: 'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z' },
-  b7:  { shape: 'star',    color: 0xffd700, accent: 0xffee44, label: 'BEST WEEK',     iconPath: 'M6 9H4.5a2.5 2.5 0 0 1 0-5H6 M18 9h1.5a2.5 2.5 0 0 0 0-5H18 M4 22h16 M18 2H6v7a6 6 0 0 0 12 0V2z' },
-  b8:  { shape: 'hexagon', color: 0x00e5a0, accent: 0x44ffbb, label: '100 CLUB',      iconPath: 'M18.5 17.5a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0zM5.5 17.5a3.5 3.5 0 1 1-7 0' },
-  b9:  { shape: 'circle',  color: 0x4a9eff, accent: 0x88bbff, label: 'HALF YEAR',     iconPath: 'M3 4h18v18H3zM16 2v4M8 2v4M3 10h18' },
-  b10: { shape: 'star',    color: 0xffd700, accent: 0xffdd66, label: 'CONSISTENT',    iconPath: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14l-5-4.87 6.91-1.01z' },
-  b11: { shape: 'shield',  color: 0x88ccff, accent: 0xbbddff, label: 'WINTER',        iconPath: 'M2 12h20M12 2v20 M20 16l-4-4 4-4M4 8l4 4-4 4M16 4l-4 4-4-4M8 20l4-4 4 4' },
-  b12: { shape: 'circle',  color: 0xff9500, accent: 0xffcc44, label: 'SUMMER',        iconPath: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41' },
+  b1:  { shape: 'circle',  color: 0xff6b35, accent: 0xffaa00, label: 'ON FIRE',       iconPath: 'M12 12c2-2.96 0-7-1-8 0 3.038-1.773 4.741-3 6-1.226 1.26-2 3.24-2 5a6 6 0 1 0 12 0c0-1.532-1.056-3.94-2-5-1.786 3-2.791 3-4 2z', holo: 'flame' },
+  b2:  { shape: 'shield',  color: 0x00e5a0, accent: 0x44ffbb, label: 'WARRIOR',       iconPath: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z', holo: 'chevron' },
+  b3:  { shape: 'diamond', color: 0x9b59ff, accent: 0xcc88ff, label: 'DIAMOND',       iconPath: 'M6 3h12l4 6-10 12L2 9z', holo: 'diamond' },
+  b4:  { shape: 'shield',  color: 0xffd700, accent: 0xffee88, label: 'KING',          iconPath: 'm2 4 3 12h14l3-12-5 4-5-6-5 6Z', holo: 'crown' },
+  b5:  { shape: 'hexagon', color: 0x4a9eff, accent: 0x88ccff, label: 'GRINDER',       iconPath: 'M13 2 3 14h9l-1 8 10-12h-9l1-8z', holo: 'bolt' },
+  b6:  { shape: 'circle',  color: 0x9b59ff, accent: 0xbb88ff, label: 'MONTH',         iconPath: 'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z', holo: 'ripple' },
+  b7:  { shape: 'star',    color: 0xffd700, accent: 0xffee44, label: 'BEST WEEK',     iconPath: 'M6 9H4.5a2.5 2.5 0 0 1 0-5H6 M18 9h1.5a2.5 2.5 0 0 0 0-5H18 M4 22h16 M18 2H6v7a6 6 0 0 0 12 0V2z', holo: 'starburst' },
+  b8:  { shape: 'hexagon', color: 0x00e5a0, accent: 0x44ffbb, label: '100 CLUB',      iconPath: 'M18.5 17.5a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0zM5.5 17.5a3.5 3.5 0 1 1-7 0', holo: 'grid' },
+  b9:  { shape: 'circle',  color: 0x4a9eff, accent: 0x88bbff, label: 'HALF YEAR',     iconPath: 'M3 4h18v18H3zM16 2v4M8 2v4M3 10h18', holo: 'wave' },
+  b10: { shape: 'star',    color: 0xffd700, accent: 0xffdd66, label: 'CONSISTENT',    iconPath: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14l-5-4.87 6.91-1.01z', holo: 'starburst' },
+  b11: { shape: 'shield',  color: 0x88ccff, accent: 0xbbddff, label: 'WINTER',        iconPath: 'M2 12h20M12 2v20 M20 16l-4-4 4-4M4 8l4 4-4 4M16 4l-4 4-4-4M8 20l4-4 4 4', holo: 'frost' },
+  b12: { shape: 'circle',  color: 0xff9500, accent: 0xffcc44, label: 'SUMMER',        iconPath: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41', holo: 'sunray' },
 };
 
 // Create procedural badge shape geometry
@@ -1354,6 +1354,20 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   const ac = ec.createRadialGradient(200, 120, 0, 200, 120, 150);
   ac.addColorStop(0, `rgba(${r},${g},${b},0.5)`); ac.addColorStop(1, 'transparent');
   ec.fillStyle = ac; ec.fillRect(0, 0, 1024, 512);
+  // Rainbow bands for holographic diffraction
+  const rainbow = ec.createLinearGradient(0, 0, 1024, 0);
+  rainbow.addColorStop(0, 'rgba(255,0,60,0.2)');
+  rainbow.addColorStop(0.15, 'rgba(255,140,0,0.2)');
+  rainbow.addColorStop(0.3, 'rgba(255,255,0,0.18)');
+  rainbow.addColorStop(0.45, 'rgba(0,255,120,0.2)');
+  rainbow.addColorStop(0.6, 'rgba(0,140,255,0.2)');
+  rainbow.addColorStop(0.75, 'rgba(120,0,255,0.2)');
+  rainbow.addColorStop(0.9, 'rgba(255,0,180,0.2)');
+  rainbow.addColorStop(1, 'rgba(255,0,60,0.2)');
+  ec.fillStyle = rainbow; ec.fillRect(0, 100, 1024, 300);
+  // Extra scattered color spots
+  const spots = [[150,80,'#ff006644'],[400,350,'#00ff8844'],[700,150,'#4488ff44'],[900,300,'#ff44cc44'],[300,200,'#ffcc0044']];
+  spots.forEach(([x,y,c]) => { const s = ec.createRadialGradient(x,y,0,x,y,80); s.addColorStop(0,c); s.addColorStop(1,'transparent'); ec.fillStyle = s; ec.fillRect(0,0,1024,512); });
   const envTex = new THREE.CanvasTexture(envC); envTex.mapping = THREE.EquirectangularReflectionMapping;
 
   // Card geometry
@@ -1446,15 +1460,128 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   } catch(_) {}
   const normalTex = new THREE.CanvasTexture(nCanvas);
 
-  // Metalness/roughness map — icon area is chrome
+  // Metalness/roughness map — unique holographic pattern per badge
   const mCanvas = document.createElement('canvas'); mCanvas.width = fW; mCanvas.height = fH;
   const mc = mCanvas.getContext('2d');
   mc.fillStyle = 'rgb(0,170,50)'; mc.fillRect(0, 0, fW, fH);
+  const hcx = fW / 2, hcy = fH * 0.44;
+  const holo = def.holo || 'starburst';
+
+  if (holo === 'flame') {
+    // Wavy horizontal bands — like heat shimmer
+    for (let y = 0; y < fH; y += 5) {
+      const wave = Math.sin(y * 0.05) * 20;
+      const rough = 15 + Math.abs(wave) * 2;
+      mc.fillStyle = `rgb(0,${Math.round(rough)},210)`;
+      mc.fillRect(0, y, fW, 4);
+    }
+  } else if (holo === 'chevron') {
+    // V-shaped chevron lines pointing up
+    for (let y = -fH; y < fH * 2; y += 12) {
+      mc.save(); mc.translate(hcx, y);
+      mc.beginPath(); mc.moveTo(-fW, 0); mc.lineTo(0, -30); mc.lineTo(fW, 0); mc.lineTo(fW, 4); mc.lineTo(0, -26); mc.lineTo(-fW, 4); mc.closePath();
+      mc.fillStyle = `rgb(0,${(y % 36 === 0) ? 15 : 60},220)`;
+      mc.fill(); mc.restore();
+    }
+  } else if (holo === 'diamond') {
+    // Diamond grid — crossing diagonals
+    for (let i = -fW; i < fW * 2; i += 14) {
+      const rough = (Math.floor(i / 14) % 3 === 0) ? 10 : 55;
+      mc.save(); mc.translate(i, 0); mc.rotate(0.6);
+      mc.fillStyle = `rgb(0,${rough},230)`; mc.fillRect(0, -fH, 3, fH * 3);
+      mc.restore();
+      mc.save(); mc.translate(i, 0); mc.rotate(-0.6);
+      mc.fillStyle = `rgb(0,${rough},230)`; mc.fillRect(0, -fH, 3, fH * 3);
+      mc.restore();
+    }
+  } else if (holo === 'crown') {
+    // Concentric circles — regal rings
+    for (let r = 10; r < Math.max(fW, fH); r += 10) {
+      mc.beginPath(); mc.arc(hcx, hcy, r, 0, Math.PI * 2);
+      mc.strokeStyle = `rgb(0,${(r % 30 === 0) ? 12 : 55},240)`;
+      mc.lineWidth = 4; mc.stroke();
+    }
+  } else if (holo === 'bolt') {
+    // Zigzag lightning pattern
+    for (let x = 0; x < fW; x += 16) {
+      const rough = (Math.floor(x / 16) % 3 === 0) ? 10 : 50;
+      mc.beginPath();
+      for (let y = 0; y < fH; y += 20) {
+        mc.lineTo(x + ((y / 20) % 2 === 0 ? 0 : 10), y);
+      }
+      mc.strokeStyle = `rgb(0,${rough},220)`; mc.lineWidth = 3; mc.stroke();
+    }
+  } else if (holo === 'ripple') {
+    // Concentric ripples from center — like moon on water
+    for (let r = 5; r < Math.max(fW, fH); r += 7) {
+      mc.beginPath(); mc.arc(hcx, hcy, r, 0, Math.PI * 2);
+      mc.strokeStyle = `rgb(0,${(r % 21 === 0) ? 10 : 50},215)`;
+      mc.lineWidth = 3; mc.stroke();
+    }
+  } else if (holo === 'grid') {
+    // Hex grid pattern
+    const s = 18;
+    for (let row = 0; row < fH / s + 1; row++) {
+      for (let col = 0; col < fW / s + 1; col++) {
+        const x = col * s + (row % 2) * s / 2, y = row * s * 0.866;
+        const rough = ((row + col) % 3 === 0) ? 12 : 55;
+        mc.beginPath(); mc.arc(x, y, 6, 0, Math.PI * 2);
+        mc.fillStyle = `rgb(0,${rough},225)`; mc.fill();
+      }
+    }
+  } else if (holo === 'wave') {
+    // Sine wave bands
+    for (let y = 0; y < fH; y += 6) {
+      mc.beginPath();
+      for (let x = 0; x < fW; x += 2) {
+        mc.lineTo(x, y + Math.sin(x * 0.03 + y * 0.02) * 10);
+      }
+      mc.strokeStyle = `rgb(0,${(y % 18 === 0) ? 10 : 50},210)`;
+      mc.lineWidth = 2; mc.stroke();
+    }
+  } else if (holo === 'frost') {
+    // Snowflake/crystal radial pattern — 6-fold symmetry
+    for (let a = 0; a < 6; a++) {
+      mc.save(); mc.translate(hcx, hcy); mc.rotate(a * Math.PI / 3);
+      for (let d = 10; d < Math.max(fW, fH); d += 12) {
+        mc.fillStyle = `rgb(0,${(d % 36 === 0) ? 10 : 50},220)`;
+        mc.fillRect(-1.5, 0, 3, d);
+        // Branches
+        if (d % 24 === 0) {
+          mc.save(); mc.translate(0, d); mc.rotate(0.5);
+          mc.fillRect(0, 0, 2, 20); mc.restore();
+          mc.save(); mc.translate(0, d); mc.rotate(-0.5);
+          mc.fillRect(0, 0, 2, 20); mc.restore();
+        }
+      }
+      mc.restore();
+    }
+  } else if (holo === 'sunray') {
+    // Thick radiating sun rays
+    const numRays = 24;
+    for (let i = 0; i < numRays; i++) {
+      mc.save(); mc.translate(hcx, hcy); mc.rotate((i / numRays) * Math.PI * 2);
+      mc.fillStyle = `rgb(0,${(i % 3 === 0) ? 12 : 55},215)`;
+      mc.fillRect(-4, 0, 8, Math.max(fW, fH));
+      mc.restore();
+    }
+  } else {
+    // Default starburst — radial lines
+    const numRays = 60;
+    for (let i = 0; i < numRays; i++) {
+      mc.save(); mc.translate(hcx, hcy); mc.rotate((i / numRays) * Math.PI * 2);
+      mc.fillStyle = `rgb(0,${(i % 3 === 0) ? 20 : (i % 3 === 1) ? 80 : 50},200)`;
+      mc.fillRect(-2, 0, 4, Math.max(fW, fH));
+      mc.restore();
+    }
+  }
+
+  // Icon area — full chrome on top of pattern
   try {
     mc.save();
     const mis = fW / 30;
     mc.translate(fW/2 - 12 * mis, fH * 0.44 - 12 * mis); mc.scale(mis, mis);
-    mc.fillStyle = 'rgb(0,8,255)'; mc.fill(new Path2D(def.iconPath));
+    mc.fillStyle = 'rgb(0,5,255)'; mc.fill(new Path2D(def.iconPath));
     mc.restore();
   } catch(_) {}
   const mrTex = new THREE.CanvasTexture(mCanvas);

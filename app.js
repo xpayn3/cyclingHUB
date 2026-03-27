@@ -33345,7 +33345,7 @@ async function openBadgeViewer(badgeId, name, desc) {
   const count = _badgeViewerList.length;
   const bodyHtml = `
     <div style="position:relative">
-      <canvas id="badge3dCanvas" style="width:100%;height:380px;touch-action:none;cursor:grab;border-radius:16px"></canvas>
+      <canvas id="badge3dCanvas" style="width:100%;height:480px;touch-action:none;cursor:grab;border-radius:16px"></canvas>
       ${count > 1 ? `
         <button class="badge-nav-btn badge-nav-prev" onclick="_badgeNavPrev()" aria-label="Previous">
           <svg class="icon" width="20" height="20"><use href="icons.svg#icon-chevron-left"/></svg>
@@ -33357,8 +33357,34 @@ async function openBadgeViewer(badgeId, name, desc) {
           ${_badgeViewerList.map((_, i) => `<span class="badge-nav-dot${i === _badgeViewerIdx ? ' active' : ''}"></span>`).join('')}
         </div>
       ` : ''}
+      <div class="badge-viewer-info" id="badgeViewerInfo">
+        <div class="badge-viewer-name" id="badgeViewerName">${_escHtml(name)}</div>
+        <div class="badge-viewer-desc" id="badgeViewerDesc">${_escHtml(desc)}</div>
+        <button class="badge-share-btn" onclick="_shareBadge()">
+          <svg class="icon" width="16" height="16"><use href="icons.svg#icon-share"/></svg>
+          Share
+        </button>
+      </div>
     </div>`;
-  _openUniSheet({ id: 'badgeViewer', body: bodyHtml, partial: true, maxWidth: 400 });
+  const isDesktop = window.innerWidth > 700;
+  if (isDesktop) {
+    // Floating centered dialog on desktop
+    let overlay = document.getElementById('badgeDialogOverlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'badgeDialogOverlay';
+      overlay.className = 'badge-dialog-overlay';
+      overlay.innerHTML = `<div class="badge-dialog" id="badgeDialog"></div>`;
+      overlay.addEventListener('click', e => { if (e.target === overlay) closeBadgeViewer(); });
+      document.body.appendChild(overlay);
+    }
+    const dialog = document.getElementById('badgeDialog');
+    dialog.innerHTML = bodyHtml;
+    overlay.style.display = 'flex';
+    requestAnimationFrame(() => overlay.classList.add('badge-dialog--open'));
+  } else {
+    _openUniSheet({ id: 'badgeViewer', body: bodyHtml, partial: true, maxWidth: 400 });
+  }
 
   await _loadBadgeCard(badgeId, name, desc);
 }
@@ -33375,9 +33401,13 @@ async function _loadBadgeCard(badgeId, name, desc) {
   fresh.style.cssText = old.style.cssText;
   old.replaceWith(fresh);
 
-  // Update dots
+  // Update dots + info text
   const dots = document.getElementById('badgeNavDots');
   if (dots) dots.querySelectorAll('.badge-nav-dot').forEach((d, i) => d.classList.toggle('active', i === _badgeViewerIdx));
+  const nameEl = document.getElementById('badgeViewerName');
+  const descEl = document.getElementById('badgeViewerDesc');
+  if (nameEl) nameEl.textContent = name;
+  if (descEl) descEl.textContent = desc;
 
   await new Promise(r => setTimeout(r, 50));
 
@@ -33407,11 +33437,28 @@ function closeBadgeViewer() {
   if (_badges3dModule?.destroyBadgeCard3D) _badges3dModule.destroyBadgeCard3D();
   if (_badges3dModule?.destroyBadge3D) _badges3dModule.destroyBadge3D();
   _badgeViewerList = [];
+  // Close desktop dialog or mobile sheet
+  const overlay = document.getElementById('badgeDialogOverlay');
+  if (overlay) {
+    overlay.classList.remove('badge-dialog--open');
+    setTimeout(() => { overlay.style.display = 'none'; }, 300);
+  }
   _closeUniSheet();
+}
+async function _shareBadge() {
+  const b = _badgeViewerList[_badgeViewerIdx];
+  if (!b) return;
+  const text = `I earned the "${b.name}" badge on CycleIQ! 🏆 ${b.desc}`;
+  if (navigator.share) {
+    try { await navigator.share({ title: b.name, text }); } catch(_) {}
+  } else {
+    try { await navigator.clipboard.writeText(text); showToast('Copied to clipboard', 'success'); } catch(_) { showToast('Could not share', 'error'); }
+  }
 }
 window.openBadgeViewer = openBadgeViewer;
 window._badgeNavPrev = _badgeNavPrev;
 window._badgeNavNext = _badgeNavNext;
+window._shareBadge = _shareBadge;
 window.closeBadgeViewer = closeBadgeViewer;
 
 function undoChargeBattery(id) {
