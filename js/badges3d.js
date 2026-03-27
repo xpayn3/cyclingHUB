@@ -2005,7 +2005,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
         float core = 1.0 - smoothstep(0.0, 0.04, dist);
         vec3 col = mix(sparkleColor + 0.5, vec3(1.0), core);
 
-        gl_FragColor = vec4(col * flash * 0.35, flash * 0.35);
+        gl_FragColor = vec4(col * flash * 0.45, flash * 0.45);
       }
     `
   });
