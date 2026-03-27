@@ -1657,65 +1657,9 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   const ribbonText = (name.toUpperCase() + '  ·  ').repeat(20);
 
   if (def.scene === 'mountain') {
-    // ── Portal card — dark frame with transparent window ─────────
-    // Fill with dark card surface
-    fc.fillStyle = '#080808'; fc.fillRect(0, 0, fW, fH);
-    const dither = fc.getImageData(0, 0, fW, fH); const dd = dither.data;
-    for (let i = 0; i < dd.length; i += 4) { const n = Math.random() * 6 - 3; dd[i] = Math.max(0, dd[i] + n); dd[i+1] = Math.max(0, dd[i+1] + n); dd[i+2] = Math.max(0, dd[i+2] + n); }
-    fc.putImageData(dither, 0, 0);
-
-    // Cut out the portal window (transparent center)
-    const borderW = fW * 0.08, borderTop = fH * 0.06, borderBot = fH * 0.22;
-    const winL = borderW, winT = borderTop, winR = fW - borderW, winB = fH - borderBot;
-    const winCR = 16; // window corner radius
-    fc.save();
-    fc.globalCompositeOperation = 'destination-out';
-    fc.beginPath();
-    fc.moveTo(winL + winCR, winT); fc.lineTo(winR - winCR, winT);
-    fc.quadraticCurveTo(winR, winT, winR, winT + winCR);
-    fc.lineTo(winR, winB - winCR);
-    fc.quadraticCurveTo(winR, winB, winR - winCR, winB);
-    fc.lineTo(winL + winCR, winB);
-    fc.quadraticCurveTo(winL, winB, winL, winB - winCR);
-    fc.lineTo(winL, winT + winCR);
-    fc.quadraticCurveTo(winL, winT, winL + winCR, winT);
-    fc.closePath();
-    fc.fillStyle = '#000'; fc.fill();
-    fc.restore();
-
-    // Inner bevel — subtle bright edge around the window
-    fc.save();
-    fc.strokeStyle = 'rgba(255,255,255,0.08)'; fc.lineWidth = 2;
-    fc.beginPath();
-    fc.moveTo(winL + winCR, winT); fc.lineTo(winR - winCR, winT);
-    fc.quadraticCurveTo(winR, winT, winR, winT + winCR);
-    fc.lineTo(winR, winB - winCR);
-    fc.quadraticCurveTo(winR, winB, winR - winCR, winB);
-    fc.lineTo(winL + winCR, winB);
-    fc.quadraticCurveTo(winL, winB, winL, winB - winCR);
-    fc.lineTo(winL, winT + winCR);
-    fc.quadraticCurveTo(winL, winT, winL + winCR, winT);
-    fc.closePath(); fc.stroke();
-    fc.restore();
-
-    // Outer glow into portal
-    fc.save();
-    const glowInset = 6;
-    const ig = fc.createLinearGradient(winL, winT, winL, winT + 40);
-    ig.addColorStop(0, `rgba(${r},${g},${b},0.15)`); ig.addColorStop(1, 'transparent');
-    fc.fillStyle = ig; fc.fillRect(winL + glowInset, winT, winR - winL - glowInset * 2, 40);
-    fc.restore();
-
-    // Achievement text on the frame bottom area
-    fc.textAlign = 'center';
-    fc.shadowColor = `rgba(${r},${g},${b},0.5)`; fc.shadowBlur = 12;
-    fc.font = '700 42px Inter, system-ui, sans-serif';
-    fc.fillStyle = '#ffffff';
-    fc.fillText(name, fW / 2, fH - borderBot * 0.48);
-    fc.shadowBlur = 0;
-    fc.font = '500 24px Inter, system-ui, sans-serif';
-    fc.fillStyle = `rgba(${Math.min(255,r+60)},${Math.min(255,g+60)},${Math.min(255,b+60)},0.7)`;
-    fc.fillText(desc, fW / 2, fH - borderBot * 0.48 + 32);
+    // ── Portal card — fully transparent front, portal fills entire card ─────
+    // Face is entirely transparent — the portal plane covers the whole front
+    // Just leave the canvas blank (transparent)
 
   } else {
     // ── Standard dark card ────────────────────────────────────────
@@ -2077,9 +2021,8 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
 
   if (def.scene === 'mountain') {
     // ── Portal effect: render mountain world to RenderTarget, project via screen-space shader ──
-    const borderX = cardW * 0.08, borderTop = cardH * 0.06, borderBot = cardH * 0.22;
-    const winW = cardW - borderX * 2, winH = cardH - borderTop - borderBot;
-    const winY = (borderTop - borderBot) / 2 * -1; // center of window in local Y
+    const winW = cardW, winH = cardH;
+    const winY = 0;
 
     // Portal scene — the mountain world rendered offscreen
     const portalScene = new THREE.Scene();
@@ -2199,6 +2142,29 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     const portalPlane = new THREE.Mesh(new THREE.PlaneGeometry(winW, winH), portalMat);
     portalPlane.position.set(0, winY, cardD * 0.5 + 0.001);
     _bcMesh.add(portalPlane);
+
+    // Text overlay on top of portal — achievement name + desc
+    const txtCanvas = document.createElement('canvas'); txtCanvas.width = fW; txtCanvas.height = fH;
+    const tc = txtCanvas.getContext('2d');
+    // Gradient scrim at bottom for text readability
+    const scrim = tc.createLinearGradient(0, fH * 0.65, 0, fH);
+    scrim.addColorStop(0, 'transparent'); scrim.addColorStop(0.5, 'rgba(0,0,0,0.4)'); scrim.addColorStop(1, 'rgba(0,0,0,0.7)');
+    tc.fillStyle = scrim; tc.fillRect(0, fH * 0.65, fW, fH * 0.35);
+    tc.textAlign = 'center';
+    tc.shadowColor = 'rgba(0,0,0,0.8)'; tc.shadowBlur = 12;
+    tc.font = '700 42px Inter, system-ui, sans-serif';
+    tc.fillStyle = '#fff';
+    tc.fillText(name, fW / 2, fH * 0.88);
+    tc.font = '500 24px Inter, system-ui, sans-serif';
+    tc.fillStyle = `rgba(${Math.min(255,r+60)},${Math.min(255,g+60)},${Math.min(255,b+60)},0.8)`;
+    tc.fillText(desc, fW / 2, fH * 0.88 + 32);
+    tc.shadowBlur = 0;
+    const txtPlane = new THREE.Mesh(
+      new THREE.PlaneGeometry(cardW * 0.95, cardH * 0.95),
+      new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(txtCanvas), transparent: true, depthWrite: false })
+    );
+    txtPlane.position.z = cardD * 0.5 + 0.003;
+    _bcMesh.add(txtPlane);
 
     // Store portal data for the render loop
     _bcMesh._portal = { scene: portalScene, camera: portalCam, rt: portalRT, layers: [sky, farMtn, midHill, fg], depths: [0.04, 0.025, 0.015, 0.008] };
