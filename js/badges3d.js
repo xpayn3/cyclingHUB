@@ -1998,7 +1998,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
         // Flash — single sin with combined angle (cheaper than sin*cos+sin)
         float phase = rnd * 6.28;
         float flash = sin(rotY * 8.0 + rotX * 5.0 + time * 2.5 + phase);
-        flash = step(0.7, flash) * (flash - 0.7) * 3.33;
+        flash = step(0.3, flash) * (flash - 0.3) * 1.43;
 
         if (flash < 0.01) discard;
 
@@ -2148,6 +2148,32 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
       ctx.beginPath(); ctx.arc(mx - 15, my + 5, 3, 0, Math.PI * 2); ctx.fill();
     }, -14, 6);
 
+    // Layer 0.5: Distant aurora / cloud band (between sky and mountains)
+    const aurora = makeLayer((ctx, w2, h2) => {
+      // Soft horizontal aurora bands
+      for (let i = 0; i < 4; i++) {
+        const ay = h2 * (0.2 + i * 0.1) + Math.sin(i * 2.1) * h2 * 0.05;
+        const ah = h2 * 0.06 + Math.sin(i * 1.7) * h2 * 0.02;
+        const ag = ctx.createLinearGradient(0, ay, 0, ay + ah);
+        const hue = [120, 180, 200, 160][i];
+        ag.addColorStop(0, 'transparent');
+        ag.addColorStop(0.3, `hsla(${hue},60%,40%,0.04)`);
+        ag.addColorStop(0.5, `hsla(${hue},50%,50%,0.06)`);
+        ag.addColorStop(0.7, `hsla(${hue},60%,40%,0.04)`);
+        ag.addColorStop(1, 'transparent');
+        ctx.fillStyle = ag; ctx.fillRect(0, ay, w2, ah);
+      }
+      // Wispy cloud shapes
+      for (let i = 0; i < 6; i++) {
+        const cx = Math.random() * w2, cy = h2 * 0.25 + Math.random() * h2 * 0.2;
+        const cg = ctx.createRadialGradient(cx, cy, 0, cx, cy, 40 + Math.random() * 30);
+        cg.addColorStop(0, 'rgba(50,50,80,0.05)');
+        cg.addColorStop(0.5, 'rgba(30,30,60,0.02)');
+        cg.addColorStop(1, 'transparent');
+        ctx.fillStyle = cg; ctx.fillRect(0, 0, w2, h2);
+      }
+    }, -11, 5);
+
     // Layer 1: Far mountains
     const farMtn = makeLayer((ctx, w2, h2) => {
       ctx.fillStyle = '#0f0f2a';
@@ -2193,6 +2219,54 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
         ctx.beginPath(); ctx.arc(Math.random()*w2,Math.random()*h2,1+Math.random()*2,0,Math.PI*2); ctx.fill();
       }
     }, -2, 2.2);
+
+    // Layer 4: Close silhouette trees at edges — framing the scene
+    const closeTrees = makeLayer((ctx, w2, h2) => {
+      ctx.fillStyle = '#060614';
+      // Left cluster — large pines peeking in from left edge
+      for (let i = 0; i < 4; i++) {
+        const tx = w2 * 0.02 + i * w2 * 0.04;
+        const tBase = h2 * 0.55 + i * h2 * 0.06;
+        const tH2 = h2 * 0.2 + Math.random() * h2 * 0.15;
+        const tW2 = w2 * 0.03 + Math.random() * w2 * 0.02;
+        for (let j = 0; j < 4; j++) {
+          const ly = tBase - tH2 * (0.2 + j * 0.22);
+          const lw = tW2 * (1 - j * 0.2);
+          ctx.beginPath(); ctx.moveTo(tx, ly); ctx.lineTo(tx - lw, ly + tH2 * 0.28); ctx.lineTo(tx + lw, ly + tH2 * 0.28); ctx.fill();
+        }
+      }
+      // Right cluster
+      for (let i = 0; i < 4; i++) {
+        const tx = w2 * 0.92 + i * w2 * 0.025;
+        const tBase = h2 * 0.58 + i * h2 * 0.05;
+        const tH2 = h2 * 0.18 + Math.random() * h2 * 0.12;
+        const tW2 = w2 * 0.025 + Math.random() * w2 * 0.015;
+        for (let j = 0; j < 4; j++) {
+          const ly = tBase - tH2 * (0.2 + j * 0.22);
+          const lw = tW2 * (1 - j * 0.2);
+          ctx.beginPath(); ctx.moveTo(tx, ly); ctx.lineTo(tx - lw, ly + tH2 * 0.28); ctx.lineTo(tx + lw, ly + tH2 * 0.28); ctx.fill();
+        }
+      }
+      // Ground strip
+      ctx.fillRect(0, h2 * 0.88, w2, h2 * 0.12);
+    }, -0.5, 1.5);
+
+    // Layer 5: Floating particles / fireflies — closest, most parallax
+    const particles = makeLayer((ctx, w2, h2) => {
+      for (let i = 0; i < 15; i++) {
+        const px2 = Math.random() * w2, py2 = h2 * 0.3 + Math.random() * h2 * 0.5;
+        const sz = 1.5 + Math.random() * 2.5;
+        const a = 0.15 + Math.random() * 0.25;
+        // Warm firefly glow
+        const pg = ctx.createRadialGradient(px2, py2, 0, px2, py2, sz * 4);
+        pg.addColorStop(0, `rgba(255,240,180,${a})`);
+        pg.addColorStop(0.4, `rgba(255,200,100,${a * 0.3})`);
+        pg.addColorStop(1, 'transparent');
+        ctx.fillStyle = pg; ctx.fillRect(px2 - sz * 5, py2 - sz * 5, sz * 10, sz * 10);
+        ctx.fillStyle = `rgba(255,250,200,${a * 1.5})`;
+        ctx.beginPath(); ctx.arc(px2, py2, sz * 0.5, 0, Math.PI * 2); ctx.fill();
+      }
+    }, 0.5, 1.2);
 
     // Camera for the portal scene — looks into the mountain world
     const portalCam = new THREE.PerspectiveCamera(70, w / h, 0.1, 100);
@@ -2248,7 +2322,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     _bcMesh.add(txtPlane);
 
     // Store portal data for the render loop
-    _bcMesh._portal = { scene: portalScene, camera: portalCam, rt: portalRT, layers: [sky, farMtn, midHill, fg], depths: [0.04, 0.025, 0.015, 0.008] };
+    _bcMesh._portal = { scene: portalScene, camera: portalCam, rt: portalRT, layers: [sky, aurora, farMtn, midHill, fg, closeTrees, particles], depths: [0.04, 0.035, 0.025, 0.015, 0.008, 0.004, 0.002] };
     _bcMesh.add(glitterPlane);
     _bcMesh._parallax = [];
   } else {
