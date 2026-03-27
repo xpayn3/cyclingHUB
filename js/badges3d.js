@@ -24,10 +24,8 @@ let _sharedRendererCanvas = null; // the canvas currently bound
 
 function _getRenderer(THREE, canvasEl, opts) {
   if (_sharedRenderer && _sharedRendererCanvas === canvasEl) return _sharedRenderer;
-  // If bound to a different canvas, we must create a new renderer
-  // (WebGL context is tied to its canvas and can't be moved)
   if (_sharedRenderer) {
-    // Don't dispose — just lose the reference. Old context will be GC'd.
+    try { _sharedRenderer.dispose(); } catch {}
     _sharedRenderer = null;
   }
   _sharedRenderer = new THREE.WebGLRenderer({
@@ -43,7 +41,17 @@ function _getRenderer(THREE, canvasEl, opts) {
 }
 
 function _releaseRenderer() {
-  // Don't dispose — keep it alive for reuse if same canvas comes back
+  // Keep renderer alive for reuse on same canvas, dispose on new canvas
+}
+
+// Env map cache with LRU eviction (max 6 badge env maps)
+const _ENV_CACHE_MAX = 6;
+function _evictEnvCache() {
+  const keys = Object.keys(_cachedBadgeEnvTexMap);
+  if (keys.length <= _ENV_CACHE_MAX) return;
+  const oldest = keys[0];
+  try { _cachedBadgeEnvTexMap[oldest].dispose(); } catch {}
+  delete _cachedBadgeEnvTexMap[oldest];
 }
 
 // ── Cached env maps ──────────────────────────────────────────────────────────
@@ -60,8 +68,9 @@ async function _loadThreeJS() {
     const script = document.createElement('script');
     script.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js';
     script.crossOrigin = 'anonymous';
-    script.onload = resolve;
-    script.onerror = () => reject(new Error('Failed to load Three.js'));
+    const timeout = setTimeout(() => reject(new Error('Three.js CDN timeout')), 10000);
+    script.onload = () => { clearTimeout(timeout); resolve(); };
+    script.onerror = () => { clearTimeout(timeout); reject(new Error('Failed to load Three.js')); };
     document.head.appendChild(script);
   });
   _THREE = window.THREE;
@@ -1625,6 +1634,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   _et.wrapS = THREE.RepeatWrapping;
   _et.wrapT = THREE.RepeatWrapping;
   _cachedBadgeEnvTexMap[colorKey] = _et;
+  _evictEnvCache();
   }
   const envTex = _cachedBadgeEnvTexMap[colorKey];
 

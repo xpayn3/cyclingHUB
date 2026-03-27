@@ -449,8 +449,18 @@ function refreshCustomDropdowns(root) {
 /** Destroy a Chart.js instance and return null for easy assignment */
 const _chartLinks = new Map();   // chartInstance → partnerStateKey (for tooltip sync)
 function destroyChart(chart) {
-  if (chart) { _chartLinks.delete(chart); chart.destroy(); }
+  if (chart) { try { _chartLinks.delete(chart); chart.destroy(); } catch(_){} }
   return null;
+}
+
+// Safe chart creation — catches CDN failures, context loss, plugin errors
+function _safeChart(canvas, config) {
+  try {
+    return new Chart(canvas, config);
+  } catch (e) {
+    console.warn('Chart creation failed:', e.message);
+    return null;
+  }
 }
 
 /* ── Lazy chart rendering — defer off-screen charts until visible ── */
@@ -525,8 +535,14 @@ function cleanupPageCharts(leavingPage) {
   const keys = _pageChartKeys[leavingPage];
   if (keys) {
     keys.forEach(k => {
-      if (state[k]) { state[k].destroy(); state[k] = null; }
+      if (state[k]) { try { state[k].destroy(); } catch(_){} state[k] = null; }
+      if (window[k]) { try { window[k].destroy(); } catch(_){} window[k] = null; }
     });
+  }
+  // Clear lazy chart observer on any page leave
+  if (_lazyCharts.observer) {
+    _lazyCharts.pending.forEach((fn, card) => { try { _lazyCharts.observer.unobserve(card); } catch(_){} });
+    _lazyCharts.pending.clear();
   }
   // Destroy compare card charts when leaving compare page
   if (leavingPage === 'compare') {
