@@ -894,6 +894,8 @@ export function hmApplyFilters() {
   } else if (_hm.filter === '90d') {
     const cutoff = new Date(now); cutoff.setDate(cutoff.getDate() - 90);
     routes = routes.filter(r => r.date >= cutoff);
+  } else if (_hm.filter === 'custom' && _hm._customStart && _hm._customEnd) {
+    routes = routes.filter(r => r.date >= _hm._customStart && r.date <= _hm._customEnd);
   }
 
   // Sport filter
@@ -1455,4 +1457,69 @@ export function hmStopAnimate() {
   const playbar = document.getElementById('hmPlaybar');
   if (playbar) playbar.classList.remove('hm-playbar-expanded');
 }
+
+/* ═══════════════════════════════════════════════════════════
+   Library API — Control heatmap from external code
+═══════════════════════════════════════════════════════════ */
+export function hmSetColorMode(mode) {
+  _hm.colorMode = mode;
+  hmRedraw();
+}
+window.hmSetColorMode = hmSetColorMode;
+
+export function hmSetPeriod(period) {
+  _hm.filter = period;
+  hmApplyFilters();
+}
+window.hmSetPeriod = hmSetPeriod;
+
+export function hmShowRoute(actId) {
+  if (!_hm.map) return;
+  const map = _hm.map;
+  // Find route in loaded routes
+  const route = _hm.allRoutes?.find(r => r.id === actId || r.id === +actId);
+  if (!route || !route.points?.length) return;
+  // Remove previous highlight
+  hmClearHighlight();
+  // Build GeoJSON line
+  const coords = route.points.map(p => [p[1], p[0]]); // [lng, lat]
+  map.addSource('lib-highlight', {
+    type: 'geojson',
+    data: { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } }
+  });
+  map.addLayer({
+    id: 'lib-highlight-shadow',
+    type: 'line',
+    source: 'lib-highlight',
+    paint: { 'line-color': '#000', 'line-width': 6, 'line-opacity': 0.4, 'line-blur': 4 }
+  });
+  map.addLayer({
+    id: 'lib-highlight-line',
+    type: 'line',
+    source: 'lib-highlight',
+    paint: { 'line-color': '#00e5a0', 'line-width': 3, 'line-opacity': 0.9 }
+  });
+  // Fit map to route bounds
+  const bounds = coords.reduce((b, c) => b.extend(c), new maplibregl.LngLatBounds(coords[0], coords[0]));
+  map.fitBounds(bounds, { padding: 60, maxZoom: 14, duration: 800 });
+}
+window.hmShowRoute = hmShowRoute;
+
+export function hmClearHighlight() {
+  if (!_hm.map) return;
+  try {
+    if (_hm.map.getLayer('lib-highlight-line')) _hm.map.removeLayer('lib-highlight-line');
+    if (_hm.map.getLayer('lib-highlight-shadow')) _hm.map.removeLayer('lib-highlight-shadow');
+    if (_hm.map.getSource('lib-highlight')) _hm.map.removeSource('lib-highlight');
+  } catch (e) {}
+}
+window.hmClearHighlight = hmClearHighlight;
+
+export function hmFilterByDateRange(startDate, endDate) {
+  _hm.filter = 'custom';
+  _hm._customStart = startDate;
+  _hm._customEnd = endDate;
+  hmApplyFilters();
+}
+window.hmFilterByDateRange = hmFilterByDateRange;
 

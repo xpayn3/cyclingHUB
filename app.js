@@ -4535,7 +4535,7 @@ function navigate(page, opts) {
   const pc = document.getElementById('pageContent');
   if (pc) {
     pc.classList.toggle('page-content--calendar', page === 'calendar');
-    pc.classList.toggle('page-content--heatmap', page === 'heatmap');
+    pc.classList.toggle('page-content--heatmap', page === 'heatmap' || page === 'library');
     pc.classList.toggle('page-content--routes', page === 'routes');
     pc.classList.toggle('page-content--has-pill', page === 'dashboard' || page === 'power' || page === 'fitness');
   }
@@ -35289,6 +35289,8 @@ function openProfileModal() {
     const profScrollEl = document.getElementById('profScroll');
 
     sheet.addEventListener('touchstart', e => {
+      // Don't swipe-dismiss when touching the 3D card canvas
+      if (e.target.closest('#riderCard3dCanvas')) return;
       // Only start drag if scroll is at top
       if (profScrollEl && profScrollEl.scrollTop > 5) return;
       startY = e.touches[0].clientY;
@@ -35355,7 +35357,7 @@ function openProfileModal() {
     profScroll.scrollTop = 0;
     if (stickyHdr) stickyHdr.classList.remove('prof-sticky--visible');
     profScroll.onscroll = function() {
-      const show = profScroll.scrollTop > 140;
+      const show = profScroll.scrollTop > 340;
       stickyHdr.classList.toggle('prof-sticky--visible', show);
     };
   }
@@ -38219,6 +38221,129 @@ function _renderLibraryPage() {
   }
   // Build active tab content
   _libBuildTab(_libActiveTab);
+  // Init timeline scrubber (desktop only)
+  setTimeout(() => _libInitTimeline(), 2000);
+}
+
+let _libTimelineReady = false;
+function _libInitTimeline() {
+  if (_libTimelineReady || window.innerWidth < 769) return;
+  const canvas = document.getElementById('libTimelineCanvas');
+  const track = document.getElementById('libTimelineTrack');
+  const cursor = document.getElementById('libTimelineCursor');
+  const range = document.getElementById('libTimelineRange');
+  const label = document.getElementById('libTimelineLabel');
+  const startLabel = document.getElementById('libTimelineStart');
+  const endLabel = document.getElementById('libTimelineEnd');
+  if (!canvas || !track) return;
+
+  // Get all rides sorted by date
+  const acts = (state.activities || [])
+    .filter(a => a.start_date_local)
+    .sort((a, b) => new Date(a.start_date_local) - new Date(b.start_date_local));
+  if (acts.length < 2) return;
+
+  _libTimelineReady = true;
+  const firstDate = new Date(acts[0].start_date_local);
+  const lastDate = new Date(acts[acts.length - 1].start_date_local);
+  const totalMs = lastDate - firstDate || 1;
+
+  if (startLabel) startLabel.textContent = firstDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  if (endLabel) endLabel.textContent = lastDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+
+  // Draw activity frequency bars on canvas
+  const ctx = canvas.getContext('2d');
+  const w = canvas.parentElement.clientWidth;
+  canvas.width = w;
+  const h = canvas.height;
+  const bins = Math.min(w, 200);
+  const counts = new Array(bins).fill(0);
+  for (const a of acts) {
+    const t = (new Date(a.start_date_local) - firstDate) / totalMs;
+    const bin = Math.min(bins - 1, Math.floor(t * bins));
+    counts[bin]++;
+  }
+  const maxCount = Math.max(...counts, 1);
+  ctx.clearRect(0, 0, w, h);
+  const barW = w / bins;
+  for (let i = 0; i < bins; i++) {
+    const barH = (counts[i] / maxCount) * (h - 4);
+    if (barH < 1) continue;
+    ctx.fillStyle = 'rgba(0,229,160,0.3)';
+    ctx.fillRect(i * barW, h - barH, barW - 1, barH);
+  }
+
+  // Drag to scrub
+  let dragging = false;
+  let dragStart = 0;
+  let selStart = 0, selEnd = 1;
+
+  const posFromEvent = (e) => {
+    const rect = track.getBoundingClientRect();
+    return Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  };
+
+  const updateVisuals = () => {
+    const left = Math.min(selStart, selEnd);
+    const right = Math.max(selStart, selEnd);
+    range.style.left = (left * 100) + '%';
+    range.style.width = ((right - left) * 100) + '%';
+    cursor.style.left = (selEnd * 100) + '%';
+
+    const dStart = new Date(firstDate.getTime() + left * totalMs);
+    const dEnd = new Date(firstDate.getTime() + right * totalMs);
+    const fmt = (d) => d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+    if (left === 0 && right >= 0.99) {
+      label.textContent = 'All Time';
+    } else {
+      label.textContent = fmt(dStart) + ' → ' + fmt(dEnd);
+    }
+  };
+
+  const applyFilter = () => {
+    const left = Math.min(selStart, selEnd);
+    const right = Math.max(selStart, selEnd);
+    if (left === 0 && right >= 0.99) {
+      // Reset to all
+      if (window.hmSetPeriod) hmSetPeriod('all');
+      return;
+    }
+    const dStart = new Date(firstDate.getTime() + left * totalMs);
+    const dEnd = new Date(firstDate.getTime() + right * totalMs);
+    // Filter heatmap by date range
+    if (window.hmFilterByDateRange) hmFilterByDateRange(dStart, dEnd);
+  };
+
+  track.addEventListener('pointerdown', (e) => {
+    dragging = true;
+    selStart = posFromEvent(e);
+    selEnd = selStart;
+    track.setPointerCapture(e.pointerId);
+    updateVisuals();
+  });
+
+  track.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    selEnd = posFromEvent(e);
+    updateVisuals();
+  });
+
+  track.addEventListener('pointerup', () => {
+    if (!dragging) return;
+    dragging = false;
+    applyFilter();
+  });
+
+  // Double-click to reset
+  track.addEventListener('dblclick', () => {
+    selStart = 0;
+    selEnd = 1;
+    updateVisuals();
+    if (window.hmSetPeriod) hmSetPeriod('all');
+  });
+
+  // Initial state
+  updateVisuals();
 }
 
 function _libSwitchTab(tab) {
@@ -38272,12 +38397,34 @@ function _libBuildRidesTab() {
     const dur = a.moving_time ? Math.round(a.moving_time / 60) + 'm' : '';
     const d = a.start_date_local ? new Date(a.start_date_local) : null;
     const dateStr = d ? d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : '';
-    return `<div class="lib-ride-card" onclick="_libShowRide('${a.id}')">
-      <div class="lib-ride-info">
-        <div class="lib-ride-name">${a.name || 'Ride'}</div>
-        <div class="lib-ride-meta">${dateStr} · ${km} km · ${dur}</div>
+    const elev = Math.round(a.total_elevation_gain || 0);
+    const avgW = a.icu_average_watts ? Math.round(a.icu_average_watts) + ' W' : '';
+    const avgHR = a.average_heartrate ? Math.round(a.average_heartrate) + ' bpm' : '';
+    const tss = a.icu_training_load ? Math.round(a.icu_training_load) : '';
+    return `<div class="lib-ride-row" data-actid="${a.id}">
+      <div class="lib-ride-card" onclick="_libToggleRide(this.parentElement)">
+        <div class="lib-ride-info">
+          <div class="lib-ride-name">${a.name || 'Ride'}</div>
+          <div class="lib-ride-meta">${dateStr} · ${km} km · ${dur}</div>
+        </div>
+        <svg class="lib-ride-chevron icon" width="14" height="14" style="color:var(--text-faint);flex-shrink:0;transition:transform 0.2s"><use href="icons.svg#icon-chevron-down"/></svg>
       </div>
-      <svg class="icon" width="14" height="14" style="color:var(--text-faint);flex-shrink:0"><use href="icons.svg#icon-chevron-right"/></svg>
+      <div class="lib-ride-detail" style="display:none">
+        <div class="lib-ride-detail-stats">
+          <div class="lib-ride-detail-stat"><span class="lib-ride-detail-val" style="color:var(--accent)">${km}</span><span class="lib-ride-detail-lbl">km</span></div>
+          <div class="lib-ride-detail-stat"><span class="lib-ride-detail-val">${dur}</span><span class="lib-ride-detail-lbl">time</span></div>
+          <div class="lib-ride-detail-stat"><span class="lib-ride-detail-val" style="color:#9b59ff">${elev}</span><span class="lib-ride-detail-lbl">m elev</span></div>
+          ${tss ? `<div class="lib-ride-detail-stat"><span class="lib-ride-detail-val" style="color:#f0c429">${tss}</span><span class="lib-ride-detail-lbl">TSS</span></div>` : ''}
+        </div>
+        ${avgW || avgHR ? `<div class="lib-ride-detail-metrics">
+          ${avgW ? `<span><svg class="icon" width="12" height="12" style="color:var(--accent)"><use href="icons.svg#icon-bolt"/></svg> ${avgW}</span>` : ''}
+          ${avgHR ? `<span><svg class="icon" width="12" height="12" style="color:#ff6b35"><use href="icons.svg#icon-heart"/></svg> ${avgHR}</span>` : ''}
+        </div>` : ''}
+        <div class="lib-ride-elev-wrap" id="libRideElev_${a.id}"><canvas height="60" style="width:100%;height:60px;border-radius:8px;background:var(--surface-1)"></canvas></div>
+        <div class="lib-ride-detail-actions">
+          <button class="btn btn-accent btn-sm" onclick="navigateToActivity(state.activities.find(a=>a.id==='${a.id}'||a.id===${a.id}))">View Activity</button>
+        </div>
+      </div>
     </div>`;
   }).join('');
 }
@@ -38356,56 +38503,112 @@ function _libBuildDiscoverTab() {
   </div>`).join('');
 }
 
-function _libShowRide(actId) {
-  // Highlight ride on map + show detail panel
-  const act = (state.activities || []).find(a => a.id === actId || a.id === +actId);
-  if (!act) return;
-  const detail = document.getElementById('libDetail');
-  const titleEl = document.getElementById('libDetailTitle');
-  const bodyEl = document.getElementById('libDetailBody');
-  if (!detail || !bodyEl) return;
+function _libToggleRide(row) {
+  const detail = row.querySelector('.lib-ride-detail');
+  const chevron = row.querySelector('.lib-ride-chevron');
+  const actId = row.dataset.actid;
+  const wasOpen = detail.style.display !== 'none';
 
-  titleEl.textContent = act.name || 'Ride';
-  const km = ((act.distance || 0) / 1000).toFixed(1);
-  const dur = act.moving_time ? Math.round(act.moving_time / 60) : 0;
-  const d = act.start_date_local ? new Date(act.start_date_local) : null;
-  const dateStr = d ? d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : '';
+  // Close all other open rows
+  document.querySelectorAll('.lib-ride-row').forEach(r => {
+    if (r !== row) {
+      const d = r.querySelector('.lib-ride-detail');
+      const c = r.querySelector('.lib-ride-chevron');
+      if (d) d.style.display = 'none';
+      if (c) c.style.transform = '';
+      r.classList.remove('lib-ride-row--open');
+    }
+  });
 
-  bodyEl.innerHTML = `
-    <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px">${dateStr}</div>
-    <div class="lib-detail-stats">
-      <div class="lib-detail-stat"><span class="lib-detail-stat-val">${km}</span><span class="lib-detail-stat-label">km</span></div>
-      <div class="lib-detail-stat"><span class="lib-detail-stat-val">${dur}m</span><span class="lib-detail-stat-label">duration</span></div>
-      <div class="lib-detail-stat"><span class="lib-detail-stat-val">${Math.round(act.total_elevation_gain || 0)}</span><span class="lib-detail-stat-label">m elevation</span></div>
-    </div>
-    ${act.icu_average_watts ? `<div class="lib-detail-row"><span>Avg Power</span><span style="color:var(--accent);font-weight:600">${Math.round(act.icu_average_watts)} W</span></div>` : ''}
-    ${act.average_heartrate ? `<div class="lib-detail-row"><span>Avg HR</span><span style="color:#ff6b35;font-weight:600">${Math.round(act.average_heartrate)} bpm</span></div>` : ''}
-    ${act.icu_training_load ? `<div class="lib-detail-row"><span>TSS</span><span style="font-weight:600">${Math.round(act.icu_training_load)}</span></div>` : ''}
-    <div style="margin-top:20px;display:flex;gap:8px">
-      <button class="btn btn-accent" style="flex:1" onclick="navigateToActivity(state.activities.find(a=>a.id==='${actId}'||a.id===${actId}));_libCloseDetail()">View Activity</button>
-    </div>
-  `;
-
-  detail.style.display = 'flex';
-  requestAnimationFrame(() => detail.classList.add('lib-detail--open'));
-
-  // Highlight on map
-  if (window.hmShowRoute && act.id) {
-    hmShowRoute(act.id);
+  if (wasOpen) {
+    detail.style.display = 'none';
+    if (chevron) chevron.style.transform = '';
+    row.classList.remove('lib-ride-row--open');
+    if (window.hmClearHighlight) hmClearHighlight();
+  } else {
+    detail.style.display = 'block';
+    if (chevron) chevron.style.transform = 'rotate(180deg)';
+    row.classList.add('lib-ride-row--open');
+    // Highlight on map
+    if (window.hmShowRoute && actId) hmShowRoute(actId);
+    // Scroll row into view
+    row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    // Fetch and draw elevation mini chart (defer for DOM layout)
+    requestAnimationFrame(() => _libDrawElevation(actId));
   }
 }
-window._libShowRide = _libShowRide;
+window._libToggleRide = _libToggleRide;
 
-function _libCloseDetail() {
-  const detail = document.getElementById('libDetail');
-  if (detail) {
-    detail.classList.remove('lib-detail--open');
-    setTimeout(() => { detail.style.display = 'none'; }, 300);
+async function _libDrawElevation(actId) {
+  const wrap = document.getElementById('libRideElev_' + actId);
+  if (!wrap || wrap.dataset.drawn) return;
+  const canvas = wrap.querySelector('canvas');
+  if (!canvas) return;
+
+  try {
+    const resp = await icuFetch(`/activity/${actId}/streams?types=altitude,distance`);
+    if (!resp) return;
+    const alt = resp.altitude?.data || resp.altitude || [];
+    const dist = resp.distance?.data || resp.distance || [];
+    if (alt.length < 10) return;
+
+    wrap.dataset.drawn = '1';
+    const ctx = canvas.getContext('2d');
+    const w = wrap.clientWidth || wrap.offsetWidth || 300;
+    canvas.width = w;
+    canvas.style.width = w + 'px';
+    const h = 60;
+    canvas.height = h;
+
+    // Downsample to canvas width
+    const step = Math.max(1, Math.floor(alt.length / w));
+    const pts = [];
+    for (let i = 0; i < alt.length; i += step) {
+      pts.push(alt[i] ?? 0);
+    }
+
+    const minA = Math.min(...pts);
+    const maxA = Math.max(...pts);
+    const range = maxA - minA || 1;
+
+    // Draw filled area
+    ctx.beginPath();
+    ctx.moveTo(0, h);
+    for (let i = 0; i < pts.length; i++) {
+      const x = (i / (pts.length - 1)) * w;
+      const y = h - ((pts[i] - minA) / range) * (h - 4) - 2;
+      ctx.lineTo(x, y);
+    }
+    ctx.lineTo(w, h);
+    ctx.closePath();
+
+    const grad = ctx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, 'rgba(155, 89, 255, 0.4)');
+    grad.addColorStop(1, 'rgba(155, 89, 255, 0.05)');
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Draw line on top
+    ctx.beginPath();
+    for (let i = 0; i < pts.length; i++) {
+      const x = (i / (pts.length - 1)) * w;
+      const y = h - ((pts[i] - minA) / range) * (h - 4) - 2;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = '#9b59ff';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Min/max labels
+    ctx.font = '10px var(--font-num)';
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.textAlign = 'left';
+    ctx.fillText(Math.round(maxA) + 'm', 4, 12);
+    ctx.fillText(Math.round(minA) + 'm', 4, h - 4);
+  } catch (e) {
+    console.warn('[LibElev] Error:', e);
   }
-  // Remove map highlight
-  if (window.hmClearHighlight) hmClearHighlight();
 }
-window._libCloseDetail = _libCloseDetail;
 
 function _libSetHeatMode(mode, btn) {
   btn.parentElement.querySelectorAll('.lib-pill').forEach(p => p.classList.remove('active'));
