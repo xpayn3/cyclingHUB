@@ -672,7 +672,7 @@ export async function initRiderCard3D(canvasEl, data) {
   const THREE = await _loadThreeJS();
 
   let w = canvasEl.clientWidth || 340;
-  let h = canvasEl.clientHeight || 220;
+  let h = canvasEl.clientHeight || 380;
   canvasEl.width = w * Math.min(window.devicePixelRatio, 1.5);
   canvasEl.height = h * Math.min(window.devicePixelRatio, 1.5);
   canvasEl.style.width = w + 'px';
