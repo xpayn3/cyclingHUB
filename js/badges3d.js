@@ -2195,8 +2195,8 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     }, -2, 2.2);
 
     // Camera for the portal scene — looks into the mountain world
-    const portalCam = new THREE.PerspectiveCamera(50, w / h, 0.1, 100);
-    portalCam.position.set(0, 0, 5);
+    const portalCam = new THREE.PerspectiveCamera(70, w / h, 0.1, 100);
+    portalCam.position.set(0, 0, 3);
     portalCam.lookAt(0, 0, -5);
 
     // Portal window plane — uses screen-space sampling shader
