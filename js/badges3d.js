@@ -657,6 +657,7 @@ export function resizeBadge3D(canvasEl) {
 
 let _rcScene, _rcCamera, _rcRenderer, _rcMesh, _rcRaf;
 let _rcDragging = false, _rcStartX = 0, _rcStartY = 0, _rcRotX = 0, _rcRotY = 0;
+let _rcTrail = [];
 
 export async function initRiderCard3D(canvasEl, data) {
   const THREE = await _loadThreeJS();
@@ -1230,20 +1231,41 @@ export async function initRiderCard3D(canvasEl, data) {
     { mesh: lvlPlane, depth: 0.005 },
   ];
 
-  _rcMesh.rotation.x = 0.06;
-  _rcMesh.rotation.y = 0.08;
+  // Intro animation — card flips in from edge, scales up
+  _rcMesh.rotation.x = 0.3;
+  _rcMesh.rotation.y = Math.PI * 0.6;
+  _rcMesh.rotation.z = -0.15;
+  _rcMesh.scale.setScalar(0.7);
   _rcScene.add(_rcMesh);
 
   const REST_X = 0.06, REST_Y = 0.08;
+  const _rcIntroStart = Date.now();
+  const _rcIntroDur = 500; // ms
   let velX = 0, velY = 0;
   const SPRING = 0.008, DAMP = 0.97;
   let _rcDragVelX = 0, _rcDragVelY = 0, _rcLastMoveX = 0, _rcLastMoveY = 0;
-  let _rcReleaseTime = 0, _rcSpinning = false, _rcIdle = false, _rcAutoSpin = true;
+  let _rcReleaseTime = 0, _rcSpinning = false, _rcIdle = false, _rcAutoSpin = false;
+
+  function _easeOutBack(t) { const c = 1.4; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); }
 
   function loop() {
     _rcRaf = requestAnimationFrame(loop);
     if (!_rcMesh) return;
     if (_rcIdle) return;
+
+    // Intro animation
+    const introElapsed = Date.now() - _rcIntroStart;
+    if (introElapsed < _rcIntroDur) {
+      const p = _easeOutBack(Math.min(1, introElapsed / _rcIntroDur));
+      _rcMesh.rotation.x = 0.3 + (REST_X - 0.3) * p;
+      _rcMesh.rotation.y = Math.PI * 0.6 + (REST_Y - Math.PI * 0.6) * p;
+      _rcMesh.rotation.z = -0.15 * (1 - p);
+      _rcMesh.scale.setScalar(0.7 + 0.3 * p);
+      _rcRenderer.render(_rcScene, _rcCamera);
+      return;
+    } else if (!_rcAutoSpin && !_rcSpinning && !_rcDragging) {
+      _rcAutoSpin = true; // transition to auto-spin after intro
+    }
 
     // Shimmer
     const rotY = _rcMesh.rotation.y || 0;
@@ -1532,6 +1554,7 @@ let _bcScene, _bcCamera, _bcRenderer, _bcMesh, _bcRaf, _bcDragging = false;
 let _bcStartX = 0, _bcStartY = 0, _bcRotX = 0, _bcRotY = 0;
 let _bcDragVelX = 0, _bcDragVelY = 0, _bcLastMoveX = 0, _bcLastMoveY = 0;
 let _bcReleaseTime = 0, _bcSpinning = false, _bcIdle = false, _bcAutoSpin = true;
+let _bcTrail = [];
 
 export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   const THREE = await _loadThreeJS();
@@ -2195,18 +2218,40 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     _bcMesh._parallax = [{ mesh: iconPlane, depth: 0.003 }];
   }
 
-  _bcMesh.rotation.x = 0.06;
-  _bcMesh.rotation.y = 0.08;
+  // Intro animation — card flips in from edge
+  _bcMesh.rotation.x = 0.3;
+  _bcMesh.rotation.y = -Math.PI * 0.6;
+  _bcMesh.rotation.z = 0.15;
+  _bcMesh.scale.setScalar(0.7);
   _bcScene.add(_bcMesh);
 
   const REST_X = 0.06, REST_Y = 0.08;
+  const _bcIntroStart = Date.now();
+  const _bcIntroDur = 500;
   let velX = 0, velY = 0;
   const SPRING = 0.008, DAMP = 0.97;
+
+  function _easeOutBack2(t) { const c = 1.4; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); }
 
   function loop() {
     _bcRaf = requestAnimationFrame(loop);
     if (!_bcMesh) return;
     if (_bcIdle) return;
+
+    // Intro animation
+    const introElapsed = Date.now() - _bcIntroStart;
+    if (introElapsed < _bcIntroDur) {
+      const p = _easeOutBack2(Math.min(1, introElapsed / _bcIntroDur));
+      _bcMesh.rotation.x = 0.3 + (REST_X - 0.3) * p;
+      _bcMesh.rotation.y = -Math.PI * 0.6 + (REST_Y - (-Math.PI * 0.6)) * p;
+      _bcMesh.rotation.z = 0.15 * (1 - p);
+      _bcMesh.scale.setScalar(0.7 + 0.3 * p);
+      _bcRenderer.render(_bcScene, _bcCamera);
+      return;
+    } else if (!_bcAutoSpin && !_bcSpinning && !_bcDragging) {
+      _bcAutoSpin = true;
+    }
+
     // Holo shimmer — sweep rainbow env map based on rotation angle
     const t = Date.now() * 0.001, ry = _bcMesh.rotation.y || 0, rx = _bcMesh.rotation.x || 0;
     if (!isMountain) {
