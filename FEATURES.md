@@ -1,138 +1,184 @@
-# Cycling App - Features
+# CycleIQ — Complete Feature Set
 
-## 🎯 Major Features
+## Pages (22 total)
 
-**Dashboard Overview**
-- Real-time training metrics: CTL (Chronic Training Load/Fitness), ATL (Acute Training Load/Fatigue), and TSB (Training Stress Balance/Form)
-- Visual training status indicator with color-coded glow effect (green = fresh, blue = peaked, orange = fatigued, red = overreached)
-- Quick-glance performance summary updated daily
+### Dashboard
+- Summary cards: weekly stats, fitness snapshot, recent activities
+- Gear carousel (bike fleet with dot navigation)
+- Route Builder map widget (MapLibre 3D)
+- Weather forecast rail (click to expand)
+- Battery status cards (Garmin, SRAM AXS, coin cells)
+- Widget system: reorderable, hideable, drag-and-drop editor
+- Training load sparkline (CTL/ATL/TSB)
 
-**Activity Management**
-- Browse recent activities in a beautiful carousel with map previews and weather data
-- Detailed activity pages showing distance, duration, elevation, average speed, pace, power, heart rate data
-- Full GPS map visualization with route display
-- Weather conditions at the time of activity (temperature, wind speed, conditions)
-- Complete metric breakdown and performance analysis
+### Activities List
+- Card/list view toggle
+- Filters: sport type, year, date range
+- Sort: date, distance, duration, TSS
+- Search by activity name
+- Infinite scroll with lazy loading
+- Scroll position restoration on back-nav
 
-**Goals & Streaks**
-- Set and track weekly, monthly, and yearly training goals
-- Visual progress cards with time remaining
-- Goal status indicators (ahead, on-track, caution, behind)
-- Streak tracking for consistency
-- Achievement badges for milestones
+### Activity Detail
+- Interactive map (MapLibre 3D terrain)
+- Multi-stream chart: power, HR, cadence, speed, elevation, temperature
+- Zone distribution (power + HR donut charts)
+- Interval detection and analysis
+- Climb detection with gradient bands
+- Lap/split breakdown table
+- Similar rides comparison
+- Share card generation (canvas screenshot)
+- Save route to library
 
-**Workout Planning & Calendar**
-- Interactive calendar for planning and reviewing workouts
-- View planned workouts alongside completed activities
-- Monthly and weekly navigation
-- Integration with your training schedule
+### Fitness & Training Load
+- CTL/ATL/TSB chart with interactive date range
+- FTP history timeline
+- Wellness insights (HRV, sleep, resting HR)
+- Race prediction calculator
+- Training recommendations
+- 7 new analytics: Gear ROI, Fueling Plan, Tapering Wizard, Weather-Performance Correlation, What If CTL Simulator, Race Pacing, Heat/Altitude Acclimatization
 
-**Data Export**
-- Download original activity files (FIT, GPX, or source format)
-- Export in multiple formats for use with other tools
-- Quick access from activity detail pages
+### Power Analysis
+- Power curve (all-time, 90d, 28d, 7d)
+- Zone distribution (time in zones)
+- Power profile radar chart
+- Strength/weakness analysis
+- W' balance chart
 
-**Weather Integration**
-- Current conditions with temperature, wind, and weather icons
-- 7-day forecast view
-- Historical weather for completed activities
-- Beautiful weather cards with detailed breakdowns
+### Goals & Streaks
+- Week/day/month streak tracking with hero cards
+- Personal bests (best streaks, total active weeks)
+- Weekly activity calendar heatmap (last 52 weeks)
+- Month calendar view
+- Year overview (rides per month)
+- 28 achievement badges with 3D holographic cards
+- Achievement subpage (earned/locked sections)
+- Lifetime stats list (15 metrics: distance, elevation, time, calories, TSS, etc.)
+- Training goals with progress rings (weekly/monthly/yearly targets)
 
-**Performance Metrics & Analysis**
-- Power curve analysis showing peak efforts at various durations
-- Heart rate curves and zones
-- Pace curves for running activities (with grade-adjusted pace for trails)
-- Training load visualization by week and month
-- Weekly statistics and trend analysis
+### Achievements System (28 badges)
+**Streak-based:** On Fire (3w), Week Warrior (5w), Diamond Streak (10w), Streak King (20w), Daily Grinder (7d), Month Maker (3mo), Best Week Ever, Century Club (100w), Half Year (26w), Consistent (50w)
+**Seasonal:** Winter Warrior (Jan/Feb), Summer Beast (Jul/Aug)
+**Distance:** Explorer (1,000km), Iron Legs (5,000km), Marathon Rider (100km ride)
+**Climbing:** Hill Climber (10,000m total), Everesting (8,849m single ride)
+**Speed:** Speedster (40+ km/h avg)
+**Time:** Saddle Time (100+ hrs), Endurance King (5+ hr ride)
+**Special dates:** Valentine Rider (Feb 14), Spooky Rider (Oct 31), New Year Ride (Jan 1), Christmas Ride (Dec 25)
+**Milestones:** First Ride, 500 Club
+**Time of day:** Early Bird (before 6 AM), Night Owl (after 9 PM)
 
-**Gear Tracking**
-- Log and manage all your equipment (bikes, shoes, trainers, wetsuits)
-- Usage statistics and mileage/hours tracking
-- Customizable maintenance reminders (distance or time-based)
-- Quick access to gear info from activities
+### 3D Badge Cards
+- Procedural card geometry with rounded corners
+- PBR materials: metalness/roughness maps with unique holo patterns per badge
+- Rainbow env map with 3x repeating spectrum + scanline bands
+- Moving spotlight that orbits based on card tilt
+- Glitter sparkle shader (additive blending, angle-dependent flash)
+- Auto-spin with tilt rocking (30fps idle, 60fps interact)
+- 0.5s intro animation (easeOutBack flip-in)
+- Drag interaction with trail-based velocity + momentum
+- Half Year special: portal effect with 7-layer mountain diorama
+- Card preview thumbnails in achievements grid (earned=color, locked=greyscale+lock)
 
-**Intervals.icu Integration**
-- Seamless data sync with your intervals.icu account
-- Real-time metrics and activity data
-- Customizable sport settings (FTP, FTHR, pace thresholds)
-- Multi-sport support (cycling, running, swimming)
+### Weather
+- 7-day forecast with ride-quality badges
+- Hourly breakdown chart
+- Wind rose visualization
+- Multi-location support
+- Temperature/precipitation/UV charts
 
-**Wellness Tracking**
-- Log daily wellness metrics: HRV, sleep quality, resting heart rate
-- Track subjective metrics: fatigue, soreness, mood, motivation, stress
-- See how wellness correlates with training
-- Daily readiness score
+### Calendar
+- Month and week views
+- Activity markers with intensity colors
+- Event creation for planned rides
+- Training plan integration
 
-**Responsive Design**
-- Fully optimized for mobile and tablet
-- Edge-to-edge scrolling carousels (Apple Music style)
-- Touch-friendly interface
-- Viewport-aware layouts
+### Gear (My Garage)
+- Bike fleet management with photos
+- Component tracking (groupset, wheels, tires, accessories)
+- Battery monitoring (SRAM AXS hourly drain, coin cell monthly decay)
+- Tire pressure calculator (SRAM/Zipp, Silca, Berto models)
+- Service history and maintenance reminders
+- Component wear tracking
 
----
+### Workout Builder
+- Visual interval designer
+- Segment types: warmup, steady, interval, cooldown, ramp
+- Zwift .zwo file export
+- Power/HR target zones
+- Drag-to-reorder segments
 
-## ✨ Design & UX Polish
+### Route Builder
+- MapLibre 3D terrain maps
+- Click-to-add waypoints
+- Auto-routing via road network
+- Elevation profile with gradient bands
+- Distance/elevation stats
+- GPX and FIT file export
+- POI mode (points of interest)
 
-**Visual Design**
-- Clean, modern interface with smooth animations
-- Card-based layout with hover effects and spotlight glow
-- Color-coded metrics based on training status
-- Consistent typography and spacing throughout
-- System-optimized font rendering
+### Routes Library
+- Saved routes browser
+- Edit, rename, delete routes
+- Route cards with map preview
 
-**Interactions**
-- Smooth page transitions and navigation
-- Animated metric counters
-- Hover effects on interactive elements (glow spotlight + rim glow)
-- Touch-optimized for mobile gestures
-- Momentum scrolling on mobile
+### Heatmap
+- Lifetime activity overlay on map
+- Route clustering for dense areas
+- Date range filters
+- IndexedDB caching for performance
 
-**Data Presentation**
-- TSS (Training Stress Score) badges on recent activities
-- Temperature and wind speed indicators with icons
-- Weather condition icons integrated into cards
-- Compact metric displays with units
-- Time-formatted activity data (readable durations)
+### Import
+- FIT file upload and parsing
+- Garmin/Wahoo device support
+- Stream injection into intervals.icu
+- Export history
 
-**Mobile Optimizations**
-- Portrait-optimized layouts
-- Collapsible sections to save screen space
-- Full-width maps on mobile (no wasted gutters)
-- Touch-friendly button sizing
-- Landscape support for calendar and detailed views
+### Compare
+- Period-to-period metric comparison
+- Side-by-side charts
+- Delta indicators (up/down/neutral)
 
-**Accessibility**
-- Keyboard navigation support
-- Screen reader friendly semantic HTML
-- High contrast color scheme
-- Clear visual hierarchy
+### Settings
+- Account management (intervals.icu + Strava)
+- Sport-specific thresholds (FTP, LTHR, max HR)
+- Theme selection (dark, light, editorial/awwwards)
+- Font picker
+- Widget ordering
+- Notification preferences
+- Storage management with usage bar
+- P2P device sync (PeerJS WebRTC + QR pairing)
 
-**Performance**
-- Cached activity data for instant loading
-- Lazy-loaded maps with snapshot caching
-- Optimized image handling and compression
-- Responsive images based on device
-- Smooth 60fps animations
+## Technical Features
 
-**Settings & Customization**
-- Sport-specific thresholds (FTP, FTHR, pace zones)
-- Map theme selection (topo, satellite, street)
-- Activity filtering by year
-- Customizable metric displays
-- Credential management
+### Offline & PWA
+- Service Worker: network-first app shell + cache-first map tiles
+- Full offline functionality after first load
+- 3000-tile map cache with hysteresis pruning
+- Navigation preload for fast SW boot
+- Install prompt with custom banner
 
----
+### Performance
+- Shared WebGL renderer (one context for all 3D cards)
+- Cached env map textures
+- Lazy chart rendering via IntersectionObserver
+- Frame skipping (30fps idle, 60fps interact)
+- DPR capped at 1.5 (44% fewer pixels vs DPR 2)
+- Reduced geometry complexity (bevel 3, curve 16)
+- DOM cleanup on page navigate
+- Visibility-based pause (tabs, background)
 
-## 🔧 Technical Highlights
+### Data & Sync
+- intervals.icu API integration
+- Strava OAuth + activity sync
+- IndexedDB for stream caching
+- localStorage with 8MB limit tracking
+- Incremental sync (only fetch new activities)
+- Full backup export/import (JSON)
+- P2P WebRTC sync between devices
 
-- Built with vanilla JavaScript (no framework bloat)
-- Leaflet.js for high-performance mapping
-- Local storage for offline access and caching
-- Real-time data sync with intervals.icu API
-- Canvas-based visualizations
-- Responsive CSS Grid and Flexbox layouts
-- Service worker ready for PWA capabilities
-
----
-
-Perfect for cyclists serious about tracking training, analyzing performance, and staying motivated. Whether you're training for a race, logging daily rides, or just tracking progress—this app gives you the insights you need, beautifully presented.
+### Design System
+- 150+ CSS custom properties (design tokens)
+- @layer cascade: base → tokens → layout → components → pages → utilities → themes
+- 4 themes: dark (default), light, editorial (awwwards), custom
+- iOS-native aesthetics: safe areas, Dynamic Type scale, sheet gestures
+- Icon sprite sheet (120+ Lucide-based SVG symbols)

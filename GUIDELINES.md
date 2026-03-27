@@ -293,10 +293,93 @@ Also add `e.preventDefault()` on the backdrop's touchmove.
 - Map tiles cached separately with 3000-tile limit
 - Navigation preload enabled for faster loads
 
+## 3D Badge System (js/badges3d.js)
+
+### Architecture
+- **Three.js r134** lazy-loaded from CDN on first badge open
+- **Shared WebGLRenderer** — `_getRenderer(THREE, canvasEl)` reuses one context
+- **Cached env maps** — `_cachedRiderEnvTex` (studio), `_cachedBadgeEnvTexMap[colorHex]` (holo)
+- Don't dispose env maps on card destroy — they're cached for reuse
+- Don't dispose renderer on destroy — call `_releaseRenderer()` instead
+
+### Badge Definitions (BADGE_PROCEDURAL)
+- 28 badges: b1–b28 with `shape`, `color`, `accent`, `label`, `iconPath`, `holo`, optional `scene`
+- Shapes: circle, shield, diamond, hexagon, star
+- Holo patterns: flame, chevron, diamond, crown, bolt, ripple, grid, wave, frost, sunray, starburst
+
+### Card Types
+1. **Rider Card** (`initRiderCard3D`) — Profile info, parallax level number with glow shader
+2. **Badge Card** (`initBadgeCard3D`) — Per-badge themed, holo shimmer, glitter sparkles, moving spotlight
+3. **Portal Card** (b9 Half Year) — Mountain world rendered to RenderTarget, 7 depth layers, screen-space shader
+
+### Materials
+- Front: `MeshStandardMaterial` with metalnessMap (holo pattern), roughnessMap, envMap (rainbow bands)
+- Back: `MeshStandardMaterial` with back texture
+- Edge: `MeshStandardMaterial` chrome finish
+- Glitter: `ShaderMaterial` with `AdditiveBlending`, hash-based sparkle grid, angle-dependent flash
+- Portal: `ShaderMaterial` sampling `gl_FragCoord.xy / resolution` from RenderTarget
+
+### Interaction Physics
+- Trail-based velocity: last 6 pointer positions, filtered to 80ms window
+- Velocity multiplier: 0.25 (px/ms → rotation/frame)
+- Friction: 0.96 per frame
+- Stop threshold: speed < 0.002
+- Auto-spin: 0.006 rad/frame with tilt rocking
+- Frame skip: every other frame during auto-spin (30fps), full 60fps on interact
+
+### Intro Animation
+- 0.5s duration, `easeOutBack` curve (slight overshoot)
+- Start: rotY = ±108°, rotX = 0.3, rotZ = ±0.15, scale = 0.7
+- End: rest position (rotX=0.06, rotY=0.08), scale = 1.0
+- Auto-spin starts after intro completes
+
+### Performance Rules
+- DPR capped at 1.5 (not 2)
+- Geometry: bevelSegments=3, curveSegments=16
+- Lights: max 3 DirectionalLights (no SpotLights — too expensive)
+- No MeshPhysicalMaterial (clearcoat shader compilation is 200-400ms)
+- Frame skip during idle auto-spin
+
+### Portal Effect (Half Year Card)
+- Mountain layers in separate `THREE.Scene` at z=-14 to z=+0.5
+- Rendered to `WebGLRenderTarget` each frame
+- Portal plane on card face uses screen-space UV: `gl_FragCoord.xy / resolution`
+- Camera parallax: shifts based on card tilt angle
+- 7 layers: sky/stars/moon, aurora/clouds, far mountains, mid hills, trees, close framing trees, fireflies
+- Text overlay with bottom gradient scrim
+
+### Badge Preview (Grid Thumbnails)
+- `renderBadgePreview(badgeId, name, desc, locked)` — returns data URL
+- 200px wide, card aspect ratio, rounded corners
+- Locked: greyscale + dark overlay + lock icon + "LOCKED" text
+- Cached in `_previewCache` by `badgeId + locked`
+
+## Goals & Streaks Page
+
+### Layout
+- `#goalsStreaksSection` — flex column with 24px gap
+- Hero streak cards (3-column grid, 2+1 on mobile)
+- PB cards: 2-column grid, minimal row layout (icon + value/label)
+- Year overview: page-headline + months grid (no wrapping card)
+- Achievements: first 6 earned + "View all" button → achievement subpage
+- Lifetime stats: vertical list, show 5 + "Show all" expand button
+- Dark gradient on body: `linear-gradient(#000 → #060606 → #000)` via `.goals-bg`
+
+### Achievement Subpage
+- Opens via `_openAchievementsPage()` in full-screen universal sheet
+- Two sections: Earned (full color) + Locked (greyscale)
+- Tilt hover + glow effects attached after render
+
+### Badge Viewer
+- Mobile: bottom sheet via `_openUniSheet`, dark gradient background
+- Desktop: floating dialog (`.badge-dialog-overlay`)
+- Navigation: left/right arrows (desktop overlay, mobile inline with dots)
+- Dark background: `linear-gradient(to bottom, #1a1a1a, #0a0a0a)`
+- No scrollbar: `overflow: hidden` on sheet panel
+
 ## Git Conventions
 
-- Only push when user explicitly says to
-- "push and commit" = stage, commit, push in one go
+- "push and commit" or "pc" = stage, commit, push immediately, no approval needed
 - Commit messages: imperative mood, concise
 - Co-authored-by: Claude Opus 4.6
 - Never use `--no-verify` or `--force`
