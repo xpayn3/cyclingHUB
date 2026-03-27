@@ -368,8 +368,8 @@ export async function initBadge3D(canvasEl, badgeId) {
   let h = canvasEl.clientHeight;
   if (!w || w < 50) w = canvasEl.parentElement?.clientWidth || 280;
   if (!h || h < 50) h = 280;
-  canvasEl.width = w * Math.min(window.devicePixelRatio, 2);
-  canvasEl.height = h * Math.min(window.devicePixelRatio, 2);
+  canvasEl.width = w * Math.min(window.devicePixelRatio, 1.5);
+  canvasEl.height = h * Math.min(window.devicePixelRatio, 1.5);
   canvasEl.style.width = w + 'px';
   canvasEl.style.height = h + 'px';
 
@@ -387,7 +387,7 @@ export async function initBadge3D(canvasEl, badgeId) {
     antialias: true,
   });
   _badgeRenderer.setSize(w, h);
-  _badgeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  _badgeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   _badgeRenderer.toneMapping = THREE.ACESFilmicToneMapping;
   _badgeRenderer.toneMappingExposure = 1.2;
 
@@ -664,8 +664,8 @@ export async function initRiderCard3D(canvasEl, data) {
 
   let w = canvasEl.clientWidth || 340;
   let h = canvasEl.clientHeight || 220;
-  canvasEl.width = w * Math.min(window.devicePixelRatio, 2);
-  canvasEl.height = h * Math.min(window.devicePixelRatio, 2);
+  canvasEl.width = w * Math.min(window.devicePixelRatio, 1.5);
+  canvasEl.height = h * Math.min(window.devicePixelRatio, 1.5);
   canvasEl.style.width = w + 'px';
   canvasEl.style.height = h + 'px';
 
@@ -675,7 +675,7 @@ export async function initRiderCard3D(canvasEl, data) {
 
   _rcRenderer = _getRenderer(THREE, canvasEl);
   _rcRenderer.setSize(w, h);
-  _rcRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  _rcRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 
   // Lighting — 3 lights (ambient + key + rim) for fast shader compile
   _rcScene.add(new THREE.AmbientLight(0x1a1a2e, 0.3));
@@ -699,7 +699,7 @@ export async function initRiderCard3D(canvasEl, data) {
   shape.quadraticCurveTo(-hw, hh, -hw, hh - r);
   shape.lineTo(-hw, -hh + r);
   shape.quadraticCurveTo(-hw, -hh, -hw + r, -hh);
-  const cardGeo = new THREE.ExtrudeGeometry(shape, { depth: cardD, bevelEnabled: true, bevelThickness: 0.008, bevelSize: 0.008, bevelSegments: 8, curveSegments: 32 });
+  const cardGeo = new THREE.ExtrudeGeometry(shape, { depth: cardD, bevelEnabled: true, bevelThickness: 0.008, bevelSize: 0.008, bevelSegments: 3, curveSegments: 16 });
   cardGeo.center();
   // Fix UV mapping per face group
   const pos = cardGeo.attributes.position;
@@ -1232,6 +1232,7 @@ export async function initRiderCard3D(canvasEl, data) {
   const SPRING = 0.008, DAMP = 0.97;
   let _rcDragVelX = 0, _rcDragVelY = 0, _rcLastMoveX = 0, _rcLastMoveY = 0;
   let _rcReleaseTime = 0, _rcSpinning = false, _rcIdle = false, _rcAutoSpin = false;
+  let _rcFrameSkip = 0;
 
   function _easeOutBack(t) { const c = 1.4; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); }
 
@@ -1253,6 +1254,11 @@ export async function initRiderCard3D(canvasEl, data) {
     } else if (!_rcAutoSpin && !_rcSpinning && !_rcDragging) {
       _rcAutoSpin = true; // transition to auto-spin after intro
     }
+
+    // Skip every other frame during auto-spin (30fps is enough for idle)
+    if (_rcAutoSpin && !_rcDragging && !_rcSpinning) {
+      if (++_rcFrameSkip % 2 !== 0) return;
+    } else { _rcFrameSkip = 0; }
 
     // Shimmer
     const rotY = _rcMesh.rotation.y || 0;
@@ -1549,15 +1555,15 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   if (!def) return;
 
   let w = canvasEl.clientWidth || 340, h = canvasEl.clientHeight || 380;
-  canvasEl.width = w * Math.min(window.devicePixelRatio, 2);
-  canvasEl.height = h * Math.min(window.devicePixelRatio, 2);
+  canvasEl.width = w * Math.min(window.devicePixelRatio, 1.5);
+  canvasEl.height = h * Math.min(window.devicePixelRatio, 1.5);
 
   _bcScene = new THREE.Scene();
   _bcCamera = new THREE.PerspectiveCamera(30, w / h, 0.1, 100);
   _bcCamera.position.set(0, 0, 6.8);
   _bcRenderer = _getRenderer(THREE, canvasEl);
   _bcRenderer.setSize(w, h);
-  _bcRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  _bcRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 
   // Dramatic lighting
   _bcScene.add(new THREE.AmbientLight(0x0a0a0a, 0.15));
@@ -1631,7 +1637,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   shape.quadraticCurveTo(hw, hh, hw - cr, hh); shape.lineTo(-hw + cr, hh);
   shape.quadraticCurveTo(-hw, hh, -hw, hh - cr); shape.lineTo(-hw, -hh + cr);
   shape.quadraticCurveTo(-hw, -hh, -hw + cr, -hh);
-  const cardGeo = new THREE.ExtrudeGeometry(shape, { depth: cardD, bevelEnabled: true, bevelThickness: 0.008, bevelSize: 0.008, bevelSegments: 8, curveSegments: 32 });
+  const cardGeo = new THREE.ExtrudeGeometry(shape, { depth: cardD, bevelEnabled: true, bevelThickness: 0.008, bevelSize: 0.008, bevelSegments: 3, curveSegments: 16 });
   cardGeo.center();
 
   // Fix UVs
@@ -2045,11 +2051,10 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
 
         if (dist > 0.15) discard;
 
-        // Flash based on angle + time — each sparkle has unique phase
+        // Flash — single sin with combined angle (cheaper than sin*cos+sin)
         float phase = rnd * 6.28;
-        float flash = sin(rotY * 8.0 + phase) * cos(rotX * 6.0 + phase * 1.3)
-                     + sin(time * 3.0 + phase * 2.0);
-        flash = smoothstep(0.8, 1.4, flash);
+        float flash = sin(rotY * 8.0 + rotX * 5.0 + time * 2.5 + phase);
+        flash = step(0.7, flash) * (flash - 0.7) * 3.33;
 
         if (flash < 0.01) discard;
 
@@ -2078,7 +2083,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
 
     // Portal scene — the mountain world rendered offscreen
     const portalScene = new THREE.Scene();
-    const dpr = Math.min(window.devicePixelRatio, 2);
+    const dpr = Math.min(window.devicePixelRatio, 1.5);
     const rtW = Math.round(w * dpr), rtH = Math.round(h * dpr);
     const portalRT = new THREE.WebGLRenderTarget(rtW, rtH);
 
@@ -2217,6 +2222,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   const _bcIntroDur = 500;
   let velX = 0, velY = 0;
   const SPRING = 0.008, DAMP = 0.97;
+  let _bcFrameSkip = 0;
 
   function _easeOutBack2(t) { const c = 1.4; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); }
 
@@ -2238,6 +2244,11 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     } else if (!_bcAutoSpin && !_bcSpinning && !_bcDragging) {
       _bcAutoSpin = true;
     }
+
+    // Skip every other frame during auto-spin
+    if (_bcAutoSpin && !_bcDragging && !_bcSpinning) {
+      if (++_bcFrameSkip % 2 !== 0) return;
+    } else { _bcFrameSkip = 0; }
 
     // Holo shimmer — sweep rainbow env map based on rotation angle
     const t = Date.now() * 0.001, ry = _bcMesh.rotation.y || 0, rx = _bcMesh.rotation.x || 0;
