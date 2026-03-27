@@ -1108,14 +1108,67 @@ export async function initRiderCard3D(canvasEl, data) {
   const lvlTex = new THREE.CanvasTexture(lvlCanvas);
   const lvlPlane = new THREE.Mesh(
     new THREE.PlaneGeometry(cardW * 0.95, cardH * 0.95),
-    new THREE.MeshBasicMaterial({ map: lvlTex, transparent: true, depthWrite: false })
+    new THREE.MeshPhysicalMaterial({
+      map: lvlTex, transparent: true, depthWrite: false,
+      metalness: 0.6, roughness: 0.2, envMap: envTex, envMapIntensity: 1.5,
+      clearcoat: 1.0, clearcoatRoughness: 0.05
+    })
   );
   lvlPlane.position.z = cardD * 0.5 + 0.02;
+
+  // Glow halo behind the level number
+  const lvlGlowCanvas = document.createElement('canvas');
+  lvlGlowCanvas.width = fW; lvlGlowCanvas.height = fH;
+  const lgc = lvlGlowCanvas.getContext('2d');
+  // Soft radial glow centered on the number
+  const gx = fW / 2, gy = fH * 0.44;
+  const glowRad = lgc.createRadialGradient(gx, gy, 0, gx, gy, fW * 0.4);
+  glowRad.addColorStop(0, 'rgba(90,140,230,0.35)');
+  glowRad.addColorStop(0.4, 'rgba(90,140,230,0.12)');
+  glowRad.addColorStop(1, 'transparent');
+  lgc.fillStyle = glowRad; lgc.fillRect(0, 0, fW, fH);
+  // Redraw number text as bright core
+  lgc.font = '800 280px Inter, system-ui, sans-serif';
+  lgc.textAlign = 'center';
+  lgc.shadowColor = 'rgba(100,160,255,0.8)'; lgc.shadowBlur = 40;
+  lgc.fillStyle = 'rgba(140,180,255,0.2)';
+  lgc.fillText(String(data.level || '0'), fW / 2, fH * 0.56);
+  lgc.shadowBlur = 0;
+  const lvlGlowTex = new THREE.CanvasTexture(lvlGlowCanvas);
+  const lvlGlowMat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false,
+    uniforms: {
+      map: { value: lvlGlowTex },
+      intensity: { value: 0.5 }
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform sampler2D map;
+      uniform float intensity;
+      varying vec2 vUv;
+      void main() {
+        vec4 texel = texture2D(map, vUv);
+        gl_FragColor = vec4(texel.rgb, texel.a * intensity);
+      }
+    `
+  });
+  const lvlGlowPlane = new THREE.Mesh(
+    new THREE.PlaneGeometry(cardW * 0.95, cardH * 0.95), lvlGlowMat
+  );
+  lvlGlowPlane.position.z = cardD * 0.5 + 0.015;
 
   _rcMesh = new THREE.Group();
   _rcMesh.add(cardMesh);
   _rcMesh.add(lvlPlane);
+  _rcMesh.add(lvlGlowPlane);
   _rcMesh._parallax = [
+    { mesh: lvlGlowPlane, depth: 0.005 },
     { mesh: lvlPlane, depth: 0.005 },
   ];
 
@@ -1140,23 +1193,32 @@ export async function initRiderCard3D(canvasEl, data) {
     frontMat.envMapIntensity = 1.2 + Math.sin(t * 1.5 + rotY * 5) * 0.5;
     const ns = 0.85 + Math.sin(t + rotY * 3) * 0.15;
     frontMat.normalScale.set(ns, ns);
+    // Level number glow pulse
+    lvlGlowMat.uniforms.intensity.value = 0.4 + Math.sin(t * 1.2 + rotY * 2) * 0.2;
 
     if (!_rcDragging) {
       const timeSinceRelease = Date.now() - _rcReleaseTime;
 
-      // Auto-spin after 2s of no input
-      if (_rcAutoSpin || timeSinceRelease > 2000) {
+      if (_rcSpinning) {
+        // Coast with momentum — gradual friction
+        const speed = Math.abs(_rcDragVelX) + Math.abs(_rcDragVelY);
+        if (speed > 0.0003) {
+          _rcDragVelX *= 0.992;
+          _rcDragVelY *= 0.992;
+          _rcMesh.rotation.x += _rcDragVelX;
+          _rcMesh.rotation.y += _rcDragVelY;
+          _rcMesh.rotation.x += (REST_X - _rcMesh.rotation.x) * 0.005;
+        } else {
+          // Momentum died — transition to auto-spin
+          _rcSpinning = false;
+          _rcAutoSpin = true;
+        }
+      } else if (_rcAutoSpin || timeSinceRelease > 2000) {
         _rcAutoSpin = true;
         const ast = Date.now() * 0.001;
         _rcMesh.rotation.y += 0.006;
         _rcMesh.rotation.x += (REST_X + Math.sin(ast * 0.8) * 0.2 - _rcMesh.rotation.x) * 0.04;
         _rcMesh.rotation.z += (Math.sin(ast * 0.5 + 1) * 0.05 - _rcMesh.rotation.z) * 0.03;
-      } else if (_rcSpinning) {
-        // Coast with momentum
-        _rcDragVelX *= 0.985;
-        _rcDragVelY *= 0.985;
-        _rcMesh.rotation.x += _rcDragVelX;
-        _rcMesh.rotation.y += _rcDragVelY;
       }
     }
     // Parallax — shift layers based on card tilt
@@ -1209,25 +1271,30 @@ export async function initRiderCard3D(canvasEl, data) {
     if (!_rcDragging || !_rcMesh) return;
     _rcMesh.rotation.y = _rcRotY + (e.clientX - _rcStartX) * 0.015;
     _rcMesh.rotation.x = _rcRotX + (e.clientY - _rcStartY) * 0.015;
-    // Keep trail of last 3 positions
+    // Keep trail of last 6 positions
     _rcTrail.push({ x: e.clientX, y: e.clientY, t: Date.now() });
-    if (_rcTrail.length > 3) _rcTrail.shift();
+    if (_rcTrail.length > 6) _rcTrail.shift();
   });
   canvasEl.addEventListener('touchmove', e => { if (_rcDragging) e.preventDefault(); }, { passive: false });
   const endDrag = () => {
     if (!_rcDragging) return;
     _rcDragging = false;
     canvasEl.style.cursor = 'grab';
-    // Compute velocity from trail
+    // Compute velocity from recent trail entries only (last 80ms)
     _rcDragVelX = 0; _rcDragVelY = 0;
+    const now = Date.now();
     if (_rcTrail.length >= 2) {
-      const a = _rcTrail[0], b = _rcTrail[_rcTrail.length - 1];
-      const dt = Math.max(1, b.t - a.t);
-      _rcDragVelY = (b.x - a.x) / dt * 0.12;  // px/ms → rotation/frame
-      _rcDragVelX = (b.y - a.y) / dt * 0.12;
+      // Find oldest entry within 80ms window
+      const recent = _rcTrail.filter(p => now - p.t < 80);
+      if (recent.length >= 2) {
+        const a = recent[0], b = recent[recent.length - 1];
+        const dt = Math.max(1, b.t - a.t);
+        _rcDragVelY = (b.x - a.x) / dt * 0.25;
+        _rcDragVelX = (b.y - a.y) / dt * 0.25;
+      }
     }
-    _rcReleaseTime = Date.now();
-    _rcSpinning = true;
+    _rcReleaseTime = now;
+    _rcSpinning = Math.abs(_rcDragVelX) + Math.abs(_rcDragVelY) > 0.001;
   };
   canvasEl.addEventListener('pointerup', endDrag);
   canvasEl.addEventListener('pointercancel', endDrag);
@@ -1859,15 +1926,21 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
       : 1.2 + Math.sin(t * 1.5 + ry * 5) * 0.3;
     if (!_bcDragging) {
       const timeSinceRelease = Date.now() - _bcReleaseTime;
-      if (_bcAutoSpin || timeSinceRelease > 2000) {
+      if (_bcSpinning) {
+        const speed = Math.abs(_bcDragVelX) + Math.abs(_bcDragVelY);
+        if (speed > 0.0003) {
+          _bcDragVelX *= 0.992; _bcDragVelY *= 0.992;
+          _bcMesh.rotation.x += _bcDragVelX; _bcMesh.rotation.y += _bcDragVelY;
+          _bcMesh.rotation.x += (REST_X - _bcMesh.rotation.x) * 0.005;
+        } else {
+          _bcSpinning = false; _bcAutoSpin = true;
+        }
+      } else if (_bcAutoSpin || timeSinceRelease > 2000) {
         _bcAutoSpin = true;
         const bst = Date.now() * 0.001;
         _bcMesh.rotation.y += 0.006;
         _bcMesh.rotation.x += (REST_X + Math.sin(bst * 0.8) * 0.2 - _bcMesh.rotation.x) * 0.04;
         _bcMesh.rotation.z += (Math.sin(bst * 0.5 + 1) * 0.05 - _bcMesh.rotation.z) * 0.03;
-      } else if (_bcSpinning) {
-        _bcDragVelX *= 0.985; _bcDragVelY *= 0.985;
-        _bcMesh.rotation.x += _bcDragVelX; _bcMesh.rotation.y += _bcDragVelY;
       }
     }
     // Parallax
@@ -1899,7 +1972,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     _bcMesh.rotation.y = _bcRotY + (e.clientX - _bcStartX) * 0.015;
     _bcMesh.rotation.x = _bcRotX + (e.clientY - _bcStartY) * 0.015;
     _bcTrail.push({ x: e.clientX, y: e.clientY, t: Date.now() });
-    if (_bcTrail.length > 3) _bcTrail.shift();
+    if (_bcTrail.length > 6) _bcTrail.shift();
   });
   canvasEl.addEventListener('touchstart', e => { e.stopPropagation(); }, { passive: true });
   canvasEl.addEventListener('touchmove', e => { e.preventDefault(); e.stopPropagation(); }, { passive: false });
@@ -1907,14 +1980,18 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     if (!_bcDragging) return;
     _bcDragging = false; canvasEl.style.cursor = 'grab';
     _bcDragVelX = 0; _bcDragVelY = 0;
+    const now = Date.now();
     if (_bcTrail && _bcTrail.length >= 2) {
-      const a = _bcTrail[0], b = _bcTrail[_bcTrail.length - 1];
-      const dt = Math.max(1, b.t - a.t);
-      _bcDragVelY = (b.x - a.x) / dt * 0.12;
-      _bcDragVelX = (b.y - a.y) / dt * 0.12;
+      const recent = _bcTrail.filter(p => now - p.t < 80);
+      if (recent.length >= 2) {
+        const a = recent[0], b = recent[recent.length - 1];
+        const dt = Math.max(1, b.t - a.t);
+        _bcDragVelY = (b.x - a.x) / dt * 0.25;
+        _bcDragVelX = (b.y - a.y) / dt * 0.25;
+      }
     }
-    _bcReleaseTime = Date.now();
-    _bcSpinning = true;
+    _bcReleaseTime = now;
+    _bcSpinning = Math.abs(_bcDragVelX) + Math.abs(_bcDragVelY) > 0.001;
   };
   canvasEl.addEventListener('pointerup', endDrag);
   canvasEl.addEventListener('pointercancel', endDrag);
