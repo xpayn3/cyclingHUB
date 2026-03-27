@@ -677,26 +677,14 @@ export async function initRiderCard3D(canvasEl, data) {
   _rcRenderer.setSize(w, h);
   _rcRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-  // Dramatic spotlight lighting
-  _rcScene.add(new THREE.AmbientLight(0x0a0a14, 0.1));
-  // Hero spotlight — intense top-center, narrow cone
-  const spot = new THREE.SpotLight(0xffffff, 4.0, 20, Math.PI / 7, 0.5, 1.5);
-  spot.position.set(0, 6, 5);
-  spot.target.position.set(0, 0, 0);
-  _rcScene.add(spot);
-  _rcScene.add(spot.target);
-  // Key light — bright, from the side
-  const key = new THREE.DirectionalLight(0xffffff, 2.5);
-  key.position.set(5, 4, 2);
+  // Lighting — 3 lights (ambient + key + rim) for fast shader compile
+  _rcScene.add(new THREE.AmbientLight(0x1a1a2e, 0.3));
+  const key = new THREE.DirectionalLight(0xffffff, 3.5);
+  key.position.set(3, 5, 4);
   _rcScene.add(key);
-  // Rim light — blue, strong edge separation
   const rim = new THREE.DirectionalLight(0x4a9eff, 2.0);
   rim.position.set(-4, 3, -5);
   _rcScene.add(rim);
-  // Accent kick — green from below
-  const accent = new THREE.DirectionalLight(0x00e5a0, 0.6);
-  accent.position.set(1, -4, 3);
-  _rcScene.add(accent);
 
   // Card geometry — vertical name tag with rounded corners
   const cardW = 1.8, cardH = 2.6, cardD = 0.005, cardR = 0.18;
@@ -1167,10 +1155,9 @@ export async function initRiderCard3D(canvasEl, data) {
   const lvlTex = new THREE.CanvasTexture(lvlCanvas);
   const lvlPlane = new THREE.Mesh(
     new THREE.PlaneGeometry(cardW * 0.95, cardH * 0.95),
-    new THREE.MeshPhysicalMaterial({
+    new THREE.MeshStandardMaterial({
       map: lvlTex, transparent: true, depthWrite: false,
-      metalness: 0.6, roughness: 0.2, envMap: envTex, envMapIntensity: 1.5,
-      clearcoat: 1.0, clearcoatRoughness: 0.05
+      metalness: 0.8, roughness: 0.15, envMap: envTex, envMapIntensity: 2.0
     })
   );
   lvlPlane.position.z = cardD * 0.5 + 0.02;
