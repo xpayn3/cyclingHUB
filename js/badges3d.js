@@ -1143,7 +1143,7 @@ export async function initRiderCard3D(canvasEl, data) {
   let velX = 0, velY = 0;
   const SPRING = 0.008, DAMP = 0.97;
   let _rcDragVelX = 0, _rcDragVelY = 0, _rcLastMoveX = 0, _rcLastMoveY = 0;
-  let _rcReleaseTime = 0, _rcSpinning = false, _rcIdle = false;
+  let _rcReleaseTime = 0, _rcSpinning = false, _rcIdle = false, _rcAutoSpin = false;
 
   const introStart = Date.now();
   const INTRO_DUR = 2500;
@@ -1200,39 +1200,18 @@ export async function initRiderCard3D(canvasEl, data) {
 
     if (!_rcDragging) {
       const timeSinceRelease = Date.now() - _rcReleaseTime;
-      const holdDur = 2000; // hold position for 2s before spring kicks in
 
-      if (timeSinceRelease < holdDur) {
-        // Coast with momentum or just hold still
-        if (_rcSpinning) {
-          _rcDragVelX *= 0.985;
-          _rcDragVelY *= 0.985;
-          _rcMesh.rotation.x += _rcDragVelX;
-          _rcMesh.rotation.y += _rcDragVelY;
-        }
-        // else: just hold current position, don't spring yet
-      } else {
-        // Spring back to rest
-        if (_rcSpinning) { _rcSpinning = false; velX = _rcDragVelX; velY = _rcDragVelY; }
-        const dx = REST_X - _rcMesh.rotation.x;
-        // Normalize Y rotation to nearest rest (handle multiple full spins)
-        let dy = REST_Y - _rcMesh.rotation.y;
-        dy = dy - Math.round(dy / (Math.PI * 2)) * Math.PI * 2;
-        velX += dx * SPRING; velY += dy * SPRING;
-        velX *= DAMP; velY *= DAMP;
-        _rcMesh.rotation.x += velX; _rcMesh.rotation.y += velY;
-        const dist = Math.abs(dx) + Math.abs(dy);
-        if (dist < 0.001 && Math.abs(velX) < 0.0005 && Math.abs(velY) < 0.0005) {
-          velX = 0; velY = 0;
-          _rcMesh.rotation.x = REST_X;
-          _rcMesh.rotation.y = REST_Y;
-          // Reset parallax layers to center
-          if (_rcMesh._parallax) _rcMesh._parallax.forEach(l => { l.mesh.position.x = 0; l.mesh.position.y = 0; });
-          // Render one final frame then pause — save GPU
-          _rcRenderer.render(_rcScene, _rcCamera);
-          _rcIdle = true;
-          return;
-        }
+      // Auto-spin after 2s of no input
+      if (_rcAutoSpin || timeSinceRelease > 2000) {
+        _rcAutoSpin = true;
+        _rcMesh.rotation.y += 0.003;
+        _rcMesh.rotation.x += (REST_X - _rcMesh.rotation.x) * 0.05; // ease X to rest
+      } else if (_rcSpinning) {
+        // Coast with momentum
+        _rcDragVelX *= 0.985;
+        _rcDragVelY *= 0.985;
+        _rcMesh.rotation.x += _rcDragVelX;
+        _rcMesh.rotation.y += _rcDragVelY;
       }
     }
     // Parallax — shift layers based on card tilt
@@ -1262,7 +1241,7 @@ export async function initRiderCard3D(canvasEl, data) {
   let _rcLastTap = 0;
   canvasEl.addEventListener('pointerdown', e => {
     const now = Date.now();
-    _rcIdle = false;
+    _rcIdle = false; _rcAutoSpin = false;
     if (now - _rcLastTap < 350 && _rcMesh) {
       _rcDragVelX = 0;
       _rcDragVelY = 0.08;
@@ -1316,7 +1295,7 @@ export async function initRiderCard3D(canvasEl, data) {
 let _bcScene, _bcCamera, _bcRenderer, _bcMesh, _bcRaf, _bcDragging = false;
 let _bcStartX = 0, _bcStartY = 0, _bcRotX = 0, _bcRotY = 0;
 let _bcDragVelX = 0, _bcDragVelY = 0, _bcLastMoveX = 0, _bcLastMoveY = 0;
-let _bcReleaseTime = 0, _bcSpinning = false, _bcIdle = false;
+let _bcReleaseTime = 0, _bcSpinning = false, _bcIdle = false, _bcAutoSpin = false;
 
 export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   const THREE = await _loadThreeJS();
@@ -1719,22 +1698,13 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     if (!introFinished) { introFinished = true; allLights.forEach(l => { l.light.intensity = l.target; }); }
     if (!_bcDragging) {
       const timeSinceRelease = Date.now() - _bcReleaseTime;
-      if (timeSinceRelease < 2000) {
-        if (_bcSpinning) {
-          _bcDragVelX *= 0.985; _bcDragVelY *= 0.985;
-          _bcMesh.rotation.x += _bcDragVelX; _bcMesh.rotation.y += _bcDragVelY;
-        }
-      } else {
-        if (_bcSpinning) { _bcSpinning = false; velX = _bcDragVelX; velY = _bcDragVelY; }
-        const dx = REST_X - _bcMesh.rotation.x;
-        let dy = REST_Y - _bcMesh.rotation.y; dy -= Math.round(dy / (Math.PI * 2)) * Math.PI * 2;
-        velX += dx * SPRING; velY += dy * SPRING; velX *= DAMP; velY *= DAMP;
-        _bcMesh.rotation.x += velX; _bcMesh.rotation.y += velY;
-        if (Math.abs(dx) + Math.abs(dy) < 0.001 && Math.abs(velX) < 0.0005 && Math.abs(velY) < 0.0005) {
-          _bcMesh.rotation.x = REST_X; _bcMesh.rotation.y = REST_Y;
-          if (_bcMesh._parallax) _bcMesh._parallax.forEach(l => { l.mesh.position.x = 0; l.mesh.position.y = 0; });
-          _bcRenderer.render(_bcScene, _bcCamera); _bcIdle = true; return;
-        }
+      if (_bcAutoSpin || timeSinceRelease > 2000) {
+        _bcAutoSpin = true;
+        _bcMesh.rotation.y += 0.003;
+        _bcMesh.rotation.x += (REST_X - _bcMesh.rotation.x) * 0.05;
+      } else if (_bcSpinning) {
+        _bcDragVelX *= 0.985; _bcDragVelY *= 0.985;
+        _bcMesh.rotation.x += _bcDragVelX; _bcMesh.rotation.y += _bcDragVelY;
       }
     }
     // Parallax
@@ -1752,7 +1722,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   // Interaction
   let lastTap = 0;
   canvasEl.addEventListener('pointerdown', e => {
-    _bcIdle = false;
+    _bcIdle = false; _bcAutoSpin = false;
     const now = Date.now();
     if (now - lastTap < 350 && _bcMesh) { _bcDragVelX = 0; _bcDragVelY = 0.08; _bcReleaseTime = now; _bcSpinning = true; _bcDragging = false; lastTap = 0; return; }
     lastTap = now;
