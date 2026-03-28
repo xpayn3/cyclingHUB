@@ -622,14 +622,11 @@ function _cleanupPageDOM(leavingPage) {
     if (grid) grid.innerHTML = '';
   }
 
-  // Fitness page — strip dynamic chart bodies, keep card shells
+  // Fitness page — strip only non-canvas dynamic content
   if (leavingPage === 'fitness') {
-    // Charts destroyed by cleanupPageCharts() — don't remove canvases
-    // Strip heavy dynamic content only
-    ['fitWhatIfCard', 'fitAcclimCard', 'fitFatigueCard', 'fitInjuryRiskCard',
-     'fitRecoveryCard', 'fitRacePredCard', 'fitWeekTargetCard',
-     'fitWellnessPillsRow', 'guidePageContentInline'
-    ].forEach(id => {
+    // Charts already destroyed by cleanupPageCharts()
+    // Only clear containers that DON'T hold canvas elements
+    ['fitWellnessPillsRow', 'guidePageContentInline'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.innerHTML = '';
     });
