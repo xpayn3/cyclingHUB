@@ -16283,6 +16283,17 @@ async function _loadCalListMiniGraphs(container) {
     if (state.currentPage !== 'calendar' || window.innerWidth > 600) return;
     const wrapper = document.getElementById('calBandWrapper');
     if (!wrapper || !wrapper.contains(e.target)) return;
+    // Lazy-build prev/next grids on first touch
+    if (!window._calSideGridsBuilt && window._calSideGridData) {
+      window._calSideGridsBuilt = true;
+      const { year: y, month: mo, actMap: am, todayStr: ts } = window._calSideGridData;
+      const prevM = new Date(y, mo - 1, 1);
+      const nextM = new Date(y, mo + 1, 1);
+      const pg = document.getElementById('calGridPrev');
+      const ng = document.getElementById('calGridNext');
+      if (pg) pg.innerHTML = _buildCalSideGridHTML(prevM.getFullYear(), prevM.getMonth(), am, ts);
+      if (ng) ng.innerHTML = _buildCalSideGridHTML(nextM.getFullYear(), nextM.getMonth(), am, ts);
+    }
     startX = e.touches[0].clientX;
     startY = e.touches[0].clientY;
     isHoriz = null;
@@ -18029,31 +18040,28 @@ function renderCalendar() {
       ? `<div class="cal-day-hr${!thisMonth ? ' cal-day-hr--muted' : ''}"><svg viewBox="0 0 16 14" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M8 13.1L1.4 6.6C0.5 5.7 0 4.5 0 3.3 0 1.5 1.5 0 3.3 0c1 0 2 .5 2.7 1.2L8 3.5l2-2.3C10.7.5 11.7 0 12.7 0 14.5 0 16 1.5 16 3.3c0 1.2-.5 2.4-1.4 3.3L8 13.1z"/></svg>${avgHR}</div>`
       : '';
 
+    const isMobile = window.innerWidth <= 600;
     return `<div class="${cls}" data-date="${dateStr}" onclick="selectCalDay('${dateStr}',event)">
       <div class="cal-day-num">${date.getDate()}</div>
-      ${desktopHtml}
-      ${mobileHtml}
-      ${hrHtml}
+      ${isMobile ? mobileHtml : desktopHtml}
+      ${isMobile ? '' : hrHtml}
     </div>`;
   }).join('');
 
   // Render the day panel for the currently selected date
   renderCalDayList(state.calSelectedDate, actMap);
 
-  // On mobile: fill prev/next band slides and reset track to center
+  // On mobile: reset track position, defer prev/next grid until first swipe
   if (window.innerWidth <= 600) {
-    const prevM = new Date(year, month - 1, 1);
-    const nextM = new Date(year, month + 1, 1);
-    const prevGrid = document.getElementById('calGridPrev');
-    const nextGrid = document.getElementById('calGridNext');
-    if (prevGrid) prevGrid.innerHTML = _buildCalSideGridHTML(prevM.getFullYear(), prevM.getMonth(), actMap, todayStr);
-    if (nextGrid) nextGrid.innerHTML = _buildCalSideGridHTML(nextM.getFullYear(), nextM.getMonth(), actMap, todayStr);
     const track = document.getElementById('calBandTrack');
     const wrapper = document.getElementById('calBandWrapper');
     if (track && wrapper) {
       track.style.transition = 'none';
       track.style.transform = `translateX(${-wrapper.offsetWidth}px)`;
     }
+    // Lazy-build prev/next grids on first interaction
+    window._calSideGridsBuilt = false;
+    window._calSideGridData = { year, month, actMap, todayStr };
   }
   // Init drag-and-drop on desktop
   if (window.innerWidth > 820) {
