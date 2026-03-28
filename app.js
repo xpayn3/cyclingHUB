@@ -1566,24 +1566,24 @@ function confirmFullResync() {
    PULL TO REFRESH — Dashboard
 ==================================================== */
 (() => {
-  const THRESHOLD = 160;
-  const DEAD_ZONE = 20; // ignore small accidental drags
+  const THRESHOLD = 200;
+  const DEAD_ZONE = 30;
   let _ptrStartY = 0, _ptrDist = 0, _ptrActive = false, _ptrRefreshing = false;
-  const indicator = () => document.getElementById('ptrIndicator');
+  const el = () => document.getElementById('ptrIndicator');
+  const fill = () => document.getElementById('ptrFill');
+  const label = () => document.getElementById('ptrLabel');
 
   window.addEventListener('touchstart', e => {
     if (state.currentPage !== 'dashboard' || _ptrRefreshing) return;
     if (window.scrollY > 0) return;
-    // Don't trigger inside scrollable containers (sidebar, modals, panels)
     const t = e.target;
     if (t.closest('.sidebar, .nav-sidebar, .modal, .modal-dialog, dialog[open], [data-scrollable]')) return;
-    // Check if touch started inside any element that is itself scrolled or scrollable vertically
-    let el = t;
-    while (el && el !== document.body) {
-      if (el.scrollTop > 0) return;
-      const ov = getComputedStyle(el).overflowY;
-      if ((ov === 'auto' || ov === 'scroll') && el.scrollHeight > el.clientHeight) return;
-      el = el.parentElement;
+    let node = t;
+    while (node && node !== document.body) {
+      if (node.scrollTop > 0) return;
+      const ov = getComputedStyle(node).overflowY;
+      if ((ov === 'auto' || ov === 'scroll') && node.scrollHeight > node.clientHeight) return;
+      node = node.parentElement;
     }
     _ptrStartY = e.touches[0].clientY;
     _ptrActive = true;
@@ -1594,34 +1594,40 @@ function confirmFullResync() {
     if (!_ptrActive || _ptrRefreshing) return;
     _ptrDist = e.touches[0].clientY - _ptrStartY;
     if (_ptrDist < DEAD_ZONE) { _ptrDist = 0; return; }
-    _ptrDist -= DEAD_ZONE; // offset so indicator starts at 0
-    const el = indicator();
-    if (!el) return;
+    _ptrDist -= DEAD_ZONE;
+    const ind = el(), fl = fill(), lb = label();
+    if (!ind) return;
     const progress = Math.min(_ptrDist / THRESHOLD, 1);
-    el.classList.add('ptr-visible');
-    el.style.top = (-44 + progress * 108) + 'px';
-    el.querySelector('.ptr-spinner').style.transform = `rotate(${progress * 270}deg)`;
+    ind.classList.add('ptr-visible');
+    ind.classList.toggle('ptr-complete', progress >= 1);
+    ind.style.top = Math.min(-50 + progress * 80, 30) + 'px';
+    if (fl) fl.style.width = (progress * 100) + '%';
+    if (lb) lb.textContent = progress >= 1 ? 'Release to refresh ✓' : `${Math.round(progress * 100)}%`;
   }, { passive: true });
 
   window.addEventListener('touchend', () => {
     if (!_ptrActive) return;
     _ptrActive = false;
-    const el = indicator();
-    if (!el) return;
+    const ind = el(), fl = fill(), lb = label();
+    if (!ind) return;
     if (_ptrDist >= THRESHOLD && !_ptrRefreshing) {
       _ptrRefreshing = true;
-      el.classList.add('ptr-refreshing');
-      el.style.top = '';
-      el.querySelector('.ptr-spinner').style.transform = '';
+      ind.classList.remove('ptr-complete');
+      ind.classList.add('ptr-refreshing');
+      ind.style.top = '';
+      if (lb) lb.textContent = 'Syncing…';
       syncData(true).finally(() => {
         _ptrRefreshing = false;
-        el.classList.remove('ptr-refreshing', 'ptr-visible');
-        el.style.top = '';
+        ind.classList.remove('ptr-refreshing', 'ptr-visible');
+        ind.style.top = '';
+        if (fl) fl.style.width = '0%';
+        if (lb) lb.textContent = 'Pull to refresh';
       });
     } else {
-      el.classList.remove('ptr-visible');
-      el.style.top = '';
-      el.querySelector('.ptr-spinner').style.transform = '';
+      ind.classList.remove('ptr-visible', 'ptr-complete');
+      ind.style.top = '';
+      if (fl) fl.style.width = '0%';
+      if (lb) lb.textContent = 'Pull to refresh';
     }
     _ptrDist = 0;
   }, { passive: true });

@@ -783,7 +783,10 @@
             <div class="page-content" id="pageContent">
                 <!-- Pull-to-refresh indicator -->
                 <div class="ptr-indicator" id="ptrIndicator">
-                    <svg class="icon ptr-spinner"><use href="icons.svg#icon-spinner"/></svg>
+                    <div class="ptr-bar">
+                        <div class="ptr-fill" id="ptrFill"></div>
+                        <span class="ptr-label" id="ptrLabel">Pull to refresh</span>
+                    </div>
                 </div>
                 <!-- Top fade gradient (fades in on scroll) -->
                 <div class="dash-top-fade" id="dashTopFade"></div>
