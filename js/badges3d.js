@@ -998,8 +998,8 @@ export async function initRiderCard3D(canvasEl, data) {
   const mrCanvas = document.createElement('canvas');
   mrCanvas.width = fW; mrCanvas.height = fH;
   const mc = mrCanvas.getContext('2d');
-  // Base: low metalness (30), high roughness (180) = matte card
-  mc.fillStyle = 'rgb(0,170,50)';
+  // Base: low metalness, very high roughness = matte card background
+  mc.fillStyle = 'rgb(0,235,30)';
   mc.fillRect(0, 0, fW, fH);
   // Level number: chrome with noise texture
   mc.font = '800 280px Inter, system-ui, sans-serif';
@@ -1813,7 +1813,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
       mc.lineTo(fW * (px - sw * 0.6), fH * (py + 0.06)); mc.lineTo(fW * (px + sw * 0.6), fH * (py + 0.06)); mc.fill();
     });
   } else {
-    mc.fillStyle = 'rgb(0,170,50)'; mc.fillRect(0, 0, fW, fH);
+    mc.fillStyle = 'rgb(0,235,30)'; mc.fillRect(0, 0, fW, fH);
   }
 
   if (def.scene === 'mountain') {
