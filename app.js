@@ -185,7 +185,7 @@ if ('serviceWorker' in navigator) {
 }
 
 // Populate version footer + splash version + git hash
-const BUILD_HASH = '83afd02';
+const BUILD_HASH = 'c960157';
 (function() {
   const footer = document.getElementById('appVersionFooter');
   function setVersion(ver) {
@@ -35699,10 +35699,6 @@ function openProfileModal() {
   overlay.classList.remove('prof-closing');
 
   // Init 3D rider card after sheet animates in
-  const skel = document.getElementById('riderCardSkeleton');
-  if (skel) skel.style.display = '';
-  const rcCanvasEarly = document.getElementById('riderCard3dCanvas');
-  if (rcCanvasEarly) rcCanvasEarly.style.opacity = '0';
   setTimeout(async () => {
     const rcCanvas = document.getElementById('riderCard3dCanvas');
     if (!rcCanvas) return;
@@ -35721,10 +35717,7 @@ function openProfileModal() {
         nextXP: stats.nextLevelXP,
         xpPct: stats.nextLevelXP > 0 ? Math.min(stats.currentXP / stats.nextLevelXP, 1) : 1,
       });
-      // Show card, hide skeleton
       rcCanvas.style.opacity = '1';
-      const skel = document.getElementById('riderCardSkeleton');
-      if (skel) skel.style.display = 'none';
     } catch (e) {
       console.warn('Rider card 3D failed:', e);
       // Show error on canvas for debugging on mobile
