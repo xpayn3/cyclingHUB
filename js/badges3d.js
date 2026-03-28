@@ -60,7 +60,7 @@ let _cachedRiderEnvTex = null;
 let _cachedBadgeEnvTexMap = {}; // keyed by badge color hex
 
 // Load Three.js + GLTFLoader via ESM importmap (defined in index.html)
-// importmap maps 'three' → three@0.170.0 ESM build on jsDelivr
+// importmap maps 'three' → three@0.183.0 ESM build on jsDelivr
 // Works on all modern browsers: Safari 16.4+, Chrome 89+, Firefox 108+
 async function _loadThreeJS() {
   if (_THREE) return _THREE;
