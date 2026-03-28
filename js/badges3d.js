@@ -2100,31 +2100,44 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   _bcMesh.add(new THREE.Mesh(cardGeo, [frontMat, backMat, edgeMat]));
 
   if (def.scene === 'mountain') {
-    // ── Portal effect: render mountain world to RenderTarget, project via screen-space shader ──
-    const winW = cardW, winH = cardH;
-    const winY = 0;
+    // ── Portal via stencil mask — mountain layers in main scene, clipped by card shape ──
 
-    // Portal scene — the mountain world rendered offscreen
-    const portalScene = new THREE.Scene();
-    const dpr = Math.min(window.devicePixelRatio, 2.0);
-    const rtW = Math.round(w * dpr), rtH = Math.round(h * dpr);
-    const portalRT = new THREE.WebGLRenderTarget(rtW, rtH);
+    // Step 1: Stencil mask — card-shaped plane that writes stencil=1, no color/depth
+    const maskGeo = new THREE.PlaneGeometry(cardW * 0.98, cardH * 0.98);
+    const maskMat = new THREE.MeshBasicMaterial({
+      colorWrite: false, depthWrite: false,
+    });
+    maskMat.stencilWrite = true;
+    maskMat.stencilRef = 1;
+    maskMat.stencilFunc = THREE.AlwaysStencilFunc;
+    maskMat.stencilFail = THREE.ReplaceStencilOp;
+    maskMat.stencilZFail = THREE.ReplaceStencilOp;
+    maskMat.stencilZPass = THREE.ReplaceStencilOp;
+    const maskPlane = new THREE.Mesh(maskGeo, maskMat);
+    maskPlane.position.z = cardD * 0.5 + 0.0005;
+    maskPlane.renderOrder = 0;
+    _bcMesh.add(maskPlane);
 
-    // Build mountain layers — auto-sized to fill FOV at their depth
-    const portalFov = 30; // must match main camera FOV
-    const makeLayer = (drawFn, z, _unused) => {
+    // Step 2: Mountain layers — in main scene BEHIND the card, stencil-clipped
+    const camDist = 6.8; // main camera z position
+    const camFov = 30;
+    const makeLayer = (drawFn, zBehind) => {
       const c = document.createElement('canvas'); c.width = fW; c.height = fH;
       drawFn(c.getContext('2d'), fW, fH);
-      // Calculate plane size to fill camera view at this depth
-      const dist = Math.abs(z); // distance from camera at z=0
-      const vH = 2 * Math.tan((portalFov * Math.PI / 180) / 2) * dist * 1.3; // 1.3x = overfill for parallax
+      // Size layer to overfill the card at its depth
+      const dist = camDist + zBehind; // total distance from camera
+      const vH = 2 * Math.tan((camFov * Math.PI / 180) / 2) * dist * 0.6;
       const vW = vH * (w / h);
-      const m = new THREE.Mesh(
-        new THREE.PlaneGeometry(vW, vH),
-        new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false })
-      );
-      m.position.z = z;
-      portalScene.add(m);
+      const mat = new THREE.MeshBasicMaterial({
+        map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false
+      });
+      mat.stencilWrite = false;
+      mat.stencilRef = 1;
+      mat.stencilFunc = THREE.EqualStencilFunc;
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(vW, vH), mat);
+      m.position.z = -(cardD * 0.5) - zBehind; // behind the card
+      m.renderOrder = 1;
+      _bcMesh.add(m);
       return m;
     };
 
@@ -2231,7 +2244,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
       ctx.beginPath(); ctx.arc(mx + 12, my + 10, 4, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath(); ctx.arc(mx + 3, my + 15, 5, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath(); ctx.arc(mx - 15, my + 5, 3, 0, Math.PI * 2); ctx.fill();
-    }, -14, 6);
+    }, 3.0);
 
     // Layer 0.5: Distant aurora / cloud band (between sky and mountains)
     const aurora = makeLayer((ctx, w2, h2) => {
@@ -2257,7 +2270,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
         cg.addColorStop(1, 'transparent');
         ctx.fillStyle = cg; ctx.fillRect(0, 0, w2, h2);
       }
-    }, -11, 5);
+    }, 2.2);
 
     // Layer 1: Far mountains
     const farMtn = makeLayer((ctx, w2, h2) => {
@@ -2271,7 +2284,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
         ctx.beginPath(); ctx.moveTo(w2*px,h2*py);
         ctx.lineTo(w2*(px-0.04),h2*(py+0.07)); ctx.lineTo(w2*(px+0.04),h2*(py+0.07)); ctx.fill();
       });
-    }, -9, 4.5);
+    }, 1.6);
 
     // Layer 2: Mid hills
     const midHill = makeLayer((ctx, w2, h2) => {
@@ -2281,7 +2294,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
       ctx.quadraticCurveTo(w2*0.6,h2*0.62,w2*0.8,h2*0.5);
       ctx.quadraticCurveTo(w2*0.95,h2*0.42,w2,h2*0.52);
       ctx.lineTo(w2,h2); ctx.lineTo(0,h2); ctx.fill();
-    }, -5, 3.2);
+    }, 1.0);
 
     // Layer 3: Foreground trees
     const fg = makeLayer((ctx, w2, h2) => {
@@ -2303,7 +2316,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
         ctx.fillStyle = `rgba(200,210,255,${0.1+Math.random()*0.2})`;
         ctx.beginPath(); ctx.arc(Math.random()*w2,Math.random()*h2,1+Math.random()*2,0,Math.PI*2); ctx.fill();
       }
-    }, -2, 2.2);
+    }, 0.5);
 
     // Layer 4: Close silhouette trees at edges — framing the scene
     const closeTrees = makeLayer((ctx, w2, h2) => {
@@ -2334,7 +2347,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
       }
       // Ground strip
       ctx.fillRect(0, h2 * 0.88, w2, h2 * 0.12);
-    }, -0.5, 1.5);
+    }, 0.2);
 
     // Layer 5: Floating particles / fireflies — closest, most parallax
     const particles = makeLayer((ctx, w2, h2) => {
@@ -2351,37 +2364,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
         ctx.fillStyle = `rgba(255,250,200,${a * 1.5})`;
         ctx.beginPath(); ctx.arc(px2, py2, sz * 0.5, 0, Math.PI * 2); ctx.fill();
       }
-    }, 0.5, 1.2);
-
-    // Camera for portal — same FOV as main camera, positioned at card plane
-    const portalCam = new THREE.PerspectiveCamera(portalFov, w / h, 0.1, 100);
-    portalCam.position.set(0, 0, 0);
-    portalCam.lookAt(0, 0, -1);
-
-    // Portal window plane — uses screen-space sampling shader
-    const portalMat = new THREE.ShaderMaterial({
-      transparent: true, depthWrite: false, side: THREE.FrontSide,
-      uniforms: {
-        portalMap: { value: portalRT.texture },
-        resolution: { value: new THREE.Vector2(rtW, rtH) }
-      },
-      vertexShader: `
-        void main() {
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: `
-        uniform sampler2D portalMap;
-        uniform vec2 resolution;
-        void main() {
-          vec2 uv = gl_FragCoord.xy / resolution;
-          gl_FragColor = texture2D(portalMap, uv);
-        }
-      `
-    });
-    const portalPlane = new THREE.Mesh(new THREE.PlaneGeometry(winW, winH), portalMat);
-    portalPlane.position.set(0, winY, cardD * 0.5 + 0.001);
-    _bcMesh.add(portalPlane);
+    }, 0.05);
 
     // Text overlay on top of portal — achievement name + desc
     const txtCanvas = document.createElement('canvas'); txtCanvas.width = fW; txtCanvas.height = fH;
@@ -2406,10 +2389,24 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     txtPlane.position.z = cardD * 0.5 + 0.003;
     _bcMesh.add(txtPlane);
 
-    // Store portal data for the render loop
-    _bcMesh._portal = { scene: portalScene, camera: portalCam, rt: portalRT, layers: [sky, aurora, farMtn, midHill, fg, closeTrees, particles], depths: [0.04, 0.035, 0.025, 0.015, 0.008, 0.004, 0.002] };
+    // Set render order on card body so it renders after mask
+    _bcMesh.children[0].renderOrder = 2; // card body
+    txtPlane.renderOrder = 3;
+
     _bcMesh.add(glitterPlane);
-    _bcMesh._parallax = [];
+    glitterPlane.renderOrder = 4;
+
+    // Parallax — layers shift when card tilts, deeper layers move more
+    _bcMesh._parallax = [
+      { mesh: sky, depth: 0.025 },
+      { mesh: aurora, depth: 0.02 },
+      { mesh: farMtn, depth: 0.015 },
+      { mesh: midHill, depth: 0.01 },
+      { mesh: fg, depth: 0.006 },
+      { mesh: closeTrees, depth: 0.003 },
+      { mesh: particles, depth: 0.001 },
+    ];
+    _bcMesh._portal = null; // no render target needed
   } else {
     _bcMesh.add(iconPlane);
     _bcMesh.add(glitterPlane);
@@ -2517,19 +2514,6 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     // Parallax — move layers in portal scene or icon plane
     let dy = _bcMesh.rotation.y - REST_Y; dy -= Math.round(dy / (Math.PI * 2)) * Math.PI * 2;
     const dx = _bcMesh.rotation.x - REST_X;
-    if (_bcMesh._portal) {
-      // Mirror main camera offset through card for parallax
-      const p = _bcMesh._portal;
-      const px = Math.abs(dy) < 1.5 ? -dy * 0.3 : 0;
-      const py = Math.abs(dx) < 1.5 ? dx * 0.3 : 0;
-      p.camera.position.x += (px - p.camera.position.x) * 0.12;
-      p.camera.position.y += (py - p.camera.position.y) * 0.12;
-      p.camera.lookAt(px * 0.5, py * 0.5, -5);
-      // Render portal scene to render target
-      _bcRenderer.setRenderTarget(p.rt);
-      _bcRenderer.render(p.scene, p.camera);
-      _bcRenderer.setRenderTarget(null);
-    }
     if (_bcMesh._parallax && _bcMesh._parallax.length) {
       if (Math.abs(dy) < 0.8 && Math.abs(dx) < 0.8) {
         _bcMesh._parallax.forEach(l => { l.mesh.position.x += (-dy * l.depth * 6 - l.mesh.position.x) * 0.15; l.mesh.position.y += (dx * l.depth * 6 - l.mesh.position.y) * 0.15; });
@@ -2594,12 +2578,7 @@ export function destroyBadgeCard3D() {
         if (child.material) { const mats = Array.isArray(child.material) ? child.material : [child.material]; mats.forEach(m => { try { if (m.map) m.map.dispose(); if (m.normalMap) m.normalMap.dispose(); if (m.metalnessMap) m.metalnessMap.dispose(); if (m.roughnessMap) m.roughnessMap.dispose(); m.dispose(); } catch(_){} }); }
       } catch(_){}
     });
-    if (_bcMesh && _bcMesh._portal) {
-      try { _bcMesh._portal.rt.dispose(); } catch(_){}
-      try { _bcMesh._portal.scene.traverse(child => {
-        try { if (child.geometry) child.geometry.dispose(); if (child.material) { if (child.material.map) child.material.map.dispose(); child.material.dispose(); } } catch(_){}
-      }); } catch(_){}
-    }
+    // Portal layers are children of _bcMesh — cleaned up by scene traverse above
     _releaseRenderer();
   } catch(_){}
   _bcRenderer = null; _bcScene = null; _bcCamera = null; _bcMesh = null; _bcCanvas = null; _bcDragging = false;
