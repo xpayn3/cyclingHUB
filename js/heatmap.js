@@ -1212,7 +1212,7 @@ export function _hmDrawLines(routes) {
   _hm.map.addSource(hlSrcId, { type: 'geojson', data: emptyGJ });
   _hm.map.addLayer({
     id: hlLayerId, type: 'line', source: hlSrcId,
-    paint: { 'line-color': '#ff6b35', 'line-width': 3.5, 'line-opacity': 0.9 },
+    paint: { 'line-color': getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#00e5a0', 'line-width': 3.5, 'line-opacity': 0.9 },
     layout: { 'line-cap': 'round', 'line-join': 'round' },
   });
 
@@ -1297,7 +1297,7 @@ export function _hmDrawBySpeed(routes) {
   _hm.map.addSource(hlSrcId, { type: 'geojson', data: emptyGJ });
   _hm.map.addLayer({
     id: hlLayerId, type: 'line', source: hlSrcId,
-    paint: { 'line-color': '#ff6b35', 'line-width': 3.5, 'line-opacity': 0.9 },
+    paint: { 'line-color': getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#00e5a0', 'line-width': 3.5, 'line-opacity': 0.9 },
     layout: { 'line-cap': 'round', 'line-join': 'round' },
   });
 
