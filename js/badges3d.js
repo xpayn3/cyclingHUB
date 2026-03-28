@@ -2146,6 +2146,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
       mat.stencilFail = THREE.KeepStencilOp;
       mat.stencilZFail = THREE.KeepStencilOp;
       mat.stencilZPass = THREE.KeepStencilOp;
+      domeGeo.translate(0, -cardH * 0.15, 0);
       const m = new THREE.Mesh(domeGeo, mat);
       m.position.z = cardD * 0.5;
       m.renderOrder = 1;
