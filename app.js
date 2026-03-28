@@ -1354,7 +1354,7 @@ async function syncData(force = false) {
       state.activities = cache.activities;
       state.synced = true;
       updateConnectionUI(true);
-      renderDashboard();
+      if (state.currentPage === 'dashboard') renderDashboard();
 
       // Fetch only activities since last sync minus 2-day buffer (extra buffer for timezone safety)
       const since = new Date(cache.lastSync);
@@ -5096,8 +5096,10 @@ function setUnits(units) {
   const elevEl = document.getElementById('settingsElevUnit');
   if (elevEl) elevEl.textContent = units === 'imperial' ? 'feet' : 'metres';
   if (state.synced) {
-    renderDashboard();
+    if (state.currentPage === 'dashboard') renderDashboard();
     if (state.currentPage === 'activities') renderAllActivitiesList();
+    if (state.currentPage === 'fitness') renderFitnessPage();
+    if (state.currentPage === 'power') renderPowerPage();
   }
 }
 
@@ -5224,7 +5226,7 @@ function setRange(days) {
   if (defLabel) defLabel.textContent = days + ' days';
   // Update inline range pills on dashboard cards
   _refreshDashRangePills();
-  if (state.synced) noChartAnim(() => renderDashboard());
+  if (state.synced && state.currentPage === 'dashboard') noChartAnim(() => renderDashboard());
 }
 
 /* ====================================================
@@ -10918,7 +10920,6 @@ async function renderPowerPage() {
     _renderPwrPageScatter(recent);
     renderBestEfforts();
     renderPrWall();
-    renderFitnessZoneDist(days);
     _renderRiderType(ftp, weight);
     _renderRollingCurveOverlay(days, ftp);
   } catch(e) { console.warn('Power page extras:', e); }
