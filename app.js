@@ -184,12 +184,14 @@ if ('serviceWorker' in navigator) {
     .catch(err => console.warn('SW registration failed:', err));
 }
 
-// Populate version footer + splash version
+// Populate version footer + splash version + git hash
+const BUILD_HASH = 'b46e59e';
 (function() {
   function setVersion(ver) {
     const footer = document.getElementById('appVersionFooter');
     const splash = document.getElementById('splashVersion');
-    if (footer) footer.textContent = 'CycleIQ ' + ver;
+    const display = 'CycleIQ ' + ver + ' · ' + BUILD_HASH;
+    if (footer) footer.textContent = display;
     if (splash) splash.textContent = ver;
   }
   if (navigator.serviceWorker?.controller) {
@@ -198,7 +200,7 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.controller.postMessage({ type: 'GET_VERSION' }, [mc.port2]);
   } else {
     const footer = document.getElementById('appVersionFooter');
-    if (footer) footer.textContent = 'CycleIQ';
+    if (footer) footer.textContent = 'CycleIQ · ' + BUILD_HASH;
   }
 })();
 
