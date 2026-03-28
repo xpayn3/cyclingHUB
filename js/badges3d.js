@@ -2110,12 +2110,17 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     const rtW = Math.round(w * dpr), rtH = Math.round(h * dpr);
     const portalRT = new THREE.WebGLRenderTarget(rtW, rtH);
 
-    // Build mountain layers in portal scene (at origin, facing camera)
-    const makeLayer = (drawFn, z, scale) => {
+    // Build mountain layers — auto-sized to fill FOV at their depth
+    const portalFov = 30; // must match main camera FOV
+    const makeLayer = (drawFn, z, _unused) => {
       const c = document.createElement('canvas'); c.width = fW; c.height = fH;
       drawFn(c.getContext('2d'), fW, fH);
+      // Calculate plane size to fill camera view at this depth
+      const dist = Math.abs(z); // distance from camera at z=0
+      const vH = 2 * Math.tan((portalFov * Math.PI / 180) / 2) * dist * 1.3; // 1.3x = overfill for parallax
+      const vW = vH * (w / h);
       const m = new THREE.Mesh(
-        new THREE.PlaneGeometry(3 * (scale || 1), 3 * (cardH / cardW) * (scale || 1)),
+        new THREE.PlaneGeometry(vW, vH),
         new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false })
       );
       m.position.z = z;
@@ -2348,10 +2353,10 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
       }
     }, 0.5, 1.2);
 
-    // Camera for the portal scene — looks into the mountain world
-    const portalCam = new THREE.PerspectiveCamera(70, w / h, 0.1, 100);
-    portalCam.position.set(0, 0, 3);
-    portalCam.lookAt(0, 0, -5);
+    // Camera for portal — same FOV as main camera, positioned at card plane
+    const portalCam = new THREE.PerspectiveCamera(portalFov, w / h, 0.1, 100);
+    portalCam.position.set(0, 0, 0);
+    portalCam.lookAt(0, 0, -1);
 
     // Portal window plane — uses screen-space sampling shader
     const portalMat = new THREE.ShaderMaterial({
@@ -2513,13 +2518,13 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     let dy = _bcMesh.rotation.y - REST_Y; dy -= Math.round(dy / (Math.PI * 2)) * Math.PI * 2;
     const dx = _bcMesh.rotation.x - REST_X;
     if (_bcMesh._portal) {
-      // Shift portal camera for parallax depth effect
+      // Mirror main camera offset through card for parallax
       const p = _bcMesh._portal;
-      const px = Math.abs(dy) < 1.5 ? -dy * 0.8 : 0;
-      const py = Math.abs(dx) < 1.5 ? dx * 0.8 : 0;
-      p.camera.position.x += (px - p.camera.position.x) * 0.15;
-      p.camera.position.y += (py - p.camera.position.y) * 0.15;
-      p.camera.lookAt(0, 0, -2);
+      const px = Math.abs(dy) < 1.5 ? -dy * 0.3 : 0;
+      const py = Math.abs(dx) < 1.5 ? dx * 0.3 : 0;
+      p.camera.position.x += (px - p.camera.position.x) * 0.12;
+      p.camera.position.y += (py - p.camera.position.y) * 0.12;
+      p.camera.lookAt(px * 0.5, py * 0.5, -5);
       // Render portal scene to render target
       _bcRenderer.setRenderTarget(p.rt);
       _bcRenderer.render(p.scene, p.camera);
