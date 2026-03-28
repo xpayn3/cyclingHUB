@@ -1267,8 +1267,9 @@ export async function initRiderCard3D(canvasEl, data) {
 
   function loop() {
     _rcRaf = requestAnimationFrame(loop);
-    if (!_rcMesh) return;
+    if (!_rcMesh || !_rcRenderer || !_rcScene || !_rcCamera) return;
     if (_rcIdle) return;
+    try {
 
     // Live resize — corrects size if canvas was measured before sheet animation completed
     if (_rcCanvas) {
@@ -1354,6 +1355,7 @@ export async function initRiderCard3D(canvasEl, data) {
       }
     }
     _rcRenderer.render(_rcScene, _rcCamera);
+    } catch(e) { console.warn('Rider card render error:', e.message); cancelAnimationFrame(_rcRaf); _rcRaf = null; }
   }
   loop();
 
@@ -2408,8 +2410,9 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
 
   function loop() {
     _bcRaf = requestAnimationFrame(loop);
-    if (!_bcMesh) return;
+    if (!_bcMesh || !_bcRenderer || !_bcScene || !_bcCamera) return;
     if (_bcIdle) return;
+    try {
 
     // Live resize — corrects size if canvas was measured before sheet animation completed
     if (_bcCanvas) {
@@ -2507,6 +2510,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
       } else { _bcMesh._parallax.forEach(l => { l.mesh.position.x *= 0.85; l.mesh.position.y *= 0.85; }); }
     }
     _bcRenderer.render(_bcScene, _bcCamera);
+    } catch(e) { console.warn('Badge card render error:', e.message); cancelAnimationFrame(_bcRaf); _bcRaf = null; }
   }
   loop();
 
@@ -2554,44 +2558,44 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
 }
 
 export function destroyBadgeCard3D() {
-  if (_bcRaf) cancelAnimationFrame(_bcRaf); _bcRaf = null;
-  if (_bcAbort) { _bcAbort.abort(); _bcAbort = null; }
-  if (_bcScene) _bcScene.traverse(child => {
-    if (child.geometry) child.geometry.dispose();
-    if (child.material) { const mats = Array.isArray(child.material) ? child.material : [child.material]; mats.forEach(m => { if (m.map) m.map.dispose(); if (m.normalMap) m.normalMap.dispose(); if (m.metalnessMap) m.metalnessMap.dispose(); if (m.roughnessMap) m.roughnessMap.dispose(); /* don't dispose envMap — cached */ m.dispose(); }); }
-  });
-  if (_bcMesh && _bcMesh._portal) {
-    _bcMesh._portal.rt.dispose();
-    _bcMesh._portal.scene.traverse(child => {
-      if (child.geometry) child.geometry.dispose();
-      if (child.material) { if (child.material.map) child.material.map.dispose(); child.material.dispose(); }
+  try {
+    if (_bcRaf) cancelAnimationFrame(_bcRaf);
+    _bcRaf = null;
+    if (_bcAbort) { try { _bcAbort.abort(); } catch(_){} _bcAbort = null; }
+    if (_bcScene) _bcScene.traverse(child => {
+      try {
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) { const mats = Array.isArray(child.material) ? child.material : [child.material]; mats.forEach(m => { try { if (m.map) m.map.dispose(); if (m.normalMap) m.normalMap.dispose(); if (m.metalnessMap) m.metalnessMap.dispose(); if (m.roughnessMap) m.roughnessMap.dispose(); m.dispose(); } catch(_){} }); }
+      } catch(_){}
     });
-  }
-  _releaseRenderer();
+    if (_bcMesh && _bcMesh._portal) {
+      try { _bcMesh._portal.rt.dispose(); } catch(_){}
+      try { _bcMesh._portal.scene.traverse(child => {
+        try { if (child.geometry) child.geometry.dispose(); if (child.material) { if (child.material.map) child.material.map.dispose(); child.material.dispose(); } } catch(_){}
+      }); } catch(_){}
+    }
+    _releaseRenderer();
+  } catch(_){}
   _bcRenderer = null; _bcScene = null; _bcCamera = null; _bcMesh = null; _bcCanvas = null; _bcDragging = false;
 }
 
 export function destroyRiderCard3D() {
-  if (_rcRaf) cancelAnimationFrame(_rcRaf);
-  _rcRaf = null;
-  if (_rcAbort) { _rcAbort.abort(); _rcAbort = null; }
-  // Dispose all textures, geometries, materials in the scene
-  if (_rcScene) {
-    _rcScene.traverse(child => {
-      if (child.geometry) child.geometry.dispose();
-      if (child.material) {
-        const mats = Array.isArray(child.material) ? child.material : [child.material];
-        mats.forEach(m => {
-          if (m.map) m.map.dispose();
-          if (m.normalMap) m.normalMap.dispose();
-          if (m.metalnessMap) m.metalnessMap.dispose();
-          if (m.roughnessMap) m.roughnessMap.dispose();
-          /* don't dispose envMap — cached */
-          m.dispose();
-        });
-      }
-    });
-  }
+  try {
+    if (_rcRaf) cancelAnimationFrame(_rcRaf);
+    _rcRaf = null;
+    if (_rcAbort) { try { _rcAbort.abort(); } catch(_){} _rcAbort = null; }
+    if (_rcScene) {
+      _rcScene.traverse(child => {
+        try {
+          if (child.geometry) child.geometry.dispose();
+          if (child.material) {
+            const mats = Array.isArray(child.material) ? child.material : [child.material];
+            mats.forEach(m => { try { if (m.map) m.map.dispose(); if (m.normalMap) m.normalMap.dispose(); if (m.metalnessMap) m.metalnessMap.dispose(); if (m.roughnessMap) m.roughnessMap.dispose(); m.dispose(); } catch(_){} });
+          }
+        } catch(_){}
+      });
+    }
+  } catch(_){}
   _releaseRenderer();
   _rcRenderer = null; _rcScene = null; _rcCamera = null; _rcMesh = null; _rcCanvas = null;
   _rcDragging = false;

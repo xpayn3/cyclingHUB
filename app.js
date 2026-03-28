@@ -4437,10 +4437,10 @@ function navigate(page, opts) {
   document.querySelectorAll('dialog[open]').forEach(d => closeModalAnimated(d));
 
   // Clean up charts from the page we're leaving to free memory
-  if (state.currentPage) cleanupPageCharts(state.currentPage);
+  try { if (state.currentPage) cleanupPageCharts(state.currentPage); } catch(e) { console.warn('Chart cleanup error:', e); }
 
   // Strip dynamic DOM from heavy pages to reduce node count
-  _cleanupPageDOM(state.currentPage);
+  try { _cleanupPageDOM(state.currentPage); } catch(e) { console.warn('DOM cleanup error:', e); }
 
   // Clear any pending debounce timers from the page we're leaving
   clearTimeout(_wxSearchTimer);
@@ -33510,7 +33510,7 @@ async function openBadgeViewer(badgeId, name, desc) {
 
 async function _loadBadgeCard(badgeId, name, desc) {
   if (!_badges3dModule) _badges3dModule = await import('./js/badges3d.js');
-  if (_badges3dModule.destroyBadgeCard3D) _badges3dModule.destroyBadgeCard3D();
+  try { if (_badges3dModule.destroyBadgeCard3D) _badges3dModule.destroyBadgeCard3D(); } catch(_){}
 
   // Replace canvas to get a fresh WebGL context
   const old = document.getElementById('badge3dCanvas');
@@ -33554,8 +33554,8 @@ function _badgeNavNext() {
 }
 
 function closeBadgeViewer() {
-  if (_badges3dModule?.destroyBadgeCard3D) _badges3dModule.destroyBadgeCard3D();
-  if (_badges3dModule?.destroyBadge3D) _badges3dModule.destroyBadge3D();
+  try { if (_badges3dModule?.destroyBadgeCard3D) _badges3dModule.destroyBadgeCard3D(); } catch(_){}
+  try { if (_badges3dModule?.destroyBadge3D) _badges3dModule.destroyBadge3D(); } catch(_){}
   _badgeViewerList = [];
   // Close desktop dialog or mobile sheet
   const overlay = document.getElementById('badgeDialogOverlay');
@@ -35736,7 +35736,7 @@ function openProfileModal() {
 }
 
 function closeProfileModal() {
-  if (_badges3dModule?.destroyRiderCard3D) _badges3dModule.destroyRiderCard3D();
+  try { if (_badges3dModule?.destroyRiderCard3D) _badges3dModule.destroyRiderCard3D(); } catch(_){}
   const overlay = document.getElementById('profileOverlay');
   if (!overlay) return;
   overlay.classList.remove('prof-open');
