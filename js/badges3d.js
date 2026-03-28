@@ -672,7 +672,7 @@ let _rcScene, _rcCamera, _rcRenderer, _rcMesh, _rcRaf, _rcCanvas = null;
 let _rcDragging = false, _rcStartX = 0, _rcStartY = 0, _rcRotX = 0, _rcRotY = 0;
 let _rcTrail = [];
 let _rcDragVelX = 0, _rcDragVelY = 0;
-let _rcReleaseTime = 0, _rcSpinning = false, _rcIdle = false, _rcAutoSpin = false;
+let _rcReleaseTime = 0, _rcSpinning = false, _rcIdle = false, _rcAutoSpin = false, _rcAutoSpinStart = 0;
 let _rcFrameSkip = 0;
 let _rcAbort = null;
 
@@ -1295,8 +1295,8 @@ export async function initRiderCard3D(canvasEl, data) {
       _rcAutoSpin = true; // transition to auto-spin after intro
     }
 
-    // Skip every other frame during auto-spin (30fps is enough for idle)
-    if (_rcAutoSpin && !_rcDragging && !_rcSpinning) {
+    // Skip every other frame — only after settled (3s grace for smooth transition)
+    if (_rcAutoSpin && !_rcDragging && !_rcSpinning && (Date.now() - _rcReleaseTime) > 3000) {
       if (++_rcFrameSkip % 2 !== 0) return;
     } else { _rcFrameSkip = 0; }
 
@@ -1325,14 +1325,16 @@ export async function initRiderCard3D(canvasEl, data) {
         } else {
           // Momentum died — transition to auto-spin
           _rcSpinning = false;
-          _rcAutoSpin = true;
+          _rcAutoSpin = true; _rcAutoSpinStart = Date.now();
         }
       } else if (_rcAutoSpin || timeSinceRelease > 2000) {
         _rcAutoSpin = true;
+        if (!_rcAutoSpinStart) _rcAutoSpinStart = Date.now();
         const ast = Date.now() * 0.001;
-        _rcMesh.rotation.y += 0.006;
-        _rcMesh.rotation.x += (REST_X + Math.sin(ast * 0.8) * 0.2 - _rcMesh.rotation.x) * 0.04;
-        _rcMesh.rotation.z += (Math.sin(ast * 0.5 + 1) * 0.05 - _rcMesh.rotation.z) * 0.03;
+        const spinEase = Math.min(1, (Date.now() - _rcAutoSpinStart) / 500);
+        _rcMesh.rotation.y += 0.006 * spinEase;
+        _rcMesh.rotation.x += (REST_X + Math.sin(ast * 0.8) * 0.2 - _rcMesh.rotation.x) * (0.01 + 0.03 * spinEase);
+        _rcMesh.rotation.z += (Math.sin(ast * 0.5 + 1) * 0.05 - _rcMesh.rotation.z) * (0.01 + 0.02 * spinEase);
       }
     }
     // Parallax — shift layers based on card tilt
@@ -1363,7 +1365,7 @@ export async function initRiderCard3D(canvasEl, data) {
   let _rcLastTap = 0;
   canvasEl.addEventListener('pointerdown', e => {
     const now = Date.now();
-    _rcIdle = false; _rcAutoSpin = false;
+    _rcIdle = false; _rcAutoSpin = false; _rcAutoSpinStart = 0;
     if (now - _rcLastTap < 350 && _rcMesh) {
       _rcDragVelX = 0;
       _rcDragVelY = 0.08;
@@ -1585,7 +1587,7 @@ export function renderBadgePreview(badgeId, name, desc, locked) {
 let _bcScene, _bcCamera, _bcRenderer, _bcMesh, _bcRaf, _bcCanvas = null, _bcDragging = false;
 let _bcStartX = 0, _bcStartY = 0, _bcRotX = 0, _bcRotY = 0;
 let _bcDragVelX = 0, _bcDragVelY = 0;
-let _bcReleaseTime = 0, _bcSpinning = false, _bcIdle = false, _bcAutoSpin = true;
+let _bcReleaseTime = 0, _bcSpinning = false, _bcIdle = false, _bcAutoSpin = true, _bcAutoSpinStart = 0;
 let _bcTrail = [];
 let _bcAbort = null;
 
@@ -2464,8 +2466,8 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
       _bcAutoSpin = true;
     }
 
-    // Skip every other frame during auto-spin
-    if (_bcAutoSpin && !_bcDragging && !_bcSpinning) {
+    // Skip every other frame during auto-spin — but only after settling (1s grace)
+    if (_bcAutoSpin && !_bcDragging && !_bcSpinning && (Date.now() - _bcReleaseTime) > 3000) {
       if (++_bcFrameSkip % 2 !== 0) return;
     } else { _bcFrameSkip = 0; }
 
@@ -2494,14 +2496,17 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
           _bcMesh.rotation.x += _bcDragVelX; _bcMesh.rotation.y += _bcDragVelY;
           _bcMesh.rotation.x += (REST_X - _bcMesh.rotation.x) * 0.005;
         } else {
-          _bcSpinning = false; _bcAutoSpin = true;
+          _bcSpinning = false; _bcAutoSpin = true; _bcAutoSpinStart = Date.now();
         }
       } else if (_bcAutoSpin || timeSinceRelease > 2000) {
         _bcAutoSpin = true;
+        if (!_bcAutoSpinStart) _bcAutoSpinStart = Date.now();
         const bst = Date.now() * 0.001;
-        _bcMesh.rotation.y += 0.006;
-        _bcMesh.rotation.x += (REST_X + Math.sin(bst * 0.8) * 0.2 - _bcMesh.rotation.x) * 0.04;
-        _bcMesh.rotation.z += (Math.sin(bst * 0.5 + 1) * 0.05 - _bcMesh.rotation.z) * 0.03;
+        // Ease into auto-spin speed over 0.5s
+        const spinEase = Math.min(1, (Date.now() - _bcAutoSpinStart) / 500);
+        _bcMesh.rotation.y += 0.006 * spinEase;
+        _bcMesh.rotation.x += (REST_X + Math.sin(bst * 0.8) * 0.2 - _bcMesh.rotation.x) * (0.01 + 0.03 * spinEase);
+        _bcMesh.rotation.z += (Math.sin(bst * 0.5 + 1) * 0.05 - _bcMesh.rotation.z) * (0.01 + 0.02 * spinEase);
       }
     }
     // Parallax — move layers in portal scene or icon plane
@@ -2533,7 +2538,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   // Interaction
   let lastTap = 0;
   canvasEl.addEventListener('pointerdown', e => {
-    _bcIdle = false; _bcAutoSpin = false;
+    _bcIdle = false; _bcAutoSpin = false; _bcAutoSpinStart = 0;
     const now = Date.now();
     if (now - lastTap < 350 && _bcMesh) { _bcDragVelX = 0; _bcDragVelY = 0.08; _bcReleaseTime = now; _bcSpinning = true; _bcDragging = false; lastTap = 0; return; }
     lastTap = now;
