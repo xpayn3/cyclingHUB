@@ -2156,227 +2156,161 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
       return m;
     };
 
-    // Layer 0: Deep night sky — rich nebula, milky way, dense starfield
+    // ── Equirectangular textures optimized for full-sphere UV mapping ──
+    // Canvas is 1024x512 (2:1). On a sphere: V=0.5 = equator = horizon line.
+    // Content is drawn centered around the equator band for correct projection.
+    // Horizontal content wraps 360° — left/right edges should tile smoothly.
+
+    // Layer 0: Night sky sphere — wraps entire background
     const sky = makeLayer((ctx, w2, h2) => {
-      // Deep space base — very dark with slight blue
-      ctx.fillStyle = '#020412'; ctx.fillRect(0, 0, w2, h2);
+      // Full sky gradient — zenith at top, horizon at center
+      const skyG = ctx.createLinearGradient(0, 0, 0, h2);
+      skyG.addColorStop(0, '#020410');
+      skyG.addColorStop(0.2, '#060820');
+      skyG.addColorStop(0.4, '#0c1035');
+      skyG.addColorStop(0.5, '#1a1555'); // horizon band
+      skyG.addColorStop(0.6, '#2a1845');
+      skyG.addColorStop(0.7, '#1a1030');
+      skyG.addColorStop(1, '#080412');
+      ctx.fillStyle = skyG; ctx.fillRect(0, 0, w2, h2);
 
-      // Vertical atmosphere gradient — horizon glow
-      const atmo = ctx.createLinearGradient(0, 0, 0, h2);
-      atmo.addColorStop(0, 'rgba(3,4,20,1)');
-      atmo.addColorStop(0.3, 'rgba(8,10,35,1)');
-      atmo.addColorStop(0.55, 'rgba(15,12,40,0.9)');
-      atmo.addColorStop(0.75, 'rgba(35,18,50,0.7)');
-      atmo.addColorStop(0.88, 'rgba(60,25,45,0.5)');
-      atmo.addColorStop(1, 'rgba(20,15,35,0.3)');
-      ctx.fillStyle = atmo; ctx.fillRect(0, 0, w2, h2);
-
-      // Milky way band — diagonal nebula cloud
-      ctx.save();
-      ctx.translate(w2 * 0.5, h2 * 0.35);
-      ctx.rotate(-0.35);
-      const milky = ctx.createRadialGradient(0, 0, 0, 0, 0, w2 * 0.5);
-      milky.addColorStop(0, 'rgba(80,70,120,0.12)');
-      milky.addColorStop(0.3, 'rgba(60,50,100,0.08)');
-      milky.addColorStop(0.6, 'rgba(40,30,80,0.04)');
+      // Milky way band — horizontal across equator
+      const milky = ctx.createLinearGradient(0, h2 * 0.35, 0, h2 * 0.55);
+      milky.addColorStop(0, 'transparent');
+      milky.addColorStop(0.3, 'rgba(60,50,100,0.06)');
+      milky.addColorStop(0.5, 'rgba(80,70,120,0.08)');
+      milky.addColorStop(0.7, 'rgba(60,50,100,0.06)');
       milky.addColorStop(1, 'transparent');
-      ctx.fillStyle = milky;
-      ctx.fillRect(-w2 * 0.6, -h2 * 0.15, w2 * 1.2, h2 * 0.3);
-      ctx.restore();
+      ctx.fillStyle = milky; ctx.fillRect(0, h2 * 0.35, w2, h2 * 0.2);
 
-      // Nebula patches — colored gas clouds
-      const nebulae = [
-        [w2*0.2, h2*0.25, w2*0.18, 'rgba(60,20,80,0.08)', 'rgba(40,10,60,0.03)'],
-        [w2*0.7, h2*0.3, w2*0.15, 'rgba(20,40,80,0.07)', 'rgba(10,20,50,0.02)'],
-        [w2*0.4, h2*0.15, w2*0.12, 'rgba(80,30,50,0.06)', 'rgba(40,15,30,0.02)'],
-        [w2*0.85, h2*0.45, w2*0.1, 'rgba(30,50,70,0.06)', 'rgba(15,25,40,0.02)'],
-        [w2*0.15, h2*0.5, w2*0.13, 'rgba(50,20,60,0.05)', 'rgba(25,10,35,0.01)'],
-      ];
-      nebulae.forEach(([nx, ny, nr, c1, c2]) => {
-        const ng = ctx.createRadialGradient(nx, ny, 0, nx, ny, nr);
-        ng.addColorStop(0, c1); ng.addColorStop(0.6, c2); ng.addColorStop(1, 'transparent');
-        ctx.fillStyle = ng; ctx.fillRect(0, 0, w2, h2);
-      });
-
-      // Dense starfield — 3 layers of different sizes for depth
-      // Tiny distant stars
-      for (let i = 0; i < 300; i++) {
-        const a = 0.1 + Math.random() * 0.3;
-        ctx.fillStyle = `rgba(180,190,220,${a})`;
-        ctx.fillRect(Math.random() * w2, Math.random() * h2, 1, 1);
+      // Stars — spread across full sphere, denser above horizon
+      for (let i = 0; i < 400; i++) {
+        const a = 0.1 + Math.random() * 0.4;
+        ctx.fillStyle = `rgba(190,200,230,${a})`;
+        ctx.fillRect(Math.random() * w2, Math.random() * h2, 1.5, 1.5);
       }
-      // Medium stars
-      for (let i = 0; i < 80; i++) {
-        const a = 0.2 + Math.random() * 0.5;
-        const sz = 1 + Math.random() * 1.5;
-        ctx.fillStyle = `rgba(220,225,255,${a})`;
-        ctx.beginPath(); ctx.arc(Math.random() * w2, Math.random() * h2 * 0.75, sz, 0, Math.PI * 2); ctx.fill();
-      }
-      // Bright stars with color tint and glow
-      const starColors = ['200,220,255', '255,240,220', '180,200,255', '255,220,200', '220,255,240'];
-      for (let i = 0; i < 20; i++) {
-        const sx = Math.random() * w2, sy = Math.random() * h2 * 0.65;
-        const col = starColors[Math.floor(Math.random() * starColors.length)];
+      for (let i = 0; i < 60; i++) {
+        const sx = Math.random() * w2, sy = h2 * 0.1 + Math.random() * h2 * 0.45;
         const sz = 1.5 + Math.random() * 2;
-        // Glow halo
-        const sg = ctx.createRadialGradient(sx, sy, 0, sx, sy, sz * 5);
-        sg.addColorStop(0, `rgba(${col},0.5)`);
-        sg.addColorStop(0.3, `rgba(${col},0.1)`);
-        sg.addColorStop(1, 'transparent');
-        ctx.fillStyle = sg; ctx.fillRect(sx - sz * 6, sy - sz * 6, sz * 12, sz * 12);
-        // Core
-        ctx.fillStyle = `rgba(${col},0.9)`;
+        const a = 0.3 + Math.random() * 0.5;
+        ctx.fillStyle = `rgba(220,230,255,${a})`;
         ctx.beginPath(); ctx.arc(sx, sy, sz, 0, Math.PI * 2); ctx.fill();
-        // Cross spike on brightest
-        if (i < 6) {
-          ctx.strokeStyle = `rgba(${col},0.15)`;
-          ctx.lineWidth = 0.5;
-          ctx.beginPath(); ctx.moveTo(sx - sz * 4, sy); ctx.lineTo(sx + sz * 4, sy); ctx.stroke();
-          ctx.beginPath(); ctx.moveTo(sx, sy - sz * 4); ctx.lineTo(sx, sy + sz * 4); ctx.stroke();
-        }
       }
-
-      // Moon — large, detailed, with halo
-      const mx = w2 * 0.72, my = h2 * 0.18, mr2 = 35;
-      // Outer halo
-      const mh = ctx.createRadialGradient(mx, my, mr2 * 0.8, mx, my, mr2 * 3);
-      mh.addColorStop(0, 'rgba(200,200,180,0.06)');
-      mh.addColorStop(0.5, 'rgba(150,150,140,0.02)');
-      mh.addColorStop(1, 'transparent');
-      ctx.fillStyle = mh; ctx.fillRect(mx - mr2 * 4, my - mr2 * 4, mr2 * 8, mr2 * 8);
-      // Inner glow
-      const mg = ctx.createRadialGradient(mx - 5, my - 5, 0, mx, my, mr2 * 1.3);
-      mg.addColorStop(0, 'rgba(255,252,240,0.95)');
-      mg.addColorStop(0.4, 'rgba(255,245,220,0.5)');
-      mg.addColorStop(0.7, 'rgba(200,190,170,0.15)');
-      mg.addColorStop(1, 'transparent');
+      // Bright stars with glow
+      const cols = ['200,220,255', '255,240,220', '180,200,255'];
+      for (let i = 0; i < 12; i++) {
+        const sx = Math.random() * w2, sy = h2 * 0.1 + Math.random() * h2 * 0.35;
+        const col = cols[i % cols.length], sz = 2 + Math.random() * 2;
+        const sg = ctx.createRadialGradient(sx, sy, 0, sx, sy, sz * 6);
+        sg.addColorStop(0, `rgba(${col},0.6)`); sg.addColorStop(0.3, `rgba(${col},0.1)`); sg.addColorStop(1, 'transparent');
+        ctx.fillStyle = sg; ctx.fillRect(sx - sz * 7, sy - sz * 7, sz * 14, sz * 14);
+        ctx.fillStyle = `rgba(${col},0.9)`; ctx.beginPath(); ctx.arc(sx, sy, sz, 0, Math.PI * 2); ctx.fill();
+      }
+      // Moon at upper portion
+      const mx = w2 * 0.65, my = h2 * 0.22, mr2 = 25;
+      const mg = ctx.createRadialGradient(mx, my, 0, mx, my, mr2 * 1.5);
+      mg.addColorStop(0, 'rgba(255,250,235,0.95)'); mg.addColorStop(0.4, 'rgba(255,245,220,0.3)'); mg.addColorStop(1, 'transparent');
       ctx.fillStyle = mg; ctx.fillRect(mx - mr2 * 2, my - mr2 * 2, mr2 * 4, mr2 * 4);
-      // Moon disc
       ctx.fillStyle = '#faf6e8'; ctx.beginPath(); ctx.arc(mx, my, mr2, 0, Math.PI * 2); ctx.fill();
-      // Subtle craters
-      ctx.fillStyle = 'rgba(210,200,175,0.3)';
-      ctx.beginPath(); ctx.arc(mx - 10, my - 8, 6, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(mx + 12, my + 10, 4, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(mx + 3, my + 15, 5, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(mx - 15, my + 5, 3, 0, Math.PI * 2); ctx.fill();
     }, 5.0);
 
-    // Layer 0.5: Distant aurora / cloud band (between sky and mountains)
+    // Layer 0.5: Aurora — horizontal bands at horizon
     const aurora = makeLayer((ctx, w2, h2) => {
-      // Soft horizontal aurora bands
-      for (let i = 0; i < 4; i++) {
-        const ay = h2 * (0.2 + i * 0.1) + Math.sin(i * 2.1) * h2 * 0.05;
-        const ah = h2 * 0.06 + Math.sin(i * 1.7) * h2 * 0.02;
-        const ag = ctx.createLinearGradient(0, ay, 0, ay + ah);
-        const hue = [120, 180, 200, 160][i];
+      for (let i = 0; i < 5; i++) {
+        const ay = h2 * (0.38 + i * 0.04);
+        const ag = ctx.createLinearGradient(0, ay, 0, ay + h2 * 0.04);
+        const hue = [140, 180, 160, 200, 120][i];
         ag.addColorStop(0, 'transparent');
-        ag.addColorStop(0.3, `hsla(${hue},60%,40%,0.04)`);
-        ag.addColorStop(0.5, `hsla(${hue},50%,50%,0.06)`);
-        ag.addColorStop(0.7, `hsla(${hue},60%,40%,0.04)`);
+        ag.addColorStop(0.5, `hsla(${hue},50%,45%,0.05)`);
         ag.addColorStop(1, 'transparent');
-        ctx.fillStyle = ag; ctx.fillRect(0, ay, w2, ah);
-      }
-      // Wispy cloud shapes
-      for (let i = 0; i < 6; i++) {
-        const cx = Math.random() * w2, cy = h2 * 0.25 + Math.random() * h2 * 0.2;
-        const cg = ctx.createRadialGradient(cx, cy, 0, cx, cy, 40 + Math.random() * 30);
-        cg.addColorStop(0, 'rgba(50,50,80,0.05)');
-        cg.addColorStop(0.5, 'rgba(30,30,60,0.02)');
-        cg.addColorStop(1, 'transparent');
-        ctx.fillStyle = cg; ctx.fillRect(0, 0, w2, h2);
+        ctx.fillStyle = ag; ctx.fillRect(0, ay, w2, h2 * 0.04);
       }
     }, 4.0);
 
-    // Layer 1: Far mountains
+    // Layer 1: Far mountains — peaks at horizon line (V=0.5)
     const farMtn = makeLayer((ctx, w2, h2) => {
       ctx.fillStyle = '#0f0f2a';
-      ctx.beginPath(); ctx.moveTo(0,h2*0.5);
-      ctx.lineTo(w2*0.1,h2*0.35); ctx.lineTo(w2*0.25,h2*0.42); ctx.lineTo(w2*0.4,h2*0.2);
-      ctx.lineTo(w2*0.55,h2*0.35); ctx.lineTo(w2*0.7,h2*0.15); ctx.lineTo(w2*0.85,h2*0.28);
-      ctx.lineTo(w2,h2*0.35); ctx.lineTo(w2,h2); ctx.lineTo(0,h2); ctx.fill();
-      ctx.fillStyle = 'rgba(200,215,255,0.3)';
-      [[0.4,0.2],[0.7,0.15]].forEach(([px,py]) => {
-        ctx.beginPath(); ctx.moveTo(w2*px,h2*py);
-        ctx.lineTo(w2*(px-0.04),h2*(py+0.07)); ctx.lineTo(w2*(px+0.04),h2*(py+0.07)); ctx.fill();
-      });
+      ctx.beginPath(); ctx.moveTo(0, h2 * 0.55);
+      // Mountains spanning full width with peaks above horizon
+      for (let x = 0; x <= w2; x += w2 / 8) {
+        const peak = h2 * (0.35 + Math.sin(x * 0.01 + 1.5) * 0.08 + Math.sin(x * 0.025) * 0.05);
+        ctx.lineTo(x, peak);
+      }
+      ctx.lineTo(w2, h2); ctx.lineTo(0, h2); ctx.fill();
+      // Snow caps
+      ctx.fillStyle = 'rgba(200,215,255,0.25)';
+      for (let x = w2 * 0.15; x < w2; x += w2 * 0.2) {
+        const py = h2 * (0.35 + Math.sin(x * 0.01 + 1.5) * 0.08 + Math.sin(x * 0.025) * 0.05);
+        ctx.beginPath(); ctx.moveTo(x, py); ctx.lineTo(x - 15, py + 20); ctx.lineTo(x + 15, py + 20); ctx.fill();
+      }
     }, 2.8);
 
-    // Layer 2: Mid hills
+    // Layer 2: Mid hills — rolling terrain below horizon
     const midHill = makeLayer((ctx, w2, h2) => {
       ctx.fillStyle = '#14142e';
-      ctx.beginPath(); ctx.moveTo(0,h2*0.62);
-      ctx.quadraticCurveTo(w2*0.2,h2*0.48,w2*0.4,h2*0.55);
-      ctx.quadraticCurveTo(w2*0.6,h2*0.62,w2*0.8,h2*0.5);
-      ctx.quadraticCurveTo(w2*0.95,h2*0.42,w2,h2*0.52);
-      ctx.lineTo(w2,h2); ctx.lineTo(0,h2); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(0, h2 * 0.58);
+      for (let x = 0; x <= w2; x += 30) {
+        ctx.lineTo(x, h2 * (0.52 + Math.sin(x * 0.008 + 2) * 0.04 + Math.sin(x * 0.02) * 0.03));
+      }
+      ctx.lineTo(w2, h2); ctx.lineTo(0, h2); ctx.fill();
     }, 1.8);
 
-    // Layer 3: Foreground trees
+    // Layer 3: Forest with pine trees
     const fg = makeLayer((ctx, w2, h2) => {
+      // Ground
       ctx.fillStyle = '#0e0e24';
-      ctx.beginPath(); ctx.moveTo(0,h2*0.74);
-      ctx.quadraticCurveTo(w2*0.3,h2*0.67,w2*0.5,h2*0.72);
-      ctx.quadraticCurveTo(w2*0.7,h2*0.77,w2,h2*0.7);
-      ctx.lineTo(w2,h2); ctx.lineTo(0,h2); ctx.fill();
-      for (let i = 0; i < 14; i++) {
-        const tx = w2*0.03+Math.random()*w2*0.94, tBase = h2*0.68+Math.random()*h2*0.1;
-        const tH2 = 30+Math.random()*50, tW2 = 8+Math.random()*10;
-        ctx.fillStyle = '#0a0a1e'; ctx.fillRect(tx-1.5,tBase,3,10);
+      ctx.beginPath(); ctx.moveTo(0, h2 * 0.62);
+      for (let x = 0; x <= w2; x += 20) {
+        ctx.lineTo(x, h2 * (0.6 + Math.sin(x * 0.012) * 0.02));
+      }
+      ctx.lineTo(w2, h2); ctx.lineTo(0, h2); ctx.fill();
+      // Pine trees across full width
+      ctx.fillStyle = '#0a0a1e';
+      for (let i = 0; i < 30; i++) {
+        const tx = Math.random() * w2, tBase = h2 * (0.58 + Math.random() * 0.06);
+        const tH2 = 20 + Math.random() * 40, tW2 = 6 + Math.random() * 8;
+        ctx.fillRect(tx - 1, tBase, 2, 8);
         for (let j = 0; j < 3; j++) {
-          const ly = tBase-tH2*(0.3+j*0.25), lw = tW2*(1-j*0.25);
-          ctx.beginPath(); ctx.moveTo(tx,ly); ctx.lineTo(tx-lw,ly+tH2*0.35); ctx.lineTo(tx+lw,ly+tH2*0.35); ctx.fill();
+          const ly = tBase - tH2 * (0.25 + j * 0.25), lw = tW2 * (1 - j * 0.2);
+          ctx.beginPath(); ctx.moveTo(tx, ly); ctx.lineTo(tx - lw, ly + tH2 * 0.3); ctx.lineTo(tx + lw, ly + tH2 * 0.3); ctx.fill();
         }
       }
-      for (let i = 0; i < 25; i++) {
-        ctx.fillStyle = `rgba(200,210,255,${0.1+Math.random()*0.2})`;
-        ctx.beginPath(); ctx.arc(Math.random()*w2,Math.random()*h2,1+Math.random()*2,0,Math.PI*2); ctx.fill();
+      // Snow particles
+      for (let i = 0; i < 20; i++) {
+        ctx.fillStyle = `rgba(200,210,255,${0.1 + Math.random() * 0.15})`;
+        ctx.beginPath(); ctx.arc(Math.random() * w2, h2 * 0.3 + Math.random() * h2 * 0.4, 1 + Math.random() * 2, 0, Math.PI * 2); ctx.fill();
       }
     }, 1.0);
 
-    // Layer 4: Close silhouette trees at edges — framing the scene
+    // Layer 4: Close trees — edge framing
     const closeTrees = makeLayer((ctx, w2, h2) => {
-      ctx.fillStyle = '#060614';
-      // Left cluster — large pines peeking in from left edge
-      for (let i = 0; i < 4; i++) {
-        const tx = w2 * 0.02 + i * w2 * 0.04;
-        const tBase = h2 * 0.55 + i * h2 * 0.06;
-        const tH2 = h2 * 0.2 + Math.random() * h2 * 0.15;
-        const tW2 = w2 * 0.03 + Math.random() * w2 * 0.02;
+      ctx.fillStyle = '#050512';
+      // Distribute trees across full width but taller/denser at edges
+      for (let i = 0; i < 20; i++) {
+        const tx = Math.random() * w2;
+        const edge = Math.min(tx / w2, 1 - tx / w2); // 0 at edges, 0.5 at center
+        const tBase = h2 * (0.6 + Math.random() * 0.05);
+        const tH2 = (30 + Math.random() * 50) * (edge < 0.15 ? 2 : 0.7); // taller at edges
+        const tW2 = 5 + Math.random() * 8;
+        if (edge > 0.3) continue; // skip center — only draw near edges
+        ctx.fillRect(tx - 1.5, tBase, 3, 8);
         for (let j = 0; j < 4; j++) {
-          const ly = tBase - tH2 * (0.2 + j * 0.22);
-          const lw = tW2 * (1 - j * 0.2);
-          ctx.beginPath(); ctx.moveTo(tx, ly); ctx.lineTo(tx - lw, ly + tH2 * 0.28); ctx.lineTo(tx + lw, ly + tH2 * 0.28); ctx.fill();
+          const ly = tBase - tH2 * (0.15 + j * 0.22), lw = tW2 * (1 - j * 0.18);
+          ctx.beginPath(); ctx.moveTo(tx, ly); ctx.lineTo(tx - lw, ly + tH2 * 0.25); ctx.lineTo(tx + lw, ly + tH2 * 0.25); ctx.fill();
         }
       }
-      // Right cluster
-      for (let i = 0; i < 4; i++) {
-        const tx = w2 * 0.92 + i * w2 * 0.025;
-        const tBase = h2 * 0.58 + i * h2 * 0.05;
-        const tH2 = h2 * 0.18 + Math.random() * h2 * 0.12;
-        const tW2 = w2 * 0.025 + Math.random() * w2 * 0.015;
-        for (let j = 0; j < 4; j++) {
-          const ly = tBase - tH2 * (0.2 + j * 0.22);
-          const lw = tW2 * (1 - j * 0.2);
-          ctx.beginPath(); ctx.moveTo(tx, ly); ctx.lineTo(tx - lw, ly + tH2 * 0.28); ctx.lineTo(tx + lw, ly + tH2 * 0.28); ctx.fill();
-        }
-      }
-      // Ground strip
-      ctx.fillRect(0, h2 * 0.88, w2, h2 * 0.12);
     }, 0.2);
 
-    // Layer 5: Floating particles / fireflies — closest, most parallax
+    // Layer 5: Fireflies / dust particles
     const particles = makeLayer((ctx, w2, h2) => {
-      for (let i = 0; i < 15; i++) {
-        const px2 = Math.random() * w2, py2 = h2 * 0.3 + Math.random() * h2 * 0.5;
+      for (let i = 0; i < 20; i++) {
+        const px2 = Math.random() * w2, py2 = h2 * 0.35 + Math.random() * h2 * 0.3;
         const sz = 1.5 + Math.random() * 2.5;
-        const a = 0.15 + Math.random() * 0.25;
-        // Warm firefly glow
+        const a = 0.12 + Math.random() * 0.2;
         const pg = ctx.createRadialGradient(px2, py2, 0, px2, py2, sz * 4);
-        pg.addColorStop(0, `rgba(255,240,180,${a})`);
-        pg.addColorStop(0.4, `rgba(255,200,100,${a * 0.3})`);
-        pg.addColorStop(1, 'transparent');
+        pg.addColorStop(0, `rgba(255,240,180,${a})`); pg.addColorStop(0.4, `rgba(255,200,100,${a * 0.3})`); pg.addColorStop(1, 'transparent');
         ctx.fillStyle = pg; ctx.fillRect(px2 - sz * 5, py2 - sz * 5, sz * 10, sz * 10);
-        ctx.fillStyle = `rgba(255,250,200,${a * 1.5})`;
+        ctx.fillStyle = `rgba(255,250,200,${a * 1.3})`;
         ctx.beginPath(); ctx.arc(px2, py2, sz * 0.5, 0, Math.PI * 2); ctx.fill();
       }
     }, 0.05);
