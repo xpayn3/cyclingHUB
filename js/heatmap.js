@@ -1576,7 +1576,7 @@ export function hmShowRoute(actId) {
     id: 'lib-highlight-line',
     type: 'line',
     source: 'lib-highlight',
-    paint: { 'line-color': '#00e5a0', 'line-width': 5, 'line-opacity': 0.95 }
+    paint: { 'line-color': '#ff6b35', 'line-width': 5, 'line-opacity': 0.95 }
   });
   // Fit map to route bounds
   const bounds = coords.reduce((b, c) => b.extend(c), new maplibregl.LngLatBounds(coords[0], coords[0]));
