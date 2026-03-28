@@ -1600,7 +1600,7 @@ function confirmFullResync() {
     const progress = Math.min(_ptrDist / THRESHOLD, 1);
     ind.classList.add('ptr-visible');
     ind.classList.toggle('ptr-complete', progress >= 1);
-    ind.style.top = Math.min(-50 + progress * 80, 30) + 'px';
+    ind.style.top = Math.min(-50 + progress * 110, 60) + 'px';
     if (fl) fl.style.width = (progress * 100) + '%';
     if (lb) lb.textContent = progress >= 1 ? 'Release to refresh ✓' : `${Math.round(progress * 100)}%`;
   }, { passive: true });

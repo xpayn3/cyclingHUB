@@ -6141,7 +6141,7 @@ input[type="number"] {
     opacity: 0;
 }
 .ptr-indicator.ptr-visible { opacity: 1; }
-.ptr-indicator.ptr-refreshing { top: env(safe-area-inset-top, 16px); opacity: 1; }
+.ptr-indicator.ptr-refreshing { top: calc(env(safe-area-inset-top, 16px) + 10px); opacity: 1; }
 .ptr-bar {
     position: relative;
     height: 28px;
@@ -6161,7 +6161,8 @@ input[type="number"] {
     width: 0%;
     background: linear-gradient(90deg, var(--accent), #00ffa8);
     border-radius: 14px;
-    transition: width 0.05s linear;
+    transition: none;
+    box-shadow: 0 0 8px rgba(0,229,160,0.4);
 }
 .ptr-indicator.ptr-complete .ptr-fill {
     width: 100% !important;
