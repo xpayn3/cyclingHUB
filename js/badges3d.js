@@ -82,6 +82,13 @@ function _getRenderer(THREE, canvasEl, opts) {
   _sharedRenderer.sortObjects = false;
   _sharedRenderer.localClippingEnabled = true;
   _sharedRendererCanvas = canvasEl;
+  // Handle WebGL context loss gracefully
+  canvasEl.addEventListener('webglcontextlost', e => {
+    e.preventDefault();
+    console.warn('WebGL context lost');
+    if (_bcRaf) { cancelAnimationFrame(_bcRaf); _bcRaf = null; }
+    if (_rcRaf) { cancelAnimationFrame(_rcRaf); _rcRaf = null; }
+  }, { once: true });
   return _sharedRenderer;
 }
 
@@ -672,7 +679,11 @@ function _animate_spring(restX, restY, spring, damping) {
   loop();
 }
 
+let _badgeAbort = null;
 function _setupBadgeInteraction_spring(canvasEl) {
+  if (_badgeAbort) { _badgeAbort.abort(); _badgeAbort = null; }
+  _badgeAbort = new AbortController();
+  const sig = { signal: _badgeAbort.signal };
   let lastX = 0, lastY = 0;
 
   canvasEl.addEventListener('pointerdown', e => {
@@ -683,7 +694,7 @@ function _setupBadgeInteraction_spring(canvasEl) {
     lastY = e.clientY;
     canvasEl.setPointerCapture(e.pointerId);
     canvasEl.style.cursor = 'grabbing';
-  });
+  }, sig);
 
   canvasEl.addEventListener('pointermove', e => {
     if (!_badgeDragging || !_badgeMesh) return;
@@ -695,21 +706,21 @@ function _setupBadgeInteraction_spring(canvasEl) {
     _badgeMesh.rotation.x = Math.max(-1.0, Math.min(1.0, _badgeMesh.rotation.x));
     lastX = e.clientX;
     lastY = e.clientY;
-  });
+  }, sig);
 
   const endDrag = (e) => {
     _badgeDragging = false;
     canvasEl.style.cursor = 'grab';
-    // Give spring some initial velocity from last drag movement for natural feel
   };
-  canvasEl.addEventListener('pointerup', endDrag);
-  canvasEl.addEventListener('pointercancel', endDrag);
+  canvasEl.addEventListener('pointerup', endDrag, sig);
+  canvasEl.addEventListener('pointercancel', endDrag, sig);
 }
 
 // Cleanup
 export function destroyBadge3D() {
   if (_badgeRaf) cancelAnimationFrame(_badgeRaf);
   _badgeRaf = null;
+  if (_badgeAbort) { try { _badgeAbort.abort(); } catch(_){} _badgeAbort = null; }
   if (_badgeRenderer) _badgeRenderer.dispose();
   _badgeRenderer = null;
   _badgeScene = null;
@@ -1331,8 +1342,8 @@ export async function initRiderCard3D(canvasEl, data) {
   function _easeOutBack(t) { const c = 1.4; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); }
 
   function loop() {
+    if (!_rcMesh || !_rcRenderer || !_rcScene || !_rcCamera) { _rcRaf = null; return; }
     _rcRaf = requestAnimationFrame(loop);
-    if (!_rcMesh || !_rcRenderer || !_rcScene || !_rcCamera) return;
     if (_rcIdle) return;
     try {
 
@@ -2503,8 +2514,8 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   function _easeOutBack2(t) { const c = 1.4; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); }
 
   function loop() {
+    if (!_bcMesh || !_bcRenderer || !_bcScene || !_bcCamera) { _bcRaf = null; return; }
     _bcRaf = requestAnimationFrame(loop);
-    if (!_bcMesh || !_bcRenderer || !_bcScene || !_bcCamera) return;
     if (_bcIdle) return;
     try {
 
