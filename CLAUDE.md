@@ -37,7 +37,7 @@ Vanilla JS single-page app pulling data from intervals.icu. No frameworks.
 - **`_app('funcName')`** — Lazy proxy to window functions (avoids circular imports)
 - **`C_TOOLTIP`** — Global Chart.js tooltip config (MUST use in all charts)
 
-## 3D Card System (Three.js r134)
+## 3D Card System (Three.js r163)
 
 - Lazy-loaded from CDN on first badge open
 - **Shared WebGLRenderer** — one context reused across rider + badge cards
@@ -57,7 +57,7 @@ Vanilla JS single-page app pulling data from intervals.icu. No frameworks.
 
 ## CDN Dependencies
 
-Chart.js 4.4, MapLibre GL 5.1, Three.js r134, Leaflet 1.9, Hammer.js, PeerJS, jsQR
+Chart.js 4.4, MapLibre GL 5.1, Three.js r163, Leaflet 1.9, Hammer.js, PeerJS, jsQR
 
 ## Deployment
 
