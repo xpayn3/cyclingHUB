@@ -6193,16 +6193,20 @@ input[type="number"] {
     50% { opacity: 1; }
 }
 .ptr-label {
-    position: relative;
-    z-index: 1;
+    position: absolute;
+    left: 0; right: 0; top: 0; bottom: 0;
+    display: flex; align-items: center; justify-content: center;
     font-size: 11px;
     font-weight: 700;
-    color: rgba(0,0,0,0.5);
     letter-spacing: 0.02em;
     white-space: nowrap;
+    pointer-events: none;
 }
-.ptr-indicator.ptr-complete .ptr-label { color: rgba(0,0,0,0.7); }
-.ptr-indicator.ptr-refreshing .ptr-label { color: rgba(0,0,0,0.7); }
+.ptr-label--light { color: rgba(255,255,255,0.7); z-index: 1; }
+.ptr-label--dark {
+    color: rgba(0,0,0,0.6); z-index: 2;
+    clip-path: inset(0 calc(100% - var(--ptr-pct, 0%)) 0 0);
+}
 @media (min-width: 769px) {
     .ptr-indicator {
         left: calc(var(--sidebar-w) + 50%);

@@ -1572,12 +1572,14 @@ function confirmFullResync() {
   let _ptrDismissTimer = null; // track dismiss animation to cancel on re-pull
   const el = () => document.getElementById('ptrIndicator');
   const fill = () => document.getElementById('ptrFill');
-  const label = () => document.getElementById('ptrLabel');
+  const labelL = () => document.getElementById('ptrLabelLight');
+  const labelD = () => document.getElementById('ptrLabelDark');
+  function _setLabel(text) { const l = labelL(), d = labelD(); if (l) l.textContent = text; if (d) d.textContent = text; }
 
-  function _ptrReset(ind, fl, lb) {
-    if (ind) { ind.classList.remove('ptr-visible', 'ptr-complete', 'ptr-refreshing', 'ptr-dismiss'); }
+  function _ptrReset(ind, fl) {
+    if (ind) { ind.classList.remove('ptr-visible', 'ptr-complete', 'ptr-refreshing', 'ptr-dismiss'); ind.style.setProperty('--ptr-pct', '0%'); }
     if (fl) { fl.style.transition = 'none'; fl.style.width = '0%'; }
-    if (lb) lb.textContent = 'Pull to refresh';
+    _setLabel('Pull to refresh');
   }
 
   window.addEventListener('touchstart', e => {
@@ -1593,7 +1595,7 @@ function confirmFullResync() {
       node = node.parentElement;
     }
     // Cancel any in-progress dismiss animation
-    if (_ptrDismissTimer) { clearTimeout(_ptrDismissTimer); _ptrDismissTimer = null; _ptrReset(el(), fill(), label()); }
+    if (_ptrDismissTimer) { clearTimeout(_ptrDismissTimer); _ptrDismissTimer = null; _ptrReset(el(), fill()); }
     _ptrStartY = e.touches[0].clientY;
     _ptrActive = true;
     _ptrDist = 0;
@@ -1604,36 +1606,39 @@ function confirmFullResync() {
     _ptrDist = e.touches[0].clientY - _ptrStartY;
     if (_ptrDist < DEAD_ZONE) { _ptrDist = 0; return; }
     _ptrDist -= DEAD_ZONE;
-    const ind = el(), fl = fill(), lb = label();
+    const ind = el(), fl = fill();
     if (!ind) return;
     const progress = Math.min(_ptrDist / THRESHOLD, 1);
-    if (fl) { fl.style.transition = 'none'; fl.style.width = (progress * 100) + '%'; }
+    const pct = (progress * 100) + '%';
+    if (fl) { fl.style.transition = 'none'; fl.style.width = pct; }
+    ind.style.setProperty('--ptr-pct', pct);
     if (!ind.classList.contains('ptr-visible')) {
       ind.classList.add('ptr-visible');
     }
     ind.classList.toggle('ptr-complete', progress >= 1);
-    if (lb) lb.textContent = progress >= 1 ? 'Release ✓' : `${Math.round(progress * 100)}%`;
+    _setLabel(progress >= 1 ? 'Release ✓' : `${Math.round(progress * 100)}%`);
   }, { passive: true });
 
   window.addEventListener('touchend', () => {
     if (!_ptrActive) return;
     _ptrActive = false;
-    const ind = el(), fl = fill(), lb = label();
+    const ind = el(), fl = fill();
     if (!ind) return;
     if (_ptrDist >= THRESHOLD && !_ptrRefreshing) {
       _ptrRefreshing = true;
       ind.classList.remove('ptr-complete');
       ind.classList.add('ptr-refreshing');
-      if (lb) lb.textContent = 'Syncing…';
+      _setLabel('Syncing…');
       syncData(true).catch(() => {}).finally(() => {
         _ptrRefreshing = false;
-        const i = el(), f = fill(), l = label();
-        if (i) { i.classList.add('ptr-dismiss'); setTimeout(() => _ptrReset(i, f, l), 280); }
+        const i = el(), f = fill();
+        if (i) { i.classList.add('ptr-dismiss'); setTimeout(() => _ptrReset(i, f), 280); }
       });
     } else {
       ind.classList.remove('ptr-complete');
       if (fl) { fl.style.transition = 'width 0.25s ease-out'; fl.style.width = '0%'; }
-      if (lb) lb.textContent = '';
+      ind.style.setProperty('--ptr-pct', '0%');
+      _setLabel('');
       _ptrDismissTimer = setTimeout(() => {
         ind.classList.add('ptr-dismiss');
         _ptrDismissTimer = setTimeout(() => {
