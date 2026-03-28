@@ -377,6 +377,16 @@ Also add `e.preventDefault()` on the backdrop's touchmove.
 - Dark background: `linear-gradient(to bottom, #1a1a1a, #0a0a0a)`
 - No scrollbar: `overflow: hidden` on sheet panel
 
+## Build & Deploy
+
+- **Source files**: edit `app.js`, `styles.css`, `index.html`, `js/*.js` directly
+- **Production build**: `node build.js` → minifies into `docs/` folder
+- **Deploy**: `bash deploy.sh "commit message"` — builds, copies assets, commits, pushes
+- **GitHub Pages**: serves from `/docs` branch `main` (minified)
+- **Local preview**: `npx http-server . -p 8080 -c-1 --host 0.0.0.0` — accessible on PC + iPhone at `http://192.168.0.111:8080` (same Wi-Fi)
+- **Build script** (`build.js`): outputs to `docs/`, rewrites `import()` paths to `.min.js`, patches SW precache list
+- **Never edit files in `docs/`** — they get overwritten by build
+
 ## Git Conventions
 
 - "push and commit" or "pc" = stage, commit, push immediately, no approval needed
