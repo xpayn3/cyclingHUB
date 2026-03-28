@@ -668,7 +668,7 @@ export function resizeBadge3D(canvasEl) {
 // 3D RIDER CARD — Credit card style, interactive tilt
 // ─────────────────────────────────────────────────────────────────────────────
 
-let _rcScene, _rcCamera, _rcRenderer, _rcMesh, _rcRaf;
+let _rcScene, _rcCamera, _rcRenderer, _rcMesh, _rcRaf, _rcCanvas = null;
 let _rcDragging = false, _rcStartX = 0, _rcStartY = 0, _rcRotX = 0, _rcRotY = 0;
 let _rcTrail = [];
 let _rcDragVelX = 0, _rcDragVelY = 0;
@@ -679,6 +679,7 @@ let _rcAbort = null;
 export async function initRiderCard3D(canvasEl, data) {
   const THREE = await _loadThreeJS();
 
+  _rcCanvas = canvasEl;
   let w = canvasEl.clientWidth || 340;
   let h = canvasEl.clientHeight || 220;
   canvasEl.width = w * Math.min(window.devicePixelRatio, 2.0);
@@ -1269,6 +1270,17 @@ export async function initRiderCard3D(canvasEl, data) {
     if (!_rcMesh) return;
     if (_rcIdle) return;
 
+    // Live resize — corrects size if canvas was measured before sheet animation completed
+    if (_rcCanvas) {
+      const cw = _rcCanvas.clientWidth, ch = _rcCanvas.clientHeight;
+      if (cw > 10 && ch > 10 && (Math.abs(cw - _rcRenderer.domElement.clientWidth) > 2 || Math.abs(ch - _rcRenderer.domElement.clientHeight) > 2)) {
+        _rcRenderer.setSize(cw, ch);
+        _rcRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        _rcCamera.aspect = cw / ch;
+        _rcCamera.updateProjectionMatrix();
+      }
+    }
+
     // Intro animation
     const introElapsed = Date.now() - _rcIntroStart;
     if (introElapsed < _rcIntroDur) {
@@ -1568,7 +1580,7 @@ export function renderBadgePreview(badgeId, name, desc, locked) {
 // ─────────────────────────────────────────────────────────────────────────────
 // BADGE CARD — Achievement card style (like rider card but per-badge themed)
 // ─────────────────────────────────────────────────────────────────────────────
-let _bcScene, _bcCamera, _bcRenderer, _bcMesh, _bcRaf, _bcDragging = false;
+let _bcScene, _bcCamera, _bcRenderer, _bcMesh, _bcRaf, _bcCanvas = null, _bcDragging = false;
 let _bcStartX = 0, _bcStartY = 0, _bcRotX = 0, _bcRotY = 0;
 let _bcDragVelX = 0, _bcDragVelY = 0;
 let _bcReleaseTime = 0, _bcSpinning = false, _bcIdle = false, _bcAutoSpin = true;
@@ -1588,6 +1600,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   _bcAbort = new AbortController();
   const bcSig = { signal: _bcAbort.signal };
 
+  _bcCanvas = canvasEl;
   let w = canvasEl.clientWidth || 340, h = canvasEl.clientHeight || 380;
   canvasEl.width = w * Math.min(window.devicePixelRatio, 2.0);
   canvasEl.height = h * Math.min(window.devicePixelRatio, 2.0);
@@ -2398,6 +2411,17 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     if (!_bcMesh) return;
     if (_bcIdle) return;
 
+    // Live resize — corrects size if canvas was measured before sheet animation completed
+    if (_bcCanvas) {
+      const cw = _bcCanvas.clientWidth, ch = _bcCanvas.clientHeight;
+      if (cw > 10 && ch > 10 && (Math.abs(cw - _bcRenderer.domElement.clientWidth) > 2 || Math.abs(ch - _bcRenderer.domElement.clientHeight) > 2)) {
+        _bcRenderer.setSize(cw, ch);
+        _bcRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        _bcCamera.aspect = cw / ch;
+        _bcCamera.updateProjectionMatrix();
+      }
+    }
+
     // Always update glitter uniforms
     const t = Date.now() * 0.001;
     glitterMat.uniforms.time.value = t;
@@ -2544,7 +2568,7 @@ export function destroyBadgeCard3D() {
     });
   }
   _releaseRenderer();
-  _bcRenderer = null; _bcScene = null; _bcCamera = null; _bcMesh = null; _bcDragging = false;
+  _bcRenderer = null; _bcScene = null; _bcCamera = null; _bcMesh = null; _bcCanvas = null; _bcDragging = false;
 }
 
 export function destroyRiderCard3D() {
@@ -2569,6 +2593,6 @@ export function destroyRiderCard3D() {
     });
   }
   _releaseRenderer();
-  _rcRenderer = null; _rcScene = null; _rcCamera = null; _rcMesh = null;
+  _rcRenderer = null; _rcScene = null; _rcCamera = null; _rcMesh = null; _rcCanvas = null;
   _rcDragging = false;
 }
