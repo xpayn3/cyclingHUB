@@ -1169,9 +1169,20 @@ export function _hmDrawHeat(routes) {
 /* ── Lines mode (MapLibre GeoJSON lines) ── */
 export function _hmDrawLines(routes) {
   // Batch all routes into one GeoJSON source for performance
+  const _fmtDur = s => { if (!s) return ''; const h = Math.floor(s/3600), m = Math.floor((s%3600)/60); return h > 0 ? `${h}h ${m}m` : `${m}m`; };
   const features = routes.map((r, i) => ({
     type: 'Feature',
-    properties: { idx: i, name: r.name || 'Activity', date: r.date.toLocaleDateString(), dist: (r.distance/1000).toFixed(1) },
+    properties: {
+      idx: i, name: r.name || 'Activity',
+      date: r.date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }),
+      dist: (r.distance/1000).toFixed(1),
+      time: _fmtDur(r.time),
+      speed: r.speed > 0 ? r.speed.toFixed(1) : '',
+      elev: r.elevation > 0 ? Math.round(r.elevation) : '',
+      power: r.power > 0 ? Math.round(r.power) : '',
+      hr: r.hr > 0 ? Math.round(r.hr) : '',
+      sport: r.type || '',
+    },
     geometry: { type: 'LineString', coordinates: r.points.map(p => [p[1], p[0]]) },
   }));
 
@@ -1211,9 +1222,17 @@ export function _hmDrawLines(routes) {
     _hm.map.getCanvas().style.cursor = 'pointer';
     const f = e.features[0];
     if (f) {
-      popup.setLngLat(e.lngLat).setHTML(`<b>${f.properties.name}</b><br>${f.properties.date}<br>${f.properties.dist} km`).addTo(_hm.map);
-      // Highlight this route
-      const hlData = { type: 'FeatureCollection', features: features.filter(ft => ft.properties.idx === f.properties.idx) };
+      const p = f.properties;
+      let html = `<div class="hm-tip-name">${p.name}</div><div class="hm-tip-date">${p.date}</div><div class="hm-tip-stats">`;
+      if (p.dist) html += `<span>${p.dist} km</span>`;
+      if (p.time) html += `<span>${p.time}</span>`;
+      if (p.speed) html += `<span>${p.speed} km/h</span>`;
+      if (p.elev) html += `<span>↑ ${p.elev} m</span>`;
+      if (p.power) html += `<span>${p.power} W</span>`;
+      if (p.hr) html += `<span>${p.hr} bpm</span>`;
+      html += `</div>`;
+      popup.setLngLat(e.lngLat).setHTML(html).addTo(_hm.map);
+      const hlData = { type: 'FeatureCollection', features: features.filter(ft => ft.properties.idx === p.idx) };
       try { _hm.map.getSource(hlSrcId).setData(hlData); } catch(_){}
     }
   };
@@ -1248,7 +1267,15 @@ export function _hmDrawBySpeed(routes) {
     const t = r.speed > 0 ? (r.speed - minSpd) / range : 0;
     return {
       type: 'Feature',
-      properties: { color: _hmSpeedColor(t), name: r.name || 'Activity', speed: r.speed.toFixed(1), date: r.date.toLocaleDateString() },
+      properties: {
+        color: _hmSpeedColor(t), name: r.name || 'Activity', speed: r.speed.toFixed(1),
+        date: r.date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }),
+        dist: (r.distance/1000).toFixed(1),
+        time: r.time > 0 ? (Math.floor(r.time/3600) > 0 ? Math.floor(r.time/3600)+'h '+Math.floor((r.time%3600)/60)+'m' : Math.floor(r.time/60)+'m') : '',
+        elev: r.elevation > 0 ? Math.round(r.elevation) : '',
+        power: r.power > 0 ? Math.round(r.power) : '',
+        hr: r.hr > 0 ? Math.round(r.hr) : '',
+      },
       geometry: { type: 'LineString', coordinates: r.points.map(p => [p[1], p[0]]) },
     };
   });
@@ -1279,7 +1306,16 @@ export function _hmDrawBySpeed(routes) {
     _hm.map.getCanvas().style.cursor = 'pointer';
     const f = e.features[0];
     if (f) {
-      popup.setLngLat(e.lngLat).setHTML(`<b>${f.properties.name}</b><br>${f.properties.speed} km/h<br>${f.properties.date}`).addTo(_hm.map);
+      const p = f.properties;
+      let html = `<div class="hm-tip-name">${p.name}</div><div class="hm-tip-date">${p.date}</div><div class="hm-tip-stats">`;
+      if (p.speed) html += `<span>${p.speed} km/h</span>`;
+      if (p.dist) html += `<span>${p.dist} km</span>`;
+      if (p.time) html += `<span>${p.time}</span>`;
+      if (p.elev) html += `<span>↑ ${p.elev} m</span>`;
+      if (p.power) html += `<span>${p.power} W</span>`;
+      if (p.hr) html += `<span>${p.hr} bpm</span>`;
+      html += `</div>`;
+      popup.setLngLat(e.lngLat).setHTML(html).addTo(_hm.map);
       try { _hm.map.getSource(hlSrcId).setData({ type: 'FeatureCollection', features: [f] }); } catch(_){}
     }
   };
