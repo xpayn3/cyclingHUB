@@ -66,7 +66,7 @@ async function _loadThreeJS() {
   await new Promise((resolve, reject) => {
     if (window.THREE) { resolve(); return; }
     const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/three@0.163.0/build/three.min.js';
+    script.src = 'https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js';
     script.crossOrigin = 'anonymous';
     const timeout = setTimeout(() => reject(new Error('Three.js CDN timeout')), 10000);
     script.onload = () => { clearTimeout(timeout); resolve(); };
@@ -80,7 +80,7 @@ async function _loadThreeJS() {
     await new Promise((resolve, reject) => {
       if (window.THREE.GLTFLoader) { resolve(); return; }
       const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/three@0.163.0/examples/js/loaders/GLTFLoader.js';
+      script.src = 'https://cdn.jsdelivr.net/npm/three@0.150.0/examples/js/loaders/GLTFLoader.js';
       script.crossOrigin = 'anonymous';
       script.onload = resolve;
       script.onerror = () => { console.warn('GLTFLoader not available, using procedural badges'); resolve(); };
