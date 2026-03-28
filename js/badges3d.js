@@ -1954,14 +1954,18 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   const backTex = new THREE.CanvasTexture(bCanvas);
   backTex.anisotropy = _bcRenderer.capabilities.getMaxAnisotropy();
 
-  // Back face MR map — chrome on text areas, exact same font/position as back texture
+  // Back face MR map — chrome on text areas
+  // CRITICAL: back texture inherits textBaseline='middle' from ribbon drawing,
+  // so all text Y positions are relative to middle baseline. MR map must match.
   const bMrCanvas = document.createElement('canvas'); bMrCanvas.width = fW; bMrCanvas.height = fH;
   const bmc = bMrCanvas.getContext('2d');
-  bmc.fillStyle = 'rgb(0,235,30)'; bmc.fillRect(0, 0, fW, fH); // matte base
-  // Ribbon — full width chrome
+  bmc.fillStyle = 'rgb(0,235,30)'; bmc.fillRect(0, 0, fW, fH);
+  bmc.textBaseline = 'middle'; // match back texture
+  bmc.textAlign = 'center';
+  // Ribbon
   bmc.fillStyle = 'rgb(0,5,255)'; bmc.fillRect(0, fH - ribbonH, fW, ribbonH);
-  // Big label — must match bc exactly: same font, textAlign, position
-  bmc.font = '800 140px Inter, system-ui, sans-serif'; bmc.textAlign = 'center';
+  // Big label
+  bmc.font = '800 140px Inter, system-ui, sans-serif';
   bmc.fillStyle = 'rgb(0,8,255)'; bmc.fillText(def.label, fW / 2, fH * 0.4);
   // Achievement name
   bmc.font = '600 40px Inter, system-ui, sans-serif';
