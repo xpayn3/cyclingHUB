@@ -17206,7 +17206,7 @@ body:has(.act-sheet-mode) .topbar {
     display: none;
 }
 .tp-content {
-    padding: 12px 14px;
+    padding: 10px;
 }
 .tp-top-row {
     display: flex;
