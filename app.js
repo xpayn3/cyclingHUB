@@ -622,14 +622,11 @@ function _cleanupPageDOM(leavingPage) {
     if (grid) grid.innerHTML = '';
   }
 
-  // Fitness page — strip only non-canvas dynamic content
+  // Fitness page — charts destroyed by cleanupPageCharts(), keep all DOM intact
+  // Canvases and wellness pills are reused on revisit — don't strip innerHTML
   if (leavingPage === 'fitness') {
-    // Charts already destroyed by cleanupPageCharts()
-    // Only clear containers that DON'T hold canvas elements
-    ['fitWellnessPillsRow', 'guidePageContentInline'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.innerHTML = '';
-    });
+    const guide = document.getElementById('guidePageContentInline');
+    if (guide) guide.innerHTML = '';
   }
 
   // Power page — charts destroyed by cleanupPageCharts()
