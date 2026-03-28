@@ -18516,7 +18516,9 @@ async function navigateToActivity(actKey, fromStep = false) {
     destroyActivityCharts();
   }
 
-  // Hide floating range pill when entering activity page
+  // Hide floating top row (profile + notification) and range pill
+  const _floatTop = document.getElementById('floatingTopRow');
+  if (_floatTop) _floatTop.style.display = 'none';
   const _pill = document.getElementById('dateRangePill');
   if (_pill) _pill.style.display = 'none';
   document.querySelector('.page-headline')?.classList.add('page-headline--hidden');
