@@ -793,17 +793,15 @@
                         <svg class="icon"><use href="icons.svg#icon-user"/></svg>
                         <span class="floating-profile-lvl" id="floatingProfileLvl"></span>
                     </button>
+                    <button class="p2p-status-btn" id="p2pStatusBtn" onclick="navigate('settings');setTimeout(()=>openSettingsSubpage('sync'),400)" aria-label="P2P Sync" style="display:none">
+                        <svg class="icon" width="20" height="20"><use href="icons.svg#icon-repeat"/></svg>
+                        <span class="p2p-status-dot" id="p2pStatusDot"></span>
+                    </button>
+                    <button class="notif-bell" id="notifBell" onclick="openNotifSheet()" aria-label="Notifications" style="display:none">
+                        <svg class="icon" width="22" height="22"><use href="icons.svg#icon-bell"/></svg>
+                        <span class="notif-badge" id="notifBadge" style="display:none">0</span>
+                    </button>
                 </div>
-                <!-- Notification bell (dashboard only) -->
-                <!-- P2P status icon -->
-                <button class="p2p-status-btn" id="p2pStatusBtn" onclick="navigate('settings');setTimeout(()=>openSettingsSubpage('sync'),400)" aria-label="P2P Sync" style="display:none">
-                    <svg class="icon" width="20" height="20"><use href="icons.svg#icon-repeat"/></svg>
-                    <span class="p2p-status-dot" id="p2pStatusDot"></span>
-                </button>
-                <button class="notif-bell" id="notifBell" onclick="openNotifSheet()" aria-label="Notifications" style="display:none">
-                    <svg class="icon" width="22" height="22"><use href="icons.svg#icon-bell"/></svg>
-                    <span class="notif-badge" id="notifBadge" style="display:none">0</span>
-                </button>
                 <!-- Floating date range pills (moved from topbar) -->
                 <div class="floating-range-pill date-range-pill" id="dateRangePill">
                     <button onclick="setRange(7)" id="range7">7d</button>
