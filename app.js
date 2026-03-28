@@ -6170,6 +6170,7 @@ function buildRecentActCardHTML(a, idx, idPrefix = 'recentActCard') {
           <div class="recent-act-text">
             <div class="recent-act-date">${dateFmt}${timeFmt ? ' · ' + timeFmt : ''}</div>
             <div class="recent-act-name">${name}</div>
+            <div class="recent-act-location" data-lat="${a.start_latlng?.[0] || ''}" data-lon="${a.start_latlng?.[1] || ''}"></div>
             <div class="recent-act-badges">${tssBadge}${platformTag ? `<span class="act-platform-tag">${platformTag}</span>` : ''}</div>
           </div>
         </div>
@@ -6405,8 +6406,26 @@ async function renderRecentActivity() {
   });
   if (window.refreshGlow) refreshGlow(rail);
 
+  // Fill location names asynchronously (1 req/sec rate limit for Nominatim)
+  _fillActivityLocations(rail);
+
   // ── Mobile pagination dots ──
   _initRecentActDots(rail, recent.length);
+}
+
+// Fill location labels on activity cards — respects 1 req/sec Nominatim limit
+async function _fillActivityLocations(container) {
+  const els = (container || document).querySelectorAll('.recent-act-location[data-lat]');
+  for (const el of els) {
+    const lat = parseFloat(el.dataset.lat), lon = parseFloat(el.dataset.lon);
+    if (!lat || !lon) continue;
+    const name = await reverseGeocode(lat, lon);
+    if (name) {
+      el.innerHTML = `<svg class="icon" width="12" height="12" style="opacity:0.5"><use href="icons.svg#icon-map-pin"/></svg> ${name}`;
+    }
+    // Rate limit: 1 req/sec for Nominatim (cached ones are instant)
+    if (!_geoCache[`${lat.toFixed(2)},${lon.toFixed(2)}`]) await new Promise(r => setTimeout(r, 1100));
+  }
 }
 
 let _recentActDotsAC = null;
@@ -6878,6 +6897,7 @@ function renderDashboard() {
   _rIC(() => {
     renderRecentActivity();
     renderWeatherForecast();
+    _fetchAirQuality();
     renderGoalsDashWidget();
     _renderDashNextWorkout();
     _renderDashGear();
@@ -7148,6 +7168,70 @@ function _renderDashBatteries() {
 
   section.style.display = '';
 }
+
+// ── Air Quality (Open-Meteo) ─────────────────────────────────────────────────
+// Fetches current AQI + PM2.5 and shows a badge on the dashboard weather section
+async function _fetchAirQuality() {
+  const badge = document.getElementById('dashAqiBadge');
+  if (!badge) return;
+  try {
+    const locs = typeof getWxLocations === 'function' ? getWxLocations() : [];
+    const active = locs.find(l => l.active) || locs[0];
+    if (!active) { badge.style.display = 'none'; return; }
+    const { lat, lon } = active;
+    const cached = sessionStorage.getItem('icu_aqi');
+    if (cached) {
+      const c = JSON.parse(cached);
+      if (Date.now() - c.ts < 1800000) { _renderAqiBadge(badge, c.data); return; } // 30min cache
+    }
+    const resp = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=european_aqi,us_aqi,pm2_5,pm10&timezone=auto`);
+    if (!resp.ok) return;
+    const data = await resp.json();
+    sessionStorage.setItem('icu_aqi', JSON.stringify({ ts: Date.now(), data }));
+    _renderAqiBadge(badge, data);
+  } catch(_) { badge.style.display = 'none'; }
+}
+
+function _renderAqiBadge(badge, data) {
+  const aqi = data?.current?.european_aqi ?? data?.current?.us_aqi;
+  if (aqi == null) { badge.style.display = 'none'; return; }
+  const pm25 = data?.current?.pm2_5;
+  let label, color;
+  if (aqi <= 20)       { label = 'Good';      color = 'var(--accent)'; }
+  else if (aqi <= 40)  { label = 'Fair';       color = '#f0c429'; }
+  else if (aqi <= 60)  { label = 'Moderate';   color = 'var(--orange)'; }
+  else if (aqi <= 80)  { label = 'Poor';       color = 'var(--red)'; }
+  else                 { label = 'Very Poor';  color = '#9b59ff'; }
+  badge.innerHTML = `<svg class="icon" width="14" height="14" style="stroke:${color}"><use href="icons.svg#icon-wind"/></svg> AQI ${aqi} · ${label}${pm25 != null ? ` · PM2.5 ${pm25.toFixed(0)}` : ''}`;
+  badge.style.color = color;
+  badge.style.display = '';
+}
+
+// ── Reverse Geocoding (Nominatim) ────────────────────────────────────────────
+// Converts lat/lon to city name, cached in localStorage
+const _geoCache = JSON.parse(localStorage.getItem('icu_geocache') || '{}');
+async function reverseGeocode(lat, lon) {
+  const key = `${lat.toFixed(2)},${lon.toFixed(2)}`;
+  if (_geoCache[key]) return _geoCache[key];
+  try {
+    const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=10&addressdetails=1&accept-language=en`, {
+      headers: { 'User-Agent': 'CycleIQ/1.0 (cycling-pwa)' }
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    const addr = data.address || {};
+    const name = addr.city || addr.town || addr.village || addr.hamlet || addr.municipality || (data.display_name || '').split(',')[0];
+    if (name) {
+      _geoCache[key] = name;
+      // Keep cache under 200 entries
+      const keys = Object.keys(_geoCache);
+      if (keys.length > 200) { delete _geoCache[keys[0]]; }
+      try { localStorage.setItem('icu_geocache', JSON.stringify(_geoCache)); } catch(_){}
+    }
+    return name || null;
+  } catch(_) { return null; }
+}
+window.reverseGeocode = reverseGeocode;
 
 let _dashRouteMapInst = null;
 async function _renderDashRouteMap() {
