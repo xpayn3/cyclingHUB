@@ -2130,12 +2130,15 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     const makeLayer = (drawFn, zBehind) => {
       const c = document.createElement('canvas'); c.width = fW; c.height = fH;
       drawFn(c.getContext('2d'), fW, fH);
-      // Size layer to fill card view at its depth
-      const dist = camDist + zBehind;
-      const vH = 2 * Math.tan((camFov * Math.PI / 180) / 2) * dist * 0.6;
-      const vW = vH * (w / h);
+      // Dome geometry — curves inward behind card
+      const domeRadius = zBehind + 0.5;
+      const domeGeo = new THREE.SphereGeometry(domeRadius, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.5);
+      domeGeo.rotateX(Math.PI);
+      const tex = new THREE.CanvasTexture(c);
+      tex.flipY = true;
       const mat = new THREE.MeshBasicMaterial({
-        map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false
+        map: tex, transparent: true, depthWrite: false,
+        side: THREE.BackSide
       });
       mat.stencilWrite = true;
       mat.stencilRef = 1;
@@ -2143,8 +2146,8 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
       mat.stencilFail = THREE.KeepStencilOp;
       mat.stencilZFail = THREE.KeepStencilOp;
       mat.stencilZPass = THREE.KeepStencilOp;
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(vW, vH), mat);
-      m.position.z = -(cardD * 0.5) - zBehind; // behind the card
+      const m = new THREE.Mesh(domeGeo, mat);
+      m.position.z = cardD * 0.5;
       m.renderOrder = 1;
       _bcMesh.add(m);
       return m;
