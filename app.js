@@ -7659,11 +7659,12 @@ function externalTooltipHandler(context) {
   const { chart, tooltip } = context;
   const el = _getTooltipEl();
 
-  // Hide when no active point
+  // Hide when no active point — small delay to prevent flicker during fast scrub
   if (tooltip.opacity === 0 || !tooltip.dataPoints?.length) {
-    el.style.opacity = '0';
+    if (!el._hideTimer) el._hideTimer = setTimeout(() => { el.style.opacity = '0'; el._hideTimer = null; }, 80);
     return;
   }
+  if (el._hideTimer) { clearTimeout(el._hideTimer); el._hideTimer = null; }
 
   // Build HTML content
   const titleLines = tooltip.title  || [];
@@ -7940,37 +7941,43 @@ Chart.register({
         startX = e.touches[0].clientX;
         startY = e.touches[0].clientY;
         locked = false;
+        _chartTouching = true;
       }
     }, { passive: true });
+    canvas.addEventListener('touchend', () => { _chartTouching = false; }, { passive: true });
+    canvas.addEventListener('touchcancel', () => { _chartTouching = false; }, { passive: true });
+    let isHorizontalScrub = false;
     canvas.addEventListener('touchmove', e => {
       if (e.touches.length !== 1) return;
       const dx = Math.abs(e.touches[0].clientX - startX);
       const dy = Math.abs(e.touches[0].clientY - startY);
       if (!locked && (dx > 5 || dy > 5)) {
         locked = true;
+        isHorizontalScrub = dx > dy;
       }
-      if (locked && dx > dy) {
-        e.preventDefault(); // horizontal — block page scroll
-      } else if (locked && dy > dx * 2 && dy > 20) {
-        // Only hide tooltip when clearly scrolling vertically (2× ratio + 20px minimum)
+      if (locked && isHorizontalScrub) {
+        e.preventDefault(); // horizontal — block page scroll, keep tooltip
+      } else if (locked && !isHorizontalScrub && dy > 40) {
+        // Only hide tooltip on clear vertical scroll (40px minimum, NOT during horizontal scrub)
         _getTooltipEl().style.opacity = '0';
       }
     }, { passive: false });
   }
 });
 
-// Also hide the tooltip whenever the page scrolls (covers scrolling outside chart area)
+// Hide tooltip on scroll — but NOT while actively scrubbing a chart
 let _scrollTooltipRAF = 0;
+let _chartTouching = false;
 function _hideTooltipOnScroll() {
-  if (_scrollTooltipRAF) return;
+  if (_scrollTooltipRAF || _chartTouching) return;
   _scrollTooltipRAF = requestAnimationFrame(() => {
     _scrollTooltipRAF = 0;
+    if (_chartTouching) return; // re-check after rAF
     const tt = _getTooltipEl();
     if (tt.style.opacity !== '0') tt.style.opacity = '0';
   });
 }
 window.addEventListener('scroll', _hideTooltipOnScroll, { passive: true });
-// Also listen on common scroll containers (activity sheet, page content, etc.)
 document.addEventListener('scroll', _hideTooltipOnScroll, { passive: true, capture: true });
 
 // ── Dashboard top fade: opacity tracks scroll position ──
