@@ -1569,9 +1569,16 @@ function confirmFullResync() {
   const THRESHOLD = 200;
   const DEAD_ZONE = 30;
   let _ptrStartY = 0, _ptrDist = 0, _ptrActive = false, _ptrRefreshing = false;
+  let _ptrDismissTimer = null; // track dismiss animation to cancel on re-pull
   const el = () => document.getElementById('ptrIndicator');
   const fill = () => document.getElementById('ptrFill');
   const label = () => document.getElementById('ptrLabel');
+
+  function _ptrReset(ind, fl, lb) {
+    if (ind) { ind.classList.remove('ptr-visible', 'ptr-complete', 'ptr-refreshing'); ind.style.top = ''; }
+    if (fl) { fl.style.transition = 'none'; fl.style.width = '0%'; }
+    if (lb) lb.textContent = 'Pull to refresh';
+  }
 
   window.addEventListener('touchstart', e => {
     if (state.currentPage !== 'dashboard' || _ptrRefreshing) return;
@@ -1585,6 +1592,8 @@ function confirmFullResync() {
       if ((ov === 'auto' || ov === 'scroll') && node.scrollHeight > node.clientHeight) return;
       node = node.parentElement;
     }
+    // Cancel any in-progress dismiss animation
+    if (_ptrDismissTimer) { clearTimeout(_ptrDismissTimer); _ptrDismissTimer = null; _ptrReset(el(), fill(), label()); }
     _ptrStartY = e.touches[0].clientY;
     _ptrActive = true;
     _ptrDist = 0;
@@ -1598,15 +1607,13 @@ function confirmFullResync() {
     const ind = el(), fl = fill(), lb = label();
     if (!ind) return;
     const progress = Math.min(_ptrDist / THRESHOLD, 1);
-    // Position first (while still rotated/hidden), then flip in
     ind.style.top = '60px';
+    if (fl) { fl.style.transition = 'none'; fl.style.width = (progress * 100) + '%'; }
     if (!ind.classList.contains('ptr-visible')) {
-      // Force browser to paint the rotated state before flipping
       ind.offsetHeight;
       ind.classList.add('ptr-visible');
     }
     ind.classList.toggle('ptr-complete', progress >= 1);
-    if (fl) fl.style.width = (progress * 100) + '%';
     if (lb) lb.textContent = progress >= 1 ? 'Release ✓' : `${Math.round(progress * 100)}%`;
   }, { passive: true });
 
@@ -1619,25 +1626,21 @@ function confirmFullResync() {
       _ptrRefreshing = true;
       ind.classList.remove('ptr-complete');
       ind.classList.add('ptr-refreshing');
-      ind.style.top = '';
       if (lb) lb.textContent = 'Syncing…';
-      syncData(true).finally(() => {
+      syncData(true).catch(() => {}).finally(() => {
+        if (state.currentPage !== 'dashboard') { _ptrRefreshing = false; _ptrReset(ind, fl, lb); return; }
         _ptrRefreshing = false;
-        ind.classList.remove('ptr-refreshing', 'ptr-visible');
-        ind.style.top = '';
-        if (fl) fl.style.width = '0%';
-        if (lb) lb.textContent = 'Pull to refresh';
+        _ptrReset(ind, fl, lb);
       });
     } else {
       ind.classList.remove('ptr-complete');
       if (fl) { fl.style.transition = 'width 0.3s ease-out'; fl.style.width = '0%'; }
       if (lb) lb.textContent = '';
-      setTimeout(() => {
-        ind.classList.remove('ptr-visible'); // flips out via CSS rotateX(90deg)
-        setTimeout(() => {
-          ind.style.top = '';
-          if (fl) fl.style.transition = 'none';
-          if (lb) lb.textContent = 'Pull to refresh';
+      _ptrDismissTimer = setTimeout(() => {
+        ind.classList.remove('ptr-visible');
+        _ptrDismissTimer = setTimeout(() => {
+          _ptrReset(ind, fl, lb);
+          _ptrDismissTimer = null;
         }, 300);
       }, 350);
     }
