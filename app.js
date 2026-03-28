@@ -7176,7 +7176,7 @@ async function _fetchAirQuality() {
     const locs = typeof getWxLocations === 'function' ? getWxLocations() : [];
     const active = locs.find(l => l.active) || locs[0];
     if (!active) { badge.style.display = 'none'; return; }
-    const { lat, lon } = active;
+    const lat = active.lat, lon = active.lon || active.lng;
     const cached = sessionStorage.getItem('icu_aqi');
     if (cached) {
       const c = JSON.parse(cached);
