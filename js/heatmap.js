@@ -1570,13 +1570,13 @@ export function hmShowRoute(actId) {
     id: 'lib-highlight-shadow',
     type: 'line',
     source: 'lib-highlight',
-    paint: { 'line-color': '#000', 'line-width': 6, 'line-opacity': 0.4, 'line-blur': 4 }
+    paint: { 'line-color': '#000', 'line-width': 10, 'line-opacity': 0.35, 'line-blur': 5 }
   });
   map.addLayer({
     id: 'lib-highlight-line',
     type: 'line',
     source: 'lib-highlight',
-    paint: { 'line-color': '#00e5a0', 'line-width': 3, 'line-opacity': 0.9 }
+    paint: { 'line-color': '#00e5a0', 'line-width': 5, 'line-opacity': 0.95 }
   });
   // Fit map to route bounds
   const bounds = coords.reduce((b, c) => b.extend(c), new maplibregl.LngLatBounds(coords[0], coords[0]));
