@@ -2381,6 +2381,46 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
       }
     }, 0.05);
 
+    // Front depth layer — close pine tree silhouettes framing the scene
+    const fgCanvas = document.createElement('canvas'); fgCanvas.width = fW; fgCanvas.height = fH;
+    const fgc = fgCanvas.getContext('2d');
+    fgc.fillStyle = '#030310';
+    // Draw pine tree function
+    const drawPine = (tx, tBase, tH, tW) => {
+      fgc.fillRect(tx - 2, tBase, 4, tH * 0.15); // trunk
+      for (let j = 0; j < 4; j++) {
+        const ly = tBase - tH * (0.15 + j * 0.22);
+        const lw = tW * (1 - j * 0.2);
+        fgc.beginPath(); fgc.moveTo(tx, ly); fgc.lineTo(tx - lw, ly + tH * 0.3); fgc.lineTo(tx + lw, ly + tH * 0.3); fgc.fill();
+      }
+    };
+    // Left edge — 3 big pines
+    drawPine(fW * 0.04, fH * 0.95, fH * 0.55, fW * 0.08);
+    drawPine(fW * 0.1, fH * 0.98, fH * 0.45, fW * 0.07);
+    drawPine(fW * 0.15, fH * 0.96, fH * 0.35, fW * 0.055);
+    // Right edge — 3 big pines
+    drawPine(fW * 0.88, fH * 0.96, fH * 0.5, fW * 0.075);
+    drawPine(fW * 0.94, fH * 0.97, fH * 0.42, fW * 0.065);
+    drawPine(fW * 0.98, fH * 0.95, fH * 0.55, fW * 0.08);
+    // Bottom ground
+    const groundG = fgc.createLinearGradient(0, fH * 0.88, 0, fH);
+    groundG.addColorStop(0, 'transparent'); groundG.addColorStop(1, 'rgba(3,3,16,0.9)');
+    fgc.fillStyle = groundG; fgc.fillRect(0, fH * 0.88, fW, fH * 0.12);
+
+    const fgMat = new THREE.MeshBasicMaterial({
+      map: new THREE.CanvasTexture(fgCanvas), transparent: true, depthWrite: false,
+      side: THREE.FrontSide
+    });
+    fgMat.stencilWrite = true; fgMat.stencilRef = 1;
+    fgMat.stencilFunc = THREE.EqualStencilFunc;
+    fgMat.stencilFail = THREE.KeepStencilOp;
+    fgMat.stencilZFail = THREE.KeepStencilOp;
+    fgMat.stencilZPass = THREE.KeepStencilOp;
+    const frontLayer = new THREE.Mesh(new THREE.PlaneGeometry(cardW, cardH), fgMat);
+    frontLayer.position.z = cardD * 0.5 + 0.002;
+    frontLayer.renderOrder = 1;
+    _bcMesh.add(frontLayer);
+
     // Text overlay on top of portal — achievement name + desc
     const txtCanvas = document.createElement('canvas'); txtCanvas.width = fW; txtCanvas.height = fH;
     const tc = txtCanvas.getContext('2d');
@@ -2409,7 +2449,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     _bcMesh.add(glitterPlane);
     glitterPlane.renderOrder = 3;
 
-    // Parallax — layers shift when card tilts, deeper layers move more
+    // Parallax — front layer moves OPPOSITE (closer = more shift), back layers move with tilt
     _bcMesh._parallax = [
       { mesh: sky, depth: 0.025 },
       { mesh: aurora, depth: 0.02 },
@@ -2418,6 +2458,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
       { mesh: fg, depth: 0.006 },
       { mesh: closeTrees, depth: 0.003 },
       { mesh: particles, depth: 0.001 },
+      { mesh: frontLayer, depth: -0.008 },
     ];
     _bcMesh._portal = null; // no render target needed
   } else {
