@@ -6176,14 +6176,13 @@ function buildRecentActCardHTML(a, idx, idPrefix = 'recentActCard') {
             <div class="recent-act-date">${dateFmt}${timeFmt ? ' · ' + timeFmt : ''}</div>
             <div class="recent-act-name">${name}</div>
             <div class="recent-act-location" id="${idPrefix}Loc_${idx}"></div>
-            <div class="recent-act-badges">${tssBadge}${platformTag ? `<span class="act-platform-tag">${platformTag}</span>` : ''}</div>
+            <div class="recent-act-badges">${tssBadge}${_heroAchBadge(a)}${platformTag ? `<span class="act-platform-tag">${platformTag}</span>` : ''}</div>
           </div>
         </div>
         <div class="recent-act-stats">${statsHTML}</div>
         ${wxChip}
       </div>
       <div class="recent-act-map" id="${idPrefix}Map_${idx}"></div>
-      ${_heroAchBadge(a)}
     </div>
   </div>`;
 }
