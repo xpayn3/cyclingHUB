@@ -185,7 +185,7 @@ if ('serviceWorker' in navigator) {
 }
 
 // Populate version footer + splash version + git hash
-const BUILD_HASH = '20cae49';
+const BUILD_HASH = '11ecb22';
 (function() {
   const footer = document.getElementById('appVersionFooter');
   function setVersion(ver) {
