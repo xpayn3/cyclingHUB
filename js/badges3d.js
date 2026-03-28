@@ -2131,7 +2131,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
       const c = document.createElement('canvas'); c.width = fW; c.height = fH;
       drawFn(c.getContext('2d'), fW, fH);
       // Dome geometry — curves inward behind card
-      const domeRadius = zBehind + 0.5;
+      const domeRadius = Math.max(cardW * 0.7, zBehind + 0.5);
       const domeGeo = new THREE.SphereGeometry(domeRadius, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.5);
       domeGeo.rotateX(Math.PI);
       domeGeo.rotateZ(Math.PI);
