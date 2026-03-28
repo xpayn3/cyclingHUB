@@ -17201,12 +17201,13 @@ body:has(.act-sheet-mode) .topbar {
     border-radius: var(--radius);
     overflow: hidden;
     position: relative;
+    padding: 0;
 }
 .tp-accent-strip {
     display: none;
 }
 .tp-content {
-    padding: 10px;
+    padding: var(--pad-card);
 }
 .tp-top-row {
     display: flex;
