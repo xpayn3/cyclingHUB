@@ -26538,9 +26538,14 @@ function renderStreamCharts(streams, activity) {
             enabled: true,
             mode:    'x',
             threshold: 10,
-            onPanStart: ({ chart }) => {
-              // Only allow pan when zoomed — at default zoom, let tooltip scrub work
+            onPanStart: ({ chart, event }) => {
+              // Only allow pan when zoomed
               if (!chart.isZoomedOrPanned?.()) return false;
+              // Split zone: top half = pan, bottom half = scrub tooltip
+              const area = chart.chartArea;
+              const midY = area.top + (area.bottom - area.top) / 2;
+              const touchY = event?.y ?? event?.center?.y ?? 0;
+              if (touchY > midY) return false; // bottom half → tooltip scrub, block pan
               state._streamsPanning = true;
             },
             onPanComplete: () => { state._streamsPanning = false; streamsUpdateZoomState(); },
