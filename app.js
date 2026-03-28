@@ -6170,7 +6170,7 @@ function buildRecentActCardHTML(a, idx, idPrefix = 'recentActCard') {
           <div class="recent-act-text">
             <div class="recent-act-date">${dateFmt}${timeFmt ? ' · ' + timeFmt : ''}</div>
             <div class="recent-act-name">${name}</div>
-            <div class="recent-act-location" data-lat="${a.start_latlng?.[0] || ''}" data-lon="${a.start_latlng?.[1] || ''}"></div>
+            <div class="recent-act-location" id="${idPrefix}Loc_${idx}"></div>
             <div class="recent-act-badges">${tssBadge}${platformTag ? `<span class="act-platform-tag">${platformTag}</span>` : ''}</div>
           </div>
         </div>
@@ -6249,6 +6249,17 @@ async function renderRecentActCardMap(a, idx, idPrefix = 'recentActCard', mapSto
 
     // Cache the downsampled points (~8 KB) so we never need to re-fetch on refresh
     try { localStorage.setItem(`icu_gps_pts_${actId}`, JSON.stringify(points)); } catch (_) {}
+  }
+
+  // Fill location label from first GPS point
+  if (points.length >= 1) {
+    const locEl = mapEl?.closest('.recent-act-card, .card')?.querySelector('.recent-act-location');
+    if (locEl && !locEl.textContent.trim()) {
+      const [lat0, lon0] = points[0];
+      reverseGeocode(lat0, lon0).then(name => {
+        if (name) locEl.innerHTML = `<svg class="icon" width="12" height="12" style="opacity:0.5"><use href="icons.svg#icon-map-pin"/></svg> ${name}`;
+      });
+    }
   }
 
   // Card grid thumbnails are small — further downsample to ~150 points
@@ -6406,26 +6417,8 @@ async function renderRecentActivity() {
   });
   if (window.refreshGlow) refreshGlow(rail);
 
-  // Fill location names asynchronously (1 req/sec rate limit for Nominatim)
-  _fillActivityLocations(rail);
-
   // ── Mobile pagination dots ──
   _initRecentActDots(rail, recent.length);
-}
-
-// Fill location labels on activity cards — respects 1 req/sec Nominatim limit
-async function _fillActivityLocations(container) {
-  const els = (container || document).querySelectorAll('.recent-act-location[data-lat]');
-  for (const el of els) {
-    const lat = parseFloat(el.dataset.lat), lon = parseFloat(el.dataset.lon);
-    if (!lat || !lon) continue;
-    const name = await reverseGeocode(lat, lon);
-    if (name) {
-      el.innerHTML = `<svg class="icon" width="12" height="12" style="opacity:0.5"><use href="icons.svg#icon-map-pin"/></svg> ${name}`;
-    }
-    // Rate limit: 1 req/sec for Nominatim (cached ones are instant)
-    if (!_geoCache[`${lat.toFixed(2)},${lon.toFixed(2)}`]) await new Promise(r => setTimeout(r, 1100));
-  }
 }
 
 let _recentActDotsAC = null;
