@@ -31373,7 +31373,7 @@ body.pro-analysis-open .dash-pill-nav { display: none !important; }
 
 /* ── Fitness page glass cards (test) ── */
 #page-fitness .card {
-  background: rgb(40,42,48);
+  background: var(--bg-card);
   border: none;
   box-shadow:
     0 0.5px 0 0 rgba(255,255,255,0.18) inset,
