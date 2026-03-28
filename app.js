@@ -2506,6 +2506,27 @@ let _peerRemoteName = '';
 let _peerDiscoverTimer = null;
 let _peerDiscoveredDevices = {};
 let _peerGeneration = 0; // incremented on every toggle/disconnect — stale handlers check this
+
+// Smart discovery timer — stops when connected, pauses when hidden, backs off over time
+function _peerStartDiscoveryTimer() {
+  if (_peerDiscoverTimer) clearInterval(_peerDiscoverTimer);
+  let interval = 15000; // start at 15s
+  _peerDiscoverTimer = setInterval(() => {
+    // Skip if tab hidden, already connected, or peer destroyed
+    if (document.hidden || !_peerInstance || _peerConn) {
+      if (_peerConn) { clearInterval(_peerDiscoverTimer); _peerDiscoverTimer = null; }
+      return;
+    }
+    window._peerFailedIds?.clear();
+    _peerDiscoverDevices();
+    // Back off: 15s → 30s → 60s
+    if (interval < 60000) {
+      interval = Math.min(60000, interval * 2);
+      clearInterval(_peerDiscoverTimer);
+      _peerDiscoverTimer = setInterval(arguments.callee, interval);
+    }
+  }, interval);
+}
 let _peerDiscovering = false; // guards against overlapping discovery scans
 let _peerToggling = false; // guards against overlapping toggle calls
 
@@ -2697,10 +2718,7 @@ async function _peerToggle(on) {
     _peerRenderDevices(null);
     _peerToggling = false;
     _peerDiscoverDevices();
-    _peerDiscoverTimer = setInterval(() => {
-      window._peerFailedIds?.clear(); // retry all candidates each cycle
-      _peerDiscoverDevices();
-    }, 30000);
+    _peerStartDiscoveryTimer();
   });
 
   _peerInstance.on('connection', conn => {
@@ -2714,13 +2732,11 @@ async function _peerToggle(on) {
     if (e.type === 'peer-unavailable') return;
     if (e.type === 'network') { _peerLog('Network error', 'warn'); return; }
     if (e.type === 'unavailable-id') {
-      // Base ID taken by another device of same type — retry with unique suffix
       if (_peerInstance) { try { _peerInstance.destroy(); } catch {} _peerInstance = null; }
-      const suffixedId = _peerMakeId(); // includes unique suffix
+      const suffixedId = _peerMakeId();
       _peerLog('ID taken, using ' + suffixedId, 'warn');
       _peerMyId = suffixedId;
       _peerInstance = new Peer(suffixedId, _peerOpts);
-      // Re-attach all handlers for the new instance
       _peerInstance.on('open', id => {
         if (gen !== _peerGeneration) return;
         _peerMyId = id;
@@ -2728,10 +2744,7 @@ async function _peerToggle(on) {
         _peerUpdateUI('ready', id);
         _peerToggling = false;
         _peerDiscoverDevices();
-        _peerDiscoverTimer = setInterval(() => {
-          window._peerFailedIds?.clear();
-          _peerDiscoverDevices();
-        }, 30000);
+        _peerStartDiscoveryTimer();
       });
       _peerInstance.on('connection', conn => _peerHandleDiscovery(conn, gen));
       _peerInstance.on('error', e2 => {
@@ -37132,13 +37145,9 @@ document.addEventListener('visibilitychange', () => {
     if (state.currentPage === 'settings') _rlStartTick();
     // Restart vitality if on dashboard
     if (state.currentPage === 'dashboard' && typeof _startVitality === 'function') _startVitality();
-    // Resume P2P discovery if enabled and connected
-    if (_peerInstance && !_peerDiscoverTimer && localStorage.getItem('icu_p2p_enabled') === 'true') {
-      _peerDiscoverDevices();
-      _peerDiscoverTimer = setInterval(() => {
-        window._peerFailedIds?.clear();
-        _peerDiscoverDevices();
-      }, 30000);
+    // Resume P2P discovery if enabled
+    if (_peerInstance && !_peerDiscoverTimer && !_peerConn && localStorage.getItem('icu_p2p_enabled') === 'true') {
+      _peerStartDiscoveryTimer();
     }
     document.documentElement.classList.remove('tab-hidden');
   }
