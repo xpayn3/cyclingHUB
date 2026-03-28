@@ -31371,6 +31371,19 @@ body.pro-analysis-open .dash-pill-nav { display: none !important; }
 .fit-race-tool-btn:active{transform:scale(0.94);box-shadow:0 0.5px 0 0 rgba(255,255,255,0.12) inset,0 2px 8px rgba(0,0,0,0.3)}
 .fit-race-tool-btn svg{color:var(--accent);flex-shrink:0;width:24px;height:24px;filter:drop-shadow(0 0 6px rgba(0,229,160,0.3))}
 
+/* ── Fitness page glass cards (test) ── */
+#page-fitness .card {
+  background: rgba(40,42,48,0.42);
+  backdrop-filter: saturate(220%) brightness(1.1);
+  -webkit-backdrop-filter: saturate(220%) brightness(1.1);
+  border: none;
+  box-shadow:
+    0 0.5px 0 0 rgba(255,255,255,0.18) inset,
+    0 0 0 0.5px rgba(255,255,255,0.08) inset,
+    0 -0.5px 0 0 rgba(0,0,0,0.12) inset,
+    0 8px 24px rgba(0,0,0,0.35);
+}
+
 /* ═══════════════════════════════════════════════════════════════
    GEAR ROI DASHBOARD
    ═══════════════════════════════════════════════════════════════ */
