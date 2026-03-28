@@ -1,0 +1,70 @@
+<!-- Import maps polyfill -->
+<!-- Remove this when import maps will be widely supported -->
+<script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
+
+<script type="importmap">
+	{
+		"imports": {
+			"three": "https://unpkg.com/three/build/three.module.js"
+		}
+	}
+</script>
+
+<style>
+body {
+	  margin: 0;
+}
+</style>
+
+<script type="module">
+import * as THREE from 'three';
+
+// init
+const cube = new THREE.CubeTextureLoader().load([
+				'https://i.imgur.com/EnD4hQd.jpg', // px
+				'https://i.imgur.com/tUboeCr.jpg', // nx
+				'https://i.imgur.com/nVMAfLw.jpg', // py
+				'https://i.imgur.com/k6UxiiZ.jpg', // ny
+				'https://i.imgur.com/yEOMzQg.jpg', // pz
+				'https://i.imgur.com/GhEpGuR.jpg'  // nz
+			])
+
+const camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 10 );
+camera.position.z = 1;
+
+const scene = new THREE.Scene();
+
+const geometry = new THREE.PlaneGeometry( 1, 1 );
+const material = new THREE.ShaderMaterial( {
+	vertexShader: `varying vec3 vPos; void main() {
+  	gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+    vPos = ( modelMatrix * vec4( position, 1.0 ) ).xyz - cameraPosition;
+  }`,
+  fragmentShader: `varying vec3 vPos; uniform samplerCube cube; void main() {
+  	gl_FragColor = textureCube( cube, normalize( vPos ) );
+  }`,
+  uniforms: {
+  	cube: { value: cube }
+  }
+} );
+
+const mesh = new THREE.Mesh( geometry, material );
+scene.add( mesh );
+
+const renderer = new THREE.WebGLRenderer( { antialias: true } );
+renderer.setSize( window.innerWidth, window.innerHeight );
+renderer.setAnimationLoop( animation );
+document.body.appendChild( renderer.domElement );
+
+// animation
+
+function animation( time ) {
+
+	camera.position.x = 1.2 * Math.sin( time /  500 );
+	camera.position.y = 0.5 * Math.sin( time / 2000 );
+  camera.lookAt( 0, 0, 0 )
+
+	renderer.render( scene, camera );
+
+}
+</script>

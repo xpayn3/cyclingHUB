@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CycleIQ — Pro Cycling Analytics</title>
+  <meta name="description" content="Professional-grade cycling analytics PWA. Zero frameworks. Offline-ready. Open source.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- ===== NAVBAR ===== -->
+  <nav class="navbar" id="navbar">
+    <div class="nav-inner">
+      <a href="#" class="nav-logo">
+        <svg class="nav-logo-icon" viewBox="0 0 32 32" fill="none">
+          <circle cx="16" cy="16" r="14" stroke="#00e5a0" stroke-width="2.5"/>
+          <path d="M10 20 L14 12 L18 18 L22 10" stroke="#00e5a0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>CycleIQ</span>
+      </a>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#analytics">Analytics</a>
+        <a href="#garage">Garage</a>
+        <a href="#open-source">Open Source</a>
+        <a href="#cta-final" class="nav-cta">Try CycleIQ</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ===== HERO ===== -->
+  <section class="hero" id="hero">
+    <div class="hero-glow"></div>
+    <div class="hero-content">
+      <div class="hero-badge reveal">
+        <span class="badge-dot"></span>
+        Open Source &middot; Privacy First &middot; Offline Ready
+      </div>
+      <h1 class="hero-title reveal">
+        <span class="hero-title-line">Your cycling.</span>
+        <span class="hero-title-line accent">Decoded.</span>
+      </h1>
+      <p class="hero-subtitle reveal">
+        Professional-grade analytics that connect to Intervals.icu and Strava.
+        Beautiful iOS-native design. Zero frameworks. 100% yours.
+      </p>
+      <div class="hero-actions reveal">
+        <a href="#cta-final" class="btn-primary">
+          <span>Launch App</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+        <a href="#features" class="btn-ghost">Explore Features</a>
+      </div>
+      <div class="hero-stats reveal">
+        <div class="hero-stat">
+          <span class="stat-number" data-target="22">0</span>
+          <span class="stat-label">Pages</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="hero-stat">
+          <span class="stat-number" data-target="50">0</span><span class="stat-plus">+</span>
+          <span class="stat-label">Features</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="hero-stat">
+          <span class="stat-number" data-target="0">0</span>
+          <span class="stat-label">Frameworks</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="hero-stat">
+          <span class="stat-number" data-target="8">0</span><span class="stat-plus">+</span>
+          <span class="stat-label">API Integrations</span>
+        </div>
+      </div>
+    </div>
+    <div class="hero-visual reveal">
+      <div class="phone-mockup">
+        <div class="phone-frame">
+          <div class="phone-notch"></div>
+          <div class="phone-screen">
+            <!-- Simulated dashboard content -->
+            <div class="mock-header">
+              <span class="mock-greeting">Good morning</span>
+              <span class="mock-name">Rider</span>
+            </div>
+            <div class="mock-fitness-chart">
+              <svg viewBox="0 0 280 100" class="mock-chart-svg">
+                <defs>
+                  <linearGradient id="ctlGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#00e5a0" stop-opacity="0.4"/>
+                    <stop offset="100%" stop-color="#00e5a0" stop-opacity="0"/>
+                  </linearGradient>
+                </defs>
+                <path d="M0,80 Q30,60 60,65 T120,45 T180,50 T240,30 T280,20" fill="none" stroke="#00e5a0" stroke-width="2"/>
+                <path d="M0,80 Q30,60 60,65 T120,45 T180,50 T240,30 T280,20 V100 H0Z" fill="url(#ctlGrad)"/>
+                <path d="M0,70 Q40,75 80,60 T160,55 T240,40 T280,35" fill="none" stroke="#ff6b6b" stroke-width="1.5" opacity="0.6"/>
+              </svg>
+              <div class="mock-chart-labels">
+                <span style="color:#00e5a0">CTL 72</span>
+                <span style="color:#ff6b6b">ATL 58</span>
+                <span style="color:#4ecdc4">TSB +14</span>
+              </div>
+            </div>
+            <div class="mock-activity-cards">
+              <div class="mock-activity">
+                <div class="mock-act-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#00e5a0" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                </div>
+                <div class="mock-act-info">
+                  <span class="mock-act-name">Morning Ride</span>
+                  <span class="mock-act-detail">62.4 km &middot; 1:48:22</span>
+                </div>
+                <span class="mock-badge">PR</span>
+              </div>
+              <div class="mock-activity">
+                <div class="mock-act-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#ff9f43" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                </div>
+                <div class="mock-act-info">
+                  <span class="mock-act-name">Interval Session</span>
+                  <span class="mock-act-detail">245W avg &middot; TSS 89</span>
+                </div>
+              </div>
+            </div>
+            <div class="mock-goals">
+              <div class="mock-goal-ring">
+                <svg viewBox="0 0 40 40">
+                  <circle cx="20" cy="20" r="16" fill="none" stroke="#1c1c1e" stroke-width="4"/>
+                  <circle cx="20" cy="20" r="16" fill="none" stroke="#00e5a0" stroke-width="4" stroke-dasharray="75 100" stroke-linecap="round" transform="rotate(-90 20 20)"/>
+                </svg>
+                <span>75%</span>
+              </div>
+              <div class="mock-goal-ring">
+                <svg viewBox="0 0 40 40">
+                  <circle cx="20" cy="20" r="16" fill="none" stroke="#1c1c1e" stroke-width="4"/>
+                  <circle cx="20" cy="20" r="16" fill="none" stroke="#ff6b6b" stroke-width="4" stroke-dasharray="60 100" stroke-linecap="round" transform="rotate(-90 20 20)"/>
+                </svg>
+                <span>60%</span>
+              </div>
+              <div class="mock-goal-ring">
+                <svg viewBox="0 0 40 40">
+                  <circle cx="20" cy="20" r="16" fill="none" stroke="#1c1c1e" stroke-width="4"/>
+                  <circle cx="20" cy="20" r="16" fill="none" stroke="#4ecdc4" stroke-width="4" stroke-dasharray="90 100" stroke-linecap="round" transform="rotate(-90 20 20)"/>
+                </svg>
+                <span>90%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="phone-reflection"></div>
+      </div>
+    </div>
+    <div class="hero-scroll-indicator">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00e5a0" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+    </div>
+  </section>
+
+  <!-- ===== INTEGRATIONS BAR ===== -->
+  <section class="integrations-bar reveal">
+    <span class="integrations-label">Powered by</span>
+    <div class="integration-logos">
+      <div class="int-logo">
+        <svg viewBox="0 0 40 40" fill="none"><path d="M20 5C11.7 5 5 11.7 5 20s6.7 15 15 15 15-6.7 15-15S28.3 5 20 5zm0 27c-6.6 0-12-5.4-12-12S13.4 8 20 8s12 5.4 12 12-5.4 12-12 12z" fill="#ff6b00"/><path d="M15 14l10 6-10 6V14z" fill="#ff6b00"/></svg>
+        <span>Strava</span>
+      </div>
+      <div class="int-logo">
+        <svg viewBox="0 0 40 40" fill="none"><path d="M8 28 Q14 10 20 20 Q26 30 32 12" stroke="#e74c3c" stroke-width="3" fill="none" stroke-linecap="round"/></svg>
+        <span>Intervals.icu</span>
+      </div>
+      <div class="int-logo">
+        <svg viewBox="0 0 40 40" fill="none"><path d="M20 8l2 6h6l-5 4 2 6-5-4-5 4 2-6-5-4h6z" fill="#ff6b00"/></svg>
+        <span>Zwift</span>
+      </div>
+      <div class="int-logo">
+        <svg viewBox="0 0 40 40" fill="none"><circle cx="20" cy="20" r="12" stroke="#00b0ff" stroke-width="2.5" fill="none"/><path d="M14 20h12M20 14v12" stroke="#00b0ff" stroke-width="2.5" stroke-linecap="round"/></svg>
+        <span>Garmin</span>
+      </div>
+      <div class="int-logo">
+        <svg viewBox="0 0 40 40" fill="none"><rect x="8" y="12" width="24" height="16" rx="3" stroke="#4ecdc4" stroke-width="2" fill="none"/><path d="M12 20h16M20 16v8" stroke="#4ecdc4" stroke-width="2" stroke-linecap="round"/></svg>
+        <span>MapLibre</span>
+      </div>
+      <div class="int-logo">
+        <svg viewBox="0 0 40 40" fill="none"><path d="M10 30 L16 14 L22 24 L28 10 L34 20" stroke="#ff6b6b" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Chart.js</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== BENTO FEATURES ===== -->
+  <section class="bento-section" id="features">
+    <div class="section-header reveal">
+      <span class="section-eyebrow">Everything you need</span>
+      <h2 class="section-title">Built for serious cyclists.</h2>
+      <p class="section-sub">10 dedicated pages. 50+ features. One seamless experience.</p>
+    </div>
+
+    <div class="bento-grid">
+      <!-- Large: Dashboard -->
+      <div class="bento-card bento-large reveal" data-tilt>
+        <div class="bento-glow"></div>
+        <div class="bento-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        </div>
+        <h3>Dashboard</h3>
+        <p>Real-time CTL/ATL/TSB fitness chart, activity carousel, goals rings, weather forecast, and biorhythm gauges — all at a glance.</p>
+        <div class="bento-preview dashboard-preview">
+          <div class="mini-chart">
+            <svg viewBox="0 0 200 60">
+              <path d="M0,50 Q25,40 50,42 T100,30 T150,25 T200,15" fill="none" stroke="#00e5a0" stroke-width="2"/>
+              <path d="M0,45 Q30,50 60,38 T120,35 T180,28 T200,22" fill="none" stroke="#ff6b6b" stroke-width="1.5" opacity="0.5"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Medium: Activities -->
+      <div class="bento-card bento-medium reveal" data-tilt>
+        <div class="bento-glow"></div>
+        <div class="bento-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        </div>
+        <h3>Activity Analytics</h3>
+        <p>Interactive maps, power/HR/cadence streams, zone distributions, lap splits, and climb detection with PR badges.</p>
+      </div>
+
+      <!-- Medium: Fitness -->
+      <div class="bento-card bento-medium reveal" data-tilt>
+        <div class="bento-glow"></div>
+        <div class="bento-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+        </div>
+        <h3>Fitness Intelligence</h3>
+        <p>Training load trends, FTP tracking, power curves, race predictions, recovery estimation, and periodization guidance.</p>
+      </div>
+
+      <!-- Small: Workout Builder -->
+      <div class="bento-card bento-small reveal" data-tilt>
+        <div class="bento-glow"></div>
+        <div class="bento-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="7" width="20" height="10" rx="2"/><path d="M6 7V5a2 2 0 012-2h8a2 2 0 012 2v2M6 17v2a2 2 0 002 2h8a2 2 0 002-2v-2"/></svg>
+        </div>
+        <h3>Workout Builder</h3>
+        <p>Visual interval designer. Export to Zwift, Garmin, or your Intervals.icu calendar.</p>
+        <div class="bento-preview workout-preview">
+          <div class="interval-bars">
+            <div class="interval-bar" style="height:30%;background:#4ecdc4"></div>
+            <div class="interval-bar" style="height:70%;background:#00e5a0"></div>
+            <div class="interval-bar" style="height:90%;background:#ff6b6b"></div>
+            <div class="interval-bar" style="height:50%;background:#ff9f43"></div>
+            <div class="interval-bar" style="height:95%;background:#ff6b6b"></div>
+            <div class="interval-bar" style="height:50%;background:#ff9f43"></div>
+            <div class="interval-bar" style="height:85%;background:#ff6b6b"></div>
+            <div class="interval-bar" style="height:40%;background:#00e5a0"></div>
+            <div class="interval-bar" style="height:20%;background:#4ecdc4"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Small: Route Builder -->
+      <div class="bento-card bento-small reveal" data-tilt>
+        <div class="bento-glow"></div>
+        <div class="bento-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        </div>
+        <h3>Route Builder</h3>
+        <p>3D terrain maps, elevation profiles, GPX/FIT export with undo, reverse, and out-and-back tools.</p>
+      </div>
+
+      <!-- Small: Calendar -->
+      <div class="bento-card bento-small reveal" data-tilt>
+        <div class="bento-glow"></div>
+        <div class="bento-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        </div>
+        <h3>Calendar</h3>
+        <p>Plan your training week with month/list views, color-coded events, and training plan integration.</p>
+      </div>
+
+      <!-- Wide: Power & Zones -->
+      <div class="bento-card bento-wide reveal" data-tilt>
+        <div class="bento-glow"></div>
+        <div class="bento-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        </div>
+        <h3>Power & Zone Analysis</h3>
+        <p>6-zone color system, HR comparison, power radar charts, PwrHR scatter, decouple analysis, and energy expenditure tracking.</p>
+        <div class="bento-preview zones-preview">
+          <div class="zone-bars">
+            <div class="zone-bar" style="width:15%;background:#96969680"><span>Z1</span></div>
+            <div class="zone-bar" style="width:25%;background:#4ecdc480"><span>Z2</span></div>
+            <div class="zone-bar" style="width:30%;background:#00e5a080"><span>Z3</span></div>
+            <div class="zone-bar" style="width:18%;background:#ff9f4380"><span>Z4</span></div>
+            <div class="zone-bar" style="width:8%;background:#ff6b6b80"><span>Z5</span></div>
+            <div class="zone-bar" style="width:4%;background:#e74c3c80"><span>Z6</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== ANALYTICS DEEP DIVE ===== -->
+  <section class="deep-dive" id="analytics">
+    <div class="section-header reveal">
+      <span class="section-eyebrow">Deep analytics</span>
+      <h2 class="section-title">Every watt. Every heartbeat.</h2>
+      <p class="section-sub">Stream-level analysis that rivals dedicated desktop software.</p>
+    </div>
+
+    <div class="showcase-row">
+      <div class="showcase-visual reveal">
+        <div class="glass-card">
+          <div class="stream-chart">
+            <div class="stream-label">Power</div>
+            <svg viewBox="0 0 400 120" preserveAspectRatio="none" class="stream-svg">
+              <defs>
+                <linearGradient id="powerGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#00e5a0" stop-opacity="0.5"/>
+                  <stop offset="100%" stop-color="#00e5a0" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              <path class="stream-path power-path" d="M0,100 Q10,80 20,85 Q30,60 40,70 Q50,40 60,55 Q70,30 80,45 Q90,20 100,35 Q110,50 120,40 Q130,25 140,30 Q150,55 160,45 Q170,35 180,50 Q190,60 200,40 Q210,30 220,45 Q230,55 240,35 Q250,25 260,40 Q270,50 280,30 Q290,45 300,55 Q310,40 320,50 Q330,65 340,55 Q350,70 360,60 Q370,75 380,70 Q390,80 400,85" fill="none" stroke="#00e5a0" stroke-width="2"/>
+              <path d="M0,100 Q10,80 20,85 Q30,60 40,70 Q50,40 60,55 Q70,30 80,45 Q90,20 100,35 Q110,50 120,40 Q130,25 140,30 Q150,55 160,45 Q170,35 180,50 Q190,60 200,40 Q210,30 220,45 Q230,55 240,35 Q250,25 260,40 Q270,50 280,30 Q290,45 300,55 Q310,40 320,50 Q330,65 340,55 Q350,70 360,60 Q370,75 380,70 Q390,80 400,85 V120 H0 Z" fill="url(#powerGrad)"/>
+            </svg>
+            <div class="stream-label">Heart Rate</div>
+            <svg viewBox="0 0 400 80" preserveAspectRatio="none" class="stream-svg hr-stream">
+              <path class="stream-path hr-path" d="M0,60 Q20,55 40,50 Q60,45 80,40 Q100,38 120,35 Q140,30 160,32 Q180,28 200,30 Q220,32 240,28 Q260,25 280,27 Q300,30 320,28 Q340,32 360,35 Q380,38 400,40" fill="none" stroke="#ff6b6b" stroke-width="2"/>
+            </svg>
+            <div class="stream-label">Cadence</div>
+            <svg viewBox="0 0 400 60" preserveAspectRatio="none" class="stream-svg cad-stream">
+              <path class="stream-path" d="M0,40 Q20,35 40,38 Q60,30 80,32 Q100,28 120,30 Q140,25 160,28 Q180,30 200,26 Q220,28 240,25 Q260,30 280,28 Q300,32 320,30 Q340,28 360,32 Q380,35 400,30" fill="none" stroke="#ff9f43" stroke-width="2"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+      <div class="showcase-text reveal">
+        <div class="showcase-feature">
+          <div class="feature-dot" style="background:#00e5a0"></div>
+          <div>
+            <h4>Power Streams</h4>
+            <p>Second-by-second power data with smoothing, peaks, and zone coloring.</p>
+          </div>
+        </div>
+        <div class="showcase-feature">
+          <div class="feature-dot" style="background:#ff6b6b"></div>
+          <div>
+            <h4>Heart Rate Analysis</h4>
+            <p>HR zones, drift detection, and cardiac decoupling for aerobic fitness tracking.</p>
+          </div>
+        </div>
+        <div class="showcase-feature">
+          <div class="feature-dot" style="background:#ff9f43"></div>
+          <div>
+            <h4>Cadence Patterns</h4>
+            <p>Cadence distribution and optimal RPM identification for pedaling efficiency.</p>
+          </div>
+        </div>
+        <div class="showcase-feature">
+          <div class="feature-dot" style="background:#4ecdc4"></div>
+          <div>
+            <h4>Achievement Badges</h4>
+            <p>Automatic PR and LTHR detection with beautiful tinted card backgrounds.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== GARAGE SECTION ===== -->
+  <section class="garage-section" id="garage">
+    <div class="section-header reveal">
+      <span class="section-eyebrow">My Garage</span>
+      <h2 class="section-title">Your entire fleet. Managed.</h2>
+      <p class="section-sub">Component tracking, battery monitoring, tire calculators, and service history.</p>
+    </div>
+
+    <div class="garage-grid">
+      <div class="garage-card garage-hero-card reveal">
+        <div class="garage-card-bg">
+          <img src="/img/bikes/Giant-propel-advanced-1.png" alt="Road bike" loading="lazy">
+        </div>
+        <div class="garage-card-overlay">
+          <h3>Bike Fleet</h3>
+          <p>Photo backgrounds, component lists, and full maintenance timelines for every bike you own.</p>
+        </div>
+      </div>
+
+      <div class="garage-card reveal">
+        <div class="garage-card-inner">
+          <div class="battery-demo">
+            <div class="battery-icon">
+              <div class="battery-body">
+                <div class="battery-segment filled"></div>
+                <div class="battery-segment filled"></div>
+                <div class="battery-segment filled"></div>
+                <div class="battery-segment filled"></div>
+                <div class="battery-segment"></div>
+              </div>
+              <div class="battery-tip"></div>
+            </div>
+            <div class="battery-info">
+              <span class="battery-label">SRAM AXS Rear</span>
+              <span class="battery-pct">80%</span>
+            </div>
+          </div>
+          <div class="battery-demo">
+            <div class="battery-icon">
+              <div class="battery-body">
+                <div class="battery-segment filled low"></div>
+                <div class="battery-segment"></div>
+                <div class="battery-segment"></div>
+                <div class="battery-segment"></div>
+                <div class="battery-segment"></div>
+              </div>
+              <div class="battery-tip"></div>
+            </div>
+            <div class="battery-info">
+              <span class="battery-label">Di2 Front</span>
+              <span class="battery-pct low-text">20%</span>
+            </div>
+          </div>
+          <h4>Battery Monitoring</h4>
+          <p>Track electronic shifting battery levels with animated gauges and charge history.</p>
+        </div>
+      </div>
+
+      <div class="garage-card reveal">
+        <div class="garage-card-inner">
+          <div class="tire-calc-demo">
+            <div class="tire-values">
+              <div class="tire-val">
+                <span class="tire-pos">Front</span>
+                <span class="tire-psi">78 PSI</span>
+              </div>
+              <div class="tire-val">
+                <span class="tire-pos">Rear</span>
+                <span class="tire-psi">82 PSI</span>
+              </div>
+            </div>
+            <div class="tire-range-bar">
+              <div class="tire-range-fill" style="left:35%;width:30%"></div>
+              <div class="tire-range-marker" style="left:42%"></div>
+            </div>
+          </div>
+          <h4>Tire Pressure Calculator</h4>
+          <p>3 industry formulas: SRAM/Zipp, Silca, and Berto 15% Drop with real-time adjustments.</p>
+        </div>
+      </div>
+
+      <div class="garage-card reveal">
+        <div class="garage-card-inner">
+          <div class="component-grid-demo">
+            <img src="/img/components/categories/crankset.webp" alt="Crankset" loading="lazy">
+            <img src="/img/components/categories/wheels.webp" alt="Wheels" loading="lazy">
+            <img src="/img/components/categories/rear-derailleur.webp" alt="Derailleur" loading="lazy">
+            <img src="/img/components/categories/pedals.webp" alt="Pedals" loading="lazy">
+          </div>
+          <h4>90+ Component Database</h4>
+          <p>Brand-specific images for SRAM, Shimano, Campagnolo, and 40+ other brands.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== UI INNOVATIONS ===== -->
+  <section class="innovations-section">
+    <div class="section-header reveal">
+      <span class="section-eyebrow">Crafted with care</span>
+      <h2 class="section-title">UI that feels native.</h2>
+      <p class="section-sub">Custom-built components that rival native iOS apps.</p>
+    </div>
+
+    <div class="innovation-cards">
+      <div class="innovation-card reveal">
+        <div class="innovation-demo scrubber-demo">
+          <div class="scrubber-track">
+            <div class="scrubber-ticks">
+              <span></span><span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span><span></span>
+              <span class="tick-major"></span>
+              <span></span><span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span><span></span>
+              <span class="tick-major"></span>
+              <span></span><span></span><span></span><span></span><span></span>
+            </div>
+            <div class="scrubber-thumb"></div>
+          </div>
+          <div class="scrubber-value">185<span>W</span></div>
+        </div>
+        <h4>Drag Scrubber Input</h4>
+        <p>Radio-dial-style numeric input with ruled track, tick marks, and zone-colored values.</p>
+      </div>
+
+      <div class="innovation-card reveal">
+        <div class="innovation-demo sheet-demo">
+          <div class="mini-sheet">
+            <div class="mini-drag-indicator"></div>
+            <div class="mini-sheet-row"></div>
+            <div class="mini-sheet-row short"></div>
+            <div class="mini-sheet-row"></div>
+          </div>
+        </div>
+        <h4>iOS Sheet System</h4>
+        <p>Slide-up modals with drag indicators, swipe-to-dismiss, and scroll containment.</p>
+      </div>
+
+      <div class="innovation-card reveal">
+        <div class="innovation-demo vitality-demo">
+          <div class="vitality-orb">
+            <div class="vitality-glow"></div>
+            <span>72</span>
+          </div>
+        </div>
+        <h4>Vitality Renderer</h4>
+        <p>Physics-based metaball particles with chromatic aberration and aura glow effects.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== OPEN SOURCE + PRIVACY ===== -->
+  <section class="open-source-section" id="open-source">
+    <div class="os-content reveal">
+      <div class="os-text">
+        <span class="section-eyebrow">Open source &amp; private</span>
+        <h2 class="section-title">Your data stays yours.</h2>
+        <p class="section-sub">CycleIQ runs entirely in your browser. No tracking, no analytics, no servers collecting your training data. Everything is stored locally in IndexedDB and localStorage.</p>
+
+        <div class="os-features">
+          <div class="os-feature">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#00e5a0" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <div>
+              <h4>Privacy First</h4>
+              <p>Zero telemetry. No cookies. No fingerprinting. Your training data never leaves your device.</p>
+            </div>
+          </div>
+          <div class="os-feature">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#00e5a0" stroke-width="1.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+            <div>
+              <h4>Fully Open Source</h4>
+              <p>Every line of code is public. Audit it, fork it, contribute. No vendor lock-in ever.</p>
+            </div>
+          </div>
+          <div class="os-feature">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#00e5a0" stroke-width="1.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            <div>
+              <h4>Zero Dependencies</h4>
+              <p>No React. No Vue. No npm install. Pure vanilla JS, HTML, and CSS — nothing to break.</p>
+            </div>
+          </div>
+          <div class="os-feature">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#00e5a0" stroke-width="1.5"><path d="M2 20h20M5 20V10l7-7 7 7v10"/><path d="M9 20v-6h6v6"/></svg>
+            <div>
+              <h4>Offline Ready</h4>
+              <p>Full PWA with Service Worker. Install it on your phone and use it without internet.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="os-visual">
+        <div class="code-window">
+          <div class="code-header">
+            <div class="code-dots">
+              <span></span><span></span><span></span>
+            </div>
+            <span class="code-title">app.js</span>
+          </div>
+          <pre class="code-body"><code><span class="code-comment">// Zero frameworks. Pure vanilla.</span>
+<span class="code-keyword">const</span> app = {
+  pages: <span class="code-number">22</span>,
+  features: <span class="code-string">'50+'</span>,
+  frameworks: <span class="code-number">0</span>,
+  tracking: <span class="code-keyword">false</span>,
+  storage: <span class="code-string">'local'</span>,
+  offline: <span class="code-keyword">true</span>
+};
+
+<span class="code-comment">// Your data. Your device.</span>
+<span class="code-keyword">const</span> privacy = {
+  telemetry: <span class="code-keyword">null</span>,
+  cookies: <span class="code-keyword">null</span>,
+  servers: <span class="code-keyword">null</span>,
+  fingerprint: <span class="code-keyword">null</span>
+};</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== TECH STATS ===== -->
+  <section class="tech-strip reveal">
+    <div class="tech-grid">
+      <div class="tech-stat">
+        <span class="tech-val" data-target="22">0</span>
+        <span class="tech-desc">Pages in a single SPA</span>
+      </div>
+      <div class="tech-stat">
+        <span class="tech-val" data-target="50">0</span><span class="tech-plus">+</span>
+        <span class="tech-desc">Render functions</span>
+      </div>
+      <div class="tech-stat">
+        <span class="tech-val" data-target="150">0</span><span class="tech-plus">+</span>
+        <span class="tech-desc">CSS custom properties</span>
+      </div>
+      <div class="tech-stat">
+        <span class="tech-val" data-target="8">0</span><span class="tech-plus">+</span>
+        <span class="tech-desc">API integrations</span>
+      </div>
+      <div class="tech-stat">
+        <span class="tech-val" data-target="0">0</span>
+        <span class="tech-desc">Dependencies</span>
+      </div>
+      <div class="tech-stat">
+        <span class="tech-val" data-target="100">0</span><span class="tech-plus">%</span>
+        <span class="tech-desc">Offline capable</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FINAL CTA ===== -->
+  <section class="cta-section" id="cta-final">
+    <div class="cta-glow"></div>
+    <div class="cta-content reveal">
+      <h2 class="cta-title">Ready to decode<br>your cycling?</h2>
+      <p class="cta-sub">Free. Open source. No account needed. Just connect your Intervals.icu and ride.</p>
+      <div class="cta-buttons">
+        <a href="#" class="btn-primary btn-large">
+          <span>Launch CycleIQ</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+        <a href="#" class="btn-ghost btn-large">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 00-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0020 4.77 5.07 5.07 0 0019.91 1S18.73.65 16 2.48a13.38 13.38 0 00-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 005 4.77a5.44 5.44 0 00-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 009 18.13V22"/></svg>
+          <span>View on GitHub</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <svg class="footer-logo" viewBox="0 0 32 32" fill="none">
+          <circle cx="16" cy="16" r="14" stroke="#00e5a0" stroke-width="2"/>
+          <path d="M10 20 L14 12 L18 18 L22 10" stroke="#00e5a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>CycleIQ</span>
+      </div>
+      <p class="footer-copy">Built with vanilla JS, caffeine, and too many watts. Open source under MIT License.</p>
+      <div class="footer-links">
+        <a href="#">GitHub</a>
+        <a href="#">Privacy</a>
+        <a href="#">License</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
