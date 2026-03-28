@@ -23542,7 +23542,7 @@ body.goals-bg {
 }
 .stk-stat-tile .stk-stat-label {
     font-size: 14px;
-    font-weight: 500;
+    font-weight: 400;
     color: var(--text-muted);
     text-transform: none;
     letter-spacing: 0;
@@ -23551,7 +23551,7 @@ body.goals-bg {
 }
 .stk-stat-val {
     font-size: 20px;
-    font-weight: 700;
+    font-weight: 500;
     font-family: var(--font-num);
     color: var(--text-primary);
     line-height: 1.2;
