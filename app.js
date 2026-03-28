@@ -1629,10 +1629,12 @@ function confirmFullResync() {
       if (fl) { fl.style.transition = 'width 0.3s ease-out'; fl.style.width = '0%'; }
       if (lb) lb.textContent = '';
       setTimeout(() => {
-        ind.classList.remove('ptr-visible');
-        ind.style.top = '';
-        if (fl) fl.style.transition = 'none';
-        if (lb) lb.textContent = 'Pull to refresh';
+        ind.classList.remove('ptr-visible'); // flips out via CSS rotateX(90deg)
+        setTimeout(() => {
+          ind.style.top = '';
+          if (fl) fl.style.transition = 'none';
+          if (lb) lb.textContent = 'Pull to refresh';
+        }, 300);
       }, 350);
     }
     _ptrDist = 0;

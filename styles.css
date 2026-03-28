@@ -6133,14 +6133,17 @@ input[type="number"] {
     position: fixed;
     top: -50px;
     left: 50%;
-    transform: translateX(-50%);
+    transform: translateX(-50%) perspective(400px) rotateX(90deg);
     width: 160px;
     z-index: 200;
     pointer-events: none;
-    transition: opacity 0.15s;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.15s;
     opacity: 0;
 }
-.ptr-indicator.ptr-visible { opacity: 1; }
+.ptr-indicator.ptr-visible {
+    opacity: 1;
+    transform: translateX(-50%) perspective(400px) rotateX(0deg);
+}
 .ptr-indicator.ptr-refreshing { top: calc(env(safe-area-inset-top, 16px) + 10px); opacity: 1; }
 .ptr-bar {
     position: relative;
