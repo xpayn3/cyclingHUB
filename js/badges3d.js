@@ -1099,25 +1099,20 @@ export async function initRiderCard3D(canvasEl, data) {
   backTex.anisotropy = _rcRenderer.capabilities.getMaxAnisotropy();
 
   // ExtrudeGeometry groups: 0 = faces, 1 = sides (extruded edges)
-  const edgeMat = new THREE.MeshPhysicalMaterial({
-    color: 0xc0c0c0, metalness: 1.0, roughness: 0.08, envMap: envTex, envMapIntensity: 2.0,
-    clearcoat: 0.8, clearcoatRoughness: 0.1,
+  const edgeMat = new THREE.MeshStandardMaterial({
+    color: 0xc0c0c0, metalness: 1.0, roughness: 0.08, envMap: envTex, envMapIntensity: 2.0
   });
-  const frontMat = new THREE.MeshPhysicalMaterial({
+  const frontMat = new THREE.MeshStandardMaterial({
     map: faceTex,
     normalMap: normalTex, normalScale: new THREE.Vector2(1.0, 1.0),
     metalnessMap: mrTex, roughnessMap: mrTex,
     metalness: 1.0, roughness: 1.0,
-    envMap: envTex, envMapIntensity: 2.5,
-    side: THREE.FrontSide,
-    clearcoat: 0.8, clearcoatRoughness: 0.1,
-    iridescence: 1.0, iridescenceIOR: 1.3,
+    side: THREE.FrontSide
   });
 
   // Split ExtrudeGeometry into 3 material groups: front, back, sides
-  const backMat = new THREE.MeshPhysicalMaterial({
-    map: backTex, metalness: 0.7, roughness: 0.3, envMap: envTex, envMapIntensity: 0.8,
-    clearcoat: 0.5, clearcoatRoughness: 0.15,
+  const backMat = new THREE.MeshStandardMaterial({
+    map: backTex, metalness: 0.1, roughness: 0.6
   });
 
   // Ensure geometry is indexed so we can split groups
@@ -1301,13 +1296,11 @@ export async function initRiderCard3D(canvasEl, data) {
       if (++_rcFrameSkip % 2 !== 0) return;
     } else { _rcFrameSkip = 0; }
 
-    // Shimmer
+    // Shimmer — normal scale pulse + level glow
     const rotY = _rcMesh.rotation.y || 0;
     const t = Date.now() * 0.001;
-    frontMat.envMapIntensity = 1.2 + Math.sin(t * 1.5 + rotY * 5) * 0.5;
     const ns = 0.85 + Math.sin(t + rotY * 3) * 0.15;
     frontMat.normalScale.set(ns, ns);
-    // Level number glow pulse
     lvlGlowMat.uniforms.intensity.value = 0.4 + Math.sin(t * 1.2 + rotY * 2) * 0.2;
 
     if (!_rcDragging) {
@@ -1961,18 +1954,16 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   const frontMat = new THREE.MeshPhysicalMaterial({
     map: faceTex, normalMap: normalTex, normalScale: new THREE.Vector2(isMountain ? 0.3 : 1.2, isMountain ? 0.3 : 1.2),
     metalnessMap: mrTex, roughnessMap: mrTex, metalness: 1, roughness: 1,
-    envMap: envTex, envMapIntensity: isMountain ? 0.8 : 2.0, side: THREE.FrontSide,
+    side: THREE.FrontSide,
     transparent: isMountain, alphaTest: isMountain ? 0.01 : 0,
     clearcoat: 0.8, clearcoatRoughness: 0.1,
     iridescence: 1.0, iridescenceIOR: 1.3,
   });
-  const backMat = new THREE.MeshPhysicalMaterial({
-    map: backTex, metalness: 0.6, roughness: 0.3, envMap: envTex, envMapIntensity: 0.8,
-    clearcoat: 0.5, clearcoatRoughness: 0.15,
+  const backMat = new THREE.MeshStandardMaterial({
+    map: backTex, metalness: 0.1, roughness: 0.6
   });
-  const edgeMat = new THREE.MeshPhysicalMaterial({
-    color: def.color, metalness: 1, roughness: 0.05, envMap: envTex, envMapIntensity: 3,
-    clearcoat: 0.8, clearcoatRoughness: 0.05,
+  const edgeMat = new THREE.MeshStandardMaterial({
+    color: def.color, metalness: 1, roughness: 0.05, envMap: envTex, envMapIntensity: 3
   });
 
   // Split geometry groups
@@ -2455,14 +2446,10 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     // Holo shimmer — sweep rainbow env map based on rotation angle
     const ry = _bcMesh.rotation.y || 0, rx = _bcMesh.rotation.x || 0;
     if (!isMountain) {
-      // Subtle env map offset sweep — gentle rainbow shift with rotation
+      // Sweep env map offset on edges for rainbow shift
       envTex.offset.x = (ry * 0.4) % 1;
       envTex.offset.y = (rx * 0.15) % 1;
       envTex.needsUpdate = false;
-      // Shimmer — same range as profile card
-      frontMat.envMapIntensity = 1.2 + Math.sin(t * 1.5 + ry * 5) * 0.5;
-    } else {
-      frontMat.envMapIntensity = 0.5 + Math.sin(t * 0.8 + ry * 3) * 0.15;
     }
     // Moving spotlight — orbits opposite to card tilt for specular hotspot
     holoSpot.position.x = -Math.sin(ry) * 3;
