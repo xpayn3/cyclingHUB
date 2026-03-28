@@ -7834,6 +7834,14 @@ const C_ANIM = {
   },
 };
 Chart.defaults.animations = C_ANIM;
+// System-wide: all hover/active dots are white
+Chart.defaults.elements.point.backgroundColor = '#ffffff';
+Chart.defaults.elements.point.borderColor = '#ffffff';
+Chart.defaults.elements.point.borderWidth = 0;
+Chart.defaults.elements.point.hoverBackgroundColor = '#ffffff';
+Chart.defaults.elements.point.hoverBorderColor = '#ffffff';
+Chart.defaults.elements.point.hoverBorderWidth = 0;
+Chart.defaults.elements.point.hoverRadius = 4;
 const C_NO_ANIM = { x: { duration: 0 }, y: { duration: 0 } };
 /** Run fn() with chart animations suppressed (instant render) */
 function noChartAnim(fn) {
