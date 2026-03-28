@@ -2133,7 +2133,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
       const c = document.createElement('canvas'); c.width = eqW; c.height = eqH;
       drawFn(c.getContext('2d'), eqW, eqH);
       // Dome geometry — curves inward behind card
-      const domeRadius = Math.max(cardW * 0.7, zBehind + 0.5);
+      const domeRadius = Math.max(cardW * 1.2, zBehind + 0.5);
       const domeGeo = new THREE.SphereGeometry(domeRadius, 32, 32);
       domeGeo.rotateX(Math.PI);
       domeGeo.rotateZ(Math.PI);
@@ -2259,7 +2259,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
       ctx.beginPath(); ctx.arc(mx + 12, my + 10, 4, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath(); ctx.arc(mx + 3, my + 15, 5, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath(); ctx.arc(mx - 15, my + 5, 3, 0, Math.PI * 2); ctx.fill();
-    }, 3.0);
+    }, 5.0);
 
     // Layer 0.5: Distant aurora / cloud band (between sky and mountains)
     const aurora = makeLayer((ctx, w2, h2) => {
@@ -2285,7 +2285,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
         cg.addColorStop(1, 'transparent');
         ctx.fillStyle = cg; ctx.fillRect(0, 0, w2, h2);
       }
-    }, 2.2);
+    }, 4.0);
 
     // Layer 1: Far mountains
     const farMtn = makeLayer((ctx, w2, h2) => {
@@ -2299,7 +2299,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
         ctx.beginPath(); ctx.moveTo(w2*px,h2*py);
         ctx.lineTo(w2*(px-0.04),h2*(py+0.07)); ctx.lineTo(w2*(px+0.04),h2*(py+0.07)); ctx.fill();
       });
-    }, 1.6);
+    }, 2.8);
 
     // Layer 2: Mid hills
     const midHill = makeLayer((ctx, w2, h2) => {
@@ -2309,7 +2309,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
       ctx.quadraticCurveTo(w2*0.6,h2*0.62,w2*0.8,h2*0.5);
       ctx.quadraticCurveTo(w2*0.95,h2*0.42,w2,h2*0.52);
       ctx.lineTo(w2,h2); ctx.lineTo(0,h2); ctx.fill();
-    }, 1.0);
+    }, 1.8);
 
     // Layer 3: Foreground trees
     const fg = makeLayer((ctx, w2, h2) => {
@@ -2331,7 +2331,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
         ctx.fillStyle = `rgba(200,210,255,${0.1+Math.random()*0.2})`;
         ctx.beginPath(); ctx.arc(Math.random()*w2,Math.random()*h2,1+Math.random()*2,0,Math.PI*2); ctx.fill();
       }
-    }, 0.5);
+    }, 1.0);
 
     // Layer 4: Close silhouette trees at edges — framing the scene
     const closeTrees = makeLayer((ctx, w2, h2) => {
