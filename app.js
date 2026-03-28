@@ -18438,6 +18438,12 @@ function renderCalDayList(dateStr, actMap) {
 ==================================================== */
 
 async function navigateToActivity(actKey, fromStep = false) {
+  // Clean up previous page before transitioning (matches navigate() chain)
+  if (!fromStep && state.currentPage && state.currentPage !== 'activity') {
+    try { cleanupPageCharts(state.currentPage); } catch(e) { console.warn('Chart cleanup:', e); }
+    try { _cleanupPageDOM(state.currentPage); } catch(e) { console.warn('DOM cleanup:', e); }
+  }
+
   // Accept an activity object directly (used when stepping prev/next)
   let activity = (actKey && typeof actKey === 'object') ? actKey : null;
 
@@ -18543,13 +18549,13 @@ async function navigateToActivity(actKey, fromStep = false) {
     skeletonCards(true);
     destroyChartInstances();
   }
-  _loadingEl.style.display = 'none';
+  if (_loadingEl) _loadingEl.style.display = 'none';
 
   // Only try to fetch detail/streams if we have an id
   const actId = activity.id;
   if (!actId) { skeletonCards(false); return; }
 
-  if (!fromStep) _loadingEl.style.display = 'flex';
+  if (!fromStep && _loadingEl) _loadingEl.style.display = 'flex';
 
   // Pre-warm the MapLibre map immediately (loads style + tiles in parallel with API fetches)
   _preWarmActivityMap();
