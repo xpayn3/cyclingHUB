@@ -16,6 +16,47 @@ let _badgeRotY = 0;
 
 let _GLTFLoader = null;
 
+// ── WebGL resilience ──────────────────────────────────────────────────────────
+let _contextLost = false;
+
+function _isWebGLAvailable() {
+  try {
+    const c = document.createElement('canvas');
+    return !!(window.WebGLRenderingContext && (c.getContext('webgl') || c.getContext('experimental-webgl')));
+  } catch(e) { return false; }
+}
+
+function _showFallback2D(canvasEl) {
+  try {
+    const parent = canvasEl.parentElement;
+    const w2 = (parent?.clientWidth) || 280;
+    const h2 = (parent?.clientHeight) || 280;
+    canvasEl.width = w2; canvasEl.height = h2;
+    canvasEl.style.width = w2 + 'px'; canvasEl.style.height = h2 + 'px';
+    const ctx = canvasEl.getContext('2d');
+    if (!ctx) return;
+    ctx.fillStyle = '#111'; ctx.fillRect(0, 0, w2, h2);
+    ctx.font = '13px Inter, system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.textAlign = 'center';
+    ctx.fillText('3D unavailable', w2 / 2, h2 / 2);
+  } catch(_) {}
+}
+
+function _onContextLost(e) {
+  e.preventDefault();
+  _contextLost = true;
+  console.warn('[3D] WebGL context lost — pausing renders');
+}
+
+function _onContextRestored() {
+  _contextLost = false;
+  // Null out shared renderer so next init rebuilds it on the restored context
+  _sharedRenderer = null;
+  _sharedRendererCanvas = null;
+  console.log('[3D] WebGL context restored');
+}
+
 // ── Shared renderer pool ─────────────────────────────────────────────────────
 // One WebGLRenderer reused across rider card, badge card, and badge viewer.
 // Creating a WebGL context is expensive (~50-100ms); reusing saves that cost.
@@ -28,15 +69,23 @@ function _getRenderer(THREE, canvasEl, opts) {
     try { _sharedRenderer.dispose(); } catch {}
     _sharedRenderer = null;
   }
-  _sharedRenderer = new THREE.WebGLRenderer({
-    canvas: canvasEl, alpha: true, antialias: true, stencil: true,
-    powerPreference: 'high-performance'
-  });
+  try {
+    _sharedRenderer = new THREE.WebGLRenderer({
+      canvas: canvasEl, alpha: true, antialias: true, stencil: true,
+      powerPreference: 'high-performance'
+    });
+  } catch(e) {
+    console.error('[3D] WebGLRenderer creation failed:', e);
+    return null;
+  }
   _sharedRenderer.toneMapping = THREE.ACESFilmicToneMapping;
   _sharedRenderer.toneMappingExposure = 1.0;
-  _sharedRenderer.sortObjects = false;
+  _sharedRenderer.sortObjects = true;
   _sharedRenderer.localClippingEnabled = true;
   _sharedRendererCanvas = canvasEl;
+  // Context loss / restore handlers on the underlying canvas
+  canvasEl.addEventListener('webglcontextlost', _onContextLost, false);
+  canvasEl.addEventListener('webglcontextrestored', _onContextRestored, false);
   return _sharedRenderer;
 }
 
@@ -374,6 +423,8 @@ function _createBadgeNormalMap(THREE, def, size) {
 
 // Initialize the 3D scene in a canvas
 export async function initBadge3D(canvasEl, badgeId) {
+  if (!_isWebGLAvailable()) { _showFallback2D(canvasEl); return; }
+  try {
   const THREE = await _loadThreeJS();
 
   // Ensure canvas has dimensions
@@ -393,15 +444,11 @@ export async function initBadge3D(canvasEl, badgeId) {
   _badgeCamera = new THREE.PerspectiveCamera(35, w / h, 0.1, 100);
   _badgeCamera.position.set(0, 0, 4.5);
 
-  // Renderer
-  _badgeRenderer = new THREE.WebGLRenderer({
-    canvas: canvasEl,
-    alpha: true,
-    antialias: true,
-  });
+  // Renderer — use shared pool like initRiderCard3D / initBadgeCard3D
+  _badgeRenderer = _getRenderer(THREE, canvasEl);
+  if (!_badgeRenderer) throw new Error('WebGL renderer unavailable');
   _badgeRenderer.setSize(w, h);
   _badgeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
-  _badgeRenderer.toneMapping = THREE.ACESFilmicToneMapping;
   _badgeRenderer.toneMappingExposure = 1.2;
 
   // Lighting — studio setup for gold
@@ -567,6 +614,10 @@ export async function initBadge3D(canvasEl, badgeId) {
 
   _animate_spring(REST_X, REST_Y, SPRING, DAMPING);
   _setupBadgeInteraction_spring(canvasEl, REST_X, REST_Y, SPRING, DAMPING);
+  } catch(e) {
+    console.error('[3D] initBadge3D failed:', e);
+    _showFallback2D(canvasEl);
+  }
 }
 
 // Spring-back animation loop
@@ -583,36 +634,40 @@ function _animate_spring(restX, restY, spring, damping) {
 
   function loop() {
     _badgeRaf = requestAnimationFrame(loop);
-    if (!_badgeMesh) return;
+    if (_contextLost || !_badgeMesh) return;
 
-    if (!_badgeDragging) {
-      // Spring force towards rest position
-      const dx = _springRestX - _badgeMesh.rotation.x;
-      const dy = _springRestY - _badgeMesh.rotation.y;
+    try {
+      if (!_badgeDragging) {
+        // Spring force towards rest position
+        const dx = _springRestX - _badgeMesh.rotation.x;
+        const dy = _springRestY - _badgeMesh.rotation.y;
 
-      // Apply spring acceleration
-      _velX += dx * _springK;
-      _velY += dy * _springK;
+        // Apply spring acceleration
+        _velX += dx * _springK;
+        _velY += dy * _springK;
 
-      // Apply damping
-      _velX *= _springD;
-      _velY *= _springD;
+        // Apply damping
+        _velX *= _springD;
+        _velY *= _springD;
 
-      // Update rotation
-      _badgeMesh.rotation.x += _velX;
-      _badgeMesh.rotation.y += _velY;
+        // Update rotation
+        _badgeMesh.rotation.x += _velX;
+        _badgeMesh.rotation.y += _velY;
 
-      // Add subtle idle wobble when nearly at rest (alive feel)
-      const dist = Math.abs(dx) + Math.abs(dy);
-      if (dist < 0.01) {
-        const t = Date.now() * 0.001;
-        _badgeMesh.rotation.y = _springRestY + Math.sin(t * 0.8) * 0.015;
-        _badgeMesh.rotation.x = _springRestX + Math.sin(t * 0.6 + 1) * 0.015;
+        // Add subtle idle wobble when nearly at rest (alive feel)
+        const dist = Math.abs(dx) + Math.abs(dy);
+        if (dist < 0.01) {
+          const t = Date.now() * 0.001;
+          _badgeMesh.rotation.y = _springRestY + Math.sin(t * 0.8) * 0.015;
+          _badgeMesh.rotation.x = _springRestX + Math.sin(t * 0.6 + 1) * 0.015;
+        }
       }
-    }
 
-    if (_badgeRenderer && _badgeScene && _badgeCamera) {
-      _badgeRenderer.render(_badgeScene, _badgeCamera);
+      if (_badgeRenderer && _badgeScene && _badgeCamera) {
+        _badgeRenderer.render(_badgeScene, _badgeCamera);
+      }
+    } catch(e) {
+      console.error('[3D] badge render error:', e);
     }
   }
   loop();
@@ -682,6 +737,8 @@ let _rcDragging = false, _rcStartX = 0, _rcStartY = 0, _rcRotX = 0, _rcRotY = 0;
 let _rcTrail = [];
 
 export async function initRiderCard3D(canvasEl, data) {
+  if (!_isWebGLAvailable()) { _showFallback2D(canvasEl); return; }
+  try {
   const THREE = await _loadThreeJS();
 
   let w = canvasEl.clientWidth || 340;
@@ -1236,6 +1293,9 @@ export async function initRiderCard3D(canvasEl, data) {
     new THREE.PlaneGeometry(cardW * 0.95, cardH * 0.95), lvlGlowMat
   );
   lvlGlowPlane.position.z = cardD * 0.5 + 0.015;
+  // renderOrder ensures transparent planes sort correctly over the card at all tilt angles
+  lvlGlowPlane.renderOrder = 1;
+  lvlPlane.renderOrder = 2;
 
   _rcMesh = new THREE.Group();
   _rcMesh.add(cardMesh);
@@ -1266,82 +1326,85 @@ export async function initRiderCard3D(canvasEl, data) {
 
   function loop() {
     _rcRaf = requestAnimationFrame(loop);
-    if (!_rcMesh) return;
-    if (_rcIdle) return;
+    if (_contextLost || !_rcMesh || _rcIdle) return;
 
-    // Intro animation
-    const introElapsed = Date.now() - _rcIntroStart;
-    if (introElapsed < _rcIntroDur) {
-      const p = _easeOutBack(Math.min(1, introElapsed / _rcIntroDur));
-      _rcMesh.rotation.x = 0.3 + (REST_X - 0.3) * p;
-      _rcMesh.rotation.y = Math.PI * 0.6 + (REST_Y - Math.PI * 0.6) * p;
-      _rcMesh.rotation.z = -0.15 * (1 - p);
-      _rcMesh.scale.setScalar(0.7 + 0.3 * p);
-      _rcRenderer.render(_rcScene, _rcCamera);
-      return;
-    } else if (!_rcAutoSpin && !_rcSpinning && !_rcDragging) {
-      _rcAutoSpin = true; // transition to auto-spin after intro
-    }
+    try {
+      // Intro animation
+      const introElapsed = Date.now() - _rcIntroStart;
+      if (introElapsed < _rcIntroDur) {
+        const p = _easeOutBack(Math.min(1, introElapsed / _rcIntroDur));
+        _rcMesh.rotation.x = 0.3 + (REST_X - 0.3) * p;
+        _rcMesh.rotation.y = Math.PI * 0.6 + (REST_Y - Math.PI * 0.6) * p;
+        _rcMesh.rotation.z = -0.15 * (1 - p);
+        _rcMesh.scale.setScalar(0.7 + 0.3 * p);
+        if (_rcRenderer && _rcScene && _rcCamera) _rcRenderer.render(_rcScene, _rcCamera);
+        return;
+      } else if (!_rcAutoSpin && !_rcSpinning && !_rcDragging) {
+        _rcAutoSpin = true; // transition to auto-spin after intro
+      }
 
-    // Skip every other frame during auto-spin (30fps is enough for idle)
-    if (_rcAutoSpin && !_rcDragging && !_rcSpinning) {
-      if (++_rcFrameSkip % 2 !== 0) return;
-    } else { _rcFrameSkip = 0; }
+      // Skip every other frame during auto-spin (30fps is enough for idle)
+      if (_rcAutoSpin && !_rcDragging && !_rcSpinning) {
+        if (++_rcFrameSkip % 2 !== 0) return;
+      } else { _rcFrameSkip = 0; }
 
-    // Shimmer
-    const rotY = _rcMesh.rotation.y || 0;
-    const t = Date.now() * 0.001;
-    frontMat.envMapIntensity = 1.2 + Math.sin(t * 1.5 + rotY * 5) * 0.5;
-    const ns = 0.85 + Math.sin(t + rotY * 3) * 0.15;
-    frontMat.normalScale.set(ns, ns);
-    // Level number glow pulse
-    lvlGlowMat.uniforms.intensity.value = 0.4 + Math.sin(t * 1.2 + rotY * 2) * 0.2;
+      // Shimmer
+      const rotY = _rcMesh.rotation.y || 0;
+      const t = Date.now() * 0.001;
+      frontMat.envMapIntensity = 1.2 + Math.sin(t * 1.5 + rotY * 5) * 0.5;
+      const ns = 0.85 + Math.sin(t + rotY * 3) * 0.15;
+      frontMat.normalScale.set(ns, ns);
+      // Level number glow pulse
+      lvlGlowMat.uniforms.intensity.value = 0.4 + Math.sin(t * 1.2 + rotY * 2) * 0.2;
 
-    if (!_rcDragging) {
-      const timeSinceRelease = Date.now() - _rcReleaseTime;
+      if (!_rcDragging) {
+        const timeSinceRelease = Date.now() - _rcReleaseTime;
 
-      if (_rcSpinning) {
-        // Coast with momentum — gradual friction
-        const speed = Math.abs(_rcDragVelX) + Math.abs(_rcDragVelY);
-        if (speed > 0.002) {
-          _rcDragVelX *= 0.96;
-          _rcDragVelY *= 0.96;
-          _rcMesh.rotation.x += _rcDragVelX;
-          _rcMesh.rotation.y += _rcDragVelY;
-          _rcMesh.rotation.x += (REST_X - _rcMesh.rotation.x) * 0.005;
-        } else {
-          // Momentum died — transition to auto-spin
-          _rcSpinning = false;
+        if (_rcSpinning) {
+          // Coast with momentum — gradual friction
+          const speed = Math.abs(_rcDragVelX) + Math.abs(_rcDragVelY);
+          if (speed > 0.002) {
+            _rcDragVelX *= 0.96;
+            _rcDragVelY *= 0.96;
+            _rcMesh.rotation.x += _rcDragVelX;
+            _rcMesh.rotation.y += _rcDragVelY;
+            _rcMesh.rotation.x += (REST_X - _rcMesh.rotation.x) * 0.005;
+          } else {
+            // Momentum died — transition to auto-spin
+            _rcSpinning = false;
+            _rcAutoSpin = true;
+          }
+        } else if (_rcAutoSpin || timeSinceRelease > 2000) {
           _rcAutoSpin = true;
+          const ast = Date.now() * 0.001;
+          _rcMesh.rotation.y += 0.006;
+          _rcMesh.rotation.x += (REST_X + Math.sin(ast * 0.8) * 0.2 - _rcMesh.rotation.x) * 0.04;
+          _rcMesh.rotation.z += (Math.sin(ast * 0.5 + 1) * 0.05 - _rcMesh.rotation.z) * 0.03;
         }
-      } else if (_rcAutoSpin || timeSinceRelease > 2000) {
-        _rcAutoSpin = true;
-        const ast = Date.now() * 0.001;
-        _rcMesh.rotation.y += 0.006;
-        _rcMesh.rotation.x += (REST_X + Math.sin(ast * 0.8) * 0.2 - _rcMesh.rotation.x) * 0.04;
-        _rcMesh.rotation.z += (Math.sin(ast * 0.5 + 1) * 0.05 - _rcMesh.rotation.z) * 0.03;
       }
-    }
-    // Parallax — shift layers based on card tilt
-    if (_rcMesh._parallax) {
-      // Offset from rest — small values only when near front view
-      let dy = _rcMesh.rotation.y - REST_Y;
-      dy = dy - Math.round(dy / (Math.PI * 2)) * Math.PI * 2; // normalize to -PI..PI
-      const dx = _rcMesh.rotation.x - REST_X;
-      // Only parallax when close to front view
-      if (Math.abs(dy) < 0.8 && Math.abs(dx) < 0.8) {
-        _rcMesh._parallax.forEach(l => {
-          l.mesh.position.x += (-dy * l.depth * 5 - l.mesh.position.x) * 0.15;
-          l.mesh.position.y += (dx * l.depth * 5 - l.mesh.position.y) * 0.15;
-        });
-      } else {
-        _rcMesh._parallax.forEach(l => {
-          l.mesh.position.x *= 0.85;
-          l.mesh.position.y *= 0.85;
-        });
+      // Parallax — shift layers based on card tilt
+      if (_rcMesh._parallax) {
+        // Offset from rest — small values only when near front view
+        let dy = _rcMesh.rotation.y - REST_Y;
+        dy = dy - Math.round(dy / (Math.PI * 2)) * Math.PI * 2; // normalize to -PI..PI
+        const dx = _rcMesh.rotation.x - REST_X;
+        // Only parallax when close to front view
+        if (Math.abs(dy) < 0.8 && Math.abs(dx) < 0.8) {
+          _rcMesh._parallax.forEach(l => {
+            l.mesh.position.x += (-dy * l.depth * 5 - l.mesh.position.x) * 0.15;
+            l.mesh.position.y += (dx * l.depth * 5 - l.mesh.position.y) * 0.15;
+          });
+        } else {
+          _rcMesh._parallax.forEach(l => {
+            l.mesh.position.x *= 0.85;
+            l.mesh.position.y *= 0.85;
+          });
+        }
       }
+      if (_rcRenderer && _rcScene && _rcCamera) _rcRenderer.render(_rcScene, _rcCamera);
+    } catch(e) {
+      console.error('[3D] rider card render error:', e);
     }
-    _rcRenderer.render(_rcScene, _rcCamera);
   }
   loop();
 
@@ -1400,6 +1463,10 @@ export async function initRiderCard3D(canvasEl, data) {
   canvasEl.addEventListener('pointerup', endDrag);
   canvasEl.addEventListener('pointercancel', endDrag);
   canvasEl.addEventListener('pointerleave', endDrag);
+  } catch(e) {
+    console.error('[3D] initRiderCard3D failed:', e);
+    _showFallback2D(canvasEl);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1578,6 +1645,8 @@ let _bcReleaseTime = 0, _bcSpinning = false, _bcIdle = false, _bcAutoSpin = true
 let _bcTrail = [];
 
 export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
+  if (!_isWebGLAvailable()) { _showFallback2D(canvasEl); return; }
+  try {
   const THREE = await _loadThreeJS();
   const def = BADGE_PROCEDURAL[badgeId];
   if (!def) return;
@@ -1993,6 +2062,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(iCanvas), transparent: true, depthWrite: false })
   );
   iconPlane.position.z = cardD * 0.5 + 0.01;
+  iconPlane.renderOrder = 1;
 
   // Glitter/sparkle layer — additive blending for bright sparkles
   const glitterMat = new THREE.ShaderMaterial({
@@ -2055,6 +2125,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     new THREE.PlaneGeometry(cardW * 0.95, cardH * 0.95), glitterMat
   );
   glitterPlane.position.z = cardD * 0.5 + 0.015;
+  glitterPlane.renderOrder = 2;
 
   _bcMesh = new THREE.Group();
   _bcMesh.add(new THREE.Mesh(cardGeo, [frontMat, backMat, edgeMat]));
@@ -2336,6 +2407,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     });
     const portalPlane = new THREE.Mesh(new THREE.PlaneGeometry(winW, winH), portalMat);
     portalPlane.position.set(0, winY, cardD * 0.5 + 0.001);
+    portalPlane.renderOrder = 1;
     _bcMesh.add(portalPlane);
 
     // Text overlay on top of portal — achievement name + desc
@@ -2359,6 +2431,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
       new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(txtCanvas), transparent: true, depthWrite: false })
     );
     txtPlane.position.z = cardD * 0.5 + 0.003;
+    txtPlane.renderOrder = 2;
     _bcMesh.add(txtPlane);
 
     // Store portal data for the render loop
@@ -2389,94 +2462,97 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
 
   function loop() {
     _bcRaf = requestAnimationFrame(loop);
-    if (!_bcMesh) return;
-    if (_bcIdle) return;
+    if (_contextLost || !_bcMesh || _bcIdle) return;
 
-    // Always update glitter uniforms
-    const t = Date.now() * 0.001;
-    glitterMat.uniforms.time.value = t;
-    glitterMat.uniforms.rotY.value = _bcMesh.rotation.y || 0;
-    glitterMat.uniforms.rotX.value = _bcMesh.rotation.x || 0;
+    try {
+      // Always update glitter uniforms
+      const t = Date.now() * 0.001;
+      glitterMat.uniforms.time.value = t;
+      glitterMat.uniforms.rotY.value = _bcMesh.rotation.y || 0;
+      glitterMat.uniforms.rotX.value = _bcMesh.rotation.x || 0;
 
-    // Intro animation
-    const introElapsed = Date.now() - _bcIntroStart;
-    if (introElapsed < _bcIntroDur) {
-      const p = _easeOutBack2(Math.min(1, introElapsed / _bcIntroDur));
-      _bcMesh.rotation.x = 0.3 + (REST_X - 0.3) * p;
-      _bcMesh.rotation.y = -Math.PI * 0.6 + (REST_Y - (-Math.PI * 0.6)) * p;
-      _bcMesh.rotation.z = 0.15 * (1 - p);
-      _bcMesh.scale.setScalar(0.7 + 0.3 * p);
-      glitterMat.uniforms.rotY.value = _bcMesh.rotation.y;
-      glitterMat.uniforms.rotX.value = _bcMesh.rotation.x;
-      _bcRenderer.render(_bcScene, _bcCamera);
-      return;
-    } else if (!_bcAutoSpin && !_bcSpinning && !_bcDragging) {
-      _bcAutoSpin = true;
-    }
-
-    // Skip every other frame during auto-spin
-    if (_bcAutoSpin && !_bcDragging && !_bcSpinning) {
-      if (++_bcFrameSkip % 2 !== 0) return;
-    } else { _bcFrameSkip = 0; }
-
-    // Holo shimmer — sweep rainbow env map based on rotation angle
-    const ry = _bcMesh.rotation.y || 0, rx = _bcMesh.rotation.x || 0;
-    if (!isMountain) {
-      // Subtle env map offset sweep — gentle rainbow shift with rotation
-      envTex.offset.x = (ry * 0.4) % 1;
-      envTex.offset.y = (rx * 0.15) % 1;
-      envTex.needsUpdate = false;
-      // Shimmer — same range as profile card
-      frontMat.envMapIntensity = 1.2 + Math.sin(t * 1.5 + ry * 5) * 0.5;
-    } else {
-      frontMat.envMapIntensity = 0.5 + Math.sin(t * 0.8 + ry * 3) * 0.15;
-    }
-    // Moving spotlight — orbits opposite to card tilt for specular hotspot
-    holoSpot.position.x = -Math.sin(ry) * 3;
-    holoSpot.position.y = Math.sin(rx) * 2 + 1;
-    holoSpot.position.z = Math.cos(ry) * 3 + 1;
-    holoSpot.intensity = 2 + Math.max(0, Math.cos(ry)) * 4;
-    if (!_bcDragging) {
-      const timeSinceRelease = Date.now() - _bcReleaseTime;
-      if (_bcSpinning) {
-        const speed = Math.abs(_bcDragVelX) + Math.abs(_bcDragVelY);
-        if (speed > 0.002) {
-          _bcDragVelX *= 0.96; _bcDragVelY *= 0.96;
-          _bcMesh.rotation.x += _bcDragVelX; _bcMesh.rotation.y += _bcDragVelY;
-          _bcMesh.rotation.x += (REST_X - _bcMesh.rotation.x) * 0.005;
-        } else {
-          _bcSpinning = false; _bcAutoSpin = true;
-        }
-      } else if (_bcAutoSpin || timeSinceRelease > 2000) {
+      // Intro animation
+      const introElapsed = Date.now() - _bcIntroStart;
+      if (introElapsed < _bcIntroDur) {
+        const p = _easeOutBack2(Math.min(1, introElapsed / _bcIntroDur));
+        _bcMesh.rotation.x = 0.3 + (REST_X - 0.3) * p;
+        _bcMesh.rotation.y = -Math.PI * 0.6 + (REST_Y - (-Math.PI * 0.6)) * p;
+        _bcMesh.rotation.z = 0.15 * (1 - p);
+        _bcMesh.scale.setScalar(0.7 + 0.3 * p);
+        glitterMat.uniforms.rotY.value = _bcMesh.rotation.y;
+        glitterMat.uniforms.rotX.value = _bcMesh.rotation.x;
+        if (_bcRenderer && _bcScene && _bcCamera) _bcRenderer.render(_bcScene, _bcCamera);
+        return;
+      } else if (!_bcAutoSpin && !_bcSpinning && !_bcDragging) {
         _bcAutoSpin = true;
-        const bst = Date.now() * 0.001;
-        _bcMesh.rotation.y += 0.006;
-        _bcMesh.rotation.x += (REST_X + Math.sin(bst * 0.8) * 0.2 - _bcMesh.rotation.x) * 0.04;
-        _bcMesh.rotation.z += (Math.sin(bst * 0.5 + 1) * 0.05 - _bcMesh.rotation.z) * 0.03;
       }
+
+      // Skip every other frame during auto-spin
+      if (_bcAutoSpin && !_bcDragging && !_bcSpinning) {
+        if (++_bcFrameSkip % 2 !== 0) return;
+      } else { _bcFrameSkip = 0; }
+
+      // Holo shimmer — sweep rainbow env map based on rotation angle
+      const ry = _bcMesh.rotation.y || 0, rx = _bcMesh.rotation.x || 0;
+      if (!isMountain) {
+        // Subtle env map offset sweep — gentle rainbow shift with rotation
+        envTex.offset.x = (ry * 0.4) % 1;
+        envTex.offset.y = (rx * 0.15) % 1;
+        envTex.needsUpdate = false;
+        // Shimmer — same range as profile card
+        frontMat.envMapIntensity = 1.2 + Math.sin(t * 1.5 + ry * 5) * 0.5;
+      } else {
+        frontMat.envMapIntensity = 0.5 + Math.sin(t * 0.8 + ry * 3) * 0.15;
+      }
+      // Moving spotlight — orbits opposite to card tilt for specular hotspot
+      holoSpot.position.x = -Math.sin(ry) * 3;
+      holoSpot.position.y = Math.sin(rx) * 2 + 1;
+      holoSpot.position.z = Math.cos(ry) * 3 + 1;
+      holoSpot.intensity = 2 + Math.max(0, Math.cos(ry)) * 4;
+      if (!_bcDragging) {
+        const timeSinceRelease = Date.now() - _bcReleaseTime;
+        if (_bcSpinning) {
+          const speed = Math.abs(_bcDragVelX) + Math.abs(_bcDragVelY);
+          if (speed > 0.002) {
+            _bcDragVelX *= 0.96; _bcDragVelY *= 0.96;
+            _bcMesh.rotation.x += _bcDragVelX; _bcMesh.rotation.y += _bcDragVelY;
+            _bcMesh.rotation.x += (REST_X - _bcMesh.rotation.x) * 0.005;
+          } else {
+            _bcSpinning = false; _bcAutoSpin = true;
+          }
+        } else if (_bcAutoSpin || timeSinceRelease > 2000) {
+          _bcAutoSpin = true;
+          const bst = Date.now() * 0.001;
+          _bcMesh.rotation.y += 0.006;
+          _bcMesh.rotation.x += (REST_X + Math.sin(bst * 0.8) * 0.2 - _bcMesh.rotation.x) * 0.04;
+          _bcMesh.rotation.z += (Math.sin(bst * 0.5 + 1) * 0.05 - _bcMesh.rotation.z) * 0.03;
+        }
+      }
+      // Parallax — move layers in portal scene or icon plane
+      let dy = _bcMesh.rotation.y - REST_Y; dy -= Math.round(dy / (Math.PI * 2)) * Math.PI * 2;
+      const dx = _bcMesh.rotation.x - REST_X;
+      if (_bcMesh._portal && _bcRenderer) {
+        // Shift portal camera for parallax depth effect
+        const p = _bcMesh._portal;
+        const px = Math.abs(dy) < 1.5 ? -dy * 0.8 : 0;
+        const py = Math.abs(dx) < 1.5 ? dx * 0.8 : 0;
+        p.camera.position.x += (px - p.camera.position.x) * 0.15;
+        p.camera.position.y += (py - p.camera.position.y) * 0.15;
+        p.camera.lookAt(0, 0, -2);
+        // Render portal scene to render target
+        _bcRenderer.setRenderTarget(p.rt);
+        _bcRenderer.render(p.scene, p.camera);
+        _bcRenderer.setRenderTarget(null);
+      }
+      if (_bcMesh._parallax && _bcMesh._parallax.length) {
+        if (Math.abs(dy) < 0.8 && Math.abs(dx) < 0.8) {
+          _bcMesh._parallax.forEach(l => { l.mesh.position.x += (-dy * l.depth * 6 - l.mesh.position.x) * 0.15; l.mesh.position.y += (dx * l.depth * 6 - l.mesh.position.y) * 0.15; });
+        } else { _bcMesh._parallax.forEach(l => { l.mesh.position.x *= 0.85; l.mesh.position.y *= 0.85; }); }
+      }
+      if (_bcRenderer && _bcScene && _bcCamera) _bcRenderer.render(_bcScene, _bcCamera);
+    } catch(e) {
+      console.error('[3D] badge card render error:', e);
     }
-    // Parallax — move layers in portal scene or icon plane
-    let dy = _bcMesh.rotation.y - REST_Y; dy -= Math.round(dy / (Math.PI * 2)) * Math.PI * 2;
-    const dx = _bcMesh.rotation.x - REST_X;
-    if (_bcMesh._portal) {
-      // Shift portal camera for parallax depth effect
-      const p = _bcMesh._portal;
-      const px = Math.abs(dy) < 1.5 ? -dy * 0.8 : 0;
-      const py = Math.abs(dx) < 1.5 ? dx * 0.8 : 0;
-      p.camera.position.x += (px - p.camera.position.x) * 0.15;
-      p.camera.position.y += (py - p.camera.position.y) * 0.15;
-      p.camera.lookAt(0, 0, -2);
-      // Render portal scene to render target
-      _bcRenderer.setRenderTarget(p.rt);
-      _bcRenderer.render(p.scene, p.camera);
-      _bcRenderer.setRenderTarget(null);
-    }
-    if (_bcMesh._parallax && _bcMesh._parallax.length) {
-      if (Math.abs(dy) < 0.8 && Math.abs(dx) < 0.8) {
-        _bcMesh._parallax.forEach(l => { l.mesh.position.x += (-dy * l.depth * 6 - l.mesh.position.x) * 0.15; l.mesh.position.y += (dx * l.depth * 6 - l.mesh.position.y) * 0.15; });
-      } else { _bcMesh._parallax.forEach(l => { l.mesh.position.x *= 0.85; l.mesh.position.y *= 0.85; }); }
-    }
-    _bcRenderer.render(_bcScene, _bcCamera);
   }
   loop();
 
@@ -2521,6 +2597,10 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   canvasEl.addEventListener('pointerup', endDrag);
   canvasEl.addEventListener('pointercancel', endDrag);
   canvasEl.addEventListener('pointerleave', endDrag);
+  } catch(e) {
+    console.error('[3D] initBadgeCard3D failed:', e);
+    _showFallback2D(canvasEl);
+  }
 }
 
 export function destroyBadgeCard3D() {
