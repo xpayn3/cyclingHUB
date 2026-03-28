@@ -2923,6 +2923,13 @@ input[type="number"] {
 }
 
 .stat-grid::-webkit-scrollbar { display: none; }
+.stat-card, .hero-act-card, .recent-act-card, .goal-dash-card, .dash-quick-card, .stk-hero-card {
+    box-shadow:
+        0 0.5px 0 0 rgba(255,255,255,0.18) inset,
+        0 0 0 0.5px rgba(255,255,255,0.08) inset,
+        0 -0.5px 0 0 rgba(0,0,0,0.12) inset,
+        0 8px 24px rgba(0,0,0,0.35);
+}
 .stat-card {
     flex: 0 0 calc(50% - var(--gap-layout) / 2);
     max-width: 240px;
