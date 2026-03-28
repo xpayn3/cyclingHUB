@@ -16128,31 +16128,36 @@ function renderCalListView() {
   const container = document.getElementById('calListViewScroll');
   if (!container) return;
   const actMap = buildCalActMap();
-  // Show last 90 days (not ALL history — that creates 5000+ DOM nodes)
+  const allDates = Object.keys(actMap).sort().reverse();
   const today = new Date();
-  const earliest = new Date(today); earliest.setDate(earliest.getDate() - 90);
+
+  // Build all dates from today backward (lazy — only render first batch)
   const dates = [];
+  const earliest = allDates.length > 0 ? new Date(allDates[allDates.length - 1] + 'T00:00') : new Date(today.getFullYear(), today.getMonth() - 3, 1);
   for (let dt = new Date(today); dt >= earliest; dt.setDate(dt.getDate() - 1)) {
     dates.push(toDateStr(dt));
   }
-  let html = '', currentMonth = '';
+
+  const BATCH = 30; // render 30 days at a time
+  let rendered = 0;
+  let currentMonth = '';
   const chevron = `<svg class="icon" width="14" height="14"><use href="icons.svg#icon-chevron-right"/></svg>`;
 
-  for (const dateStr of dates) {
+  function buildDayHTML(dateStr) {
     const items = actMap[dateStr] || [];
     const [y, mo, d] = dateStr.split('-').map(Number);
     const dateObj = new Date(y, mo - 1, d);
+    let h = '';
     const monthKey = dateObj.toLocaleDateString('default', { month: 'long', year: 'numeric' });
     if (monthKey !== currentMonth) {
       currentMonth = monthKey;
-      html += `<div class="cal-list-view-month">${monthKey}</div>`;
+      h += `<div class="cal-list-view-month">${monthKey}</div>`;
     }
     const dayName = dateObj.toLocaleDateString('default', { weekday: 'long' }).toUpperCase();
     const dayDate = dateObj.toLocaleDateString('default', { day: 'numeric', month: 'long' });
     const hasAct = items.length > 0;
-    html += `<div class="cal-list-view-day-group${hasAct ? ' cal-list-view-day--has-activity' : ''}">`;
-    html += `<div class="cal-list-view-day"><span class="cal-list-view-dayname">${dayName}</span> <span class="cal-list-view-daydate">${dayDate}</span></div>`;
-
+    h += `<div class="cal-list-view-day-group${hasAct ? ' cal-list-view-day--has-activity' : ''}">`;
+    h += `<div class="cal-list-view-day"><span class="cal-list-view-dayname">${dayName}</span> <span class="cal-list-view-daydate">${dayDate}</span></div>`;
     for (const { a, stateIdx, isEvent } of items) {
       if (!isEvent && isEmptyActivity(a)) continue;
       const name = isEvent
@@ -16161,35 +16166,39 @@ function renderCalListView() {
       const dist = (a.distance || 0) / 1000;
       const secs = a.moving_time || a.elapsed_time || 0;
       const tss  = isEvent ? (a.icu_training_load || 0) : actVal(a, 'icu_training_load', 'tss');
-      const meta = [
-        dist > 0.1 ? dist.toFixed(1) + ' km' : '',
-        secs > 0   ? fmtDur(secs) : '',
-      ].filter(Boolean).join(' · ');
-      const dotColor = isEvent
-        ? 'var(--accent)'
-        : (calEventClass(a).includes('ride') ? 'var(--accent)' : 'var(--text-muted)');
-      const onclick = isEvent
-        ? `openCalEventModal(window._calEvLookup && window._calEvLookup[${a.id}])`
-        : `navigateToActivity(${stateIdx})`;
-      if (isEvent) {
-        if (!window._calEvLookup) window._calEvLookup = {};
-        window._calEvLookup[a.id] = a;
-      }
+      const meta = [dist > 0.1 ? dist.toFixed(1) + ' km' : '', secs > 0 ? fmtDur(secs) : ''].filter(Boolean).join(' · ');
+      const dotColor = isEvent ? 'var(--accent)' : (calEventClass(a).includes('ride') ? 'var(--accent)' : 'var(--text-muted)');
+      const onclick = isEvent ? `openCalEventModal(window._calEvLookup&&window._calEvLookup[${a.id}])` : `navigateToActivity(${stateIdx})`;
+      if (isEvent) { if (!window._calEvLookup) window._calEvLookup = {}; window._calEvLookup[a.id] = a; }
       const actId = isEvent ? null : (a.id || null);
-      html += `<div class="cal-list-view-item" onclick="${onclick}">
-        <div class="cal-list-view-dot" style="background:${dotColor}"></div>
-        <div class="cal-list-view-info">
-          <div class="cal-list-view-name">${name}</div>
-          ${meta ? `<div class="cal-list-view-meta">${meta}</div>` : ''}
-          ${actId ? `<div class="cal-list-mini-graph" data-act-id="${actId}"></div>` : ''}
-        </div>
-        ${tss > 0 ? `<div class="cal-list-view-tss">${Math.round(tss)} TSS</div>` : ''}
-        ${chevron}
-      </div>`;
+      h += `<div class="cal-list-view-item" onclick="${onclick}"><div class="cal-list-view-dot" style="background:${dotColor}"></div><div class="cal-list-view-info"><div class="cal-list-view-name">${name}</div>${meta ? `<div class="cal-list-view-meta">${meta}</div>` : ''}${actId ? `<div class="cal-list-mini-graph" data-act-id="${actId}"></div>` : ''}</div>${tss > 0 ? `<div class="cal-list-view-tss">${Math.round(tss)} TSS</div>` : ''}${chevron}</div>`;
     }
-    html += `</div>`; // close day-group
+    h += `</div>`;
+    return h;
   }
-  container.innerHTML = html;
+
+  function renderBatch() {
+    const end = Math.min(rendered + BATCH, dates.length);
+    let html = '';
+    for (let i = rendered; i < end; i++) html += buildDayHTML(dates[i]);
+    container.insertAdjacentHTML('beforeend', html);
+    rendered = end;
+    return rendered < dates.length;
+  }
+
+  container.innerHTML = '';
+  renderBatch(); // first 30 days
+
+  // Infinite scroll — load more when near bottom
+  const scrollParent = container.closest('.cal-list-view') || container;
+  let _loading = false;
+  scrollParent.addEventListener('scroll', function _calListScroll() {
+    if (_loading || rendered >= dates.length) return;
+    if (scrollParent.scrollTop + scrollParent.clientHeight >= scrollParent.scrollHeight - 200) {
+      _loading = true;
+      requestAnimationFrame(() => { renderBatch(); _loading = false; });
+    }
+  }, { passive: true });
 
   // Update top month title while scrolling through list view
   const listParent = document.getElementById('calListView');
