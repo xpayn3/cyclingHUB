@@ -6503,14 +6503,13 @@ function _initRecentActDots(rail, count) {
    WIDGET SYSTEM — show/hide/reorder dashboard sections
 ==================================================== */
 const _WIDGET_DEFS = [
-  { id: 'recentCarousel',  label: 'Recent Activities',   icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-activity"/></svg>' },
-  { id: 'goalsTargets',    label: 'Goals',               icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-target"/></svg>' },
-  { id: 'vitality',        label: 'Week Summary',        icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>' },
-  { id: 'todaySuggestion', label: 'Today Suggestion',    icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-alert-circle"/></svg>' },
-  { id: 'weekProgress',    label: 'Week Progress',       icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-activity"/></svg>' },
-  { id: 'quickLinks',      label: 'Garage & Route',      icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-bike"/></svg>' },
-  { id: 'weather',         label: 'Riding Forecast',     icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>' },
-  { id: 'batteryStatus',   label: 'Batteries',           icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-battery"/></svg>' },
+  { id: 'recentCarousel',  label: 'Recent Activities',       icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-activity"/></svg>' },
+  { id: 'goalsTargets',    label: 'Goals',                   icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-target"/></svg>' },
+  { id: 'todaySuggestion', label: "Today's Plan",            icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-alert-circle"/></svg>' },
+  { id: 'weekProgress',    label: 'Training Status',         icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-activity"/></svg>' },
+  { id: 'quickLinks',      label: 'My Garage & Route Builder', icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-bike"/></svg>' },
+  { id: 'weather',         label: 'Weather',                 icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-cloud"/></svg>' },
+  { id: 'batteryStatus',   label: 'Batteries',               icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-battery"/></svg>' },
 ];
 
 function _getWidgetOrder() {
