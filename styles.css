@@ -9395,6 +9395,8 @@ body.show-save-fab #actSaveRouteFab {
     line-height: 1;
     transition: color 0.1s;
     min-height: 36px;
+    user-select: none;
+    -webkit-user-select: none;
 }
 .cev-scrubber-value.is-zero {
     color: var(--text-faint);
@@ -9406,6 +9408,8 @@ body.show-save-fab #actSaveRouteFab {
     display: flex;
     align-items: baseline;
     gap: 5px;
+    user-select: none;
+    -webkit-user-select: none;
 }
 .cev-scrubber-unit {
     font-size: 16px;
