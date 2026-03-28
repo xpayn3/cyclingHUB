@@ -17436,12 +17436,8 @@ function _initScrubbers(containerSel, defs) {
     const valueEl = scrubber.querySelector('.cev-scrubber-value');
     const unitEl = scrubber.querySelector('.cev-scrubber-unit');
     const undoBtn = scrubber.closest('.cev-target-card')?.querySelector('.cev-undo-btn');
-    // Generate ticks if ruler is empty
-    if (ruler && !ruler.children.length) {
-      let ticks = '';
-      for (let i = -200; i <= 200; i++) ticks += `<div class="cev-tick${i % 5 === 0 ? ' cev-tick--major' : ''}"></div>`;
-      ruler.innerHTML = ticks;
-    }
+    // Ticks rendered via CSS background-image dots — no DOM ticks needed
+    if (ruler) ruler.innerHTML = '';
     let step = 0, history = [], dragStartX = 0, dragStartStep = 0, dragging = false;
     function applyStep(s) {
       step = Math.max(def.min, Math.min(def.max, Math.round(s)));
