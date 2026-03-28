@@ -2130,8 +2130,8 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     const makeLayer = (drawFn, zBehind) => {
       const c = document.createElement('canvas'); c.width = fW; c.height = fH;
       drawFn(c.getContext('2d'), fW, fH);
-      // Size layer to overfill the card at its depth
-      const dist = camDist + zBehind; // total distance from camera
+      // Size layer to fill card view at its depth
+      const dist = camDist + zBehind;
       const vH = 2 * Math.tan((camFov * Math.PI / 180) / 2) * dist * 0.6;
       const vW = vH * (w / h);
       const mat = new THREE.MeshBasicMaterial({
