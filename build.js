@@ -47,8 +47,10 @@ const jsFiles = [
   { src: 'js/routes.js',    out: 'js/routes.min.js' },
   { src: 'js/heatmap.js',   out: 'js/heatmap.min.js' },
   { src: 'js/workout.js',   out: 'js/workout.min.js' },
-  { src: 'js/strava.js',    out: 'js/strava.min.js' },
-  { src: 'js/import.js',    out: 'js/import.min.js' },
+  { src: 'js/strava.js',       out: 'js/strava.min.js' },
+  { src: 'js/import.js',       out: 'js/import.min.js' },
+  { src: 'js/badges3d.js',     out: 'js/badges3d.min.js' },
+  { src: 'js/pro-analysis.js', out: 'js/pro-analysis.min.js' },
 ];
 
 let totalSrcJS = 0, totalMinJS = 0;
