@@ -19148,6 +19148,8 @@ body:has(.act-sheet-mode) .topbar {
     height: 100dvh;
     display: flex;
     flex-direction: column;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
     z-index: 1;
     overflow: hidden;
 }
@@ -19265,6 +19267,7 @@ body:has(.act-sheet-mode) .topbar {
     flex: 1;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
     padding: 0 16px 40px;
 }
 .gs-placeholder {
