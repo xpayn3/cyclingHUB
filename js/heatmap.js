@@ -1194,19 +1194,38 @@ export function _hmDrawLines(routes) {
     layout: { 'line-cap': 'round', 'line-join': 'round' },
   });
 
-  // Tooltip on hover
+  // Highlight layer — bright orange on hover
+  const hlSrcId = 'hm-lines-hl-src';
+  const hlLayerId = 'hm-lines-hl';
+  const emptyGJ = { type: 'FeatureCollection', features: [] };
+  _hm.map.addSource(hlSrcId, { type: 'geojson', data: emptyGJ });
+  _hm.map.addLayer({
+    id: hlLayerId, type: 'line', source: hlSrcId,
+    paint: { 'line-color': '#ff6b35', 'line-width': 3.5, 'line-opacity': 0.9 },
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+  });
+
+  // Tooltip + highlight on hover
   const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, className: 'hm-tooltip-popup' });
   const enterFn = (e) => {
     _hm.map.getCanvas().style.cursor = 'pointer';
     const f = e.features[0];
-    if (f) popup.setLngLat(e.lngLat).setHTML(`<b>${f.properties.name}</b><br>${f.properties.date}<br>${f.properties.dist} km`).addTo(_hm.map);
+    if (f) {
+      popup.setLngLat(e.lngLat).setHTML(`<b>${f.properties.name}</b><br>${f.properties.date}<br>${f.properties.dist} km`).addTo(_hm.map);
+      // Highlight this route
+      const hlData = { type: 'FeatureCollection', features: features.filter(ft => ft.properties.idx === f.properties.idx) };
+      try { _hm.map.getSource(hlSrcId).setData(hlData); } catch(_){}
+    }
   };
-  const leaveFn = () => { _hm.map.getCanvas().style.cursor = ''; popup.remove(); };
+  const leaveFn = () => {
+    _hm.map.getCanvas().style.cursor = ''; popup.remove();
+    try { _hm.map.getSource(hlSrcId).setData(emptyGJ); } catch(_){}
+  };
   _hm.map.on('mouseenter', lineId, enterFn);
   _hm.map.on('mouseleave', lineId, leaveFn);
 
-  _hm._sourceIds = (_hm._sourceIds || []).concat(srcId);
-  _hm._layerIds  = (_hm._layerIds  || []).concat(shadowId, lineId);
+  _hm._sourceIds = (_hm._sourceIds || []).concat(srcId, hlSrcId);
+  _hm._layerIds  = (_hm._layerIds  || []).concat(shadowId, lineId, hlLayerId);
   _hm._popups    = (_hm._popups    || []).concat(popup);
   _hm._eventHandlers = (_hm._eventHandlers || []).concat(
     { event: 'mouseenter', layer: lineId, fn: enterFn },
@@ -1244,18 +1263,35 @@ export function _hmDrawBySpeed(routes) {
     layout: { 'line-cap': 'round', 'line-join': 'round' },
   });
 
+  // Highlight layer
+  const hlSrcId = 'hm-speed-hl-src';
+  const hlLayerId = 'hm-speed-hl';
+  const emptyGJ = { type: 'FeatureCollection', features: [] };
+  _hm.map.addSource(hlSrcId, { type: 'geojson', data: emptyGJ });
+  _hm.map.addLayer({
+    id: hlLayerId, type: 'line', source: hlSrcId,
+    paint: { 'line-color': '#ff6b35', 'line-width': 3.5, 'line-opacity': 0.9 },
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+  });
+
   const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, className: 'hm-tooltip-popup' });
   const enterFn = (e) => {
     _hm.map.getCanvas().style.cursor = 'pointer';
     const f = e.features[0];
-    if (f) popup.setLngLat(e.lngLat).setHTML(`<b>${f.properties.name}</b><br>${f.properties.speed} km/h<br>${f.properties.date}`).addTo(_hm.map);
+    if (f) {
+      popup.setLngLat(e.lngLat).setHTML(`<b>${f.properties.name}</b><br>${f.properties.speed} km/h<br>${f.properties.date}`).addTo(_hm.map);
+      try { _hm.map.getSource(hlSrcId).setData({ type: 'FeatureCollection', features: [f] }); } catch(_){}
+    }
   };
-  const leaveFn = () => { _hm.map.getCanvas().style.cursor = ''; popup.remove(); };
+  const leaveFn = () => {
+    _hm.map.getCanvas().style.cursor = ''; popup.remove();
+    try { _hm.map.getSource(hlSrcId).setData(emptyGJ); } catch(_){}
+  };
   _hm.map.on('mouseenter', layerId, enterFn);
   _hm.map.on('mouseleave', layerId, leaveFn);
 
-  _hm._sourceIds = (_hm._sourceIds || []).concat(srcId);
-  _hm._layerIds  = (_hm._layerIds  || []).concat(layerId);
+  _hm._sourceIds = (_hm._sourceIds || []).concat(srcId, hlSrcId);
+  _hm._layerIds  = (_hm._layerIds  || []).concat(layerId, hlLayerId);
   _hm._popups    = (_hm._popups    || []).concat(popup);
   _hm._eventHandlers = (_hm._eventHandlers || []).concat(
     { event: 'mouseenter', layer: layerId, fn: enterFn },
