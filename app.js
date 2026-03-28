@@ -1575,7 +1575,7 @@ function confirmFullResync() {
   const label = () => document.getElementById('ptrLabel');
 
   function _ptrReset(ind, fl, lb) {
-    if (ind) { ind.classList.remove('ptr-visible', 'ptr-complete', 'ptr-refreshing'); ind.style.top = ''; }
+    if (ind) { ind.classList.remove('ptr-visible', 'ptr-complete', 'ptr-refreshing', 'ptr-dismiss'); }
     if (fl) { fl.style.transition = 'none'; fl.style.width = '0%'; }
     if (lb) lb.textContent = 'Pull to refresh';
   }
@@ -1607,10 +1607,8 @@ function confirmFullResync() {
     const ind = el(), fl = fill(), lb = label();
     if (!ind) return;
     const progress = Math.min(_ptrDist / THRESHOLD, 1);
-    ind.style.top = '60px';
     if (fl) { fl.style.transition = 'none'; fl.style.width = (progress * 100) + '%'; }
     if (!ind.classList.contains('ptr-visible')) {
-      ind.offsetHeight;
       ind.classList.add('ptr-visible');
     }
     ind.classList.toggle('ptr-complete', progress >= 1);
@@ -1628,21 +1626,21 @@ function confirmFullResync() {
       ind.classList.add('ptr-refreshing');
       if (lb) lb.textContent = 'Syncing…';
       syncData(true).catch(() => {}).finally(() => {
-        if (state.currentPage !== 'dashboard') { _ptrRefreshing = false; _ptrReset(ind, fl, lb); return; }
         _ptrRefreshing = false;
-        _ptrReset(ind, fl, lb);
+        const i = el(), f = fill(), l = label();
+        if (i) { i.classList.add('ptr-dismiss'); setTimeout(() => _ptrReset(i, f, l), 280); }
       });
     } else {
       ind.classList.remove('ptr-complete');
-      if (fl) { fl.style.transition = 'width 0.3s ease-out'; fl.style.width = '0%'; }
+      if (fl) { fl.style.transition = 'width 0.25s ease-out'; fl.style.width = '0%'; }
       if (lb) lb.textContent = '';
       _ptrDismissTimer = setTimeout(() => {
-        ind.classList.remove('ptr-visible');
+        ind.classList.add('ptr-dismiss');
         _ptrDismissTimer = setTimeout(() => {
           _ptrReset(ind, fl, lb);
           _ptrDismissTimer = null;
-        }, 300);
-      }, 350);
+        }, 280);
+      }, 300);
     }
     _ptrDist = 0;
   }, { passive: true });
