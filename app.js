@@ -6849,35 +6849,36 @@ function renderDashboard() {
   if (actListEl) renderActivityList('activityList', recent.slice(0, 10));
   updateSortButtons();
   _updateSportButtons();
+  // ── Critical path: above-fold content first ──
   renderWeekProgress();
-  renderVitality();
   renderTrainingStatus();
   renderTodaySuggestion();
+  _renderDashStreak();
+  _applyWidgetOrder();
+  _applyDashGradient();
+
+  // ── Deferred: below-fold charts (lazy-loaded on scroll) ──
   lazyRenderChart('weeklyTssChart', () => renderWeeklyChart(recent));
   lazyRenderChart('avgPowerChart',  () => renderAvgPowerChart(recent));
-  renderZoneDist(recent);
-  let _pcResolve;
-  const _pcReady = new Promise(r => { _pcResolve = r; });
-  lazyRenderChart('powerCurveChart', async () => { await renderPowerCurve(); _pcResolve(); });
-  // Skip lazy render for radar — content-visibility + display:contents breaks Chart.js sizing
-  _pcReady.then(() => setTimeout(renderPowerProfileRadar, 400));
+  lazyRenderChart('powerCurveChart', async () => { await renderPowerCurve(); setTimeout(renderPowerProfileRadar, 400); });
   lazyRenderChart('pwrHrScatterChart', () => renderPwrHrScatter(recent));
   lazyRenderChart('cyclingTrendsChart', () => renderCyclingTrends(recent, days));
   lazyRenderChart('monotonyChart', () => { renderIntensityDist(recent); renderMonotony(recent, days); });
   lazyRenderChart('aeChart', () => { renderAerobicEfficiency(recent, days); renderRampRate(recent, days); });
-  renderRecentActivity();    // async — fetches GPS for map preview
-  renderWeatherForecast();   // async — fetches Open-Meteo 7-day forecast
-  renderGoalsDashWidget();   // goals & targets compact summary
-  _renderDashStreak();
-  _renderDashNextWorkout();
-  _renderDashGear();
-  _renderDashBatteries();
-  _renderDashRouteMap();
-  _applyWidgetOrder();
-  // Add edit widgets button at bottom
-  _injectEditWidgetsBtn();
-  _applyDashGradient();
-  _rIC(() => { if (window.refreshGlow) refreshGlow(); });
+  renderZoneDist(recent);
+
+  // ── Idle callback: non-critical widgets ──
+  _rIC(() => {
+    renderRecentActivity();
+    renderWeatherForecast();
+    renderGoalsDashWidget();
+    _renderDashNextWorkout();
+    _renderDashGear();
+    _renderDashBatteries();
+    _renderDashRouteMap();
+    _injectEditWidgetsBtn();
+    if (window.refreshGlow) refreshGlow();
+  });
 }
 
 function _applyDashGradient() {
