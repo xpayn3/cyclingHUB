@@ -1954,6 +1954,20 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   const backTex = new THREE.CanvasTexture(bCanvas);
   backTex.anisotropy = _bcRenderer.capabilities.getMaxAnisotropy();
 
+  // Back face MR map — chrome on label text + ribbon, matte everywhere else
+  const bMrCanvas = document.createElement('canvas'); bMrCanvas.width = fW; bMrCanvas.height = fH;
+  const bmc = bMrCanvas.getContext('2d');
+  bmc.fillStyle = 'rgb(0,235,30)'; bmc.fillRect(0, 0, fW, fH); // matte base
+  // Chrome on big label
+  bmc.font = '800 140px Inter, system-ui, sans-serif'; bmc.textAlign = 'center';
+  bmc.fillStyle = 'rgb(0,8,255)'; bmc.fillText(def.label, fW / 2, fH * 0.4);
+  // Chrome on achievement name
+  bmc.font = '600 40px Inter, system-ui, sans-serif';
+  bmc.fillStyle = 'rgb(0,10,240)'; bmc.fillText(name, fW / 2, fH * 0.55);
+  // Chrome on ribbon
+  bmc.fillStyle = 'rgb(0,5,255)'; bmc.fillRect(0, fH - ribbonH, fW, ribbonH);
+  const backMrTex = new THREE.CanvasTexture(bMrCanvas);
+
   // Materials
   const isMountain = def.scene === 'mountain';
   const frontMat = new THREE.MeshStandardMaterial({
@@ -1964,7 +1978,8 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     transparent: isMountain, alphaTest: isMountain ? 0.01 : 0
   });
   const backMat = new THREE.MeshStandardMaterial({
-    map: backTex, metalness: 0.15, roughness: 0.5, envMap: envTex, envMapIntensity: 0.3
+    map: backTex, metalnessMap: backMrTex, roughnessMap: backMrTex,
+    metalness: 1, roughness: 1, envMap: envTex, envMapIntensity: 0.6
   });
   const edgeMat = new THREE.MeshStandardMaterial({
     color: def.color, metalness: 1, roughness: 0.05, envMap: envTex, envMapIntensity: 3
