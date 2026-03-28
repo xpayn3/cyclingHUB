@@ -2134,11 +2134,8 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
       const domeRadius = zBehind + 0.5;
       const domeGeo = new THREE.SphereGeometry(domeRadius, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.5);
       domeGeo.rotateX(Math.PI);
+      domeGeo.rotateZ(Math.PI);
       const tex = new THREE.CanvasTexture(c);
-      tex.flipY = true;
-      tex.repeat.x = -1;
-      tex.offset.x = 1;
-      tex.wrapS = THREE.RepeatWrapping;
       const mat = new THREE.MeshBasicMaterial({
         map: tex, transparent: true, depthWrite: false,
         side: THREE.BackSide
