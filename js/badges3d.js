@@ -33,7 +33,7 @@ function _getRenderer(THREE, canvasEl, opts) {
     powerPreference: 'high-performance'
   });
   _sharedRenderer.toneMapping = THREE.ACESFilmicToneMapping;
-  _sharedRenderer.toneMappingExposure = 1.0;
+  _sharedRenderer.toneMappingExposure = 1.2;
   _sharedRenderer.sortObjects = false;
   _sharedRenderer.localClippingEnabled = true;
   _sharedRendererCanvas = canvasEl;
@@ -489,7 +489,7 @@ export async function initBadge3D(canvasEl, badgeId) {
         bUv.setXY(i, (x - bMin.x) / bW, (y - bMin.y) / bH);
       }
       geo.attributes.uv.needsUpdate = true;
-      const texSize = 512;
+      const texSize = 1024;
       const faceTex = _createBadgeFaceTexture(THREE, def, texSize);
       const normTex = _createBadgeNormalMap(THREE, def, texSize);
       if (_badgeRenderer) {
@@ -1002,8 +1002,8 @@ export async function initRiderCard3D(canvasEl, data) {
   const mrCanvas = document.createElement('canvas');
   mrCanvas.width = fW; mrCanvas.height = fH;
   const mc = mrCanvas.getContext('2d');
-  // Base: low metalness (30), high roughness (180) = matte card
-  mc.fillStyle = 'rgb(0,170,50)';
+  // Base: zero metalness, high roughness (200/255≈0.78) = truly matte card body
+  mc.fillStyle = 'rgb(0,200,0)';
   mc.fillRect(0, 0, fW, fH);
   // Level number: chrome with noise texture
   mc.font = '800 280px Inter, system-ui, sans-serif';
@@ -1792,7 +1792,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
       mc.lineTo(fW * (px - sw * 0.6), fH * (py + 0.06)); mc.lineTo(fW * (px + sw * 0.6), fH * (py + 0.06)); mc.fill();
     });
   } else {
-    mc.fillStyle = 'rgb(0,170,50)'; mc.fillRect(0, 0, fW, fH);
+    mc.fillStyle = 'rgb(0,200,0)'; mc.fillRect(0, 0, fW, fH);
   }
 
   if (def.scene === 'mountain') {
@@ -2029,7 +2029,8 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
         if (rnd > 0.35) discard;
 
         vec2 cell = fract(vUv * 60.0);
-        vec2 center = vec2(hash(grid + 0.5), hash(grid + 1.3));
+        // Clamp centers away from cell edges to prevent sparkle clipping
+        vec2 center = vec2(0.15 + hash(grid + 0.5) * 0.7, 0.15 + hash(grid + 1.3) * 0.7);
         float dist = length(cell - center);
         if (dist > 0.06) discard;
 
@@ -2317,20 +2318,20 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     const portalMat = new THREE.ShaderMaterial({
       transparent: true, depthWrite: false, side: THREE.FrontSide,
       uniforms: {
-        portalMap: { value: portalRT.texture },
-        resolution: { value: new THREE.Vector2(rtW, rtH) }
+        portalMap: { value: portalRT.texture }
       },
       vertexShader: `
+        varying vec2 vUv;
         void main() {
+          vUv = uv;
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
       `,
       fragmentShader: `
         uniform sampler2D portalMap;
-        uniform vec2 resolution;
+        varying vec2 vUv;
         void main() {
-          vec2 uv = gl_FragCoord.xy / resolution;
-          gl_FragColor = texture2D(portalMap, uv);
+          gl_FragColor = texture2D(portalMap, vUv);
         }
       `
     });
@@ -2361,8 +2362,13 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     txtPlane.position.z = cardD * 0.5 + 0.003;
     _bcMesh.add(txtPlane);
 
+    // Enable repeat wrapping on firefly layer for UV scroll animation
+    particles.material.map.wrapS = THREE.RepeatWrapping;
+    particles.material.map.wrapT = THREE.RepeatWrapping;
+    particles.material.map.needsUpdate = true;
+
     // Store portal data for the render loop
-    _bcMesh._portal = { scene: portalScene, camera: portalCam, rt: portalRT, layers: [sky, aurora, farMtn, midHill, fg, closeTrees, particles], depths: [0.04, 0.035, 0.025, 0.015, 0.008, 0.004, 0.002] };
+    _bcMesh._portal = { scene: portalScene, camera: portalCam, rt: portalRT, layers: [sky, aurora, farMtn, midHill, fg, closeTrees, particles], depths: [0.04, 0.035, 0.025, 0.015, 0.008, 0.004, 0.002], particlesTex: particles.material.map };
     _bcMesh.add(glitterPlane);
     _bcMesh._parallax = [];
   } else {
@@ -2466,6 +2472,11 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
       p.camera.position.x += (px - p.camera.position.x) * 0.15;
       p.camera.position.y += (py - p.camera.position.y) * 0.15;
       p.camera.lookAt(0, 0, -2);
+      // Animate firefly layer — slow drift to give particles life
+      if (p.particlesTex) {
+        p.particlesTex.offset.x = (t * 0.006) % 1;
+        p.particlesTex.offset.y = Math.sin(t * 0.22) * 0.04;
+      }
       // Render portal scene to render target
       _bcRenderer.setRenderTarget(p.rt);
       _bcRenderer.render(p.scene, p.camera);
