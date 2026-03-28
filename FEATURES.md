@@ -148,6 +148,20 @@
 - Storage management with usage bar
 - P2P device sync (PeerJS WebRTC + QR pairing)
 
+## Data Integrations
+
+### Air Quality (Open-Meteo)
+- Current European AQI + PM2.5 displayed on dashboard
+- Color-coded badge: Good/Fair/Moderate/Poor/Very Poor
+- 30-minute sessionStorage cache
+- No API key required
+
+### Reverse Geocoding (Nominatim)
+- Activity start location resolved to city name
+- Shown on activity cards: "📍 Ljubljana"
+- localStorage cache (200 entries) — instant for repeat locations
+- Respects 1 req/sec Nominatim rate limit
+
 ## Technical Features
 
 ### Offline & PWA

@@ -394,6 +394,71 @@ Also add `e.preventDefault()` on the backdrop's touchmove.
 - Co-authored-by: Claude Opus 4.6
 - Never use `--no-verify` or `--force`
 
+## Performance Optimizations (Applied)
+
+### Dashboard
+- Above-fold content renders sync, below-fold widgets deferred to `_rIC()`
+- 7 charts lazy-loaded via `lazyRenderChart()` (IntersectionObserver)
+- `renderAllActivitiesList()` removed from dashboard render (was wrong page)
+- Cross-page render guards: `renderDashboard()` only when `state.currentPage === 'dashboard'`
+
+### Fitness Page
+- 13 chart functions wrapped in `lazyRenderChart()` — only render on scroll
+- Recovery, race predictor, acclimatization deferred to `_rIC()`
+
+### Power Page
+- 9 kJ charts deferred until collapse section opened (not rendered on page load)
+
+### Calendar Page
+- Only render desktop cards OR mobile dots (not both) — saves ~50% day cell nodes
+- Prev/next month grids deferred until first swipe touch
+- List view: infinite scroll — 30 days per batch, loads more on scroll
+
+### Modals
+- `gearModal` (~120 DOM nodes) and `batteryModal` (~40 nodes) lazy-created on first open
+- Removed from initial HTML — saves ~160 DOM nodes on every page load
+
+### 3D Cards
+- Shared WebGLRenderer (one context reused)
+- Cached env maps with LRU eviction (max 6)
+- DPR capped at 1.5, geometry bevel 3/curve 16
+- Frame skip: 30fps during auto-spin (after 3s grace), 60fps on interact
+- CDN load timeout: 10s
+- No MeshPhysicalMaterial (clearcoat shader too expensive)
+- Max 4 DirectionalLights (no SpotLights)
+
+### Removed Features
+- Vitality Metaball Shader (738 lines, ~30KB) — was creating WebGL context + shader on every dashboard visit
+- Biorhythm card + settings dialog (159 lines HTML)
+
+### Build
+- Production build (`node build.js`) minifies to `docs/`: 3.3MB → 2.1MB (38% smaller)
+- GitHub Pages serves from `/docs` (minified)
+
+## Robustness Rules
+
+### navigateToActivity() bypasses navigate()
+- It directly sets `state.currentPage = 'activity'` without calling `navigate()`
+- MUST call `cleanupPageCharts()` + `_cleanupPageDOM()` at the start (wrapped in try-catch)
+- All `setTimeout` callbacks inside MUST check `if (state.currentPage !== 'activity') return`
+
+### Async Callbacks After Navigation
+- Any `.then()` or `await` callback that touches DOM MUST check `state.currentPage` first
+- Use `element.isConnected` to verify DOM elements aren't detached
+- `fetchCalendarEvents().then()` must guard with `if (state.currentPage === 'calendar')`
+
+### 3D Destroy Safety
+- Every `.dispose()` call wrapped in individual try-catch
+- RAF loops: check null BEFORE `requestAnimationFrame()`, not after
+- All event listeners use AbortController signals, aborted on destroy
+- `webglcontextlost` handler stops all RAF loops
+
+### DOM Cleanup on Navigate
+- `cleanupPageCharts()`: destroys Chart.js instances + clears lazy observer
+- `_cleanupPageDOM()`: strips innerHTML of heavy containers (NOT canvases)
+- Never clear fitness page canvases — they're reused on revisit
+- Calendar list view cleared on navigate away
+
 ## Common Gotchas & Lessons Learned
 
 ### Chart.js Tooltip Not Showing
