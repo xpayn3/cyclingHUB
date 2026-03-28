@@ -23393,8 +23393,8 @@ body.goals-bg {
 .stk-badge--earned {
     opacity: 1;
     filter: none;
-    border-color: transparent;
-    background: transparent;
+    border-color: rgba(255,255,255,0.06);
+    background: rgba(255,255,255,0.03);
     cursor: pointer;
     padding: 4px;
 }
