@@ -185,7 +185,7 @@ if ('serviceWorker' in navigator) {
 }
 
 // Populate version footer + splash version + git hash
-const BUILD_HASH = '8adc6d1';
+const BUILD_HASH = 'd4d72dc';
 (function() {
   const footer = document.getElementById('appVersionFooter');
   function setVersion(ver) {
@@ -6257,7 +6257,7 @@ async function renderRecentActCardMap(a, idx, idPrefix = 'recentActCard', mapSto
     if (locEl && !locEl.textContent.trim()) {
       const [lat0, lon0] = points[0];
       reverseGeocode(lat0, lon0).then(name => {
-        if (name) locEl.innerHTML = `<svg class="icon" width="12" height="12" style="opacity:0.5"><use href="icons.svg#icon-map-pin"/></svg> ${name}`;
+        if (name && locEl.isConnected) locEl.innerHTML = `<svg class="icon" width="12" height="12" style="opacity:0.5"><use href="icons.svg#icon-map-pin"/></svg> ${name}`;
       });
     }
   }
@@ -16153,7 +16153,7 @@ async function fetchCalendarEvents() {
 
 // Fetch events then re-render calendar (non-blocking background refresh)
 function refreshCalendarEvents() {
-  fetchCalendarEvents().then(() => renderCalendar());
+  fetchCalendarEvents().then(() => { if (state.currentPage === 'calendar') renderCalendar(); });
 }
 
 function calPrevMonth() {
@@ -18769,23 +18769,32 @@ async function navigateToActivity(actKey, fromStep = false) {
     }
 
     // Inject info buttons and dividers on all visible activity cards
+    // All timeouts guard against user navigating away before they fire
     setTimeout(() => {
+      if (state.currentPage !== 'activity') return;
       _injectActCardInfoBtns(); _injectActCardDividers();
-      _updateActCardWidths(document.getElementById('actSheetScroll'));
+      const ss = document.getElementById('actSheetScroll');
+      if (ss) _updateActCardWidths(ss);
       _injectActCardWidthToggles();
       _injectActResetBtn();
     }, 300);
-    // Re-run after async cards (intervals, curves) finish loading
-    setTimeout(() => { _injectActCardDividers(); _updateActCardWidths(document.getElementById('actSheetScroll')); }, 1500);
-    setTimeout(() => _injectActCardDividers(), 3000);
-    // Auto-reopen Pro Analysis if it was open before refresh
+    setTimeout(() => {
+      if (state.currentPage !== 'activity') return;
+      _injectActCardDividers();
+      const ss = document.getElementById('actSheetScroll');
+      if (ss) _updateActCardWidths(ss);
+    }, 1500);
+    setTimeout(() => {
+      if (state.currentPage !== 'activity') return;
+      _injectActCardDividers();
+    }, 3000);
     if (sessionStorage.getItem('icu_pro_open') === '1') {
-      setTimeout(() => openProAnalysis(), 500);
+      setTimeout(() => { if (state.currentPage === 'activity') openProAnalysis(); }, 500);
     }
   } catch (err) {
     console.error('[Activity detail] Unhandled error:', err);
-    _loadingEl.style.display = 'none';
-    skeletonCards(false);
+    if (_loadingEl) _loadingEl.style.display = 'none';
+    try { skeletonCards(false); } catch(_){}
   }
 }
 
