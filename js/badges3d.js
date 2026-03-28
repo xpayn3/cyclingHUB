@@ -2134,7 +2134,7 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
       drawFn(c.getContext('2d'), eqW, eqH);
       // Dome geometry — curves inward behind card
       const domeRadius = Math.max(cardW * 0.7, zBehind + 0.5);
-      const domeGeo = new THREE.SphereGeometry(domeRadius, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.5);
+      const domeGeo = new THREE.SphereGeometry(domeRadius, 32, 24, 0, Math.PI * 2, 0, Math.PI * 0.75);
       domeGeo.rotateX(Math.PI);
       domeGeo.rotateZ(Math.PI);
       const tex = new THREE.CanvasTexture(c);
