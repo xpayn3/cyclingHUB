@@ -638,6 +638,11 @@ function _cleanupPageDOM(leavingPage) {
   if (leavingPage === 'calendar') {
     const grid = document.getElementById('calGrid');
     if (grid) grid.innerHTML = '';
+    const listScroll = document.getElementById('calListViewScroll');
+    if (listScroll) listScroll.innerHTML = '';
+    // Reset list view mode
+    const shell = document.querySelector('.cal-shell');
+    if (shell) shell.classList.remove('cal-shell--list-view');
   }
 
   // Weather page — all dynamic content (rebuilt from scratch each visit)
@@ -16123,10 +16128,9 @@ function renderCalListView() {
   const container = document.getElementById('calListViewScroll');
   if (!container) return;
   const actMap = buildCalActMap();
-  // Find earliest date with data, show all days from today back to that date
-  const allDates = Object.keys(actMap).sort();
+  // Show last 90 days (not ALL history — that creates 5000+ DOM nodes)
   const today = new Date();
-  const earliest = allDates.length > 0 ? new Date(allDates[0] + 'T00:00') : new Date(today.getFullYear(), today.getMonth(), 1);
+  const earliest = new Date(today); earliest.setDate(earliest.getDate() - 90);
   const dates = [];
   for (let dt = new Date(today); dt >= earliest; dt.setDate(dt.getDate() - 1)) {
     dates.push(toDateStr(dt));
