@@ -10901,15 +10901,9 @@ async function renderPowerPage() {
   renderPwrZoneDist(days);
   renderPwrTrend(days);
   renderPwrInsights(ftp, weight, wkg, days);
-  renderKjZoneChart(days, ftp);
-  renderKjIntensityChart(days);
-  renderKjEfficiencyChart(days);
-  renderKjCumulativeChart(days);
-  renderKjTssChart(days);
-  renderKjCardiacChart(days);
-  renderKjElevationChart(days);
-  renderKjMetabolicChart(days);
-  renderKjFuelingChart(days);
+  // kJ charts deferred — rendered on first collapse open
+  window._kjChartsRendered = false;
+  window._kjChartArgs = { days, ftp };
 
   // Power Profile + Avg Power (moved from dashboard)
   try {
@@ -11018,6 +11012,20 @@ function _initKjCollapse() {
     const open = section.style.display !== 'none';
     section.style.display = open ? 'none' : '';
     toggle.querySelector('.pwr-kj-chevron').style.transform = open ? '' : 'rotate(180deg)';
+    // Render kJ charts on first open
+    if (!open && !window._kjChartsRendered && window._kjChartArgs) {
+      window._kjChartsRendered = true;
+      const { days, ftp } = window._kjChartArgs;
+      renderKjZoneChart(days, ftp);
+      renderKjIntensityChart(days);
+      renderKjEfficiencyChart(days);
+      renderKjCumulativeChart(days);
+      renderKjTssChart(days);
+      renderKjCardiacChart(days);
+      renderKjElevationChart(days);
+      renderKjMetabolicChart(days);
+      renderKjFuelingChart(days);
+    }
   });
 }
 
@@ -12678,31 +12686,37 @@ function renderFitnessPage() {
   renderFitnessStreak();
   renderFitnessWellness();
   renderFitInjuryRisk();
+  // ── Above-fold: render immediately ──
   renderFitnessHistoryChart(fd);
-  renderFitnessHeatmap();
-  renderFitnessWeeklyPageChart(fd);
-  renderFitnessMonthlyTable(fd);
-  renderRecoveryEstimation();
-  renderRacePredictor();
-  renderFatiguePredChart();
-  renderFtpHistoryChart(fd);
-  renderPeriodizationChart(fd);
-  renderWellnessInsights(fd);
-  _renderFitCyclingTrends(fd);
-  _renderFitInsights(fd);
-  renderYTDDistance();
   _renderTrainingReadiness(fd);
   _renderTrainingPacer(fd);
   _renderWeeklyLoadTarget(fd);
-  _renderProgressionLevels(fd);
-  _renderVO2maxEstimate(fd);
-  _renderStrainRecovery(fd);
-  renderWeatherCorrelation();
-  renderAcclimatization();
-  _initWifScrubbers();
-  _syncWifScrubbers();
-  _wifUpdate();
-  _rIC(() => { if (window.refreshGlow) refreshGlow(); });
+
+  // ── Below-fold: lazy-load on scroll into view ──
+  lazyRenderChart('fitHeatmap', () => renderFitnessHeatmap());
+  lazyRenderChart('fitnessWeeklyPageChart', () => renderFitnessWeeklyPageChart(fd));
+  lazyRenderChart('fitFatigueChart', () => { renderFatiguePredChart(); renderFitnessMonthlyTable(fd); });
+  lazyRenderChart('fitFtpHistChart', () => renderFtpHistoryChart(fd));
+  lazyRenderChart('fitPeriodChart', () => renderPeriodizationChart(fd));
+  lazyRenderChart('insightHrvTssCard', () => renderWellnessInsights(fd));
+  lazyRenderChart('fitCyclingTrendsCard', () => _renderFitCyclingTrends(fd));
+  lazyRenderChart('fitMonotonyChart', () => _renderFitInsights(fd));
+  lazyRenderChart('ytdDistCard', () => renderYTDDistance());
+  lazyRenderChart('fitStrainRecovCard', () => _renderStrainRecovery(fd));
+  lazyRenderChart('fitProgressionCard', () => _renderProgressionLevels(fd));
+  lazyRenderChart('fitVo2Card', () => _renderVO2maxEstimate(fd));
+  lazyRenderChart('fitWeatherCorrCard', () => renderWeatherCorrelation());
+
+  // ── Idle: non-critical ──
+  _rIC(() => {
+    renderRecoveryEstimation();
+    renderRacePredictor();
+    renderAcclimatization();
+    _initWifScrubbers();
+    _syncWifScrubbers();
+    _wifUpdate();
+    if (window.refreshGlow) refreshGlow();
+  });
 }
 
 // ══════════════════════════════════════════════════════════════
