@@ -59,34 +59,25 @@ function _evictEnvCache() {
 let _cachedRiderEnvTex = null;
 let _cachedBadgeEnvTexMap = {}; // keyed by badge color hex
 
-// Lazy-load Three.js + GLTFLoader from CDN
+// Load Three.js + GLTFLoader via ESM importmap (defined in index.html)
+// importmap maps 'three' → three@0.170.0 ESM build on jsDelivr
+// Works on all modern browsers: Safari 16.4+, Chrome 89+, Firefox 108+
 async function _loadThreeJS() {
   if (_THREE) return _THREE;
-  // Load Three.js core
-  await new Promise((resolve, reject) => {
-    if (window.THREE) { resolve(); return; }
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js';
-    script.crossOrigin = 'anonymous';
-    const timeout = setTimeout(() => reject(new Error('Three.js CDN timeout')), 10000);
-    script.onload = () => { clearTimeout(timeout); resolve(); };
-    script.onerror = () => { clearTimeout(timeout); reject(new Error('Failed to load Three.js')); };
-    document.head.appendChild(script);
-  });
-  _THREE = window.THREE;
 
-  // Load GLTFLoader
+  try {
+    _THREE = await import('three');
+  } catch (e) {
+    throw new Error('Failed to load Three.js: ' + e.message);
+  }
+
   if (!_GLTFLoader) {
-    await new Promise((resolve, reject) => {
-      if (window.THREE.GLTFLoader) { resolve(); return; }
-      const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/three@0.150.0/examples/js/loaders/GLTFLoader.js';
-      script.crossOrigin = 'anonymous';
-      script.onload = resolve;
-      script.onerror = () => { console.warn('GLTFLoader not available, using procedural badges'); resolve(); };
-      document.head.appendChild(script);
-    });
-    _GLTFLoader = window.THREE.GLTFLoader || null;
+    try {
+      const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
+      _GLTFLoader = GLTFLoader;
+    } catch (e) {
+      console.warn('GLTFLoader not available, using procedural badges');
+    }
   }
 
   return _THREE;
