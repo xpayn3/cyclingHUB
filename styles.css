@@ -6184,13 +6184,13 @@ input[type="number"] {
     position: relative;
     z-index: 1;
     font-size: 11px;
-    font-weight: 600;
-    color: rgba(255,255,255,0.7);
+    font-weight: 700;
+    color: rgba(0,0,0,0.5);
     letter-spacing: 0.02em;
     white-space: nowrap;
 }
-.ptr-indicator.ptr-complete .ptr-label { color: #fff; }
-.ptr-indicator.ptr-refreshing .ptr-label { color: #fff; }
+.ptr-indicator.ptr-complete .ptr-label { color: rgba(0,0,0,0.7); }
+.ptr-indicator.ptr-refreshing .ptr-label { color: rgba(0,0,0,0.7); }
 @media (min-width: 769px) {
     .ptr-indicator {
         left: calc(var(--sidebar-w) + 50%);
