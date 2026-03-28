@@ -18,8 +18,9 @@ cp apple-touch-icon.png docs/ 2>/dev/null || true
 HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "dev")
 sed -i "s/const BUILD_HASH = '[^']*'/const BUILD_HASH = '$HASH'/" app.js
 
-# 4. Stage, commit, push
-git add -A
+# 4. Stage tracked files only (respects .gitignore)
+git add -u
+git add docs/
 git commit -m "$MSG
 
 Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>"
