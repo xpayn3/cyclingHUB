@@ -16,6 +16,51 @@ let _badgeRotY = 0;
 
 let _GLTFLoader = null;
 
+// ── Quality / Performance System ─────────────────────────────────────────────
+// User setting: 'auto' | 'high' | 'low'  (localStorage key: icu_3d_quality)
+// Resolved at card-open time to 'high' or 'low'; cleared when setting changes.
+const _QUALITY_KEY = 'icu_3d_quality';
+let _resolvedQuality = null;
+
+export function getQualitySetting() {
+  return localStorage.getItem(_QUALITY_KEY) || 'auto';
+}
+
+export function setQualitySetting(val) {
+  localStorage.setItem(_QUALITY_KEY, val);
+  _resolvedQuality = null; // force re-detect on next card open
+}
+
+async function _resolveQuality() {
+  if (_resolvedQuality) return _resolvedQuality;
+  const s = getQualitySetting();
+  if (s === 'high') { _resolvedQuality = 'high'; return 'high'; }
+  if (s === 'low')  { _resolvedQuality = 'low';  return 'low';  }
+  // Auto: prefers-reduced-motion (iOS Low Power Mode sets this)
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    return (_resolvedQuality = 'low');
+  }
+  // Auto: battery level below 20 %
+  if (navigator.getBattery) {
+    try {
+      const bat = await navigator.getBattery();
+      if (!bat.charging && bat.level < 0.2) return (_resolvedQuality = 'low');
+    } catch {}
+  }
+  return (_resolvedQuality = 'high');
+}
+
+// Per-card lite-mode flags (set on init, checked in render loops)
+let _badgeLite = false;
+let _rcLite    = false;
+let _bcLite    = false;
+let _badgeLiteFrame = 0;  // frame counter for badge viewer skip
+let _bcGlitterMat = null; // ref to badge card glitter material for runtime toggle
+
+// Per-loop FPS auto-downgrade state (auto mode only; sampled every 30 frames)
+let _rcFpsFrames = 0, _rcFpsT0 = 0, _rcLowFpsCount = 0;
+let _bcFpsFrames = 0, _bcFpsT0 = 0, _bcLowFpsCount = 0;
+
 // ── Shared renderer pool ─────────────────────────────────────────────────────
 // One WebGLRenderer reused across rider card, badge card, and badge viewer.
 // Creating a WebGL context is expensive (~50-100ms); reusing saves that cost.
@@ -366,14 +411,18 @@ function _createBadgeNormalMap(THREE, def, size) {
 // Initialize the 3D scene in a canvas
 export async function initBadge3D(canvasEl, badgeId) {
   const THREE = await _loadThreeJS();
+  const isLite = (await _resolveQuality()) === 'low';
+  _badgeLite = isLite;
+  _badgeLiteFrame = 0;
 
   // Ensure canvas has dimensions
   let w = canvasEl.clientWidth;
   let h = canvasEl.clientHeight;
   if (!w || w < 50) w = canvasEl.parentElement?.clientWidth || 280;
   if (!h || h < 50) h = 280;
-  canvasEl.width = w * Math.min(window.devicePixelRatio, 2.0);
-  canvasEl.height = h * Math.min(window.devicePixelRatio, 2.0);
+  const _dpr = Math.min(window.devicePixelRatio, isLite ? 1.0 : 2.0);
+  canvasEl.width = w * _dpr;
+  canvasEl.height = h * _dpr;
   canvasEl.style.width = w + 'px';
   canvasEl.style.height = h + 'px';
 
@@ -391,7 +440,7 @@ export async function initBadge3D(canvasEl, badgeId) {
     antialias: true,
   });
   _badgeRenderer.setSize(w, h);
-  _badgeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
+  _badgeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, isLite ? 1.0 : 2.0));
   _badgeRenderer.toneMapping = THREE.ACESFilmicToneMapping;
   _badgeRenderer.toneMappingExposure = 1.2;
 
@@ -480,7 +529,7 @@ export async function initBadge3D(canvasEl, badgeId) {
         bUv.setXY(i, (x - bMin.x) / bW, (y - bMin.y) / bH);
       }
       geo.attributes.uv.needsUpdate = true;
-      const texSize = 512;
+      const texSize = isLite ? 256 : 512;
       const faceTex = _createBadgeFaceTexture(THREE, def, texSize);
       const normTex = _createBadgeNormalMap(THREE, def, texSize);
       if (_badgeRenderer) {
@@ -513,17 +562,26 @@ export async function initBadge3D(canvasEl, badgeId) {
       const envTex = new THREE.CanvasTexture(envC);
       envTex.mapping = THREE.EquirectangularReflectionMapping;
 
-      const mat = new THREE.MeshPhysicalMaterial({
-        map: faceTex, normalMap: normTex, normalScale: new THREE.Vector2(0.8, 0.8),
-        metalness: 0.85, roughness: 0.15, envMap: envTex, envMapIntensity: 1.5,
-        clearcoat: 0.8, clearcoatRoughness: 0.1,
-        iridescence: 1.0, iridescenceIOR: 1.3,
-      });
+      const mat = isLite
+        ? new THREE.MeshStandardMaterial({
+            map: faceTex, normalMap: normTex, normalScale: new THREE.Vector2(0.8, 0.8),
+            metalness: 0.85, roughness: 0.15, envMap: envTex, envMapIntensity: 1.5,
+          })
+        : new THREE.MeshPhysicalMaterial({
+            map: faceTex, normalMap: normTex, normalScale: new THREE.Vector2(0.8, 0.8),
+            metalness: 0.85, roughness: 0.15, envMap: envTex, envMapIntensity: 1.5,
+            clearcoat: 0.8, clearcoatRoughness: 0.1,
+            iridescence: 1.0, iridescenceIOR: 1.3,
+          });
       // Edge material — silver chrome
-      const edgeMat = new THREE.MeshPhysicalMaterial({
-        color: def.color, metalness: 1.0, roughness: 0.1, envMap: envTex, envMapIntensity: 1.8,
-        clearcoat: 0.8, clearcoatRoughness: 0.1,
-      });
+      const edgeMat = isLite
+        ? new THREE.MeshStandardMaterial({
+            color: def.color, metalness: 1.0, roughness: 0.1, envMap: envTex, envMapIntensity: 1.8,
+          })
+        : new THREE.MeshPhysicalMaterial({
+            color: def.color, metalness: 1.0, roughness: 0.1, envMap: envTex, envMapIntensity: 1.8,
+            clearcoat: 0.8, clearcoatRoughness: 0.1,
+          });
 
       _badgeMesh = new THREE.Mesh(geo, [mat, edgeMat]);
       _badgeMesh.rotation.x = 0.1;
@@ -575,6 +633,11 @@ function _animate_spring(restX, restY, spring, damping) {
   function loop() {
     _badgeRaf = requestAnimationFrame(loop);
     if (!_badgeMesh) return;
+    // Lite mode: render every 2nd frame to halve GPU load
+    if (_badgeLite && !_badgeDragging) {
+      _badgeLiteFrame++;
+      if (_badgeLiteFrame % 2 !== 0) return;
+    }
 
     if (!_badgeDragging) {
       // Spring force towards rest position
@@ -678,12 +741,15 @@ let _rcAbort = null;
 
 export async function initRiderCard3D(canvasEl, data) {
   const THREE = await _loadThreeJS();
+  const isLite = (await _resolveQuality()) === 'low';
+  _rcLite = isLite; _rcFpsFrames = 0; _rcFpsT0 = 0; _rcLowFpsCount = 0;
 
   _rcCanvas = canvasEl;
   let w = canvasEl.clientWidth || 340;
   let h = canvasEl.clientHeight || 220;
-  canvasEl.width = w * Math.min(window.devicePixelRatio, 2.0);
-  canvasEl.height = h * Math.min(window.devicePixelRatio, 2.0);
+  const _rcDpr = Math.min(window.devicePixelRatio, isLite ? 1.0 : 2.0);
+  canvasEl.width = w * _rcDpr;
+  canvasEl.height = h * _rcDpr;
   canvasEl.style.width = w + 'px';
   canvasEl.style.height = h + 'px';
 
@@ -693,7 +759,7 @@ export async function initRiderCard3D(canvasEl, data) {
 
   _rcRenderer = _getRenderer(THREE, canvasEl);
   _rcRenderer.setSize(w, h);
-  _rcRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
+  _rcRenderer.setPixelRatio(Math.min(window.devicePixelRatio, isLite ? 1.0 : 2.0));
 
   // Lighting — bright enough for matte card, chrome pops on edges
   _rcScene.add(new THREE.AmbientLight(0x333344, 0.8));
@@ -742,7 +808,7 @@ export async function initRiderCard3D(canvasEl, data) {
   // Card material — dark metallic with accent edge glow (cached env map)
   if (!_cachedRiderEnvTex) {
   const envCanvas = document.createElement('canvas');
-  const eW = 1024, eH = 512;
+  const eW = isLite ? 512 : 1024, eH = isLite ? 256 : 512;
   envCanvas.width = eW; envCanvas.height = eH;
   const ctx = envCanvas.getContext('2d');
 
@@ -1275,7 +1341,7 @@ export async function initRiderCard3D(canvasEl, data) {
       const cw = _rcCanvas.clientWidth, ch = _rcCanvas.clientHeight;
       if (cw > 10 && ch > 10 && (Math.abs(cw - _rcRenderer.domElement.clientWidth) > 2 || Math.abs(ch - _rcRenderer.domElement.clientHeight) > 2)) {
         _rcRenderer.setSize(cw, ch);
-        _rcRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        _rcRenderer.setPixelRatio(Math.min(window.devicePixelRatio, _rcLite ? 1.0 : 2.0));
         _rcCamera.aspect = cw / ch;
         _rcCamera.updateProjectionMatrix();
       }
@@ -1295,10 +1361,22 @@ export async function initRiderCard3D(canvasEl, data) {
       _rcAutoSpin = true; // transition to auto-spin after intro
     }
 
-    // Skip every other frame — only after settled (3s grace for smooth transition)
+    // Skip frames during auto-spin to reduce GPU load (lite: every 3rd, normal: every 2nd)
     if (_rcAutoSpin && !_rcDragging && !_rcSpinning && (Date.now() - _rcReleaseTime) > 3000) {
-      if (++_rcFrameSkip % 2 !== 0) return;
+      const skipRate = _rcLite ? 3 : 2;
+      if (++_rcFrameSkip % skipRate !== 0) return;
     } else { _rcFrameSkip = 0; }
+
+    // Auto-downgrade FPS monitor (auto mode only)
+    if (!_rcLite && getQualitySetting() === 'auto') {
+      if (_rcFpsT0 === 0) _rcFpsT0 = Date.now();
+      if (++_rcFpsFrames >= 30) {
+        const fps = _rcFpsFrames / ((Date.now() - _rcFpsT0) / 1000);
+        _rcFpsFrames = 0; _rcFpsT0 = Date.now();
+        if (fps < 24) { if (++_rcLowFpsCount >= 2) _rcLite = true; }
+        else _rcLowFpsCount = 0;
+      }
+    }
 
     // Shimmer — normal scale pulse + level glow + tilt-based env boost
     const rotY = _rcMesh.rotation.y || 0;
@@ -1596,6 +1674,9 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   const def = BADGE_PROCEDURAL[badgeId];
   if (!def) return;
 
+  const isLite = (await _resolveQuality()) === 'low';
+  _bcLite = isLite; _bcFpsFrames = 0; _bcFpsT0 = 0; _bcLowFpsCount = 0;
+
   // Reset interaction state and clean up any previous open's listeners
   _bcDragVelX = 0; _bcDragVelY = 0;
   _bcReleaseTime = 0; _bcSpinning = false; _bcIdle = false; _bcAutoSpin = true;
@@ -1606,15 +1687,16 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
 
   _bcCanvas = canvasEl;
   let w = canvasEl.clientWidth || 340, h = canvasEl.clientHeight || 380;
-  canvasEl.width = w * Math.min(window.devicePixelRatio, 2.0);
-  canvasEl.height = h * Math.min(window.devicePixelRatio, 2.0);
+  const _bcDpr = Math.min(window.devicePixelRatio, isLite ? 1.0 : 2.0);
+  canvasEl.width = w * _bcDpr;
+  canvasEl.height = h * _bcDpr;
 
   _bcScene = new THREE.Scene();
   _bcCamera = new THREE.PerspectiveCamera(30, w / h, 0.1, 100);
   _bcCamera.position.set(0, 0, 6.8);
   _bcRenderer = _getRenderer(THREE, canvasEl);
   _bcRenderer.setSize(w, h);
-  _bcRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
+  _bcRenderer.setPixelRatio(Math.min(window.devicePixelRatio, isLite ? 1.0 : 2.0));
 
   // Lighting — bright ambient + key + fill + colored rim
   _bcScene.add(new THREE.AmbientLight(0x333344, 0.8));
@@ -1631,42 +1713,43 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   // Env map — vivid repeating rainbow bands (cached per badge color)
   const colorKey = def.color.toString(16);
   if (!_cachedBadgeEnvTexMap[colorKey]) {
-  const envC = document.createElement('canvas'); envC.width = 1024; envC.height = 512;
+  const _envW = isLite ? 512 : 1024, _envH = isLite ? 256 : 512;
+  const envC = document.createElement('canvas'); envC.width = _envW; envC.height = _envH;
   const ec = envC.getContext('2d');
-  ec.fillStyle = '#080808'; ec.fillRect(0, 0, 1024, 512);
+  ec.fillStyle = '#080808'; ec.fillRect(0, 0, _envW, _envH);
   // Studio light — bright center highlight
-  const sb = ec.createRadialGradient(440, 220, 0, 440, 220, 400);
+  const sb = ec.createRadialGradient(_envW*0.43, _envH*0.43, 0, _envW*0.43, _envH*0.43, _envW*0.39);
   sb.addColorStop(0, '#ffffff'); sb.addColorStop(0.15, '#cccccc'); sb.addColorStop(0.4, '#333333'); sb.addColorStop(1, 'transparent');
-  ec.fillStyle = sb; ec.fillRect(0, 0, 1024, 512);
+  ec.fillStyle = sb; ec.fillRect(0, 0, _envW, _envH);
   // Repeating rainbow bands — 3 full cycles across (like repeating-linear-gradient)
   const spectrum = ['#ff2a6d','#ff8c00','#f5d300','#01ff89','#05d9e8','#4a9eff','#9b59ff','#ff2a6d'];
   for (let cycle = 0; cycle < 3; cycle++) {
-    const cx = (cycle / 3) * 1024, cw = 1024 / 3;
+    const cx = (cycle / 3) * _envW, cw = _envW / 3;
     for (let s = 0; s < spectrum.length - 1; s++) {
       const x0 = cx + (s / (spectrum.length - 1)) * cw;
       const x1 = cx + ((s + 1) / (spectrum.length - 1)) * cw;
       const sg = ec.createLinearGradient(x0, 0, x1, 0);
       sg.addColorStop(0, spectrum[s]); sg.addColorStop(1, spectrum[s + 1]);
       ec.globalAlpha = 0.55;
-      ec.fillStyle = sg; ec.fillRect(x0, 0, x1 - x0, 512);
+      ec.fillStyle = sg; ec.fillRect(x0, 0, x1 - x0, _envH);
     }
   }
   ec.globalAlpha = 1;
   // Vertical cross-holo (diagonal sweep)
-  const rb2 = ec.createLinearGradient(0, 0, 512, 512);
+  const rb2 = ec.createLinearGradient(0, 0, _envW*0.5, _envH*0.5);
   rb2.addColorStop(0, 'rgba(0,255,200,0.25)'); rb2.addColorStop(0.25, 'rgba(255,100,0,0.25)');
   rb2.addColorStop(0.5, 'rgba(100,0,255,0.25)'); rb2.addColorStop(0.75, 'rgba(255,255,0,0.25)');
   rb2.addColorStop(1, 'rgba(0,150,255,0.25)');
-  ec.fillStyle = rb2; ec.fillRect(0, 0, 1024, 512);
+  ec.fillStyle = rb2; ec.fillRect(0, 0, _envW, _envH);
   // Badge accent color hot spot
-  const ac = ec.createRadialGradient(200, 120, 0, 200, 120, 180);
+  const ac = ec.createRadialGradient(_envW*0.2, _envH*0.23, 0, _envW*0.2, _envH*0.23, _envW*0.18);
   ac.addColorStop(0, `rgba(${r},${g},${b},0.4)`); ac.addColorStop(1, 'transparent');
-  ec.fillStyle = ac; ec.fillRect(0, 0, 1024, 512);
+  ec.fillStyle = ac; ec.fillRect(0, 0, _envW, _envH);
   // Scanline-like horizontal bands for foil shimmer
   ec.globalAlpha = 0.12;
-  for (let y = 0; y < 512; y += 4) {
+  for (let y = 0; y < _envH; y += 4) {
     ec.fillStyle = (y % 8 === 0) ? '#000' : '#fff';
-    ec.fillRect(0, y, 1024, 2);
+    ec.fillRect(0, y, _envW, 2);
   }
   ec.globalAlpha = 1;
   const _et = new THREE.CanvasTexture(envC);
@@ -2095,6 +2178,8 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     new THREE.PlaneGeometry(cardW * 0.95, cardH * 0.95), glitterMat
   );
   glitterPlane.position.z = cardD * 0.5 + 0.015;
+  _bcGlitterMat = glitterMat;
+  glitterPlane.visible = !isLite; // skip glitter in lite mode
 
   _bcMesh = new THREE.Group();
   _bcMesh.add(new THREE.Mesh(cardGeo, [frontMat, backMat, edgeMat]));
@@ -2428,17 +2513,19 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
       const cw = _bcCanvas.clientWidth, ch = _bcCanvas.clientHeight;
       if (cw > 10 && ch > 10 && (Math.abs(cw - _bcRenderer.domElement.clientWidth) > 2 || Math.abs(ch - _bcRenderer.domElement.clientHeight) > 2)) {
         _bcRenderer.setSize(cw, ch);
-        _bcRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        _bcRenderer.setPixelRatio(Math.min(window.devicePixelRatio, _bcLite ? 1.0 : 2.0));
         _bcCamera.aspect = cw / ch;
         _bcCamera.updateProjectionMatrix();
       }
     }
 
-    // Always update glitter uniforms
+    // Update glitter uniforms (skip in lite mode — glitterPlane is not visible)
     const t = Date.now() * 0.001;
-    glitterMat.uniforms.time.value = t;
-    glitterMat.uniforms.rotY.value = _bcMesh.rotation.y || 0;
-    glitterMat.uniforms.rotX.value = _bcMesh.rotation.x || 0;
+    if (!_bcLite) {
+      glitterMat.uniforms.time.value = t;
+      glitterMat.uniforms.rotY.value = _bcMesh.rotation.y || 0;
+      glitterMat.uniforms.rotX.value = _bcMesh.rotation.x || 0;
+    }
 
     // Intro animation
     const introElapsed = Date.now() - _bcIntroStart;
@@ -2448,22 +2535,37 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
       _bcMesh.rotation.y = -Math.PI * 0.6 + (REST_Y - (-Math.PI * 0.6)) * p;
       _bcMesh.rotation.z = 0.15 * (1 - p);
       _bcMesh.scale.setScalar(0.7 + 0.3 * p);
-      glitterMat.uniforms.rotY.value = _bcMesh.rotation.y;
-      glitterMat.uniforms.rotX.value = _bcMesh.rotation.x;
+      if (!_bcLite) {
+        glitterMat.uniforms.rotY.value = _bcMesh.rotation.y;
+        glitterMat.uniforms.rotX.value = _bcMesh.rotation.x;
+      }
       _bcRenderer.render(_bcScene, _bcCamera);
       return;
     } else if (!_bcAutoSpin && !_bcSpinning && !_bcDragging) {
       _bcAutoSpin = true;
     }
 
-    // Skip every other frame during auto-spin — but only after settling (1s grace)
+    // Skip frames during auto-spin (lite: every 3rd, normal: every 2nd)
     if (_bcAutoSpin && !_bcDragging && !_bcSpinning && (Date.now() - _bcReleaseTime) > 3000) {
-      if (++_bcFrameSkip % 2 !== 0) return;
+      const skipRate = _bcLite ? 3 : 2;
+      if (++_bcFrameSkip % skipRate !== 0) return;
     } else { _bcFrameSkip = 0; }
 
-    // Holo shimmer — sweep rainbow env map based on rotation angle
+    // Auto-downgrade FPS monitor (auto mode only)
+    if (!_bcLite && getQualitySetting() === 'auto') {
+      if (_bcFpsT0 === 0) _bcFpsT0 = Date.now();
+      if (++_bcFpsFrames >= 30) {
+        const fps = _bcFpsFrames / ((Date.now() - _bcFpsT0) / 1000);
+        _bcFpsFrames = 0; _bcFpsT0 = Date.now();
+        if (fps < 24) {
+          if (++_bcLowFpsCount >= 2) { _bcLite = true; if (_bcGlitterMat) _bcGlitterMat.visible = false; }
+        } else { _bcLowFpsCount = 0; }
+      }
+    }
+
+    // Holo shimmer — sweep rainbow env map based on rotation angle (skip in lite)
     const ry = _bcMesh.rotation.y || 0, rx = _bcMesh.rotation.x || 0;
-    if (!isMountain) {
+    if (!isMountain && !_bcLite) {
       // Sweep env map offset for rainbow shift on rotation
       envTex.offset.x = (ry * 0.4) % 1;
       envTex.offset.y = (rx * 0.15) % 1;
@@ -2499,10 +2601,10 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
         _bcMesh.rotation.z += (Math.sin(bst * 0.5 + 1) * 0.05 - _bcMesh.rotation.z) * (0.01 + 0.02 * spinEase);
       }
     }
-    // Parallax — move layers in portal scene or icon plane
-    let dy = _bcMesh.rotation.y - REST_Y; dy -= Math.round(dy / (Math.PI * 2)) * Math.PI * 2;
-    const dx = _bcMesh.rotation.x - REST_X;
-    if (_bcMesh._parallax && _bcMesh._parallax.length) {
+    // Parallax — move layers in portal scene or icon plane (skip in lite mode)
+    if (!_bcLite && _bcMesh._parallax && _bcMesh._parallax.length) {
+      let dy = _bcMesh.rotation.y - REST_Y; dy -= Math.round(dy / (Math.PI * 2)) * Math.PI * 2;
+      const dx = _bcMesh.rotation.x - REST_X;
       if (Math.abs(dy) < 0.8 && Math.abs(dx) < 0.8) {
         _bcMesh._parallax.forEach(l => { l.mesh.position.x += (-dy * l.depth * 6 - l.mesh.position.x) * 0.15; l.mesh.position.y += (dx * l.depth * 6 - l.mesh.position.y) * 0.15; });
       } else { _bcMesh._parallax.forEach(l => { l.mesh.position.x *= 0.85; l.mesh.position.y *= 0.85; }); }

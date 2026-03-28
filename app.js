@@ -2183,6 +2183,9 @@ function iosSettingsInit() {
     const labels = { dark: 'Dark', light: 'Light', tdf: 'Tour de France', auto: 'Auto' };
     themeEl.textContent = labels[localStorage.getItem('icu_theme') || 'dark'] || 'Dark';
   }
+  // 3D card quality select
+  const q3dSel = document.getElementById('quality3dSelect');
+  if (q3dSel) q3dSel.value = localStorage.getItem('icu_3d_quality') || 'auto';
 }
 
 /* ====================================================
@@ -5089,6 +5092,14 @@ function setUnits(units) {
     renderDashboard();
     if (state.currentPage === 'activities') renderAllActivitiesList();
   }
+}
+
+function set3DQuality(val) {
+  localStorage.setItem('icu_3d_quality', val);
+  // Reset the resolved quality cache in the badges module if it's already loaded
+  if (_badges3dModule?.setQualitySetting) _badges3dModule.setQualitySetting(val);
+  const sel = document.getElementById('quality3dSelect');
+  if (sel) sel.value = val;
 }
 
 // Distance: input in metres, returns { val, unit }
@@ -39907,7 +39918,7 @@ Object.assign(window, { wrkRender, wrkRefreshStats, wrkSetName, wrkAddSegment, w
   copyShareLink, shareToTwitter, shareToWhatsApp, shareToReddit,
   _isDark, _updateChartColors, setTheme, loadPhysicsScroll, setPhysicsScroll,
   loadSmoothFlyover, toggleSmoothFlyover, toggleTerrain3d,
-  toggleSquircle, _syncSquircleToggle });
+  toggleSquircle, _syncSquircleToggle, set3DQuality });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GEAR — COST & ROI ANALYSIS

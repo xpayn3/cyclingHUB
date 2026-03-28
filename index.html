@@ -4439,6 +4439,14 @@
                                     <span class="ios-row-label">Hide empty cards</span>
                                     <label class="settings-ios-toggle"><input type="checkbox" id="hideEmptyCardsToggle" onchange="setHideEmptyCards(this.checked)"/><span class="settings-ios-slider"></span></label>
                                 </div>
+                                <div class="ios-row">
+                                    <span class="ios-row-label">3D Card Quality</span>
+                                    <select id="quality3dSelect" class="app-select app-select--sm" onchange="set3DQuality(this.value)">
+                                        <option value="auto">Auto</option>
+                                        <option value="high">High</option>
+                                        <option value="low">Low (saves battery)</option>
+                                    </select>
+                                </div>
                             </div>
 
                             <div class="ios-group-label" style="margin-top:20px">Map</div>
