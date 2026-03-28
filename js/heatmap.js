@@ -775,7 +775,7 @@ export async function _hmFetchOneRoute(a) {
     }
     // fetchMapGPS returns null on definitive 404 or empty data
     if (!latlng || latlng.length < 2) return { noGps: true };
-    const valid = latlng.filter(p => Array.isArray(p) && p[0] != null && p[1] != null && Math.abs(p[0]) <= 90 && Math.abs(p[1]) <= 180);
+    const valid = latlng.filter(p => Array.isArray(p) && p[0] != null && p[1] != null && isFinite(p[0]) && isFinite(p[1]) && Math.abs(p[0]) <= 90 && Math.abs(p[1]) <= 180);
     if (valid.length < 2) return { noGps: true };
     const step = Math.max(1, Math.floor(valid.length / 200));
     points = valid.filter((_, j) => j % step === 0);
@@ -1087,14 +1087,19 @@ export function _hmDrawHeat(routes) {
   grid.forEach(v => { if (v > maxCount) maxCount = v; });
   const logMax = Math.log(maxCount + 1);
 
-  // Pass 2: build segment features with density
+  // Pass 2: build segment features with density (cap at 100k features to prevent OOM)
+  const MAX_HEAT_FEATURES = 100000;
   const features = [];
+  // Decimate if too many routes — skip every Nth segment
+  const totalSegs = routes.reduce((s, r) => s + Math.max(0, r.points.length - 1), 0);
+  const segStep = totalSegs > MAX_HEAT_FEATURES ? Math.ceil(totalSegs / MAX_HEAT_FEATURES) : 1;
+  let segCount = 0;
   routes.forEach(r => {
     const pts = r.points;
     if (pts.length < 2) return;
     for (let i = 1; i < pts.length; i++) {
+      if (++segCount % segStep !== 0) continue;
       const a = pts[i - 1], b = pts[i];
-      // Use max density of the two endpoints
       const ka = (Math.floor(a[0] / CELL)) + ',' + (Math.floor(a[1] / CELL));
       const kb = (Math.floor(b[0] / CELL)) + ',' + (Math.floor(b[1] / CELL));
       const count = Math.max(grid.get(ka) || 0, grid.get(kb) || 0);
@@ -1430,7 +1435,7 @@ export function _hmAnimLoop() {
   _hm.animIdx++;
 
   const baseDelay = routes.length > 200 ? 60 : routes.length > 50 ? 200 : 350;
-  const speedMap = { 1: 1, 2: 4, 3: 15 };
+  const speedMap = { 1: 1, 2: 4, 3: 15, 5: 40, 10: 100 };
   const delay = Math.max(5, Math.round(baseDelay / (speedMap[_hm.animSpeed] || 1)));
   _hm.animTimer = setTimeout(_hmAnimLoop, delay);
 }
@@ -1451,6 +1456,8 @@ export function hmStopAnimate() {
   _hm.animating = false;
   _hm.animState = 'stopped';
   if (_hm.animTimer) { clearTimeout(_hm.animTimer); _hm.animTimer = null; }
+  // Free accumulated animation features
+  _hm._animFeatures = [];
   _hmSetAnimBtn('play', 'Replay Rides');
   const barFill = document.getElementById('hmAnimateBarFill');
   if (barFill) barFill.style.width = '0%';

@@ -566,10 +566,15 @@ function cleanupPageCharts(leavingPage) {
     if (window.rbCleanupSheetMode) rbCleanupSheetMode();
     if (window._rb && _rb.map) { try { _rb.map.remove(); } catch(_){} _rb.map = null; }
   }
-  // Cleanup heatmap sheet
+  // Cleanup heatmap — destroy map, stop animation, free GeoJSON memory
   if (leavingPage === 'heatmap') {
     if (window.hmCleanupSheetMode) hmCleanupSheetMode();
-    if (window._hm && window._hm.animTimer) { clearInterval(window._hm.animTimer); window._hm.animTimer = null; }
+    if (window._hm) {
+      if (_hm.animTimer) { clearInterval(_hm.animTimer); _hm.animTimer = null; }
+      if (_hm._animFeatures) _hm._animFeatures = [];
+      if (_hm.map) { try { _hm.map.remove(); } catch(_){} _hm.map = null; }
+      _hm.filteredRoutes = null; // free GeoJSON references
+    }
   }
   // Clean up card grid maps when leaving activities page
   if (leavingPage === 'activities') {
