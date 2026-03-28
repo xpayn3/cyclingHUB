@@ -695,12 +695,15 @@ export async function initRiderCard3D(canvasEl, data) {
   _rcRenderer.setSize(w, h);
   _rcRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
 
-  // Lighting — 3 lights (ambient + key + rim) for fast shader compile
-  _rcScene.add(new THREE.AmbientLight(0x1a1a2e, 0.3));
-  const key = new THREE.DirectionalLight(0xffffff, 3.5);
+  // Lighting — bright enough for matte card, chrome pops on edges
+  _rcScene.add(new THREE.AmbientLight(0x333344, 0.8));
+  const key = new THREE.DirectionalLight(0xffffff, 3.0);
   key.position.set(3, 5, 4);
   _rcScene.add(key);
-  const rim = new THREE.DirectionalLight(0x4a9eff, 2.0);
+  const fill = new THREE.DirectionalLight(0xeeeeff, 1.2);
+  fill.position.set(-2, 2, 5);
+  _rcScene.add(fill);
+  const rim = new THREE.DirectionalLight(0x4a9eff, 1.5);
   rim.position.set(-4, 3, -5);
   _rcScene.add(rim);
 
@@ -1107,12 +1110,13 @@ export async function initRiderCard3D(canvasEl, data) {
     normalMap: normalTex, normalScale: new THREE.Vector2(1.0, 1.0),
     metalnessMap: mrTex, roughnessMap: mrTex,
     metalness: 1.0, roughness: 1.0,
+    envMap: envTex, envMapIntensity: 0.6,
     side: THREE.FrontSide
   });
 
   // Split ExtrudeGeometry into 3 material groups: front, back, sides
   const backMat = new THREE.MeshStandardMaterial({
-    map: backTex, metalness: 0.1, roughness: 0.6
+    map: backTex, metalness: 0.15, roughness: 0.5, envMap: envTex, envMapIntensity: 0.3
   });
 
   // Ensure geometry is indexed so we can split groups
@@ -1296,11 +1300,14 @@ export async function initRiderCard3D(canvasEl, data) {
       if (++_rcFrameSkip % 2 !== 0) return;
     } else { _rcFrameSkip = 0; }
 
-    // Shimmer — normal scale pulse + level glow
+    // Shimmer — normal scale pulse + level glow + tilt-based env boost
     const rotY = _rcMesh.rotation.y || 0;
+    const rotX = _rcMesh.rotation.x || 0;
     const t = Date.now() * 0.001;
     const ns = 0.85 + Math.sin(t + rotY * 3) * 0.15;
     frontMat.normalScale.set(ns, ns);
+    const tilt = 1 - Math.max(0, Math.cos(rotY) * Math.cos(rotX));
+    frontMat.envMapIntensity = 0.6 + tilt * 2.5;
     lvlGlowMat.uniforms.intensity.value = 0.4 + Math.sin(t * 1.2 + rotY * 2) * 0.2;
 
     if (!_rcDragging) {
@@ -1607,12 +1614,10 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   _bcRenderer.setSize(w, h);
   _bcRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
 
-  // Dramatic lighting
-  _bcScene.add(new THREE.AmbientLight(0x0a0a0a, 0.15));
-  const spot = new THREE.SpotLight(0xffffff, 3.5, 20, Math.PI / 7, 0.5, 1.5);
-  spot.position.set(0, 6, 5); spot.target.position.set(0, 0, 0);
-  _bcScene.add(spot); _bcScene.add(spot.target);
-  const key = new THREE.DirectionalLight(0xffffff, 2.0); key.position.set(5, 4, 2); _bcScene.add(key);
+  // Lighting — bright ambient + key + fill + colored rim
+  _bcScene.add(new THREE.AmbientLight(0x333344, 0.8));
+  const key = new THREE.DirectionalLight(0xffffff, 3.0); key.position.set(3, 5, 4); _bcScene.add(key);
+  const fill = new THREE.DirectionalLight(0xeeeeff, 1.2); fill.position.set(-2, 2, 5); _bcScene.add(fill);
   const r = (def.color >> 16) & 255, g = (def.color >> 8) & 255, b = def.color & 255;
   const rim = new THREE.DirectionalLight(def.color, 1.5); rim.position.set(-4, 3, -5); _bcScene.add(rim);
 
@@ -1951,16 +1956,15 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
 
   // Materials
   const isMountain = def.scene === 'mountain';
-  const frontMat = new THREE.MeshPhysicalMaterial({
+  const frontMat = new THREE.MeshStandardMaterial({
     map: faceTex, normalMap: normalTex, normalScale: new THREE.Vector2(isMountain ? 0.3 : 1.2, isMountain ? 0.3 : 1.2),
     metalnessMap: mrTex, roughnessMap: mrTex, metalness: 1, roughness: 1,
+    envMap: envTex, envMapIntensity: isMountain ? 0.3 : 0.6,
     side: THREE.FrontSide,
-    transparent: isMountain, alphaTest: isMountain ? 0.01 : 0,
-    clearcoat: 0.8, clearcoatRoughness: 0.1,
-    iridescence: 1.0, iridescenceIOR: 1.3,
+    transparent: isMountain, alphaTest: isMountain ? 0.01 : 0
   });
   const backMat = new THREE.MeshStandardMaterial({
-    map: backTex, metalness: 0.1, roughness: 0.6
+    map: backTex, metalness: 0.15, roughness: 0.5, envMap: envTex, envMapIntensity: 0.3
   });
   const edgeMat = new THREE.MeshStandardMaterial({
     color: def.color, metalness: 1, roughness: 0.05, envMap: envTex, envMapIntensity: 3
@@ -2446,10 +2450,13 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     // Holo shimmer — sweep rainbow env map based on rotation angle
     const ry = _bcMesh.rotation.y || 0, rx = _bcMesh.rotation.x || 0;
     if (!isMountain) {
-      // Sweep env map offset on edges for rainbow shift
+      // Sweep env map offset for rainbow shift on rotation
       envTex.offset.x = (ry * 0.4) % 1;
       envTex.offset.y = (rx * 0.15) % 1;
       envTex.needsUpdate = false;
+      // Boost env intensity when tilted — chrome pops on rotation, subtle when facing
+      const tilt = 1 - Math.max(0, Math.cos(ry) * Math.cos(rx));
+      frontMat.envMapIntensity = 0.6 + tilt * 2.5;
     }
     // Moving spotlight — orbits opposite to card tilt for specular hotspot
     holoSpot.position.x = -Math.sin(ry) * 3;
