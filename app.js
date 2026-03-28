@@ -26538,7 +26538,11 @@ function renderStreamCharts(streams, activity) {
             enabled: true,
             mode:    'x',
             threshold: 10,
-            onPanStart:    () => { state._streamsPanning = true; },
+            onPanStart: ({ chart }) => {
+              // Only allow pan when zoomed — at default zoom, let tooltip scrub work
+              if (!chart.isZoomedOrPanned?.()) return false;
+              state._streamsPanning = true;
+            },
             onPanComplete: () => { state._streamsPanning = false; streamsUpdateZoomState(); },
           },
           limits: {
