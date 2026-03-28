@@ -113,7 +113,9 @@ const jsFilesToPatch = [path.join(DIST, 'app.min.js'), ...fs.readdirSync(path.jo
 jsFilesToPatch.forEach(fp => {
   let code = fs.readFileSync(fp, 'utf8');
   const updated = code.replace(/(from|import)\s*["']\.\/(\w+)\.js["']/g, '$1"./$2.min.js"')
-                      .replace(/(from|import)\s*["']\.\/js\/(\w+)\.js["']/g, '$1"./js/$2.min.js"');
+                      .replace(/(from|import)\s*["']\.\/js\/(\w+)\.js["']/g, '$1"./js/$2.min.js"')
+                      .replace(/import\(["']\.\/js\/(\w+)\.js["']\)/g, 'import("./js/$1.min.js")')
+                      .replace(/import\(["']\.\/(\w+)\.js["']\)/g, 'import("./$1.min.js")');
   if (updated !== code) fs.writeFileSync(fp, updated);
 });
 
