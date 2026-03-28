@@ -2128,8 +2128,10 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     const camDist = 6.8; // main camera z position
     const camFov = 30;
     const makeLayer = (drawFn, zBehind) => {
-      const c = document.createElement('canvas'); c.width = fW; c.height = fH;
-      drawFn(c.getContext('2d'), fW, fH);
+      // Equirectangular canvas (2:1 ratio) for correct sphere UV mapping
+      const eqW = 1024, eqH = 512;
+      const c = document.createElement('canvas'); c.width = eqW; c.height = eqH;
+      drawFn(c.getContext('2d'), eqW, eqH);
       // Dome geometry — curves inward behind card
       const domeRadius = Math.max(cardW * 0.7, zBehind + 0.5);
       const domeGeo = new THREE.SphereGeometry(domeRadius, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.5);
