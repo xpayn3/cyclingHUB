@@ -2102,21 +2102,27 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   if (def.scene === 'mountain') {
     // ── Portal via stencil mask — mountain layers in main scene, clipped by card shape ──
 
-    // Step 1: Stencil mask — card-shaped plane that writes stencil=1, no color/depth
-    const maskGeo = new THREE.PlaneGeometry(cardW * 0.98, cardH * 0.98);
-    const maskMat = new THREE.MeshBasicMaterial({
-      colorWrite: false, depthWrite: false,
-    });
+    // Step 1: Separate stencil mask — opaque card shape (no color/depth, just stencil)
+    // Must be non-transparent so fragments actually write to stencil buffer
+    const maskShape = new THREE.Shape();
+    const mhw = hw * 0.97, mhh = hh * 0.97, mcr = cardR * 0.9;
+    maskShape.moveTo(-mhw + mcr, -mhh); maskShape.lineTo(mhw - mcr, -mhh);
+    maskShape.quadraticCurveTo(mhw, -mhh, mhw, -mhh + mcr); maskShape.lineTo(mhw, mhh - mcr);
+    maskShape.quadraticCurveTo(mhw, mhh, mhw - mcr, mhh); maskShape.lineTo(-mhw + mcr, mhh);
+    maskShape.quadraticCurveTo(-mhw, mhh, -mhw, mhh - mcr); maskShape.lineTo(-mhw, -mhh + mcr);
+    maskShape.quadraticCurveTo(-mhw, -mhh, -mhw + mcr, -mhh);
+    const maskGeo = new THREE.ShapeGeometry(maskShape);
+    const maskMat = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false });
     maskMat.stencilWrite = true;
     maskMat.stencilRef = 1;
     maskMat.stencilFunc = THREE.AlwaysStencilFunc;
     maskMat.stencilFail = THREE.ReplaceStencilOp;
     maskMat.stencilZFail = THREE.ReplaceStencilOp;
     maskMat.stencilZPass = THREE.ReplaceStencilOp;
-    const maskPlane = new THREE.Mesh(maskGeo, maskMat);
-    maskPlane.position.z = cardD * 0.5 + 0.0005;
-    maskPlane.renderOrder = 0;
-    _bcMesh.add(maskPlane);
+    const maskMesh = new THREE.Mesh(maskGeo, maskMat);
+    maskMesh.position.z = cardD * 0.5 + 0.001;
+    maskMesh.renderOrder = -1; // render BEFORE everything else
+    _bcMesh.add(maskMesh);
 
     // Step 2: Mountain layers — in main scene BEHIND the card, stencil-clipped
     const camDist = 6.8; // main camera z position
@@ -2131,9 +2137,12 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
       const mat = new THREE.MeshBasicMaterial({
         map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false
       });
-      mat.stencilWrite = false;
+      mat.stencilWrite = true;
       mat.stencilRef = 1;
       mat.stencilFunc = THREE.EqualStencilFunc;
+      mat.stencilFail = THREE.KeepStencilOp;
+      mat.stencilZFail = THREE.KeepStencilOp;
+      mat.stencilZPass = THREE.KeepStencilOp;
       const m = new THREE.Mesh(new THREE.PlaneGeometry(vW, vH), mat);
       m.position.z = -(cardD * 0.5) - zBehind; // behind the card
       m.renderOrder = 1;
@@ -2389,12 +2398,10 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     txtPlane.position.z = cardD * 0.5 + 0.003;
     _bcMesh.add(txtPlane);
 
-    // Set render order on card body so it renders after mask
-    _bcMesh.children[0].renderOrder = 2; // card body
-    txtPlane.renderOrder = 3;
+    txtPlane.renderOrder = 2;
 
     _bcMesh.add(glitterPlane);
-    glitterPlane.renderOrder = 4;
+    glitterPlane.renderOrder = 3;
 
     // Parallax — layers shift when card tilts, deeper layers move more
     _bcMesh._parallax = [
