@@ -185,22 +185,21 @@ if ('serviceWorker' in navigator) {
 }
 
 // Populate version footer + splash version + git hash
-const BUILD_HASH = 'b46e59e';
+const BUILD_HASH = '66aea56';
 (function() {
+  const footer = document.getElementById('appVersionFooter');
   function setVersion(ver) {
-    const footer = document.getElementById('appVersionFooter');
     const splash = document.getElementById('splashVersion');
-    const display = 'CycleIQ ' + ver + ' · ' + BUILD_HASH;
-    if (footer) footer.textContent = display;
+    if (footer) footer.textContent = 'CycleIQ ' + ver + ' · ' + BUILD_HASH;
     if (splash) splash.textContent = ver;
   }
+  // Always show hash immediately
+  if (footer) footer.textContent = 'CycleIQ · ' + BUILD_HASH;
+  // Then upgrade with SW version when available
   if (navigator.serviceWorker?.controller) {
     const mc = new MessageChannel();
     mc.port1.onmessage = e => { if (e.data?.version) setVersion(e.data.version.replace('icu-app-shell-', '')); };
     navigator.serviceWorker.controller.postMessage({ type: 'GET_VERSION' }, [mc.port2]);
-  } else {
-    const footer = document.getElementById('appVersionFooter');
-    if (footer) footer.textContent = 'CycleIQ · ' + BUILD_HASH;
   }
 })();
 
