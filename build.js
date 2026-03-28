@@ -21,7 +21,7 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 const SRC  = __dirname;
-const DIST = path.join(SRC, 'dist');
+const DIST = path.join(SRC, 'docs');
 
 // ── Clean ──
 if (process.argv[2] === 'clean') {
