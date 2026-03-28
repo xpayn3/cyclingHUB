@@ -483,6 +483,23 @@ export function rbCleanupSheetMode() {
     window.removeEventListener('mouseup', _rb._rotateUp);
     _rb._rotateUp = null;
   }
+  // Abort any in-flight route fetch
+  if (_rb._fetchAbort) { try { _rb._fetchAbort.abort(); } catch(_){} _rb._fetchAbort = null; }
+  // Clean map listeners before map.remove()
+  if (_rb.map) {
+    try { _rb.map.off('click', _rbOnMapClick); } catch(_){}
+    if (_rb._scrubMoveFn)  try { _rb.map.off('mousemove', 'rb-route-hit', _rb._scrubMoveFn); } catch(_){}
+    if (_rb._scrubLeaveFn) try { _rb.map.off('mouseleave', 'rb-route-hit', _rb._scrubLeaveFn); } catch(_){}
+    if (_rb._scrubClickFn) try { _rb.map.off('click', 'rb-route-hit', _rb._scrubClickFn); } catch(_){}
+  }
+  // Remove scrub/elevation markers
+  if (_rb._scrubMarker) { try { _rb._scrubMarker.remove(); } catch(_){} _rb._scrubMarker = null; }
+  if (_rb._scrubDot) { try { _rb._scrubDot.remove(); } catch(_){} _rb._scrubDot = null; }
+  if (_rb.elevMarker) { try { _rb.elevMarker.remove(); } catch(_){} _rb.elevMarker = null; }
+  if (_rb._timeLabel) { try { _rb._timeLabel.remove(); } catch(_){} _rb._timeLabel = null; }
+  _rb._scrubBound = false;
+  // Clear elevation chart
+  if (_rb._elevChart) { try { _rb._elevChart.destroy(); } catch(_){} _rb._elevChart = null; }
 }
 window.rbCleanupSheetMode = rbCleanupSheetMode;
 
@@ -2235,7 +2252,10 @@ export async function _rbOnMapClick(e) {
     _rbClearAltRoute();
     const prev = _rb.waypoints[_rb.waypoints.length - 2];
     const curr = _rb.waypoints[_rb.waypoints.length - 1];
+    const wpCountBefore = _rb.waypoints.length; // snapshot for stale check
     const routes = await _rbFetchRoute(prev, curr, true);
+    // Discard if waypoints changed while we were fetching (user clicked again)
+    if (_rb.waypoints.length !== wpCountBefore) return;
     if (routes && routes.length > 0) {
       const route = routes[0];
       const segIdx = _rb.routeSegments.length;
@@ -2910,6 +2930,7 @@ export function rbToggleSidePanel() {
 }
 
 /* ── Undo / Redo ── */
+const _RB_MAX_HISTORY = 50;
 export function _rbPushHistory() {
   _rb.history = _rb.history.slice(0, _rb.historyIdx + 1);
   _rb.history.push({
@@ -2917,6 +2938,10 @@ export function _rbPushHistory() {
     segments: JSON.parse(JSON.stringify(_rb.routeSegments)),
     elevation: JSON.parse(JSON.stringify(_rb.elevationData)),
   });
+  // Cap history to prevent OOM on long editing sessions
+  if (_rb.history.length > _RB_MAX_HISTORY) {
+    _rb.history = _rb.history.slice(_rb.history.length - _RB_MAX_HISTORY);
+  }
   _rb.historyIdx = _rb.history.length - 1;
   _rbUpdateUndoRedoBtns();
 }
