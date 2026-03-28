@@ -671,6 +671,10 @@ export function resizeBadge3D(canvasEl) {
 let _rcScene, _rcCamera, _rcRenderer, _rcMesh, _rcRaf;
 let _rcDragging = false, _rcStartX = 0, _rcStartY = 0, _rcRotX = 0, _rcRotY = 0;
 let _rcTrail = [];
+let _rcDragVelX = 0, _rcDragVelY = 0;
+let _rcReleaseTime = 0, _rcSpinning = false, _rcIdle = false, _rcAutoSpin = false;
+let _rcFrameSkip = 0;
+let _rcAbort = null;
 
 export async function initRiderCard3D(canvasEl, data) {
   const THREE = await _loadThreeJS();
@@ -1249,9 +1253,14 @@ export async function initRiderCard3D(canvasEl, data) {
   const _rcIntroDur = 500; // ms
   let velX = 0, velY = 0;
   const SPRING = 0.008, DAMP = 0.97;
-  let _rcDragVelX = 0, _rcDragVelY = 0, _rcLastMoveX = 0, _rcLastMoveY = 0;
-  let _rcReleaseTime = 0, _rcSpinning = false, _rcIdle = false, _rcAutoSpin = false;
-  let _rcFrameSkip = 0;
+  // Reset all interaction state for this session
+  _rcDragVelX = 0; _rcDragVelY = 0;
+  _rcReleaseTime = 0; _rcSpinning = false; _rcIdle = false; _rcAutoSpin = false;
+  _rcFrameSkip = 0; _rcDragging = false;
+  // Clean up any listeners from a previous open
+  if (_rcAbort) { _rcAbort.abort(); _rcAbort = null; }
+  _rcAbort = new AbortController();
+  const rcSig = { signal: _rcAbort.signal };
 
   function _easeOutBack(t) { const c = 1.4; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); }
 
@@ -1354,29 +1363,26 @@ export async function initRiderCard3D(canvasEl, data) {
     _rcDragging = true;
     _rcStartX = e.clientX; _rcStartY = e.clientY;
     _rcRotX = _rcMesh.rotation.x; _rcRotY = _rcMesh.rotation.y;
-    // Track last 3 positions with timestamps for velocity
     _rcTrail = [{ x: e.clientX, y: e.clientY, t: Date.now() }];
     canvasEl.setPointerCapture(e.pointerId);
     canvasEl.style.cursor = 'grabbing';
-  });
+  }, rcSig);
   canvasEl.addEventListener('pointermove', e => {
     if (!_rcDragging || !_rcMesh) return;
     _rcMesh.rotation.y = _rcRotY + (e.clientX - _rcStartX) * 0.015;
     _rcMesh.rotation.x = _rcRotX + (e.clientY - _rcStartY) * 0.015;
-    // Keep trail of last 6 positions
     _rcTrail.push({ x: e.clientX, y: e.clientY, t: Date.now() });
     if (_rcTrail.length > 6) _rcTrail.shift();
-  });
-  canvasEl.addEventListener('touchmove', e => { if (_rcDragging) e.preventDefault(); }, { passive: false });
+  }, rcSig);
+  canvasEl.addEventListener('touchstart', e => { e.stopPropagation(); }, { passive: true, signal: _rcAbort.signal });
+  canvasEl.addEventListener('touchmove', e => { e.preventDefault(); e.stopPropagation(); }, { passive: false, signal: _rcAbort.signal });
   const endDrag = () => {
     if (!_rcDragging) return;
     _rcDragging = false;
     canvasEl.style.cursor = 'grab';
-    // Compute velocity from recent trail entries only (last 80ms)
     _rcDragVelX = 0; _rcDragVelY = 0;
     const now = Date.now();
-    if (_rcTrail.length >= 2) {
-      // Find oldest entry within 80ms window
+    if (_rcTrail && _rcTrail.length >= 2) {
       const recent = _rcTrail.filter(p => now - p.t < 80);
       if (recent.length >= 2) {
         const a = recent[0], b = recent[recent.length - 1];
@@ -1388,9 +1394,9 @@ export async function initRiderCard3D(canvasEl, data) {
     _rcReleaseTime = now;
     _rcSpinning = Math.abs(_rcDragVelX) + Math.abs(_rcDragVelY) > 0.001;
   };
-  canvasEl.addEventListener('pointerup', endDrag);
-  canvasEl.addEventListener('pointercancel', endDrag);
-  canvasEl.addEventListener('pointerleave', endDrag);
+  canvasEl.addEventListener('pointerup', endDrag, rcSig);
+  canvasEl.addEventListener('pointercancel', endDrag, rcSig);
+  canvasEl.addEventListener('pointerleave', endDrag, rcSig);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1564,14 +1570,23 @@ export function renderBadgePreview(badgeId, name, desc, locked) {
 // ─────────────────────────────────────────────────────────────────────────────
 let _bcScene, _bcCamera, _bcRenderer, _bcMesh, _bcRaf, _bcDragging = false;
 let _bcStartX = 0, _bcStartY = 0, _bcRotX = 0, _bcRotY = 0;
-let _bcDragVelX = 0, _bcDragVelY = 0, _bcLastMoveX = 0, _bcLastMoveY = 0;
+let _bcDragVelX = 0, _bcDragVelY = 0;
 let _bcReleaseTime = 0, _bcSpinning = false, _bcIdle = false, _bcAutoSpin = true;
 let _bcTrail = [];
+let _bcAbort = null;
 
 export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   const THREE = await _loadThreeJS();
   const def = BADGE_PROCEDURAL[badgeId];
   if (!def) return;
+
+  // Reset interaction state and clean up any previous open's listeners
+  _bcDragVelX = 0; _bcDragVelY = 0;
+  _bcReleaseTime = 0; _bcSpinning = false; _bcIdle = false; _bcAutoSpin = true;
+  _bcDragging = false;
+  if (_bcAbort) { _bcAbort.abort(); _bcAbort = null; }
+  _bcAbort = new AbortController();
+  const bcSig = { signal: _bcAbort.signal };
 
   let w = canvasEl.clientWidth || 340, h = canvasEl.clientHeight || 380;
   canvasEl.width = w * Math.min(window.devicePixelRatio, 2.0);
@@ -2482,16 +2497,16 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     _bcRotX = _bcMesh.rotation.x; _bcRotY = _bcMesh.rotation.y;
     _bcTrail = [{ x: e.clientX, y: e.clientY, t: Date.now() }];
     canvasEl.setPointerCapture(e.pointerId); canvasEl.style.cursor = 'grabbing';
-  });
+  }, bcSig);
   canvasEl.addEventListener('pointermove', e => {
     if (!_bcDragging || !_bcMesh) return;
     _bcMesh.rotation.y = _bcRotY + (e.clientX - _bcStartX) * 0.015;
     _bcMesh.rotation.x = _bcRotX + (e.clientY - _bcStartY) * 0.015;
     _bcTrail.push({ x: e.clientX, y: e.clientY, t: Date.now() });
     if (_bcTrail.length > 6) _bcTrail.shift();
-  });
-  canvasEl.addEventListener('touchstart', e => { e.stopPropagation(); }, { passive: true });
-  canvasEl.addEventListener('touchmove', e => { e.preventDefault(); e.stopPropagation(); }, { passive: false });
+  }, bcSig);
+  canvasEl.addEventListener('touchstart', e => { e.stopPropagation(); }, { passive: true, signal: _bcAbort.signal });
+  canvasEl.addEventListener('touchmove', e => { e.preventDefault(); e.stopPropagation(); }, { passive: false, signal: _bcAbort.signal });
   const endDrag = () => {
     if (!_bcDragging) return;
     _bcDragging = false; canvasEl.style.cursor = 'grab';
@@ -2509,13 +2524,14 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     _bcReleaseTime = now;
     _bcSpinning = Math.abs(_bcDragVelX) + Math.abs(_bcDragVelY) > 0.001;
   };
-  canvasEl.addEventListener('pointerup', endDrag);
-  canvasEl.addEventListener('pointercancel', endDrag);
-  canvasEl.addEventListener('pointerleave', endDrag);
+  canvasEl.addEventListener('pointerup', endDrag, bcSig);
+  canvasEl.addEventListener('pointercancel', endDrag, bcSig);
+  canvasEl.addEventListener('pointerleave', endDrag, bcSig);
 }
 
 export function destroyBadgeCard3D() {
   if (_bcRaf) cancelAnimationFrame(_bcRaf); _bcRaf = null;
+  if (_bcAbort) { _bcAbort.abort(); _bcAbort = null; }
   if (_bcScene) _bcScene.traverse(child => {
     if (child.geometry) child.geometry.dispose();
     if (child.material) { const mats = Array.isArray(child.material) ? child.material : [child.material]; mats.forEach(m => { if (m.map) m.map.dispose(); if (m.normalMap) m.normalMap.dispose(); if (m.metalnessMap) m.metalnessMap.dispose(); if (m.roughnessMap) m.roughnessMap.dispose(); /* don't dispose envMap — cached */ m.dispose(); }); }
@@ -2534,6 +2550,7 @@ export function destroyBadgeCard3D() {
 export function destroyRiderCard3D() {
   if (_rcRaf) cancelAnimationFrame(_rcRaf);
   _rcRaf = null;
+  if (_rcAbort) { _rcAbort.abort(); _rcAbort = null; }
   // Dispose all textures, geometries, materials in the scene
   if (_rcScene) {
     _rcScene.traverse(child => {
