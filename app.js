@@ -6847,7 +6847,6 @@ function renderDashboard() {
 
   const actListEl = document.getElementById('activityList');
   if (actListEl) renderActivityList('activityList', recent.slice(0, 10));
-  renderAllActivitiesList();
   updateSortButtons();
   _updateSportButtons();
   renderWeekProgress();
