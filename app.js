@@ -1625,10 +1625,15 @@ function confirmFullResync() {
         if (lb) lb.textContent = 'Pull to refresh';
       });
     } else {
-      ind.classList.remove('ptr-visible', 'ptr-complete');
-      ind.style.top = '';
-      if (fl) fl.style.width = '0%';
-      if (lb) lb.textContent = 'Pull to refresh';
+      ind.classList.remove('ptr-complete');
+      if (fl) { fl.style.transition = 'width 0.3s ease-out'; fl.style.width = '0%'; }
+      if (lb) lb.textContent = '';
+      setTimeout(() => {
+        ind.classList.remove('ptr-visible');
+        ind.style.top = '';
+        if (fl) fl.style.transition = 'none';
+        if (lb) lb.textContent = 'Pull to refresh';
+      }, 350);
     }
     _ptrDist = 0;
   }, { passive: true });
