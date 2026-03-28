@@ -17453,20 +17453,38 @@ function _initScrubbers(containerSel, defs) {
     scrubber._cevApplyStep = (s) => { applyStep(s); history = []; syncUndoBtn(); };
     scrubber._cevDef = def;
     if (undoBtn) undoBtn.addEventListener('click', e => { e.stopPropagation(); if (!history.length) return; applyStep(history.pop()); syncUndoBtn(); });
-    let pending = false, pendingPid = 0, lockScroll = false;
+    let pending = false, pendingPid = 0, lockScroll = false, startY = 0;
     scrubber.style.setProperty('touch-action', 'pan-y', 'important');
-    scrubber.addEventListener('pointerdown', e => { if (e.button > 0) return; dragStartX = e.clientX; dragStartStep = step; pending = true; pendingPid = e.pointerId; });
+    scrubber.addEventListener('pointerdown', e => {
+      if (e.button > 0) return;
+      dragStartX = e.clientX; startY = e.clientY; dragStartStep = step;
+      pending = true; pendingPid = e.pointerId;
+    });
     scrubber.addEventListener('pointermove', e => {
-      if (pending) { if (Math.abs(e.clientX - dragStartX) < 10) return; pending = false; dragging = true; lockScroll = true; scrubber.setPointerCapture(pendingPid); }
+      if (pending) {
+        const dx = Math.abs(e.clientX - dragStartX), dy = Math.abs(e.clientY - startY);
+        // If vertical wins first, abort — let sheet scroll
+        if (dy > 8 && dy > dx) { pending = false; return; }
+        // Need clear horizontal intent before committing
+        if (dx < 10) return;
+        pending = false; dragging = true; lockScroll = true;
+        try { scrubber.setPointerCapture(pendingPid); } catch(_){}
+      }
       if (!dragging) return;
       applyStep(dragStartStep - (e.clientX - dragStartX) / _CEV_PX_PER_STEP);
     });
     scrubber.addEventListener('touchmove', e => { if (dragging || lockScroll) e.preventDefault(); }, { passive: false });
     scrubber.addEventListener('touchend', () => { lockScroll = false; });
     scrubber.addEventListener('touchcancel', () => { lockScroll = false; });
-    const endDrag = () => { if (pending) { pending = false; return; } if (!dragging) return; dragging = false; if (step !== dragStartStep) { history.push(dragStartStep); syncUndoBtn(); if (def.onChange) def.onChange(); } };
+    const endDrag = () => {
+      pending = false; lockScroll = false;
+      if (!dragging) return;
+      dragging = false;
+      if (step !== dragStartStep) { history.push(dragStartStep); syncUndoBtn(); if (def.onChange) def.onChange(); }
+    };
     scrubber.addEventListener('pointerup', endDrag);
     scrubber.addEventListener('pointercancel', endDrag);
+    scrubber.addEventListener('pointerleave', endDrag);
   });
 }
 function _syncScrubbers(containerSel, defs) {
@@ -17527,48 +17545,39 @@ function _initCalScrubbers() {
       });
     }
 
-    let pending = false, pendingPid = 0, lockScroll = false;
-    const DRAG_THRESHOLD = 10; // px of horizontal movement before committing
+    let pending = false, pendingPid = 0, lockScroll = false, startY2 = 0;
 
     scrubber.addEventListener('pointerdown', e => {
       if (e.button > 0) return;
-      dragStartX = e.clientX;
-      dragStartStep = step;
-      pending = true;
-      pendingPid = e.pointerId;
+      dragStartX = e.clientX; startY2 = e.clientY;
+      dragStartStep = step; pending = true; pendingPid = e.pointerId;
     });
 
     scrubber.addEventListener('pointermove', e => {
       if (pending) {
-        const dx = Math.abs(e.clientX - dragStartX);
-        if (dx < DRAG_THRESHOLD) return;
-        pending = false;
-        dragging = true;
-        lockScroll = true;
-        scrubber.setPointerCapture(pendingPid);
+        const dx = Math.abs(e.clientX - dragStartX), dy = Math.abs(e.clientY - startY2);
+        if (dy > 8 && dy > dx) { pending = false; return; }
+        if (dx < 10) return;
+        pending = false; dragging = true; lockScroll = true;
+        try { scrubber.setPointerCapture(pendingPid); } catch(_){}
       }
       if (!dragging) return;
-      const delta = e.clientX - dragStartX;
-      applyStep(dragStartStep - delta / _CEV_PX_PER_STEP);
+      applyStep(dragStartStep - (e.clientX - dragStartX) / _CEV_PX_PER_STEP);
     });
 
-    // Block scroll as long as lockScroll is true (survives pointerup)
     scrubber.addEventListener('touchmove', e => { if (dragging || lockScroll) e.preventDefault(); }, { passive: false });
     scrubber.addEventListener('touchend', () => { lockScroll = false; });
     scrubber.addEventListener('touchcancel', () => { lockScroll = false; });
 
     const endDrag = () => {
-      if (pending) { pending = false; return; }
+      pending = false; lockScroll = false;
       if (!dragging) return;
       dragging = false;
-      // Only push to history if the value actually changed from drag start
-      if (step !== dragStartStep) {
-        history.push(dragStartStep);
-        syncUndoBtn();
-      }
+      if (step !== dragStartStep) { history.push(dragStartStep); syncUndoBtn(); }
     };
     scrubber.addEventListener('pointerup', endDrag);
     scrubber.addEventListener('pointercancel', endDrag);
+    scrubber.addEventListener('pointerleave', endDrag);
   });
 }
 
