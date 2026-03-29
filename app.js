@@ -1455,6 +1455,9 @@ async function syncData(force = false) {
     _syncInProgress = false;
     setLoading(false);
     if (btn) { btn.classList.remove('btn-spinning'); btn.disabled = false; }
+    // Rebuild Fuse.js search index after sync
+    _gsActivityIndexStamp = 0;
+    _gsBuildIndex();
   }
 }
 
@@ -6379,6 +6382,9 @@ async function renderRecentActCardMap(a, idx, idPrefix = 'recentActCard', mapSto
     bearing = Math.min(ratio * 18, 70);
   }
 
+  // Hide map during render to prevent resize flash
+  mapEl.style.opacity = '0';
+
   const pitch = 40; // cinematic tilt
   const map = new maplibregl.Map({
     container: mapEl,
@@ -6410,7 +6416,7 @@ async function renderRecentActCardMap(a, idx, idPrefix = 'recentActCard', mapSto
   // Wait for load → add route → wait for idle → snapshot (card grid)
   return new Promise(resolve => {
     let settled = false;
-    const done = () => { if (settled) return; settled = true; resolve(); };
+    const done = () => { if (settled) return; settled = true; mapEl.style.opacity = ''; resolve(); };
     // Safety timeout — don't block the queue forever
     const timer = setTimeout(done, 8000);
 
@@ -6459,7 +6465,8 @@ async function renderRecentActCardMap(a, idx, idPrefix = 'recentActCard', mapSto
           map.remove();
           mapEl.innerHTML = '';
           mapEl.appendChild(img);
-        } catch (_) {}
+          mapEl.style.opacity = '';
+        } catch (_) { mapEl.style.opacity = ''; }
         if (mapStore) {
           const mi = mapStore.indexOf(map);
           if (mi !== -1) mapStore.splice(mi, 1);
@@ -39277,12 +39284,13 @@ function openGlobalSearch() {
   document.body.style.overflow = 'hidden';
   document.body.classList.add('sheet-locked');
 
-  // Context-aware: auto-set filter based on current page
-  const autoFilter = _gsAutoFilter();
-  if (autoFilter !== 'all') {
-    _gsFilter = autoFilter;
-    document.querySelectorAll('.gs-chip').forEach(c => c.classList.toggle('gs-chip--active', c.dataset.gsFilter === autoFilter));
-  }
+  // Rebuild Fuse indexes on every open (picks up new data + CDN load)
+  _gsActivityIndexStamp = 0;
+  _gsBuildIndex();
+
+  // Always start with 'all' filter — context hint shown but not restrictive
+  _gsFilter = 'all';
+  document.querySelectorAll('.gs-chip').forEach(c => c.classList.toggle('gs-chip--active', c.dataset.gsFilter === 'all'));
 
   const inp = document.getElementById('gsInput');
   if (inp) { inp.value = ''; inp.focus(); }
@@ -39329,6 +39337,9 @@ function openGlobalSearch() {
 function closeGlobalSearch() {
   clearTimeout(_gsDebounce);
   _gsActiveTag = null;
+  _gsGhostMatch = null;
+  _gsRenderGhost('', null);
+  _gsHideAutoSuggest();
   _gsFilter = 'all';
   const inp = document.getElementById('gsInput');
   if (inp) { inp.blur(); inp.value = ''; inp.placeholder = 'Search'; }
@@ -39363,7 +39374,9 @@ const _gsPlaceholders = {
 function gsSetFilter(f) {
   _gsFilter = f;
   document.querySelectorAll('.gs-chip').forEach(c => {
-    c.classList.toggle('gs-chip--active', c.dataset.gsFilter === f);
+    const active = c.dataset.gsFilter === f;
+    c.classList.toggle('gs-chip--active', active);
+    c.setAttribute('aria-pressed', active);
   });
   const inp = document.getElementById('gsInput');
   if (inp) inp.focus();
@@ -39394,19 +39407,104 @@ const _GS_QUICK_ACTIONS = [
   { label: 'Import',         icon: 'upload',     bg: 'rgba(155,89,255,0.12)', color: '#9b59ff',        action: () => { closeGlobalSearch(); navigate('import'); } },
 ];
 
-// ── Fuzzy match ──
-function _gsFuzzy(needle, haystack) {
-  const nl = needle.toLowerCase(), hl = haystack.toLowerCase();
-  if (hl.includes(nl)) return 1; // exact substring = best
-  let ni = 0, score = 0, lastIdx = -1;
-  for (let hi = 0; hi < hl.length && ni < nl.length; hi++) {
-    if (hl[hi] === nl[ni]) {
-      score += (hi === lastIdx + 1) ? 2 : 1; // consecutive bonus
-      lastIdx = hi; ni++;
-    }
+// ── Fuse.js search indexes ──
+let _gsActivityIndex = null;
+let _gsGearIndex = null;
+let _gsRouteIndex = null;
+let _gsWorkoutIndex = null;
+let _gsActivityIndexStamp = 0;
+
+const _FUSE_OPTS = {
+  threshold: 0.5,
+  distance: 300,
+  includeScore: true,
+  includeMatches: true,
+  minMatchCharLength: 1,
+  ignoreLocation: true,
+};
+
+function _gsBuildIndex() {
+  if (typeof Fuse === 'undefined') return;
+  try {
+  const allActs = getAllActivities ? getAllActivities() : state.activities || [];
+  if (!allActs.length) { _gsActivityIndex = null; return; }
+  if (_gsActivityIndex && _gsActivityIndexStamp === allActs.length) return;
+  _gsActivityIndexStamp = allActs.length;
+
+  // Add recency score as a sortable field (days ago, lower = more recent)
+  const now = Date.now();
+  const enriched = allActs.map(a => {
+    const d = new Date(a.start_date_local || a.start_date || 0).getTime();
+    a._daysAgo = Math.max(0, (now - d) / 86400000);
+    return a;
+  });
+
+  _gsActivityIndex = new Fuse(enriched, {
+    ..._FUSE_OPTS,
+    keys: [
+      { name: 'name', weight: 0.5 },
+      { name: 'icu_name', weight: 0.4 },
+      { name: 'type', weight: 0.15 },
+      { name: 'sport_type', weight: 0.15 },
+      { name: 'icu_sport', weight: 0.1 },
+    ],
+  });
+
+  // Gear index
+  let gearItems = [];
+  try { gearItems = (state.gearBikes || JSON.parse(localStorage.getItem('icu_gear_bikes') || '[]')); } catch(_) {}
+  try { gearItems = gearItems.concat(typeof loadGearComponents === 'function' ? loadGearComponents() : []); } catch(_) {}
+  if (gearItems.length) {
+    _gsGearIndex = new Fuse(gearItems, {
+      ..._FUSE_OPTS,
+      keys: [
+        { name: 'name', weight: 0.5 },
+        { name: 'brand', weight: 0.3 },
+        { name: 'model', weight: 0.3 },
+        { name: 'category', weight: 0.2 },
+      ],
+    });
   }
-  return ni === nl.length ? score / (nl.length * 2) : 0;
+
+  // Routes index
+  const routes = window._mrSavedRoutes || [];
+  if (routes.length) {
+    _gsRouteIndex = new Fuse(routes, {
+      ..._FUSE_OPTS,
+      keys: [{ name: 'name', weight: 1.0 }],
+    });
+  }
+
+  // Workouts index
+  const workouts = window._mrSavedWorkouts || [];
+  if (workouts.length) {
+    _gsWorkoutIndex = new Fuse(workouts, {
+      ..._FUSE_OPTS,
+      keys: [{ name: 'name', weight: 1.0 }],
+    });
+  }
+  } catch(e) { console.warn('[Search] Index build failed:', e); }
 }
+
+// Highlight matched characters in text using Fuse match indices
+function _gsHighlight(text, matches, key) {
+  if (!matches || !text) return _escHtml(text || '');
+  const m = matches.find(m => m.key === key);
+  if (!m || !m.indices?.length) return _escHtml(text);
+  const chars = [...text];
+  const marked = new Set();
+  m.indices.forEach(([s, e]) => { for (let i = s; i <= e; i++) marked.add(i); });
+  let out = '';
+  let inMark = false;
+  chars.forEach((c, i) => {
+    if (marked.has(i) && !inMark) { out += '<b>'; inMark = true; }
+    if (!marked.has(i) && inMark) { out += '</b>'; inMark = false; }
+    out += _escHtml(c);
+  });
+  if (inMark) out += '</b>';
+  return out;
+}
+
 
 // ── Metric & date parsing ──
 function _gsParseMetric(q) {
@@ -39469,18 +39567,40 @@ function _gsDefaultContent() {
     });
     html += '</div>';
   }
-  // Try-it suggestions
+  // Spotlight-style discovery
   if (_gsFilter === 'all') {
-    const suggestions = [
-      'my fastest ride', 'longest ride', 'hardest ride',
-      'rides in the rain', 'avg power this month', 'total distance this year',
-      'last week', '/power', '/distance',
+    // Top row — 4 most useful as tappable cards
+    const topCards = [
+      { q: 'my fastest ride',    icon: 'bolt',     label: 'Fastest',  color: '#ff9500' },
+      { q: 'longest ride',       icon: 'map',      label: 'Longest',  color: '#5ac8fa' },
+      { q: 'personal records',   icon: 'star',     label: 'PRs',      color: '#ffcc00' },
+      { q: 'hilly rides',        icon: 'mountain', label: 'Climbs',   color: '#9b59ff' },
     ];
-    html += `<div class="gs-group"><div class="gs-group-title">Try searching</div>
-      <div class="gs-suggestions">
-        ${suggestions.map(s => `<button class="gs-suggest-chip" data-suggest="${_escHtml(s)}">${_escHtml(s)}</button>`).join('')}
-      </div>
-    </div>`;
+    html += `<div class="gs-top-cards">${topCards.map(c =>
+      `<button class="gs-top-card gs-suggest-chip" data-suggest="${_escHtml(c.q)}">
+        <div class="gs-top-card-icon" style="color:${c.color}"><svg class="icon" width="20" height="20"><use href="icons.svg#icon-${c.icon}"/></svg></div>
+        <span>${c.label}</span>
+      </button>`
+    ).join('')}</div>`;
+
+    // Grouped suggestions
+    const groups = [
+      { title: 'Training',   chips: ['easy rides', 'hard rides', 'interval rides', 'ftp changes'] },
+      { title: 'Ride Type',  chips: ['flat rides', 'century rides', 'indoor rides', 'commute'] },
+      { title: 'When',       chips: ['morning rides', 'evening rides', 'winter rides', 'last week'] },
+      { title: 'Conditions', chips: ['rides in the rain', 'hot rides', 'cold rides'] },
+      { title: 'Data',       chips: ['no power', 'no hr', 'rides on'] },
+      { title: 'Analytics',  chips: ['avg power this month', 'total distance this year'] },
+    ];
+    groups.forEach(g => {
+      html += `<div class="gs-discover-section">
+        <div class="gs-discover-title">${g.title}</div>
+        <div class="gs-suggestions">${g.chips.map(c => `<button class="gs-suggest-chip" data-suggest="${_escHtml(c)}">${_escHtml(c)}</button>`).join('')}</div>
+      </div>`;
+    });
+
+    // Keyboard hint
+    html += `<div class="gs-kbd-hint">Type <kbd>/</kbd> for filters · <kbd>⌘K</kbd> to open from anywhere</div>`;
   }
   // Placeholder if nothing else
   if (!html) {
@@ -39493,15 +39613,24 @@ function _gsDefaultContent() {
 }
 window._gsQuickActions = _GS_QUICK_ACTIONS;
 
-// ── Slash commands for metric search ──
+// ── Slash commands — unified filters + metrics ──
 const _GS_COMMANDS = [
-  { cmd: '/power',     label: 'Power',     unit: 'W',    placeholder: 'e.g. > 250',  icon: 'bolt',     color: '#ff9500' },
-  { cmd: '/distance',  label: 'Distance',  unit: 'km',   placeholder: 'e.g. > 100',  icon: 'map',      color: '#5ac8fa' },
-  { cmd: '/speed',     label: 'Speed',     unit: 'km/h', placeholder: 'e.g. > 30',   icon: 'activity', color: 'var(--accent)' },
-  { cmd: '/hr',        label: 'Heart Rate', unit: 'bpm', placeholder: 'e.g. > 150',  icon: 'heart',    color: '#ff375f' },
-  { cmd: '/tss',       label: 'TSS',       unit: 'TSS',  placeholder: 'e.g. > 200',  icon: 'target',   color: '#ffcc00' },
-  { cmd: '/elevation', label: 'Elevation', unit: 'm',    placeholder: 'e.g. > 1000', icon: 'mountain', color: '#9b59ff' },
-  { cmd: '/date',      label: 'Date',      unit: '',     placeholder: 'e.g. january, last week', icon: 'calendar', color: '#5ac8fa' },
+  // Category filters
+  { cmd: '/all',        label: 'All',        unit: '',     placeholder: 'Search everything',           icon: 'grid',     color: 'var(--text-secondary)', isFilter: true },
+  { cmd: '/activities', label: 'Activities', unit: '',     placeholder: 'Search rides by name or type', icon: 'activity', color: 'var(--accent)',         isFilter: true },
+  { cmd: '/routes',     label: 'Routes',     unit: '',     placeholder: 'Search saved routes',         icon: 'map',      color: '#5ac8fa',              isFilter: true },
+  { cmd: '/workouts',   label: 'Workouts',   unit: '',     placeholder: 'Search structured workouts',  icon: 'calendar', color: '#ff9500',              isFilter: true },
+  { cmd: '/gear',       label: 'Gear',       unit: '',     placeholder: 'Search bikes & components',   icon: 'bike',     color: 'var(--accent)',         isFilter: true },
+  { cmd: '/settings',   label: 'Settings',   unit: '',     placeholder: 'Search preferences & config', icon: 'settings', color: 'var(--text-secondary)', isFilter: true },
+  // Metric filters
+  { cmd: '/power',     label: 'Power',      unit: 'W',    placeholder: 'e.g. > 250',                 icon: 'bolt',     color: '#ff9500' },
+  { cmd: '/distance',  label: 'Distance',   unit: 'km',   placeholder: 'e.g. > 100',                 icon: 'map',      color: '#5ac8fa' },
+  { cmd: '/speed',     label: 'Speed',      unit: 'km/h', placeholder: 'e.g. > 30',                  icon: 'activity', color: 'var(--accent)' },
+  { cmd: '/hr',        label: 'Heart Rate', unit: 'bpm',  placeholder: 'e.g. > 150',                 icon: 'heart',    color: '#ff375f' },
+  { cmd: '/tss',       label: 'TSS',        unit: 'TSS',  placeholder: 'e.g. > 200',                 icon: 'target',   color: '#ffcc00' },
+  { cmd: '/elevation', label: 'Elevation',  unit: 'm',    placeholder: 'e.g. > 1000',                icon: 'mountain', color: '#9b59ff' },
+  { cmd: '/date',      label: 'Date',       unit: '',     placeholder: 'e.g. january, last week',    icon: 'calendar', color: '#5ac8fa' },
+  { cmd: '/location',  label: 'Location',   unit: '',     placeholder: 'e.g. Ljubljana, Alps',       icon: 'map-pin',  color: '#5ac8fa' },
 ];
 let _gsActiveTag = null; // { cmd, label, unit }
 
@@ -39510,17 +39639,29 @@ function _gsShowCommandList(partial) {
   const matched = _GS_COMMANDS.filter(c => c.cmd.startsWith(pl) || c.label.toLowerCase().startsWith(pl.slice(1)));
   if (!matched.length) return false;
   const results = document.getElementById('gsResults');
-  let html = `<div class="gs-group"><div class="gs-group-title">Filters</div>`;
-  matched.forEach(c => {
-    html += `<div class="gs-item gs-cmd-item" data-cmd="${_escHtml(c.cmd)}">
-      <div class="gs-item-icon" style="color:${c.color}"><svg class="icon"><use href="icons.svg#icon-${c.icon}"/></svg></div>
-      <div class="gs-item-body">
-        <div class="gs-item-title">${c.label}</div>
-        <div class="gs-item-sub">${c.placeholder}</div>
-      </div>
-    </div>`;
-  });
-  html += '</div>';
+  const cats = matched.filter(c => c.isFilter);
+  const metrics = matched.filter(c => !c.isFilter);
+  let html = '';
+  if (cats.length) {
+    html += `<div class="gs-group"><div class="gs-group-title">Categories</div>`;
+    cats.forEach(c => {
+      html += `<div class="gs-item gs-cmd-item" data-cmd="${_escHtml(c.cmd)}">
+        <div class="gs-item-icon" style="color:${c.color}"><svg class="icon"><use href="icons.svg#icon-${c.icon}"/></svg></div>
+        <div class="gs-item-body"><div class="gs-item-title">${c.label}</div><div class="gs-item-sub">${c.placeholder}</div></div>
+      </div>`;
+    });
+    html += '</div>';
+  }
+  if (metrics.length) {
+    html += `<div class="gs-group"><div class="gs-group-title">Metric Filters</div>`;
+    metrics.forEach(c => {
+      html += `<div class="gs-item gs-cmd-item" data-cmd="${_escHtml(c.cmd)}">
+        <div class="gs-item-icon" style="color:${c.color}"><svg class="icon"><use href="icons.svg#icon-${c.icon}"/></svg></div>
+        <div class="gs-item-body"><div class="gs-item-title">${c.label}${c.unit ? ` <span style="color:var(--text-faint)">(${c.unit})</span>` : ''}</div><div class="gs-item-sub">${c.placeholder}</div></div>
+      </div>`;
+    });
+    html += '</div>';
+  }
   results.innerHTML = html;
   return true;
 }
@@ -39528,11 +39669,19 @@ function _gsShowCommandList(partial) {
 function _gsSelectCommand(cmd) {
   const c = _GS_COMMANDS.find(x => x.cmd === cmd);
   if (!c) return;
-  _gsActiveTag = c;
   const inp = document.getElementById('gsInput');
+
+  // All commands become a tag pill
+  _gsActiveTag = c;
   inp.value = '';
   inp.placeholder = c.placeholder;
   inp.focus();
+
+  // Category filters also set the chip
+  if (c.isFilter) {
+    gsSetFilter(c.cmd.slice(1));
+  }
+
   _gsRenderTag();
   document.getElementById('gsResults').innerHTML = _gsDefaultContent();
 }
@@ -39548,7 +39697,12 @@ function _gsRenderTag() {
       wrap.insertBefore(tagEl, wrap.querySelector('.gs-bar-icon').nextSibling);
     }
     const unitStr = _gsActiveTag.unit ? ` (${_gsActiveTag.unit})` : '';
-    tagEl.innerHTML = `${_gsActiveTag.label}${unitStr} <button onclick="_gsClearTag()" class="gs-tag-x">&times;</button>`;
+    const tagColor = _gsActiveTag.color || 'var(--accent)';
+    tagEl.style.background = '';
+    tagEl.style.color = '';
+    tagEl.style.borderColor = '';
+    tagEl.onclick = _gsClearTag;
+    tagEl.innerHTML = `<svg class="icon" width="12" height="12" style="color:${tagColor}"><use href="icons.svg#icon-${_gsActiveTag.icon}"/></svg>${_gsActiveTag.label}${unitStr}<span class="gs-tag-x">&times;</span>`;
     tagEl.style.display = '';
   } else if (tagEl) {
     tagEl.style.display = 'none';
@@ -39556,41 +39710,103 @@ function _gsRenderTag() {
 }
 
 function _gsClearTag() {
+  const wasFilter = _gsActiveTag?.isFilter;
   _gsActiveTag = null;
   const inp = document.getElementById('gsInput');
   inp.placeholder = 'Search';
   _gsRenderTag();
+  if (wasFilter) gsSetFilter('all');
   document.getElementById('gsResults').innerHTML = _gsDefaultContent();
   inp.focus();
 }
 window._gsSelectCommand = _gsSelectCommand;
 window._gsClearTag = _gsClearTag;
 
+// ── Ghost text autocomplete for slash commands ──
+let _gsGhostMatch = null;
+
+function _gsRenderGhost(typed, full) {
+  let ghost = document.getElementById('gsGhost');
+  if (!full || !typed) {
+    if (ghost) ghost.style.display = 'none';
+    return;
+  }
+  const inp = document.getElementById('gsInput');
+  if (!ghost) {
+    ghost = document.createElement('span');
+    ghost.id = 'gsGhost';
+    ghost.className = 'gs-ghost';
+    // Must be inside a positioned wrapper overlaying the input
+    const wrap = inp.parentElement;
+    wrap.style.position = 'relative';
+    wrap.appendChild(ghost);
+  }
+  // Measure typed text width to position ghost right after it
+  const measure = document.createElement('span');
+  measure.style.cssText = `position:absolute;visibility:hidden;font:${getComputedStyle(inp).font};white-space:pre`;
+  measure.textContent = typed;
+  document.body.appendChild(measure);
+  const typedWidth = measure.offsetWidth;
+  measure.remove();
+
+  const iconWidth = 18 + 8; // gs-bar-icon width + gap
+  const tagEl = document.getElementById('gsActiveTag');
+  const tagWidth = tagEl?.offsetWidth ? tagEl.offsetWidth + 4 : 0;
+
+  ghost.textContent = full.slice(typed.length);
+  ghost.style.left = (14 + iconWidth + tagWidth + typedWidth) + 'px'; // padding + icon + tag + typed
+  ghost.style.display = '';
+}
+
+function _gsAcceptGhost() {
+  if (!_gsGhostMatch) return false;
+  _gsSelectCommand(_gsGhostMatch);
+  _gsGhostMatch = null;
+  _gsRenderGhost('', null);
+  return true;
+}
+
 function _gsOnInput(e) {
   const q = e.target.value.trim();
   document.getElementById('gsClear').style.display = q || _gsActiveTag ? '' : 'none';
   clearTimeout(_gsDebounce);
-  if (!q && !_gsActiveTag) { document.getElementById('gsResults').innerHTML = _gsDefaultContent(); return; }
-
-  // Slash command autocomplete
-  if (q.startsWith('/') && !_gsActiveTag) {
-    if (_gsShowCommandList(q)) return;
+  if (!q && !_gsActiveTag) {
+    _gsGhostMatch = null;
+    _gsRenderGhost('', null);
+    document.getElementById('gsResults').innerHTML = _gsDefaultContent();
+    return;
   }
 
-  // If we have an active tag, build a metric/date query
+  // Slash command autocomplete + ghost suggestion
+  if (q.startsWith('/') && !_gsActiveTag) {
+    // Find best matching command for ghost text
+    const pl = q.toLowerCase();
+    const match = _GS_COMMANDS.find(c => c.cmd.startsWith(pl) && c.cmd !== pl);
+    _gsGhostMatch = match ? match.cmd : null;
+    _gsRenderGhost(q, _gsGhostMatch);
+    if (_gsShowCommandList(q)) return;
+  } else {
+    _gsGhostMatch = null;
+    _gsRenderGhost('', null);
+  }
+
+  // If we have an active tag, build the appropriate query
   if (_gsActiveTag && q) {
     const tag = _gsActiveTag;
     let searchQ = '';
     if (tag.cmd === '/date') {
-      searchQ = q; // pass through to date parser
+      searchQ = q;
+    } else if (tag.cmd === '/location') {
+      searchQ = `rides in ${q}`;
+    } else if (tag.isFilter) {
+      searchQ = q; // category filter — just search within that category
     } else {
-      // Parse operator + number: "> 250", "250", "over 100"
       const m = q.match(/^\s*(>|<|over|under|above|below)?\s*(\d+)\s*$/i);
       if (m) {
         const op = m[1] || '>';
         searchQ = `${tag.label} ${op} ${m[2]}`;
       } else {
-        searchQ = q; // fallback to regular search
+        searchQ = q;
       }
     }
     _gsDebounce = setTimeout(() => _gsRunSearch(searchQ), 150);
@@ -39680,38 +39896,179 @@ function _gsParseNatural(q) {
     const indoor = allActs.filter(a => /virtual|indoor|zwift|trainer/i.test(a.type || a.sport_type || a.name || ''));
     if (indoor.length) return { type: 'list', label: `Indoor Rides (${indoor.length})`, activities: indoor.slice(0, 15) };
   }
+
+  // ── 3. Search by gear — "rides on Canyon", "rides on Tarmac" ──
+  const gearMatch = ql.match(/(?:rides?\s+)?(?:on|with)\s+(.+)/i);
+  if (gearMatch) {
+    const gearName = gearMatch[1].trim().toLowerCase();
+    if (gearName.length >= 2) {
+      // Find matching bikes
+      let bikes = state.gearBikes || [];
+      try { if (!bikes.length) bikes = JSON.parse(localStorage.getItem('icu_gear_bikes') || '[]'); } catch(_) {}
+      const matchedBike = bikes.find(b => (b.name || '').toLowerCase().includes(gearName));
+      if (matchedBike) {
+        const bikeRides = allActs.filter(a => a.gear_id === matchedBike.id || a.icu_gear_id === matchedBike.id);
+        if (bikeRides.length) return { type: 'list', label: `Rides on ${matchedBike.name} (${bikeRides.length})`, activities: bikeRides.slice(0, 20) };
+      }
+    }
+  }
+
+  // ── 7. Search by effort — "easy rides", "hard rides", "recovery" ──
+  if (/easy|recovery|chill|light/.test(ql)) {
+    const easy = allActs.filter(a => { const t = actVal(a, 'icu_training_load', 'tss') || 0; return t > 0 && t < 50; });
+    if (easy.length) return { type: 'list', label: `Easy Rides (${easy.length})`, activities: easy.slice(0, 15) };
+  }
+  if (/hard|intense|tough|brutal/.test(ql)) {
+    const hard = allActs.filter(a => (actVal(a, 'icu_training_load', 'tss') || 0) >= 150);
+    if (hard.length) return { type: 'list', label: `Hard Rides (${hard.length})`, activities: hard.slice(0, 15) };
+  }
+  if (/moderate|medium|steady/.test(ql)) {
+    const mod = allActs.filter(a => { const t = actVal(a, 'icu_training_load', 'tss') || 0; return t >= 50 && t < 150; });
+    if (mod.length) return { type: 'list', label: `Moderate Rides (${mod.length})`, activities: mod.slice(0, 15) };
+  }
+
+  // ── 8. Search by duration — "long rides", "short rides" ──
+  if (/long ride|long$/.test(ql)) {
+    const long = allActs.filter(a => (actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time') || 0) >= 10800); // 3h+
+    if (long.length) return { type: 'list', label: `Long Rides — 3h+ (${long.length})`, activities: long.slice(0, 15) };
+  }
+  if (/short ride|short$|quick/.test(ql)) {
+    const short = allActs.filter(a => { const s = actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time') || 0; return s > 0 && s < 3600; }); // <1h
+    if (short.length) return { type: 'list', label: `Short Rides — under 1h (${short.length})`, activities: short.slice(0, 15) };
+  }
+
+  // ── 9. Time of day — "morning rides", "evening rides", "night rides" ──
+  if (/morning|early/.test(ql)) {
+    const morning = allActs.filter(a => { const h = +(a.start_date_local || '').slice(11, 13); return h >= 5 && h < 11; });
+    if (morning.length) return { type: 'list', label: `Morning Rides (${morning.length})`, activities: morning.slice(0, 15) };
+  }
+  if (/afternoon|midday|lunch/.test(ql)) {
+    const afternoon = allActs.filter(a => { const h = +(a.start_date_local || '').slice(11, 13); return h >= 11 && h < 17; });
+    if (afternoon.length) return { type: 'list', label: `Afternoon Rides (${afternoon.length})`, activities: afternoon.slice(0, 15) };
+  }
+  if (/evening|sunset/.test(ql)) {
+    const evening = allActs.filter(a => { const h = +(a.start_date_local || '').slice(11, 13); return h >= 17 && h < 21; });
+    if (evening.length) return { type: 'list', label: `Evening Rides (${evening.length})`, activities: evening.slice(0, 15) };
+  }
+  if (/night|late|midnight/.test(ql)) {
+    const night = allActs.filter(a => { const h = +(a.start_date_local || '').slice(11, 13); return h >= 21 || h < 5; });
+    if (night.length) return { type: 'list', label: `Night Rides (${night.length})`, activities: night.slice(0, 15) };
+  }
+
+  // ── Training filters ──
+  // Rides with intervals/structured workout
+  if (/interval|structured|workout/.test(ql)) {
+    const intv = allActs.filter(a => a.icu_intervals_edited || (a.icu_training_load && a.icu_weighted_avg_watts && a.average_watts && Math.abs(a.icu_weighted_avg_watts / a.average_watts - 1) > 0.1));
+    if (intv.length) return { type: 'list', label: `Interval Rides (${intv.length})`, activities: intv.slice(0, 15) };
+  }
+  // Rides with FTP change
+  if (/ftp|threshold/.test(ql) && !/over|under|above|below|>|</.test(ql)) {
+    const ftp = allActs.filter(a => Array.isArray(a.icu_achievements) && a.icu_achievements.some(x => x.type === 'FTP_UP'));
+    if (ftp.length) return { type: 'list', label: `FTP Changes (${ftp.length})`, activities: ftp.slice(0, 15) };
+  }
+  // Rides with personal records
+  if (/\bpr\b|personal record|best effort/.test(ql)) {
+    const pr = allActs.filter(a => Array.isArray(a.icu_achievements) && a.icu_achievements.length > 0);
+    if (pr.length) return { type: 'list', label: `Rides with PRs (${pr.length})`, activities: pr.slice(0, 15) };
+  }
+
+  // ── Ride characteristics ──
+  // Flat rides (<200m elevation)
+  if (/flat|pancake/.test(ql)) {
+    const flat = allActs.filter(a => { const e = actVal(a, 'total_elevation_gain', 'icu_total_elevation_gain') || 0; const d = (actVal(a, 'distance', 'icu_distance') || 0) / 1000; return d > 5 && e < 200; });
+    if (flat.length) return { type: 'list', label: `Flat Rides — under 200m (${flat.length})`, activities: flat.slice(0, 15) };
+  }
+  // Hilly rides (>1000m elevation)
+  if (/hilly|climb|mountain|steep/.test(ql) && !/most/.test(ql)) {
+    const hilly = allActs.filter(a => (actVal(a, 'total_elevation_gain', 'icu_total_elevation_gain') || 0) >= 1000);
+    if (hilly.length) return { type: 'list', label: `Hilly Rides — 1000m+ (${hilly.length})`, activities: hilly.slice(0, 15) };
+  }
+  // Century rides (100km+)
+  if (/century|100k|100 km/.test(ql)) {
+    const century = allActs.filter(a => (actVal(a, 'distance', 'icu_distance') || 0) / 1000 >= 100);
+    if (century.length) return { type: 'list', label: `Century Rides — 100km+ (${century.length})`, activities: century.slice(0, 15) };
+  }
+  // Commute rides
+  if (/commute|commuting/.test(ql)) {
+    const comm = allActs.filter(a => /commute/i.test(a.name || a.icu_name || '') || a.commute);
+    if (comm.length) return { type: 'list', label: `Commutes (${comm.length})`, activities: comm.slice(0, 15) };
+  }
+
+  // ── Data quality ──
+  // No power meter
+  if (/no ?power|without power|missing power/.test(ql)) {
+    const noPwr = allActs.filter(a => !(a.icu_weighted_avg_watts || a.average_watts));
+    if (noPwr.length) return { type: 'list', label: `Rides without Power (${noPwr.length})`, activities: noPwr.slice(0, 15) };
+  }
+  // No heart rate
+  if (/no ?hr|without hr|no heart|missing hr/.test(ql)) {
+    const noHr = allActs.filter(a => !(a.average_heartrate || a.icu_average_heartrate));
+    if (noHr.length) return { type: 'list', label: `Rides without HR (${noHr.length})`, activities: noHr.slice(0, 15) };
+  }
+  // With GPS data
+  if (/gps|with map|mapped/.test(ql)) {
+    const gps = allActs.filter(a => (actVal(a, 'distance', 'icu_distance') || 0) > 0 && a.start_latlng);
+    if (gps.length) return { type: 'list', label: `Rides with GPS (${gps.length})`, activities: gps.slice(0, 15) };
+  }
+
+  // ── Seasonal ──
+  if (/winter/.test(ql)) {
+    const winter = allActs.filter(a => { const m = +(a.start_date_local || '').slice(5, 7); return m === 12 || m === 1 || m === 2; });
+    if (winter.length) return { type: 'list', label: `Winter Rides (${winter.length})`, activities: winter.slice(0, 15) };
+  }
+  if (/summer/.test(ql)) {
+    const summer = allActs.filter(a => { const m = +(a.start_date_local || '').slice(5, 7); return m >= 6 && m <= 8; });
+    if (summer.length) return { type: 'list', label: `Summer Rides (${summer.length})`, activities: summer.slice(0, 15) };
+  }
+  if (/spring/.test(ql)) {
+    const spring = allActs.filter(a => { const m = +(a.start_date_local || '').slice(5, 7); return m >= 3 && m <= 5; });
+    if (spring.length) return { type: 'list', label: `Spring Rides (${spring.length})`, activities: spring.slice(0, 15) };
+  }
+  if (/autumn|fall/.test(ql)) {
+    const autumn = allActs.filter(a => { const m = +(a.start_date_local || '').slice(5, 7); return m >= 9 && m <= 11; });
+    if (autumn.length) return { type: 'list', label: `Autumn Rides (${autumn.length})`, activities: autumn.slice(0, 15) };
+  }
+
   return null;
 }
 
-// ── 5. Location search — "rides in X" using cached geocoded locations ──
+// ── 5. Location search — "rides in X" using Fuse on location/name fields ──
 function _gsSearchByLocation(q) {
   const ql = q.toLowerCase();
   const locMatch = ql.match(/(?:rides?\s+)?(?:in|near|around|from)\s+(.+)/i);
   if (!locMatch) return null;
-  const place = locMatch[1].trim().toLowerCase();
+  const place = locMatch[1].trim();
   if (!place || place.length < 2) return null;
-  // Search localStorage for cached reverse geocoded locations
+
   const allActs = getAllActivities ? getAllActivities() : state.activities || [];
-  const matched = [];
-  for (const a of allActs) {
-    const loc = a._locationName || a.location || '';
-    if (loc && loc.toLowerCase().includes(place)) {
-      matched.push(a);
-      if (matched.length >= 20) break;
-    }
+  if (!allActs.length) return null;
+
+  // Build a temporary Fuse index on location + name fields
+  if (typeof Fuse !== 'undefined') {
+    const locFuse = new Fuse(allActs, {
+      keys: [
+        { name: '_locationName', weight: 0.6 },
+        { name: 'location', weight: 0.5 },
+        { name: 'name', weight: 0.3 },
+        { name: 'icu_name', weight: 0.2 },
+      ],
+      threshold: 0.35,
+      distance: 100,
+      ignoreLocation: true,
+    });
+    const results = locFuse.search(place, { limit: 20 });
+    if (!results.length) return null;
+    return { type: 'list', label: `Rides near "${locMatch[1]}" (${results.length})`, activities: results.map(r => r.item) };
   }
-  // Also check activity names for location mentions
-  if (matched.length < 5) {
-    for (const a of allActs) {
-      if (matched.includes(a)) continue;
-      if ((a.name || '').toLowerCase().includes(place)) {
-        matched.push(a);
-        if (matched.length >= 20) break;
-      }
-    }
-  }
+
+  // Fallback
+  const pl = place.toLowerCase();
+  const matched = allActs.filter(a =>
+    (a._locationName || a.location || '').toLowerCase().includes(pl) ||
+    (a.name || '').toLowerCase().includes(pl)
+  ).slice(0, 20);
   if (!matched.length) return null;
-  return { type: 'list', label: `Rides near "${locMatch[1]}" (${matched.length})`, activities: matched.slice(0, 15) };
+  return { type: 'list', label: `Rides near "${locMatch[1]}" (${matched.length})`, activities: matched };
 }
 
 // ── 7. Aggregate queries — "average power this month", "total distance 2025" ──
@@ -39786,6 +40143,14 @@ const _GS_AUTOCOMPLETE = [
   'my fastest ride', 'longest ride', 'hardest ride', 'most climbing',
   'rides in the rain', 'hot rides', 'cold rides', 'indoor rides',
   'rides with power meter',
+  'easy rides', 'hard rides', 'moderate rides',
+  'long rides', 'short rides',
+  'morning rides', 'afternoon rides', 'evening rides', 'night rides',
+  'rides on', // gear trigger
+  'interval rides', 'ftp changes', 'personal records',
+  'flat rides', 'hilly rides', 'century rides', 'commute',
+  'no power', 'no hr', 'gps rides',
+  'winter rides', 'summer rides', 'spring rides', 'autumn rides',
   'average power this month', 'average power this week', 'average speed this month',
   'total distance this year', 'total distance this month', 'total elevation this year',
   'max speed this month', 'max power this week',
@@ -39831,13 +40196,13 @@ function _gsRunSearch(q) {
   const results = document.getElementById('gsResults');
   if (!results) return;
   _gsSaveRecent(q);
-  // Clear old search lookup keys to prevent memory leak
   if (window._actLookup) {
     Object.keys(window._actLookup).forEach(k => { if (k.startsWith('_gs')) delete window._actLookup[k]; });
   }
   let html = '';
   let totalCount = 0;
 
+  try { // Wrap entire search in try-catch to surface errors
   // ── 7. Aggregate query (e.g. "average power this month") ──
   const agg = _gsParseAggregate(q);
   if (agg) {
@@ -39970,123 +40335,136 @@ function _gsRunSearch(q) {
     }
   }
 
-  // ── Activities (fuzzy) ──
-  if (!metric && !dateRange && (_gsFilter === 'all' || _gsFilter === 'activities')) {
-    const allActs = getAllActivities ? getAllActivities() : state.activities || [];
-    const scored = allActs.map(a => {
-      const name = a.name || '';
-      const type = a.type || a.icu_sport || '';
-      const s = Math.max(_gsFuzzy(ql, name), _gsFuzzy(ql, type) * 0.7);
-      return { a, s };
-    }).filter(x => x.s > 0)
-      .sort((a, b) => b.s - a.s || new Date(b.a.start_date_local || b.a.start_date) - new Date(a.a.start_date_local || a.a.start_date))
-      .slice(0, 15);
-    const acts = scored.map(x => x.a);
-    if (acts.length) {
-      html += `<div class="gs-group"><div class="gs-group-title">Activities</div>`;
+  // ── Activities (Fuse.js fuzzy — always runs unless metric/date already matched) ──
+  if (_gsFilter === 'all' || _gsFilter === 'activities') {
+    _gsBuildIndex();
+    let fuseResults = [];
+    if (_gsActivityIndex && !metric && !dateRange) {
+      fuseResults = _gsActivityIndex.search(q, { limit: 40 });
+      // Recency boost: penalize older rides slightly
+      fuseResults.forEach(r => { r.score = (r.score || 0) + (r.item._daysAgo || 0) * 0.0003; });
+      fuseResults.sort((a, b) => a.score - b.score);
+      fuseResults = fuseResults.slice(0, 30);
+    }
+    // Fallback: if Fuse returned nothing or isn't loaded, try simple includes
+    if (!fuseResults.length && !metric && !dateRange) {
+      const allActs = getAllActivities ? getAllActivities() : state.activities || [];
+      fuseResults = allActs.filter(a => {
+        const n = (a.name || a.icu_name || '').toLowerCase();
+        const t = (a.type || a.sport_type || a.icu_sport || '').toLowerCase();
+        return n.includes(ql) || t.includes(ql);
+      }).sort((a, b) => new Date(b.start_date_local || b.start_date) - new Date(a.start_date_local || a.start_date))
+        .slice(0, 30).map(a => ({ item: a, matches: [] }));
+    }
+    if (fuseResults.length) {
+      html += `<div class="gs-group"><div class="gs-group-title">Activities <span class="gs-count">${fuseResults.length}</span></div>`;
       if (!window._actLookup) window._actLookup = {};
-      acts.forEach((a, _gi) => {
-        const name = a.name || 'Untitled';
+      fuseResults.forEach((r, _gi) => {
+        const a = r.item;
+        const name = a.name || a.icu_name || 'Untitled';
         const type = a.type || a.icu_sport || 'Ride';
         const d = new Date(a.start_date_local || a.start_date);
         const dateStr = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
         const dist = a.distance ? (a.distance / 1000).toFixed(1) + ' km' : '';
         const gsKey = '_gs_' + _gi;
         window._actLookup[gsKey] = a;
+        const nameHL = _gsHighlight(name, r.matches, 'name') || _gsHighlight(name, r.matches, 'icu_name') || _escHtml(name);
         html += `<div class="gs-item" onclick="closeGlobalSearch();navigateToActivity('${gsKey}')">
           <div class="gs-item-icon" style="color:var(--accent)"><svg class="icon"><use href="icons.svg#icon-activity"/></svg></div>
           <div class="gs-item-body">
-            <div class="gs-item-title">${_escHtml(name)}</div>
+            <div class="gs-item-title">${nameHL}</div>
             <div class="gs-item-sub">${dateStr}${dist ? ' · ' + dist : ''} · ${_escHtml(type)}</div>
           </div>
           <svg class="gs-item-chevron" viewBox="0 0 7 12" width="8" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>`;
       });
       html += '</div>';
-      totalCount += acts.length;
+      totalCount += fuseResults.length;
     }
   }
 
-  // ── Saved Routes ──
+  // ── Saved Routes (Fuse) ──
   if (_gsFilter === 'all' || _gsFilter === 'routes') {
-    const routes = (window._mrSavedRoutes || []).filter(r => (r.name || '').toLowerCase().includes(ql)).slice(0, 10);
-    if (routes.length) {
-      html += `<div class="gs-group"><div class="gs-group-title">Routes</div>`;
-      routes.forEach(r => {
-        const dist = r.distance ? (r.distance / 1000).toFixed(1) + ' km' : '';
+    _gsBuildIndex();
+    const routeResults = _gsRouteIndex ? _gsRouteIndex.search(q, { limit: 10 }) : (window._mrSavedRoutes || []).filter(r => (r.name || '').toLowerCase().includes(ql)).map(r => ({ item: r, matches: [] })).slice(0, 10);
+    if (routeResults.length) {
+      html += `<div class="gs-group"><div class="gs-group-title">Routes <span class="gs-count">${routeResults.length}</span></div>`;
+      routeResults.forEach(r => {
+        const rt = r.item;
+        const dist = rt.distance ? (rt.distance / 1000).toFixed(1) + ' km' : '';
+        const nameHL = _gsHighlight(rt.name || 'Untitled Route', r.matches, 'name');
         html += `<div class="gs-item" onclick="closeGlobalSearch();navigate('myroutes')">
           <div class="gs-item-icon" style="color:#5ac8fa"><svg class="icon"><use href="icons.svg#icon-map-pin"/></svg></div>
           <div class="gs-item-body">
-            <div class="gs-item-title">${_escHtml(r.name || 'Untitled Route')}</div>
+            <div class="gs-item-title">${nameHL}</div>
             <div class="gs-item-sub">${dist || 'Saved route'}</div>
           </div>
           <svg class="gs-item-chevron" viewBox="0 0 7 12" width="8" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>`;
       });
       html += '</div>';
-      totalCount += routes.length;
+      totalCount += routeResults.length;
     }
   }
 
-  // ── Saved Workouts ──
+  // ── Saved Workouts (Fuse) ──
   if (_gsFilter === 'all' || _gsFilter === 'workouts') {
-    const workouts = (window._mrSavedWorkouts || []).filter(w => (w.name || '').toLowerCase().includes(ql)).slice(0, 10);
-    if (workouts.length) {
-      html += `<div class="gs-group"><div class="gs-group-title">Workouts</div>`;
-      workouts.forEach(w => {
+    _gsBuildIndex();
+    const wkResults = _gsWorkoutIndex ? _gsWorkoutIndex.search(q, { limit: 10 }) : (window._mrSavedWorkouts || []).filter(w => (w.name || '').toLowerCase().includes(ql)).map(w => ({ item: w, matches: [] })).slice(0, 10);
+    if (wkResults.length) {
+      html += `<div class="gs-group"><div class="gs-group-title">Workouts <span class="gs-count">${wkResults.length}</span></div>`;
+      wkResults.forEach(r => {
+        const w = r.item;
         const dur = w.totalDuration ? _fmtDuration(w.totalDuration) : '';
-        html += `<div class="gs-item" onclick="closeGlobalSearch();wrkLoadWorkout(window._mrSavedWorkouts.find(x=>x.id==='${w.id}'));navigate('workout')">
+        const nameHL = _gsHighlight(w.name || 'Untitled Workout', r.matches, 'name');
+        html += `<div class="gs-item" onclick="closeGlobalSearch();wrkLoadWorkout(window._mrSavedWorkouts.find(x=>x.id===${JSON.stringify(w.id)}));navigate('workout')">
           <div class="gs-item-icon" style="color:#ff9500"><svg class="icon"><use href="icons.svg#icon-bolt"/></svg></div>
           <div class="gs-item-body">
-            <div class="gs-item-title">${_escHtml(w.name || 'Untitled Workout')}</div>
+            <div class="gs-item-title">${nameHL}</div>
             <div class="gs-item-sub">${dur || 'Saved workout'}</div>
           </div>
           <svg class="gs-item-chevron" viewBox="0 0 7 12" width="8" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>`;
       });
       html += '</div>';
-      totalCount += workouts.length;
+      totalCount += wkResults.length;
     }
   }
 
-  // ── Gear Components ──
+  // ── Gear (Fuse) ──
   if (_gsFilter === 'all' || _gsFilter === 'gear') {
-    // Bikes
-    let _gsBikes = state.gearBikes;
-    if (!_gsBikes) { try { _gsBikes = JSON.parse(localStorage.getItem('icu_gear_bikes') || '[]'); } catch(_) { _gsBikes = []; } }
-    const bikes = (_gsBikes || []).filter(b => (b.name || '').toLowerCase().includes(ql));
-    // Components
-    const gear = (typeof loadGearComponents === 'function' ? loadGearComponents() : []).filter(g => {
-      const name = (g.name || '').toLowerCase();
-      const brand = (g.brand || '').toLowerCase();
-      const model = (g.model || '').toLowerCase();
-      return name.includes(ql) || brand.includes(ql) || model.includes(ql);
-    }).slice(0, 10);
-    if (bikes.length || gear.length) {
-      html += `<div class="gs-group"><div class="gs-group-title">Gear</div>`;
-      bikes.forEach(b => {
-        html += `<div class="gs-item" onclick="closeGlobalSearch();navigate('gear');setTimeout(()=>gearSelectBike('${b.id}'),100)">
-          <div class="gs-item-icon" style="color:var(--accent)"><svg class="icon"><use href="icons.svg#icon-bike"/></svg></div>
-          <div class="gs-item-body">
-            <div class="gs-item-title">${_escHtml(b.name)}</div>
-            <div class="gs-item-sub">${b.km ? b.km.toLocaleString() + ' km' : b.type || 'Bike'}</div>
-          </div>
-          <svg class="gs-item-chevron" viewBox="0 0 7 12" width="8" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </div>`;
-      });
-      gear.forEach(g => {
+    _gsBuildIndex();
+    const gearResults = _gsGearIndex ? _gsGearIndex.search(q, { limit: 15 }) : [];
+    if (gearResults.length) {
+      html += `<div class="gs-group"><div class="gs-group-title">Gear <span class="gs-count">${gearResults.length}</span></div>`;
+      gearResults.forEach(r => {
+        const g = r.item;
+        const isBike = !!g.km || g.type === 'Bike' || (!g.brand && !g.category);
+        const nameHL = _gsHighlight(g.name || 'Component', r.matches, 'name');
         const sub = [g.brand, g.model].filter(Boolean).join(' ');
-        html += `<div class="gs-item" onclick="closeGlobalSearch();navigate('gear')">
-          <div class="gs-item-icon" style="color:#f0c429"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M14.31 8l5.74 9.94M9.69 8h11.48M7.38 12l5.74-9.94M9.69 16L3.95 6.06M14.31 16H2.83M16.62 12l-5.74 9.94"/></svg></div>
-          <div class="gs-item-body">
-            <div class="gs-item-title">${_escHtml(g.name || 'Component')}</div>
-            <div class="gs-item-sub">${_escHtml(sub || g.category || '')}</div>
-          </div>
-          <svg class="gs-item-chevron" viewBox="0 0 7 12" width="8" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </div>`;
+        const subHL = _gsHighlight(sub, r.matches, 'brand') || _escHtml(sub || g.category || '');
+        if (isBike) {
+          html += `<div class="gs-item" onclick="closeGlobalSearch();navigate('gear');setTimeout(()=>gearSelectBike(${JSON.stringify(g.id)}),100)">
+            <div class="gs-item-icon" style="color:var(--accent)"><svg class="icon"><use href="icons.svg#icon-bike"/></svg></div>
+            <div class="gs-item-body">
+              <div class="gs-item-title">${nameHL}</div>
+              <div class="gs-item-sub">${g.km ? g.km.toLocaleString() + ' km' : 'Bike'}</div>
+            </div>
+            <svg class="gs-item-chevron" viewBox="0 0 7 12" width="8" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>`;
+        } else {
+          html += `<div class="gs-item" onclick="closeGlobalSearch();navigate('gear')">
+            <div class="gs-item-icon" style="color:#f0c429"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M14.31 8l5.74 9.94M9.69 8h11.48M7.38 12l5.74-9.94M9.69 16L3.95 6.06M14.31 16H2.83M16.62 12l-5.74 9.94"/></svg></div>
+            <div class="gs-item-body">
+              <div class="gs-item-title">${nameHL}</div>
+              <div class="gs-item-sub">${subHL}</div>
+            </div>
+            <svg class="gs-item-chevron" viewBox="0 0 7 12" width="8" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>`;
+        }
       });
       html += '</div>';
-      totalCount += bikes.length + gear.length;
+      totalCount += gearResults.length;
     }
   }
 
@@ -40111,17 +40489,23 @@ function _gsRunSearch(q) {
       { label: 'Licenses', sub: 'Open source licenses', page: 'settings', subpage: 'licenses' },
       { label: 'Tab Bar & FAB', sub: 'Navigation order, quick action button', page: 'settings', subpage: 'navigation' },
     ];
-    const matched = settingsItems.filter(s =>
-      s.label.toLowerCase().includes(ql) || s.sub.toLowerCase().includes(ql)
-    );
+    let matched;
+    if (typeof Fuse !== 'undefined') {
+      const settingsFuse = new Fuse(settingsItems, { ..._FUSE_OPTS, keys: [{ name: 'label', weight: 0.6 }, { name: 'sub', weight: 0.4 }] });
+      matched = settingsFuse.search(q, { limit: 10 });
+    } else {
+      matched = settingsItems.filter(s => s.label.toLowerCase().includes(ql) || s.sub.toLowerCase().includes(ql)).map(s => ({ item: s, matches: [] }));
+    }
     if (matched.length) {
-      html += `<div class="gs-group"><div class="gs-group-title">Settings</div>`;
-      matched.forEach(s => {
+      html += `<div class="gs-group"><div class="gs-group-title">Settings <span class="gs-count">${matched.length}</span></div>`;
+      matched.forEach(r => {
+        const s = r.item;
+        const labelHL = _gsHighlight(s.label, r.matches, 'label');
         html += `<div class="gs-item" onclick="closeGlobalSearch();navigate('${s.page}',{settingsSubpage:'${s.subpage}'})">
           <div class="gs-item-icon" style="color:var(--text-secondary)"><svg class="icon"><use href="icons.svg#icon-settings"/></svg></div>
           <div class="gs-item-body">
-            <div class="gs-item-title">${s.label}</div>
-            <div class="gs-item-sub">${s.sub}</div>
+            <div class="gs-item-title">${labelHL}</div>
+            <div class="gs-item-sub">${_gsHighlight(s.sub, r.matches, 'sub')}</div>
           </div>
           <svg class="gs-item-chevron" viewBox="0 0 7 12" width="8" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>`;
@@ -40131,22 +40515,56 @@ function _gsRunSearch(q) {
     }
   }
 
+  } catch(searchErr) { console.error('[Search error]', searchErr); }
+
   if (totalCount === 0) {
+    const tip = _gsFilter !== 'all'
+      ? 'Try switching to <b>All</b> or adjust your search'
+      : q.length < 3 ? 'Type a longer query for better results'
+      : 'Try "my fastest ride", "easy rides", or /power > 200';
     html = `<div class="gs-no-results">
       <svg class="icon" width="32" height="32"><use href="icons.svg#icon-search"/></svg>
       <div>No results for "${_escHtml(q)}"</div>
+      <div class="gs-no-results-tip">${tip}</div>
     </div>`;
   }
 
   results.innerHTML = html;
 }
 
+// Cmd/Ctrl+K global shortcut
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+    e.preventDefault();
+    const el = document.getElementById('globalSearchSheet');
+    if (el?.classList.contains('gs-open')) closeGlobalSearch();
+    else openGlobalSearch();
+  }
+  // Escape closes search
+  if (e.key === 'Escape') {
+    const el = document.getElementById('globalSearchSheet');
+    if (el?.classList.contains('gs-open')) { e.preventDefault(); closeGlobalSearch(); }
+  }
+});
+
 // Attach global search listeners via delegation
 document.addEventListener('DOMContentLoaded', () => {
   const inp = document.getElementById('gsInput');
   if (inp) {
     inp.addEventListener('input', _gsOnInput);
-    inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); });
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter') inp.blur();
+      // Tab or Space accepts ghost autocomplete
+      if ((e.key === 'Tab' || e.key === ' ') && _gsGhostMatch) {
+        e.preventDefault();
+        _gsAcceptGhost();
+      }
+      // Backspace on empty input with active tag removes the tag
+      if (e.key === 'Backspace' && !inp.value && _gsActiveTag) {
+        e.preventDefault();
+        _gsClearTag();
+      }
+    });
   }
   // Event delegation for recent search clicks
   const results = document.getElementById('gsResults');
