@@ -812,7 +812,6 @@ export async function renderWeatherForecast() {
         <span class="wx-today-metric-unit">feels ${Math.round(todayHi - (todayWind > 15 ? 3 : 0))}°</span>
       </div>
     </div>
-    <div class="wx-today-hours">${hourlyHTML}</div>
     ${gearHTML}
     <div class="wx-today-location">${location}</div>
   </div>`;
@@ -2386,7 +2385,8 @@ export function renderWeatherPerformance() {
     return Object.entries(grouped).map(([season, pts]) => ({
       label: season, data: pts,
       backgroundColor: SEASON_COLORS[season] + '99', borderColor: SEASON_COLORS[season],
-      borderWidth: 1, pointRadius: 4, pointHoverRadius: 7,
+      pointBackgroundColor: SEASON_COLORS[season] + '99', pointBorderColor: SEASON_COLORS[season],
+      borderWidth: 1, pointRadius: 4,
     }));
   }
 

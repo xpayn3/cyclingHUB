@@ -705,7 +705,6 @@ function _buildChart() {
         borderWidth: st.lineWidth,
         pointRadius: 0,
         pointHoverRadius: 4,
-        pointHoverBackgroundColor: s.color,
         tension: 0.2,
         fill: st.fill > 0 || s.key === 'altitude',
         yAxisID: axisId,

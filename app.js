@@ -611,6 +611,10 @@ function _cleanupPageDOM(leavingPage) {
     // Strip map (rebuilt on open)
     const mapCont = document.getElementById('detailMapWrap');
     if (mapCont) mapCont.innerHTML = '';
+    // Clear advanced cards state + leaked references
+    window._advancedRenderArgs = null;
+    window._advancedRendered = false;
+    state._streamsPanning = false;
   }
 
   // Goals page — badges grid, lifetime stats, monthly grid
@@ -1050,6 +1054,15 @@ async function icuFetch(path) {
     const serverTiming = res.headers.get('server-timing');
     if (serverTiming) { const m = serverTiming.match(/dur=(\d+)/); if (m) _devApiLastMs = +m[1]; }
   }
+  // Retry once on rate limit (429) or server error (503)
+  if ((res.status === 429 || res.status === 503) && !icuFetch._retrying) {
+    const delay = res.status === 429 ? 3000 : 2000;
+    console.warn(`[icuFetch] ${res.status} on ${path}, retrying in ${delay}ms`);
+    icuFetch._retrying = true;
+    await new Promise(r => setTimeout(r, delay));
+    try { return await icuFetch(path); } finally { icuFetch._retrying = false; }
+  }
+  icuFetch._retrying = false;
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);
     throw new Error(`${res.status}: ${text}`);
@@ -1563,30 +1576,41 @@ function confirmFullResync() {
 }
 
 /* ====================================================
-   PULL TO REFRESH — Dashboard
+   PULL TO REFRESH — Vertical bar with two snap points
+   50% = Search, 100% = Refresh
 ==================================================== */
 (() => {
-  const THRESHOLD = 200;
-  const DEAD_ZONE = 30;
+  const THRESHOLD = 320;
+  const SEARCH_ZONE = 0.5;
+  const DEAD_ZONE = 60;
   let _ptrStartY = 0, _ptrDist = 0, _ptrActive = false, _ptrRefreshing = false;
-  let _ptrDismissTimer = null; // track dismiss animation to cancel on re-pull
-  const el = () => document.getElementById('ptrIndicator');
-  const fill = () => document.getElementById('ptrFill');
-  const labelL = () => document.getElementById('ptrLabelLight');
-  const labelD = () => document.getElementById('ptrLabelDark');
-  function _setLabel(text) { const l = labelL(), d = labelD(); if (l) l.textContent = text; if (d) d.textContent = text; }
+  let _ptrDismissTimer = null;
+  const _el = () => document.getElementById('ptrIndicator');
+  const _fill = () => document.getElementById('ptrFill');
+  const _thumb = () => document.getElementById('ptrThumb');
+  const _searchSnap = () => document.querySelector('.ptr-snap--search');
+  const _refreshSnap = () => document.querySelector('.ptr-snap--refresh');
 
-  function _ptrReset(ind, fl) {
-    if (ind) { ind.classList.remove('ptr-visible', 'ptr-complete', 'ptr-refreshing', 'ptr-dismiss'); ind.style.setProperty('--ptr-pct', '0%'); }
-    if (fl) { fl.style.transition = 'none'; fl.style.width = '0%'; }
-    _setLabel('Pull to refresh');
+  function _ptrReset() {
+    const ind = _el(), fl = _fill(), th = _thumb();
+    if (ind) ind.classList.remove('ptr-visible', 'ptr-refreshing', 'ptr-dismiss');
+    if (fl) { fl.style.transition = 'none'; fl.style.height = '0%'; }
+    if (th) th.style.bottom = '0%';
+    const trk = ind?.querySelector('.ptr-track');
+    if (trk) trk.style.height = '';
+    _searchSnap()?.classList.remove('ptr-snap--active');
+    _refreshSnap()?.classList.remove('ptr-snap--active');
+    const lbl = document.getElementById('ptrActionLabel');
+    if (lbl) { lbl.classList.remove('ptr-action-visible'); lbl.textContent = ''; }
   }
 
   window.addEventListener('touchstart', e => {
     if (state.currentPage !== 'dashboard' || _ptrRefreshing) return;
     if (window.scrollY > 0) return;
     const t = e.target;
-    if (t.closest('.sidebar, .nav-sidebar, .modal, .modal-dialog, dialog[open], [data-scrollable]')) return;
+    // Block PTR when search overlay or any sheet is open
+    if (t.closest('.gs-overlay, .wxd-overlay, .sidebar, .nav-sidebar, .modal, .modal-dialog, dialog[open], [data-scrollable]')) return;
+    if (document.getElementById('globalSearchSheet')?.classList.contains('gs-open')) return;
     let node = t;
     while (node && node !== document.body) {
       if (node.scrollTop > 0) return;
@@ -1594,8 +1618,7 @@ function confirmFullResync() {
       if ((ov === 'auto' || ov === 'scroll') && node.scrollHeight > node.clientHeight) return;
       node = node.parentElement;
     }
-    // Cancel any in-progress dismiss animation
-    if (_ptrDismissTimer) { clearTimeout(_ptrDismissTimer); _ptrDismissTimer = null; _ptrReset(el(), fill()); }
+    if (_ptrDismissTimer) { clearTimeout(_ptrDismissTimer); _ptrDismissTimer = null; _ptrReset(); }
     _ptrStartY = e.touches[0].clientY;
     _ptrActive = true;
     _ptrDist = 0;
@@ -1606,46 +1629,75 @@ function confirmFullResync() {
     _ptrDist = e.touches[0].clientY - _ptrStartY;
     if (_ptrDist < DEAD_ZONE) { _ptrDist = 0; return; }
     _ptrDist -= DEAD_ZONE;
-    const ind = el(), fl = fill();
+    const ind = _el(), fl = _fill(), th = _thumb();
     if (!ind) return;
-    const progress = Math.min(_ptrDist / THRESHOLD, 1);
-    const pct = (progress * 100) + '%';
-    if (fl) { fl.style.transition = 'none'; fl.style.width = pct; }
-    ind.style.setProperty('--ptr-pct', pct);
-    if (!ind.classList.contains('ptr-visible')) {
-      ind.classList.add('ptr-visible');
+    const rawProgress = _ptrDist / THRESHOLD;
+    const progress = Math.min(rawProgress, 1);
+    const fillPct = Math.min(progress * 100, 100);
+    const trackEl = ind.querySelector('.ptr-track');
+    // Stretch starts at 50% and grows smoothly with pull
+    const baseH = 160;
+    const stretch = rawProgress > 0.5 ? (rawProgress - 0.5) * 0.5 : 0;
+    const stretchH = baseH + (stretch * baseH);
+    if (trackEl) trackEl.style.height = Math.round(stretchH) + 'px';
+    if (fl) { fl.style.transition = 'none'; fl.style.height = fillPct + '%'; }
+    if (th) th.style.bottom = fillPct + '%';
+    if (!ind.classList.contains('ptr-visible')) ind.classList.add('ptr-visible');
+
+    // Highlight active snap zone — once activated, stays on
+    const ss = _searchSnap(), rs = _refreshSnap();
+    if (progress >= SEARCH_ZONE * 0.8 && ss) ss.classList.add('ptr-snap--active');
+    if (progress < SEARCH_ZONE * 0.6 && ss) ss.classList.remove('ptr-snap--active');
+    if (progress >= 0.9 && rs) rs.classList.add('ptr-snap--active');
+    if (progress < 0.8 && rs) rs.classList.remove('ptr-snap--active');
+    // Enlarge thumb + icon when thumb is over a snap point
+    const onSearch = progress >= SEARCH_ZONE * 0.8 && progress < SEARCH_ZONE * 1.3;
+    const onRefresh = progress >= 0.9;
+    const onSnap = onSearch || onRefresh;
+    const dot = th?.firstElementChild;
+    if (dot) dot.style.transform = onSnap ? 'scale(2.2)' : 'scale(1)';
+    ss?.classList.toggle('ptr-snap--hover', onSearch);
+    rs?.classList.toggle('ptr-snap--hover', onRefresh);
+    // Action label
+    const lbl = document.getElementById('ptrActionLabel');
+    if (lbl) {
+      if (onRefresh) { lbl.textContent = 'Refresh'; lbl.classList.add('ptr-action-visible'); }
+      else if (onSearch) { lbl.textContent = 'Search'; lbl.classList.add('ptr-action-visible'); }
+      else { lbl.classList.remove('ptr-action-visible'); }
     }
-    ind.classList.toggle('ptr-complete', progress >= 1);
-    _setLabel(progress >= 1 ? 'Release ✓' : `${Math.round(progress * 100)}%`);
   }, { passive: true });
 
   window.addEventListener('touchend', () => {
     if (!_ptrActive) return;
     _ptrActive = false;
-    const ind = el(), fl = fill();
+    const ind = _el(), fl = _fill(), th = _thumb();
     if (!ind) return;
-    if (_ptrDist >= THRESHOLD && !_ptrRefreshing) {
+    const progress = Math.min(_ptrDist / THRESHOLD, 1);
+
+    if (progress >= 0.9 && !_ptrRefreshing) {
+      // Full pull → Refresh
       _ptrRefreshing = true;
-      ind.classList.remove('ptr-complete');
       ind.classList.add('ptr-refreshing');
-      _setLabel('Syncing…');
+      if (fl) { fl.style.transition = 'height 0.2s'; fl.style.height = '100%'; }
+      if (th) th.style.bottom = '100%';
       syncData(true).catch(() => {}).finally(() => {
         _ptrRefreshing = false;
-        const i = el(), f = fill();
-        if (i) { i.classList.add('ptr-dismiss'); setTimeout(() => _ptrReset(i, f), 280); }
+        ind.classList.add('ptr-dismiss');
+        _ptrDismissTimer = setTimeout(() => { _ptrReset(); _ptrDismissTimer = null; }, 300);
       });
+    } else if (progress >= SEARCH_ZONE * 0.8) {
+      // Half pull → Open search
+      ind.classList.add('ptr-dismiss');
+      _ptrDismissTimer = setTimeout(() => { _ptrReset(); _ptrDismissTimer = null; }, 300);
+      if (window.openGlobalSearch) openGlobalSearch();
     } else {
-      ind.classList.remove('ptr-complete');
-      if (fl) { fl.style.transition = 'width 0.25s ease-out'; fl.style.width = '0%'; }
-      ind.style.setProperty('--ptr-pct', '0%');
-      _setLabel('');
+      // Not enough → dismiss
+      if (fl) { fl.style.transition = 'height 0.25s ease-out'; fl.style.height = '0%'; }
+      if (th) { th.style.transition = 'bottom 0.25s ease-out'; th.style.bottom = '100%'; setTimeout(() => { th.style.transition = ''; }, 260); }
       _ptrDismissTimer = setTimeout(() => {
         ind.classList.add('ptr-dismiss');
-        _ptrDismissTimer = setTimeout(() => {
-          _ptrReset(ind, fl, lb);
-          _ptrDismissTimer = null;
-        }, 280);
-      }, 300);
+        _ptrDismissTimer = setTimeout(() => { _ptrReset(); _ptrDismissTimer = null; }, 300);
+      }, 250);
     }
     _ptrDist = 0;
   }, { passive: true });
@@ -4053,6 +4105,7 @@ function exportGearData() {
     'icu_units', 'icu_theme', 'icu_map_theme', 'icu_app_font',
     'icu_range_days', 'icu_week_start_day', 'icu_goals',
     'icu_dash_sections', 'icu_avatar', 'icu_hide_empty_cards',
+    'icu_chart_dot_size', 'icu_chart_dot_color',
   ];
   const data = { version: 2, type: 'gear_settings', exported: new Date().toISOString() };
   for (const k of keys) {
@@ -4115,14 +4168,18 @@ function _lockBodyScroll(lock) {
       width: '100%', overflow: 'hidden'
     });
   } else {
+    const y = _sidebarScrollY;
     Object.assign(document.body.style, {
       position: '', top: '', width: '', overflow: ''
     });
-    window.scrollTo(0, _sidebarScrollY);
+    requestAnimationFrame(() => window.scrollTo(0, y));
   }
 }
 
+let _navScrollResetTimer = null;
+
 function toggleSidebar() {
+  if (_swipe.animating) return; // guard against rapid clicks during swipe
   const sidebar  = document.getElementById('sidebar');
   const backdrop = document.getElementById('sidebarBackdrop');
   const fab      = document.getElementById('floatingMenuBtn');
@@ -4130,16 +4187,25 @@ function toggleSidebar() {
   backdrop.classList.toggle('open', open);
   fab?.classList.toggle('is-open', open);
   _lockBodyScroll(open);
+  if (open && _navScrollResetTimer) { clearTimeout(_navScrollResetTimer); _navScrollResetTimer = null; }
 }
 
 function closeSidebar() {
+  if (_swipe.animating) return;
   const sb = document.getElementById('sidebar');
   sb?.classList.remove('open');
   document.getElementById('sidebarBackdrop')?.classList.remove('open');
   document.getElementById('floatingMenuBtn')?.classList.remove('is-open');
   _lockBodyScroll(false);
-  // Reset scroll after close transition so it's ready for next open
-  if (sb) { const nav = sb.querySelector('.sidebar-nav'); if (nav) setTimeout(() => { nav.scrollTop = 0; }, 350); }
+  // Reset scroll after close transition — abort if reopened
+  if (_navScrollResetTimer) clearTimeout(_navScrollResetTimer);
+  if (sb) {
+    const nav = sb.querySelector('.sidebar-nav');
+    if (nav) _navScrollResetTimer = setTimeout(() => {
+      if (!sb.classList.contains('open')) nav.scrollTop = 0;
+      _navScrollResetTimer = null;
+    }, 350);
+  }
 }
 
 // Prevent touchmove on the backdrop — stops iOS from starting a scroll
@@ -4391,7 +4457,7 @@ document.addEventListener('touchend', (e) => {
 
 /* ── touchcancel — clean up if touch is interrupted ── */
 document.addEventListener('touchcancel', () => {
-  if (!_swipe.tracking) { _swipe.direction = ''; return; }
+  if (!_swipe.tracking && !_swipe.animating) { _swipe.direction = ''; return; }
   const sidebar = document.getElementById('sidebar');
   const backdrop = document.getElementById('sidebarBackdrop');
   if (sidebar) {
@@ -4405,6 +4471,7 @@ document.addEventListener('touchcancel', () => {
     backdrop.style.visibility = '';
     backdrop.style.pointerEvents = '';
   }
+  _swipe.animating = false;
   _swipeReset();
 }, false);
 
@@ -4497,9 +4564,14 @@ function navigate(page, opts) {
     const _pc = document.getElementById('pageContent');
     if (_pc) _pc.style.background = '';
     document.body.classList.remove('goals-bg');
+    // Hide achievements subpage when leaving goals
+    const achSub = document.getElementById('stkAchSubpage');
+    if (achSub) { achSub.style.display = 'none'; achSub.removeAttribute('data-animating'); }
   }
+  document.body.classList.remove('dash-glow');
   // Add dark gradient on goals page
   if (page === 'goals') document.body.classList.add('goals-bg');
+  if (page === 'dashboard') document.body.classList.add('dash-glow');
 
   // Clear scroll restore if navigating anywhere other than activities→activity round-trip
   if (!_restoreActScroll) window._actListScrollRestore = null;
@@ -5260,7 +5332,7 @@ function setRange(days) {
   if (defLabel) defLabel.textContent = days + ' days';
   // Update inline range pills on dashboard cards
   _refreshDashRangePills();
-  if (state.synced && state.currentPage === 'dashboard') noChartAnim(() => renderDashboard());
+  if (state.synced && state.currentPage === 'dashboard') noChartAnim(() => _renderDashboardImpl());
 }
 
 /* ====================================================
@@ -6072,7 +6144,7 @@ function buildHeroActCardHTML(a, idx) {
   const statItems = [
     dFmt && { val: dFmt.val, unit: dFmt.unit, lbl: 'Distance' },
     secs && { val: _fmtDurHTML(secs), unit: '',    lbl: 'Time', raw: true },
-    sFmt && { val: sFmt.val, unit: sFmt.unit, lbl: 'Avg Speed' },
+    sFmt && { val: sFmt.val, unit: sFmt.unit, lbl: 'Avg' },
   ].filter(Boolean);
 
   const tssClass = tss >= 250 ? 'ra-tss--extreme' : tss >= 150 ? 'ra-tss--hard' : tss >= 100 ? 'ra-tss--moderate' : tss >= 50 ? 'ra-tss--easy' : '';
@@ -6088,30 +6160,25 @@ function buildHeroActCardHTML(a, idx) {
       </div>`
     : '';
 
+  // Flat stats using data-lbl attribute + CSS ::after (saves 1 node per stat)
   const statsHTML = statItems.map(s =>
-    `<div class="hero-stat">
-      <span class="hero-stat-val">${s.raw ? s.val : (s.val + (s.unit ? `<span class="hero-stat-unit"> ${s.unit}</span>` : ''))}</span>
-      <span class="hero-stat-lbl">${s.lbl}</span>
-    </div>`
+    `<span class="hero-stat" data-lbl="${s.lbl}">${s.raw ? s.val : s.val + (s.unit ? `<i>${s.unit}</i>` : '')}</span>`
   ).join('');
 
   const _hac = _achColor(a);
   const _hacBorder = _hac ? ` style="border:1px solid ${_hac}40"` : '';
+  const achFloat = _heroAchBadge(a);
+  const sub = `${dateFmt}${platformTag ? ` \u00B7 ${platformTag}` : ''}`;
 
-  return `<div class="hero-act-wrap" id="recentActCard_${idx}">
-    <div class="card card--clickable hero-act-card"${_hacBorder}>
-      <div class="hero-act-map" id="recentActCardMap_${idx}"></div>
-      <div class="hero-act-content">
-        <div class="hero-act-top-row">
-          <span class="hero-act-category">${sportLabel}</span>
-          ${_heroAchBadge(a)}
-        </div>
-        <div class="hero-act-title">${name}</div>
-        <div class="hero-act-subtitle">${dateFmt}${timeFmt ? ' \u00B7 ' + timeFmt : ''}${platformTag ? ` \u00B7 ${platformTag}` : ''}</div>
-        <div class="hero-act-stats">${statsHTML}</div>
-        ${tssBadge ? `<div class="hero-act-trailing">${tssBadge}</div>` : ''}
-      </div>
+  return `<div class="card card--clickable hero-act-card" id="recentActCard_${idx}"${_hacBorder}>
+    <div class="hero-act-content">
+      <div class="hero-act-top-row">${tssBadge}<span class="hero-act-category">${sportLabel}</span></div>
+      <b class="hero-act-title">${name}</b>
+      <span class="hero-act-subtitle">${sub}</span>
+      <div class="hero-act-stats">${statsHTML}</div>
     </div>
+    <div class="hero-act-map" id="recentActCardMap_${idx}"></div>
+    ${achFloat ? `<div class="hero-act-ach-float">${achFloat}</div>` : ''}
   </div>`;
 }
 
@@ -6166,7 +6233,7 @@ function buildRecentActCardHTML(a, idx, idPrefix = 'recentActCard') {
   const statItems = [
     dFmt && { val: dFmt.val, unit: dFmt.unit, lbl: 'Distance' },
     secs && { val: _fmtDurHTML(secs), unit: '',    lbl: 'Time', raw: true },
-    sFmt && { val: sFmt.val, unit: sFmt.unit, lbl: 'Avg Speed' },
+    sFmt && { val: sFmt.val, unit: sFmt.unit, lbl: 'Avg' },
   ].filter(Boolean);
 
   const tssClass = tss >= 250 ? 'ra-tss--extreme' : tss >= 150 ? 'ra-tss--hard' : tss >= 100 ? 'ra-tss--moderate' : tss >= 50 ? 'ra-tss--easy' : '';
@@ -6183,31 +6250,22 @@ function buildRecentActCardHTML(a, idx, idPrefix = 'recentActCard') {
     : '';
 
   const statsHTML = statItems.map(s =>
-    `<div class="ra-stat">
-      <div class="ra-stat-lbl">${s.lbl}</div>
-      <div class="ra-stat-val">${s.raw ? s.val : (s.val + (s.unit ? `<span class="ra-stat-unit"> ${s.unit}</span>` : ''))}</div>
-    </div>`
+    `<span class="ra-stat" data-lbl="${s.lbl}">${s.raw ? s.val : s.val + (s.unit ? `<i>${s.unit}</i>` : '')}</span>`
   ).join('');
 
   const _ac = _achColor(a);
   const _achStyle = _ac ? ` style="border:1px solid ${_ac}40;background:linear-gradient(135deg, ${_ac}28 0%, ${_ac}10 50%, transparent 100%), var(--bg-card)"` : '';
+  const tags = [tssBadge, _heroAchBadge(a), platformTag ? `<span class="act-platform-tag">${platformTag}</span>` : ''].filter(Boolean).join('');
+  const elevStat = elev > 0 ? `<span class="ra-stat" data-lbl="Elev">${Math.round(elev)}<i> m</i></span>` : '';
 
   return `<div class="card card--clickable recent-act-card" id="${idPrefix}_${idx}"${_achStyle}>
-    <div class="recent-act-body">
-      <div class="recent-act-info">
-        <div class="recent-act-header">
-          <div class="recent-act-text">
-            <div class="recent-act-date">${dateFmt}${timeFmt ? ' · ' + timeFmt : ''}</div>
-            <div class="recent-act-name">${name}</div>
-            <div class="recent-act-location" id="${idPrefix}Loc_${idx}"></div>
-            <div class="recent-act-badges">${tssBadge}${_heroAchBadge(a)}${platformTag ? `<span class="act-platform-tag">${platformTag}</span>` : ''}</div>
-          </div>
-        </div>
-        <div class="recent-act-stats">${statsHTML}</div>
-        ${wxChip}
-      </div>
-      <div class="recent-act-map" id="${idPrefix}Map_${idx}"></div>
+    <div class="recent-act-info">
+      <b class="recent-act-name">${name}</b>
+      <span class="recent-act-meta"><span class="recent-act-date">${dateFmt}</span><span class="recent-act-location" id="${idPrefix}Loc_${idx}"></span></span>
+      <div class="recent-act-stats">${statsHTML}${elevStat}</div>
+      ${tags ? `<div class="recent-act-tags">${tags}</div>` : ''}
     </div>
+    <div class="recent-act-map" id="${idPrefix}Map_${idx}"></div>
   </div>`;
 }
 
@@ -6504,20 +6562,33 @@ function _initRecentActDots(rail, count) {
 ==================================================== */
 const _WIDGET_DEFS = [
   { id: 'recentCarousel',  label: 'Recent Activities',       icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-activity"/></svg>' },
-  { id: 'goalsTargets',    label: 'Goals',                   icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-target"/></svg>' },
   { id: 'todaySuggestion', label: "Today's Plan",            icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-alert-circle"/></svg>' },
-  { id: 'weekProgress',    label: 'Training Status',         icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-activity"/></svg>' },
+  { id: 'trainingStatus',  label: 'Training Status',         icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-activity"/></svg>' },
+  { id: 'weekProgress',    label: 'Week Progress',           icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-calendar"/></svg>' },
+  { id: 'goalsTargets',    label: 'Goals',                   icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-target"/></svg>' },
   { id: 'quickLinks',      label: 'My Garage & Route Builder', icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-bike"/></svg>' },
   { id: 'weather',         label: 'Weather',                 icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-cloud"/></svg>' },
   { id: 'batteryStatus',   label: 'Batteries',               icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-battery"/></svg>' },
 ];
 
 function _getWidgetOrder() {
+  const defaults = _WIDGET_DEFS.map(w => w.id);
   try {
     const saved = JSON.parse(localStorage.getItem('icu_widget_order') || 'null');
-    if (Array.isArray(saved) && saved.length) return saved;
+    if (Array.isArray(saved) && saved.length) {
+      // Merge in any new widgets not in saved order, at their default position
+      defaults.forEach(id => {
+        if (!saved.includes(id)) {
+          const defIdx = defaults.indexOf(id);
+          const insertAt = saved.findIndex((s, i) => defaults.indexOf(s) > defIdx);
+          if (insertAt >= 0) saved.splice(insertAt, 0, id);
+          else saved.push(id);
+        }
+      });
+      return saved;
+    }
   } catch (_) {}
-  return _WIDGET_DEFS.map(w => w.id);
+  return defaults;
 }
 function _getWidgetHidden() {
   try {
@@ -6700,31 +6771,57 @@ function _initWidgetDragReorder() {
   });
 
   // ── Touch drag (mobile) ──
+  // Long-press on drag handle to start reorder — prevents scroll conflict
   let touchItem = null;
   let touchClone = null;
   let touchStartY = 0;
   let touchOffsetY = 0;
+  let touchLongPress = null;
+  let touchDragging = false;
+  let touchPendingItem = null;
 
   list.addEventListener('touchstart', e => {
     const handle = e.target.closest('.widget-editor-drag');
     if (!handle) return;
     const item = handle.closest('.widget-editor-item');
     if (!item) return;
-    touchItem = item;
-    const rect = item.getBoundingClientRect();
     touchStartY = e.touches[0].clientY;
-    touchOffsetY = touchStartY - rect.top;
+    touchPendingItem = item;
+    touchDragging = false;
 
-    // Create floating clone
-    touchClone = item.cloneNode(true);
-    touchClone.classList.add('widget-dragging-clone');
-    touchClone.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;z-index:10002;pointer-events:none;opacity:0.9;background:var(--surface-2);border-radius:var(--radius);box-shadow:0 8px 32px rgba(0,0,0,0.5);`;
-    document.body.appendChild(touchClone);
+    // Start drag after 200ms hold (prevents scroll conflict)
+    touchLongPress = setTimeout(() => {
+      touchDragging = true;
+      touchItem = item;
+      const rect = item.getBoundingClientRect();
+      touchOffsetY = touchStartY - rect.top;
 
-    item.classList.add('widget-dragging');
+      // Lock sheet scroll
+      const sheet = list.closest('.wxd-sheet, .wxd-sheet-body');
+      if (sheet) sheet.style.overflow = 'hidden';
+
+      // Create floating clone
+      touchClone = item.cloneNode(true);
+      touchClone.classList.add('widget-dragging-clone');
+      touchClone.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;z-index:10002;pointer-events:none;opacity:0.9;background:var(--bg-elevated);border-radius:var(--radius);box-shadow:0 8px 32px rgba(0,0,0,0.5);`;
+      document.body.appendChild(touchClone);
+      item.classList.add('widget-dragging');
+
+      // Haptic feedback if available
+      if (navigator.vibrate) navigator.vibrate(10);
+    }, 200);
   }, { passive: true });
 
   list.addEventListener('touchmove', e => {
+    // If not yet dragging, check if finger moved too much (cancel long-press, allow scroll)
+    if (!touchDragging && touchPendingItem) {
+      const dy = Math.abs(e.touches[0].clientY - touchStartY);
+      if (dy > 8) {
+        clearTimeout(touchLongPress);
+        touchPendingItem = null;
+      }
+      return;
+    }
     if (!touchItem || !touchClone) return;
     e.preventDefault();
     const y = e.touches[0].clientY;
@@ -6742,13 +6839,21 @@ function _initWidgetDragReorder() {
   }, { passive: false });
 
   const _touchEnd = () => {
-    if (!touchItem) return;
+    clearTimeout(touchLongPress);
+    touchPendingItem = null;
+    if (!touchItem) { touchDragging = false; return; }
     touchItem.classList.remove('widget-dragging');
     if (touchClone) { touchClone.remove(); touchClone = null; }
+
+    // Unlock sheet scroll
+    const sheet = list.closest('.wxd-sheet, .wxd-sheet-body');
+    if (sheet) sheet.style.overflow = '';
+
     const newOrder = [...list.querySelectorAll('.widget-editor-item')].map(el => el.dataset.widgetId);
     _saveWidgetOrder(newOrder);
     _applyWidgetOrder();
     touchItem = null;
+    touchDragging = false;
   };
   list.addEventListener('touchend', _touchEnd);
   list.addEventListener('touchcancel', _touchEnd);
@@ -6757,7 +6862,13 @@ function _initWidgetDragReorder() {
 /* ====================================================
    RENDER DASHBOARD
 ==================================================== */
+let _dashRenderTimer = null;
 function renderDashboard() {
+  if (_dashRenderTimer) clearTimeout(_dashRenderTimer);
+  _dashRenderTimer = setTimeout(_renderDashboardImpl, 200);
+}
+function _renderDashboardImpl() {
+  _dashRenderTimer = null;
   const days   = state.rangeDays;
   const cutoff = daysAgo(days);
   const recent = state.activities.filter(a =>
@@ -7745,8 +7856,10 @@ function externalTooltipHandler(context) {
 
   // Position: centered on the crosshair x, bottom edge just above chartArea.top
   const rect = chart.canvas.getBoundingClientRect();
-  const cx   = rect.left + (tooltip.caretX ?? 0);
-  const cy   = rect.top  + (chart.chartArea?.top ?? 0);
+  const area = chart.chartArea;
+  const caretX = state._streamsPanning ? (area.left + area.right) / 2 : (tooltip.caretX ?? 0);
+  const cx   = rect.left + caretX;
+  const cy   = rect.top  + (area?.top ?? 0);
 
   // Clamp horizontally so tooltip never leaves the viewport
   const tooltipW = el.offsetWidth || 150;
@@ -7819,9 +7932,6 @@ function _scatterDatasetStyle(color) {
     borderWidth: 1,
     pointRadius: 3,
     hoverRadius: 5,
-    hoverBackgroundColor: color,
-    hoverBorderColor: '#ffffff',
-    hoverBorderWidth: 2,
   };
 }
 // Shared grow-from-bottom animation applied globally to all charts
@@ -7835,13 +7945,9 @@ const C_ANIM = {
 };
 Chart.defaults.animations = C_ANIM;
 // System-wide: all hover/active dots are white
-Chart.defaults.elements.point.backgroundColor = '#ffffff';
-Chart.defaults.elements.point.borderColor = '#ffffff';
+// Chart dot defaults — overridden per-update by solidHoverDots plugin from CSS tokens
 Chart.defaults.elements.point.borderWidth = 0;
-Chart.defaults.elements.point.hoverBackgroundColor = '#ffffff';
-Chart.defaults.elements.point.hoverBorderColor = '#ffffff';
 Chart.defaults.elements.point.hoverBorderWidth = 0;
-Chart.defaults.elements.point.hoverRadius = 4;
 const C_NO_ANIM = { x: { duration: 0 }, y: { duration: 0 } };
 /** Run fn() with chart animations suppressed (instant render) */
 function noChartAnim(fn) {
@@ -7855,18 +7961,20 @@ Chart.defaults.transitions.resize = {
   animation: { duration: 0 },
   animations: { x: { duration: 0 }, y: { duration: 0 } },
 };
-// Solid hover dots: auto-fill with the dataset's line colour, no border ring.
-// Skips datasets that already have a per-point hover colour array.
+// System-wide hover dots on every chart — color & size from CSS tokens.
 Chart.register({
   id: 'solidHoverDots',
   beforeUpdate(chart) {
+    const style = getComputedStyle(document.documentElement);
+    const dotColor = style.getPropertyValue('--chart-dot-color').trim() || '#ffffff';
+    const dotSize = parseInt(style.getPropertyValue('--chart-dot-size'), 10) || 4;
+    const hideDots = state._streamsPanning;
     chart.data.datasets.forEach(ds => {
+      if (ds._isAnomaly) return;
+      ds.pointHoverBackgroundColor = dotColor;
+      ds.pointHoverBorderColor = dotColor;
       ds.pointHoverBorderWidth = 0;
-      if (Array.isArray(ds.pointHoverBackgroundColor)) return; // per-point colours set explicitly
-      if (ds.borderColor && !ds._hoverColorOverridden) {
-        ds.pointHoverBackgroundColor = ds.borderColor;
-        ds._hoverColorOverridden = true;
-      }
+      ds.pointHoverRadius = hideDots ? 0 : dotSize;
     });
   }
 });
@@ -8011,11 +8119,11 @@ document.addEventListener('scroll', _hideTooltipOnScroll, { passive: true, captu
 Chart.register({
   id: 'crosshairLine',
   afterDraw(chart) {
-    if (chart.config.options?._noCrosshair) return; // opt-out for scatter charts etc.
+    if (chart.config.options?._noCrosshair) return;
     const active = chart.tooltip?._active;
     if (!active || !active.length) return;
-    const { ctx, chartArea: { top, bottom } } = chart;
-    const x = active[0].element.x;
+    const { ctx, chartArea: { left, right, top, bottom } } = chart;
+    const x = state._streamsPanning ? (left + right) / 2 : active[0].element.x;
     ctx.save();
     ctx.beginPath();
     ctx.moveTo(x, top);
@@ -8250,8 +8358,6 @@ function renderWeekProgress(metric) {
           borderWidth: 2,
           pointRadius: 0,
           pointHoverRadius: 6,
-          pointBackgroundColor: 'rgba(136,145,168,0.5)',
-          pointBorderColor:    'transparent',
           tension: 0.35,
           order: 2
         },
@@ -8556,8 +8662,6 @@ function renderTrainingStatus() {
         borderWidth: 2,
         pointRadius: 0,
         pointHoverRadius: 6,
-        pointBackgroundColor: ACCENT,
-        pointBorderColor: 'transparent',
         fill: true,
         tension: 0.35
       }]
@@ -8831,7 +8935,6 @@ function renderFitnessChart(activities, days) {
           return grad;
         },
         segment: { borderColor: ctx => { const v = ctx.p1.parsed.y; return v > 5 ? C_BLUE : v > -10 ? '#888' : ACCENT; } },
-        pointBackgroundColor: ctx => { const v = (ctx.dataset.data[ctx.dataIndex] ?? 0); return v > 5 ? C_BLUE : v > -10 ? '#888' : ACCENT; }
       }]},
       options: {
         responsive: true, maintainAspectRatio: false,
@@ -9259,7 +9362,7 @@ function renderWellnessInsights(days) {
     state.insightStepsHrvChart = new Chart(ctx, {
       type: 'scatter',
       data: { datasets: [
-        { label: 'Rest Days', data: points, ...{ pointRadius: 3, hoverRadius: 5, pointBackgroundColor: pColors, pointBorderColor: pColors.map(c => c.replace(/[\d.]+\)$/, '0.3)')), pointBorderWidth: 1, hoverBorderColor: '#fff', hoverBorderWidth: 2 } },
+        { label: 'Rest Days', data: points, pointRadius: 3, hoverRadius: 5, pointBackgroundColor: pColors, pointBorderColor: pColors.map(c => c.replace(/[\d.]+\)$/, '0.3)')), pointBorderWidth: 1 },
         { label: 'Trend', data: trend, type: 'line', borderColor: 'rgba(255,255,255,0.3)', borderWidth: 1.5, borderDash: [5, 3], pointRadius: 0, pointHoverRadius: 0, fill: false },
       ]},
       options: {
@@ -9589,9 +9692,6 @@ function renderPwrHrScatter(activities) {
         hoverRadius: 5,
         pointBackgroundColor: colors.map(c => c.replace(/0\.\d+\)$/, '0.15)')),
         pointBorderColor: colors.map(c => c.replace(/0\.\d+\)$/, '0.3)')),
-        hoverBackgroundColor: colors,
-        hoverBorderColor: '#fff',
-        hoverBorderWidth: 2,
         pointBorderWidth: 1,
       },
       {
@@ -10802,7 +10902,6 @@ function renderPowerProfileRadar(cardId, canvasId, subId) {
         pointBorderColor: C_PURPLE_LIGHT,
         pointBorderWidth: 0,
         pointRadius: 2,
-        pointHoverRadius: 5,
         fill: true,
       }]
     },
@@ -11184,9 +11283,6 @@ function _renderPwrPageScatter(activities) {
       pointBorderWidth: 1,
       pointRadius: 3,
       hoverRadius: 5,
-      hoverBackgroundColor: colors,
-      hoverBorderColor: '#fff',
-      hoverBorderWidth: 2,
     }] },
     options: { responsive: true, maintainAspectRatio: false, _noCrosshair: true,
       interaction: { mode: 'nearest', intersect: true },
@@ -13702,7 +13798,6 @@ function renderFitnessHistoryChart(days) {
           return grad;
         },
         segment: { borderColor: ctx => { const v = ctx.p1.parsed.y; return v > 5 ? C_BLUE : v > -10 ? '#888' : ACCENT; } },
-        pointBackgroundColor: ctx => { const v = (ctx.dataset.data[ctx.dataIndex] ?? 0); return v > 5 ? C_BLUE : v > -10 ? '#888' : ACCENT; }
       }]},
       options: {
         responsive: true, maintainAspectRatio: false,
@@ -13907,15 +14002,12 @@ function renderFatiguePredChart() {
       labels,
       datasets: [
         { label: 'CTL', data: ctlD, borderColor: ACCENT, borderWidth: 2, borderDash: dashStyle,
-          pointRadius: (ctx) => ctx.dataIndex === 0 ? 5 : 0, pointBackgroundColor: ACCENT,
-          pointHoverRadius: 7, tension: 0.3, fill: false },
+          pointRadius: 0, pointHoverRadius: 7, tension: 0.3, fill: false },
         { label: 'ATL', data: atlD, borderColor: C_ORANGE, borderWidth: 2, borderDash: dashStyle,
-          pointRadius: (ctx) => ctx.dataIndex === 0 ? 5 : 0, pointBackgroundColor: C_ORANGE,
-          pointHoverRadius: 7, tension: 0.3, fill: false },
+          pointRadius: 0, pointHoverRadius: 7, tension: 0.3, fill: false },
         { label: 'TSB', data: tsbD, borderColor: C_BLUE, borderWidth: 2, borderDash: dashStyle,
           backgroundColor: 'rgba(74,158,255,0.06)',
-          pointRadius: (ctx) => ctx.dataIndex === 0 ? 5 : 0,
-          pointBackgroundColor: ctx => { const v = (ctx.dataset.data[ctx.dataIndex] ?? 0); return v > 5 ? C_BLUE : v > -10 ? '#888' : ACCENT; },
+          pointRadius: 0,
           segment: { borderColor: ctx => { const v = ctx.p1.parsed.y; return v > 5 ? C_BLUE : v > -10 ? '#888' : ACCENT; } },
           pointHoverRadius: 7, tension: 0.3, fill: true }
       ]
@@ -15370,19 +15462,33 @@ function _openOverlaySheet(id) {
     // Block scroll-leak inside the sheet panel at scroll boundaries
     if (panel) {
       panel.addEventListener('touchmove', e => {
-        const sh = panel.scrollHeight;
-        const ch = panel.clientHeight;
+        // Find the actual scrollable element (could be panel or a child like .gs-results)
+        const scroller = panel.querySelector('.gs-results') || panel.querySelector('.wxd-sheet-body') || panel;
+        const sh = scroller.scrollHeight;
+        const ch = scroller.clientHeight;
+        // If touching inside a scrollable child, let it scroll
+        if (scroller !== panel && scroller.contains(e.target)) {
+          const st = scroller.scrollTop;
+          if (st <= 0 && e.touches[0] && panel._touchStartY !== undefined) {
+            const dy = e.touches[0].clientY - panel._touchStartY;
+            if (dy > 0) e.preventDefault();
+          }
+          if (st + ch >= sh - 1 && e.touches[0] && panel._touchStartY !== undefined) {
+            const dy = e.touches[0].clientY - panel._touchStartY;
+            if (dy < 0) e.preventDefault();
+          }
+          return;
+        }
         // If content doesn't overflow, block all vertical scroll
         if (sh <= ch + 1) { e.preventDefault(); return; }
-        // At top boundary scrolling up, or bottom boundary scrolling down — block
         const st = panel.scrollTop;
         if (st <= 0 && e.touches[0] && panel._touchStartY !== undefined) {
           const dy = e.touches[0].clientY - panel._touchStartY;
-          if (dy > 0) e.preventDefault(); // pulling down at top
+          if (dy > 0) e.preventDefault();
         }
         if (st + ch >= sh - 1 && e.touches[0] && panel._touchStartY !== undefined) {
           const dy = e.touches[0].clientY - panel._touchStartY;
-          if (dy < 0) e.preventDefault(); // pushing up at bottom
+          if (dy < 0) e.preventDefault();
         }
       }, { passive: false });
       panel.addEventListener('touchstart', e => {
@@ -15403,10 +15509,15 @@ function _initSheetSwipeDismiss(overlay, id) {
   let startY = 0, currentY = 0, dragging = false;
 
   panel.addEventListener('touchstart', e => {
+    // Don't start sheet dismiss if touching a drag-reorder handle
+    if (e.target.closest('.widget-editor-drag')) return;
     // Allow dismiss from the drag indicator at any scroll position,
     // OR from anywhere when already scrolled to the very top.
     const onDragHandle = !!e.target.closest('.modal-drag-indicator');
-    const atTop = panel.scrollTop <= 5;
+    // For flex-column sheets (gs-sheet), check if the results container is at top
+    const scrollChild = panel.querySelector('.gs-results, .wxd-sheet-body');
+    const childAtTop = scrollChild ? scrollChild.scrollTop <= 5 : true;
+    const atTop = panel.scrollTop <= 5 && childAtTop;
     if (!onDragHandle && !atTop) return;
     const t = e.touches[0];
     startY = t.clientY;
@@ -15431,15 +15542,19 @@ function _initSheetSwipeDismiss(overlay, id) {
     if (!dragging) return;
     dragging = false;
     const dy = currentY - startY;
-    panel.style.transition = '';
     const backdrop = overlay.querySelector('.wxd-backdrop');
     if (dy > 100) {
-      // Dismiss
-      _closeOverlaySheet(id);
+      // Dismiss — slide down fully then close
+      panel.style.transition = 'transform 0.25s ease-in';
+      panel.style.transform = 'translateY(100%)';
+      if (backdrop) { backdrop.style.transition = 'opacity 0.25s'; backdrop.style.opacity = '0'; }
+      setTimeout(() => _closeOverlaySheet(id), 260);
     } else {
-      // Snap back
-      panel.style.transform = '';
-      if (backdrop) backdrop.style.opacity = '';
+      // Snap back smoothly
+      panel.style.transition = 'transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)';
+      panel.style.transform = 'translateY(0)';
+      if (backdrop) { backdrop.style.transition = 'opacity 0.25s'; backdrop.style.opacity = ''; }
+      setTimeout(() => { panel.style.transition = ''; panel.style.transform = ''; }, 260);
     }
   }, { passive: true });
 }
@@ -18490,6 +18605,10 @@ async function navigateToActivity(actKey, fromStep = false) {
     try { cleanupPageCharts(state.currentPage); } catch(e) { console.warn('Chart cleanup:', e); }
     try { _cleanupPageDOM(state.currentPage); } catch(e) { console.warn('DOM cleanup:', e); }
   }
+  // Reset advanced cards state for new activity
+  window._advancedRenderArgs = null;
+  window._advancedRendered = false;
+  state._streamsPanning = false;
 
   // Accept an activity object directly (used when stepping prev/next)
   let activity = (actKey && typeof actKey === 'object') ? actKey : null;
@@ -18788,34 +18907,18 @@ async function navigateToActivity(actKey, fromStep = false) {
       renderActivityZoneCharts(richActivity);
     }
 
-    // Supplementary cards — each shows/hides itself based on data availability
-    renderDetailPerformance(richActivity, actId, normStreams);
-    renderDetailDecoupleChart(normStreams, richActivity);
-    renderDetailLRBalance(normStreams, richActivity);
+    // Essential cards — render immediately
     renderDetailZones(richActivity);
     renderDetailHRZones(richActivity);
     initZonesCarousel();
-    renderActivityIntervals(actId);  // async — shows/hides its own card
+    renderActivityIntervals(actId);
     renderLapSplits(richActivity);
-    // Both zone cards always show now (with NA if no data), so the row is always two-column
-    renderDetailHistogram(richActivity, normStreams);
-    renderDetailTempChart(normStreams, richActivity);
-    renderDetailGradientProfile(normStreams, richActivity);
-    render3DElevation(normStreams, richActivity);
-    renderClimbDetection(normStreams, richActivity);
-    renderDetailCadenceHist(normStreams, richActivity);
     renderDetailCurve(actId, normStreams).catch(() => unskeletonCard('detailCurveCard'));
     renderDetailHRCurve(normStreams).catch(() => unskeletonCard('detailHRCurveCard'));
-    _renderDetailPwrHR(normStreams, richActivity);
-    _renderDetailNPTimeline(normStreams, richActivity);
-    _renderDetailSpeedGrade(normStreams, richActivity);
-    _renderCardiacDrift(normStreams, richActivity);
-    _renderTempVsPower(normStreams, richActivity);
-    // HR Recovery needs interval data — retry after delay if not loaded yet
-    _renderHRRecovery(normStreams, richActivity);
-    if (!state._actIntervals?.length) {
-      setTimeout(() => _renderHRRecovery(normStreams, richActivity), 3000);
-    }
+
+    // Advanced cards — defer until "Show All" is clicked
+    window._advancedRenderArgs = { richActivity, actId, normStreams };
+    window._advancedRendered = false;
 
     // Inject info buttons and dividers on all visible activity cards
     // All timeouts guard against user navigating away before they fire
@@ -19041,9 +19144,6 @@ function _renderDetailSpeedGrade(streams, activity) {
       pointBorderWidth: 1,
       pointRadius: 3,
       hoverRadius: 5,
-      hoverBackgroundColor: colors,
-      hoverBorderColor: '#fff',
-      hoverBorderWidth: 2,
     }] },
     options: {
       responsive: true, maintainAspectRatio: false, animation: false, _noCrosshair: true,
@@ -19315,7 +19415,6 @@ function _renderTempVsPower(streams, activity) {
         ..._scatterDatasetStyle('rgba(0,229,160,1)'),
         backgroundColor: colors.map(c => c.replace(/0\.\d+\)$/, '0.15)')),
         pointBorderColor: colors.map(c => c.replace(/0\.\d+\)$/, '0.3)')),
-        hoverBackgroundColor: colors,
       }] },
       options: {
         responsive: true, maintainAspectRatio: false, animation: false, _noCrosshair: true,
@@ -22144,7 +22243,7 @@ const _DETAIL_CARD_IDS = [
   'detailHistogramCard', 'detailCurveCard', 'detailHRCurveCard', 'detailPerfCard',
   'detailWeatherCard', 'detailTempCard', 'detailDecoupleCard', 'detailLRBalanceCard',
   'detailGradientCard', 'detailClimbsCard', 'detailCadenceCard', 'detailCompareCard',
-  'detailZonesCard', 'detailHRZonesCard', 'detailCurveCard', 'detailHRCurveCard', 'detailIntervalsCard', 'detailLapSplitsCard', 'detailNotesCard'];
+  'detailIntervalsCard', 'detailLapSplitsCard', 'detailNotesCard'];
 
 function skeletonCards(show) {
   _DETAIL_CARD_IDS.forEach(id => {
@@ -23375,6 +23474,9 @@ function renderActivityBasic(a) {
 
   // ── Export options ─────────────────────────────────────────────────────────
   renderDetailExport(a);
+
+  // ── Hide advanced cards by default ─────────────────────────────────────────
+  _initAdvancedCards();
 }
 
 function _renderAchievements(a) {
@@ -23432,7 +23534,19 @@ function _renderAchievements(a) {
       description = ach.message || 'New pace record';
     }
 
-    return `<div class="ach-row" style="--ach-color:${theme.color};--ach-glow:${theme.glow};--ach-bg:${theme.bg}">
+    // Map duration to PR card ID for 3D viewer
+    let prClick = '';
+    if (type === 'BEST_POWER' && ach.secs && ach.watts) {
+      const prMap = { 5: 'pr_5s', 60: 'pr_1m', 300: 'pr_5m', 1200: 'pr_20m', 3600: 'pr_60m' };
+      const prId = prMap[ach.secs];
+      if (prId) {
+        const w = state.athlete?.weight || state.weight || 70;
+        const wkg = w > 0 ? (ach.watts / w).toFixed(2) : '—';
+        prClick = ` onclick="openPRViewer('${prId}',${ach.watts},'${wkg}','')" style="cursor:pointer;--ach-color:${theme.color};--ach-glow:${theme.glow};--ach-bg:${theme.bg}"`;
+      }
+    }
+
+    return `<div class="ach-row"${prClick || ` style="--ach-color:${theme.color};--ach-glow:${theme.glow};--ach-bg:${theme.bg}"`}>
       <div class="ach-row-icon">${icon}</div>
       <div class="ach-row-body">
         <div class="ach-row-top">
@@ -23441,7 +23555,7 @@ function _renderAchievements(a) {
         </div>
         <div class="ach-row-sub">${subLabel}</div>
         ${description ? `<div class="ach-row-desc">${_escHtml(description)}</div>` : ''}
-      </div>
+      </div>${prClick ? '<svg class="icon" width="14" height="14" style="color:var(--text-faint);flex-shrink:0"><use href="icons.svg#icon-chevron-right"/></svg>' : ''}
     </div>`;
   }).join('');
 
@@ -23682,9 +23796,9 @@ function _renderDynamicsCard(a, fitData) {
     const left = Math.round(avgBal);
     const right = 100 - left;
     const balColor = Math.abs(left - 50) <= 3 ? 'var(--accent)' : Math.abs(left - 50) <= 5 ? C_YELLOW : 'var(--red)';
-    rows += `<div class="detail-zone-summary-row">
-      <span>L/R Balance</span>
-      <span style="font-weight:600;color:${balColor}">${left}% / ${right}%</span>
+    rows += `<div style="text-align:center;padding:8px 0">
+      <div style="font-size:20px;font-weight:700;color:${balColor};font-family:var(--font-num)">${left}% / ${right}%</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:2px">L/R Balance</div>
     </div>`;
   }
 
@@ -23712,38 +23826,25 @@ function _renderDynamicsCard(a, fitData) {
     const lColor = avgLPco !== null && Math.abs(avgLPco) <= 5 ? 'var(--accent)' : avgLPco !== null && Math.abs(avgLPco) <= 8 ? C_YELLOW : 'var(--red)';
     const rColor = avgRPco !== null && Math.abs(avgRPco) <= 5 ? 'var(--accent)' : avgRPco !== null && Math.abs(avgRPco) <= 8 ? C_YELLOW : 'var(--red)';
 
-    // SVG pedal graphic — viewed from above while riding
-    // Left pedal: + outboard (left), − inboard (right towards frame)
-    // Right pedal: − inboard (left towards frame), + outboard (right)
-    // Positive PCO = foot shifted outboard
+    // Pedal image with offset overlay line
     const pedalSVG = (offset, side) => {
       const clamp = Math.max(-15, Math.min(15, offset || 0));
-      const cx = 60;
       const isLeft = side === 'left';
-      // For left pedal: positive offset = outboard = move line LEFT (negative X)
-      // For right pedal: positive offset = outboard = move line RIGHT (positive X)
-      const lineX = cx + (isLeft ? -1 : 1) * (clamp / 15) * 30;
+      const img = isLeft ? 'img/pedal_left.webp' : 'img/pedal_right.webp';
+      // Line position: 50% = center, shift by offset ratio
+      const linePct = 50 + (isLeft ? -1 : 1) * (clamp / 15) * 35;
       const col = isLeft ? lColor : rColor;
-      return `<svg viewBox="0 0 120 100" width="140" height="120" style="display:block;margin:0 auto">
-        <!-- +/- labels: + always on outboard side -->
-        <text x="12" y="14" fill="var(--text-faint)" font-size="12" font-weight="600">${isLeft ? '+' : '−'}</text>
-        <text x="108" y="14" fill="var(--text-faint)" font-size="12" font-weight="600" text-anchor="end">${isLeft ? '−' : '+'}</text>
-        <!-- Pedal body -->
-        <rect x="18" y="20" width="84" height="55" rx="8" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
-        <!-- Cleat area -->
-        <rect x="35" y="30" width="50" height="35" rx="4" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>
-        <!-- Spindle (centered bottom) -->
-        <rect x="56" y="75" width="8" height="12" rx="2" fill="rgba(255,255,255,0.12)"/>
-        <!-- Center reference (dashed grey) -->
-        <line x1="${cx}" y1="22" x2="${cx}" y2="73" stroke="rgba(255,255,255,0.2)" stroke-width="1" stroke-dasharray="3,3"/>
-        <!-- Average offset line (solid, colored) -->
-        <line x1="${lineX}" y1="22" x2="${lineX}" y2="73" stroke="${col}" stroke-width="2.5"/>
-      </svg>`;
+      return `<div style="position:relative;width:140px;height:140px;margin:0 auto">
+        <img src="${img}" alt="${side} pedal" style="width:100%;height:100%;object-fit:contain;opacity:0.85">
+        <div style="position:absolute;top:2%;bottom:8%;left:50%;width:0;border-left:1px dashed rgba(255,255,255,0.25)"></div>
+        <div style="position:absolute;top:2%;bottom:8%;left:${linePct.toFixed(1)}%;width:0;border-left:2.5px solid ${col}"></div>
+        <div style="position:absolute;top:2px;left:4px;font-size:11px;font-weight:600;color:var(--text-faint)">${isLeft ? '+' : '−'}</div>
+        <div style="position:absolute;top:2px;right:4px;font-size:11px;font-weight:600;color:var(--text-faint)">${isLeft ? '−' : '+'}</div>
+      </div>`;
     };
 
-    pcoChart = `<div style="padding:12px 0 4px">
-      <div style="font-size:13px;font-weight:600;margin-bottom:8px">Platform Offset</div>
-      <div style="display:flex;justify-content:center;gap:8px">
+    pcoChart = `<div style="padding:12px 0 16px">
+      <div style="display:flex;justify-content:center;gap:36px">
         <div style="text-align:center">
           ${pedalSVG(avgLPco, 'left')}
           <div style="font-size:16px;font-weight:700;color:${lColor};margin-top:4px">${lVal > 0 ? '+' : ''}${lVal} mm</div>
@@ -23755,7 +23856,7 @@ function _renderDynamicsCard(a, fitData) {
           <div style="font-size:12px;color:var(--text-muted)">Right Pedal</div>
         </div>
       </div>
-      <div style="display:flex;justify-content:center;gap:16px;margin-top:8px;font-size:11px;color:var(--text-muted)">
+      <div style="display:flex;justify-content:center;gap:16px;margin-top:16px;font-size:11px;color:var(--text-muted)">
         <span><span style="display:inline-block;width:12px;height:2px;background:rgba(255,255,255,0.2);vertical-align:middle;margin-right:4px;border-top:1px dashed rgba(255,255,255,0.3)"></span>Center</span>
         <span><span style="display:inline-block;width:12px;height:2px;background:var(--accent);vertical-align:middle;margin-right:4px"></span>Average</span>
       </div>
@@ -23787,18 +23888,6 @@ function _renderDynamicsCard(a, fitData) {
     }
   }
 
-  // Temperature from device sensor
-  if (hasTemp) {
-    const temps = fitData.temperature;
-    const avgT = avg(temps);
-    const minT = Math.min(...temps);
-    const maxT = Math.max(...temps);
-    rows += `<div class="detail-zone-summary-row">
-      <span><svg class="icon" width="14" height="14" style="stroke:#ff9500"><use href="icons.svg#icon-thermometer"/></svg>Temperature</span>
-      <span style="font-family:var(--font-num);font-weight:600">${Math.round(avgT)}°C <span style="font-weight:400;color:var(--text-muted);font-size:12px">(${Math.round(minT)}–${Math.round(maxT)}°C)</span></span>
-    </div>`;
-  }
-
   // Respiration rate
   if (hasResp) {
     const resps = fitData.respiration;
@@ -23827,7 +23916,7 @@ function _renderDynamicsCard(a, fitData) {
       <div style="display:flex;align-items:center;gap:8px">
         <div class="card-title" style="flex:1 1 0%">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
-          Ride Sensors
+          Platform Offset
         </div>
       </div>
     </div>
@@ -24741,6 +24830,67 @@ function renderDetailSourceFooter(a) {
   if (a.id) parts.push(`<a class="dsf-link" href="https://intervals.icu/activities/${a.id}" target="_blank" rel="noopener">View on intervals.icu</a>`);
 
   el.innerHTML = parts.join('<span class="dsf-sep">·</span>');
+}
+
+// ── Advanced cards toggle ─────────────────────────────────────────────────
+const _ADVANCED_CARD_IDS = [
+  'detailPerfCard', 'detailDecoupleCard', 'detailLRBalanceCard',
+  'detailGradientCard', 'detailClimbsCard', 'detailCadenceCard',
+  'detailHistogramCard', 'detailSpeedGradeCard', 'detailTempPowerCard',
+  'detailTempCard', 'detailPwrHRCard', 'detailNPTimelineCard',
+  'detailDriftCard', 'detailHRRecoveryCard', 'detailHrvCard',
+  'detailDynamicsCard', 'detailGearShiftsCard', 'detailGpsCard',
+  'detailRespCard', 'detailDevicesCard',
+];
+let _advancedVisible = false;
+
+function toggleAdvancedCards() {
+  _advancedVisible = !_advancedVisible;
+  _ADVANCED_CARD_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('act-advanced-hidden', !_advancedVisible);
+  });
+  const btn = document.getElementById('actShowAdvancedBtn');
+  const label = document.getElementById('actAdvancedLabel');
+  if (label) label.textContent = _advancedVisible ? 'Hide Advanced' : 'Advanced';
+  if (btn) btn.classList.toggle('act-advanced-expanded', _advancedVisible);
+
+  // Lazy render advanced cards on first expand
+  if (_advancedVisible && !window._advancedRendered && window._advancedRenderArgs) {
+    window._advancedRendered = true;
+    const { richActivity, actId, normStreams } = window._advancedRenderArgs;
+    renderDetailPerformance(richActivity, actId, normStreams);
+    renderDetailDecoupleChart(normStreams, richActivity);
+    renderDetailLRBalance(normStreams, richActivity);
+    renderDetailHistogram(richActivity, normStreams);
+    renderDetailTempChart(normStreams, richActivity);
+    renderDetailGradientProfile(normStreams, richActivity);
+    render3DElevation(normStreams, richActivity);
+    renderClimbDetection(normStreams, richActivity);
+    renderDetailCadenceHist(normStreams, richActivity);
+    _renderDetailPwrHR(normStreams, richActivity);
+    _renderDetailNPTimeline(normStreams, richActivity);
+    _renderDetailSpeedGrade(normStreams, richActivity);
+    _renderCardiacDrift(normStreams, richActivity);
+    _renderTempVsPower(normStreams, richActivity);
+    _renderHRRecovery(normStreams, richActivity);
+  }
+  // Refresh dividers after cards show/hide
+  requestAnimationFrame(() => _injectActCardDividers());
+}
+window.toggleAdvancedCards = toggleAdvancedCards;
+
+// Hide advanced cards on activity load
+function _initAdvancedCards() {
+  _advancedVisible = false;
+  _ADVANCED_CARD_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('act-advanced-hidden');
+  });
+  const btn = document.getElementById('actShowAdvancedBtn');
+  const label = document.getElementById('actAdvancedLabel');
+  if (label) label.textContent = 'Advanced';
+  if (btn) { btn.classList.remove('act-advanced-expanded'); btn.style.display = ''; }
 }
 
 function renderDetailExport(a) {
@@ -26424,17 +26574,7 @@ function renderStreamCharts(streams, activity) {
       fill:            def.fill,
       pointRadius:     0,
       pointHitRadius:  8,
-      hoverRadius:     4,
-      hoverBackgroundColor: '#ffffff',
-      hoverBorderColor:     '#ffffff',
-      hoverBorderWidth:     0,
-      pointBackgroundColor: '#ffffff',
-      pointBorderColor:     '#ffffff',
-      pointBorderWidth:     0,
-      pointHoverRadius:     4,
-      pointHoverBackgroundColor: '#ffffff',
-      pointHoverBorderColor:    '#ffffff',
-      pointHoverBorderWidth:    0,
+      pointHoverRadius: 4,
       borderWidth:     def.borderWidth,
       tension:         0.3,
       spanGaps:        true,
@@ -26468,7 +26608,7 @@ function renderStreamCharts(streams, activity) {
   const scales = {
     x: {
       grid:  C_GRID,
-      ticks: { ...C_TICK, maxTicksLimit: 8 },
+      ticks: { ...C_TICK, maxTicksLimit: 8, padding: 8 },
       border: { display: false },
     },
     yPower:   { display: hasPower,   position: 'left',  min: 0,  grid: C_GRID,              ticks: { ...C_TICK, maxTicksLimit: 5, padding: 0, callback: (v, i) => i === 0 ? 'W' : v }, border: { display: false } },
@@ -26550,20 +26690,7 @@ function renderStreamCharts(streams, activity) {
             onZoom:  () => streamsUpdateZoomState(),
           },
           pan: {
-            enabled: true,
-            mode:    'x',
-            threshold: 10,
-            onPanStart: ({ chart, event }) => {
-              // Only allow pan when zoomed
-              if (!chart.isZoomedOrPanned?.()) return false;
-              // Split zone: top half = pan, bottom half = scrub tooltip
-              const area = chart.chartArea;
-              const midY = area.top + (area.bottom - area.top) / 2;
-              const touchY = event?.y ?? event?.center?.y ?? 0;
-              if (touchY > midY) return false; // bottom half → tooltip scrub, block pan
-              state._streamsPanning = true;
-            },
-            onPanComplete: () => { state._streamsPanning = false; streamsUpdateZoomState(); },
+            enabled: false,
           },
           limits: {
             x: { minRange: 30 },
@@ -26584,6 +26711,56 @@ function renderStreamCharts(streams, activity) {
   streamsCard.style.display = '';
   unskeletonCard('detailStreamsCard');
   document.getElementById('detailChartsRow').style.display  = 'none';
+
+  // Custom x-axis pan: drag on bottom 44px of canvas to pan when zoomed
+  const ch = state.activityStreamsChart;
+  if (ch) {
+    let _xPanStartX = 0, _xPanning = false;
+    canvas.addEventListener('touchstart', e => {
+      if (!ch.isZoomedOrPanned?.() || e.touches.length !== 1) return;
+      const rect = canvas.getBoundingClientRect();
+      const touchY = e.touches[0].clientY - rect.top;
+      const canvasH = rect.height;
+      if (touchY >= canvasH - 44) {
+        _xPanning = true;
+        _xPanStartX = e.touches[0].clientX;
+        state._streamsPanning = true;
+      }
+    }, { passive: true });
+    canvas.addEventListener('touchmove', e => {
+      if (!_xPanning || e.touches.length !== 1) return;
+      e.preventDefault();
+      const dx = e.touches[0].clientX - _xPanStartX;
+      _xPanStartX = e.touches[0].clientX;
+      ch.pan({ x: dx }, undefined, 'none');
+      ch.update('none');
+      // Find nearest data index at chart center
+      const area = ch.chartArea;
+      const centerX = (area.left + area.right) / 2;
+      const xScale = ch.scales.x;
+      if (!xScale) return;
+      const val = xScale.getValueForPixel(centerX);
+      const idx = Math.round(val);
+      const clamped = Math.max(0, Math.min(idx, (ch.data.labels?.length || 1) - 1));
+      // Set active elements for all visible datasets at this index
+      const actives = [];
+      ch.data.datasets.forEach((ds, di) => {
+        if (!ch.getDatasetMeta(di).hidden && ds.data[clamped] != null) {
+          actives.push({ datasetIndex: di, index: clamped });
+        }
+      });
+      if (actives.length) {
+        ch.setActiveElements(actives);
+        ch.tooltip.setActiveElements(actives, { x: centerX, y: area.top });
+        ch.draw();
+      }
+    }, { passive: false });
+    const _xPanEnd = () => {
+      if (_xPanning) { _xPanning = false; state._streamsPanning = false; streamsUpdateZoomState(); }
+    };
+    canvas.addEventListener('touchend', _xPanEnd, { passive: true });
+    canvas.addEventListener('touchcancel', _xPanEnd, { passive: true });
+  }
 }
 
 // Toggle a single stream dataset on/off via the chip buttons
@@ -26631,9 +26808,20 @@ function streamsResetZoom() {
 }
 function streamsUpdateZoomState(forceReset) {
   const hint      = document.getElementById('streamsZoomHint');
+  const scrubHint = document.getElementById('streamsScrubHint');
   const resetBtn  = document.querySelector('.streams-zoom-btn--reset');
   const isZoomed  = !forceReset && state.activityStreamsChart?.isZoomedOrPanned?.();
-  if (hint)     hint.style.opacity     = isZoomed ? '0' : '1';
+  if (hint)      hint.style.opacity      = isZoomed ? '0' : '1';
+  if (scrubHint) {
+    if (isZoomed && !scrubHint._shown) {
+      scrubHint._shown = true;
+      scrubHint.style.opacity = '1';
+      scrubHint._timer = setTimeout(() => { scrubHint.style.opacity = '0'; }, 3000);
+    } else if (!isZoomed) {
+      scrubHint.style.opacity = '0';
+      clearTimeout(scrubHint._timer);
+    }
+  }
   if (resetBtn) resetBtn.style.opacity = isZoomed ? '1' : '0.35';
 }
 
@@ -26964,10 +27152,6 @@ function renderDetailDecoupleChart(streams, activity) {
           data: efSeries,
           borderColor: C_BLUE_LIGHT,
           borderWidth: 2,
-          pointBackgroundColor: ptColors,
-          pointBorderColor:     ptColors,
-          pointHoverBackgroundColor: ptColors,
-          pointHoverBorderColor:     ptColors,
           pointRadius: 0,
           pointHoverRadius: 5,
           tension: 0.4,
@@ -27593,28 +27777,37 @@ function _rcPut(key, data) {
 }
 
 // Fetch athlete-level power curve for a date range + activity type
+const _pcInFlight = new Map(); // Dedup in-flight power curve requests
 async function fetchRangePowerCurve(oldest, newest) {
   const cacheKey = _rcKey('pc', oldest, newest);
   const cached = _rcGet(cacheKey);
   if (cached !== _RC_MISS) return cached;
 
-  const types = CYCLING_POWER_TYPES();
-  for (const type of types) {
-    try {
-      const data = await icuFetch(
-        `/athlete/${state.athleteId}/power-curves?type=${type}&oldest=${oldest}&newest=${newest}`
-      );
-      const candidate = Array.isArray(data) ? data[0] : (data?.list?.[0] ?? data);
-      // Require at least one non-null watt value — API returns all-null watts when there's no data for this type
-      if (candidate && Array.isArray(candidate.secs) && candidate.secs.length > 0 &&
-          Array.isArray(candidate.watts) && candidate.watts.some(w => w != null && w > 0)) {
-        _rcPut(cacheKey, candidate);
-        return candidate;
-      }
-    } catch (_) { /* try next type */ }
-  }
-  _rcPut(cacheKey, null);
-  return null;
+  // Reuse in-flight request for same params
+  if (_pcInFlight.has(cacheKey)) return _pcInFlight.get(cacheKey);
+
+  const promise = (async () => {
+    const types = CYCLING_POWER_TYPES();
+    for (const type of types) {
+      try {
+        const data = await icuFetch(
+          `/athlete/${state.athleteId}/power-curves?type=${type}&oldest=${oldest}&newest=${newest}`
+        );
+        const candidate = Array.isArray(data) ? data[0] : (data?.list?.[0] ?? data);
+        if (candidate && Array.isArray(candidate.secs) && candidate.secs.length > 0 &&
+            Array.isArray(candidate.watts) && candidate.watts.some(w => w != null && w > 0)) {
+          _rcPut(cacheKey, candidate);
+          return candidate;
+        }
+      } catch (_) { /* try next type */ }
+    }
+    _rcPut(cacheKey, null);
+    return null;
+  })();
+
+  _pcInFlight.set(cacheKey, promise);
+  promise.finally(() => _pcInFlight.delete(cacheKey));
+  return promise;
 }
 
 // ── Feature 1: Elevation / Gradient Profile ─────────────────────────────────
@@ -28830,6 +29023,75 @@ function renderStreaksPage() {
   // Store BADGES for the full achievements subpage
   window._allBadges = BADGES;
 
+  // ── Power Records — personal bests from power curve data ─────────────────
+  const PR_DURS = [
+    { id: 'pr_5s',  secs: 5,    label: 'Sprint',    dur: '5s' },
+    { id: 'pr_1m',  secs: 60,   label: 'Anaerobic', dur: '1 min' },
+    { id: 'pr_5m',  secs: 300,  label: 'VO2 Max',   dur: '5 min' },
+    { id: 'pr_20m', secs: 1200, label: 'FTP',        dur: '20 min' },
+    { id: 'pr_60m', secs: 3600, label: 'Endurance',  dur: '1 hr' },
+  ];
+  const _prWeight = state.athlete?.weight || state.weight || 70;
+  const pc = state.powerCurve || state.powerPageCurve;
+  const prRecords = [];
+
+  // Helper: find closest matching second in power curve
+  const _pcLookup = (targetSecs) => {
+    if (!pc || !pc.secs || !pc.watts) return 0;
+    let bestIdx = -1, bestDiff = Infinity;
+    for (let i = 0; i < pc.secs.length; i++) {
+      const diff = Math.abs(pc.secs[i] - targetSecs);
+      if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
+    }
+    // Accept if within 20% of target duration
+    if (bestIdx >= 0 && bestDiff <= targetSecs * 0.2 && pc.watts[bestIdx] > 0) return pc.watts[bestIdx];
+    return 0;
+  };
+
+  // Try power curve first
+  PR_DURS.forEach(pr => {
+    const w = _pcLookup(pr.secs);
+    if (w > 0) {
+      prRecords.push({
+        id: pr.id, label: pr.label, dur: pr.dur,
+        watts: Math.round(w),
+        wkg: _prWeight > 0 ? (w / _prWeight).toFixed(2) : '—',
+        date: '',
+      });
+    }
+  });
+
+  // Fill gaps from activity data estimates
+  if (prRecords.length < 5) {
+    const pwrActs = acts.filter(a => (a.icu_weighted_avg_watts || a.average_watts || a.max_watts) > 0);
+    if (pwrActs.length) {
+      const has = id => prRecords.some(r => r.id === id);
+      let maxW = 0, best1m = 0, best5m = 0, bestNP = 0, bestEndure = 0;
+      pwrActs.forEach(a => {
+        const w = a.max_watts || 0;
+        const np = a.icu_weighted_avg_watts || a.average_watts || 0;
+        const secs = actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time') || 0;
+        if (w > maxW) maxW = w;
+        if (np * 1.3 > best1m) best1m = np * 1.3;
+        if (np * 1.1 > best5m) best5m = np * 1.1;
+        if (np > bestNP) bestNP = np;
+        if (secs >= 3600 && np > bestEndure) bestEndure = np;
+      });
+      const _addPR = (id, label, dur, w) => {
+        if (!has(id) && w > 0) prRecords.push({ id, label, dur, watts: Math.round(w), wkg: _prWeight > 0 ? (w / _prWeight).toFixed(2) : '—', date: '' });
+      };
+      _addPR('pr_5s',  'Sprint',    '5s',     maxW);
+      _addPR('pr_1m',  'Anaerobic', '1 min',  best1m);
+      _addPR('pr_5m',  'VO2 Max',   '5 min',  best5m);
+      _addPR('pr_20m', 'FTP',       '20 min', bestNP);
+      _addPR('pr_60m', 'Endurance', '1 hr',   bestEndure);
+    }
+  }
+  // Sort by duration order
+  const _prOrder = ['pr_5s', 'pr_1m', 'pr_5m', 'pr_20m', 'pr_60m'];
+  prRecords.sort((a, b) => _prOrder.indexOf(a.id) - _prOrder.indexOf(b.id));
+  window._powerRecords = prRecords;
+
   // ── Lifetime fun stats ────────────────────────────────────────────────────
   const lifetimeGrid = document.getElementById('stkLifetimeGrid');
   if (lifetimeGrid) {
@@ -29413,6 +29675,7 @@ function _collectTransferableSettings() {
     'icu_units', 'icu_theme', 'icu_map_theme', 'icu_app_font',
     'icu_range_days', 'icu_week_start_day', 'icu_terrain_3d',
     'icu_hide_empty_cards', 'icu_smooth_flyover', 'icu_physics_scroll',
+    'icu_chart_dot_size', 'icu_chart_dot_color',
     'icu_smart_poll', 'icu_smart_poll_interval',
     'icu_wx_locations', 'icu_wx_model', 'icu_wx_coords',
     'icu_goals', 'icu_dash_sections', 'icu_ors_api_key',
@@ -33081,13 +33344,15 @@ function closeBadgeViewer() {
   try { if (_badges3dModule?.destroyBadgeCard3D) _badges3dModule.destroyBadgeCard3D(); } catch(_){}
   try { if (_badges3dModule?.destroyBadge3D) _badges3dModule.destroyBadge3D(); } catch(_){}
   _badgeViewerList = [];
-  // Close desktop dialog or mobile sheet
+  // Close desktop dialog
   const overlay = document.getElementById('badgeDialogOverlay');
   if (overlay) {
     overlay.classList.remove('badge-dialog--open');
     setTimeout(() => { overlay.style.display = 'none'; }, 300);
   }
-  _closeUniSheet();
+  // Close mobile sheet
+  const isDesktop = window.innerWidth > 700;
+  if (!isDesktop) _closeUniSheet();
 }
 async function _shareBadge() {
   const b = _badgeViewerList[_badgeViewerIdx];
@@ -33101,41 +33366,92 @@ async function _shareBadge() {
 }
 async function _openAchievementsPage() {
   const BADGES = window._allBadges || [];
+  const prRecords = window._powerRecords || [];
   const earned = BADGES.filter(b => b.earned);
   const locked = BADGES.filter(b => !b.earned);
 
-  const body = `
-    <div style="padding:8px 0">
-      <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px">${earned.length} of ${BADGES.length} unlocked</div>
-      ${earned.length ? `<div class="page-headline" style="margin-bottom:8px;font-size:15px">Earned</div>
-      <div class="stk-badges-grid" id="achEarnedGrid">
-        ${earned.map(b => `<div class="stk-badge stk-badge--earned" onclick="openBadgeViewer('${b.id}','${_escHtml(b.name)}','${_escHtml(b.desc)}')">
-          <img class="stk-badge-preview" data-badge="${b.id}" alt="${_escHtml(b.name)}">
-        </div>`).join('')}
-      </div>` : ''}
-      ${locked.length ? `<div class="page-headline" style="margin:20px 0 8px;font-size:15px">Locked</div>
-      <div class="stk-badges-grid" id="achLockedGrid">
-        ${locked.map(b => `<div class="stk-badge">
-          <img class="stk-badge-preview" data-badge="${b.id}" alt="${_escHtml(b.name)}">
-        </div>`).join('')}
-      </div>` : ''}
-    </div>`;
+  // Create or reuse the fullscreen subpage
+  let subpage = document.getElementById('stkAchSubpage');
+  if (!subpage) {
+    subpage = document.createElement('div');
+    subpage.id = 'stkAchSubpage';
+    subpage.className = 'stk-ach-subpage';
+    subpage.innerHTML = `
+      <div class="stk-ach-subpage-header">
+        <button class="stk-ach-back" onclick="_closeAchievementsSubpage()">
+          <svg class="icon" width="20" height="20"><use href="icons.svg#icon-chevron-left"/></svg>
+        </button>
+        <span class="stk-ach-title">Achievements</span>
+      </div>
+      <div class="stk-ach-subpage-body" id="stkAchSubpageBody"></div>`;
+    document.body.appendChild(subpage);
+  }
+  const body = document.getElementById('stkAchSubpageBody');
 
-  _openUniSheet({ id: 'achievements', title: 'Achievements', body, partial: false });
+  body.innerHTML = `
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px">${earned.length} of ${BADGES.length} unlocked${prRecords.length ? ` · ${prRecords.length} power records` : ''}</div>
+    ${prRecords.length ? `<div class="page-headline" style="margin-bottom:8px;font-size:15px">Power Records</div>
+    <div class="stk-badges-grid" id="achPRGrid">
+      ${prRecords.map(pr => `<div class="stk-badge stk-badge--earned stk-badge--pr" onclick="openPRViewer('${pr.id}',${pr.watts},'${pr.wkg}','${pr.date}')">
+        <img class="stk-badge-preview" data-pr="${pr.id}" data-watts="${pr.watts}" data-wkg="${pr.wkg}" data-date="${pr.date}" alt="${_escHtml(pr.label)}">
+      </div>`).join('')}
+    </div>` : ''}
+    ${earned.length ? `<div class="page-headline" style="margin:20px 0 8px;font-size:15px">Earned</div>
+    <div class="stk-badges-grid" id="achEarnedGrid">
+      ${earned.map(b => `<div class="stk-badge stk-badge--earned" onclick="openBadgeViewer('${b.id}','${_escHtml(b.name)}','${_escHtml(b.desc)}')">
+        <img class="stk-badge-preview" data-badge="${b.id}" alt="${_escHtml(b.name)}">
+      </div>`).join('')}
+    </div>` : ''}
+    ${locked.length ? `<div class="page-headline" style="margin:20px 0 8px;font-size:15px">Locked</div>
+    <div class="stk-badges-grid" id="achLockedGrid">
+      ${locked.map(b => `<div class="stk-badge">
+        <img class="stk-badge-preview" data-badge="${b.id}" alt="${_escHtml(b.name)}">
+      </div>`).join('')}
+    </div>` : ''}`;
+
+  subpage.style.display = '';
+  subpage.dataset.animating = 'in';
+  subpage.addEventListener('animationend', () => { subpage.removeAttribute('data-animating'); }, { once: true });
 
   // Render previews + attach tilt
   let mod = null;
   try { mod = await import('./js/badges3d.js'); } catch(_) {}
   if (mod) {
     BADGES.forEach(b => {
-      const img = document.querySelector(`#_uniSheetBody .stk-badge-preview[data-badge="${b.id}"]`);
+      const img = body.querySelector(`.stk-badge-preview[data-badge="${b.id}"]`);
       if (img) img.src = mod.renderBadgePreview(b.id, b.name, b.desc, !b.earned);
     });
+    prRecords.forEach(pr => {
+      const img = body.querySelector(`.stk-badge-preview[data-pr="${pr.id}"]`);
+      if (img && mod.renderPRPreview) img.src = mod.renderPRPreview(pr.id, pr.watts, pr.wkg, pr.date);
+    });
   }
-  const sheetBody = document.getElementById('_uniSheetBody');
-  if (window.refreshBadgeTilt) refreshBadgeTilt(sheetBody);
-  if (window.refreshGlow) refreshGlow(sheetBody);
+  if (window.refreshBadgeTilt) refreshBadgeTilt(body);
+  if (window.refreshGlow) refreshGlow(body);
 }
+
+function _closeAchievementsSubpage() {
+  const subpage = document.getElementById('stkAchSubpage');
+  if (!subpage || subpage.style.display === 'none') return;
+  subpage.dataset.animating = 'out';
+  subpage.addEventListener('animationend', () => {
+    subpage.style.display = 'none';
+    subpage.removeAttribute('data-animating');
+  }, { once: true });
+}
+window._closeAchievementsSubpage = _closeAchievementsSubpage;
+
+function openPRViewer(prId, watts, wkg, date) {
+  // Open the PR card in the badge 3D viewer with gold holo treatment
+  const PR_LABELS = { pr_5s: 'Sprint', pr_1m: 'Anaerobic', pr_5m: 'VO2 Max', pr_20m: 'FTP', pr_60m: 'Endurance' };
+  const PR_DURS   = { pr_5s: '5s', pr_1m: '1 min', pr_5m: '5 min', pr_20m: '20 min', pr_60m: '1 hr' };
+  const label = PR_LABELS[prId] || prId;
+  const dur = PR_DURS[prId] || '';
+  const name = `${label} — ${watts}W`;
+  const desc = `${wkg} w/kg · ${dur} best effort${date ? ' · ' + date : ''}`;
+  openBadgeViewer(prId, name, desc);
+}
+window.openPRViewer = openPRViewer;
 
 window._openAchievementsPage = _openAchievementsPage;
 window.openBadgeViewer = openBadgeViewer;
@@ -35524,11 +35840,10 @@ function renderGoalsPage() {
 
     html += `
     <div class="goal-dash-card card hero-glow" onclick="showGoalForm(${goal.id})" style="cursor:pointer">
-      <div class="hero-glow-outer"></div><div class="hero-glow-shine"></div>
       <div class="goal-dash-header">
         <div>
-          <div class="goal-dash-title">${m.label}</div>
-          <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${periodLabel[goal.period]} · ${p.remaining}d left</div>
+          <b class="goal-dash-title">${m.label}</b>
+          <span class="goal-dash-period">${periodLabel[goal.period]}</span>
         </div>
         <div class="goal-dash-ring">
           <svg viewBox="0 0 88 88" width="56" height="56">
@@ -36727,7 +37042,7 @@ document.getElementById('connectModal').addEventListener('click', function(e) {
   // expose so other parts of the app can attach glow to late-rendered elements
   window.attachCardGlow = attachGlow;
 
-  const GLOW_SEL = '.stat-card, .recent-act-card, .hero-act-card, .perf-metric, .act-pstat, .act-similar-card, .mm-cell, .wxp-day-card, .fit-kpi-card, .fit-wcard, .wx-day, .wx-day-card, .znp-kpi-card, .wxp-st, .wxp-best-card, .stk-pb-card, .stk-badge--earned, .stk-stat-tile, .goal-dash-card, .fit-rec-metric, .fit-rp-card';
+  const GLOW_SEL = '.stat-card, .recent-act-card, .hero-act-card, .perf-metric, .act-similar-card, .mm-cell, .wxp-day-card, .fit-kpi-card, .fit-wcard, .wx-day, .wx-day-card, .znp-kpi-card, .wxp-st, .wxp-best-card, .stk-pb-card, .stk-badge--earned, .stk-stat-tile, .goal-dash-card, .fit-rec-metric, .fit-rp-card';
 
   function attachGlowAndPress(el) {
     attachGlow(el);
@@ -37237,7 +37552,7 @@ function pollResetIdle() {
 
 /** Perform an incremental sync check */
 async function pollCheck() {
-  if (_poll.checking || !state.athleteId || !state.apiKey) return;
+  if (_poll.checking || _syncInProgress || !state.athleteId || !state.apiKey) return;
 
   // Rate limit safety — don't poll if we've used > 80% of our budget
   if (rlGetCount() > RL_MAX * 0.8) {
@@ -38955,16 +39270,53 @@ let _gsFilter = 'all';
 let _gsDebounce = 0;
 
 function openGlobalSearch() {
-  _openOverlaySheet('globalSearchSheet');
+  const el = document.getElementById('globalSearchSheet');
+  if (!el) return;
+  el.classList.add('gs-open');
+  document.documentElement.style.overflow = 'hidden';
+  document.body.style.overflow = 'hidden';
+  document.body.classList.add('sheet-locked');
+
+  // Context-aware: auto-set filter based on current page
+  const autoFilter = _gsAutoFilter();
+  if (autoFilter !== 'all') {
+    _gsFilter = autoFilter;
+    document.querySelectorAll('.gs-chip').forEach(c => c.classList.toggle('gs-chip--active', c.dataset.gsFilter === autoFilter));
+  }
+
   const inp = document.getElementById('gsInput');
-  if (inp) {
-    inp.value = '';
-    // Delay focus so sheet animation completes before iOS keyboard opens
-    setTimeout(() => {
-      inp.focus();
-      // On iOS, keyboard pushes viewport — scroll input into view
-      setTimeout(() => inp.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300);
-    }, 350);
+  if (inp) { inp.value = ''; inp.focus(); }
+
+  // Block background scroll — iOS ignores overflow:hidden on body
+  if (!el._touchBlock) {
+    el._touchBlock = true;
+    el.addEventListener('touchmove', e => {
+      const results = document.getElementById('gsResults');
+      if (results?.contains(e.target) && results.scrollHeight > results.clientHeight) return;
+      const filters = document.getElementById('gsFilters');
+      if (filters?.contains(e.target)) return;
+      const autoSuggest = document.getElementById('gsAutoSuggest');
+      if (autoSuggest?.contains(e.target)) return;
+      e.preventDefault();
+    }, { passive: false });
+    // Filters: block vertical scroll, allow horizontal only
+    const filtersEl = el.querySelector('.gs-filters');
+    if (filtersEl) {
+      let _fStartX = 0, _fStartY = 0, _fLocked = false, _fDir = '';
+      filtersEl.addEventListener('touchstart', e => {
+        _fStartX = e.touches[0].clientX;
+        _fStartY = e.touches[0].clientY;
+        _fLocked = false; _fDir = '';
+      }, { passive: true });
+      filtersEl.addEventListener('touchmove', e => {
+        if (!_fLocked) {
+          const dx = Math.abs(e.touches[0].clientX - _fStartX);
+          const dy = Math.abs(e.touches[0].clientY - _fStartY);
+          if (dx > 5 || dy > 5) { _fLocked = true; _fDir = dx > dy ? 'h' : 'v'; }
+        }
+        if (_fLocked && _fDir === 'v') e.preventDefault();
+      }, { passive: false });
+    }
   }
   document.getElementById('gsClear').style.display = 'none';
   document.getElementById('gsResults').innerHTML = `<div class="gs-placeholder">
@@ -38975,20 +39327,38 @@ function openGlobalSearch() {
 }
 
 function closeGlobalSearch() {
-  _closeOverlaySheet('globalSearchSheet');
+  clearTimeout(_gsDebounce);
+  _gsActiveTag = null;
+  _gsFilter = 'all';
   const inp = document.getElementById('gsInput');
-  if (inp) inp.blur();
+  if (inp) { inp.blur(); inp.value = ''; inp.placeholder = 'Search'; }
+  _gsRenderTag();
+  document.querySelectorAll('.gs-chip').forEach(c => c.classList.toggle('gs-chip--active', c.dataset.gsFilter === 'all'));
+  const el = document.getElementById('globalSearchSheet');
+  if (!el) return;
+  el.classList.remove('gs-open');
+  document.body.style.overflow = '';
+  document.documentElement.style.overflow = '';
+  document.body.classList.remove('sheet-locked');
 }
 
 function gsClearInput() {
+  _gsActiveTag = null;
   const inp = document.getElementById('gsInput');
-  if (inp) { inp.value = ''; inp.focus(); }
+  if (inp) { inp.value = ''; inp.placeholder = 'Search'; inp.focus(); }
+  _gsRenderTag();
   document.getElementById('gsClear').style.display = 'none';
-  document.getElementById('gsResults').innerHTML = `<div class="gs-placeholder">
-    <svg class="icon" width="40" height="40"><use href="icons.svg#icon-search"/></svg>
-    <div>Search across your rides, routes, gear & settings</div>
-  </div>`;
+  document.getElementById('gsResults').innerHTML = _gsDefaultContent();
 }
+
+const _gsPlaceholders = {
+  all:        'Search across your rides, routes, gear & settings',
+  activities: 'Find rides by name, date, distance, or location',
+  routes:     'Search your saved routes and GPX files',
+  workouts:   'Find structured workouts and training plans',
+  gear:       'Search bikes, components, and equipment',
+  settings:   'Find settings, preferences, and configuration options',
+};
 
 function gsSetFilter(f) {
   _gsFilter = f;
@@ -38996,34 +39366,622 @@ function gsSetFilter(f) {
     c.classList.toggle('gs-chip--active', c.dataset.gsFilter === f);
   });
   const inp = document.getElementById('gsInput');
-  if (inp && inp.value.trim()) _gsRunSearch(inp.value.trim());
+  if (inp) inp.focus();
+  if (inp && inp.value.trim()) {
+    _gsRunSearch(inp.value.trim());
+  } else {
+    document.getElementById('gsResults').innerHTML = _gsDefaultContent();
+  }
 }
+
+// ── Recent searches ──
+const _GS_RECENT_KEY = 'icu_recent_searches';
+function _gsGetRecent() { try { return JSON.parse(localStorage.getItem(_GS_RECENT_KEY) || '[]'); } catch(_) { return []; } }
+function _gsSaveRecent(q) {
+  let arr = _gsGetRecent().filter(s => s !== q);
+  arr.unshift(q);
+  if (arr.length > 8) arr = arr.slice(0, 8);
+  localStorage.setItem(_GS_RECENT_KEY, JSON.stringify(arr));
+}
+function _gsClearRecent() { localStorage.removeItem(_GS_RECENT_KEY); gsSetFilter(_gsFilter); }
+
+// ── Quick actions ──
+const _GS_QUICK_ACTIONS = [
+  { label: 'Sync',           icon: 'refresh-cw', bg: 'rgba(0,229,160,0.12)',  color: 'var(--accent)',  action: () => { closeGlobalSearch(); syncData(true); } },
+  { label: 'Goal',           icon: 'target',     bg: 'rgba(255,204,0,0.12)',  color: '#ffcc00',        action: () => { closeGlobalSearch(); navigate('goals'); setTimeout(() => showGoalForm(), 200); } },
+  { label: 'Route',          icon: 'map',        bg: 'rgba(90,200,250,0.12)', color: '#5ac8fa',        action: () => { closeGlobalSearch(); navigate('routes'); } },
+  { label: 'Workout',        icon: 'bolt',       bg: 'rgba(255,149,0,0.12)',  color: '#ff9500',        action: () => { closeGlobalSearch(); navigate('workout'); } },
+  { label: 'Import',         icon: 'upload',     bg: 'rgba(155,89,255,0.12)', color: '#9b59ff',        action: () => { closeGlobalSearch(); navigate('import'); } },
+];
+
+// ── Fuzzy match ──
+function _gsFuzzy(needle, haystack) {
+  const nl = needle.toLowerCase(), hl = haystack.toLowerCase();
+  if (hl.includes(nl)) return 1; // exact substring = best
+  let ni = 0, score = 0, lastIdx = -1;
+  for (let hi = 0; hi < hl.length && ni < nl.length; hi++) {
+    if (hl[hi] === nl[ni]) {
+      score += (hi === lastIdx + 1) ? 2 : 1; // consecutive bonus
+      lastIdx = hi; ni++;
+    }
+  }
+  return ni === nl.length ? score / (nl.length * 2) : 0;
+}
+
+// ── Metric & date parsing ──
+function _gsParseMetric(q) {
+  const m = q.match(/^(rides?|distance|km|power|watts?|ftp|speed|hr|heartrate|tss|elevation|elev|climbing)\s*(>|<|over|under|above|below)?\s*(\d+)\s*(km|w|bpm|tss|m|h|hr)?$/i);
+  if (!m) return null;
+  const metric = m[1].toLowerCase();
+  const op = (m[2] || '>').toLowerCase();
+  const val = parseInt(m[3], 10);
+  const gt = op === '>' || op === 'over' || op === 'above';
+  return { metric, val, gt };
+}
+function _gsParseDate(q) {
+  const ql = q.toLowerCase();
+  const now = new Date();
+  if (/^(last|this)\s*week$/i.test(ql)) {
+    const d = new Date(now); d.setDate(d.getDate() - (/last/i.test(ql) ? 7 : 0));
+    const start = new Date(d); start.setDate(start.getDate() - start.getDay() + 1);
+    const end = new Date(start); end.setDate(start.getDate() + 7);
+    return { start, end };
+  }
+  if (/^(last|this)\s*month$/i.test(ql)) {
+    const m = /last/i.test(ql) ? now.getMonth() - 1 : now.getMonth();
+    const start = new Date(now.getFullYear(), m, 1);
+    const end = new Date(now.getFullYear(), m + 1, 1);
+    return { start, end };
+  }
+  const months = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+  const mi = months.indexOf(ql);
+  if (mi >= 0) {
+    const y = mi <= now.getMonth() ? now.getFullYear() : now.getFullYear() - 1;
+    return { start: new Date(y, mi, 1), end: new Date(y, mi + 1, 1) };
+  }
+  if (/^\d{4}$/.test(ql)) return { start: new Date(+ql, 0, 1), end: new Date(+ql + 1, 0, 1) };
+  return null;
+}
+
+function _gsDefaultContent() {
+  const recent = _gsGetRecent();
+  const icon = { all: 'search', activities: 'activity', routes: 'map', workouts: 'calendar', gear: 'bike', settings: 'settings' };
+  let html = '';
+  // Quick actions — app icon grid
+  if (_gsFilter === 'all') {
+    html += `<div class="gs-quick-grid">`;
+    _GS_QUICK_ACTIONS.forEach((a, i) => {
+      html += `<button class="gs-quick-btn" onclick="window._gsQuickActions[${i}].action()">
+        <div class="gs-quick-icon" style="background:${a.bg || 'var(--accent-dim)'}"><svg class="icon" width="22" height="22" style="color:${a.color || 'var(--accent)'}"><use href="icons.svg#icon-${a.icon}"/></svg></div>
+        <span>${a.label}</span>
+      </button>`;
+    });
+    html += '</div>';
+  }
+  // Recent searches
+  if (recent.length) {
+    html += `<div class="gs-group"><div class="gs-group-title" style="display:flex;justify-content:space-between;align-items:center">Recent <button class="gs-clear-recent" onclick="_gsClearRecent()">Clear</button></div>`;
+    recent.forEach(q => {
+      html += `<div class="gs-item gs-recent-item" data-query="${_escHtml(q)}">
+        <div class="gs-item-icon" style="color:var(--text-muted)"><svg class="icon"><use href="icons.svg#icon-clock"/></svg></div>
+        <div class="gs-item-body"><div class="gs-item-title">${_escHtml(q)}</div></div>
+      </div>`;
+    });
+    html += '</div>';
+  }
+  // Try-it suggestions
+  if (_gsFilter === 'all') {
+    const suggestions = [
+      'my fastest ride', 'longest ride', 'hardest ride',
+      'rides in the rain', 'avg power this month', 'total distance this year',
+      'last week', '/power', '/distance',
+    ];
+    html += `<div class="gs-group"><div class="gs-group-title">Try searching</div>
+      <div class="gs-suggestions">
+        ${suggestions.map(s => `<button class="gs-suggest-chip" data-suggest="${_escHtml(s)}">${_escHtml(s)}</button>`).join('')}
+      </div>
+    </div>`;
+  }
+  // Placeholder if nothing else
+  if (!html) {
+    html = `<div class="gs-placeholder">
+      <svg class="icon" width="40" height="40"><use href="icons.svg#icon-${icon[_gsFilter] || 'search'}"/></svg>
+      <div>${_gsPlaceholders[_gsFilter] || _gsPlaceholders.all}</div>
+    </div>`;
+  }
+  return html;
+}
+window._gsQuickActions = _GS_QUICK_ACTIONS;
+
+// ── Slash commands for metric search ──
+const _GS_COMMANDS = [
+  { cmd: '/power',     label: 'Power',     unit: 'W',    placeholder: 'e.g. > 250',  icon: 'bolt',     color: '#ff9500' },
+  { cmd: '/distance',  label: 'Distance',  unit: 'km',   placeholder: 'e.g. > 100',  icon: 'map',      color: '#5ac8fa' },
+  { cmd: '/speed',     label: 'Speed',     unit: 'km/h', placeholder: 'e.g. > 30',   icon: 'activity', color: 'var(--accent)' },
+  { cmd: '/hr',        label: 'Heart Rate', unit: 'bpm', placeholder: 'e.g. > 150',  icon: 'heart',    color: '#ff375f' },
+  { cmd: '/tss',       label: 'TSS',       unit: 'TSS',  placeholder: 'e.g. > 200',  icon: 'target',   color: '#ffcc00' },
+  { cmd: '/elevation', label: 'Elevation', unit: 'm',    placeholder: 'e.g. > 1000', icon: 'mountain', color: '#9b59ff' },
+  { cmd: '/date',      label: 'Date',      unit: '',     placeholder: 'e.g. january, last week', icon: 'calendar', color: '#5ac8fa' },
+];
+let _gsActiveTag = null; // { cmd, label, unit }
+
+function _gsShowCommandList(partial) {
+  const pl = partial.toLowerCase();
+  const matched = _GS_COMMANDS.filter(c => c.cmd.startsWith(pl) || c.label.toLowerCase().startsWith(pl.slice(1)));
+  if (!matched.length) return false;
+  const results = document.getElementById('gsResults');
+  let html = `<div class="gs-group"><div class="gs-group-title">Filters</div>`;
+  matched.forEach(c => {
+    html += `<div class="gs-item gs-cmd-item" data-cmd="${_escHtml(c.cmd)}">
+      <div class="gs-item-icon" style="color:${c.color}"><svg class="icon"><use href="icons.svg#icon-${c.icon}"/></svg></div>
+      <div class="gs-item-body">
+        <div class="gs-item-title">${c.label}</div>
+        <div class="gs-item-sub">${c.placeholder}</div>
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+  results.innerHTML = html;
+  return true;
+}
+
+function _gsSelectCommand(cmd) {
+  const c = _GS_COMMANDS.find(x => x.cmd === cmd);
+  if (!c) return;
+  _gsActiveTag = c;
+  const inp = document.getElementById('gsInput');
+  inp.value = '';
+  inp.placeholder = c.placeholder;
+  inp.focus();
+  _gsRenderTag();
+  document.getElementById('gsResults').innerHTML = _gsDefaultContent();
+}
+
+function _gsRenderTag() {
+  let tagEl = document.getElementById('gsActiveTag');
+  if (_gsActiveTag) {
+    if (!tagEl) {
+      tagEl = document.createElement('span');
+      tagEl.id = 'gsActiveTag';
+      tagEl.className = 'gs-active-tag';
+      const wrap = document.querySelector('.gs-input-wrap');
+      wrap.insertBefore(tagEl, wrap.querySelector('.gs-bar-icon').nextSibling);
+    }
+    const unitStr = _gsActiveTag.unit ? ` (${_gsActiveTag.unit})` : '';
+    tagEl.innerHTML = `${_gsActiveTag.label}${unitStr} <button onclick="_gsClearTag()" class="gs-tag-x">&times;</button>`;
+    tagEl.style.display = '';
+  } else if (tagEl) {
+    tagEl.style.display = 'none';
+  }
+}
+
+function _gsClearTag() {
+  _gsActiveTag = null;
+  const inp = document.getElementById('gsInput');
+  inp.placeholder = 'Search';
+  _gsRenderTag();
+  document.getElementById('gsResults').innerHTML = _gsDefaultContent();
+  inp.focus();
+}
+window._gsSelectCommand = _gsSelectCommand;
+window._gsClearTag = _gsClearTag;
 
 function _gsOnInput(e) {
   const q = e.target.value.trim();
-  document.getElementById('gsClear').style.display = q ? '' : 'none';
+  document.getElementById('gsClear').style.display = q || _gsActiveTag ? '' : 'none';
   clearTimeout(_gsDebounce);
-  if (!q) { gsClearInput(); return; }
+  if (!q && !_gsActiveTag) { document.getElementById('gsResults').innerHTML = _gsDefaultContent(); return; }
+
+  // Slash command autocomplete
+  if (q.startsWith('/') && !_gsActiveTag) {
+    if (_gsShowCommandList(q)) return;
+  }
+
+  // If we have an active tag, build a metric/date query
+  if (_gsActiveTag && q) {
+    const tag = _gsActiveTag;
+    let searchQ = '';
+    if (tag.cmd === '/date') {
+      searchQ = q; // pass through to date parser
+    } else {
+      // Parse operator + number: "> 250", "250", "over 100"
+      const m = q.match(/^\s*(>|<|over|under|above|below)?\s*(\d+)\s*$/i);
+      if (m) {
+        const op = m[1] || '>';
+        searchQ = `${tag.label} ${op} ${m[2]}`;
+      } else {
+        searchQ = q; // fallback to regular search
+      }
+    }
+    _gsDebounce = setTimeout(() => _gsRunSearch(searchQ), 150);
+    return;
+  }
+
+  if (!q) { document.getElementById('gsResults').innerHTML = _gsDefaultContent(); return; }
+
+  // Show inline autocomplete suggestions for partial natural language queries
+  if (q.length >= 2 && q.length <= 15 && !q.startsWith('/') && !_gsActiveTag) {
+    _gsShowAutoSuggestions(q);
+  }
+
   _gsDebounce = setTimeout(() => _gsRunSearch(q), 150);
 }
 
-function _gsRunSearch(q) {
+// ── 1. Context-aware filter — auto-set filter based on current page ──
+function _gsAutoFilter() {
+  const page = state.currentPage;
+  if (page === 'gear')     return 'gear';
+  if (page === 'workout')  return 'workouts';
+  if (page === 'routes' || page === 'myroutes' || page === 'heatmap') return 'routes';
+  if (page === 'settings') return 'settings';
+  return 'all';
+}
+
+// ── 2. Natural language query parser ──
+function _gsParseNatural(q) {
+  const ql = q.toLowerCase().trim();
+  const allActs = getAllActivities ? getAllActivities() : state.activities || [];
+  if (!allActs.length) return null;
+
+  // "my fastest ride" / "fastest ride"
+  if (/fastest|quickest/.test(ql)) {
+    const best = allActs.reduce((b, a) => {
+      const s = (actVal(a, 'average_speed', 'icu_average_speed') || 0) * 3.6;
+      return s > (b.v || 0) ? { a, v: s } : b;
+    }, {});
+    if (best.a) return { type: 'single', label: 'Fastest Ride', activity: best.a, stat: best.v.toFixed(1) + ' km/h' };
+  }
+  // "longest ride"
+  if (/longest|furthest/.test(ql)) {
+    const best = allActs.reduce((b, a) => {
+      const d = (actVal(a, 'distance', 'icu_distance') || 0) / 1000;
+      return d > (b.v || 0) ? { a, v: d } : b;
+    }, {});
+    if (best.a) return { type: 'single', label: 'Longest Ride', activity: best.a, stat: best.v.toFixed(1) + ' km' };
+  }
+  // "hardest ride" / "toughest"
+  if (/hardest|toughest|biggest/.test(ql)) {
+    const best = allActs.reduce((b, a) => {
+      const t = actVal(a, 'icu_training_load', 'tss') || 0;
+      return t > (b.v || 0) ? { a, v: t } : b;
+    }, {});
+    if (best.a) return { type: 'single', label: 'Hardest Ride', activity: best.a, stat: Math.round(best.v) + ' TSS' };
+  }
+  // "most climbing" / "most elevation"
+  if (/most (climb|elev)/.test(ql)) {
+    const best = allActs.reduce((b, a) => {
+      const e = actVal(a, 'total_elevation_gain', 'icu_total_elevation_gain') || 0;
+      return e > (b.v || 0) ? { a, v: e } : b;
+    }, {});
+    if (best.a) return { type: 'single', label: 'Most Climbing', activity: best.a, stat: Math.round(best.v) + ' m' };
+  }
+  // "rides in the rain" / "rainy rides"
+  if (/rain|wet|storm/.test(ql)) {
+    const wet = allActs.filter(a => a.weather_icon && /rain|storm|drizzle|shower/i.test(a.weather_icon));
+    if (wet.length) return { type: 'list', label: `Rainy Rides (${wet.length})`, activities: wet.slice(0, 15) };
+  }
+  // "hot rides" / "rides in heat"
+  if (/hot|heat/.test(ql)) {
+    const hot = allActs.filter(a => a.weather_temp > 30);
+    if (hot.length) return { type: 'list', label: `Hot Rides (${hot.length})`, activities: hot.slice(0, 15) };
+  }
+  // "cold rides"
+  if (/cold|freez/.test(ql)) {
+    const cold = allActs.filter(a => a.weather_temp != null && a.weather_temp < 5);
+    if (cold.length) return { type: 'list', label: `Cold Rides (${cold.length})`, activities: cold.slice(0, 15) };
+  }
+  // "rides with power meter"
+  if (/with power|power meter/.test(ql)) {
+    const pwr = allActs.filter(a => (a.icu_weighted_avg_watts || a.average_watts) > 0);
+    if (pwr.length) return { type: 'list', label: `Rides with Power (${pwr.length})`, activities: pwr.slice(0, 15) };
+  }
+  // "indoor" / "zwift" / "trainer"
+  if (/indoor|zwift|trainer|virtual/.test(ql)) {
+    const indoor = allActs.filter(a => /virtual|indoor|zwift|trainer/i.test(a.type || a.sport_type || a.name || ''));
+    if (indoor.length) return { type: 'list', label: `Indoor Rides (${indoor.length})`, activities: indoor.slice(0, 15) };
+  }
+  return null;
+}
+
+// ── 5. Location search — "rides in X" using cached geocoded locations ──
+function _gsSearchByLocation(q) {
   const ql = q.toLowerCase();
+  const locMatch = ql.match(/(?:rides?\s+)?(?:in|near|around|from)\s+(.+)/i);
+  if (!locMatch) return null;
+  const place = locMatch[1].trim().toLowerCase();
+  if (!place || place.length < 2) return null;
+  // Search localStorage for cached reverse geocoded locations
+  const allActs = getAllActivities ? getAllActivities() : state.activities || [];
+  const matched = [];
+  for (const a of allActs) {
+    const loc = a._locationName || a.location || '';
+    if (loc && loc.toLowerCase().includes(place)) {
+      matched.push(a);
+      if (matched.length >= 20) break;
+    }
+  }
+  // Also check activity names for location mentions
+  if (matched.length < 5) {
+    for (const a of allActs) {
+      if (matched.includes(a)) continue;
+      if ((a.name || '').toLowerCase().includes(place)) {
+        matched.push(a);
+        if (matched.length >= 20) break;
+      }
+    }
+  }
+  if (!matched.length) return null;
+  return { type: 'list', label: `Rides near "${locMatch[1]}" (${matched.length})`, activities: matched.slice(0, 15) };
+}
+
+// ── 7. Aggregate queries — "average power this month", "total distance 2025" ──
+function _gsParseAggregate(q) {
+  const ql = q.toLowerCase().trim();
+  const m = ql.match(/^(average|avg|total|sum|max|min|best)\s+(power|watts?|speed|hr|heartrate|heart rate|distance|km|elevation|elev|climbing|tss|calories|time|duration)\s*(this week|last week|this month|last month|this year|last year|\d{4}|january|february|march|april|may|june|july|august|september|october|november|december)?$/i);
+  if (!m) return null;
+  const aggType = m[1].toLowerCase();
+  const metric = m[2].toLowerCase();
+  const period = m[3] ? m[3].toLowerCase() : null;
+
+  // Get date range
+  let dateRange = period ? _gsParseDate(period) : null;
+  if (!dateRange) {
+    // Default to last 90 days
+    const now = new Date();
+    dateRange = { start: new Date(now.getTime() - 90 * 86400000), end: now };
+  }
+
+  const allActs = (getAllActivities ? getAllActivities() : state.activities || []).filter(a => {
+    const d = new Date(a.start_date_local || a.start_date);
+    return d >= dateRange.start && d < dateRange.end;
+  });
+  if (!allActs.length) return null;
+
+  // Extract values
+  const vals = allActs.map(a => {
+    if (/power|watts?/.test(metric)) return actVal(a, 'icu_weighted_avg_watts', 'average_watts') || 0;
+    if (/speed/.test(metric)) return (actVal(a, 'average_speed', 'icu_average_speed') || 0) * 3.6;
+    if (/hr|heart/.test(metric)) return actVal(a, 'average_heartrate', 'icu_average_heartrate') || 0;
+    if (/distance|km/.test(metric)) return (actVal(a, 'distance', 'icu_distance') || 0) / 1000;
+    if (/elev|climb/.test(metric)) return actVal(a, 'total_elevation_gain', 'icu_total_elevation_gain') || 0;
+    if (/tss/.test(metric)) return actVal(a, 'icu_training_load', 'tss') || 0;
+    if (/calor/.test(metric)) return actVal(a, 'calories', 'icu_calories') || 0;
+    if (/time|duration/.test(metric)) return (actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time') || 0) / 3600;
+    return 0;
+  }).filter(v => v > 0);
+
+  if (!vals.length) return null;
+
+  const sum = vals.reduce((s, v) => s + v, 0);
+  const avg = sum / vals.length;
+  const max = Math.max(...vals);
+  const min = Math.min(...vals);
+
+  let result;
+  if (aggType === 'total' || aggType === 'sum') result = sum;
+  else if (aggType === 'max' || aggType === 'best') result = max;
+  else if (aggType === 'min') result = min;
+  else result = avg;
+
+  // Format
+  const units = { power: 'W', watts: 'W', watt: 'W', speed: 'km/h', hr: 'bpm', heartrate: 'bpm', 'heart rate': 'bpm',
+    distance: 'km', km: 'km', elevation: 'm', elev: 'm', climbing: 'm', tss: 'TSS', calories: 'kcal', time: 'hrs', duration: 'hrs' };
+  const unit = units[metric] || '';
+  const isInt = /tss|calories|elev|climb/.test(metric);
+  const formatted = isInt ? Math.round(result).toLocaleString() : result.toFixed(1);
+  const periodLabel = period || 'last 90 days';
+
+  return {
+    value: formatted,
+    unit,
+    aggLabel: aggType.charAt(0).toUpperCase() + aggType.slice(1),
+    metricLabel: metric.charAt(0).toUpperCase() + metric.slice(1),
+    period: periodLabel,
+    count: vals.length,
+  };
+}
+
+// ── Autocomplete suggestions shown above results while typing ──
+const _GS_AUTOCOMPLETE = [
+  'my fastest ride', 'longest ride', 'hardest ride', 'most climbing',
+  'rides in the rain', 'hot rides', 'cold rides', 'indoor rides',
+  'rides with power meter',
+  'average power this month', 'average power this week', 'average speed this month',
+  'total distance this year', 'total distance this month', 'total elevation this year',
+  'max speed this month', 'max power this week',
+  'last week', 'last month', 'this week', 'this month',
+];
+
+function _gsShowAutoSuggestions(partial) {
+  const pl = partial.toLowerCase();
+  const matched = _GS_AUTOCOMPLETE.filter(s => s.includes(pl) && s !== pl).slice(0, 4);
+  // Also match slash commands
+  _GS_COMMANDS.forEach(c => {
+    if (c.label.toLowerCase().startsWith(pl)) matched.push(c.cmd + ' (filter)');
+  });
+  if (!matched.length) return;
+  let bar = document.getElementById('gsAutoSuggest');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'gsAutoSuggest';
+    bar.className = 'gs-auto-suggest';
+    const filters = document.getElementById('gsFilters');
+    if (filters) filters.after(bar);
+  }
+  bar.innerHTML = matched.slice(0, 5).map(s => {
+    const clean = s.replace(' (filter)', '');
+    return `<button class="gs-auto-chip" data-suggest="${_escHtml(clean)}">${_escHtml(s)}</button>`;
+  }).join('');
+  bar.style.display = '';
+}
+
+function _gsHideAutoSuggest() {
+  const bar = document.getElementById('gsAutoSuggest');
+  if (bar) bar.style.display = 'none';
+}
+
+function _gsRunSearch(q) {
+  // Keep autocomplete visible if there are matching suggestions
+  const ql = q.toLowerCase();
+  if (!(ql.length >= 2 && ql.length <= 15 && !ql.startsWith('/') && !_gsActiveTag &&
+      _GS_AUTOCOMPLETE.some(s => s.includes(ql) && s !== ql))) {
+    _gsHideAutoSuggest();
+  }
+  document.getElementById('gsClear').style.display = q ? '' : 'none';
   const results = document.getElementById('gsResults');
   if (!results) return;
+  _gsSaveRecent(q);
+  // Clear old search lookup keys to prevent memory leak
+  if (window._actLookup) {
+    Object.keys(window._actLookup).forEach(k => { if (k.startsWith('_gs')) delete window._actLookup[k]; });
+  }
   let html = '';
   let totalCount = 0;
 
-  // ── Activities ──
-  if (_gsFilter === 'all' || _gsFilter === 'activities') {
-    const acts = (getAllActivities ? getAllActivities() : state.activities || [])
-      .filter(a => {
-        const name = (a.name || '').toLowerCase();
-        const type = (a.type || a.icu_sport || '').toLowerCase();
-        return name.includes(ql) || type.includes(ql);
-      })
-      .sort((a, b) => new Date(b.start_date_local || b.start_date) - new Date(a.start_date_local || a.start_date))
+  // ── 7. Aggregate query (e.g. "average power this month") ──
+  const agg = _gsParseAggregate(q);
+  if (agg) {
+    html += `<div class="gs-agg-card">
+      <div class="gs-agg-value">${agg.value}<span class="gs-agg-unit"> ${agg.unit}</span></div>
+      <div class="gs-agg-label">${agg.aggLabel} ${agg.metricLabel}</div>
+      <div class="gs-agg-meta">${agg.count} rides · ${agg.period}</div>
+    </div>`;
+    totalCount++;
+  }
+
+  // ── 2. Natural language (e.g. "my fastest ride", "rides in the rain") ──
+  if (!agg && (_gsFilter === 'all' || _gsFilter === 'activities')) {
+    const nl = _gsParseNatural(q);
+    if (nl) {
+      if (!window._actLookup) window._actLookup = {};
+      if (nl.type === 'single') {
+        const a = nl.activity;
+        const gsKey = '_gsn_0'; window._actLookup[gsKey] = a;
+        const name = a.name || 'Untitled';
+        const d = new Date(a.start_date_local || a.start_date);
+        const dateStr = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+        html += `<div class="gs-agg-card" style="cursor:pointer" onclick="closeGlobalSearch();navigateToActivity('${gsKey}')">
+          <div class="gs-agg-value">${nl.stat}</div>
+          <div class="gs-agg-label">${nl.label}</div>
+          <div class="gs-agg-meta">${_escHtml(name)} · ${dateStr}</div>
+        </div>`;
+        totalCount++;
+      } else if (nl.type === 'list') {
+        html += `<div class="gs-group"><div class="gs-group-title">${nl.label}</div>`;
+        nl.activities.forEach((a, i) => {
+          const gsKey = '_gsn_' + i; window._actLookup[gsKey] = a;
+          const name = a.name || 'Untitled';
+          const d = new Date(a.start_date_local || a.start_date);
+          const dateStr = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+          html += `<div class="gs-item" onclick="closeGlobalSearch();navigateToActivity('${gsKey}')">
+            <div class="gs-item-icon" style="color:var(--accent)"><svg class="icon"><use href="icons.svg#icon-activity"/></svg></div>
+            <div class="gs-item-body"><div class="gs-item-title">${_escHtml(name)}</div><div class="gs-item-sub">${dateStr}</div></div>
+            <svg class="gs-item-chevron" viewBox="0 0 7 12" width="8" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>`;
+        });
+        html += '</div>';
+        totalCount += nl.activities.length;
+      }
+    }
+  }
+
+  // ── 5. Location search (e.g. "rides in Ljubljana", "rides near Alps") ──
+  if (!agg && totalCount === 0 && (_gsFilter === 'all' || _gsFilter === 'activities')) {
+    const loc = _gsSearchByLocation(q);
+    if (loc) {
+      if (!window._actLookup) window._actLookup = {};
+      html += `<div class="gs-group"><div class="gs-group-title">${loc.label}</div>`;
+      loc.activities.forEach((a, i) => {
+        const gsKey = '_gsl_' + i; window._actLookup[gsKey] = a;
+        const name = a.name || 'Untitled';
+        const d = new Date(a.start_date_local || a.start_date);
+        const dateStr = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+        const dist = a.distance ? (a.distance / 1000).toFixed(1) + ' km' : '';
+        html += `<div class="gs-item" onclick="closeGlobalSearch();navigateToActivity('${gsKey}')">
+          <div class="gs-item-icon" style="color:#5ac8fa"><svg class="icon"><use href="icons.svg#icon-map-pin"/></svg></div>
+          <div class="gs-item-body"><div class="gs-item-title">${_escHtml(name)}</div><div class="gs-item-sub">${dateStr}${dist ? ' · ' + dist : ''}</div></div>
+          <svg class="gs-item-chevron" viewBox="0 0 7 12" width="8" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>`;
+      });
+      html += '</div>';
+      totalCount += loc.activities.length;
+    }
+  }
+
+  // ── Metric search (e.g. "rides over 100km", "power > 300") ──
+  const metric = _gsParseMetric(q);
+  if (metric && (_gsFilter === 'all' || _gsFilter === 'activities')) {
+    const allActs = getAllActivities ? getAllActivities() : state.activities || [];
+    const filtered = allActs.filter(a => {
+      let v = 0;
+      const m = metric.metric;
+      if (m === 'rides' || m === 'ride' || m === 'distance' || m === 'km') v = (actVal(a, 'distance', 'icu_distance') || 0) / 1000;
+      else if (m === 'power' || m === 'watts' || m === 'watt' || m === 'ftp') v = actVal(a, 'icu_weighted_avg_watts', 'average_watts') || 0;
+      else if (m === 'speed') v = (actVal(a, 'average_speed', 'icu_average_speed') || 0) * 3.6;
+      else if (m === 'hr' || m === 'heartrate') v = actVal(a, 'average_heartrate', 'icu_average_heartrate') || 0;
+      else if (m === 'tss') v = actVal(a, 'icu_training_load', 'tss') || 0;
+      else if (m === 'elevation' || m === 'elev' || m === 'climbing') v = actVal(a, 'total_elevation_gain', 'icu_total_elevation_gain') || 0;
+      return metric.gt ? v >= metric.val : v <= metric.val;
+    }).sort((a, b) => new Date(b.start_date_local || b.start_date) - new Date(a.start_date_local || a.start_date)).slice(0, 20);
+    if (filtered.length) {
+      html += `<div class="gs-group"><div class="gs-group-title">Matching Rides (${filtered.length})</div>`;
+      if (!window._actLookup) window._actLookup = {};
+      filtered.forEach((a, i) => {
+        const gsKey = '_gsm_' + i; window._actLookup[gsKey] = a;
+        const name = a.name || 'Untitled';
+        const d = new Date(a.start_date_local || a.start_date);
+        const dateStr = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+        html += `<div class="gs-item" onclick="closeGlobalSearch();navigateToActivity('${gsKey}')">
+          <div class="gs-item-icon" style="color:var(--accent)"><svg class="icon"><use href="icons.svg#icon-activity"/></svg></div>
+          <div class="gs-item-body"><div class="gs-item-title">${_escHtml(name)}</div><div class="gs-item-sub">${dateStr}</div></div>
+          <svg class="gs-item-chevron" viewBox="0 0 7 12" width="8" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>`;
+      });
+      html += '</div>';
+      totalCount += filtered.length;
+    }
+  }
+
+  // ── Date search (e.g. "last week", "january", "2025") ──
+  const dateRange = _gsParseDate(q);
+  if (dateRange && !metric && (_gsFilter === 'all' || _gsFilter === 'activities')) {
+    const allActs = getAllActivities ? getAllActivities() : state.activities || [];
+    const filtered = allActs.filter(a => {
+      const d = new Date(a.start_date_local || a.start_date);
+      return d >= dateRange.start && d < dateRange.end;
+    }).sort((a, b) => new Date(b.start_date_local || b.start_date) - new Date(a.start_date_local || a.start_date)).slice(0, 20);
+    if (filtered.length) {
+      html += `<div class="gs-group"><div class="gs-group-title">Rides (${filtered.length})</div>`;
+      if (!window._actLookup) window._actLookup = {};
+      filtered.forEach((a, i) => {
+        const gsKey = '_gsd_' + i; window._actLookup[gsKey] = a;
+        const name = a.name || 'Untitled';
+        const d = new Date(a.start_date_local || a.start_date);
+        const dateStr = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+        const dist = a.distance ? (a.distance / 1000).toFixed(1) + ' km' : '';
+        html += `<div class="gs-item" onclick="closeGlobalSearch();navigateToActivity('${gsKey}')">
+          <div class="gs-item-icon" style="color:var(--accent)"><svg class="icon"><use href="icons.svg#icon-activity"/></svg></div>
+          <div class="gs-item-body"><div class="gs-item-title">${_escHtml(name)}</div><div class="gs-item-sub">${dateStr}${dist ? ' · ' + dist : ''}</div></div>
+          <svg class="gs-item-chevron" viewBox="0 0 7 12" width="8" height="12"><path d="M1 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>`;
+      });
+      html += '</div>';
+      totalCount += filtered.length;
+    }
+  }
+
+  // ── Activities (fuzzy) ──
+  if (!metric && !dateRange && (_gsFilter === 'all' || _gsFilter === 'activities')) {
+    const allActs = getAllActivities ? getAllActivities() : state.activities || [];
+    const scored = allActs.map(a => {
+      const name = a.name || '';
+      const type = a.type || a.icu_sport || '';
+      const s = Math.max(_gsFuzzy(ql, name), _gsFuzzy(ql, type) * 0.7);
+      return { a, s };
+    }).filter(x => x.s > 0)
+      .sort((a, b) => b.s - a.s || new Date(b.a.start_date_local || b.a.start_date) - new Date(a.a.start_date_local || a.a.start_date))
       .slice(0, 15);
+    const acts = scored.map(x => x.a);
     if (acts.length) {
       html += `<div class="gs-group"><div class="gs-group-title">Activities</div>`;
       if (!window._actLookup) window._actLookup = {};
@@ -39094,9 +40052,11 @@ function _gsRunSearch(q) {
   // ── Gear Components ──
   if (_gsFilter === 'all' || _gsFilter === 'gear') {
     // Bikes
-    const bikes = (state.gearBikes || []).filter(b => (b.name || '').toLowerCase().includes(ql));
+    let _gsBikes = state.gearBikes;
+    if (!_gsBikes) { try { _gsBikes = JSON.parse(localStorage.getItem('icu_gear_bikes') || '[]'); } catch(_) { _gsBikes = []; } }
+    const bikes = (_gsBikes || []).filter(b => (b.name || '').toLowerCase().includes(ql));
     // Components
-    const gear = (state.gearComponents || []).filter(g => {
+    const gear = (typeof loadGearComponents === 'function' ? loadGearComponents() : []).filter(g => {
       const name = (g.name || '').toLowerCase();
       const brand = (g.brand || '').toLowerCase();
       const model = (g.model || '').toLowerCase();
@@ -39181,10 +40141,46 @@ function _gsRunSearch(q) {
   results.innerHTML = html;
 }
 
-// Attach global search input listener
+// Attach global search listeners via delegation
 document.addEventListener('DOMContentLoaded', () => {
   const inp = document.getElementById('gsInput');
-  if (inp) inp.addEventListener('input', _gsOnInput);
+  if (inp) {
+    inp.addEventListener('input', _gsOnInput);
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); });
+  }
+  // Event delegation for recent search clicks
+  const results = document.getElementById('gsResults');
+  if (results) results.addEventListener('click', e => {
+    const recent = e.target.closest('.gs-recent-item');
+    if (recent) {
+      const q = recent.dataset.query;
+      if (q && inp) { inp.value = q; _gsRunSearch(q); }
+      return;
+    }
+    const cmd = e.target.closest('.gs-cmd-item');
+    if (cmd) {
+      _gsSelectCommand(cmd.dataset.cmd);
+      return;
+    }
+    const suggest = e.target.closest('.gs-suggest-chip');
+    if (suggest) {
+      const q = suggest.dataset.suggest;
+      if (q && inp) { inp.value = q; _gsRunSearch(q); }
+      return;
+    }
+  });
+  // Autocomplete bar clicks (outside results container)
+  document.addEventListener('click', e => {
+    const chip = e.target.closest('.gs-auto-chip');
+    if (chip) {
+      const q = chip.dataset.suggest;
+      const inp = document.getElementById('gsInput');
+      if (q && inp) {
+        if (q.startsWith('/')) { _gsSelectCommand(q); }
+        else { inp.value = q; _gsRunSearch(q); }
+      }
+    }
+  });
 });
 
 // ── From share.js ──
@@ -39416,7 +40412,7 @@ Object.assign(window, { renderNavSettings, changeNavTab, removeNavTab, addNavTab
   setFabAction, resetNavConfig, applyNavConfig });
 
 // ── Global Search ──
-Object.assign(window, { openGlobalSearch, closeGlobalSearch, gsClearInput, gsSetFilter });
+Object.assign(window, { openGlobalSearch, closeGlobalSearch, gsClearInput, gsSetFilter, _gsClearRecent });
 
 // ── From workout.js (includes settings/theme functions) ──
 Object.assign(window, { wrkRender, wrkRefreshStats, wrkSetName, wrkAddSegment, wrkRemove, wrkMove,

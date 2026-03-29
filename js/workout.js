@@ -1518,6 +1518,35 @@ export function _setCustomRadius(val) {
 }
 window._setCustomRadius = _setCustomRadius;
 
+// Chart hover dot size
+export function setChartDotSize(val) {
+  const px = parseInt(val, 10);
+  localStorage.setItem('icu_chart_dot_size', px);
+  document.documentElement.style.setProperty('--chart-dot-size', px);
+  const label = document.getElementById('chartDotSizeValue');
+  if (label) label.textContent = px + 'px';
+}
+window.setChartDotSize = setChartDotSize;
+
+// Chart hover dot color
+export function setChartDotColor(hex) {
+  localStorage.setItem('icu_chart_dot_color', hex);
+  document.documentElement.style.setProperty('--chart-dot-color', hex);
+  const preview = document.getElementById('chartDotColorPreview');
+  if (preview) preview.style.background = hex;
+}
+window.setChartDotColor = setChartDotColor;
+
+export function resetChartDotColor() {
+  localStorage.removeItem('icu_chart_dot_color');
+  document.documentElement.style.removeProperty('--chart-dot-color');
+  const preview = document.getElementById('chartDotColorPreview');
+  if (preview) preview.style.background = 'var(--chart-dot-color)';
+  const input = document.getElementById('chartDotColorInput');
+  if (input) input.value = document.documentElement.dataset.theme === 'light' ? '#1a1d24' : '#ffffff';
+}
+window.resetChartDotColor = resetChartDotColor;
+
 export function _syncCardStyleControls() {
   // Card color
   const savedColor = localStorage.getItem('icu_card_color');
@@ -1539,6 +1568,25 @@ export function _syncCardStyleControls() {
     const label = document.getElementById('radiusValue');
     if (label) label.textContent = px + 'px';
   }
+  // Chart dot size
+  const savedDotSize = localStorage.getItem('icu_chart_dot_size');
+  if (savedDotSize) {
+    const px = parseInt(savedDotSize, 10);
+    document.documentElement.style.setProperty('--chart-dot-size', px);
+    const slider = document.getElementById('chartDotSizeSlider');
+    if (slider) slider.value = px;
+    const label = document.getElementById('chartDotSizeValue');
+    if (label) label.textContent = px + 'px';
+  }
+  // Chart dot color
+  const savedDotColor = localStorage.getItem('icu_chart_dot_color');
+  if (savedDotColor) {
+    document.documentElement.style.setProperty('--chart-dot-color', savedDotColor);
+    const preview = document.getElementById('chartDotColorPreview');
+    if (preview) preview.style.background = savedDotColor;
+    const input = document.getElementById('chartDotColorInput');
+    if (input) input.value = savedDotColor;
+  }
 }
 window._syncCardStyleControls = _syncCardStyleControls;
 
@@ -1547,7 +1595,7 @@ window._syncCardStyleControls = _syncCardStyleControls;
   const resolved = _resolveTheme(saved);
   _applyResolvedTheme(resolved);
 
-  // Restore custom card color + radius
+  // Restore custom card color + radius + chart dots
   const cc = localStorage.getItem('icu_card_color');
   if (cc) document.documentElement.style.setProperty('--bg-card', cc);
   const cr = localStorage.getItem('icu_custom_radius');
@@ -1556,6 +1604,10 @@ window._syncCardStyleControls = _syncCardStyleControls;
     document.documentElement.style.setProperty('--radius', px + 'px');
     document.documentElement.style.setProperty('--radius-sm', Math.max(4, Math.round(px / 2)) + 'px');
   }
+  const cds = localStorage.getItem('icu_chart_dot_size');
+  if (cds) document.documentElement.style.setProperty('--chart-dot-size', parseInt(cds, 10));
+  const cdc = localStorage.getItem('icu_chart_dot_color');
+  if (cdc) document.documentElement.style.setProperty('--chart-dot-color', cdc);
 
   // Listen for system theme changes when in auto mode
   window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {

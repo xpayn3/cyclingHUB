@@ -300,6 +300,12 @@ const BADGE_PROCEDURAL = {
   // Early bird / night owl
   b27: { shape: 'circle',  color: 0xff9500, accent: 0xffbb44, label: 'EARLY BIRD',    iconPath: 'M12 2v4M4.93 4.93l2.83 2.83M2 12h4M12 18a6 6 0 0 0 0-12', holo: 'sunray' },
   b28: { shape: 'circle',  color: 0x4a9eff, accent: 0x6688ff, label: 'NIGHT OWL',     iconPath: 'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79zM12 8v4l2 2', holo: 'ripple' },
+  // Power Records — gold holo cards
+  pr_5s:  { shape: 'hexagon', color: 0xff2a6d, accent: 0xff5588, label: 'SPRINT',      iconPath: 'M13 2l-1 5h5l-6 9 1-5H7l6-9z', holo: 'bolt' },
+  pr_1m:  { shape: 'hexagon', color: 0xff6b35, accent: 0xffaa00, label: 'ANAEROBIC',   iconPath: 'M13 2 3 14h9l-1 8 10-12h-9l1-8z', holo: 'flame' },
+  pr_5m:  { shape: 'diamond', color: 0x9b59ff, accent: 0xcc88ff, label: 'VO2 MAX',     iconPath: 'M22 12h-4l-3 9L9 3l-3 9H2', holo: 'diamond' },
+  pr_20m: { shape: 'shield',  color: 0x00e5a0, accent: 0x44ffbb, label: 'FTP',         iconPath: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 6v4l3 3', holo: 'grid' },
+  pr_60m: { shape: 'star',    color: 0x4a9eff, accent: 0x88ccff, label: 'ENDURANCE',   iconPath: 'M18 20V10M12 20V4M6 20v-6', holo: 'wave' },
 };
 
 // Create procedural badge shape geometry
@@ -1669,6 +1675,150 @@ export function renderBadgePreview(badgeId, name, desc, locked) {
   _previewCache[cacheKey] = url;
   return url;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POWER RECORD CARDS — Gold/platinum holo cards for personal bests
+// ─────────────────────────────────────────────────────────────────────────────
+const PR_CARD_DEFS = {
+  pr_5s:    { label: 'SPRINT',     dur: '5s',   color: 0xff2a6d, accent: 0xff5588, icon: 'M13 2l-1 5h5l-6 9 1-5H7l6-9z',                                    tier: 'gold' },
+  pr_1m:    { label: 'ANAEROBIC',  dur: '1 min', color: 0xff6b35, accent: 0xffaa00, icon: 'M13 2 3 14h9l-1 8 10-12h-9l1-8z',                                  tier: 'gold' },
+  pr_5m:    { label: 'VO2 MAX',    dur: '5 min', color: 0x9b59ff, accent: 0xcc88ff, icon: 'M22 12h-4l-3 9L9 3l-3 9H2',                                        tier: 'platinum' },
+  pr_20m:   { label: 'FTP',        dur: '20 min',color: 0x00e5a0, accent: 0x44ffbb, icon: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 6v4l3 3',              tier: 'platinum' },
+  pr_60m:   { label: 'ENDURANCE',  dur: '1 hr',  color: 0x4a9eff, accent: 0x88ccff, icon: 'M18 20V10M12 20V4M6 20v-6',                                        tier: 'diamond' },
+};
+
+export function renderPRPreview(prId, watts, wkg, date) {
+  const cacheKey = `pr_${prId}_${watts}`;
+  if (_previewCache[cacheKey]) return _previewCache[cacheKey];
+  const def = PR_CARD_DEFS[prId];
+  if (!def) return '';
+
+  const r = (def.color >> 16) & 255, g = (def.color >> 8) & 255, b = def.color & 255;
+  const fW = 200, fH = Math.round(fW * (2.6 / 1.8));
+  const c = document.createElement('canvas'); c.width = fW; c.height = fH;
+  const fc = c.getContext('2d');
+
+  // Gold/platinum base gradient
+  const isGold = def.tier === 'gold';
+  const isDiamond = def.tier === 'diamond';
+  const baseG = fc.createLinearGradient(0, 0, fW, fH);
+  if (isDiamond) {
+    baseG.addColorStop(0, '#0a0a1a'); baseG.addColorStop(0.5, '#0e1020'); baseG.addColorStop(1, '#080818');
+  } else if (isGold) {
+    baseG.addColorStop(0, '#1a1408'); baseG.addColorStop(0.5, '#201810'); baseG.addColorStop(1, '#141008');
+  } else {
+    baseG.addColorStop(0, '#12101a'); baseG.addColorStop(0.5, '#18141e'); baseG.addColorStop(1, '#100e16');
+  }
+  fc.fillStyle = baseG; fc.fillRect(0, 0, fW, fH);
+
+  // Dither noise
+  const d = fc.getImageData(0, 0, fW, fH); const dd = d.data;
+  for (let i = 0; i < dd.length; i += 4) { const n = Math.random() * 8 - 4; dd[i] = Math.max(0, dd[i] + n); dd[i+1] = Math.max(0, dd[i+1] + n); dd[i+2] = Math.max(0, dd[i+2] + n); }
+  fc.putImageData(d, 0, 0);
+
+  // Holographic rainbow sweep
+  const holoG = fc.createLinearGradient(0, 0, fW, fH);
+  holoG.addColorStop(0,    'rgba(255,0,100,0.06)');
+  holoG.addColorStop(0.2,  'rgba(255,200,0,0.08)');
+  holoG.addColorStop(0.4,  'rgba(0,255,160,0.06)');
+  holoG.addColorStop(0.6,  'rgba(0,150,255,0.08)');
+  holoG.addColorStop(0.8,  'rgba(155,89,255,0.06)');
+  holoG.addColorStop(1,    'rgba(255,0,100,0.06)');
+  fc.fillStyle = holoG; fc.fillRect(0, 0, fW, fH);
+
+  // Sparkle particles
+  for (let i = 0; i < 40; i++) {
+    const sx = Math.random() * fW, sy = Math.random() * fH;
+    const sr = 0.3 + Math.random() * 1.2;
+    const alpha = 0.15 + Math.random() * 0.4;
+    fc.fillStyle = isDiamond ? `rgba(180,220,255,${alpha})` : isGold ? `rgba(255,215,0,${alpha})` : `rgba(200,180,255,${alpha})`;
+    fc.beginPath(); fc.arc(sx, sy, sr, 0, Math.PI * 2); fc.fill();
+  }
+
+  // Tier ribbon at top
+  const ribbonH = 18;
+  const ribbonColor = isDiamond ? 'rgba(100,180,255,0.9)' : isGold ? 'rgba(255,200,0,0.9)' : 'rgba(200,170,255,0.9)';
+  fc.fillStyle = ribbonColor; fc.fillRect(0, 10, fW, ribbonH);
+  // Ribbon text
+  fc.font = '900 italic 10px "Source Serif 4", Georgia, serif';
+  fc.fillStyle = 'rgba(0,0,0,0.5)'; fc.textBaseline = 'middle';
+  fc.fillText(('POWER RECORD  ·  ' + def.dur.toUpperCase() + '  ·  ').repeat(8), 0, 10 + ribbonH / 2 + 1);
+
+  // Icon
+  try {
+    fc.save();
+    const s = fW / 30;
+    fc.translate(fW/2 - 12 * s, fH * 0.3 - 12 * s); fc.scale(s, s);
+    const path = new Path2D(def.icon);
+    fc.shadowColor = `rgba(${r},${g},${b},0.6)`; fc.shadowBlur = 8;
+    fc.strokeStyle = `rgba(${Math.min(255,r+100)},${Math.min(255,g+100)},${Math.min(255,b+100)},0.7)`;
+    fc.lineWidth = 1.5; fc.stroke(path);
+    fc.shadowBlur = 0;
+    const ig = fc.createLinearGradient(0, 0, 24, 24);
+    ig.addColorStop(0, `rgba(${Math.min(255,r+140)},${Math.min(255,g+140)},${Math.min(255,b+140)},0.6)`);
+    ig.addColorStop(1, `rgba(${r},${g},${b},0.3)`);
+    fc.fillStyle = ig; fc.fill(path);
+    fc.restore();
+  } catch(_) {}
+
+  // Watts — big number
+  fc.textAlign = 'center';
+  fc.shadowColor = `rgba(${r},${g},${b},0.5)`; fc.shadowBlur = 10;
+  fc.font = '800 32px Inter, system-ui, sans-serif';
+  fc.fillStyle = '#ffffff';
+  fc.fillText(watts + 'w', fW / 2, fH * 0.6);
+  fc.shadowBlur = 0;
+
+  // W/kg
+  fc.font = '600 12px Inter, system-ui, sans-serif';
+  fc.fillStyle = `rgba(${Math.min(255,r+60)},${Math.min(255,g+60)},${Math.min(255,b+60)},0.8)`;
+  fc.fillText(wkg + ' w/kg', fW / 2, fH * 0.67);
+
+  // Duration label
+  fc.font = '700 14px Inter, system-ui, sans-serif';
+  fc.fillStyle = '#fff';
+  fc.fillText(def.label, fW / 2, fH * 0.78);
+
+  // Duration + date
+  fc.font = '500 9px Inter, system-ui, sans-serif';
+  fc.fillStyle = `rgba(${r},${g},${b},0.7)`;
+  fc.fillText(def.dur + (date ? '  ·  ' + date : ''), fW / 2, fH * 0.78 + 14);
+
+  // Tier badge at bottom
+  fc.font = '600 7px Inter, system-ui, sans-serif';
+  const tierLabel = isDiamond ? '◆ DIAMOND' : isGold ? '★ GOLD' : '✦ PLATINUM';
+  fc.fillStyle = ribbonColor;
+  fc.fillText(tierLabel, fW / 2, fH * 0.92);
+
+  // Round corners
+  const out = document.createElement('canvas'); out.width = fW; out.height = fH;
+  const oc = out.getContext('2d');
+  const cr = 10;
+  oc.beginPath();
+  oc.moveTo(cr, 0); oc.lineTo(fW - cr, 0); oc.quadraticCurveTo(fW, 0, fW, cr);
+  oc.lineTo(fW, fH - cr); oc.quadraticCurveTo(fW, fH, fW - cr, fH);
+  oc.lineTo(cr, fH); oc.quadraticCurveTo(0, fH, 0, fH - cr);
+  oc.lineTo(0, cr); oc.quadraticCurveTo(0, 0, cr, 0);
+  oc.closePath(); oc.clip();
+  oc.drawImage(c, 0, 0);
+
+  // Holographic edge shimmer
+  oc.save();
+  oc.globalCompositeOperation = 'screen';
+  const edgeG = oc.createLinearGradient(0, 0, 0, fH);
+  edgeG.addColorStop(0, 'rgba(255,255,255,0.08)');
+  edgeG.addColorStop(0.5, 'rgba(255,255,255,0)');
+  edgeG.addColorStop(1, 'rgba(255,255,255,0.05)');
+  oc.fillStyle = edgeG; oc.fillRect(0, 0, fW, fH);
+  oc.restore();
+
+  const url = out.toDataURL('image/png');
+  _previewCache[cacheKey] = url;
+  return url;
+}
+
+// PR 3D card definitions — exported for use by initBadgeCard3D
+export { PR_CARD_DEFS };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BADGE CARD — Achievement card style (like rider card but per-badge themed)
