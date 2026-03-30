@@ -1,4 +1,3 @@
 node_modules/
 *.bak
-.claude/settings.local.json
-.claude/worktrees/
+.claude/
