@@ -781,39 +781,40 @@ export async function renderWeatherForecast() {
     <div class="wx-today-gear-list">${gearTips.map(g => `<span class="wx-today-gear-item"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>${g.text}</span>`).join('')}</div>
   </div>` : '';
 
-  const todayHTML = `<div class="wx-today-card card" onclick="navigate('weather')" style="cursor:pointer;background:${scoreBg[todayScore]}">
-    <div class="wx-today-top">
-      <div class="wx-today-main">
-        <div class="wx-today-icon">${todayIcon}</div>
-        <div class="wx-today-info">
-          <div class="wx-today-condition">${todayLabel}</div>
-          <div class="wx-today-temp">${todayHi}°<span class="wx-today-lo"> / ${todayLo}°</span></div>
-        </div>
+  const feelsLike = Math.round(todayHi - (todayWind > 15 ? 3 : 0));
+  const todayHTML = `<div class="wx2-card" onclick="navigate('weather')" style="cursor:pointer">
+    <div class="wx2-hero">
+      <div class="wx2-hero-left">
+        <div class="wx2-location">${location}</div>
+        <div class="wx2-temp">${todayHi}°</div>
+        <div class="wx2-condition">${todayLabel}</div>
+        <div class="wx2-hilo">H:${todayHi}° L:${todayLo}°</div>
       </div>
-      <div class="wx-today-verdict" style="color:${scoreColors[todayScore]}">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="${todayScore === 'good' ? 'M8 14s1.5 2 4 2 4-2 4-2' : todayScore === 'fair' ? 'M8 15h8' : 'M8 17s1.5-2 4-2 4 2 4 2'}"></path><circle cx="9" cy="9" r="1" fill="currentColor" stroke="none"></circle><circle cx="15" cy="9" r="1" fill="currentColor" stroke="none"></circle></svg>
-        <span>${scoreTexts[todayScore]}</span>
+      <div class="wx2-hero-right">
+        <div class="wx2-icon">${todayIcon}</div>
+        <div class="wx2-score" style="color:${scoreColors[todayScore]}">${scoreTexts[todayScore]}</div>
       </div>
     </div>
-    <div class="wx-today-metrics">
-      <div class="wx-today-metric">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"></path></svg>
-        <span class="wx-today-metric-val">${todayWind}</span>
-        <span class="wx-today-metric-unit">${windUnit}</span>
+    <div class="wx2-divider"></div>
+    <div class="wx2-details">
+      <div class="wx2-detail">
+        <div class="wx2-detail-label">Wind</div>
+        <div class="wx2-detail-val">${todayWind} <span>${windUnit}</span></div>
       </div>
-      <div class="wx-today-metric">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C8 8 5 12.5 5 15.5a7 7 0 0 0 14 0C19 12.5 16 8 12 2z"></path></svg>
-        <span class="wx-today-metric-val">${todayPrecip}</span>
-        <span class="wx-today-metric-unit">%</span>
+      <div class="wx2-detail">
+        <div class="wx2-detail-label">Rain</div>
+        <div class="wx2-detail-val">${todayPrecip}<span>%</span></div>
       </div>
-      <div class="wx-today-metric">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"></path></svg>
-        <span class="wx-today-metric-val">${todayHi}°</span>
-        <span class="wx-today-metric-unit">feels ${Math.round(todayHi - (todayWind > 15 ? 3 : 0))}°</span>
+      <div class="wx2-detail">
+        <div class="wx2-detail-label">Feels like</div>
+        <div class="wx2-detail-val">${feelsLike}<span>°</span></div>
+      </div>
+      <div class="wx2-detail" id="wx2AqiSlot">
+        <div class="wx2-detail-label">AQI</div>
+        <div class="wx2-detail-val" id="wx2AqiVal">—</div>
       </div>
     </div>
     ${gearHTML}
-    <div class="wx-today-location">${location}</div>
   </div>`;
 
   if (section && rail) {

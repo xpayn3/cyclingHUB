@@ -1483,6 +1483,17 @@ function _getIntervalsAvatarUrl() {
   return state.athlete?.profile_medium || null;
 }
 
+function _rebuildFloatingProfile(btn, imgHtml) {
+  // Keep level badge in its original absolute position, add name + lvl-label after
+  const icon = imgHtml
+    ? `<div class="floating-profile-avatar">${imgHtml}</div>`
+    : `<svg class="icon" width="20" height="20"><use href="icons.svg#icon-user"/></svg>`;
+  btn.innerHTML = icon
+    + '<span class="floating-profile-lvl" id="floatingProfileLvl"></span>'
+    + '<div class="floating-profile-text"><span class="floating-profile-name" id="floatingProfileName"></span><span class="floating-profile-lvl-label" id="floatingProfileLvlLabel"></span></div>';
+  btn.style.background = imgHtml ? 'none' : '';
+}
+
 function applyAvatar(src) {
   const sidebarAv  = document.getElementById('athleteAvatar');
   const previewAv  = document.getElementById('avatarPreview');
@@ -1495,7 +1506,7 @@ function applyAvatar(src) {
     if (sidebarAv) { sidebarAv.innerHTML = img; sidebarAv.style.background = 'none'; }
     if (previewAv) { previewAv.innerHTML = img; previewAv.style.background = 'none'; }
     if (connAv)    { connAv.innerHTML = img; connAv.style.background = 'none'; }
-    if (floatAv)   { floatAv.innerHTML = img + '<span class="floating-profile-lvl" id="floatingProfileLvl"></span>'; floatAv.style.background = 'none'; }
+    if (floatAv)   { _rebuildFloatingProfile(floatAv, img); }
     if (removeBtn) removeBtn.style.display = hasCustom ? 'inline-flex' : 'none';
   } else {
     // Revert to initials
@@ -1504,7 +1515,7 @@ function applyAvatar(src) {
     if (sidebarAv) { sidebarAv.textContent = initial; sidebarAv.style.background = ''; }
     if (previewAv) { previewAv.textContent = initial; previewAv.style.background = ''; }
     if (connAv)    { connAv.textContent = initial; connAv.style.background = ''; }
-    if (floatAv)   { floatAv.innerHTML = '<svg class="icon"><use href="icons.svg#icon-user"/></svg><span class="floating-profile-lvl" id="floatingProfileLvl"></span>'; floatAv.style.background = ''; }
+    if (floatAv)   { _rebuildFloatingProfile(floatAv, null); }
     if (removeBtn) removeBtn.style.display = 'none';
   }
 }
@@ -2313,11 +2324,35 @@ function updateConnectionUI(connected) {
     if (iosName) iosName.textContent = 'Not Connected';
   }
 
-  // Update floating profile level badge
+  // Update floating profile level badge + name + title
   const floatingLvl = document.getElementById('floatingProfileLvl');
   if (floatingLvl && state.activities?.length) {
     const lvlInfo = getLevel(getTotalXP());
     floatingLvl.textContent = lvlInfo.level;
+    // Athlete name
+    let floatName = document.getElementById('floatingProfileName');
+    if (!floatName) {
+      const btn = document.querySelector('.floating-profile-btn');
+      if (btn) { const s = document.createElement('span'); s.className = 'floating-profile-name'; s.id = 'floatingProfileName'; btn.appendChild(s); floatName = s; }
+    }
+    if (floatName) {
+      const aNameStr = state.athlete?.name || state.athlete?.firstname || localStorage.getItem('icu_athlete_name') || '';
+      floatName.textContent = aNameStr;
+      floatName.style.display = aNameStr ? '' : 'none';
+    }
+    // Level title
+    let floatLvlLabel = document.getElementById('floatingProfileLvlLabel');
+    if (!floatLvlLabel) {
+      const btn = document.querySelector('.floating-profile-btn');
+      if (btn) { const s = document.createElement('span'); s.className = 'floating-profile-lvl-label'; s.id = 'floatingProfileLvlLabel'; btn.appendChild(s); floatLvlLabel = s; }
+    }
+    if (floatLvlLabel) {
+      const _lvlTitles = [[0,'Newbie'],[2,'Pedal Pusher'],[5,'Road Rookie'],[8,'Chain Breaker'],[12,'Hill Hunter'],[16,'Saddle Veteran'],[20,'Peloton Force'],[25,'Breakaway Artist'],[30,'Summit Chaser'],[40,'Iron Legs'],[50,'Domestique Elite'],[65,'Grand Tour Rider'],[80,'Mountain King'],[100,'Yellow Jersey'],[125,'Living Legend'],[150,'Cycling God'],[175,'Maglia Rosa'],[200,'Tour Champion'],[230,'Monument Master'],[260,'Palmares Elite'],[300,'Ventoux Conqueror'],[340,'Galibier Ghost'],[380,'Hour Record Holder'],[420,'GOAT Candidate'],[460,'Eternal Champion'],[500,'Merckx Reborn']];
+      let _lt = 'Newbie';
+      for (const [ml, t] of _lvlTitles) { if (lvlInfo.level >= ml) _lt = t; }
+      floatLvlLabel.textContent = _lt;
+      floatLvlLabel.style.display = _lt ? '' : 'none';
+    }
   }
 
   // Update Import → ICU tab if panel exists
@@ -4571,10 +4606,8 @@ function navigate(page, opts) {
     const achSub = document.getElementById('stkAchSubpage');
     if (achSub) { achSub.style.display = 'none'; achSub.removeAttribute('data-animating'); }
   }
-  document.body.classList.remove('dash-glow');
   // Add dark gradient on goals page
   if (page === 'goals') document.body.classList.add('goals-bg');
-  if (page === 'dashboard') document.body.classList.add('dash-glow');
 
   // Clear scroll restore if navigating anywhere other than activities→activity round-trip
   if (!_restoreActScroll) window._actListScrollRestore = null;
@@ -4666,7 +4699,7 @@ function navigate(page, opts) {
   // Headline — hidden for calendar & routes
   const headline = document.querySelector('.page-headline');
   if (headline) {
-    if (page === 'calendar' || page === 'routes') headline.classList.add('page-headline--hidden');
+    if (page === 'dashboard' || page === 'calendar' || page === 'routes') headline.classList.add('page-headline--hidden');
     else headline.classList.remove('page-headline--hidden');
   }
 
@@ -4742,6 +4775,9 @@ function navigate(page, opts) {
   const _pillPages = ['power', 'fitness'];
   document.getElementById('pageContent')?.classList.toggle('has-scroll-edge', _pillPages.includes(page));
 
+  // Pre-apply widget order before dashboard becomes visible to prevent flash
+  if (page === 'dashboard') _applyWidgetOrder();
+
   // Swap active page — use View Transitions API for smooth cross-fade if available
   const _swapPage = () => {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -4749,7 +4785,7 @@ function navigate(page, opts) {
     document.getElementById('page-' + page)?.classList.add('active');
     document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
   };
-  const _skipTransition = page === 'calendar' || page === 'routes' || state.previousPage === 'calendar' || state.previousPage === 'routes';
+  const _skipTransition = true;
   if (document.startViewTransition && state.previousPage && state.previousPage !== page && !_skipTransition) {
     document.startViewTransition(_swapPage);
   } else {
@@ -4777,7 +4813,7 @@ function navigate(page, opts) {
   if (page === 'dashboard' && state.synced) {
     const rail = document.getElementById('recentActScrollRail');
     if (rail) rail.scrollLeft = 0;
-    renderDashboard();
+    renderDashboard(true);
     // Fire push notification for critical alerts (max 1 per session)
     setTimeout(_notifFirePush, 2000);
   }
@@ -6564,18 +6600,97 @@ function _initRecentActDots(rail, count) {
 }
 
 
+/* ── Recent Activities List (Pencil design) ── */
+function renderRecentActList() {
+  const section   = document.getElementById('recentActListSection');
+  const container = document.getElementById('recentActListContainer');
+  if (!section || !container) return;
+
+  const pool = (state.activities || []).filter(a => !isEmptyActivity(a));
+  if (!pool.length) { section.style.display = 'none'; return; }
+
+  const recent = pool.slice(0, 5);
+  section.style.display = '';
+  container.innerHTML = recent.map((a, i) => _buildRalCardHTML(a, i)).join('');
+
+  recent.forEach((a, i) => {
+    const card = document.getElementById(`ralCard_${i}`);
+    if (card) card.onclick = () => navigateToActivity(a);
+  });
+}
+
+function _ralIconClass(a) {
+  const t = (a.type || a.icu_sport || '').toLowerCase();
+  if (t.includes('virtual') || t.includes('zwift'))   return 'virtual';
+  if (t.includes('run'))                               return 'run';
+  if ((a.total_elevation_gain || a.icu_total_elevation_gain || 0) > 500) return 'climb';
+  if (t.includes('ride') || t.includes('cycling'))     return 'ride';
+  return 'other';
+}
+
+function _ralIconSvg(cls) {
+  const icons = {
+    ride:    'icon-bike',
+    run:     'icon-run',
+    climb:   'icon-mountain',
+    virtual: 'icon-monitor',
+    other:   'icon-activity',
+  };
+  return `<svg class="icon" width="20" height="20"><use href="icons.svg#${icons[cls] || 'icon-activity'}"/></svg>`;
+}
+
+function _buildRalCardHTML(a, idx) {
+  const rawName = (a.name && a.name.trim()) ? a.name.trim() : (a.icu_name || 'Activity');
+  const { title: name } = cleanActivityName(rawName);
+  const dateStr = a.start_date_local || a.start_date || '';
+  const dateObj = dateStr ? new Date(dateStr) : null;
+
+  const dist = actVal(a, 'distance', 'icu_distance');
+  const secs = actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time', 'icu_elapsed_time');
+  const tss  = actVal(a, 'icu_training_load', 'tss');
+
+  // Build meta string: relative date · duration · distance
+  const parts = [];
+  if (dateObj) parts.push(_ralRelDate(dateObj));
+  if (secs > 0) parts.push(fmtDur(secs));
+  if (dist > 0) { const d = fmtDist(dist); parts.push(d.val + ' ' + d.unit); }
+  const meta = parts.join(' · ');
+
+  const iconCls = _ralIconClass(a);
+
+  return `<div class="ral-card" id="ralCard_${idx}">
+    <div class="ral-icon-wrap ral-icon-wrap--${iconCls}">${_ralIconSvg(iconCls)}</div>
+    <div class="ral-info">
+      <div class="ral-name">${name}</div>
+      <div class="ral-meta">${meta}</div>
+    </div>
+    ${tss > 0 ? `<div class="ral-tss-wrap"><span class="ral-tss-val">${Math.round(tss)}</span><span class="ral-tss-label">TSS</span></div>` : ''}
+  </div>`;
+}
+
+function _ralRelDate(d) {
+  const now  = new Date();
+  const diff = Math.floor((now - d) / 86400000);
+  if (diff === 0) return 'Today';
+  if (diff === 1) return 'Yesterday';
+  if (diff < 7)   return d.toLocaleDateString('en-GB', { weekday: 'long' });
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
 /* ====================================================
    WIDGET SYSTEM — show/hide/reorder dashboard sections
 ==================================================== */
 const _WIDGET_DEFS = [
-  { id: 'recentCarousel',  label: 'Recent Activities',       icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-activity"/></svg>' },
-  { id: 'todaySuggestion', label: "Today's Plan",            icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-alert-circle"/></svg>' },
+  { id: 'statCards',        label: 'Stat Cards',              icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-bar-chart"/></svg>' },
   { id: 'trainingStatus',  label: 'Training Status',         icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-activity"/></svg>' },
+  { id: 'todaySuggestion', label: "Today's Plan",            icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-alert-circle"/></svg>' },
   { id: 'weekProgress',    label: 'Week Progress',           icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-calendar"/></svg>' },
   { id: 'goalsTargets',    label: 'Goals',                   icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-target"/></svg>' },
   { id: 'quickLinks',      label: 'My Garage & Route Builder', icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-bike"/></svg>' },
   { id: 'weather',         label: 'Weather',                 icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-cloud"/></svg>' },
+  { id: 'recentCarousel',  label: 'Recent Activities',       icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-activity"/></svg>' },
   { id: 'batteryStatus',   label: 'Batteries',               icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-battery"/></svg>' },
+  { id: 'recentActList',   label: 'Recent Activities List',  icon: '<svg class="icon" width="18" height="18"><use href="icons.svg#icon-activity"/></svg>' },
 ];
 
 function _getWidgetOrder() {
@@ -6700,7 +6815,9 @@ window.closeWidgetEditor = closeWidgetEditor;
 function _resetWidgetLayout() {
   localStorage.removeItem('icu_widget_order');
   localStorage.removeItem('icu_widget_hidden');
+  localStorage.removeItem('icu_dash_sections');
   _applyWidgetOrder();
+  applyDashSectionVisibility();
   // Re-render the editor list in place
   openWidgetEditor();
   showToast('Widget layout reset to default', 'success');
@@ -6870,8 +6987,9 @@ function _initWidgetDragReorder() {
    RENDER DASHBOARD
 ==================================================== */
 let _dashRenderTimer = null;
-function renderDashboard() {
+function renderDashboard(immediate) {
   if (_dashRenderTimer) clearTimeout(_dashRenderTimer);
+  if (immediate) { _renderDashboardImpl(); return; }
   _dashRenderTimer = setTimeout(_renderDashboardImpl, 200);
 }
 function _renderDashboardImpl() {
@@ -7004,6 +7122,35 @@ function _renderDashboardImpl() {
     wkRangeEl.textContent = `${startFmt} – ${endFmt}`;
   }
 
+  // ── Stat Metric Cards (Pencil design) ──
+  const smcRow = document.getElementById('smcRow');
+  if (smcRow) {
+    const smcCards = [
+      { icon: 'activity', label: 'Weekly TSS', val: Math.round(tw.tss), unit: '', cur: tw.tss, prev: lw.tss, color: 'var(--accent)' },
+      { icon: 'map-pin', label: 'Distance', val: tw.dist.toFixed(1), unit: 'km', cur: tw.dist, prev: lw.dist, color: 'var(--blue)' },
+      { icon: 'clock', label: 'Ride Time', val: tw.time.toFixed(1), unit: 'h', cur: tw.time, prev: lw.time, color: 'var(--purple)' },
+      { icon: 'mountain', label: 'Elevation', val: Math.round(tw.elev).toLocaleString(), unit: 'm', cur: tw.elev, prev: lw.elev, color: 'var(--orange)' },
+    ];
+    smcRow.innerHTML = smcCards.map(c => {
+      let trendText = '', trendCls = 'neutral';
+      if (c.cur === 0 && c.prev === 0) { trendText = '—'; }
+      else if (c.prev === 0) { trendText = 'New'; trendCls = 'up'; }
+      else {
+        const pct = (c.cur - c.prev) / c.prev * 100;
+        if (Math.abs(pct) < 1) { trendText = '→ same'; }
+        else { trendText = `${pct > 0 ? '+' : ''}${Math.round(pct)}%`; trendCls = pct > 0 ? 'up' : 'down'; }
+      }
+      return `<div class="smc-card">
+        <div class="smc-label-row">
+          <svg class="icon" width="16" height="16" style="color:${c.color}"><use href="icons.svg#icon-${c.icon}"/></svg>
+          <span class="smc-label">${c.label}</span>
+        </div>
+        <div class="smc-value">${c.val}${c.unit ? ` <span class="smc-unit">${c.unit}</span>` : ''}</div>
+        <span class="smc-trend ${trendCls}">${trendText}</span>
+      </div>`;
+    }).join('');
+  }
+
   const actSubEl = document.getElementById('activitiesSubtitle');
   if (actSubEl) actSubEl.textContent = `Last ${days} days · ${recent.length} activities`;
 
@@ -7034,6 +7181,7 @@ function _renderDashboardImpl() {
   // ── Idle callback: non-critical widgets ──
   _rIC(() => {
     renderRecentActivity();
+    renderRecentActList();
     renderWeatherForecast();
     _fetchAirQuality();
     renderGoalsDashWidget();
@@ -7049,34 +7197,7 @@ function _renderDashboardImpl() {
 function _applyDashGradient() {
   const pc = document.getElementById('pageContent');
   if (!pc) return;
-  // Only apply gradient when dashboard is the active page
-  if (state.currentPage !== 'dashboard') return;
-  const theme = document.documentElement.dataset.theme || 'dark';
-  const _lightThemes = ['light', 'awwwards'];
-  const isLight = _lightThemes.includes(theme);
-  const tsb = state.fitness?.tsb ?? (state.fitness ? (state.fitness.ctl - state.fitness.atl) : null);
-  const base = isLight ? (getComputedStyle(document.documentElement).getPropertyValue('--bg-base').trim() || '#f2f3f5') : '#000000';
-  let top, mid;
-  if (isLight) {
-    // Light theme: soft pastel tints
-    if (tsb == null)   { top = '#e8f5e8'; mid = '#edf2ed'; }
-    else if (tsb > 15) { top = '#d4f0e4'; mid = '#e2f2ea'; }  // peak — soft green
-    else if (tsb > 5)  { top = '#daf0e6'; mid = '#e6f3ec'; }  // fresh — light green
-    else if (tsb > -5) { top = '#f5f0d4'; mid = '#f2eedf'; }  // neutral — soft amber
-    else if (tsb > -15){ top = '#f5ecd0'; mid = '#f2ebdd'; }  // training — warm
-    else if (tsb > -25){ top = '#f5e2c8'; mid = '#f3e8d6'; }  // deep — light orange
-    else               { top = '#f5d4d4'; mid = '#f3e0e0'; }  // overreaching — soft red
-  } else {
-    // Dark theme (default + TdF)
-    if (tsb == null)   { top = '#0f170f'; mid = '#0b120b'; }
-    else if (tsb > 15) { top = '#081f18'; mid = '#051912'; }  // peak/race ready
-    else if (tsb > 5)  { top = '#0a1c14'; mid = '#071610'; }  // fresh
-    else if (tsb > -5) { top = '#1a1a0c'; mid = '#14140a'; }  // neutral
-    else if (tsb > -15){ top = '#1a180c'; mid = '#14120a'; }  // training
-    else if (tsb > -25){ top = '#1e1408'; mid = '#181006'; }  // deep training
-    else               { top = '#1e0c0c'; mid = '#180a0a'; }  // overreaching
-  }
-  pc.style.background = `linear-gradient(180deg, ${top} 0%, ${mid} 12%, ${base} 32%)`;
+  pc.style.background = '';
 }
 window._applyDashGradient = _applyDashGradient;
 
@@ -7332,17 +7453,32 @@ async function _fetchAirQuality() {
 
 function _renderAqiBadge(badge, data) {
   const aqi = data?.current?.european_aqi ?? data?.current?.us_aqi;
-  if (aqi == null) { badge.style.display = 'none'; return; }
+  // Render into new wx2 card slot if available
+  const wx2Val = document.getElementById('wx2AqiVal');
+  const wx2Slot = document.getElementById('wx2AqiSlot');
+  if (wx2Val && aqi != null) {
+    let color;
+    if (aqi <= 20)       color = 'var(--accent)';
+    else if (aqi <= 40)  color = '#f0c429';
+    else if (aqi <= 60)  color = 'var(--orange)';
+    else if (aqi <= 80)  color = 'var(--red)';
+    else                 color = '#9b59ff';
+    wx2Val.innerHTML = `${aqi}`;
+    wx2Val.style.color = color;
+    if (wx2Slot) wx2Slot.style.display = '';
+  } else if (wx2Slot) {
+    wx2Slot.style.display = 'none';
+  }
+  // Legacy badge (hide since merged into card)
+  if (badge) badge.style.display = 'none';
+  if (aqi == null) return;
   const pm25 = data?.current?.pm2_5;
-  let label, color;
-  if (aqi <= 20)       { label = 'Good';      color = 'var(--accent)'; }
-  else if (aqi <= 40)  { label = 'Fair';       color = '#f0c429'; }
-  else if (aqi <= 60)  { label = 'Moderate';   color = 'var(--orange)'; }
-  else if (aqi <= 80)  { label = 'Poor';       color = 'var(--red)'; }
-  else                 { label = 'Very Poor';  color = '#9b59ff'; }
-  badge.innerHTML = `<svg class="icon" width="14" height="14" style="stroke:${color}"><use href="icons.svg#icon-wind"/></svg> AQI ${aqi} · ${label}${pm25 != null ? ` · PM2.5 ${pm25.toFixed(0)}` : ''}`;
-  badge.style.color = color;
-  badge.style.display = '';
+  let label, color2;
+  if (aqi <= 20)       { label = 'Good';      color2 = 'var(--accent)'; }
+  else if (aqi <= 40)  { label = 'Fair';       color2 = '#f0c429'; }
+  else if (aqi <= 60)  { label = 'Moderate';   color2 = 'var(--orange)'; }
+  else if (aqi <= 80)  { label = 'Poor';       color2 = 'var(--red)'; }
+  else                 { label = 'Very Poor';  color2 = '#9b59ff'; }
 }
 
 // ── Reverse Geocoding (Nominatim) ────────────────────────────────────────────
@@ -7898,11 +8034,11 @@ const C_TOOLTIP = {
 // Theme-aware chart color helpers — read CSS vars live
 function _chartTick() {
   const cs = getComputedStyle(document.documentElement);
-  return cs.getPropertyValue('--chart-tick').trim() || (_isDark() ? 'rgba(235,235,245,0.4)' : '#848d9f');
+  return cs.getPropertyValue('--chart-tick').trim() || '#7A8A99';
 }
 function _chartGrid() {
   const cs = getComputedStyle(document.documentElement);
-  return cs.getPropertyValue('--chart-grid').trim() || (_isDark() ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)');
+  return cs.getPropertyValue('--chart-grid').trim() || 'rgba(122,138,153,0.15)';
 }
 function _chartSubgrid() { return _isDark() ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)'; }
 // Keep C_TICK/C_GRID as live-updating objects for backward compat
@@ -8187,7 +8323,7 @@ Chart.register({
 
 // Standard scale pair — pass xGrid:false for bar charts
 function cScales({ xGrid = true, xExtra = {}, yExtra = {} } = {}) {
-  const tick = { color: _chartTick(), font: { size: 10 } };
+  const tick = { color: _chartTick(), font: { size: 10, family: getComputedStyle(document.documentElement).getPropertyValue('--font-ui').trim() || 'Inter, system-ui, sans-serif' } };
   const grid = { color: _chartGrid() };
   return {
     x: { grid: xGrid ? grid : C_NOGRID, ticks: { ...tick, ...xExtra } },
@@ -8262,12 +8398,7 @@ function renderWeekProgress(metric) {
   const todayStr = toDateStr(new Date());
   const today    = new Date();
 
-  // Week start/end using configurable day (state.weekStartDay: 0=Sun, 1=Mon)
-  const thisMonday = getWeekStart(today);
-  const lastMonday = new Date(thisMonday);
-  lastMonday.setDate(thisMonday.getDate() - 7);
-
-  // Build daily maps for all metrics at once, using actVal for proper icu_ fallbacks
+  // Build daily maps for all metrics at once
   const maps = { tss: {}, distance: {}, time: {}, elevation: {} };
   state.activities.filter(a => !isEmptyActivity(a)).forEach(a => {
     const d = (a.start_date_local || a.start_date || '').slice(0, 10);
@@ -8279,38 +8410,44 @@ function renderWeekProgress(metric) {
   });
   const dayMap = maps[metric];
 
-  // Day labels starting from the configured week start
+  // Last 7 days (today = last bar)
+  const dayLabels = [];
+  const last7Data = [];
+  let total7 = 0;
   const allDayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const dayLabels    = Array.from({ length: 7 }, (_, i) => allDayLabels[(state.weekStartDay + i) % 7]);
-  const thisWeekData = [], lastWeekData = [];
-  let thisTotal = 0, lastTotal = 0;
-  let thisCum = 0, lastCum = 0;
-
-  for (let i = 0; i < 7; i++) {
-    const td    = new Date(thisMonday); td.setDate(thisMonday.getDate() + i);
-    const ld    = new Date(lastMonday); ld.setDate(lastMonday.getDate() + i);
-    const tdStr = toDateStr(td);
-    const v1    = tdStr > todayStr ? null : (dayMap[tdStr] || 0);
-    const v2    = dayMap[toDateStr(ld)] || 0;
-    if (v1 !== null) { thisCum += v1; thisTotal += v1; }
-    lastCum += v2; lastTotal += v2;
-    thisWeekData.push(v1 !== null ? thisCum : null);
-    lastWeekData.push(lastCum);
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    const dStr = toDateStr(d);
+    dayLabels.push(i === 0 ? 'Today' : allDayLabels[d.getDay()]);
+    const v = dayMap[dStr] || 0;
+    last7Data.push(v);
+    total7 += v;
   }
 
-  // Stat values
-  document.getElementById('wpThisWeek').textContent = m.fmt(thisTotal);
-  document.getElementById('wpLastWeek').textContent = m.fmt(lastTotal);
+  // Previous 7 days for comparison
+  let prev7Total = 0;
+  for (let i = 13; i >= 7; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    prev7Total += dayMap[toDateStr(d)] || 0;
+  }
+
+  // Stat values (elements may not exist if removed)
+  const wpThis = document.getElementById('wpThisWeek');
+  if (wpThis) wpThis.textContent = m.fmt(total7);
 
   const deltaEl = document.getElementById('wpDelta');
-  if (lastTotal > 0) {
-    const pct  = (thisTotal - lastTotal) / lastTotal * 100;
-    const sign = pct >= 0 ? '+' : '';
-    deltaEl.textContent = `${sign}${pct.toFixed(0)}% vs last week`;
-    deltaEl.style.color = pct >= 0 ? 'var(--accent)' : 'var(--red)';
-  } else {
-    deltaEl.textContent = 'vs last week';
-    deltaEl.style.color = 'var(--text-muted)';
+  if (deltaEl) {
+    if (prev7Total > 0) {
+      const pct  = (total7 - prev7Total) / prev7Total * 100;
+      const sign = pct >= 0 ? '+' : '';
+      deltaEl.textContent = `${sign}${pct.toFixed(0)}% vs prior 7d`;
+      deltaEl.style.color = pct >= 0 ? 'var(--accent)' : 'var(--red)';
+    } else {
+      deltaEl.textContent = 'Last 7 days';
+      deltaEl.style.color = 'var(--text-muted)';
+    }
   }
 
   // Fitness trend (always CTL-based)
@@ -8319,84 +8456,65 @@ function renderWeekProgress(metric) {
   const ctlPrev = computeCTLfromActivities(state.activities, d7);
   const ctlDiff = ctlNow - ctlPrev;
   const ctlEl   = document.getElementById('wpCTLDelta');
-  const ctlSign = ctlDiff >= 0 ? '+' : '';
-  ctlEl.textContent = `CTL ${ctlSign}${ctlDiff.toFixed(1)}`;
-  ctlEl.style.color = ctlDiff > 0.5 ? 'var(--accent)' : ctlDiff < -0.5 ? 'var(--red)' : 'var(--text-secondary)';
+  if (ctlEl) {
+    const ctlSign = ctlDiff >= 0 ? '+' : '';
+    ctlEl.textContent = `CTL ${ctlSign}${ctlDiff.toFixed(1)}`;
+    ctlEl.style.color = ctlDiff > 0.5 ? 'var(--accent)' : ctlDiff < -0.5 ? 'var(--red)' : 'var(--text-secondary)';
+  }
 
   const badgeEl = document.getElementById('wpTrendBadge');
-  const badgeMob = document.getElementById('wpTrendBadgeMobile');
-  if      (ctlDiff > 1.5)  { badgeEl.textContent = '▲ Building';   badgeEl.className = 'wkp-badge wkp-badge--up'; }
-  else if (ctlDiff < -1.5) { badgeEl.textContent = '▼ Declining';  badgeEl.className = 'wkp-badge wkp-badge--down'; }
-  else                     { badgeEl.textContent = '→ Maintaining'; badgeEl.className = 'wkp-badge wkp-badge--flat'; }
-  if (badgeMob) { badgeMob.textContent = badgeEl.textContent; badgeMob.className = 'wkp-badge wkp-mobile-badge ' + badgeEl.className.split(' ').pop(); }
+
+  if (badgeEl) {
+    if      (ctlDiff > 1.5)  { badgeEl.textContent = '▲ Building';    badgeEl.className = 'wkp-badge wkp-badge--up';   badgeEl.style.display = ''; }
+    else if (ctlDiff < -1.5) { badgeEl.textContent = ''; badgeEl.style.display = 'none'; }
+    else                     { badgeEl.textContent = '→ Maintaining'; badgeEl.className = 'wkp-badge wkp-badge--flat'; badgeEl.style.display = ''; }
+  }
 
   // Chart
   const ctx = document.getElementById('weekProgressChart');
   if (!ctx) return;
 
-  const todayIdx = thisWeekData.reduce((idx, v, i) => (v !== null ? i : idx), 0);
+  const barColors = last7Data.map((v, i) => i === 6 ? m.color : m.dimColor);
 
   // Update in-place to avoid destroy/recreate flicker
   if (state.weekProgressChart) {
     const ch = state.weekProgressChart;
     ch.data.labels = dayLabels;
-    ch.data.datasets[0].data = lastWeekData;
-    ch.data.datasets[1].data = thisWeekData;
-    ch.data.datasets[1].borderColor          = m.color;
-    ch.data.datasets[1].backgroundColor      = m.dimColor;
-    ch.data.datasets[1].pointRadius          = thisWeekData.map((_, i) => i === todayIdx ? 9 : 0);
-    ch.data.datasets[1].pointBackgroundColor = m.color;
-    ch.data.datasets[1].pointBorderColor     = 'var(--bg-card)';
-    ch.options.plugins.tooltip.callbacks.label = c => `${c.dataset.label}: ${c.raw != null ? m.tooltip(c.raw) : '—'}`;
+    ch.data.datasets[0].data = last7Data;
+    ch.data.datasets[0].backgroundColor = barColors;
+    ch.data.datasets[0].borderColor = m.color;
+    ch.options.plugins.tooltip.callbacks.label = c => c.raw != null ? m.tooltip(c.raw) : '—';
     ch.update();
     return;
   }
 
   state.weekProgressChart = new Chart(ctx.getContext('2d'), {
-    type: 'line',
+    type: 'bar',
     data: {
       labels: dayLabels,
-      datasets: [
-        {
-          label: 'Last week',
-          data: lastWeekData,
-          borderColor:         'rgba(136,145,168,0.45)',
-          backgroundColor:     'transparent',
-          borderWidth: 2,
-          pointRadius: 0,
-          pointHoverRadius: 6,
-          tension: 0.35,
-          order: 2
-        },
-        {
-          label: 'This week',
-          data: thisWeekData,
-          borderColor:          m.color,
-          backgroundColor:      m.dimColor,
-          borderWidth: 2.5,
-          pointRadius:          thisWeekData.map((_, i) => i === todayIdx ? 9 : 0),
-          pointHoverRadius: 7,
-          pointBackgroundColor: m.color,
-          pointBorderColor:     cssVar('--bg-card'),
-          pointBorderWidth: 2,
-          fill: true,
-          spanGaps: false,
-          tension: 0.35,
-          order: 1
-        }
-      ]
+      datasets: [{
+        label: 'Last 7 days',
+        data: last7Data,
+        backgroundColor: barColors,
+        hoverBackgroundColor: m.color,
+        borderColor: m.color,
+        borderWidth: 0,
+        borderRadius: 4,
+        borderSkipped: false,
+      }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      interaction: { mode: 'indexEager', intersect: false },
+      interaction: { mode: 'index', intersect: false },
       layout: { padding: { top: 12, bottom: 12 } },
       plugins: {
         legend: { display: false },
         tooltip: {
           ...C_TOOLTIP,
+          filter: item => item.raw > 0,
           callbacks: {
-            label: c => `${c.dataset.label}: ${c.raw != null ? m.tooltip(c.raw) : '—'}`
+            label: c => c.raw != null ? m.tooltip(c.raw) : '—'
           }
         }
       },
@@ -8549,9 +8667,7 @@ function drawRampGaugeSVG(rampRate) {
 
 
 // ── Vitality removed — stubs for callers ──
-function _stopVitality() {}
-function _startVitality() {}
-function renderVitality() {}
+// Vitality stubs removed — callers check typeof before calling
 
 
 function renderTrainingStatus() {
@@ -16998,6 +17114,7 @@ function _setAccentFromPicker() {
   const hex = '#' + (document.getElementById('acpHexInput')?.value || '00e5a0');
   _setAccentColor(hex);
 }
+window._setAccentFromPicker = _setAccentFromPicker;
 
 function _acpRenderSwatches() {
   const el = document.getElementById('acpSwatches');
@@ -17173,6 +17290,7 @@ function _acpHexInput(val) {
     _acpRenderSwatches();
   }
 }
+window._acpHexInput = _acpHexInput;
 
 function _setAccentColor(hex) {
   document.documentElement.style.setProperty('--accent', hex);
@@ -22482,6 +22600,11 @@ async function fetchActivityDetail(activityId) {
     actCachePut(activityId, 'detail', result);
     // Save to local folder in background (fire-and-forget)
     if (window._fitOfflineSave) _fitOfflineSave(activityId, 'detail', result);
+    // Backfill gear_id into cached activity list so garage/gear features work
+    if (result.gear_id && state.activities) {
+      const cached = state.activities.find(a => a.id === activityId);
+      if (cached && !cached.gear_id) cached.gear_id = result.gear_id;
+    }
   }
   return result;
 }
@@ -23438,26 +23561,48 @@ function renderActivityBasic(a) {
     if (!el.dataset.glow) { el.dataset.glow = '1'; window.attachCardGlow && window.attachCardGlow(el); }
   });
 
-  // ── Gear used badge ──────────────────────────────────────────────────
+  // ── Gear used card ──────────────────────────────────────────────────
   const gearBadgeEl = document.getElementById('actGearBadge');
   if (gearBadgeEl) {
-    const bikeIcon = `<svg class="icon" width="14" height="14"><use href="icons.svg#icon-bike"/></svg>`;
     const gearId = a.gear_id || a.icu_gear_id || '';
     const bikes = state.gearBikes || JSON.parse(localStorage.getItem('icu_gear_bikes') || '[]');
-    let bikeName = '';
-    if (gearId && bikes.length) {
-      const bike = bikes.find(b => b.id === gearId);
-      if (bike) bikeName = bike.name || gearId;
-    }
-    if (bikeName) {
-      gearBadgeEl.innerHTML = `${bikeIcon} ${_escHtml(bikeName)}`;
+    let bike = null;
+    if (gearId && bikes.length) bike = bikes.find(b => b.id === gearId);
+
+    if (bike) {
+      const photos = _gearLoadPhotos();
+      const bgColors = _gearLoadBgColors();
+      const photo = photos[bike.id];
+      const bgCol = bgColors[bike.id] || 'var(--bg-elevated)';
+      const comps = loadGearComponents().filter(c => c.bikeId === bike.id);
+      const kmFmt = (bike.km || 0).toLocaleString();
+      const photoHtml = photo
+        ? `<img src="${photo}" alt="${_escHtml(bike.name)}">`
+        : `<svg class="icon" width="32" height="32" style="color:var(--text-muted)"><use href="icons.svg#icon-bike"/></svg>`;
+
+      gearBadgeEl.innerHTML = `
+        <div class="act-gear-card" onclick="window._garActiveBike='${bike.id}';navigate('bikedetail')">
+          <div class="act-gear-photo" style="background:${bgCol}">${photoHtml}</div>
+          <div class="act-gear-info">
+            <div class="act-gear-name">${_escHtml(bike.name)}</div>
+            <div class="act-gear-meta">${bike.type || 'Bike'} · ${kmFmt} km · ${comps.length} parts</div>
+          </div>
+          <svg class="icon act-gear-chevron" width="16" height="16"><use href="icons.svg#icon-chevron-right"/></svg>
+        </div>`;
       gearBadgeEl.style.display = '';
     } else if (gearId) {
-      gearBadgeEl.innerHTML = `${bikeIcon} <span style="opacity:0.5">${_escHtml(gearId)}</span>`;
+      gearBadgeEl.innerHTML = `<div class="act-gear-card" style="cursor:default">
+        <div class="act-gear-photo" style="background:var(--bg-elevated)">
+          <svg class="icon" width="20" height="20" style="color:var(--text-muted)"><use href="icons.svg#icon-bike"/></svg>
+        </div>
+        <div class="act-gear-info">
+          <div class="act-gear-name" style="opacity:0.5">${_escHtml(gearId)}</div>
+          <div class="act-gear-meta">Not synced</div>
+        </div>
+      </div>`;
       gearBadgeEl.style.display = '';
     } else {
-      gearBadgeEl.innerHTML = `${bikeIcon} <span style="opacity:0.4">No bike assigned</span>`;
-      gearBadgeEl.style.display = '';
+      gearBadgeEl.style.display = 'none';
     }
   }
 
@@ -29855,7 +30000,7 @@ function gearSwitchTab(tab) {
   _gearActiveTab = tab;
   const tabs = ['components', 'batteries', 'tires'];
   const idx = tabs.indexOf(tab);
-  document.querySelectorAll('#page-gear .gar-tab').forEach(t => t.classList.toggle('active', t.dataset.gear === tab));
+  document.querySelectorAll('#garTabs .gar-tab').forEach(t => t.classList.toggle('active', t.dataset.gear === tab));
   const indicator = document.querySelector('.gar-tab-indicator');
   if (indicator && idx >= 0) indicator.style.transform = `translateX(${idx * 100}%)`;
   tabs.forEach(k => {
@@ -29972,49 +30117,86 @@ function _gearOpenBgColorPicker(bikeId, e) {
 
   const presets = [
     { label: 'None', value: '' },
-    { label: 'Dark', value: '#1a1a1a' },
-    { label: 'Charcoal', value: '#2d2d2d' },
-    { label: 'Navy', value: '#0a1628' },
-    { label: 'Forest', value: '#0a2818' },
-    { label: 'Wine', value: '#2a0a14' },
-    { label: 'Slate', value: '#1e293b' },
-    { label: 'Midnight', value: '#0f172a' },
-    { label: 'Carbon', value: '#111111' },
-    { label: 'Graphite', value: '#374151' },
+    { label: 'Dark', value: '#0e0e0e' },
+    { label: 'Charcoal', value: '#1c1c1c' },
+    { label: 'Navy', value: '#0b1a33' },
+    { label: 'Forest', value: '#0b2210' },
+    { label: 'Wine', value: '#2b0c16' },
+    { label: 'Slate', value: '#161e2c' },
+    { label: 'Midnight', value: '#0a0f1e' },
+    { label: 'Carbon', value: '#0a0a0a' },
+    { label: 'Graphite', value: '#1f2937' },
   ];
 
   // Gradient presets
   const gradients = [
-    { label: 'Sunset', value: 'linear-gradient(135deg, #1a0a2e, #2d1b4e, #4a1942)' },
-    { label: 'Ocean', value: 'linear-gradient(135deg, #0a1628, #0d2847, #0a3d62)' },
-    { label: 'Forest', value: 'linear-gradient(135deg, #0a1a0a, #1a3a1a, #0d2d0d)' },
-    { label: 'Fire', value: 'linear-gradient(135deg, #1a0a0a, #3a1a0a, #2d0d0d)' },
-    { label: 'Steel', value: 'linear-gradient(135deg, #1a1a2e, #2a2a3e, #1a1a2e)' },
-    { label: 'Emerald', value: 'linear-gradient(135deg, #064e3b, #065f46, #047857)' },
+    { label: 'Sunset', value: 'linear-gradient(135deg, #4a1942, #6b2fa0, #2d1b4e)' },
+    { label: 'Ocean', value: 'linear-gradient(135deg, #0c3483, #1565c0, #0a3d62)' },
+    { label: 'Forest', value: 'linear-gradient(135deg, #0d4a2a, #1b6b3a, #064e3b)' },
+    { label: 'Fire', value: 'linear-gradient(135deg, #7f1d1d, #b91c1c, #5c1a0a)' },
+    { label: 'Steel', value: 'linear-gradient(135deg, #334155, #475569, #1e293b)' },
+    { label: 'Emerald', value: 'linear-gradient(135deg, #047857, #059669, #065f46)' },
   ];
+
+  const photos = _gearLoadPhotos();
+  const previewPhoto = photos[bikeId];
+  const previewImg = previewPhoto
+    ? `<img src="${previewPhoto}" style="max-width:100%;max-height:100%;object-fit:contain;padding:12px">`
+    : `<svg class="icon" width="48" height="48" style="color:var(--text-muted)"><use href="icons.svg#icon-bike"/></svg>`;
 
   let html = `<div class="gar-bg-picker">
     <div class="gar-bg-picker-title">Photo Background</div>
+    <div class="gar-bg-preview" id="garBgPreview" style="background:${current || 'var(--bg-card)'}">
+      ${previewImg}
+    </div>
     <div class="gar-bg-picker-section">Solid Colors</div>
     <div class="gar-bg-picker-grid">
       ${presets.map(p => `<button class="gar-bg-swatch${current === p.value ? ' gar-bg-swatch--active' : ''}"
         style="background:${p.value || 'var(--surface-1)'}"
-        onclick="_gearSetBgColor('${bikeId}','${p.value}')">
+        onclick="_gearSetBgColor('${bikeId}','${p.value}',event)">
         ${p.value === '' ? '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="4" x2="20" y2="20"/></svg>' : ''}
       </button>`).join('')}
     </div>
-    <div class="gar-bg-picker-section">Gradients</div>
+    <div class="gar-bg-picker-section">Gradient Builder</div>
+    <div class="gar-grad-builder" id="garGradBuilder">
+      <div class="gar-grad-row">
+        <label class="gar-grad-label">Type</label>
+        <select class="gar-grad-select" id="garGradType" onchange="_garGradUpdate('${bikeId}')">
+          <option value="linear">Linear</option>
+          <option value="radial">Radial</option>
+          <option value="conic">Conic</option>
+        </select>
+      </div>
+      <div class="gar-grad-row" id="garGradAngleRow">
+        <label class="gar-grad-label">Angle</label>
+        <input type="range" class="gar-grad-range" id="garGradAngle" min="0" max="360" value="135" oninput="_garGradUpdate('${bikeId}');document.getElementById('garGradAngleVal').textContent=this.value+'°'">
+        <span class="gar-grad-val" id="garGradAngleVal">135°</span>
+      </div>
+      <div class="gar-grad-row">
+        <label class="gar-grad-label">Start</label>
+        <input type="color" class="gar-grad-color" id="garGradStart" value="#0b1a33" onchange="_garGradUpdate('${bikeId}')" oninput="_garGradUpdate('${bikeId}')">
+      </div>
+      <div class="gar-grad-row">
+        <label class="gar-grad-label">End</label>
+        <input type="color" class="gar-grad-color" id="garGradEnd" value="#000000" onchange="_garGradUpdate('${bikeId}')" oninput="_garGradUpdate('${bikeId}')">
+      </div>
+      <button class="gar-grad-apply" onclick="_garGradApply('${bikeId}')">
+        <svg class="icon" width="16" height="16"><use href="icons.svg#icon-check"/></svg>
+        Apply Gradient
+      </button>
+    </div>
+    <div class="gar-bg-picker-section">Presets</div>
     <div class="gar-bg-picker-grid">
       ${gradients.map(g => `<button class="gar-bg-swatch${current === g.value ? ' gar-bg-swatch--active' : ''}"
         style="background:${g.value}"
-        onclick="_gearSetBgColor('${bikeId}',\`${g.value}\`)">
+        onclick="_gearSetBgColor('${bikeId}',\`${g.value}\`,event)">
       </button>`).join('')}
     </div>
-    <div class="gar-bg-picker-section">Custom</div>
+    <div class="gar-bg-picker-section">Custom Solid</div>
     <div class="gar-bg-picker-custom">
       <input type="color" id="garBgCustomColor" value="${current.startsWith('#') ? current : '#1a1a1a'}"
-        oninput="_gearPreviewBgColor('${bikeId}', this.value)"
-        onchange="_gearCommitBgColor('${bikeId}', this.value)">
+        oninput="_gearDebouncePreview('${bikeId}', this.value)"
+        onblur="_gearCommitBgColor('${bikeId}', this.value)">
       <span>Pick any color</span>
     </div>
   </div>`;
@@ -30030,14 +30212,18 @@ function _gearOpenBgColorPicker(bikeId, e) {
 }
 window._gearOpenBgColorPicker = _gearOpenBgColorPicker;
 
-function _gearSetBgColor(bikeId, color) {
+function _gearSetBgColor(bikeId, color, e) {
   _gearSaveBgColor(bikeId, color);
-  _closeUniSheet();
-  // Re-render the hero photo if on bike detail page
+  // Live update hero photo behind sheet
   const heroPhoto = document.querySelector('.bkd-hero-photo');
   if (heroPhoto) heroPhoto.style.background = color || '';
+  // Live update preview in picker
+  const preview = document.getElementById('garBgPreview');
+  if (preview) preview.style.background = color || 'var(--bg-card)';
+  // Update active state on swatches
+  document.querySelectorAll('.gar-bg-swatch').forEach(s => s.classList.remove('gar-bg-swatch--active'));
+  if (e && e.currentTarget) e.currentTarget.classList.add('gar-bg-swatch--active');
   renderGearPage();
-  showToast(color ? 'Background updated' : 'Background removed', 'success');
 }
 window._gearSetBgColor = _gearSetBgColor;
 
@@ -30051,12 +30237,56 @@ function _gearPreviewBgColor(bikeId, color) {
 }
 window._gearPreviewBgColor = _gearPreviewBgColor;
 
+// Gradient builder — live preview
+function _garGradBuild() {
+  const type = document.getElementById('garGradType')?.value || 'linear';
+  const angle = document.getElementById('garGradAngle')?.value || '135';
+  const start = document.getElementById('garGradStart')?.value || '#0b1a33';
+  const end = document.getElementById('garGradEnd')?.value || '#000000';
+  // Show/hide angle row for radial
+  const angleRow = document.getElementById('garGradAngleRow');
+  if (angleRow) angleRow.style.display = type === 'radial' ? 'none' : '';
+  if (type === 'linear') return `linear-gradient(${angle}deg, ${start}, ${end})`;
+  if (type === 'radial') return `radial-gradient(circle, ${start}, ${end})`;
+  return `conic-gradient(from ${angle}deg, ${start}, ${end}, ${start})`;
+}
+function _garGradUpdate(bikeId) {
+  const grad = _garGradBuild();
+  const preview = document.getElementById('garBgPreview');
+  if (preview) preview.style.background = grad;
+  const heroPhoto = document.querySelector('.bkd-hero-photo');
+  if (heroPhoto) heroPhoto.style.background = grad;
+}
+function _garGradApply(bikeId) {
+  const grad = _garGradBuild();
+  _gearSaveBgColor(bikeId, grad);
+  // Deselect preset swatches
+  document.querySelectorAll('.gar-bg-swatch').forEach(s => s.classList.remove('gar-bg-swatch--active'));
+  renderGearPage();
+}
+window._garGradUpdate = _garGradUpdate;
+window._garGradApply = _garGradApply;
+
+// Debounced preview for custom color picker (visual only, no save)
+let _gearBgPreviewTimer = null;
+function _gearDebouncePreview(bikeId, color) {
+  clearTimeout(_gearBgPreviewTimer);
+  _gearBgPreviewTimer = setTimeout(() => {
+    const preview = document.getElementById('garBgPreview');
+    if (preview) preview.style.background = color;
+    const heroPhoto = document.querySelector('.bkd-hero-photo');
+    if (heroPhoto) heroPhoto.style.background = color;
+  }, 80);
+}
+window._gearDebouncePreview = _gearDebouncePreview;
+
 // Commit custom color on picker close (save + toast, no sheet close)
 function _gearCommitBgColor(bikeId, color) {
   _gearSaveBgColor(bikeId, color);
   const heroPhoto = document.querySelector('.bkd-hero-photo');
   if (heroPhoto) heroPhoto.style.background = color;
-  showToast('Background updated', 'success');
+  const preview = document.getElementById('garBgPreview');
+  if (preview) preview.style.background = color || 'var(--bg-card)';
 }
 window._gearCommitBgColor = _gearCommitBgColor;
 
@@ -30172,24 +30402,22 @@ function renderBikeDetailPage() {
           <svg class="icon" width="14" height="14"><use href="icons.svg#icon-camera"/></svg>
         </button>
       </div>
+    </div>
+    <div class="bkd-hero-body">
       <div class="bkd-hero-info">
-        <h1 class="bkd-hero-name">${bike.name}</h1>
-        <div class="bkd-hero-meta">
-          <span class="gar-bike-km">${kmFmt} km</span>
-          <span class="gar-bike-type">${bike.type}</span>
+        <div class="bkd-hero-name-row">
+          <h1 class="bkd-hero-name">${bike.name}</h1>
+          <button class="bkd-edit-btn" onclick="_bkdOpenEditMenu('${bikeId}',event)" title="Edit bike">
+            <svg class="icon" width="16" height="16"><use href="icons.svg#icon-edit"/></svg>
+          </button>
         </div>
-        <div class="bkd-hero-actions">
-          <button class="bkd-action-btn" onclick="gearTriggerPhotoUpload('${bikeId}',event)">
-            <svg class="icon" width="16" height="16"><use href="icons.svg#icon-camera"/></svg>
-            Photo
-          </button>
-          <button class="bkd-action-btn" onclick="_gearOpenBgColorPicker('${bikeId}')">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20 7 7 0 0 1 0-14 3 3 0 0 1 0 6"/></svg>
-            Background
-          </button>
+        <div class="bkd-hero-meta">
+          <span class="gar-bike-km">${bike.type}</span>
+          <span class="bkd-meta-dot"></span>
+          <span class="gar-bike-type">${kmFmt} km</span>
+          ${localStorage.getItem('icu_primary_bike') === bikeId ? '<span class="bkd-meta-dot"></span><span class="bkd-primary-tag"><svg class="icon" width="12" height="12"><use href="icons.svg#icon-star"/></svg>Primary</span>' : ''}
         </div>
       </div>
-    </div>
 
     <!-- Pill + dropdown injected on body by _bkdShowPill -->
 
@@ -30201,12 +30429,20 @@ function renderBikeDetailPage() {
       <div class="gar-stat-pill"><span class="gar-stat-val">${svcs.length}</span><span class="gar-stat-lbl">Services</span></div>
     </div>
 
+    <!-- Usage graph -->
+    <div class="bkd-usage-wrap">
+      <div class="bkd-usage-header">
+        <span class="bkd-usage-title">Usage</span>
+        <span class="bkd-usage-period">Past 12 months</span>
+      </div>
+      <canvas id="bkdUsageChart" height="100"></canvas>
+    </div>
+
     <!-- Tabs -->
     <div class="gar-tabs" id="garTabs">
       <button class="gar-tab active" data-gear="components" onclick="gearSwitchTab('components')">Components</button>
       <button class="gar-tab" data-gear="batteries" onclick="gearSwitchTab('batteries')">Batteries</button>
       <button class="gar-tab" data-gear="tires" onclick="gearSwitchTab('tires')">Tires</button>
-      <div class="gar-tab-indicator"></div>
     </div>
 
     <!-- Components panel -->
@@ -30263,6 +30499,7 @@ function renderBikeDetailPage() {
         Add Service
       </button>
     </div>
+    </div><!-- /bkd-hero-body -->
   `;
 
   // Reset tab state and render content
@@ -30273,12 +30510,152 @@ function renderBikeDetailPage() {
   renderGearTires();
   renderGearServices();
   renderGearRoi();
+  _renderBikeUsageChart(bikeId);
 
   // Show bike switcher pill on body
   _bkdShowPill(bike.name, _gearBikeCache.length);
+
+  // Parallax: photo scrolls at 40% speed using GPU-accelerated transform
+  const heroPhoto = el.querySelector('.bkd-hero-photo');
+  if (heroPhoto) {
+    let lastY = -1;
+    const onScroll = () => {
+      const top = heroPhoto.getBoundingClientRect().top;
+      if (top > 0) {
+        if (lastY !== 0) { heroPhoto.style.transform = ''; lastY = 0; }
+        return;
+      }
+      const y = Math.round(-top * 0.4);
+      if (y !== lastY) {
+        heroPhoto.style.transform = `translate3d(0,${y}px,0)`;
+        lastY = y;
+      }
+    };
+    _pageListener(window, 'scroll', onScroll, { passive: true });
+  }
 }
 
 /* ── Bike switcher pill (appended to body for correct fixed positioning) ── */
+async function _renderBikeUsageChart(bikeId) {
+  const canvas = document.getElementById('bkdUsageChart');
+  if (!canvas) return;
+  const wrap = canvas.closest('.bkd-usage-wrap');
+
+  // Build 12 months buckets
+  const now = new Date();
+  const months = [];
+  const labels = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({ y: d.getFullYear(), m: d.getMonth() });
+    labels.push(d.toLocaleDateString('en-GB', { month: 'short' }));
+  }
+
+  // Fetch this bike's activities from API (includes gear_id)
+  let bikeActs = [];
+  try {
+    const oldest = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+    const oldestStr = oldest.toISOString().slice(0, 10);
+    const newestStr = now.toISOString().slice(0, 10);
+    const data = await icuFetch(
+      `/athlete/${state.athleteId}/activities?oldest=${oldestStr}&newest=${newestStr}&gear=${bikeId}`
+    );
+    bikeActs = Array.isArray(data) ? data : (data.activities || []);
+  } catch (e) {
+    console.warn('[BikeUsage] API fetch failed, falling back to cache', e);
+  }
+
+  // Backfill gear_id into cached state.activities so activity cards show the bike
+  if (bikeActs.length && state.activities) {
+    const bikeActIds = new Set(bikeActs.map(a => a.id));
+    state.activities.forEach(a => {
+      if (bikeActIds.has(a.id) && !a.gear_id) a.gear_id = bikeId;
+    });
+  }
+
+  // Fallback: try cached activities with gear_id
+  if (!bikeActs.length) {
+    bikeActs = (state.activities || []).filter(a =>
+      (a.gear_id === bikeId || a.icu_gear_id === bikeId) && !isEmptyActivity(a)
+    );
+  }
+
+  const kmPerMonth = months.map(({ y, m }) => {
+    let km = 0;
+    bikeActs.forEach(a => {
+      if (!a.start_date_local && !a.start_date) return;
+      const d = new Date(a.start_date_local || a.start_date);
+      if (d.getFullYear() !== y || d.getMonth() !== m) return;
+      km += ((a.distance || a.icu_distance || 0) / 1000);
+    });
+    return Math.round(km);
+  });
+
+  // Hide if no data
+  if (!kmPerMonth.some(v => v > 0)) { if (wrap) wrap.style.display = 'none'; return; }
+  if (wrap) wrap.style.display = '';
+
+  // Destroy previous chart if exists
+  if (state._bkdUsageChart) { try { state._bkdUsageChart.destroy(); } catch(_){} }
+
+  state._bkdUsageChart = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        data: kmPerMonth,
+        backgroundColor: kmPerMonth.map((v, i) => i === 11 ? 'rgba(0,229,160,0.9)' : 'rgba(0,229,160,0.25)'),
+        borderColor: '#00e5a0',
+        borderWidth: 0,
+        borderRadius: 4,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP, filter: item => item.raw > 0, callbacks: { labelColor: () => ({ backgroundColor: '#00e5a0' }), label: c => `${c.raw} km` } } },
+      scales: {
+        x: {
+          grid: C_NOGRID,
+          ticks: { ...C_TICK },
+          border: { display: false }
+        },
+        y: {
+          display: false,
+          beginAtZero: true,
+        }
+      }
+    }
+  });
+}
+
+function _bkdOpenEditMenu(bikeId, e) {
+  e.stopPropagation();
+  const existing = document.getElementById('bkdEditMenu');
+  if (existing) { existing.remove(); return; }
+
+  const menu = document.createElement('div');
+  menu.id = 'bkdEditMenu';
+  menu.className = 'bkd-edit-menu';
+  menu.innerHTML = `
+    <button onclick="document.getElementById('bkdEditMenu').remove();gearTriggerPhotoUpload('${bikeId}',event)">
+      <svg class="icon" width="18" height="18"><use href="icons.svg#icon-camera"/></svg>Change Photo
+    </button>
+    <button onclick="document.getElementById('bkdEditMenu').remove();_gearOpenBgColorPicker('${bikeId}')">
+      <svg class="icon" width="18" height="18"><use href="icons.svg#icon-image"/></svg>Background Color
+    </button>`;
+  const btn = e.currentTarget;
+  const rect = btn.getBoundingClientRect();
+  menu.style.top = (rect.bottom + 8) + 'px';
+  menu.style.left = Math.min(rect.left, window.innerWidth - 200) + 'px';
+  document.body.appendChild(menu);
+
+  const dismiss = (ev) => { if (!menu.contains(ev.target)) { menu.remove(); document.removeEventListener('pointerdown', dismiss); } };
+  requestAnimationFrame(() => document.addEventListener('pointerdown', dismiss));
+}
+window._bkdOpenEditMenu = _bkdOpenEditMenu;
+
 function _bkdShowPill(bikeName, bikeCount) {
   _bkdHidePill(); // remove any existing
   const pill = document.createElement('div');
@@ -30398,32 +30775,28 @@ async function renderGearPage() {
 
   let bikes = [];
   try {
-    const raw = state.gearBikes;
-    if (raw && raw.length) {
-      bikes = raw;
-    } else {
-      const apiKey = localStorage.getItem('icu_api_key');
-      const athlete = localStorage.getItem('icu_athlete_id');
-      if (apiKey && athlete) {
-        const resp = await fetch(
-          `https://intervals.icu/api/v1/athlete/${athlete}/gear`,
-          { headers: { 'Authorization': 'Basic ' + btoa('API_KEY:' + apiKey) } }
-        );
-        if (resp.ok) {
-          const data = await resp.json();
-          bikes = (data || []).map(g => {
-            // distance may be in meters (g.distance), or already km (g.total_distance_km)
-            let km = 0;
-            if (g.distance) km = Math.round(g.distance / 1000);
-            else if (g.total_distance) km = Math.round(g.total_distance / 1000);
-            else if (g.usage?.total_distance_km) km = Math.round(g.usage.total_distance_km);
-            return { id: g.id, name: g.name || 'Unnamed bike', km, type: g.type || 'Bike' };
-          });
-          state.gearBikes = bikes;
-          try { localStorage.setItem('icu_gear_bikes', JSON.stringify(bikes)); } catch(e) {}
-        }
+    const apiKey = localStorage.getItem('icu_api_key');
+    const athlete = localStorage.getItem('icu_athlete_id');
+    if (apiKey && athlete) {
+      const resp = await fetch(
+        `https://intervals.icu/api/v1/athlete/${athlete}/gear`,
+        { headers: { 'Authorization': 'Basic ' + btoa('API_KEY:' + apiKey) } }
+      );
+      if (resp.ok) {
+        const data = await resp.json();
+        bikes = (data || []).map(g => {
+          let km = 0;
+          if (g.distance) km = Math.round(g.distance / 1000);
+          else if (g.total_distance) km = Math.round(g.total_distance / 1000);
+          else if (g.usage?.total_distance_km) km = Math.round(g.usage.total_distance_km);
+          return { id: g.id, name: g.name || 'Unnamed bike', km, type: g.type || 'Bike' };
+        });
+        state.gearBikes = bikes;
+        try { localStorage.setItem('icu_gear_bikes', JSON.stringify(bikes)); } catch(e) {}
       }
     }
+    // Fallback to cached data if API failed or no credentials
+    if (!bikes.length && state.gearBikes?.length) bikes = state.gearBikes;
   } catch (e) { console.warn('Gear fetch error', e); }
 
   _gearBikeCache = bikes;
@@ -32825,7 +33198,7 @@ function batteryCard(bat) {
     </svg>`;
   }
 
-  const hasUndo = !!bat._prevChargeDate;
+  const hasUndo = !!bat.prevChargeDate;
   return `<div class="gar-bat-card card card--clickable${isObsolete ? ' gar-bat-row--obsolete' : ''}" onclick="openBatDetailSheet('${bat.id}')">
     ${!isObsolete ? (hasUndo
       ? `<button class="gar-bat-charge-fab gar-bat-charge-fab--undo" title="Undo charge" onclick="event.stopPropagation();undoChargeBattery('${bat.id}')">
@@ -33074,6 +33447,11 @@ function chargeBattery(id) {
     btn.disabled = true;
     btn.textContent = 'Charging...';
 
+    // Save immediately — don't wait for animation
+    bat.prevChargeDate = bat.lastChargeDate || null;
+    bat.lastChargeDate = new Date().toISOString().split('T')[0];
+    saveGearBatteries(all);
+
     // Animate fill to 100%
     fill.style.transition = 'height 1.2s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.5s';
     fill.style.height = '100%';
@@ -33091,17 +33469,13 @@ function chargeBattery(id) {
       }
     }, 50);
 
-    // After fill completes — glow effect
+    // After fill completes — glow effect + close
     setTimeout(() => {
       body.classList.add('bat-charge-glow');
       pctEl.style.color = 'var(--accent)';
       btn.textContent = isCoin ? 'Replaced!' : 'Charged!';
 
-      // Save and close — store previous charge date for undo
       setTimeout(() => {
-        bat._prevChargeDate = bat.lastChargeDate || null;
-        bat.lastChargeDate = new Date().toISOString().split('T')[0];
-        saveGearBatteries(all);
         ov.classList.remove('bat-charge-open');
         setTimeout(() => {
           ov.remove();
@@ -33470,9 +33844,9 @@ window.closeBadgeViewer = closeBadgeViewer;
 function undoChargeBattery(id) {
   const all = loadGearBatteries();
   const bat = all.find(b => b.id === id);
-  if (!bat || !bat._prevChargeDate) return;
-  bat.lastChargeDate = bat._prevChargeDate;
-  delete bat._prevChargeDate;
+  if (!bat || !bat.prevChargeDate) return;
+  bat.lastChargeDate = bat.prevChargeDate;
+  delete bat.prevChargeDate;
   saveGearBatteries(all);
   renderGearBatteries();
   if (typeof _renderDashBatteries === 'function') _renderDashBatteries();
@@ -34881,13 +35255,16 @@ function _renderGuideInto(wrap) {
 
 // ── Dashboard section visibility toggles ─────────────────────────────────────
 const DASH_SECTIONS = [
-  { key: 'recentCarousel',    label: 'Recent Activities',            defaultOn: true },
-  { key: 'goalsTargets',      label: 'Goals & Targets',              defaultOn: true },
-  { key: 'vitality',          label: 'Vitality & Level',             defaultOn: true },
-  { key: 'weekProgress',      label: 'Week Progress',                defaultOn: true },
-  { key: 'weeklyStats',       label: 'Weekly Stats',                 defaultOn: true },
-  { key: 'weather',           label: 'Weather Forecast',             defaultOn: true },
+  { key: 'statCards',          label: 'Stat Cards',                   defaultOn: true },
+  { key: 'trainingStatus',    label: 'Training Status',              defaultOn: true },
   { key: 'todaySuggestion',   label: 'Today\'s Plan',                defaultOn: true },
+  { key: 'weekProgress',      label: 'Week Progress',                defaultOn: true },
+  { key: 'goalsTargets',      label: 'Goals & Targets',              defaultOn: true },
+  { key: 'quickLinks',        label: 'My Garage & Route Builder',    defaultOn: true },
+  { key: 'weather',           label: 'Weather Forecast',             defaultOn: true },
+  { key: 'recentCarousel',    label: 'Recent Activities',            defaultOn: true },
+  { key: 'batteryStatus',     label: 'Batteries',                    defaultOn: true },
+  { key: 'recentActList',     label: 'Recent Activities List',      defaultOn: true },
 ];
 
 function loadDashSectionPrefs() {
@@ -41476,8 +41853,6 @@ Object.assign(window, {
   setWeatherModel, renderDashSectionToggles,
   openSettingsSubpage, closeSettingsSubpage, settingsBack,
   setHrZoneSource, setPwrZoneSource, setTssModel, iosSettingsInit,
-  // Vitality shader + Dashboard FAB gooey expand
-  renderVitality,
   // Calendar create/edit event
   icuPost, icuPut, icuDelete, openCalEventModal, closeCalEventModal, saveCalEvent, deleteCalEvent,
   openCevDatePicker, closeCevDate, _cevDateNav, _cevDateSelectToday, _cevDateSelect, _pickCalEvColor,

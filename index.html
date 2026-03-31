@@ -795,6 +795,10 @@
                     <button class="floating-profile-btn" onclick="openProfileModal()" aria-label="Profile">
                         <svg class="icon"><use href="icons.svg#icon-user"/></svg>
                         <span class="floating-profile-lvl" id="floatingProfileLvl"></span>
+                        <div class="floating-profile-text">
+                            <span class="floating-profile-name" id="floatingProfileName"></span>
+                            <span class="floating-profile-lvl-label" id="floatingProfileLvlLabel"></span>
+                        </div>
                     </button>
                     <button class="p2p-status-btn" id="p2pStatusBtn" onclick="navigate('settings');setTimeout(()=>openSettingsSubpage('sync'),400)" aria-label="P2P Sync" style="display:none">
                         <svg class="icon" width="20" height="20"><use href="icons.svg#icon-repeat"/></svg>
@@ -839,7 +843,7 @@
                     <span class="sticky-page-title-text" id="stickyPageTitleText"></span>
                 </div>
                 <!-- ── Page headline ── -->
-                <div class="page-headline">
+                <div class="page-headline page-headline--hidden">
                     <button class="settings-back-btn" id="settingsBackBtn" onclick="closeSettingsSubpage()" style="display:none" aria-label="Back to Settings">
                         <svg class="icon" width="2" height="22"><use href="icons.svg#icon-chevron-left"/></svg>
                     </button>
@@ -853,6 +857,11 @@
 
                 <!-- ==================== DASHBOARD ==================== -->
                 <div class="page" id="page-dashboard">
+                    <!-- ── Stat Metric Cards ── -->
+                    <div data-dash-section="statCards">
+                        <div class="smc-row" id="smcRow"></div>
+                    </div>
+
                     <!-- ── Recent Activities ── -->
                     <div data-dash-section="recentCarousel">
                         <div class="dash-section-header" id="recentActSectionLabel" style="display: none">
@@ -862,7 +871,7 @@
                         <div
                             class="recent-act-scroll-rail"
                             id="recentActScrollRail"
-                        ></div>
+                        ><div style="display:flex;gap:12px;padding:0 4px" id="recentActSkeleton"><div style="width:260px;height:200px;flex-shrink:0;border-radius:var(--radius)" class="skel-block"></div><div style="width:260px;height:200px;flex-shrink:0;border-radius:var(--radius)" class="skel-block"></div></div></div>
                     </div>
 
                     <!-- Today's Plan — merged suggestion + streak + next workout -->
@@ -1060,31 +1069,7 @@
                                             </button>
                                         </div>
                                         <div class="chart-legend">
-                                            <span class="chart-legend-item"
-                                                ><span
-                                                    class="chart-legend-dot"
-                                                    style="
-                                                        background: var(
-                                                            --accent
-                                                        );
-                                                    "
-                                                ></span
-                                                >This week</span
-                                            >
-                                            <span class="chart-legend-item"
-                                                ><span
-                                                    class="chart-legend-dot"
-                                                    style="
-                                                        background: rgba(
-                                                            136,
-                                                            145,
-                                                            168,
-                                                            0.5
-                                                        );
-                                                    "
-                                                ></span
-                                                >Last week</span
-                                            >
+                                            <span class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--accent)"></span>Last 7 days</span>
                                         </div>
                                     </div>
                                 </div>
@@ -1092,67 +1077,7 @@
                                     <div class="wkp-chart">
                                         <canvas id="weekProgressChart"></canvas>
                                     </div>
-                                    <div class="wkp-stats">
-                                        <div class="wkp-stat">
-                                            <div class="wkp-stat-label">
-                                                This week
-                                            </div>
-                                            <div
-                                                class="wkp-stat-val"
-                                                id="wpThisWeek"
-                                            >
-                                                —
-                                            </div>
-                                            <div
-                                                class="wkp-stat-delta"
-                                                id="wpDelta"
-                                            >
-                                                —
-                                            </div>
-                                        </div>
-                                        <div class="wkp-divider"></div>
-                                        <div class="wkp-stat">
-                                            <div class="wkp-stat-label">
-                                                Last week
-                                            </div>
-                                            <div
-                                                class="wkp-stat-val"
-                                                id="wpLastWeek"
-                                            >
-                                                —
-                                            </div>
-                                            <div
-                                                class="wkp-stat-sub"
-                                                id="wpUnit"
-                                            >
-                                                TSS
-                                            </div>
-                                        </div>
-                                        <div class="wkp-divider"></div>
-                                        <div class="wkp-stat">
-                                            <div class="wkp-stat-label">
-                                                Fitness trend
-                                            </div>
-                                            <div
-                                                class="wkp-ctl-delta"
-                                                id="wpCTLDelta"
-                                            >
-                                                —
-                                            </div>
-                                            <div
-                                                class="wkp-badge"
-                                                id="wpTrendBadge"
-                                            >
-                                                —
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div
-                                    class="wkp-badge wkp-mobile-badge"
-                                    id="wpTrendBadgeMobile"
-                                >
-                                    —
+                                    <!-- stats row removed -->
                                 </div>
                             </div>
 
@@ -1191,7 +1116,6 @@
                     <!-- Riding weather forecast (filled by renderWeatherForecast) -->
                     <div data-dash-section="weather" id="forecastSection" style="display:none">
                         <div id="forecastRail" onclick="navigate('weather')" style="cursor:pointer"></div>
-                        <div class="dash-aqi-badge" id="dashAqiBadge" style="display:none"></div>
                     </div>
 
                     <!-- Training Load, Cycling Trends, Power Curve, etc. moved to Fitness/Training pages -->
@@ -1205,7 +1129,15 @@
                         <div class="dash-bat-grid" id="dashBatGrid"></div>
                     </div>
 
-                    <!-- recentTable removed — carousel already shows recent rides -->
+                    <!-- ── Recent Activities List (Pencil design) ── -->
+                    <div data-dash-section="recentActList" id="recentActListSection" style="display:none">
+                        <div class="ral-header">
+                            <span class="ral-title">Recent Activities</span>
+                            <a href="#" class="ral-see-all" onclick="navigate('activities');return false">See All</a>
+                        </div>
+                        <div class="ral-list" id="recentActListContainer"></div>
+                    </div>
+
                     <div class="page-version" id="appVersionFooter">CycleIQ</div>
                 </div>
 
@@ -1828,7 +1760,6 @@
                         <div class="card-header">
                             <div>
                                 <div class="card-title">Ride Power Curve</div>
-                                <div class="card-subtitle" id="detailCurveSubtitle" style="display:none">Best efforts this ride</div>
                             </div>
                             <div class="curve-legend" id="detailCurveLegend" style="display:none"></div>
                         </div>
@@ -5398,16 +5329,6 @@
                         </div>
                     </div>
 
-                    <!-- Route detail overlay (slides in when a ride/route is selected) -->
-                    <div class="lib-detail" id="libDetail" style="display:none">
-                        <div class="lib-detail-header">
-                            <button class="lib-detail-back" onclick="_libCloseDetail()">
-                                <svg class="icon" width="18" height="18"><use href="icons.svg#icon-chevron-left"/></svg>
-                            </button>
-                            <span class="lib-detail-title" id="libDetailTitle"></span>
-                        </div>
-                        <div class="lib-detail-body" id="libDetailBody"></div>
-                    </div>
                 </div>
 
                 <!-- Keep old page IDs as hidden redirects -->
