@@ -88,7 +88,7 @@ try {
 }
 
 // ── Copy static assets ──
-const copyFiles = ['manifest.json', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'proxy.js'];
+const copyFiles = ['manifest.json', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'icon.png', 'apple-touch-icon.png', 'icons.svg', 'proxy.js', 'Bicycle_example.jpg', 'Bicycle_example_02.jpg'];
 copyFiles.forEach(f => {
   const src = path.join(SRC, f);
   if (fs.existsSync(src)) {
@@ -96,6 +96,20 @@ copyFiles.forEach(f => {
     console.log(`  COPY ${f}`);
   }
 });
+
+// ── Copy img/ directory recursively ──
+function copyDirSync(src, dest) {
+  if (!fs.existsSync(src)) return;
+  fs.mkdirSync(dest, { recursive: true });
+  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    if (entry.isDirectory()) copyDirSync(srcPath, destPath);
+    else fs.copyFileSync(srcPath, destPath);
+  }
+}
+copyDirSync(path.join(SRC, 'img'), path.join(DIST, 'img'));
+console.log(`  COPY img/ (recursive)`);
 
 // ── Process index.html — update references to minified files ──
 let html = fs.readFileSync(path.join(SRC, 'index.html'), 'utf8');
