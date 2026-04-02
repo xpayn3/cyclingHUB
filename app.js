@@ -508,7 +508,7 @@ function lazyRenderChart(canvasId, renderFn) {
 
 /* ── Chart cleanup on page navigation ── */
 const _pageChartKeys = {
-  dashboard: ['weekProgressChart', 'fitnessChart', '_dashFormChart', 'weeklyChart', 'avgPowerChart', 'efSparkChart', 'powerCurveChart', 'powerProfileRadarChart', 'cyclingTrendsChart', 'monotonyChart', 'aeChart', 'rampRateChart', 'pwrHrScatterChart'],
+  dashboard: ['weekProgressChart', 'fitnessChart', '_dashFormChart', 'avgPowerChart', 'efSparkChart', 'powerCurveChart', 'powerProfileRadarChart', 'cyclingTrendsChart', 'monotonyChart', 'aeChart', 'rampRateChart', 'pwrHrScatterChart'],
   fitness:   ['fitnessPageChart', '_fitFormChart', 'fitnessWeeklyPageChart', '_fitZonePieChart', 'fitFatigueChart', 'fitFtpHistChart', 'fitPeriodChart', 'healthRHRChart', 'healthHRVChart', 'healthStepsChart', 'healthWeightChart', 'insightHrvTssChart', 'insightRhrCtlChart', 'insightTssWeightChart', 'insightStepsHrvChart', '_fitCTChart', '_fitWTChart', '_fitMonoChart', '_fitAeChart', '_fitRampChart', '_fitWxChart', '_wifChart', '_fitStrainRecovChart'],
   power:     ['powerPageChart', 'powerTrendChart', '_pwrPageScatterChart', '_pwrPageProfileChart', '_pwrPageAvgChart'],
   zones:     ['znpZoneTimeChart', '_znpDecoupleChart'],
@@ -529,8 +529,6 @@ function _pageListener(el, event, handler, opts) {
 }
 
 function cleanupPageCharts(leavingPage) {
-  // Stop vitality shader animation when leaving dashboard
-  if (leavingPage === 'dashboard' && typeof _stopVitality === 'function') _stopVitality();
   if (leavingPage === 'calendar') _calReturnPanel();
   // Run and clear any registered cleanup callbacks
   while (_pageCleanupFns.length) { try { _pageCleanupFns.pop()(); } catch(_){} }
@@ -725,6 +723,8 @@ const _ACT_CACHE_FIELDS = [
   'gear_id', 'icu_gear_id',
   'icu_achievements', 'icu_ftp',
   'weather_temp', 'weather_icon', 'weather_wind_speed',
+  'icu_zone_times',
+  'power_zone_time', 'icu_power_zone_time', 'hr_zone_time', 'icu_hr_zone_time',
 ];
 
 function _trimActivity(a) {
@@ -5657,7 +5657,7 @@ function _cleanupCardGrid(containerId) {
   window._actCardGridState[containerId] = null;
 }
 
-const CARD_MAP_CONC = 2; // max simultaneous map renders
+const CARD_MAP_CONC = 4; // max simultaneous map renders
 
 function _ensureCardMapObserver(containerId) {
   const ls = window._actCardGridState[containerId];
@@ -5672,7 +5672,7 @@ function _ensureCardMapObserver(containerId) {
       ls.mapQueue.push(mapEl);
     }
     _drainCardMapQueue(containerId);
-  }, { rootMargin: '200px 0px' }); // start loading 200px before visible
+  }, { rootMargin: '600px 0px' }); // start loading 600px before visible
 }
 
 function _drainCardMapQueue(containerId) {
@@ -7151,7 +7151,6 @@ function _renderDashboardImpl() {
   renderTodaySuggestion();
   _renderDashStreak();
   _applyWidgetOrder();
-  _applyDashGradient();
 
   // ── Deferred: below-fold charts (lazy-loaded on scroll) ──
   lazyRenderChart('weeklyTssChart', () => renderWeeklyChart(recent));
@@ -7179,12 +7178,6 @@ function _renderDashboardImpl() {
   });
 }
 
-function _applyDashGradient() {
-  const pc = document.getElementById('pageContent');
-  if (!pc) return;
-  pc.style.background = '';
-}
-window._applyDashGradient = _applyDashGradient;
 
 function _injectEditWidgetsBtn() {
   const dash = document.getElementById('page-dashboard');
@@ -8419,50 +8412,7 @@ function renderWeekProgress(metric) {
     total7 += v;
   }
 
-  // Previous 7 days for comparison
-  let prev7Total = 0;
-  for (let i = 13; i >= 7; i--) {
-    const d = new Date(today);
-    d.setDate(today.getDate() - i);
-    prev7Total += dayMap[toDateStr(d)] || 0;
-  }
 
-  // Stat values (elements may not exist if removed)
-  const wpThis = document.getElementById('wpThisWeek');
-  if (wpThis) wpThis.textContent = m.fmt(total7);
-
-  const deltaEl = document.getElementById('wpDelta');
-  if (deltaEl) {
-    if (prev7Total > 0) {
-      const pct  = (total7 - prev7Total) / prev7Total * 100;
-      const sign = pct >= 0 ? '+' : '';
-      deltaEl.textContent = `${sign}${pct.toFixed(0)}% vs prior 7d`;
-      deltaEl.style.color = pct >= 0 ? 'var(--accent)' : 'var(--red)';
-    } else {
-      deltaEl.textContent = 'Last 7 days';
-      deltaEl.style.color = 'var(--text-muted)';
-    }
-  }
-
-  // Fitness trend (always CTL-based)
-  const d7      = new Date(today); d7.setDate(d7.getDate() - 7);
-  const ctlNow  = computeCTLfromActivities(state.activities, today);
-  const ctlPrev = computeCTLfromActivities(state.activities, d7);
-  const ctlDiff = ctlNow - ctlPrev;
-  const ctlEl   = document.getElementById('wpCTLDelta');
-  if (ctlEl) {
-    const ctlSign = ctlDiff >= 0 ? '+' : '';
-    ctlEl.textContent = `CTL ${ctlSign}${ctlDiff.toFixed(1)}`;
-    ctlEl.style.color = ctlDiff > 0.5 ? 'var(--accent)' : ctlDiff < -0.5 ? 'var(--red)' : 'var(--text-secondary)';
-  }
-
-  const badgeEl = document.getElementById('wpTrendBadge');
-
-  if (badgeEl) {
-    if      (ctlDiff > 1.5)  { badgeEl.textContent = '▲ Building';    badgeEl.className = 'wkp-badge wkp-badge--up';   badgeEl.style.display = ''; }
-    else if (ctlDiff < -1.5) { badgeEl.textContent = ''; badgeEl.style.display = 'none'; }
-    else                     { badgeEl.textContent = '→ Maintaining'; badgeEl.className = 'wkp-badge wkp-badge--flat'; badgeEl.style.display = ''; }
-  }
 
   // Chart
   const ctx = document.getElementById('weekProgressChart');
@@ -8665,8 +8615,6 @@ function drawRampGaugeSVG(rampRate) {
 }
 
 
-// ── Vitality removed — stubs for callers ──
-// Vitality stubs removed — callers check typeof before calling
 
 
 function renderTrainingStatus() {
@@ -9075,32 +9023,6 @@ function renderFitnessChart(activities, days) {
   }
 }
 
-function renderWeeklyChart(activities) {
-  const canvas = document.getElementById('weeklyTssChart');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  state.weeklyChart = destroyChart(state.weeklyChart);
-  const weeks = {};
-  activities.forEach(a => {
-    const d  = new Date(a.start_date_local || a.start_date);
-    const wk = weekKey(d);
-    weeks[wk] = (weeks[wk] || 0) + (a.icu_training_load || a.tss || 0);
-  });
-  const entries = Object.entries(weeks).sort((a, b) => a[0].localeCompare(b[0])).slice(-8);
-  state.weeklyChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: entries.map(([k]) => 'W' + k.slice(-2)),
-      datasets: [{ data: entries.map(([, v]) => Math.round(v)), backgroundColor: ACCENT, borderColor: ACCENT, hoverBackgroundColor: ACCENT, borderRadius: 4 }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP, callbacks: { label: c => `${c.raw} TSS` } } },
-      scales: cScales({ xGrid: false, yExtra: { maxTicksLimit: 4 } })
-    }
-  });
-}
 
 /* ====================================================
    CYCLING TRENDS — Energy System TSS Breakdown
@@ -11139,10 +11061,10 @@ function renderPowerProfileRadar(cardId, canvasId, subId) {
     chart.update('none');
     if (idx < 0) {
       _pprTooltip.style.display = 'none';
-      canvas.style.cursor = '';
+      _canvasEl.style.cursor = '';
       return;
     }
-    canvas.style.cursor = 'pointer';
+    _canvasEl.style.cursor = 'pointer';
     const opts = chart.options.plugins.pprRing;
     const w = opts.rawWatts[idx];
     const wkg = opts.rawWkg[idx];
@@ -11167,14 +11089,15 @@ function renderPowerProfileRadar(cardId, canvasId, subId) {
     const chart = state.powerProfileRadarChart;
     if (chart) { chart.options.plugins.pprRing._hoverIndex = -1; chart.update('none'); }
     if (_pprTooltip) _pprTooltip.style.display = 'none';
-    canvas.style.cursor = '';
+    _canvasEl.style.cursor = '';
   }
 
-  canvas.addEventListener('mousemove', pprOnMove);
-  canvas.addEventListener('mouseleave', pprOnLeave);
+  if (!_canvasEl) return;
+  _canvasEl.addEventListener('mousemove', pprOnMove);
+  _canvasEl.addEventListener('mouseleave', pprOnLeave);
   _pageCleanupFns.push(() => {
-    canvas.removeEventListener('mousemove', pprOnMove);
-    canvas.removeEventListener('mouseleave', pprOnLeave);
+    _canvasEl.removeEventListener('mousemove', pprOnMove);
+    _canvasEl.removeEventListener('mouseleave', pprOnLeave);
     if (_pprTooltip) _pprTooltip.style.display = 'none';
   });
 }
@@ -27872,6 +27795,26 @@ function renderDetailLRBalance(streams, activity) {
 }
 
 
+function _zoneToggle(el) {
+  const card = el.closest('.card') || el.parentElement;
+  const pills = card.querySelectorAll('.zone-pill');
+  const newState = el.dataset.showTime === '1' ? '0' : '1';
+  pills.forEach(p => {
+    p.dataset.showTime = newState;
+    const val = p.querySelector('.zp-val');
+    const newText = newState === '1' ? p.dataset.dur : p.dataset.pct;
+    // Animate: slide out → change text → slide in
+    val.classList.add('zp-val--out');
+    setTimeout(() => {
+      val.textContent = newText;
+      val.classList.remove('zp-val--out');
+      val.classList.add('zp-val--in');
+      setTimeout(() => val.classList.remove('zp-val--in'), 200);
+    }, 150);
+  });
+}
+window._zoneToggle = _zoneToggle;
+
 function renderDetailZones(activity) {
   const card = document.getElementById('detailZonesCard');
   if (!card) return;
@@ -27906,14 +27849,12 @@ function renderDetailZones(activity) {
     const pct   = totalSecs > 0 ? Math.round(secs / totalSecs * 100) : 0;
     const color = ZONE_HEX[i];
     if (secs === 0) return '';
-    return `<div class="detail-zone-row">
-      <span class="detail-zone-tag" style="color:${color}">${ZONE_TAGS[i]}</span>
-      <span class="detail-zone-name">${ZONE_NAMES[i]}</span>
-      <div class="detail-zone-bar-track">
-        <div class="detail-zone-bar-fill" style="width:${pct}%;background:${color}"></div>
-      </div>
-      <span class="detail-zone-time">${secs > 0 ? fmtDur(secs) : '—'}</span>
-      <span class="detail-zone-pct" style="color:${color}">${pct}%</span>
+    const vis = Math.round(Math.sqrt(pct / 100) * 100); // boost small bars
+    return `<div class="zone-pill" data-show-time="0" data-pct="${pct}%" data-dur="${fmtDur(secs)}" onclick="_zoneToggle(this)">
+      <div class="zp-fill" style="width:${vis}%;background:${color}"></div>
+      <span class="zp-tag" style="color:${color}">${ZONE_TAGS[i]}</span>
+      <span class="zp-name">${ZONE_NAMES[i]}</span>
+      <span class="zp-val">${pct}%</span>
     </div>`;
   }).join('');
 
@@ -27994,14 +27935,12 @@ function renderDetailHRZones(activity) {
     const tag   = `Z${i + 1}`;
     const name  = HR_ZONE_NAMES[i] || tag;
     if (secs === 0) return '';
-    return `<div class="detail-zone-row">
-      <span class="detail-zone-tag" style="color:${color}">${tag}</span>
-      <span class="detail-zone-name">${name}</span>
-      <div class="detail-zone-bar-track">
-        <div class="detail-zone-bar-fill" style="width:${pct}%;background:${color}"></div>
-      </div>
-      <span class="detail-zone-time">${secs > 0 ? fmtDur(secs) : '—'}</span>
-      <span class="detail-zone-pct" style="color:${color}">${pct}%</span>
+    const vis = Math.round(Math.sqrt(pct / 100) * 100);
+    return `<div class="zone-pill" data-show-time="0" data-pct="${pct}%" data-dur="${fmtDur(secs)}" onclick="_zoneToggle(this)">
+      <div class="zp-fill" style="width:${vis}%;background:${color}"></div>
+      <span class="zp-tag" style="color:${color}">${tag}</span>
+      <span class="zp-name">${name}</span>
+      <span class="zp-val">${pct}%</span>
     </div>`;
   }).join('');
 
@@ -37737,45 +37676,49 @@ let _hashSetupPending = false;
 })();
 
 /* ── Splash screen dismissal ── */
+function _splashMsg(text) {
+  const el = document.getElementById('splashStatus');
+  if (el) el.textContent = text;
+}
 function _dismissSplash() {
   const el = document.getElementById('splashScreen');
   if (!el || el.classList.contains('splash-hidden')) return;
-  el.classList.add('splash-hidden');
-  el.addEventListener('transitionend', () => el.remove(), { once: true });
-  // Fallback removal if transitionend doesn't fire (reduced-motion, etc.)
-  setTimeout(() => { if (el.parentNode) el.remove(); }, 600);
+  _splashMsg('Ready');
+  requestAnimationFrame(() => {
+    el.classList.add('splash-hidden');
+    el.addEventListener('transitionend', () => el.remove(), { once: true });
+    setTimeout(() => { if (el.parentNode) el.remove(); }, 700);
+  });
 }
 // Max timeout — never block longer than 2 seconds
 const _splashTimer = setTimeout(_dismissSplash, 2000);
 
 const hasCredentials = loadCredentials();
 if (hasCredentials) {
-  // Pre-load cached activities so pages render instantly,
-  // then syncData() will fetch only what's new in the background.
+  _splashMsg('Loading activities…');
   const cached = loadActivityCache();
   if (cached) {
     state.activities = cached.activities;
+    _splashMsg('Loading fitness data…');
     loadFitnessCache();
     updateSidebarCTL();
     state.synced = true;
     updateConnectionUI(true);
     updateLastSyncLabel(cached.lastSync);
-    // Cache loaded — dismiss splash immediately
     clearTimeout(_splashTimer);
     requestAnimationFrame(_dismissSplash);
   } else {
     updateConnectionUI(false);
   }
-  // Always load lifetime cache (independent of activity cache)
+  _splashMsg('Loading lifetime data…');
   const ltCached = loadLifetimeCache();
   if (ltCached) {
     state.lifetimeActivities = ltCached.activities;
     state.lifetimeLastSync   = ltCached.lastSync;
   }
-  // navigate(_startPage) is deferred to end of file so all declarations (e.g. _hm) are ready
+  _splashMsg('Syncing…');
   syncData();
 } else {
-  // No credentials — dismiss splash and show connect modal
   clearTimeout(_splashTimer);
   requestAnimationFrame(_dismissSplash);
   openModal();
@@ -38455,8 +38398,6 @@ document.addEventListener('visibilitychange', () => {
   if (_poll.enabled) pollUpdateStatusUI();
   if (document.hidden) {
     _rlStopTick();
-    // Stop vitality RAF loop
-    if (typeof _stopVitality === 'function') _stopVitality();
     // Stop weather radar animation
     pauseWeatherRadar();
     // Pause P2P discovery scanning (saves network + battery)
@@ -38465,8 +38406,6 @@ document.addEventListener('visibilitychange', () => {
     document.documentElement.classList.add('tab-hidden');
   } else {
     if (state.currentPage === 'settings') _rlStartTick();
-    // Restart vitality if on dashboard
-    if (state.currentPage === 'dashboard' && typeof _startVitality === 'function') _startVitality();
     // Resume P2P discovery if enabled
     if (_peerInstance && !_peerDiscoverTimer && !_peerConn && localStorage.getItem('icu_p2p_enabled') === 'true') {
       _peerStartDiscoveryTimer();
@@ -38716,7 +38655,7 @@ function _mrRenderSection(containerId, html) {
             if (_mrMapQueue.length) _mrMapQueue.shift()();
           });
         };
-        if (_mrMapActive < 3) job(); else _mrMapQueue.push(job);
+        if (_mrMapActive < 4) job(); else _mrMapQueue.push(job);
       } else if (routeId && window._mrRouteLookup?.[routeId]) {
         // Saved route: render MapLibre map with routePoints polyline
         const route = window._mrRouteLookup[routeId];
@@ -38748,11 +38687,11 @@ function _mrRenderSection(containerId, html) {
             });
             map.on('error', () => { _mrMapActive--; if (_mrMapQueue.length) _mrMapQueue.shift()(); });
           };
-          if (_mrMapActive < 3) job(); else _mrMapQueue.push(job);
+          if (_mrMapActive < 4) job(); else _mrMapQueue.push(job);
         }
       }
     });
-  }, { rootMargin: '200px' });
+  }, { rootMargin: '600px' });
   mapEls.forEach(m => observer.observe(m));
   // Store for cleanup
   if (!window._mrMaps) window._mrMaps = [];

@@ -998,9 +998,7 @@ export function hmRedraw() {
     _hm.map.easeTo({ pitch: 0, bearing: 0, duration: 600 });
   }
 
-  if (mode === 'heat') {
-    _hmDrawHeat(routes);
-  } else if (mode === 'lines') {
+  if (mode === 'lines') {
     _hmDrawLines(routes);
   } else if (mode === 'speed') {
     _hmDrawBySpeed(routes);
@@ -1116,107 +1114,7 @@ export function _hmDensifyPoints(points, maxGap) {
   return out;
 }
 
-export function _hmDrawHeat(routes) {
-  // ── Spatial density: bin segments into a grid, count overlaps ──
-  const CELL = 0.002; // ~200m grid cells
-  const grid = new Map();
 
-  // Pass 1: count how many routes pass through each cell
-  routes.forEach(r => {
-    const pts = r.points;
-    const visited = new Set(); // one hit per route per cell
-    for (let i = 0; i < pts.length; i++) {
-      const key = (Math.floor(pts[i][0] / CELL)) + ',' + (Math.floor(pts[i][1] / CELL));
-      if (!visited.has(key)) {
-        visited.add(key);
-        grid.set(key, (grid.get(key) || 0) + 1);
-      }
-    }
-  });
-
-  // Find max count for normalization (use log scale for better spread)
-  let maxCount = 0;
-  grid.forEach(v => { if (v > maxCount) maxCount = v; });
-  const logMax = Math.log(maxCount + 1);
-
-  // Pass 2: build segment features with density (cap at 100k features to prevent OOM)
-  const MAX_HEAT_FEATURES = 100000;
-  const features = [];
-  // Decimate if too many routes — skip every Nth segment
-  const totalSegs = routes.reduce((s, r) => s + Math.max(0, r.points.length - 1), 0);
-  const segStep = totalSegs > MAX_HEAT_FEATURES ? Math.ceil(totalSegs / MAX_HEAT_FEATURES) : 1;
-  let segCount = 0;
-  routes.forEach(r => {
-    const pts = r.points;
-    if (pts.length < 2) return;
-    for (let i = 1; i < pts.length; i++) {
-      if (++segCount % segStep !== 0) continue;
-      const a = pts[i - 1], b = pts[i];
-      const ka = (Math.floor(a[0] / CELL)) + ',' + (Math.floor(a[1] / CELL));
-      const kb = (Math.floor(b[0] / CELL)) + ',' + (Math.floor(b[1] / CELL));
-      const count = Math.max(grid.get(ka) || 0, grid.get(kb) || 0);
-      const density = logMax > 0 ? Math.log(count + 1) / logMax : 0;
-      features.push({
-        type: 'Feature',
-        properties: { d: Math.round(density * 1000) / 1000 },
-        geometry: { type: 'LineString', coordinates: [[a[1], a[0]], [b[1], b[0]]] },
-      });
-    }
-  });
-
-  // ── Infrared color ramp (inferno palette) ──
-  const infrared = [
-    'interpolate', ['linear'], ['get', 'd'],
-    0,    '#0d0221',
-    0.15, '#1a0a3e',
-    0.3,  '#5f1080',
-    0.5,  '#c4162a',
-    0.7,  '#e85d10',
-    0.85, '#f5c731',
-    1.0,  '#fcffa4',
-  ];
-
-  const srcId = 'hm-heat-src';
-  _hm.map.addSource(srcId, {
-    type: 'geojson',
-    data: { type: 'FeatureCollection', features },
-  });
-
-  // Glow layer (wider, soft)
-  const glowId = 'hm-heat-glow';
-  _hm.map.addLayer({
-    id: glowId, type: 'line', source: srcId,
-    paint: {
-      'line-color': infrared,
-      'line-width': ['interpolate', ['linear'], ['zoom'], 0, 2, 10, 5, 14, 8, 17, 14],
-      'line-opacity': ['interpolate', ['linear'], ['get', 'd'], 0, 0.15, 0.5, 0.3, 1, 0.5],
-      'line-blur': ['interpolate', ['linear'], ['zoom'], 0, 1, 10, 2, 14, 3, 17, 4],
-    },
-    layout: { 'line-cap': 'round', 'line-join': 'round' },
-  });
-
-  // Main line layer (crisp, bright)
-  const mainId = 'hm-heat-main';
-  _hm.map.addLayer({
-    id: mainId, type: 'line', source: srcId,
-    paint: {
-      'line-color': infrared,
-      'line-width': ['interpolate', ['linear'], ['zoom'], 0, 1, 10, 1.5, 14, 2.5, 17, 4],
-      'line-opacity': ['interpolate', ['linear'], ['get', 'd'], 0, 0.4, 0.3, 0.65, 1, 0.95],
-    },
-    layout: { 'line-cap': 'round', 'line-join': 'round' },
-  });
-
-  _hm._sourceIds = (_hm._sourceIds || []).concat(srcId);
-  _hm._layerIds  = (_hm._layerIds  || []).concat(glowId, mainId);
-  _hm.heatLayer = mainId;
-
-  _hmUpdateLegend(`
-    <span style="color:#1a0a3e">Low</span>
-    <div class="hm-legend-gradient"></div>
-    <span style="color:#fcffa4">High</span>
-  `);
-}
 
 /* ── Lines mode (MapLibre GeoJSON lines) ── */
 export function _hmDrawLines(routes) {
@@ -2032,50 +1930,4 @@ function _hmDrawContour(routes) {
 }
 
 /* ── ColumnLayer — 3D bars per area showing ride count ── */
-function _hmDrawColumns(routes) {
-  // Bin routes into grid cells by start point
-  const cellSize = window._hmcolRadius ?? 500;
-  const bins = {};
-  routes.forEach(r => {
-    if (!r.points || !r.points.length) return;
-    const lat = r.points[0][0], lng = r.points[0][1];
-    const key = (Math.round(lat * 100) / 100) + ',' + (Math.round(lng * 100) / 100);
-    if (!bins[key]) bins[key] = { position: [lng, lat], count: 0, tss: 0, dist: 0 };
-    bins[key].count++;
-    bins[key].tss += r.power ? r.power * (r.time / 3600) * 0.01 : 0;
-    bins[key].dist += (r.distance || 0) / 1000;
-  });
-  const data = Object.values(bins);
-  if (!data.length) return;
-
-  const maxCount = Math.max(...data.map(d => d.count));
-  const heightScale = window._hmcolHeight ?? 30;
-  const coverage = window._hmcolCoverage ?? 0.7;
-
-  // Tilt for 3D view
-  _hm.map.easeTo({ pitch: 50, bearing: _hm.map.getBearing(), duration: 800 });
-
-  _hmAddDeckOverlay([
-    new deck.ColumnLayer({
-      id: 'hm-columns',
-      data,
-      getPosition: d => d.position,
-      getElevation: d => (d.count / maxCount) * heightScale * 100,
-      getFillColor: d => {
-        const t = d.count / maxCount;
-        if (t < 0.33) return [0, 229, 160, 200];
-        if (t < 0.66) return [240, 196, 41, 210];
-        return [255, 69, 58, 220];
-      },
-      diskResolution: 8,
-      radius: cellSize / 2,
-      coverage,
-      extruded: true,
-      pickable: false,
-      opacity: 0.85,
-    })
-  ]);
-  _hmUpdateLegend('<span style="color:var(--accent)">Columns</span> · Ride frequency per area');
-}
-
 

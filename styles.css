@@ -13881,57 +13881,77 @@ body:has(.act-sheet-mode) .topbar {
 /* detail-zones-row/carousel removed — zone cards are now standalone */
 
 /* ── Activity detail: power zone table ────────────────────────────── */
-.detail-zone-row {
+/* Zone pill bars */
+.zone-pill {
+    position: relative;
     display: flex;
     align-items: center;
-    gap: 7px;
-    padding: 5px 0;
-    border-bottom: none;
-}
-.detail-zone-row:last-child {
-    border-bottom: none;
-}
-.detail-zone-tag {
-    font-size: var(--text-xs);
-    font-weight: 700;
-    font-family: var(--font-num);
-    min-width: 26px;
-    letter-spacing: 0.03em;
-}
-.detail-zone-name {
-    font-size: var(--text-sm);
-    color: var(--text-muted);
-    min-width: 72px;
-    display: none;
-}
-.detail-zone-bar-track {
-    flex: 1;
-    height: 20px;
-    background: var(--hover-overlay);
-    border-radius: 0 5px 5px 0;
+    width: 100%;
+    height: 48px;
+    border-radius: var(--radius-sm);
+    padding: 0 var(--space-md);
+    margin-bottom: var(--space-xs);
+    cursor: pointer;
+    background: var(--bg-elevated);
     overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
 }
-.detail-zone-bar-fill {
-    height: 100%;
-    border-radius: 0 5px 5px 0;
+.zone-pill:active { opacity: 0.85; }
+.zp-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    border-radius: var(--radius-sm);
     transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.detail-zone-time {
-    font-size: var(--text-xs);
-    color: var(--text-secondary);
+.zp-tag {
+    position: relative;
+    z-index: 1;
+    font-size: var(--text-sm);
+    font-weight: 700;
     font-family: var(--font-num);
-    width: 46px;
     flex-shrink: 0;
-    text-align: right;
+    letter-spacing: 0.03em;
+    color: var(--text-primary) !important;
 }
-.detail-zone-pct {
+.zp-name {
+    position: relative;
+    z-index: 1;
     font-size: var(--text-xs);
+    color: var(--text-bright);
+    flex: 1;
+    margin-left: var(--space-sm);
+}
+.zp-val {
+    position: relative;
+    z-index: 1;
+    font-size: var(--text-sm);
     font-weight: 600;
     font-family: var(--font-num);
-    width: 36px;
+    color: var(--text-primary);
     flex-shrink: 0;
-    text-align: right;
 }
+/* Zone pill value toggle animation */
+.zp-val {
+    transition: transform 0.15s ease, opacity 0.15s ease;
+}
+.zp-val--out {
+    transform: translateY(-8px);
+    opacity: 0;
+}
+.zp-val--in {
+    animation: zpValIn 0.2s ease-out;
+}
+@keyframes zpValIn {
+    from { transform: translateY(8px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+/* Legacy classes kept for backward compat */
+.detail-zone-row { display: none; }
+.detail-zone-tag, .detail-zone-name, .detail-zone-bar-track,
+.detail-zone-bar-fill, .detail-zone-time, .detail-zone-pct { display: none; }
 /* Zone summary stats */
 .detail-zone-summary {
     margin-top: 12px;
@@ -15955,10 +15975,6 @@ body:has(.act-sheet-mode) .topbar {
     }
 }
 
-/* ============================================================
-   VITALITY METABALL CARD
-============================================================ */
-/* Vitality/Biorhythm styles removed — feature deprecated */
 .vd-btn-row {
     display: flex;
     gap: var(--space-sm);
@@ -29483,7 +29499,7 @@ html[data-theme="tdf"] {
 
 /* ── TdF Topbar ── */
 [data-theme="tdf"] .topbar {
-    background: #000;
+    background: var(--bg-base);
     border-bottom-color: var(--border);
 }
 
@@ -32884,22 +32900,6 @@ body.pro-analysis-open .dash-pill-nav { display: none !important; }
     input, select, textarea { font-size: 16px !important; }
 }
 
-/* ── Biorhythm dialog preview canvas ─────────────────────────── */
-.vd-preview-wrap {
-    width: 100%;
-    height: 160px;
-    border-radius: var(--radius);
-    overflow: hidden;
-    margin-bottom: 16px;
-    background: var(--bg-page, #0b0f1a);
-    position: relative;
-    flex-shrink: 0;
-}
-.vd-preview-canvas {
-    width: 100%;
-    height: 100%;
-    display: block;
-}
 
 /* ── Power vs HR Scatter — temperature legend ─────────────────── */
 .pwr-hr-temp-legend {
@@ -32929,22 +32929,32 @@ body.pro-analysis-open .dash-pill-nav { display: none !important; }
     position: fixed;
     inset: 0;
     z-index: 99999;
-    background: var(--bg-base);
+    background:
+        radial-gradient(ellipse 60% 50% at 50% 40%, rgba(0,229,160,0.06) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 30% at 50% 50%, rgba(0,229,160,0.03) 0%, transparent 60%),
+        var(--bg-base);
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: opacity 0.4s ease, visibility 0.4s ease;
+    transition: opacity 0.5s ease, visibility 0.5s ease, transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .splash-screen.splash-hidden {
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
+    transform: scale(1.08);
 }
 .splash-content {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: var(--space-lg);
+}
+.splash-status {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    letter-spacing: 0.03em;
+    transition: opacity 0.3s ease;
 }
 .splash-logo {
     width: 64px;
