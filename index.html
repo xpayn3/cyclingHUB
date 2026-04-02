@@ -77,9 +77,7 @@
         <script defer src="https://unpkg.com/maplibre-gl@5.1.0/dist/maplibre-gl.js" crossorigin="anonymous"></script>
         <script defer src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.min.js" crossorigin="anonymous"></script>
         <script defer src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js" crossorigin="anonymous"></script>
-        <script defer src="https://unpkg.com/deck.gl@9.1.4/dist.min.js" crossorigin="anonymous"></script>
-        <!-- Three.js ESM importmap — used by js/badges3d.js for 3D cards -->
-        <!-- r170: iridescence, anisotropy, transmission/refraction, full PBR -->
+        <!-- Three.js ESM importmap — MUST be before any module/script loads -->
         <script type="importmap">
         {
           "imports": {
@@ -88,6 +86,7 @@
           }
         }
         </script>
+        <script defer src="https://unpkg.com/deck.gl@9.1.4/dist.min.js" crossorigin="anonymous"></script>
         <!-- PeerJS + jsQR loaded on-demand when P2P/QR features used -->
         <script type="module" src="app.js?v=7"></script>
     </head>
