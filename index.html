@@ -76,6 +76,8 @@
         <script defer src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" integrity="sha384-NElt3Op+9NBMCYaef5HxeJmU4Xeard/Lku8ek6hoPTvYkQPh3zLIrJP7KiRocsxO" crossorigin="anonymous"></script>
         <script defer src="https://unpkg.com/maplibre-gl@5.1.0/dist/maplibre-gl.js" crossorigin="anonymous"></script>
         <script defer src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.min.js" crossorigin="anonymous"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js" crossorigin="anonymous"></script>
+        <script defer src="https://unpkg.com/deck.gl@9.1.4/dist.min.js" crossorigin="anonymous"></script>
         <!-- Three.js ESM importmap — used by js/badges3d.js for 3D cards -->
         <!-- r170: iridescence, anisotropy, transmission/refraction, full PBR -->
         <script type="importmap">
@@ -520,23 +522,6 @@
                 onclick="navigate('dashboard')"
                 style="cursor: pointer"
             >
-                <div class="logo-icon">
-                    <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="#0d0f14"
-                        stroke-width="2.5"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                    >
-                        <circle cx="12" cy="12" r="9" />
-                        <circle cx="12" cy="12" r="2" />
-                        <line x1="12" y1="3" x2="12" y2="10" />
-                        <line x1="12" y1="14" x2="12" y2="21" />
-                        <line x1="3" y1="12" x2="10" y2="12" />
-                        <line x1="14" y1="12" x2="21" y2="12" />
-                    </svg>
-                </div>
                 <div class="logo-text">Cycle<span>IQ</span></div>
             </div>
             <nav class="sidebar-nav" aria-label="Main navigation">
@@ -681,7 +666,7 @@
                 <button
                     id="pwaInstallBtn"
                     class="sidebar-create-btn"
-                    style="display:none; background: var(--bg-elevated); border: 1px solid var(--border);"
+                    style="display:none; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-primary);"
                     onclick="pwaInstall()"
                 >
                     <svg class="icon"><use href="icons.svg#icon-download"/></svg>
@@ -1067,9 +1052,6 @@
                                             >
                                                 Elevation
                                             </button>
-                                        </div>
-                                        <div class="chart-legend">
-                                            <span class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--accent)"></span>Last 7 days</span>
                                         </div>
                                     </div>
                                 </div>
@@ -2041,6 +2023,9 @@
                                     Plan
                                 </button>
                             </div>
+                            <button class="btn btn-ghost btn-icon cal-timeline-toggle" id="calTimelineToggle" onclick="toggleCalTimeline()" title="Toggle timeline">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><circle cx="7" cy="12" r="2" fill="currentColor"/><circle cx="14" cy="12" r="2" fill="currentColor"/><circle cx="19" cy="12" r="2" fill="currentColor"/></svg>
+                            </button>
                             <button class="btn btn-ghost btn-icon cal-panel-toggle" id="calPanelToggle" onclick="toggleCalPanel()" title="Toggle sidebar">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
                             </button>
@@ -2107,6 +2092,14 @@
                             <div class="cal-list-view" id="calListView">
                                 <div class="cal-list-view-scroll" id="calListViewScroll"></div>
                             </div>
+                        </div>
+                        <!-- Desktop timeline strip -->
+                        <div class="cal-timeline" id="calTimeline">
+                            <div class="cal-timeline-header">
+                                <span class="cal-timeline-title">Activity Timeline</span>
+                                <span class="cal-timeline-range" id="calTimelineRange"></span>
+                            </div>
+                            <div class="cal-timeline-scroll" id="calTimelineScroll"></div>
                         </div>
 
                     </div>
@@ -2394,24 +2387,9 @@
                         </div>
                     </div>
 
-                    <!-- ── Race Tools ── -->
-                    <div class="fit-race-tools">
-                        <button class="fit-race-tool-btn" onclick="openFuelPlanSheet()">
-                            <svg class="icon" width="20" height="20"><use href="icons.svg#icon-coffee"/></svg>
-                            <span>Fueling Plan</span>
-                        </button>
-                        <button class="fit-race-tool-btn" onclick="openTaperWizard()">
-                            <svg class="icon" width="20" height="20"><use href="icons.svg#icon-activity"/></svg>
-                            <span>Taper</span>
-                        </button>
-                        <button class="fit-race-tool-btn" onclick="openPacingSheet()">
-                            <svg class="icon" width="20" height="20"><use href="icons.svg#icon-bolt"/></svg>
-                            <span>Pacing</span>
-                        </button>
-                    </div>
 
-                    <!-- ── Training Readiness + Pacer row ── -->
-                    <div class="fit-ready-pacer-row" id="fitReadyPacerRow" style="display:none">
+                    <!-- ── Training Readiness + Pacer (merged into hero — hidden) ── -->
+                    <div class="fit-ready-pacer-row" id="fitReadyPacerRow" style="display:none!important">
                         <div class="card fit-readiness-card" id="fitReadinessCard">
                             <div class="fit-ready-gauge">
                                 <svg viewBox="0 0 120 120" class="fit-ready-ring">
@@ -2438,8 +2416,8 @@
                         </div>
                     </div>
 
-                    <!-- ── Weekly Load Target Bar ── -->
-                    <div class="card fit-week-target-card" id="fitWeekTargetCard" style="display:none">
+                    <!-- ── Weekly Load Target (merged into hero — hidden) ── -->
+                    <div class="card fit-week-target-card" id="fitWeekTargetCard" style="display:none!important">
                         <div class="fit-wt-header">
                             <span class="fit-wt-title">This Week</span>
                             <span class="fit-wt-vals" id="fitWtVals"></span>
@@ -2483,8 +2461,29 @@
                         </div>
                     </div>
 
-                    <!-- ── Load Risk Index (new) ── -->
-                    <div class="card" id="fitInjuryRiskCard" style="display:none">
+                    <!-- ── Training Load chart (PMC — primary chart) ── -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-activity"/></svg>Training Load</div>
+                            </div>
+                            <div class="dash-range-pills" id="dashRangePill_training"></div>
+                        </div>
+                        <div class="chart-wrap chart-wrap--lg">
+                            <canvas id="fitnessPageChart"></canvas>
+                        </div>
+                        <div class="chart-wrap" style="height:130px;margin-top:-4px">
+                            <canvas id="fitnessPageFormChart"></canvas>
+                        </div>
+                        <div class="chart-legend" style="padding:var(--space-sm) 0 0;justify-content:center">
+                            <span class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--accent)"></span>Fitness</span>
+                            <span class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--orange)"></span>Fatigue</span>
+                            <span class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--blue)"></span>Form</span>
+                        </div>
+                    </div>
+
+                    <!-- ── Load Risk Index (removed — hero status covers this) ── -->
+                    <div class="card" id="fitInjuryRiskCard" style="display:none!important">
                         <div class="card-header">
                             <div>
                                 <div class="card-title">Load Risk Index</div>
@@ -2506,125 +2505,6 @@
                             <div class="fit-risk-zones">
                                 <span>Low</span><span>Moderate</span><span>High</span>
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- ── Recovery Estimation ── -->
-                    <div class="card" id="fitRecoveryCard" style="display: none">
-                        <div class="card-header">
-                            <div>
-                                <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-battery"/></svg>Recovery Estimation</div>
-                                <div class="card-subtitle" id="fitRecoverySubtitle">Composite recovery score</div>
-                            </div>
-                        </div>
-                        <div class="fit-rec-body">
-                            <div class="fit-rec-gauge-wrap">
-                                <svg id="fitRecoveryGaugeSVG" viewBox="0 0 200 130" class="fit-rec-gauge"></svg>
-                                <div class="fit-rec-gauge-label" id="fitRecoveryPct">&mdash;</div>
-                                <div class="fit-rec-gauge-sub" id="fitRecoveryLabel">Loading&hellip;</div>
-                            </div>
-                            <div class="fit-rec-metrics" id="fitRecoveryMetrics"></div>
-                        </div>
-                        <div class="fit-rec-eta" id="fitRecoveryEta"></div>
-                    </div>
-
-                    <!-- ── Race Predictor ── -->
-                    <div class="card" id="fitRacePredCard" style="display: none">
-                        <div class="card-header">
-                            <div>
-                                <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-flag"/></svg>Race Predictor</div>
-                                <div class="card-subtitle">Estimated times based on current FTP · flat road</div>
-                            </div>
-                        </div>
-                        <div class="fit-rp-grid" id="fitRacePredGrid"></div>
-                        <div class="fit-rp-note" id="fitRacePredNote"></div>
-                    </div>
-
-                    <!-- ── "What If" CTL Simulator ── -->
-                    <div class="card" id="fitWhatIfCard">
-                        <div class="card-header"><div style="display:flex;align-items:center;gap:8px"><div class="card-title" style="flex:1 1 0%"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-clock"/></svg>What If Simulator</div><button class="act-card-info-btn" title="How it works" onclick="_openWifInfo()" style="margin-left:auto;flex-shrink:0"><svg class="icon" width="18" height="18"><use href="icons.svg#icon-info"/></svg></button></div></div>
-                        <div class="wif-desc">Project your future fitness based on planned training volume</div>
-                        <div class="wif-chart-wrap"><canvas id="wifChart"></canvas></div>
-                        <div class="wif-projection" id="wifProjection"></div>
-                        <div class="wif-inputs" style="display:flex;flex-direction:column;gap:8px;padding:8px 0 0">
-                            <div class="field">
-                                <div class="cev-target-card">
-                                    <button class="cev-undo-btn" style="display:none" aria-label="Undo"><svg class="icon" width="14" height="14"><use href="icons.svg#icon-undo"/></svg></button>
-                                    <input type="hidden" id="wifTss" value="500">
-                                    <div class="cev-scrubber" data-metric="wifTss">
-                                        <div class="cev-scrubber-value-row"><div class="cev-scrubber-value">500</div><span class="cev-scrubber-unit">TSS</span></div>
-                                        <div class="cev-scrubber-track"><div class="cev-scrubber-ruler"></div></div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="field">
-                                <div class="cev-target-card">
-                                    <button class="cev-undo-btn" style="display:none" aria-label="Undo"><svg class="icon" width="14" height="14"><use href="icons.svg#icon-undo"/></svg></button>
-                                    <input type="hidden" id="wifWeeks" value="8">
-                                    <div class="cev-scrubber" data-metric="wifWeeks">
-                                        <div class="cev-scrubber-value-row"><div class="cev-scrubber-value">8</div><span class="cev-scrubber-unit">wk</span></div>
-                                        <div class="cev-scrubber-track"><div class="cev-scrubber-ruler"></div></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- ── Heat & Altitude Acclimatization ── -->
-                    <div class="card" id="fitAcclimCard" style="display:none">
-                        <div class="card-header"><div style="display:flex;align-items:center;gap:8px"><div class="card-title" style="flex:1 1 0%"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-thermometer"/></svg>Acclimatization</div></div></div>
-                        <div class="acclim-tabs">
-                            <button class="acclim-tab active" data-acclim="heat" onclick="_acclimSwitch('heat')">Heat</button>
-                            <button class="acclim-tab" data-acclim="altitude" onclick="_acclimSwitch('altitude')">Altitude</button>
-                        </div>
-                        <div id="acclimContent"></div>
-                    </div>
-
-                    <!-- ── Training Load chart (moved from dashboard) ── -->
-                    <div class="card">
-                        <div class="card-header">
-                            <div>
-                                <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-activity"/></svg>Training Load</div>
-                            </div>
-                            <div class="dash-range-pills" id="dashRangePill_training"></div>
-                        </div>
-                        <div class="chart-wrap chart-wrap--lg">
-                            <canvas id="fitnessPageChart"></canvas>
-                        </div>
-                        <div class="chart-wrap" style="height:130px;margin-top:-4px">
-                            <canvas id="fitnessPageFormChart"></canvas>
-                        </div>
-                        <div class="chart-legend" style="padding:8px 0 0;justify-content:center">
-                            <span class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--accent)"></span>Fitness</span>
-                            <span class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--orange)"></span>Fatigue</span>
-                            <span class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--blue)"></span>Form</span>
-                        </div>
-                    </div>
-
-                    <!-- ── Fatigue Predictions ── -->
-                    <div class="card" id="fitFatigueCard" style="display:none">
-                        <div class="card-header">
-                            <div>
-                                <div class="card-title">
-                                    Fatigue Predictions
-                                    <span class="fit-legend-dots">
-                                        <span class="fit-legend-dot" style="background:#00e5a0"></span> CTL
-                                        <span class="fit-legend-dot" style="background:#ff6b35"></span> ATL
-                                        <span class="fit-legend-dot" style="background:#4a9eff"></span> TSB
-                                    </span>
-                                </div>
-                                <div class="card-subtitle">14-day projection · dashed = predicted</div>
-                            </div>
-                            <div class="card-header-controls">
-                                <div class="fit-zone-tabs">
-                                    <button id="fitFatigueTabRest" class="fit-zone-tab active" onclick="setFatiguePredScenario('rest')">Rest</button>
-                                    <button id="fitFatigueTabContinue" class="fit-zone-tab" onclick="setFatiguePredScenario('continue')">Continue</button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="fit-pred-peak" id="fitPredPeakBanner"></div>
-                        <div class="chart-wrap chart-wrap--lg">
-                            <canvas id="fitFatigueChart"></canvas>
                         </div>
                     </div>
 
@@ -2716,24 +2596,64 @@
                         </div>
                     </div>
 
-                    <!-- ── Monthly Summary (full width) ── -->
-                    <div class="card">
+                    <!-- Monthly Summary removed — heatmap covers this -->
+
+                    <!-- ── Deep Insights (tabbed) ── -->
+                    <div class="fit-insights-tabs">
+                        <button class="fit-ins-tab active" data-fit-tab="recovery" onclick="_fitSwitchInsightTab('recovery')">Recovery</button>
+                        <button class="fit-ins-tab" data-fit-tab="progression" onclick="_fitSwitchInsightTab('progression')">Progression</button>
+                        <button class="fit-ins-tab" data-fit-tab="analysis" onclick="_fitSwitchInsightTab('analysis')">Analysis</button>
+                    </div>
+
+                    <!-- Tab: Recovery -->
+                    <div class="fit-ins-panel" data-fit-panel="recovery">
+
+                    <!-- Recovery Estimation -->
+                    <div class="card" id="fitRecoveryCard" style="display: none">
                         <div class="card-header">
                             <div>
-                                <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-calendar"/></svg>Monthly Summary</div>
-                                <div class="card-subtitle">
-                                    Rolling 6 months
+                                <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-battery"/></svg>Recovery Estimation</div>
+                                <div class="card-subtitle" id="fitRecoverySubtitle">Composite recovery score</div>
+                            </div>
+                        </div>
+                        <div class="fit-rec-body">
+                            <div class="fit-rec-gauge-wrap">
+                                <svg id="fitRecoveryGaugeSVG" viewBox="0 0 200 130" class="fit-rec-gauge"></svg>
+                                <div class="fit-rec-gauge-label" id="fitRecoveryPct">&mdash;</div>
+                                <div class="fit-rec-gauge-sub" id="fitRecoveryLabel">Loading&hellip;</div>
+                            </div>
+                            <div class="fit-rec-metrics" id="fitRecoveryMetrics"></div>
+                        </div>
+                        <div class="fit-rec-eta" id="fitRecoveryEta"></div>
+                    </div>
+
+                    <!-- Fatigue Predictions -->
+                    <div class="card" id="fitFatigueCard" style="display:none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">
+                                    Fatigue Predictions
+                                    <span class="fit-legend-dots">
+                                        <span class="fit-legend-dot" style="background:var(--accent)"></span> CTL
+                                        <span class="fit-legend-dot" style="background:var(--orange)"></span> ATL
+                                        <span class="fit-legend-dot" style="background:var(--blue)"></span> TSB
+                                    </span>
+                                </div>
+                                <div class="card-subtitle">14-day projection · dashed = predicted</div>
+                            </div>
+                            <div class="card-header-controls">
+                                <div class="fit-zone-tabs">
+                                    <button id="fitFatigueTabRest" class="fit-zone-tab active" onclick="setFatiguePredScenario('rest')">Rest</button>
+                                    <button id="fitFatigueTabContinue" class="fit-zone-tab" onclick="setFatiguePredScenario('continue')">Continue</button>
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Monthly Summary cards -->
-                        <div class="fit-monthly-scroll">
-                            <div id="fitMonthlyCards" class="fit-monthly-cards">
-                                <div class="fit-month-empty">Sync to load</div>
-                            </div>
+                        <div class="fit-pred-peak" id="fitPredPeakBanner"></div>
+                        <div class="chart-wrap chart-wrap--lg">
+                            <canvas id="fitFatigueChart"></canvas>
                         </div>
                     </div>
+
                     <!-- ── Wellness Insights ── -->
                     <div class="health-grid" style="margin-top:20px">
                         <!-- HRV vs Training Load -->
@@ -2804,6 +2724,10 @@
                         </div>
                     </div>
 
+                    </div><!-- /Tab: Recovery -->
+
+                    <!-- Tab: Progression -->
+                    <div class="fit-ins-panel" data-fit-panel="progression" style="display:none">
                     <!-- Cycling Trends (moved from dashboard) -->
                     <div class="card" id="fitCyclingTrendsCard" style="display:none">
                         <div class="card-header">
@@ -2820,7 +2744,42 @@
                     </div>
 
 
-                    <!-- Training Insights (merged) -->
+                    <!-- ── Progression Levels Radar ── -->
+                    <div class="card" id="fitProgressionCard" style="display:none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-star"/></svg>Progression Levels</div>
+                            </div>
+                        </div>
+                        <div class="fit-prog-body">
+                            <canvas id="fitProgRadar" width="280" height="280"></canvas>
+                            <div class="fit-prog-list" id="fitProgList"></div>
+                        </div>
+                    </div>
+
+                    <!-- ── VO2max Estimation ── -->
+                    <div class="card" id="fitVo2Card" style="display:none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-activity"/></svg>VO₂max Estimate</div>
+                            </div>
+                        </div>
+                        <div class="fit-vo2-body">
+                            <div class="fit-vo2-hero">
+                                <span class="fit-vo2-num" id="fitVo2Num">—</span>
+                                <span class="fit-vo2-unit">ml/kg/min</span>
+                            </div>
+                            <div class="fit-vo2-class" id="fitVo2Class"></div>
+                            <div class="chart-wrap" style="height:160px"><canvas id="fitVo2Chart"></canvas></div>
+                        </div>
+                    </div>
+
+                    </div><!-- /Tab: Progression -->
+
+                    <!-- Tab: Analysis -->
+                    <div class="fit-ins-panel" data-fit-panel="analysis" style="display:none">
+
+                    <!-- Training Insights (Monotony, Ramp, AE) -->
                     <div class="card" id="fitInsightsCard" style="display:none">
                         <div class="card-header">
                             <div>
@@ -2853,7 +2812,7 @@
                         </div>
                     </div>
 
-                    <!-- ── Year to Date ── -->
+                    <!-- Year to Date -->
                     <div class="card" id="ytdDistCard" style="display:none">
                         <div class="card-header">
                             <div>
@@ -2879,36 +2838,6 @@
                         </div>
                     </div>
 
-                    <!-- ── Progression Levels Radar ── -->
-                    <div class="card" id="fitProgressionCard" style="display:none">
-                        <div class="card-header">
-                            <div>
-                                <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-star"/></svg>Progression Levels</div>
-                            </div>
-                        </div>
-                        <div class="fit-prog-body">
-                            <canvas id="fitProgRadar" width="280" height="280"></canvas>
-                            <div class="fit-prog-list" id="fitProgList"></div>
-                        </div>
-                    </div>
-
-                    <!-- ── VO2max Estimation ── -->
-                    <div class="card" id="fitVo2Card" style="display:none">
-                        <div class="card-header">
-                            <div>
-                                <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-activity"/></svg>VO₂max Estimate</div>
-                            </div>
-                        </div>
-                        <div class="fit-vo2-body">
-                            <div class="fit-vo2-hero">
-                                <span class="fit-vo2-num" id="fitVo2Num">—</span>
-                                <span class="fit-vo2-unit">ml/kg/min</span>
-                            </div>
-                            <div class="fit-vo2-class" id="fitVo2Class"></div>
-                            <div class="chart-wrap" style="height:160px"><canvas id="fitVo2Chart"></canvas></div>
-                        </div>
-                    </div>
-
                     <!-- ── Strain vs Recovery ── -->
                     <div class="card" id="fitStrainRecovCard" style="display:none">
                         <div class="card-header">
@@ -2929,6 +2858,74 @@
                         </div>
                         <div class="chart-wrap" style="height:240px;margin:0 calc(-1 * var(--pad-card))"><canvas id="fitWxCorrChart"></canvas></div>
                         <div class="fit-wx-insights" id="fitWxInsights"></div>
+                    </div>
+
+                    </div><!-- /Tab: Analysis -->
+
+                    <!-- ── Planning Tools ── -->
+                    <div class="card" id="fitRacePredCard" style="display: none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-flag"/></svg>Race Predictor</div>
+                                <div class="card-subtitle">Estimated times based on current FTP · flat road</div>
+                            </div>
+                        </div>
+                        <div class="fit-rp-grid" id="fitRacePredGrid"></div>
+                        <div class="fit-rp-note" id="fitRacePredNote"></div>
+                    </div>
+
+                    <div class="card" id="fitWhatIfCard">
+                        <div class="card-header"><div style="display:flex;align-items:center;gap:var(--space-sm)"><div class="card-title" style="flex:1 1 0%"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-clock"/></svg>What If Simulator</div><button class="act-card-info-btn" title="How it works" onclick="_openWifInfo()" style="margin-left:auto;flex-shrink:0"><svg class="icon" width="18" height="18"><use href="icons.svg#icon-info"/></svg></button></div></div>
+                        <div class="wif-desc">Project your future fitness based on planned training volume</div>
+                        <div class="wif-chart-wrap"><canvas id="wifChart"></canvas></div>
+                        <div class="wif-projection" id="wifProjection"></div>
+                        <div class="wif-inputs" style="display:flex;flex-direction:column;gap:var(--space-sm);padding:var(--space-sm) 0 0">
+                            <div class="field">
+                                <div class="cev-target-card">
+                                    <button class="cev-undo-btn" style="display:none" aria-label="Undo"><svg class="icon" width="14" height="14"><use href="icons.svg#icon-undo"/></svg></button>
+                                    <input type="hidden" id="wifTss" value="500">
+                                    <div class="cev-scrubber" data-metric="wifTss">
+                                        <div class="cev-scrubber-value-row"><div class="cev-scrubber-value">500</div><span class="cev-scrubber-unit">TSS</span></div>
+                                        <div class="cev-scrubber-track"><div class="cev-scrubber-ruler"></div></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="field">
+                                <div class="cev-target-card">
+                                    <button class="cev-undo-btn" style="display:none" aria-label="Undo"><svg class="icon" width="14" height="14"><use href="icons.svg#icon-undo"/></svg></button>
+                                    <input type="hidden" id="wifWeeks" value="8">
+                                    <div class="cev-scrubber" data-metric="wifWeeks">
+                                        <div class="cev-scrubber-value-row"><div class="cev-scrubber-value">8</div><span class="cev-scrubber-unit">wk</span></div>
+                                        <div class="cev-scrubber-track"><div class="cev-scrubber-ruler"></div></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card" id="fitAcclimCard" style="display:none">
+                        <div class="card-header"><div style="display:flex;align-items:center;gap:var(--space-sm)"><div class="card-title" style="flex:1 1 0%"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-thermometer"/></svg>Acclimatization</div></div></div>
+                        <div class="acclim-tabs">
+                            <button class="acclim-tab active" data-acclim="heat" onclick="_acclimSwitch('heat')">Heat</button>
+                            <button class="acclim-tab" data-acclim="altitude" onclick="_acclimSwitch('altitude')">Altitude</button>
+                        </div>
+                        <div id="acclimContent"></div>
+                    </div>
+
+                    <!-- ── Race Tools (moved to bottom) ── -->
+                    <div class="fit-race-tools">
+                        <button class="fit-race-tool-btn" onclick="openFuelPlanSheet()">
+                            <svg class="icon" width="20" height="20"><use href="icons.svg#icon-coffee"/></svg>
+                            <span>Fueling Plan</span>
+                        </button>
+                        <button class="fit-race-tool-btn" onclick="openTaperWizard()">
+                            <svg class="icon" width="20" height="20"><use href="icons.svg#icon-activity"/></svg>
+                            <span>Taper</span>
+                        </button>
+                        <button class="fit-race-tool-btn" onclick="openPacingSheet()">
+                            <svg class="icon" width="20" height="20"><use href="icons.svg#icon-bolt"/></svg>
+                            <span>Pacing</span>
+                        </button>
                     </div>
 
                     <!-- Training Guide (merged) -->
@@ -4679,6 +4676,19 @@
                                     <div style="font-size:12px;color:var(--text-muted);text-align:center;line-height:1.5">Free key from <a href="https://openrouteservice.org/dev/#/signup" target="_blank" style="color:var(--accent);text-decoration:none">openrouteservice.org</a> — 2,000 requests/day</div>
                                 </div>
                             </div>
+                            <div style="padding:0 4px 16px">
+                                <div style="background:var(--bg-card);border-radius:var(--radius);padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+                                    <div style="font-size:13px;font-weight:600;color:var(--text-secondary)">Mapillary (Street Photos)</div>
+                                    <div style="display:flex;align-items:center;gap:8px">
+                                        <input type="password" class="stt-input" id="mapillaryKeyInput" placeholder="Paste your Mapillary client token" style="flex:1;min-width:0">
+                                        <button style="width:36px;height:36px;border-radius:8px;background:transparent;border:none;color:var(--text-muted);display:flex;align-items:center;justify-content:center;cursor:pointer" onclick="(() => { const i=document.getElementById('mapillaryKeyInput'); i.type = i.type==='password'?'text':'password'; })()" title="Show/hide">
+                                            <svg class="icon" width="18" height="18"><use href="icons.svg#icon-eye"/></svg>
+                                        </button>
+                                    </div>
+                                    <button class="wrk-save-btn" style="margin:0;padding:12px;font-size:15px;min-height:44px" onclick="saveMapillaryKey()">Save Key</button>
+                                    <div style="font-size:12px;color:var(--text-muted);text-align:center;line-height:1.5">Free token from <a href="https://www.mapillary.com/developer" target="_blank" style="color:var(--accent);text-decoration:none">mapillary.com/developer</a></div>
+                                </div>
+                            </div>
 
                             <!-- Quick actions -->
                             <div class="ios-group-label">Quick Actions</div>
@@ -5272,27 +5282,8 @@
                         <div id="libMap" class="lib-map"></div>
                         <!-- Floating map controls (heatmap filters) -->
                         <div class="lib-map-controls" id="libMapControls"></div>
-                        <!-- Timeline scrubber (desktop only) -->
-                        <div class="lib-timeline" id="libTimeline">
-                            <div class="lib-timeline-top">
-                                <span class="lib-timeline-range-dates" id="libTimelineRangeDates"></span>
-                                <span style="flex:1"></span>
-                                <span class="lib-timeline-label" id="libTimelineLabel">All Time</span>
-                            </div>
-                            <div class="lib-timeline-track" id="libTimelineTrack">
-                                <canvas class="lib-timeline-canvas" id="libTimelineCanvas" height="32"></canvas>
-                                <div class="lib-timeline-cursor" id="libTimelineCursor"></div>
-                                <div class="lib-timeline-range" id="libTimelineRange"></div>
-                            </div>
-                            <div class="lib-timeline-dates">
-                                <span id="libTimelineStart"></span>
-                                <span id="libTimelineEnd"></span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Right panel (desktop) / Bottom sheet (mobile) -->
-                    <div class="lib-panel" id="libPanel">
+                        <!-- Right panel — inside map wrap for absolute positioning -->
+                        <div class="lib-panel" id="libPanel">
                         <div class="lib-panel-handle"></div>
                         <div class="lib-panel-header">
                             <h2 class="lib-panel-title">Library</h2>
@@ -5326,6 +5317,25 @@
                             <div class="lib-pane" id="libPaneRides"></div>
                             <div class="lib-pane" id="libPaneRoutes"></div>
                             <div class="lib-pane" id="libPaneDiscover"></div>
+                        </div>
+                    </div>
+                    </div>
+
+                    <!-- Timeline scrubber (desktop only) — outside map for rounded corners -->
+                    <div class="lib-timeline" id="libTimeline">
+                        <div class="lib-timeline-top">
+                            <span class="lib-timeline-range-dates" id="libTimelineRangeDates"></span>
+                            <span style="flex:1"></span>
+                            <span class="lib-timeline-label" id="libTimelineLabel">All Time</span>
+                        </div>
+                        <div class="lib-timeline-track" id="libTimelineTrack">
+                            <canvas class="lib-timeline-canvas" id="libTimelineCanvas" height="32"></canvas>
+                            <div class="lib-timeline-cursor" id="libTimelineCursor"></div>
+                            <div class="lib-timeline-range" id="libTimelineRange"></div>
+                        </div>
+                        <div class="lib-timeline-dates">
+                            <span id="libTimelineStart"></span>
+                            <span id="libTimelineEnd"></span>
                         </div>
                     </div>
 

@@ -522,6 +522,12 @@ export function icuRenderSyncUI() {
     const el = document.getElementById('orsApiKeyInput');
     if (el) el.value = savedOrsKey;
   }
+  // Pre-fill Mapillary key if saved
+  const savedMapKey = localStorage.getItem('icu_mapillary_key');
+  if (savedMapKey) {
+    const el = document.getElementById('mapillaryKeyInput');
+    if (el) el.value = savedMapKey;
+  }
 }
 
 export function saveOrsApiKey() {
@@ -536,6 +542,21 @@ export function saveOrsApiKey() {
     localStorage.removeItem('icu_ors_api_key');
     if (window._rb) window._rb.orsApiKey = '';
     showToast('ORS API key removed', 'info');
+  }
+}
+
+export function saveMapillaryKey() {
+  const input = document.getElementById('mapillaryKeyInput');
+  if (!input) return;
+  const key = input.value.trim();
+  if (key) {
+    localStorage.setItem('icu_mapillary_key', key);
+    if (window._rb) window._rb.mapillaryKey = key;
+    showToast('Mapillary key saved — street photos now available in Route Builder', 'success');
+  } else {
+    localStorage.removeItem('icu_mapillary_key');
+    if (window._rb) window._rb.mapillaryKey = '';
+    showToast('Mapillary key removed', 'info');
   }
 }
 

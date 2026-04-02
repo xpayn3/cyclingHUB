@@ -753,7 +753,7 @@ let _rcDragging = false, _rcStartX = 0, _rcStartY = 0, _rcRotX = 0, _rcRotY = 0;
 let _rcTrail = [];
 let _rcDragVelX = 0, _rcDragVelY = 0;
 let _rcReleaseTime = 0, _rcSpinning = false, _rcIdle = false, _rcAutoSpin = false, _rcAutoSpinStart = 0;
-let _rcFrameSkip = 0;
+let _rcFrameSkip = 0, _rcLastFrame = 0;
 let _rcAbort = null;
 
 export async function initRiderCard3D(canvasEl, data) {
@@ -1350,7 +1350,7 @@ export async function initRiderCard3D(canvasEl, data) {
   function loop() {
     if (!_rcMesh || !_rcRenderer || !_rcScene || !_rcCamera) { _rcRaf = null; return; }
     _rcRaf = requestAnimationFrame(loop);
-    if (_rcIdle) return;
+    if (_rcIdle || document.hidden) return;
     try {
 
     // Live resize — corrects size if canvas was measured before sheet animation completed
@@ -1378,11 +1378,6 @@ export async function initRiderCard3D(canvasEl, data) {
       _rcAutoSpin = true; // transition to auto-spin after intro
     }
 
-    // Skip frames during auto-spin to reduce GPU load (lite: every 3rd, normal: every 2nd)
-    if (_rcAutoSpin && !_rcDragging && !_rcSpinning && (Date.now() - _rcReleaseTime) > 3000) {
-      const skipRate = _rcLite ? 3 : 2;
-      if (++_rcFrameSkip % skipRate !== 0) return;
-    } else { _rcFrameSkip = 0; }
 
     // Auto-downgrade FPS monitor (auto mode only)
     if (!_rcLite && getQualitySetting() === 'auto') {
@@ -1407,18 +1402,21 @@ export async function initRiderCard3D(canvasEl, data) {
 
     if (!_rcDragging) {
       const timeSinceRelease = Date.now() - _rcReleaseTime;
+      // Normalize rotation to prevent multi-turn rewind
+      const PI2 = Math.PI * 2;
+      if (Math.abs(_rcMesh.rotation.y) > Math.PI) _rcMesh.rotation.y -= Math.round(_rcMesh.rotation.y / PI2) * PI2;
+      if (Math.abs(_rcMesh.rotation.x) > Math.PI) _rcMesh.rotation.x -= Math.round(_rcMesh.rotation.x / PI2) * PI2;
 
       if (_rcSpinning) {
-        // Coast with momentum — gradual friction
         const speed = Math.abs(_rcDragVelX) + Math.abs(_rcDragVelY);
-        if (speed > 0.002) {
-          _rcDragVelX *= 0.96;
-          _rcDragVelY *= 0.96;
+        if (speed > 0.001) {
+          _rcDragVelX *= 0.98;
+          _rcDragVelY *= 0.98;
           _rcMesh.rotation.x += _rcDragVelX;
           _rcMesh.rotation.y += _rcDragVelY;
-          _rcMesh.rotation.x += (REST_X - _rcMesh.rotation.x) * 0.005;
+          // Gently pull X toward rest while coasting
+          _rcMesh.rotation.x += (REST_X - _rcMesh.rotation.x) * 0.015;
         } else {
-          // Momentum died — transition to auto-spin
           _rcSpinning = false;
           _rcAutoSpin = true; _rcAutoSpinStart = Date.now();
         }
@@ -1426,10 +1424,11 @@ export async function initRiderCard3D(canvasEl, data) {
         _rcAutoSpin = true;
         if (!_rcAutoSpinStart) _rcAutoSpinStart = Date.now();
         const ast = Date.now() * 0.001;
-        const spinEase = Math.min(1, (Date.now() - _rcAutoSpinStart) / 500);
-        _rcMesh.rotation.y += 0.006 * spinEase;
-        _rcMesh.rotation.x += (REST_X + Math.sin(ast * 0.8) * 0.2 - _rcMesh.rotation.x) * (0.01 + 0.03 * spinEase);
-        _rcMesh.rotation.z += (Math.sin(ast * 0.5 + 1) * 0.05 - _rcMesh.rotation.z) * (0.01 + 0.02 * spinEase);
+        const spinEase = Math.min(1, (Date.now() - _rcAutoSpinStart) / 600);
+        // Gentle idle spin with breathing tilt
+        _rcMesh.rotation.y += 0.005 * spinEase;
+        _rcMesh.rotation.x += (REST_X + Math.sin(ast * 0.7) * 0.15 - _rcMesh.rotation.x) * (0.015 + 0.035 * spinEase);
+        _rcMesh.rotation.z += (Math.sin(ast * 0.4 + 1) * 0.04 - _rcMesh.rotation.z) * (0.015 + 0.025 * spinEase);
       }
     }
     // Parallax — shift layers based on card tilt
@@ -1456,41 +1455,132 @@ export async function initRiderCard3D(canvasEl, data) {
   }
   loop();
 
-  // Interaction — tilt on drag, prevent sheet scroll, double tap to flip
-  let _rcLastTap = 0;
+  // Interaction — tilt on drag, single tap wobble, double tap flip, long press zoom
+  let _rcLongPressTimer = null, _rcLongPressing = false, _rcDidDrag = false;
+  let _rcBaseScale = 1, _rcLastTapTime = 0, _rcFlipping = false;
+
   canvasEl.addEventListener('pointerdown', e => {
-    const now = Date.now();
     _rcIdle = false; _rcAutoSpin = false; _rcAutoSpinStart = 0;
-    if (now - _rcLastTap < 350 && _rcMesh) {
-      _rcDragVelX = 0;
-      _rcDragVelY = 0.08;
-      _rcReleaseTime = Date.now();
-      _rcSpinning = true;
-      _rcDragging = false;
-      _rcLastTap = 0;
-      return;
-    }
-    _rcLastTap = now;
-    _rcDragging = true;
+    _rcDragging = true; _rcDidDrag = false;
     _rcStartX = e.clientX; _rcStartY = e.clientY;
     _rcRotX = _rcMesh.rotation.x; _rcRotY = _rcMesh.rotation.y;
     _rcTrail = [{ x: e.clientX, y: e.clientY, t: Date.now() }];
     canvasEl.setPointerCapture(e.pointerId);
     canvasEl.style.cursor = 'grabbing';
+
+    // Long press — zoom in after 400ms hold
+    _rcLongPressing = false;
+    _rcLongPressTimer = setTimeout(() => {
+      if (!_rcDidDrag && _rcMesh) {
+        _rcLongPressing = true;
+        _rcBaseScale = _rcMesh.scale.x;
+        // Smooth zoom in
+        const zoomIn = () => {
+          if (!_rcLongPressing || !_rcMesh) return;
+          const target = _rcBaseScale * 1.2;
+          _rcMesh.scale.x += (target - _rcMesh.scale.x) * 0.12;
+          _rcMesh.scale.y = _rcMesh.scale.x;
+          _rcMesh.scale.z = _rcMesh.scale.x;
+          if (Math.abs(_rcMesh.scale.x - target) > 0.001) requestAnimationFrame(zoomIn);
+        };
+        zoomIn();
+        if (navigator.vibrate) navigator.vibrate(15);
+      }
+    }, 400);
   }, rcSig);
+
   canvasEl.addEventListener('pointermove', e => {
     if (!_rcDragging || !_rcMesh) return;
+    const dx = Math.abs(e.clientX - _rcStartX), dy = Math.abs(e.clientY - _rcStartY);
+    if (dx > 3 || dy > 3) {
+      _rcDidDrag = true;
+      clearTimeout(_rcLongPressTimer);
+    }
     _rcMesh.rotation.y = _rcRotY + (e.clientX - _rcStartX) * 0.015;
     _rcMesh.rotation.x = _rcRotX + (e.clientY - _rcStartY) * 0.015;
     _rcTrail.push({ x: e.clientX, y: e.clientY, t: Date.now() });
     if (_rcTrail.length > 6) _rcTrail.shift();
   }, rcSig);
+
   canvasEl.addEventListener('touchstart', e => { e.stopPropagation(); }, { passive: true, signal: _rcAbort.signal });
   canvasEl.addEventListener('touchmove', e => { e.preventDefault(); e.stopPropagation(); }, { passive: false, signal: _rcAbort.signal });
+
   const endDrag = () => {
     if (!_rcDragging) return;
+    clearTimeout(_rcLongPressTimer);
     _rcDragging = false;
     canvasEl.style.cursor = 'grab';
+
+    // Long press release — zoom back with spring
+    if (_rcLongPressing && _rcMesh) {
+      _rcLongPressing = false;
+      const zoomOut = () => {
+        if (!_rcMesh) return;
+        _rcMesh.scale.x += (_rcBaseScale - _rcMesh.scale.x) * 0.1;
+        _rcMesh.scale.y = _rcMesh.scale.x;
+        _rcMesh.scale.z = _rcMesh.scale.x;
+        if (Math.abs(_rcMesh.scale.x - _rcBaseScale) > 0.002) requestAnimationFrame(zoomOut);
+        else { _rcMesh.scale.set(_rcBaseScale, _rcBaseScale, _rcBaseScale); }
+      };
+      zoomOut();
+    }
+
+    // Tap interactions — no drag happened
+    if (!_rcDidDrag && !_rcLongPressing && _rcMesh && !_rcFlipping) {
+      _rcDragVelX = 0; _rcDragVelY = 0;
+      const now = Date.now();
+
+      // Double tap → flip to front/back
+      if (now - _rcLastTapTime < 300) {
+        _rcLastTapTime = 0;
+        _rcFlipping = true;
+        const startY = _rcMesh.rotation.y;
+        // Snap to nearest front (0) or back (PI) — then flip to the other side
+        const normY = ((startY % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+        const onBack = normY > Math.PI * 0.5 && normY < Math.PI * 1.5;
+        const targetY = startY + (onBack ? -Math.PI : Math.PI);
+        let flipT = 0;
+        const flip = () => {
+          if (!_rcMesh) { _rcFlipping = false; return; }
+          flipT += 0.02;
+          const t = Math.min(1, flipT);
+          // easeOutBack overshoot
+          const c1 = 1.70158, c3 = c1 + 1;
+          const ease = 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+          _rcMesh.rotation.y = startY + (targetY - startY) * ease;
+          if (t < 1) requestAnimationFrame(flip);
+          else { _rcFlipping = false; _rcReleaseTime = Date.now(); }
+        };
+        flip();
+        _rcSpinning = false;
+        return;
+      }
+
+      // Single tap → wobble toward tap position
+      _rcLastTapTime = now;
+      const rect = canvasEl.getBoundingClientRect();
+      const nx = ((_rcStartX - rect.left) / rect.width - 0.5) * 2;
+      const ny = ((_rcStartY - rect.top) / rect.height - 0.5) * 2;
+      const strength = 0.15;
+      let wobbleT = 0;
+      const baseX = _rcMesh.rotation.x, baseY = _rcMesh.rotation.y;
+      const wobble = () => {
+        if (!_rcMesh || _rcDragging || _rcFlipping) return;
+        wobbleT++;
+        const decay = Math.exp(-wobbleT * 0.07);
+        const osc = Math.sin(wobbleT * 0.45) * decay;
+        _rcMesh.rotation.x = baseX + ny * strength * osc;
+        _rcMesh.rotation.y = baseY + nx * strength * osc;
+        if (decay > 0.01) requestAnimationFrame(wobble);
+        else { _rcMesh.rotation.x = baseX; _rcMesh.rotation.y = baseY; }
+      };
+      wobble();
+      _rcReleaseTime = Date.now();
+      _rcSpinning = false;
+      return;
+    }
+
+    // Normal drag release — momentum
     _rcDragVelX = 0; _rcDragVelY = 0;
     const now = Date.now();
     if (_rcTrail && _rcTrail.length >= 2) {
@@ -2659,14 +2749,14 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   const _bcIntroDur = 500;
   let velX = 0, velY = 0;
   const SPRING = 0.008, DAMP = 0.97;
-  let _bcFrameSkip = 0;
+  let _bcFrameSkip = 0, _bcLastFrame = 0;
 
   function _easeOutBack2(t) { const c = 1.4; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); }
 
   function loop() {
     if (!_bcMesh || !_bcRenderer || !_bcScene || !_bcCamera) { _bcRaf = null; return; }
     _bcRaf = requestAnimationFrame(loop);
-    if (_bcIdle) return;
+    if (_bcIdle || document.hidden) return;
     try {
 
     // Live resize — corrects size if canvas was measured before sheet animation completed
@@ -2706,11 +2796,6 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
       _bcAutoSpin = true;
     }
 
-    // Skip frames during auto-spin (lite: every 3rd, normal: every 2nd)
-    if (_bcAutoSpin && !_bcDragging && !_bcSpinning && (Date.now() - _bcReleaseTime) > 3000) {
-      const skipRate = _bcLite ? 3 : 2;
-      if (++_bcFrameSkip % skipRate !== 0) return;
-    } else { _bcFrameSkip = 0; }
 
     // Auto-downgrade FPS monitor (auto mode only)
     if (!_bcLite && getQualitySetting() === 'auto') {
@@ -2742,12 +2827,16 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
     holoSpot.intensity = 2 + Math.max(0, Math.cos(ry)) * 4;
     if (!_bcDragging) {
       const timeSinceRelease = Date.now() - _bcReleaseTime;
+      const PI2 = Math.PI * 2;
+      if (Math.abs(_bcMesh.rotation.y) > Math.PI) _bcMesh.rotation.y -= Math.round(_bcMesh.rotation.y / PI2) * PI2;
+      if (Math.abs(_bcMesh.rotation.x) > Math.PI) _bcMesh.rotation.x -= Math.round(_bcMesh.rotation.x / PI2) * PI2;
+
       if (_bcSpinning) {
         const speed = Math.abs(_bcDragVelX) + Math.abs(_bcDragVelY);
-        if (speed > 0.002) {
-          _bcDragVelX *= 0.96; _bcDragVelY *= 0.96;
+        if (speed > 0.001) {
+          _bcDragVelX *= 0.98; _bcDragVelY *= 0.98;
           _bcMesh.rotation.x += _bcDragVelX; _bcMesh.rotation.y += _bcDragVelY;
-          _bcMesh.rotation.x += (REST_X - _bcMesh.rotation.x) * 0.005;
+          _bcMesh.rotation.x += (REST_X - _bcMesh.rotation.x) * 0.015;
         } else {
           _bcSpinning = false; _bcAutoSpin = true; _bcAutoSpinStart = Date.now();
         }
@@ -2755,11 +2844,10 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
         _bcAutoSpin = true;
         if (!_bcAutoSpinStart) _bcAutoSpinStart = Date.now();
         const bst = Date.now() * 0.001;
-        // Ease into auto-spin speed over 0.5s
-        const spinEase = Math.min(1, (Date.now() - _bcAutoSpinStart) / 500);
-        _bcMesh.rotation.y += 0.006 * spinEase;
-        _bcMesh.rotation.x += (REST_X + Math.sin(bst * 0.8) * 0.2 - _bcMesh.rotation.x) * (0.01 + 0.03 * spinEase);
-        _bcMesh.rotation.z += (Math.sin(bst * 0.5 + 1) * 0.05 - _bcMesh.rotation.z) * (0.01 + 0.02 * spinEase);
+        const spinEase = Math.min(1, (Date.now() - _bcAutoSpinStart) / 600);
+        _bcMesh.rotation.y += 0.005 * spinEase;
+        _bcMesh.rotation.x += (REST_X + Math.sin(bst * 0.7) * 0.15 - _bcMesh.rotation.x) * (0.015 + 0.035 * spinEase);
+        _bcMesh.rotation.z += (Math.sin(bst * 0.4 + 1) * 0.04 - _bcMesh.rotation.z) * (0.015 + 0.025 * spinEase);
       }
     }
     // Parallax — move layers in portal scene or icon plane (skip in lite mode)
@@ -2775,30 +2863,115 @@ export async function initBadgeCard3D(canvasEl, badgeId, name, desc) {
   }
   loop();
 
-  // Interaction
-  let lastTap = 0;
+  // Interaction — tilt on drag, single tap wobble, double tap flip, long press zoom
+  let _bcLongPressTimer = null, _bcLongPressing = false, _bcDidDrag = false;
+  let _bcBaseScale = 1, _bcLastTapTime = 0, _bcFlipping = false;
+
   canvasEl.addEventListener('pointerdown', e => {
     _bcIdle = false; _bcAutoSpin = false; _bcAutoSpinStart = 0;
-    const now = Date.now();
-    if (now - lastTap < 350 && _bcMesh) { _bcDragVelX = 0; _bcDragVelY = 0.08; _bcReleaseTime = now; _bcSpinning = true; _bcDragging = false; lastTap = 0; return; }
-    lastTap = now;
-    _bcDragging = true; _bcStartX = e.clientX; _bcStartY = e.clientY;
+    _bcDragging = true; _bcDidDrag = false;
+    _bcStartX = e.clientX; _bcStartY = e.clientY;
     _bcRotX = _bcMesh.rotation.x; _bcRotY = _bcMesh.rotation.y;
     _bcTrail = [{ x: e.clientX, y: e.clientY, t: Date.now() }];
     canvasEl.setPointerCapture(e.pointerId); canvasEl.style.cursor = 'grabbing';
+
+    _bcLongPressing = false;
+    _bcLongPressTimer = setTimeout(() => {
+      if (!_bcDidDrag && _bcMesh) {
+        _bcLongPressing = true;
+        _bcBaseScale = _bcMesh.scale.x;
+        const zoomIn = () => {
+          if (!_bcLongPressing || !_bcMesh) return;
+          const target = _bcBaseScale * 1.2;
+          _bcMesh.scale.x += (target - _bcMesh.scale.x) * 0.12;
+          _bcMesh.scale.y = _bcMesh.scale.x; _bcMesh.scale.z = _bcMesh.scale.x;
+          if (Math.abs(_bcMesh.scale.x - target) > 0.001) requestAnimationFrame(zoomIn);
+        };
+        zoomIn();
+        if (navigator.vibrate) navigator.vibrate(15);
+      }
+    }, 400);
   }, bcSig);
+
   canvasEl.addEventListener('pointermove', e => {
     if (!_bcDragging || !_bcMesh) return;
+    const dx = Math.abs(e.clientX - _bcStartX), dy = Math.abs(e.clientY - _bcStartY);
+    if (dx > 3 || dy > 3) { _bcDidDrag = true; clearTimeout(_bcLongPressTimer); }
     _bcMesh.rotation.y = _bcRotY + (e.clientX - _bcStartX) * 0.015;
     _bcMesh.rotation.x = _bcRotX + (e.clientY - _bcStartY) * 0.015;
     _bcTrail.push({ x: e.clientX, y: e.clientY, t: Date.now() });
     if (_bcTrail.length > 6) _bcTrail.shift();
   }, bcSig);
+
   canvasEl.addEventListener('touchstart', e => { e.stopPropagation(); }, { passive: true, signal: _bcAbort.signal });
   canvasEl.addEventListener('touchmove', e => { e.preventDefault(); e.stopPropagation(); }, { passive: false, signal: _bcAbort.signal });
+
   const endDrag = () => {
     if (!_bcDragging) return;
+    clearTimeout(_bcLongPressTimer);
     _bcDragging = false; canvasEl.style.cursor = 'grab';
+
+    if (_bcLongPressing && _bcMesh) {
+      _bcLongPressing = false;
+      const zoomOut = () => {
+        if (!_bcMesh) return;
+        _bcMesh.scale.x += (_bcBaseScale - _bcMesh.scale.x) * 0.1;
+        _bcMesh.scale.y = _bcMesh.scale.x; _bcMesh.scale.z = _bcMesh.scale.x;
+        if (Math.abs(_bcMesh.scale.x - _bcBaseScale) > 0.002) requestAnimationFrame(zoomOut);
+        else _bcMesh.scale.set(_bcBaseScale, _bcBaseScale, _bcBaseScale);
+      };
+      zoomOut();
+    }
+
+    if (!_bcDidDrag && !_bcLongPressing && _bcMesh && !_bcFlipping) {
+      _bcDragVelX = 0; _bcDragVelY = 0;
+      const now = Date.now();
+
+      if (now - _bcLastTapTime < 300) {
+        _bcLastTapTime = 0;
+        _bcFlipping = true;
+        const startY = _bcMesh.rotation.y;
+        const normY = ((startY % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+        const onBack = normY > Math.PI * 0.5 && normY < Math.PI * 1.5;
+        const targetY = startY + (onBack ? -Math.PI : Math.PI);
+        let flipT = 0;
+        const flip = () => {
+          if (!_bcMesh) { _bcFlipping = false; return; }
+          flipT += 0.02;
+          const t = Math.min(1, flipT);
+          const c1 = 1.70158, c3 = c1 + 1;
+          const ease = 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+          _bcMesh.rotation.y = startY + (targetY - startY) * ease;
+          if (t < 1) requestAnimationFrame(flip);
+          else { _bcFlipping = false; _bcReleaseTime = Date.now(); }
+        };
+        flip();
+        _bcSpinning = false;
+        return;
+      }
+
+      _bcLastTapTime = now;
+      const rect = canvasEl.getBoundingClientRect();
+      const nx = ((_bcStartX - rect.left) / rect.width - 0.5) * 2;
+      const ny = ((_bcStartY - rect.top) / rect.height - 0.5) * 2;
+      const strength = 0.15;
+      let wobbleT = 0;
+      const baseX = _bcMesh.rotation.x, baseY = _bcMesh.rotation.y;
+      const wobble = () => {
+        if (!_bcMesh || _bcDragging || _bcFlipping) return;
+        wobbleT++;
+        const decay = Math.exp(-wobbleT * 0.07);
+        const osc = Math.sin(wobbleT * 0.45) * decay;
+        _bcMesh.rotation.x = baseX + ny * strength * osc;
+        _bcMesh.rotation.y = baseY + nx * strength * osc;
+        if (decay > 0.01) requestAnimationFrame(wobble);
+        else { _bcMesh.rotation.x = baseX; _bcMesh.rotation.y = baseY; }
+      };
+      wobble();
+      _bcReleaseTime = Date.now(); _bcSpinning = false;
+      return;
+    }
+
     _bcDragVelX = 0; _bcDragVelY = 0;
     const now = Date.now();
     if (_bcTrail && _bcTrail.length >= 2) {

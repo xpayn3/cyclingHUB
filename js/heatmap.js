@@ -23,11 +23,14 @@ const _hm = {
   loading: false,
   filter: 'all',       // 'all','year','6mo','90d','custom'
   sportFilter: 'all',  // 'all','Ride','Run','Swim','Walk'
-  colorMode: 'heat',   // 'heat','speed','power','time','elevation'
+  colorMode: 'gpuheat',   // 'gpuheat','lines','speed','time','hex3d','trips','arcs','screengrid','scatter'
   animating: false,
   animIdx: 0,
   animTimer: null,
   timeFilter: 'all',   // 'all','morning','afternoon','evening','night'
+  _deckOverlay: null,
+  _tripsRaf: null,
+  _tripsTime: 0,
 };
 /* ── Expose for cross-module access (theme hot-swap) ── */
 window._hm = _hm;
@@ -321,8 +324,8 @@ export function _hmInitMap() {
     center: [14, 46],
     zoom: 4,
     attributionControl: true,
-    dragRotate: _hmTerrainOn,
-    pitchWithRotate: _hmTerrainOn,
+    dragRotate: true,
+    pitchWithRotate: true,
     maxPitch: 85,
     renderWorldCopies: false,
     antialias: false,
@@ -380,6 +383,21 @@ export function _hmInitMap() {
             _mlApplyTerrain(_hm.map);
             hmRedraw();
           });
+        });
+
+      // 3D Terrain toggle
+      const terrBtn = mkBtn(loadTerrainEnabled() ? 'active' : '', 'Toggle 3D terrain',
+        '<svg class="icon" width="16" height="16"><use href="icons.svg#icon-mountain"/></svg>',
+        () => {
+          const on = !loadTerrainEnabled();
+          try { localStorage.setItem('icu_terrain_3d', on ? 'true' : 'false'); } catch (_) {}
+          terrBtn.classList.toggle('active', on);
+          _mlApplyTerrain(_hm.map);
+          if (on) {
+            _hm.map.easeTo({ pitch: 50, duration: 800 });
+          } else {
+            _hm.map.easeTo({ pitch: 0, bearing: 0, duration: 600 });
+          }
         });
 
       return this._container;
@@ -780,7 +798,16 @@ export async function _hmFetchOneRoute(a) {
     const step = Math.max(1, Math.floor(valid.length / 200));
     points = valid.filter((_, j) => j % step === 0);
     if (points.length > 0 && points[points.length - 1] !== valid[valid.length - 1]) points.push(valid[valid.length - 1]);
-    try { localStorage.setItem(cacheKey, JSON.stringify(points)); } catch (_) {}
+    try {
+      const GPS_MAX = 50;
+      const gpsKeys = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('icu_gps_pts_')) gpsKeys.push(k);
+      }
+      while (gpsKeys.length >= GPS_MAX) localStorage.removeItem(gpsKeys.shift());
+      localStorage.setItem(cacheKey, JSON.stringify(points));
+    } catch (_) {}
   }
 
   if (!points || points.length < 2) return { noGps: true };
@@ -881,41 +908,37 @@ export async function _hmFetchAllRoutes(subEl, textEl) {
 
 /* ── Filter routes based on current settings ── */
 export function hmApplyFilters() {
-  let routes = _hm.allRoutes.filter(r => r.points && r.points.length >= 2);
-
-  // Period filter
+  // Single-pass filter — all conditions checked per route
   const now = new Date();
-  if (_hm.filter === 'year') {
-    const jan1 = new Date(now.getFullYear(), 0, 1);
-    routes = routes.filter(r => r.date >= jan1);
-  } else if (_hm.filter === '6mo') {
-    const cutoff = new Date(now); cutoff.setMonth(cutoff.getMonth() - 6);
-    routes = routes.filter(r => r.date >= cutoff);
-  } else if (_hm.filter === '90d') {
-    const cutoff = new Date(now); cutoff.setDate(cutoff.getDate() - 90);
-    routes = routes.filter(r => r.date >= cutoff);
-  } else if (_hm.filter === 'custom' && _hm._customStart && _hm._customEnd) {
-    routes = routes.filter(r => r.date >= _hm._customStart && r.date <= _hm._customEnd);
-  }
+  let dateCutoff = null, dateEnd = null;
+  if (_hm.filter === 'year') dateCutoff = new Date(now.getFullYear(), 0, 1);
+  else if (_hm.filter === '6mo') { dateCutoff = new Date(now); dateCutoff.setMonth(dateCutoff.getMonth() - 6); }
+  else if (_hm.filter === '90d') { dateCutoff = new Date(now); dateCutoff.setDate(dateCutoff.getDate() - 90); }
+  else if (_hm.filter === 'custom' && _hm._customStart && _hm._customEnd) { dateCutoff = _hm._customStart; dateEnd = _hm._customEnd; }
 
-  // Sport filter
-  if (_hm.sportFilter !== 'all') {
-    if (_hm.sportFilter === 'Other') {
-      routes = routes.filter(r => !['Ride', 'Run'].includes(r.type));
-    } else {
-      routes = routes.filter(r => r.type === _hm.sportFilter);
+  const sportAll = _hm.sportFilter === 'all';
+  const sportOther = _hm.sportFilter === 'Other';
+  const sport = _hm.sportFilter;
+  const timeAll = _hm.timeFilter === 'all';
+  const tf = _hm.timeFilter;
+
+  const routes = [];
+  for (let i = 0, len = _hm.allRoutes.length; i < len; i++) {
+    const r = _hm.allRoutes[i];
+    if (!r.points || r.points.length < 2) continue;
+    if (dateCutoff && r.date < dateCutoff) continue;
+    if (dateEnd && r.date > dateEnd) continue;
+    if (!sportAll) {
+      if (sportOther) { if (r.type === 'Ride' || r.type === 'Run') continue; }
+      else if (r.type !== sport) continue;
     }
-  }
-
-  // Time of day filter
-  if (_hm.timeFilter !== 'all') {
-    routes = routes.filter(r => {
+    if (!timeAll) {
       const h = r.hour;
-      if (_hm.timeFilter === 'morning')   return h >= 5 && h < 12;
-      if (_hm.timeFilter === 'afternoon') return h >= 12 && h < 17;
-      if (_hm.timeFilter === 'evening')   return h >= 17 && h < 21;
-      return false;
-    });
+      if (tf === 'morning'   && (h < 5 || h >= 12)) continue;
+      if (tf === 'afternoon' && (h < 12 || h >= 17)) continue;
+      if (tf === 'evening'   && (h < 17 || h >= 21)) continue;
+    }
+    routes.push(r);
   }
 
   _hm._filtered = routes;
@@ -925,9 +948,12 @@ export function hmApplyFilters() {
 
 /* ── Update stats bar ── */
 export function hmUpdateStats(routes) {
-  const dist = routes.reduce((s, r) => s + (r.distance || 0), 0);
-  const time = routes.reduce((s, r) => s + (r.time || 0), 0);
-  const elev = routes.reduce((s, r) => s + (r.elevation || 0), 0);
+  let dist = 0, time = 0, elev = 0;
+  for (let i = 0; i < routes.length; i++) {
+    dist += routes[i].distance || 0;
+    time += routes[i].time || 0;
+    elev += routes[i].elevation || 0;
+  }
 
   const fmt = (n) => n >= 10000 ? (n/1000).toFixed(1) + 'k' : n.toLocaleString();
   const el = id => document.getElementById(id);
@@ -967,6 +993,11 @@ export function hmRedraw() {
 
   const mode = _hm.colorMode;
 
+  // Reset pitch when leaving 3D hex mode
+  if (mode !== 'hex3d' && _hm.map.getPitch() > 30) {
+    _hm.map.easeTo({ pitch: 0, bearing: 0, duration: 600 });
+  }
+
   if (mode === 'heat') {
     _hmDrawHeat(routes);
   } else if (mode === 'lines') {
@@ -975,6 +1006,22 @@ export function hmRedraw() {
     _hmDrawBySpeed(routes);
   } else if (mode === 'time') {
     _hmDrawByYear(routes);
+  } else if (mode === 'hex3d') {
+    _hmDrawHex3d(routes);
+  } else if (mode === 'trips') {
+    _hmDrawTrips(routes);
+  } else if (mode === 'arcs') {
+    _hmDrawArcs(routes);
+  } else if (mode === 'screengrid') {
+    _hmDrawScreenGrid(routes);
+  } else if (mode === 'scatter') {
+    _hmDrawScatter(routes);
+  } else if (mode === 'particles') {
+    _hmDrawParticles(routes);
+  } else if (mode === 'contour') {
+    _hmDrawContour(routes);
+  } else if (mode === 'gpuheat') {
+    _hmDrawGpuHeat(routes);
   }
 
   // Only fit bounds on first draw — zoom to the densest activity area
@@ -1041,6 +1088,11 @@ export function _hmClearMapLayers() {
   _hm._eventHandlers = [];
   _hm.polylines = [];
   _hm.heatLayer = null;
+  // Clear deck.gl layers (keep overlay alive to avoid context churn)
+  if (_hm._deckOverlay) {
+    try { _hm._deckOverlay.setProps({ layers: [] }); } catch (_) {}
+  }
+  if (_hm._tripsRaf) { cancelAnimationFrame(_hm._tripsRaf); _hm._tripsRaf = null; }
 }
 
 /* ── Heat mode (MapLibre heatmap layer) ── */
@@ -1601,4 +1653,429 @@ export function hmFilterByDateRange(startDate, endDate) {
   hmApplyFilters();
 }
 window.hmFilterByDateRange = hmFilterByDateRange;
+
+/* ====================================================
+   deck.gl VISUALIZATION MODES
+==================================================== */
+const _hmFlip = pts => pts.map(p => [p[1], p[0]]); // [lat,lng] → [lng,lat]
+
+function _hmAddDeckOverlay(layers) {
+  if (typeof deck === 'undefined') { _app('showToast')('deck.gl not loaded', 'error'); return; }
+  // Reuse existing overlay — just swap layers (avoids creating new WebGL contexts)
+  if (_hm._deckOverlay) {
+    _hm._deckOverlay.setProps({ layers });
+  } else {
+    _hm._deckOverlay = new deck.MapboxOverlay({ layers, interleaved: false });
+    _hm.map.addControl(_hm._deckOverlay);
+  }
+}
+
+/* ── 3D Hexbin density ── */
+function _hmDrawHex3d(routes) {
+  // Use 1 point per route (midpoint) to keep data tiny
+  const positions = [];
+  routes.forEach(r => {
+    if (!r.points || r.points.length < 2) return;
+    const mid = r.points[Math.floor(r.points.length / 2)];
+    positions.push([mid[1], mid[0]]);
+    // Add start + end for better coverage
+    positions.push([r.points[0][1], r.points[0][0]]);
+    positions.push([r.points[r.points.length - 1][1], r.points[r.points.length - 1][0]]);
+  });
+  if (!positions.length) return;
+
+  _hm.map.easeTo({ pitch: 50, bearing: _hm.map.getBearing(), duration: 800 });
+
+  _hmAddDeckOverlay([
+    new deck.HexagonLayer({
+      id: 'hm-hex3d',
+      data: positions,
+      getPosition: d => d,
+      radius: 500,
+      elevationScale: 15,
+      extruded: true,
+      coverage: 0.8,
+      gpuAggregation: false,
+      colorRange: [
+        [4, 10, 7],
+        [0, 120, 80],
+        [0, 229, 160],
+        [240, 196, 41],
+        [255, 149, 0],
+        [255, 69, 58],
+      ],
+      pickable: false,
+    })
+  ]);
+  _hmUpdateLegend('<span style="color:var(--accent)">3D Hex</span> · Ride density by area');
+}
+
+/* ── Animated trip replay ── */
+function _hmDrawTrips(routes) {
+  // Build trip data: each route becomes a path with timestamps
+  const trips = [];
+  routes.forEach(r => {
+    if (!r.points || r.points.length < 2) return;
+    const pts = _hmFlip(r.points);
+    const totalTime = r.time || pts.length * 2;
+    const isRide = (r.type || '').toLowerCase().includes('ride');
+    const color = isRide ? [0, 229, 160] : [255, 107, 53]; // accent green / orange
+    const path = pts.map((p, i) => [...p, (i / pts.length) * totalTime]);
+    trips.push({ path, color });
+  });
+  if (!trips.length) return;
+
+  // Stack routes only when gap > 0 (controlled by slider)
+  const gap = window._hmStackGap ?? 0;
+  trips.forEach((t, i) => { t.elevation = gap > 0 ? i * gap : 0; });
+
+  _hmAddDeckOverlay([
+    new deck.PathLayer({
+      id: 'hm-trips',
+      data: trips,
+      getPath: d => d.elevation > 0 ? d.path.map(p => [p[0], p[1], d.elevation]) : d.path.map(p => [p[0], p[1]]),
+      getColor: d => d.color,
+      widthMinPixels: 1.5,
+      widthMaxPixels: 3,
+      pickable: false,
+      widthScale: 1,
+      opacity: 0.7,
+    })
+  ]);
+  _hmUpdateLegend('<span style="color:var(--accent)">Trips</span> · Animated route replay');
+}
+
+/* ── Arc connections (start → end of each ride) ── */
+function _hmDrawArcs(routes) {
+  const arcs = [];
+  routes.forEach(r => {
+    if (!r.points || r.points.length < 2) return;
+    const first = r.points[0];
+    const last = r.points[r.points.length - 1];
+    const dist = r.distance || 0;
+    // Color by distance: short=accent, long=orange→red
+    const t = Math.min(1, dist / 100000); // 0–100km range
+    arcs.push({
+      source: [first[1], first[0]],
+      target: [last[1], last[0]],
+      sourceColor: [0, 229, 160],
+      targetColor: [
+        Math.round(255 * t),
+        Math.round(229 * (1 - t) + 69 * t),
+        Math.round(160 * (1 - t) + 58 * t),
+      ],
+    });
+  });
+  if (!arcs.length) return;
+
+  _hmAddDeckOverlay([
+    new deck.ArcLayer({
+      id: 'hm-arcs',
+      data: arcs,
+      getSourcePosition: d => d.source,
+      getTargetPosition: d => d.target,
+      getSourceColor: d => d.sourceColor,
+      getTargetColor: d => d.targetColor,
+      getWidth: 1.5,
+      pickable: true,
+      autoHighlight: true,
+      highlightColor: [0, 229, 160, 180],
+    })
+  ]);
+  _hmUpdateLegend('<span style="color:var(--accent)">Arcs</span> · Start → Finish connections');
+}
+
+/* ── ScreenGridLayer — real-time pixel density grid ── */
+function _hmDrawScreenGrid(routes) {
+  const positions = [];
+  routes.forEach(r => {
+    if (!r.points || r.points.length < 2) return;
+    const step = Math.max(1, Math.floor(r.points.length / 10));
+    for (let i = 0; i < r.points.length; i += step) {
+      positions.push([r.points[i][1], r.points[i][0]]);
+    }
+  });
+  if (!positions.length) return;
+
+  _hmAddDeckOverlay([
+    new deck.ScreenGridLayer({
+      id: 'hm-screengrid',
+      data: positions,
+      getPosition: d => d,
+      cellSizePixels: 12,
+      colorRange: [
+        [4, 10, 7, 25],
+        [0, 80, 50, 80],
+        [0, 229, 160, 140],
+        [240, 196, 41, 180],
+        [255, 149, 0, 210],
+        [255, 69, 58, 255],
+      ],
+      gpuAggregation: false,
+      opacity: 0.8,
+    })
+  ]);
+  _hmUpdateLegend('<span style="color:var(--accent)">Grid</span> · Pixel density (updates on pan/zoom)');
+}
+
+/* ── ScatterplotLayer — ride start points, sized by TSS ── */
+function _hmDrawScatter(routes) {
+  const points = routes.map(r => {
+    if (!r.points || !r.points.length) return null;
+    const start = r.points[0];
+    const tss = r.power ? r.power * (r.time / 3600) * 0.01 : r.distance / 1000;
+    const isRide = (r.type || '').toLowerCase().includes('ride');
+    return {
+      position: [start[1], start[0]],
+      radius: Math.max(30, Math.min(300, tss * 3)),
+      color: isRide ? [0, 229, 160, 160] : [255, 107, 53, 160],
+    };
+  }).filter(Boolean);
+  if (!points.length) return;
+
+  _hmAddDeckOverlay([
+    new deck.ScatterplotLayer({
+      id: 'hm-scatter',
+      data: points,
+      getPosition: d => d.position,
+      getRadius: d => d.radius,
+      getFillColor: d => d.color,
+      radiusMinPixels: 3,
+      radiusMaxPixels: 40,
+      pickable: false,
+      opacity: 0.7,
+      stroked: true,
+      getLineColor: [255, 255, 255, 60],
+      lineWidthMinPixels: 0.5,
+    })
+  ]);
+  _hmUpdateLegend('<span style="color:var(--accent)">Scatter</span> · Start points sized by effort');
+}
+
+/* ── GPU HeatmapLayer — smooth gaussian density ── */
+function _hmDrawGpuHeat(routes) {
+  const positions = [];
+  routes.forEach(r => {
+    if (!r.points || r.points.length < 2) return;
+    const step = Math.max(1, Math.floor(r.points.length / 10));
+    for (let i = 0; i < r.points.length; i += step) {
+      positions.push({ position: [r.points[i][1], r.points[i][0]], weight: 1 });
+    }
+  });
+  if (!positions.length) return;
+
+  _hmAddDeckOverlay([
+    new deck.HeatmapLayer({
+      id: 'hm-gpuheat',
+      data: positions,
+      getPosition: d => d.position,
+      getWeight: d => d.weight,
+      radiusPixels: 30,
+      intensity: 1.5,
+      threshold: 0.05,
+      colorRange: [
+        [255, 255, 100],
+        [255, 200, 50],
+        [255, 149, 0],
+        [255, 80, 30],
+        [255, 45, 35],
+        [180, 0, 0],
+      ],
+      opacity: 0.8,
+    })
+  ]);
+  _hmUpdateLegend('<span style="color:#f0c429">GPU Heat</span> · Yellow (few) → Red (many)');
+}
+
+/* ── Particle Flow — dots flowing along routes like blood through veins ── */
+function _hmDrawParticles(routes) {
+  // Build path data: each route gets multiple particles spaced along its path
+  // Speed color ramp: blue (slow) → green → yellow → red (fast)
+  const _spdColor = (kmh) => {
+    const t = Math.max(0, Math.min(1, kmh / 50)); // 0-50 km/h range
+    if (t < 0.33) { const f = t / 0.33; return [Math.round(74 * (1 - f)), Math.round(158 * (1 - f) + 229 * f), Math.round(255 * (1 - f) + 160 * f)]; }
+    if (t < 0.66) { const f = (t - 0.33) / 0.33; return [Math.round(240 * f), Math.round(229 * (1 - f) + 196 * f), Math.round(160 * (1 - f) + 41 * f)]; }
+    const f = (t - 0.66) / 0.34; return [Math.round(240 + 15 * f), Math.round(196 * (1 - f) + 69 * f), Math.round(41 * (1 - f) + 58 * f)];
+  };
+
+  const paths = [];
+  routes.forEach(r => {
+    if (!r.points || r.points.length < 3) return;
+    const pts = _hmFlip(r.points);
+    const spd = r.speed || 0; // km/h
+    const color = _spdColor(spd);
+    paths.push({ pts, color, len: pts.length });
+  });
+  if (!paths.length) return;
+
+  // Spawn particles: ~3 per route, evenly spaced along the path
+  const PARTICLES_PER_ROUTE = 3;
+  const particles = [];
+  paths.forEach((p, ri) => {
+    for (let i = 0; i < PARTICLES_PER_ROUTE; i++) {
+      particles.push({
+        routeIdx: ri,
+        offset: (i / PARTICLES_PER_ROUTE) * p.len,
+        color: [...p.color, 220],
+      });
+    }
+  });
+
+  const _pStartTime = performance.now();
+  window._hmParticleSpeed = window._hmParticleSpeed ?? 3;
+  window._hmParticleTrail = window._hmParticleTrail ?? 150;
+  window._hmParticleSize = window._hmParticleSize ?? 3;
+
+  function getPositions() {
+    const elapsed = (performance.now() - _pStartTime) * 0.001; // seconds
+    const speed = window._hmParticleSpeed ?? 3;
+    const trail = window._hmParticleTrail ?? 150;
+    const t = elapsed * speed * 10;
+    const positions = [];
+    particles.forEach(p => {
+      const route = paths[p.routeIdx];
+      const pos = (p.offset + t) % route.len;
+      const idx = Math.floor(pos < 0 ? pos + route.len : pos);
+      const size = window._hmParticleSize ?? 3;
+      positions.push({ position: route.pts[idx], color: [...p.color, 255], radius: size });
+      // Trail: 10 dots behind, spaced by trail/10 points
+      const trailStep = Math.max(1, Math.round(trail / 10));
+      for (let j = 1; j <= 10; j++) {
+        const ti = Math.floor(((p.offset + t - j * trailStep) % route.len) + route.len) % route.len;
+        const fade = 1 - j / 10;
+        positions.push({
+          position: route.pts[ti],
+          color: [p.color[0], p.color[1], p.color[2], Math.round(fade * fade * 200)],
+          radius: size * (0.3 + 0.7 * fade),
+        });
+      }
+    });
+    return positions;
+  }
+
+  function animate() {
+    if (!_hm._deckOverlay) return;
+    const data = getPositions();
+    _hm._deckOverlay.setProps({
+      layers: [
+        new deck.ScatterplotLayer({
+          id: 'hm-particles',
+          data,
+          getPosition: d => d.position,
+          getFillColor: d => d.color,
+          getRadius: d => d.radius,
+          radiusUnits: 'pixels',
+          radiusMinPixels: 1,
+          radiusMaxPixels: 10,
+          pickable: false,
+          opacity: 1,
+          parameters: { depthTest: false },
+        })
+      ]
+    });
+    _hm._tripsRaf = requestAnimationFrame(animate);
+  }
+
+  // Initial render
+  _hmAddDeckOverlay([
+    new deck.ScatterplotLayer({
+      id: 'hm-particles',
+      data: getPositions(),
+      getPosition: d => d.position,
+      getFillColor: d => d.color,
+      getRadius: d => d.radius,
+      radiusUnits: 'pixels',
+      radiusMinPixels: 1,
+      radiusMaxPixels: 10,
+      pickable: false,
+      opacity: 1,
+      parameters: { depthTest: false },
+    })
+  ]);
+  _hm._tripsRaf = requestAnimationFrame(animate);
+  _hmUpdateLegend('<span style="color:var(--accent)">Particles</span> · Flowing along your routes');
+}
+
+/* ── Contour — density rings using GridLayer with flat cells ── */
+function _hmDrawContour(routes) {
+  const positions = [];
+  routes.forEach(r => {
+    if (!r.points || r.points.length < 2) return;
+    const step = Math.max(1, Math.floor(r.points.length / 10));
+    for (let i = 0; i < r.points.length; i += step) {
+      positions.push([r.points[i][1], r.points[i][0]]);
+    }
+  });
+  if (!positions.length) return;
+
+  _hmAddDeckOverlay([
+    new deck.GridLayer({
+      id: 'hm-contour',
+      data: positions,
+      getPosition: d => d,
+      cellSize: 300,
+      extruded: false,
+      gpuAggregation: false,
+      coverage: 0.95,
+      colorRange: [
+        [0, 229, 160, 30],
+        [0, 229, 160, 60],
+        [0, 229, 160, 100],
+        [240, 196, 41, 130],
+        [255, 149, 0, 170],
+        [255, 69, 58, 210],
+      ],
+      opacity: 0.6,
+    })
+  ]);
+  _hmUpdateLegend('<span style="color:var(--accent)">Contour</span> · Density grid by ride frequency');
+}
+
+/* ── ColumnLayer — 3D bars per area showing ride count ── */
+function _hmDrawColumns(routes) {
+  // Bin routes into grid cells by start point
+  const cellSize = window._hmcolRadius ?? 500;
+  const bins = {};
+  routes.forEach(r => {
+    if (!r.points || !r.points.length) return;
+    const lat = r.points[0][0], lng = r.points[0][1];
+    const key = (Math.round(lat * 100) / 100) + ',' + (Math.round(lng * 100) / 100);
+    if (!bins[key]) bins[key] = { position: [lng, lat], count: 0, tss: 0, dist: 0 };
+    bins[key].count++;
+    bins[key].tss += r.power ? r.power * (r.time / 3600) * 0.01 : 0;
+    bins[key].dist += (r.distance || 0) / 1000;
+  });
+  const data = Object.values(bins);
+  if (!data.length) return;
+
+  const maxCount = Math.max(...data.map(d => d.count));
+  const heightScale = window._hmcolHeight ?? 30;
+  const coverage = window._hmcolCoverage ?? 0.7;
+
+  // Tilt for 3D view
+  _hm.map.easeTo({ pitch: 50, bearing: _hm.map.getBearing(), duration: 800 });
+
+  _hmAddDeckOverlay([
+    new deck.ColumnLayer({
+      id: 'hm-columns',
+      data,
+      getPosition: d => d.position,
+      getElevation: d => (d.count / maxCount) * heightScale * 100,
+      getFillColor: d => {
+        const t = d.count / maxCount;
+        if (t < 0.33) return [0, 229, 160, 200];
+        if (t < 0.66) return [240, 196, 41, 210];
+        return [255, 69, 58, 220];
+      },
+      diskResolution: 8,
+      radius: cellSize / 2,
+      coverage,
+      extruded: true,
+      pickable: false,
+      opacity: 0.85,
+    })
+  ]);
+  _hmUpdateLegend('<span style="color:var(--accent)">Columns</span> · Ride frequency per area');
+}
+
 

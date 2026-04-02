@@ -61,6 +61,8 @@ const _rb = {
   _elevShading: false,
   router: { engine: 'brouter', profile: 'fastbike', label: 'Road' },
   orsApiKey: localStorage.getItem('icu_ors_api_key') || '',
+  mapillaryKey: localStorage.getItem('icu_mapillary_key') || '',
+  _mapillaryOn: false,
   _routingCount: 0,
 };
 
@@ -89,6 +91,22 @@ export function _rbOpenDB() {
   });
 }
 
+/* ── Panel cards show/hide ── */
+function _rbShowPanelCards() {
+  document.querySelectorAll('.rb-stats-card, .rb-waypoints-card').forEach(el => {
+    if (el.classList.contains('rb-card--hidden')) {
+      el.classList.remove('rb-card--hidden');
+      el.classList.add('rb-card--visible');
+    }
+  });
+}
+function _rbHidePanelCards() {
+  document.querySelectorAll('.rb-stats-card, .rb-waypoints-card').forEach(el => {
+    el.classList.remove('rb-card--visible');
+    el.classList.add('rb-card--hidden');
+  });
+}
+
 /* ── Page Render ── */
 export function renderRouteBuilderPage() {
   const container = document.getElementById('routeBuilderContent');
@@ -98,6 +116,7 @@ export function renderRouteBuilderPage() {
     <div class="rb-wrapper">
       <div class="rb-map-container">
         <div id="rbMap" class="rb-map"></div>
+        <div class="rb-status-bar" id="rbStatusBar"></div>
         <div class="rb-map-float-stats" id="rbMapFloatStats" style="display:none">
           <div class="rb-mfs-row"><span class="rb-mfs-val" id="rbMfsDist">0.0</span><span class="rb-mfs-unit">km</span></div>
           <div class="rb-mfs-row"><span class="rb-mfs-val" id="rbMfsElev">0</span><span class="rb-mfs-unit">m</span></div>
@@ -111,11 +130,14 @@ export function renderRouteBuilderPage() {
             <input class="rb-search-input" id="rbSearchInput" placeholder="Search places…" autocomplete="off" />
             <div class="rb-search-results" id="rbSearchResults"></div>
           </div>
+          <button class="rb-library-btn" onclick="navigate('myroutes')" title="Route Library">
+            <svg class="icon" width="18" height="18"><use href="icons.svg#icon-bookmark"/></svg>
+          </button>
           <div class="rb-router-wrap" id="rbRouterWrap">
             <button class="rb-router-trigger" id="rbRouterTrigger" title="Routing profile">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M12 2v20"/><path d="M2 5h14l4 4-4 4H2"/><path d="M22 15H8l-4 4 4 4h14"/></svg>
+              <svg class="icon" width="14" height="14"><use href="icons.svg#icon-git-branch"/></svg>
               <span id="rbRouterLabel">${RB_ROUTERS[0].label} <span class="rb-router-engine">(${RB_ROUTERS[0].engine.toUpperCase()})</span></span>
-              <svg class="rb-router-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="10" height="10"><polyline points="6 9 12 15 18 9"/></svg>
+              <svg class="icon rb-router-chevron" width="10" height="10"><use href="icons.svg#icon-chevron-down"/></svg>
             </button>
             <div class="rb-router-menu" id="rbRouterMenu">
               ${RB_ROUTERS.map((r, i) => {
@@ -126,9 +148,9 @@ export function renderRouteBuilderPage() {
           </div>
           <div class="rb-options-wrap" id="rbOptionsWrap">
             <button class="rb-options-trigger" id="rbOptionsTrigger" title="Route options">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              <svg class="icon" width="14" height="14"><use href="icons.svg#icon-settings"/></svg>
               <span>Options</span>
-              <svg class="rb-options-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="10" height="10"><polyline points="6 9 12 15 18 9"/></svg>
+              <svg class="icon rb-options-chevron" width="10" height="10"><use href="icons.svg#icon-chevron-down"/></svg>
             </button>
             <div class="rb-options-menu" id="rbOptionsMenu">
               <div class="rb-options-section">Route Preferences</div>
@@ -173,9 +195,9 @@ export function renderRouteBuilderPage() {
           </div>
           <div class="rb-export-wrap" id="rbExportWrap">
             <button class="rb-export-trigger" id="rbExportTrigger">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <svg class="icon" width="14" height="14"><use href="icons.svg#icon-download"/></svg>
               <span>Export</span>
-              <svg class="rb-export-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="10" height="10"><polyline points="6 9 12 15 18 9"/></svg>
+              <svg class="icon rb-export-chevron" width="10" height="10"><use href="icons.svg#icon-chevron-down"/></svg>
             </button>
             <div class="rb-export-menu" id="rbExportMenu">
               <div class="rb-export-option" onclick="rbImportGPX()">
@@ -197,13 +219,21 @@ export function renderRouteBuilderPage() {
               </div>
             </div>
           </div>
+          <div class="rb-scale-ruler" id="rbScaleRuler">
+            <div class="rb-scale-bar">
+              <div class="rb-scale-tick rb-scale-tick--end"></div>
+              <div class="rb-scale-tick rb-scale-tick--mid"></div>
+              <div class="rb-scale-tick rb-scale-tick--end"></div>
+            </div>
+            <div class="rb-scale-label" id="rbScaleLabel"></div>
+          </div>
         </div>
         <button class="rb-panel-toggle" onclick="rbToggleSidePanel()" title="Toggle stats panel">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
         </button>
         <div class="rb-overlay rb-overlay--right" id="rbSidePanel">
           <div class="rb-side-panel">
-            <div class="rb-stats-card card">
+            <div class="rb-stats-card card rb-card--hidden">
               <div class="card-header"><div class="card-title">Route Stats</div></div>
               <div class="rb-stats-grid" id="rbStatsGrid">
                 <div class="rb-stat"><span class="rb-stat-val" id="rbStatDist">0.0</span><span class="rb-stat-label">km</span></div>
@@ -218,34 +248,6 @@ export function renderRouteBuilderPage() {
                 <div class="rb-climbs-list" id="rbClimbsList"></div>
               </div>
             </div>
-            <div class="rb-actions-card card">
-              <div class="rb-actions-row">
-                <button class="rb-action-pill" id="rbUndoBtn" onclick="rbUndo()" title="Undo" disabled>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-                  <span>Undo</span>
-                </button>
-                <button class="rb-action-pill" id="rbRedoBtn" onclick="rbRedo()" title="Redo" disabled>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"/></svg>
-                  <span>Redo</span>
-                </button>
-                <button class="rb-action-pill" onclick="rbReverse()" title="Reverse">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
-                  <span>Reverse</span>
-                </button>
-                <button class="rb-action-pill" onclick="rbOutAndBack()" title="Out & Back">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
-                  <span>Out & Back</span>
-                </button>
-                <button class="rb-action-pill" onclick="rbLoopBack()" title="Loop">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><polyline points="22 2 22 12 12 12"/></svg>
-                  <span>Loop</span>
-                </button>
-                <button class="rb-action-pill rb-action-pill--danger" id="rbClearExitBtn" onclick="rbClearOrExit()" title="Exit to dashboard">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                  <span>Exit</span>
-                </button>
-              </div>
-            </div>
             <div class="rb-edit-bar" id="rbEditBar" style="display:none">
               <div class="rb-edit-bar-name" id="rbEditBarName"></div>
               <div class="rb-edit-bar-actions">
@@ -253,7 +255,7 @@ export function renderRouteBuilderPage() {
                 <button class="btn btn-sm rb-edit-save" onclick="rbSaveEdit()" title="Save changes">Save</button>
               </div>
             </div>
-            <div class="rb-waypoints-card card">
+            <div class="rb-waypoints-card card rb-card--hidden">
               <div class="card-header">
                 <div class="card-title">Waypoints</div>
                 <div class="card-subtitle" id="rbWpCount">0 points</div>
@@ -269,13 +271,38 @@ export function renderRouteBuilderPage() {
               </div>
               <div class="rb-wx-points" id="rbWxPoints"></div>
             </div>
-            <div class="rb-saved-card card">
-              <div class="card-header"><div class="card-title">Saved Routes</div></div>
-              <div class="rb-saved-list" id="rbSavedList">
-                <div class="rb-saved-empty">No saved routes yet</div>
-              </div>
-              <button class="btn btn-ghost" onclick="navigate('myroutes')" style="width:100%;justify-content:center;margin-top:4px;color:var(--accent)">View Library →</button>
-            </div>
+          </div>
+        </div>
+        <div class="rb-actions-bar" id="rbActionsBar">
+          <button class="rb-action-pill" id="rbUndoBtn" onclick="rbUndo()" data-tip="Undo · ⌘Z" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          </button>
+          <button class="rb-action-pill" id="rbRedoBtn" onclick="rbRedo()" data-tip="Redo · ⌘⇧Z" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"/></svg>
+          </button>
+          <button class="rb-action-pill" onclick="rbReverse()" data-tip="Reverse · R">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+          </button>
+          <button class="rb-action-pill" onclick="rbOutAndBack()" data-tip="Out & Back · B">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+          <button class="rb-action-pill" onclick="rbLoopBack()" data-tip="Loop · L">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><polyline points="22 2 22 12 12 12"/></svg>
+          </button>
+          <button class="rb-action-pill" id="rbReachBtn" onclick="_rbToggleIsochrone()" data-tip="Reachability">
+            <svg class="icon" width="18" height="18"><use href="icons.svg#icon-clock"/></svg>
+          </button>
+          <button class="rb-action-pill" id="rbElevToggleBtn" onclick="rbToggleElevPanel()" data-tip="Elevation · E">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          </button>
+          <button class="rb-action-pill rb-action-pill--danger" id="rbClearExitBtn" onclick="rbClearOrExit()" data-tip="Exit · Esc">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          </button>
+        </div>
+        <div class="rb-elev-panel rb-elev-hidden" id="rbElevPanel">
+          <div class="rb-elev-card-header card-header"><div class="card-title">Elevation Profile</div></div>
+          <div class="rb-elev-chart-wrap" id="rbElevChartWrap">
+            <canvas id="rbElevCanvas"></canvas>
           </div>
         </div>
       </div>
@@ -289,16 +316,6 @@ export function renderRouteBuilderPage() {
         <div class="rb-sheet-handle"><span></span></div>
         <div class="rb-sheet-scroll" id="rbSheetScroll"></div>
       </div>
-      <div class="rb-elev-panel" id="rbElevPanel">
-        <div class="rb-elev-toggle" onclick="rbToggleElevPanel()">
-          <span class="rb-elev-toggle-icon" id="rbElevToggleIcon">&#9650;</span>
-          <span>Elevation Profile</span>
-        </div>
-        <div class="rb-elev-card-header card-header"><div class="card-title">Elevation Profile</div></div>
-        <div class="rb-elev-chart-wrap" id="rbElevChartWrap">
-          <canvas id="rbElevCanvas"></canvas>
-        </div>
-      </div>
     </div>
   `;
 
@@ -307,9 +324,9 @@ export function renderRouteBuilderPage() {
   _rbInitSearch();
   _rbInitKeyboard();
 
-  // Collapse elevation panel by default
+  // Hide elevation panel by default — shown via toolbar button
   const ep = document.getElementById('rbElevPanel');
-  if (ep) ep.classList.add('collapsed');
+  if (ep) { ep.classList.add('rb-elev-hidden'); ep.classList.remove('collapsed'); }
 
   // Activate bottom-sheet layout on mobile
   if (window.innerWidth <= 820) rbActivateSheetMode();
@@ -522,6 +539,29 @@ export function _rbRestoreMapLayers() {
     _rbFetchPois();
   }
   _mlApplyTerrain(_rb.map);
+  // Restore Mapillary layer
+  if (_rb._mapillaryOn && _rb.mapillaryKey) _rbAddMapillaryLayer();
+  // Restore projection + buildings based on terrain state
+  if (loadTerrainEnabled()) {
+    try { _rb.map.setProjection({ type: 'mercator' }); } catch(_) {}
+    _rbAdd3DBuildings();
+  } else {
+    try { _rb.map.setProjection({ type: 'globe' }); } catch(_) {}
+  }
+  // Restore sky + globe atmosphere
+  try {
+    _rb.map.setSky({
+      'sky-color': '#89CFF0', 'sky-horizon-blend': 0.4, 'horizon-color': '#d4e8f7',
+      'horizon-fog-blend': 0.8, 'fog-color': '#c8dce8', 'fog-ground-blend': 0.9, 'atmosphere-blend': 0.85,
+    });
+  } catch(_) {}
+
+  // Strava overrides only when strava theme is active
+  _rbEnsureLayerKeys();
+  const currentStyleKey = _rbMapLayerKeys[_rbLayerIdx];
+  if (currentStyleKey === 'strava' && typeof window._applyStravaOverrides === 'function') {
+    window._applyStravaOverrides(_rb.map);
+  }
   // Sync road safety button state (disabled in satellite)
   const rsBtn = document.getElementById('rbRoadSafetyBtn');
   if (rsBtn) {
@@ -553,18 +593,27 @@ export function _rbInitMap() {
       maxSpeed: 1400,
     },
     fadeDuration: 0,
-    renderWorldCopies: false,
     antialias: false,
     collectResourceTiming: false,
     maxTileCacheSize: 400,
     pixelRatio: Math.min(devicePixelRatio, 2),
   });
+  // Suppress missing sprite image warnings (CyclOSM etc.)
+  _rb.map.on('styleimagemissing', (e) => {
+    if (!_rb.map.hasImage(e.id)) {
+      _rb.map.addImage(e.id, { width: 1, height: 1, data: new Uint8Array(4) });
+    }
+  });
+
   _rb.map.on('load', () => {
     if (typeof window._isStravaTheme === 'function' && window._isStravaTheme()) window._applyStravaOverrides(_rb.map);
     _mlApplyTerrain(_rb.map);
     if (_rb._cyclOSMOn) _addCyclOSMLayer(_rb.map);
     if (_rb._roadSafetyOn) _addRoadSafetyLayer(_rb.map);
-    // Sky gradient when tilted
+    // Globe projection at low zoom
+    try { _rb.map.setProjection({ type: 'globe' }); } catch(_) {}
+
+    // Sky + atmosphere (visible on globe and when tilted)
     _rb.map.setSky({
       'sky-color': '#89CFF0',
       'sky-horizon-blend': 0.4,
@@ -572,13 +621,32 @@ export function _rbInitMap() {
       'horizon-fog-blend': 0.8,
       'fog-color': '#c8dce8',
       'fog-ground-blend': 0.9,
-      'atmosphere-blend': 0.6,
+      'atmosphere-blend': 0.85,
     });
     // Fetch current weather at map center immediately
     _rbFetchCurrentWeather();
   });
   _rb.map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
-  _rb.map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: 'metric' }), 'bottom-left');
+  // Scale ruler — update on map move
+  const _rbScaleUpdate = () => {
+    const bar = document.querySelector('#rbScaleRuler .rb-scale-bar');
+    const lbl = document.getElementById('rbScaleLabel');
+    if (!bar || !lbl) return;
+    const y = _rb.map.getContainer().clientHeight / 2;
+    const left = _rb.map.unproject([0, y]);
+    const right = _rb.map.unproject([100, y]);
+    const mPer100px = left.distanceTo(right);
+    const steps = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000];
+    let dist = steps[0], barPx = 60;
+    for (const s of steps) {
+      barPx = (s / mPer100px) * 100;
+      if (barPx >= 40 && barPx <= 120) { dist = s; break; }
+    }
+    bar.style.width = Math.round(Math.max(30, Math.min(120, barPx))) + 'px';
+    lbl.textContent = dist >= 1000 ? (dist / 1000) + ' km' : dist + ' m';
+  };
+  _rb.map.on('move', _rbScaleUpdate);
+  _rb.map.once('load', _rbScaleUpdate);
 
   // Custom rotation + pitch handler (right-click drag or Alt+left-click drag)
   (function() {
@@ -645,9 +713,9 @@ export function _rbInitMap() {
         '<svg class="icon" width="16" height="16"><use href="icons.svg#icon-locate-fixed"/></svg>',
         _rbGeolocate);
 
-      mkBtn('', 'Switch map layer',
+      mkBtn('', 'Map style & overlays',
         '<svg class="icon" width="16" height="16"><use href="icons.svg#icon-layers"/></svg>',
-        _rbCycleMapLayer).id = 'rbLayerBtn';
+        _rbOpenMapStyleSheet).id = 'rbLayerBtn';
 
       mkBtn('', 'Toggle points of interest',
         '<svg class="icon" width="16" height="16"><use href="icons.svg#icon-map-pin"/></svg>',
@@ -681,6 +749,12 @@ export function _rbInitMap() {
         '<svg class="icon" width="16" height="16"><use href="icons.svg#icon-mountain"/></svg>',
         _rbToggleTerrain);
       terrBtn.id = 'rbTerrainBtn';
+
+      // ── Street Photos (Mapillary) button ──
+      const photoBtn = mkBtn(_rb._mapillaryOn ? 'active' : '', 'Street-level photos',
+        '<svg class="icon" width="16" height="16"><use href="icons.svg#icon-camera"/></svg>',
+        _rbToggleMapillary);
+      photoBtn.id = 'rbMapillaryBtn';
 
       // ── Map info / attribution button ──
       const infoBtn = mkBtn('', 'Map information',
@@ -992,6 +1066,7 @@ async function _rbFetchRouteWeather() {
 
   const key = samplePts.map(p => `${p.lat.toFixed(2)},${p.lng.toFixed(2)}`).join('|');
   if (key === _rb._wxCacheKey && _rb._wxData) { _rbRenderRouteWeather(); return; }
+  rbStatusShow('weather', 'Fetching route weather…');
 
   try {
     const results = await Promise.all(samplePts.map(async (p) => {
@@ -1022,8 +1097,10 @@ async function _rbFetchRouteWeather() {
     }).filter(Boolean);
 
     _rb._wxCacheKey = key;
+    rbStatusHide('weather');
     _rbRenderRouteWeather();
   } catch (e) {
+    rbStatusHide('weather');
     console.warn('Route weather fetch failed:', e);
   }
 }
@@ -1149,7 +1226,8 @@ export async function _rbRefetchAllSegments() {
   for (let i = 0; i < _rb.waypoints.length - 1; i++) {
     const a = _rb.waypoints[i];
     const b = _rb.waypoints[i + 1];
-    const route = await _rbFetchRoute(a, b, false, true);
+    let route;
+    try { route = await _rbFetchRoute(a, b, false, true); } catch(_) {}
     if (route) {
       _rb.routeSegments.push({ points: route.points, distance: route.distance, duration: route.duration, annotations: route.annotations, brouterSurfaces: route.brouterSurfaces || null });
     } else {
@@ -1204,6 +1282,93 @@ function _rbEnsureLayerKeys() {
   _rbLayerIdx = Math.max(0, _rbMapLayerKeys.indexOf(loadMapTheme()));
   window._rbLayerIdx = _rbLayerIdx;
 }
+
+/* ── Map Style & Overlays Sheet ── */
+export function _rbOpenMapStyleSheet() {
+  _rbEnsureLayerKeys();
+  const currentKey = _rbMapLayerKeys[_rbLayerIdx];
+
+  const styleIcons = {
+    liberty:   '🗺️',
+    positron:  '⬜',
+    dark:      '🌑',
+    strava:    '🟠',
+    satellite: '🛰️',
+  };
+
+  const overlays = [
+    { id: 'cyclosm',    label: 'CyclOSM',        icon: 'bike',         active: _rb._cyclOSMOn,    fn: '_rbToggleCyclOSM' },
+    { id: 'roadsafety', label: 'Road Safety',     icon: 'shield-check', active: _rb._roadSafetyOn, fn: '_rbToggleRoadSafety' },
+    { id: 'surface',    label: 'Surface Colors',  icon: 'climbing',     active: _rb._surfaceMode,  fn: '_rbToggleSurfaceMode' },
+    { id: 'poi',        label: 'Points of Interest', icon: 'map-pin',   active: _rb._poiEnabled,   fn: '_rbTogglePoi' },
+    { id: 'photos',     label: 'Street Photos',   icon: 'camera',       active: _rb._mapillaryOn,  fn: '_rbToggleMapillary' },
+    { id: 'terrain',    label: '3D Terrain',      icon: 'mountain',     active: loadTerrainEnabled(), fn: '_rbToggleTerrain' },
+  ];
+
+  const stylesHTML = _rbMapLayerKeys.map(key => {
+    const entry = window.MAP_STYLES[key];
+    const label = entry?.label || key;
+    const active = key === currentKey;
+    return `<button class="rb-mss-style${active ? ' active' : ''}" data-key="${key}" onclick="_rbSelectMapStyle('${key}')">
+      <span class="rb-mss-style-icon">${styleIcons[key] || '🗺️'}</span>
+      <span class="rb-mss-style-label">${label}</span>
+    </button>`;
+  }).join('');
+
+  const overlaysHTML = overlays.map(o => {
+    return `<div class="rb-mss-overlay" onclick="${o.fn}();_rbUpdateSheetOverlayStates()">
+      <svg class="icon" width="20" height="20"><use href="icons.svg#icon-${o.icon}"/></svg>
+      <span class="rb-mss-overlay-label">${o.label}</span>
+      <div class="rb-mss-toggle${o.active ? ' on' : ''}" id="rbMssToggle_${o.id}">
+        <div class="rb-mss-toggle-thumb"></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const html = `<div class="rb-mss">
+    <div class="rb-mss-section-title">Map Type</div>
+    <div class="rb-mss-styles">${stylesHTML}</div>
+    <div class="rb-mss-section-title">Overlays</div>
+    <div class="rb-mss-overlays">${overlaysHTML}</div>
+  </div>`;
+
+  _openUniSheet({
+    title: 'Map',
+    body: html,
+    maxWidth: 420,
+    partial: true,
+  });
+}
+
+window._rbSelectMapStyle = function(key) {
+  if (!_rb.map) return;
+  _rbEnsureLayerKeys();
+  _rbLayerIdx = _rbMapLayerKeys.indexOf(key);
+  window._rbLayerIdx = _rbLayerIdx;
+  _rb.map.setStyle(_mlGetStyle(key));
+  _rb.map.once('idle', _rbRestoreMapLayers);
+  // Update active state in sheet
+  document.querySelectorAll('.rb-mss-style').forEach(b => b.classList.toggle('active', b.dataset.key === key));
+};
+
+window._rbUpdateSheetOverlayStates = function() {
+  setTimeout(() => {
+    const states = {
+      cyclosm: _rb._cyclOSMOn,
+      roadsafety: _rb._roadSafetyOn,
+      surface: _rb._surfaceMode,
+      poi: _rb._poiEnabled,
+      photos: _rb._mapillaryOn,
+      terrain: loadTerrainEnabled(),
+    };
+    Object.entries(states).forEach(([id, on]) => {
+      const el = document.getElementById(`rbMssToggle_${id}`);
+      if (el) el.classList.toggle('on', on);
+    });
+  }, 50);
+};
+
+window._rbOpenMapStyleSheet = _rbOpenMapStyleSheet;
 
 export function _rbCycleMapLayer() {
   if (!_rb.map) return;
@@ -1483,6 +1648,7 @@ export async function _rbFetchPois() {
 
   _rbPoiFetching = true;
   _rbPoiDirty = false;
+  rbStatusShow('poi', 'Finding points of interest…');
   const btn = document.getElementById('rbPoiBtn');
   if (btn) btn.classList.add('rb-poi-loading');
   if (_rb._poiAbort) _rb._poiAbort.abort();
@@ -1526,6 +1692,7 @@ export async function _rbFetchPois() {
     if (_rbPoiRetries < _rbPoiMaxRetries) { _rbPoiRetries++; _rbPoiDirty = true; }
   } finally {
     _rbPoiFetching = false;
+    rbStatusHide('poi');
     if (btn) btn.classList.remove('rb-poi-loading');
     if (_rbPoiDirty && _rb._poiEnabled) {
       _rbPoiDirty = false;
@@ -1555,6 +1722,7 @@ export async function _rbDoPoiFetch(query, cacheKey) {
   if (_rbPoiFetching) { _rbPoiDirty = true; return; }
   _rbPoiFetching = true;
   _rbPoiDirty = false;
+  rbStatusShow('poi', 'Finding points of interest…');
   const btn = document.getElementById('rbPoiBtn');
   if (btn) btn.classList.add('rb-poi-loading');
   if (_rb._poiAbort) _rb._poiAbort.abort();
@@ -1585,6 +1753,7 @@ export async function _rbDoPoiFetch(query, cacheKey) {
     if (_rbPoiRetries < _rbPoiMaxRetries) { _rbPoiRetries++; _rbPoiDirty = true; }
   } finally {
     _rbPoiFetching = false;
+    rbStatusHide('poi');
     if (btn) btn.classList.remove('rb-poi-loading');
     if (_rbPoiDirty && _rb._poiEnabled) {
       _rbPoiDirty = false;
@@ -1997,11 +2166,19 @@ export async function _brouterFetchRoute(from, to, altIdx, signal) {
   const url = `${BROUTER_BASE}?lonlats=${lonlats}&profile=${profile}&alternativeidx=${altIdx || 0}&format=geojson`;
   try {
     const resp = await fetch(url, { signal });
-    if (!resp.ok) return null;
+    if (!resp.ok) {
+      const errText = await resp.text().catch(() => '');
+      console.warn(`[BRouter] HTTP ${resp.status}: ${errText.slice(0, 200)}`);
+      return null;
+    }
     const data = await resp.json();
     const feat = data.features && data.features[0];
-    if (!feat) return null;
+    if (!feat) {
+      console.warn('[BRouter] No features in response', data);
+      return null;
+    }
     const coords = feat.geometry.coordinates; // [lng, lat, ele]
+    if (!coords || coords.length < 2) { console.warn('[BRouter] Empty coordinates'); return null; }
     const points = coords.map(c => [c[1], c[0]]); // flip to [lat, lng]
     const dist = parseFloat(feat.properties['track-length']) || 0;
     const dur = parseFloat(feat.properties['total-time']) || 0;
@@ -2009,6 +2186,7 @@ export async function _brouterFetchRoute(from, to, altIdx, signal) {
     return { points, distance: dist, duration: dur, annotations: null, brouterSurfaces: surfaces };
   } catch (e) {
     if (e.name === 'AbortError') return null;
+    console.warn('[BRouter] Fetch error:', e.message);
     return null;
   }
 }
@@ -2058,12 +2236,13 @@ function _rbRoutingShow() {
 function _rbRoutingHide() {
   _rb._routingCount = Math.max(0, _rb._routingCount - 1);
   if (_rb._routingCount === 0) {
+    rbStatusHide('routing');
     const el = document.getElementById('rbRoutingStatus');
     if (el) el.classList.remove('rb-routing-status--active');
   }
 }
 
-export async function _rbFetchRoute(from, to, withAlternatives, skipAbort) {
+export async function _rbFetchRoute(from, to, withAlternatives, skipAbort, externalSignal) {
   // Snap-to-roads off → straight line
   if (!_rb._snapToRoads) {
     const pts = [[from.lat, from.lng], [to.lat, to.lng]];
@@ -2072,21 +2251,47 @@ export async function _rbFetchRoute(from, to, withAlternatives, skipAbort) {
     return withAlternatives ? [result] : result;
   }
   _rbRoutingShow();
+  rbStatusShow('routing', 'Calculating route…');
   try {
-    let signal;
-    if (!skipAbort) {
+    let signal = externalSignal || undefined;
+    if (!signal && !skipAbort) {
       if (_rb._fetchAbort) _rb._fetchAbort.abort();
       _rb._fetchAbort = new AbortController();
       signal = _rb._fetchAbort.signal;
     }
 
+    // Retry helper — nudges coordinates if first attempt fails
+    // Two rings: ~50m offsets, then ~120m offsets
+    const _nudge = (wp, dx, dy, scale) => ({ lat: wp.lat + dy * scale, lng: wp.lng + dx * scale });
+    const _nudgeAttempts = [
+      [0, 0, 0],           // exact
+      [1, 0, 0.0005],      // ~55m E
+      [-1, 0, 0.0005],     // ~55m W
+      [0, 1, 0.0005],      // ~55m N
+      [0, -1, 0.0005],     // ~55m S
+      [1, 0, 0.0011],      // ~120m E
+      [-1, 0, 0.0011],     // ~120m W
+      [0, 1, 0.0011],      // ~120m N
+      [0, -1, 0.0011],     // ~120m S
+      [1, 1, 0.0008],      // ~90m NE
+      [-1, -1, 0.0008],    // ~90m SW
+    ];
+
     if (_rb.router.engine === 'brouter') {
       try {
-        const main = await _brouterFetchRoute(from, to, 0, signal);
-        if (!main) { showToast('Could not find route between points', 'error'); return null; }
-        if (!withAlternatives) return main;
-        const alt = await _brouterFetchRoute(from, to, 1, signal);
-        return alt ? [main, alt] : [main];
+        for (const [dx, dy, scale] of _nudgeAttempts) {
+          if (signal?.aborted) return null;
+          const f = scale === 0 ? from : _nudge(from, dx, dy, scale);
+          const t = scale === 0 ? to : _nudge(to, dx, dy, scale);
+          const main = await _brouterFetchRoute(f, t, 0, signal);
+          if (main) {
+            if (!withAlternatives) return main;
+            const alt = await _brouterFetchRoute(f, t, 1, signal);
+            return alt ? [main, alt] : [main];
+          }
+        }
+        showToast('Could not find route — try a nearby road', 'error');
+        return null;
       } catch (e) {
         if (e.name === 'AbortError') return null;
         showToast('Route fetch failed', 'error');
@@ -2096,14 +2301,20 @@ export async function _rbFetchRoute(from, to, withAlternatives, skipAbort) {
 
     if (_rb.router.engine === 'ors') {
       try {
-        if (withAlternatives) {
-          const result = await _orsFetchRoute(from, to, 1, signal);
-          if (!result) { showToast('Could not find route between points', 'error'); return null; }
-          return Array.isArray(result) ? result : [result];
+        for (const [dx, dy, scale] of _nudgeAttempts) {
+          if (signal?.aborted) return null;
+          const f = scale === 0 ? from : _nudge(from, dx, dy, scale);
+          const t = scale === 0 ? to : _nudge(to, dx, dy, scale);
+          if (withAlternatives) {
+            const result = await _orsFetchRoute(f, t, 1, signal);
+            if (result) return Array.isArray(result) ? result : [result];
+          } else {
+            const main = await _orsFetchRoute(f, t, 0, signal);
+            if (main) return main;
+          }
         }
-        const main = await _orsFetchRoute(from, to, 0, signal);
-        if (!main) { showToast('Could not find route between points', 'error'); return null; }
-        return main;
+        showToast('Could not find route — try a nearby road', 'error');
+        return null;
       } catch (e) {
         if (e.name === 'AbortError') return null;
         showToast('Route fetch failed', 'error');
@@ -2112,23 +2323,26 @@ export async function _rbFetchRoute(from, to, withAlternatives, skipAbort) {
     }
 
     // OSRM
-    const coords = `${from.lng},${from.lat};${to.lng},${to.lat}`;
-    const alt = withAlternatives ? '&alternatives=true' : '';
-    const url = `${OSRM_BASE}/${coords}?overview=full&geometries=polyline6&steps=true&annotations=true${alt}`;
-    try {
-      const resp = await fetch(url, { signal });
-      const data = await resp.json();
-      if (data.code !== 'Ok' || !data.routes?.length) {
-        showToast('Could not find cycling route between points', 'error');
-        return null;
+    for (const [dx, dy, scale] of _nudgeAttempts) {
+      if (signal?.aborted) return null;
+      const f = scale === 0 ? from : _nudge(from, dx, dy, scale);
+      const t = scale === 0 ? to : _nudge(to, dx, dy, scale);
+      const coords = `${f.lng},${f.lat};${t.lng},${t.lat}`;
+      const altParam = withAlternatives ? '&alternatives=true' : '';
+      const url = `${OSRM_BASE}/${coords}?overview=full&geometries=polyline6&steps=true&annotations=true${altParam}`;
+      try {
+        const resp = await fetch(url, { signal });
+        const data = await resp.json();
+        if (data.code === 'Ok' && data.routes?.length) {
+          if (withAlternatives) return data.routes.map(_normalizeOsrmRoute);
+          return _normalizeOsrmRoute(data.routes[0]);
+        }
+      } catch (e) {
+        if (e.name === 'AbortError') return null;
       }
-      if (withAlternatives) return data.routes.map(_normalizeOsrmRoute);
-      return _normalizeOsrmRoute(data.routes[0]);
-    } catch (e) {
-      if (e.name === 'AbortError') return null;
-      showToast('Route fetch failed', 'error');
-      return null;
     }
+    showToast('Could not find cycling route — try a nearby road', 'error');
+    return null;
   } finally {
     _rbRoutingHide();
   }
@@ -2244,6 +2458,7 @@ export async function _rbOnMapClick(e) {
   marker.on('dragend', () => _rbOnWaypointDrag(idx));
   _rb.waypoints.push({ lat, lng, marker });
   _rbRefreshAllWaypointIcons();
+  _rbShowPanelCards();
 
   // Smoothly pan camera to the new waypoint
   _rb.map.easeTo({ center: [lng, lat], duration: 400 });
@@ -2267,8 +2482,13 @@ export async function _rbOnMapClick(e) {
         _rbShowAltRoute(routes[1], segIdx);
       }
     } else {
-      // Fallback: straight dashed line between waypoints
-      _rb.routeSegments.push({ points: [[prev.lat, prev.lng], [curr.lat, curr.lng]], distance: _rbHaversine([prev.lat, prev.lng], [curr.lat, curr.lng]), duration: 0, fallback: true });
+      // Fallback: straight dashed line between waypoints (only if reasonable distance)
+      const fallbackDist = _rbHaversine([prev.lat, prev.lng], [curr.lat, curr.lng]);
+      if (fallbackDist < 500000) {
+        _rb.routeSegments.push({ points: [[prev.lat, prev.lng], [curr.lat, curr.lng]], distance: fallbackDist, duration: 0, fallback: true });
+      } else {
+        showToast('No route found — points too far apart', 'error');
+      }
       _rbRedrawRoute();
       _rbFetchElevation();
     }
@@ -2280,31 +2500,62 @@ export async function _rbOnMapClick(e) {
 }
 
 /* ── Waypoint Drag ── */
+// Drag generation counter — prevents stale responses from overwriting current state
+let _rbDragGen = 0;
+
 export async function _rbOnWaypointDrag(idx) {
   const wp = _rb.waypoints[idx];
   if (!wp) return;
   const pos = wp.marker.getLngLat();
   wp.lat = pos.lat;
   wp.lng = pos.lng;
-  wp._placeName = null; // re-fetch place name after drag
+  wp._placeName = null;
+
+  // Abort any previous drag requests, create one shared controller for both segments
+  if (_rb._dragAbort) _rb._dragAbort.abort();
+  _rb._dragAbort = new AbortController();
+  const dragSignal = _rb._dragAbort.signal;
+  const gen = ++_rbDragGen;
+  const wpCount = _rb.waypoints.length;
 
   const promises = [];
   if (idx > 0) {
     const prevWp = _rb.waypoints[idx - 1];
-    promises.push(_rbFetchRoute(prevWp, wp, false, true).then(r => {
-      if (r) _rb.routeSegments[idx - 1] = { points: r.points, distance: r.distance, duration: r.duration, annotations: r.annotations, brouterSurfaces: r.brouterSurfaces || null };
-      else _rb.routeSegments[idx - 1] = { points: [[prevWp.lat, prevWp.lng], [wp.lat, wp.lng]], distance: _rbHaversine([prevWp.lat, prevWp.lng], [wp.lat, wp.lng]), duration: 0, fallback: true };
-    }));
+    const segIdx = idx - 1;
+    promises.push(
+      _rbFetchRoute(prevWp, wp, false, true, dragSignal)
+        .then(r => {
+          if (r) return { idx: segIdx, seg: { points: r.points, distance: r.distance, duration: r.duration, annotations: r.annotations, brouterSurfaces: r.brouterSurfaces || null } };
+          return { idx: segIdx, seg: { points: [[prevWp.lat, prevWp.lng], [wp.lat, wp.lng]], distance: _rbHaversine([prevWp.lat, prevWp.lng], [wp.lat, wp.lng]), duration: 0, fallback: true } };
+        })
+        .catch(() => ({ idx: segIdx, seg: { points: [[prevWp.lat, prevWp.lng], [wp.lat, wp.lng]], distance: _rbHaversine([prevWp.lat, prevWp.lng], [wp.lat, wp.lng]), duration: 0, fallback: true } }))
+    );
   }
   if (idx < _rb.waypoints.length - 1) {
     const nextWp = _rb.waypoints[idx + 1];
-    promises.push(_rbFetchRoute(wp, nextWp, false, true).then(r => {
-      if (r) _rb.routeSegments[idx] = { points: r.points, distance: r.distance, duration: r.duration, annotations: r.annotations, brouterSurfaces: r.brouterSurfaces || null };
-      else _rb.routeSegments[idx] = { points: [[wp.lat, wp.lng], [nextWp.lat, nextWp.lng]], distance: _rbHaversine([wp.lat, wp.lng], [nextWp.lat, nextWp.lng]), duration: 0, fallback: true };
-    }));
+    const segIdx = idx;
+    promises.push(
+      _rbFetchRoute(wp, nextWp, false, true, dragSignal)
+        .then(r => {
+          if (r) return { idx: segIdx, seg: { points: r.points, distance: r.distance, duration: r.duration, annotations: r.annotations, brouterSurfaces: r.brouterSurfaces || null } };
+          return { idx: segIdx, seg: { points: [[wp.lat, wp.lng], [nextWp.lat, nextWp.lng]], distance: _rbHaversine([wp.lat, wp.lng], [nextWp.lat, nextWp.lng]), duration: 0, fallback: true } };
+        })
+        .catch(() => ({ idx: segIdx, seg: { points: [[wp.lat, wp.lng], [nextWp.lat, nextWp.lng]], distance: _rbHaversine([wp.lat, wp.lng], [nextWp.lat, nextWp.lng]), duration: 0, fallback: true } }))
+    );
   }
-  await Promise.all(promises);
 
+  let results;
+  try { results = await Promise.all(promises); } catch(_) { return; }
+
+  // Stale check — if another drag happened or waypoints changed, discard
+  if (_rbDragGen !== gen || _rb.waypoints.length !== wpCount) return;
+
+  // Apply results
+  for (const r of results) {
+    if (r && _rb.routeSegments[r.idx] !== undefined) _rb.routeSegments[r.idx] = r.seg;
+  }
+
+  _rbClearAltRoute();
   _rbRedrawRoute();
   _rbFetchElevation();
   _rbPushHistory();
@@ -2321,10 +2572,18 @@ export async function _rbInsertWaypoint(segIdx, lat, lng) {
   const prevWp = _rb.waypoints[insertIdx - 1];
   const nextWp = _rb.waypoints[insertIdx + 1];
 
-  const [routeA, routeB] = await Promise.all([
-    _rbFetchRoute(prevWp, wp, false, true),
-    _rbFetchRoute(wp, nextWp, false, true),
-  ]);
+  // Shared abort controller for both parallel fetches
+  if (_rb._fetchAbort) _rb._fetchAbort.abort();
+  _rb._fetchAbort = new AbortController();
+  const insertSignal = _rb._fetchAbort.signal;
+
+  let routeA, routeB;
+  try {
+    [routeA, routeB] = await Promise.all([
+      _rbFetchRoute(prevWp, wp, false, true, insertSignal),
+      _rbFetchRoute(wp, nextWp, false, true, insertSignal),
+    ]);
+  } catch(_) { /* aborted or failed — use fallback */ }
 
   const segA = routeA
     ? { points: routeA.points, distance: routeA.distance, duration: routeA.duration, annotations: routeA.annotations }
@@ -2375,10 +2634,18 @@ export async function _rbAddPoiToRoute(lat, lon, name) {
   const prevWp = _rb.waypoints[insertIdx - 1];
   const nextWp = _rb.waypoints[insertIdx + 1];
 
-  const [routeA, routeB] = await Promise.all([
-    _rbFetchRoute(prevWp, wp, false, true),
-    _rbFetchRoute(wp, nextWp, false, true),
-  ]);
+  // Shared abort controller for both parallel fetches
+  if (_rb._fetchAbort) _rb._fetchAbort.abort();
+  _rb._fetchAbort = new AbortController();
+  const poiSignal = _rb._fetchAbort.signal;
+
+  let routeA, routeB;
+  try {
+    [routeA, routeB] = await Promise.all([
+      _rbFetchRoute(prevWp, wp, false, true, poiSignal),
+      _rbFetchRoute(wp, nextWp, false, true, poiSignal),
+    ]);
+  } catch(_) { /* aborted or failed */ }
 
   const segA = routeA
     ? { points: routeA.points, distance: routeA.distance, duration: routeA.duration, annotations: routeA.annotations }
@@ -2433,9 +2700,15 @@ export function _rbRedrawRoute() {
   const fallbackFeatures = [];
   for (const seg of _rb.routeSegments) {
     if (seg.fallback) {
+      // Skip fallback lines that are unreasonably long (>500km) — prevents globe-wrapping artifacts
+      if (seg.distance > 500000) continue;
+      // Ensure coordinates are valid
+      const coords = seg.points.map(p => [p[1], p[0]]);
+      const valid = coords.every(c => Math.abs(c[0]) <= 180 && Math.abs(c[1]) <= 90);
+      if (!valid) continue;
       fallbackFeatures.push({
         type: 'Feature', properties: {},
-        geometry: { type: 'LineString', coordinates: seg.points.map(p => [p[1], p[0]]) },
+        geometry: { type: 'LineString', coordinates: coords },
       });
     } else {
       routedPoints.push(...seg.points);
@@ -2921,7 +3194,11 @@ const _rbElevCrosshairPlugin = {
 /* ── Elevation Panel Toggle ── */
 export function rbToggleElevPanel() {
   const panel = document.getElementById('rbElevPanel');
-  if (panel) panel.classList.toggle('collapsed');
+  if (!panel) return;
+  const hidden = panel.classList.toggle('rb-elev-hidden');
+  panel.classList.remove('collapsed');
+  const btn = document.getElementById('rbElevToggleBtn');
+  if (btn) btn.classList.toggle('rb-action-pill--active', !hidden);
 }
 
 export function rbToggleSidePanel() {
@@ -2967,8 +3244,8 @@ export function _rbRestoreHistory(snapshot) {
     return { ...w, marker };
   });
   _rbRefreshAllWaypointIcons();
-  _rb.routeSegments = JSON.parse(JSON.stringify(snapshot.segments));
-  _rb.elevationData = snapshot.elevation ? JSON.parse(JSON.stringify(snapshot.elevation)) : [];
+  _rb.routeSegments = structuredClone(snapshot.segments);
+  _rb.elevationData = snapshot.elevation ? structuredClone(snapshot.elevation) : [];
   _rbRedrawRoute();
   _rbRenderElevChart();
   _rbUpdateStats();
@@ -3411,6 +3688,7 @@ export function _rbParseGPX(text) {
     _rb.waypoints.push({ lat: pt.lat, lng: pt.lng, marker });
   }
   _rbRefreshAllWaypointIcons();
+  _rbShowPanelCards();
 
   for (let i = 0; i < wpIndices.length - 1; i++) {
     const start = wpIndices[i];
@@ -3864,12 +4142,497 @@ export function _rbToggleTerrain() {
   const settingsEl = document.getElementById('terrain3dToggle');
   if (settingsEl) settingsEl.checked = on;
   if (on) {
+    // Globe + terrain conflict — switch to mercator for 3D terrain
+    try { _rb.map.setProjection({ type: 'mercator' }); } catch(_){}
     _rb.map.easeTo({ pitch: 55, duration: 600 });
+    _rbAdd3DBuildings();
   } else {
     _rb.map.easeTo({ pitch: 0, bearing: 0, duration: 600 });
+    _rbRemove3DBuildings();
+    // Restore globe when terrain is off
+    try { _rb.map.setProjection({ type: 'globe' }); } catch(_){}
   }
   showToast(on ? '3D terrain on' : '3D terrain off', 'info');
 }
+
+function _rbAdd3DBuildings() {
+  if (!_rb.map || _rb.map.getLayer('rb-buildings-3d')) return;
+
+  // Find the vector source (OpenFreeMap uses 'openmaptiles' or similar)
+  const style = _rb.map.getStyle();
+  const layers = style?.layers || [];
+
+  // Try to find a building layer to get source info
+  const buildingLayer = layers.find(l =>
+    l.id === 'building' || l.id === 'building-2d' ||
+    (l['source-layer'] === 'building' && l.type === 'fill')
+  );
+
+  // Determine source — use building layer's source, or try common names
+  let source = buildingLayer?.source;
+  if (!source) {
+    const sourceNames = Object.keys(style?.sources || {});
+    source = sourceNames.find(s => s === 'openmaptiles' || s === 'protomaps' || s.includes('vector'));
+  }
+  if (!source) { console.warn('[3D Buildings] No vector source found'); return; }
+  console.log('[3D Buildings] Using source:', source);
+
+  _rb.map.addLayer({
+    id: 'rb-buildings-3d',
+    type: 'fill-extrusion',
+    source,
+    'source-layer': 'building',
+    minzoom: 14,
+    paint: {
+      'fill-extrusion-color': '#1a2030',
+      'fill-extrusion-height': [
+        'interpolate', ['linear'], ['zoom'],
+        14, 0,
+        15.5, ['coalesce', ['get', 'render_height'], 8]
+      ],
+      'fill-extrusion-base': ['coalesce', ['get', 'render_min_height'], 0],
+      'fill-extrusion-opacity': 0.6,
+    }
+  });
+}
+
+function _rbRemove3DBuildings() {
+  if (!_rb.map) return;
+  try { if (_rb.map.getLayer('rb-buildings-3d')) _rb.map.removeLayer('rb-buildings-3d'); } catch(_){}
+}
+
+/* ── Status Bar (API loading indicator) ───────────────────────────── */
+const _rbStatuses = new Map();
+
+function rbStatusShow(id, text) {
+  _rbStatuses.set(id, text);
+  _rbStatusRender();
+}
+
+function rbStatusHide(id) {
+  _rbStatuses.delete(id);
+  _rbStatusRender();
+}
+
+function _rbStatusRender() {
+  const bar = document.getElementById('rbStatusBar');
+  if (!bar) return;
+  if (!_rbStatuses.size) { bar.innerHTML = ''; bar.classList.remove('active'); return; }
+  const items = [..._rbStatuses.values()];
+  bar.innerHTML = items.map(t =>
+    `<div class="rb-status-item"><div class="rb-status-spinner"></div><span>${t}</span></div>`
+  ).join('');
+  bar.classList.add('active');
+}
+
+window.rbStatusShow = rbStatusShow;
+window.rbStatusHide = rbStatusHide;
+
+/* ── Mapillary Street Photos (vector tile layer) ─────────────────── */
+
+export function _rbToggleMapillary() {
+  if (!_rb.map) return;
+  _rb._mapillaryOn = !_rb._mapillaryOn;
+  const btn = document.getElementById('rbMapillaryBtn');
+  if (btn) btn.classList.toggle('active', _rb._mapillaryOn);
+
+  if (_rb._mapillaryOn) {
+    if (!_rb.mapillaryKey) {
+      showToast('Set your Mapillary key in Settings → Connections', 'error');
+      _rb._mapillaryOn = false;
+      if (btn) btn.classList.remove('active');
+      return;
+    }
+    _rbAddMapillaryLayer();
+  } else {
+    _rbRemoveMapillaryLayer();
+  }
+  showToast(_rb._mapillaryOn ? 'Street photos on — tap green dots to explore' : 'Street photos off', 'info');
+}
+
+function _rbAddMapillaryLayer() {
+  if (!_rb.map || _rb.map.getSource('mapillary-src')) return;
+
+  _rb.map.addSource('mapillary-src', {
+    type: 'vector',
+    tiles: [`https://tiles.mapillary.com/maps/vtp/mly1_public/2/{z}/{x}/{y}?access_token=${_rb.mapillaryKey}`],
+    minzoom: 6,
+    maxzoom: 14,
+  });
+
+  // Sequence lines (lower zoom — shows coverage)
+  _rb.map.addLayer({
+    id: 'mapillary-lines',
+    type: 'line',
+    source: 'mapillary-src',
+    'source-layer': 'sequence',
+    minzoom: 10,
+    maxzoom: 14,
+    paint: {
+      'line-color': '#00e5a0',
+      'line-opacity': 0.25,
+      'line-width': 2,
+    },
+    layout: { 'line-cap': 'round' }
+  });
+
+  // Image points (higher zoom — clickable)
+  _rb.map.addLayer({
+    id: 'mapillary-points',
+    type: 'circle',
+    source: 'mapillary-src',
+    'source-layer': 'image',
+    minzoom: 14,
+    paint: {
+      'circle-radius': ['interpolate', ['linear'], ['zoom'], 14, 2.5, 17, 5],
+      'circle-color': '#00e5a0',
+      'circle-stroke-color': '#040a07',
+      'circle-stroke-width': 1,
+      'circle-opacity': 0.8,
+    }
+  });
+
+  _rb.map.on('click', 'mapillary-points', _rbOnMapillaryClick);
+  _rb.map.on('mouseenter', 'mapillary-points', () => { _rb.map.getCanvas().style.cursor = 'pointer'; });
+  _rb.map.on('mouseleave', 'mapillary-points', () => { _rb.map.getCanvas().style.cursor = ''; });
+}
+
+function _rbOnMapillaryClick(e) {
+  if (!e.features?.length) return;
+  const f = e.features[0];
+  const imageId = f.properties?.id;
+  if (imageId) _rbOpenStreetView(String(imageId));
+}
+
+function _rbRemoveMapillaryLayer() {
+  if (!_rb.map) return;
+  _rb.map.off('click', 'mapillary-points', _rbOnMapillaryClick);
+  try { if (_rb.map.getLayer('mapillary-points')) _rb.map.removeLayer('mapillary-points'); } catch(_){}
+  try { if (_rb.map.getLayer('mapillary-lines')) _rb.map.removeLayer('mapillary-lines'); } catch(_){}
+  try { if (_rb.map.getSource('mapillary-src')) _rb.map.removeSource('mapillary-src'); } catch(_){}
+}
+
+/* ── Fullscreen Mapillary Street View ── */
+let _mapillaryViewerLoaded = false;
+let _mapillaryViewer = null;
+
+async function _rbLoadMapillaryJS() {
+  if (_mapillaryViewerLoaded) return;
+  // Load CSS
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = 'https://unpkg.com/mapillary-js@4/dist/mapillary.css';
+  document.head.appendChild(link);
+  // Load JS
+  await new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://unpkg.com/mapillary-js@4/dist/mapillary.js';
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+  _mapillaryViewerLoaded = true;
+}
+
+async function _rbOpenStreetView(imageId) {
+  // Show overlay immediately
+  let overlay = document.getElementById('rbStreetView');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'rbStreetView';
+    overlay.className = 'rb-streetview';
+    overlay.innerHTML = `
+      <div class="rb-sv-topbar">
+        <button class="rb-sv-close" onclick="_rbCloseStreetView()">
+          <svg class="icon" width="20" height="20"><use href="icons.svg#icon-x"/></svg>
+        </button>
+        <span class="rb-sv-title">Street View</span>
+        <a class="rb-sv-link" id="rbSvLink" href="#" target="_blank" rel="noopener">
+          <svg class="icon" width="16" height="16"><use href="icons.svg#icon-globe"/></svg>
+        </a>
+      </div>
+      <div class="rb-sv-container" id="rbSvContainer"></div>
+      <div class="rb-sv-loading" id="rbSvLoading">Loading street view...</div>
+    `;
+    document.body.appendChild(overlay);
+  }
+  overlay.style.display = '';
+  document.getElementById('rbSvLoading').style.display = '';
+  document.getElementById('rbSvLink').href = `https://www.mapillary.com/app/?pKey=${imageId}`;
+
+  try {
+    await _rbLoadMapillaryJS();
+    const container = document.getElementById('rbSvContainer');
+
+    if (_mapillaryViewer) {
+      _mapillaryViewer.moveTo(imageId);
+    } else {
+      _mapillaryViewer = new mapillary.Viewer({
+        accessToken: _rb.mapillaryKey,
+        container,
+        imageId,
+        component: {
+          cover: false,
+          bearing: { size: mapillary.ComponentSize.Small },
+          sequence: { visible: true },
+          zoom: { size: mapillary.ComponentSize.Small },
+        },
+      });
+
+      // Update map marker as user navigates in street view
+      _mapillaryViewer.on('image', (ev) => {
+        const lngLat = ev.image.lngLat;
+        if (lngLat && _rb.map) {
+          _rb.map.panTo([lngLat.lng, lngLat.lat], { duration: 300 });
+        }
+        document.getElementById('rbSvLink').href = `https://www.mapillary.com/app/?pKey=${ev.image.id}`;
+      });
+    }
+
+    // Hide loading when first image loads
+    _mapillaryViewer.on('load', () => {
+      document.getElementById('rbSvLoading').style.display = 'none';
+    });
+  } catch (e) {
+    console.warn('[Mapillary Viewer]', e);
+    showToast('Could not load street view', 'error');
+    _rbCloseStreetView();
+  }
+}
+
+window._rbOpenStreetView = _rbOpenStreetView;
+
+window._rbCloseStreetView = function() {
+  const overlay = document.getElementById('rbStreetView');
+  if (overlay) overlay.style.display = 'none';
+  // Don't destroy viewer — reuse it for performance
+};
+
+window._rbToggleMapillary = _rbToggleMapillary;
+
+/* ── Isochrone (Ride Reachability) ─────────────────────────────────── */
+_rb._isochroneOn = false;
+_rb._isochroneSheet = null;
+
+export function _rbToggleIsochrone() {
+  // Only allow if first waypoint exists
+  if (!_rb._isochroneOn && (!_rb.waypoints.length || !_rb.waypoints[0])) {
+    showToast('Place a waypoint first', 'info');
+    return;
+  }
+
+  _rb._isochroneOn = !_rb._isochroneOn;
+  const btn = document.getElementById('rbReachBtn');
+  if (btn) btn.classList.toggle('rb-action-pill--active', _rb._isochroneOn);
+
+  if (_rb._isochroneOn) {
+    _rbShowIsochronePanel();
+  } else {
+    _rbClearIsochrone();
+    _rbHideIsochronePanel();
+  }
+}
+
+function _rbShowIsochronePanel() {
+  if (document.getElementById('rbIsoPanel')) return;
+
+  // Use first waypoint as origin
+  const wp = _rb.waypoints[0];
+  _rb._isochroneOrigin = [wp.lng, wp.lat];
+  _rb._isochroneMinutes = 30;
+
+  const panel = document.createElement('div');
+  panel.id = 'rbIsoPanel';
+  panel.className = 'rb-iso-panel';
+  panel.innerHTML = `
+    <div class="rb-iso-header">
+      <span class="rb-iso-title">Reachability</span>
+      <button class="rb-iso-close" onclick="_rbToggleIsochrone()">
+        <svg class="icon" width="16" height="16"><use href="icons.svg#icon-x"/></svg>
+      </button>
+    </div>
+    <div class="rb-iso-desc">Shows how far you can ride from your start point.</div>
+    <div class="rb-iso-row">
+      <label class="rb-iso-label">Time</label>
+      <div class="rb-iso-btns" id="rbIsoBtns">
+        <button class="rb-iso-btn" data-min="15" onclick="_rbIsoSelectTime(this)">15m</button>
+        <button class="rb-iso-btn active" data-min="30" onclick="_rbIsoSelectTime(this)">30m</button>
+        <button class="rb-iso-btn" data-min="60" onclick="_rbIsoSelectTime(this)">1h</button>
+        <button class="rb-iso-btn" data-min="120" onclick="_rbIsoSelectTime(this)">2h</button>
+        <button class="rb-iso-btn" data-min="180" onclick="_rbIsoSelectTime(this)">3h</button>
+      </div>
+    </div>
+    <button class="rb-iso-go" id="rbIsoGo" onclick="_rbFetchIsochrone()">
+      <svg class="icon" width="16" height="16"><use href="icons.svg#icon-activity"/></svg>
+      Show Reachability
+    </button>
+    <div class="rb-iso-hint" id="rbIsoHint">From: Waypoint 1</div>
+  `;
+
+  // Insert into map container, positioned above controls
+  const container = _rb.map?.getContainer();
+  if (container) container.appendChild(panel);
+
+  _rb._isochroneClickMode = false; // no click-to-set, always uses first waypoint
+  _rb._isochroneMarker = null;
+}
+
+function _rbHideIsochronePanel() {
+  const panel = document.getElementById('rbIsoPanel');
+  if (panel) panel.remove();
+  _rb._isochroneClickMode = false;
+  if (_rb._isochroneMarker) { _rb._isochroneMarker.remove(); _rb._isochroneMarker = null; }
+}
+
+function _rbSetIsoOrigin(lng, lat) {
+  _rb._isochroneOrigin = [lng, lat];
+  if (_rb._isochroneMarker) _rb._isochroneMarker.remove();
+  const el = document.createElement('div');
+  el.className = 'rb-iso-marker';
+  el.innerHTML = '<svg viewBox="0 0 24 24" width="28" height="28" fill="var(--accent)" stroke="var(--bg-base)" stroke-width="2"><circle cx="12" cy="12" r="8"/></svg>';
+  _rb._isochroneMarker = new maplibregl.Marker({ element: el, anchor: 'center' })
+    .setLngLat([lng, lat]).addTo(_rb.map);
+  const hint = document.getElementById('rbIsoHint');
+  if (hint) hint.textContent = `Start: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+}
+
+window._rbIsoSelectTime = function(btn) {
+  document.querySelectorAll('#rbIsoBtns .rb-iso-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _rb._isochroneMinutes = parseInt(btn.dataset.min);
+  // Auto-refresh if already showing
+  if (_rb.map.getSource('rb-isochrone')) _rbFetchIsochrone();
+};
+
+window._rbFetchIsochrone = async function() {
+  if (!_rb._isochroneOrigin) {
+    showToast('Tap the map to set a start point', 'info');
+    return;
+  }
+  const goBtn = document.getElementById('rbIsoGo');
+  if (goBtn) { goBtn.disabled = true; goBtn.textContent = 'Loading...'; }
+  rbStatusShow('isochrone', 'Calculating reachability…');
+
+  const [lng, lat] = _rb._isochroneOrigin;
+  const minutes = _rb._isochroneMinutes;
+  const seconds = minutes * 60;
+
+  // Build multiple ranges for layered visualization
+  const ranges = [];
+  if (minutes >= 60) ranges.push(Math.round(seconds * 0.33));
+  if (minutes >= 30) ranges.push(Math.round(seconds * 0.66));
+  ranges.push(seconds);
+
+  const apiKey = _rb.orsApiKey;
+  if (!apiKey) {
+    showToast('Set your ORS API key in Settings → Connections', 'error');
+    if (goBtn) { goBtn.disabled = false; goBtn.innerHTML = '<svg class="icon" width="16" height="16"><use href="icons.svg#icon-activity"/></svg> Show Reachability'; }
+    return;
+  }
+
+  try {
+    const resp = await fetch('https://api.openrouteservice.org/v2/isochrones/cycling-regular', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': apiKey
+      },
+      body: JSON.stringify({
+        locations: [[lng, lat]],
+        range: ranges,
+        range_type: 'time',
+        attributes: ['area'],
+      })
+    });
+
+    if (!resp.ok) throw new Error(`API error ${resp.status}`);
+    const data = await resp.json();
+
+    _rbDrawIsochrone(data, minutes);
+  } catch (e) {
+    console.warn('[Isochrone] Failed:', e);
+    showToast('Could not load reachability data', 'error');
+  } finally {
+    rbStatusHide('isochrone');
+    if (goBtn) {
+      goBtn.disabled = false;
+      goBtn.innerHTML = '<svg class="icon" width="16" height="16"><use href="icons.svg#icon-activity"/></svg> Show Reachability';
+    }
+  }
+};
+
+function _rbDrawIsochrone(data, minutes) {
+  _rbClearIsochrone();
+  if (!data.features?.length) return;
+
+  const colors = ['rgba(0,229,160,0.08)', 'rgba(0,229,160,0.15)', 'rgba(0,229,160,0.25)'];
+  const borderColors = ['rgba(0,229,160,0.15)', 'rgba(0,229,160,0.3)', 'rgba(0,229,160,0.5)'];
+
+  // Reverse so largest (outermost) is drawn first
+  const features = data.features.reverse();
+
+  _rb.map.addSource('rb-isochrone', {
+    type: 'geojson',
+    data: { type: 'FeatureCollection', features }
+  });
+
+  _rb.map.addLayer({
+    id: 'rb-isochrone-fill',
+    type: 'fill',
+    source: 'rb-isochrone',
+    paint: {
+      'fill-color': ['step', ['get', 'value'],
+        colors[0],
+        features.length > 2 ? features[1]?.properties?.value || 1200 : 99999, colors[1],
+        features.length > 1 ? features[features.length - 1]?.properties?.value || 1800 : 99999, colors[2]
+      ],
+      'fill-opacity': 1,
+    }
+  }, _rb.map.getLayer('rb-route') ? 'rb-route' : undefined);
+
+  _rb.map.addLayer({
+    id: 'rb-isochrone-border',
+    type: 'line',
+    source: 'rb-isochrone',
+    paint: {
+      'line-color': 'rgba(0,229,160,0.4)',
+      'line-width': 1.5,
+    }
+  }, _rb.map.getLayer('rb-route') ? 'rb-route' : undefined);
+
+  // Fit map to isochrone bounds
+  const bounds = new maplibregl.LngLatBounds();
+  features.forEach(f => {
+    if (f.geometry?.coordinates) {
+      f.geometry.coordinates.forEach(ring => {
+        (Array.isArray(ring[0]?.[0]) ? ring : [ring]).forEach(coords => {
+          coords.forEach(c => bounds.extend(c));
+        });
+      });
+    }
+  });
+  if (!bounds.isEmpty()) _rb.map.fitBounds(bounds, { padding: 60, duration: 600 });
+
+  // Show area info
+  const outerFeature = features[features.length - 1];
+  const areaKm2 = outerFeature?.properties?.area ? (outerFeature.properties.area / 1e6).toFixed(1) : null;
+  const hint = document.getElementById('rbIsoHint');
+  if (hint) hint.textContent = `${minutes} min reachability${areaKm2 ? ` · ${areaKm2} km² area` : ''}`;
+}
+
+function _rbClearIsochrone() {
+  if (!_rb.map) return;
+  try { if (_rb.map.getLayer('rb-isochrone-border')) _rb.map.removeLayer('rb-isochrone-border'); } catch(_){}
+  try { if (_rb.map.getLayer('rb-isochrone-fill')) _rb.map.removeLayer('rb-isochrone-fill'); } catch(_){}
+  try { if (_rb.map.getSource('rb-isochrone')) _rb.map.removeSource('rb-isochrone'); } catch(_){}
+}
+
+window._rbToggleIsochrone = _rbToggleIsochrone;
+window._rbTogglePoi = _rbTogglePoi;
+window._rbToggleSurfaceMode = _rbToggleSurfaceMode;
+window._rbToggleRoadSafety = _rbToggleRoadSafety;
+window._rbToggleCyclOSM = _rbToggleCyclOSM;
+window._rbToggleTerrain = _rbToggleTerrain;
 
 export function _rbUpdateSurfaceLegend() {
   let legend = document.getElementById('rbSurfaceLegend');
@@ -4211,6 +4974,7 @@ export async function rbLoadRoute(id) {
     _rb.waypoints.push({ lat: w.lat, lng: w.lng, marker });
   });
   _rbRefreshAllWaypointIcons();
+  if (_rb.waypoints.length > 0) _rbShowPanelCards();
 
   _rb.routeSegments = loadSegments.map(s => ({
     points: s.points, distance: s.distance, duration: s.duration || 0, annotations: s.annotations || null, brouterSurfaces: s.brouterSurfaces || null,
@@ -4340,6 +5104,7 @@ export function rbClear() {
   document.removeEventListener('keydown', _rbOnKeydown);
   _rbUpdateStats();
   _rbUpdateWaypointList();
+  _rbHidePanelCards();
   _rbUpdateUndoRedoBtns();
 }
 
@@ -4413,7 +5178,8 @@ export async function _rbRemoveWaypoint(idx) {
     // Deleted a middle waypoint — replace two adjacent segments with one new route
     const a = _rb.waypoints[idx - 1];
     const b = _rb.waypoints[idx]; // shifted down after splice
-    const route = await _rbFetchRoute(a, b, false, true);
+    let route;
+    try { route = await _rbFetchRoute(a, b, false, true); } catch(_) {}
     let newSeg;
     if (route) {
       newSeg = { points: route.points, distance: route.distance, duration: route.duration, annotations: route.annotations, brouterSurfaces: route.brouterSurfaces || null };

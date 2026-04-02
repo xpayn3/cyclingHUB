@@ -66,7 +66,7 @@ export const ICU_BASE = 'https://intervals.icu/api/v1';
 export const STRAVA_API_BASE  = '/strava-internal/';
 export const STRAVA_AUTH_BASE = '/strava-auth/';
 export const STRAVA_AUTH_URL  = 'https://www.strava.com/oauth/authorize';
-export const STORAGE_LIMIT = 8 * 1024 * 1024;
+export const STORAGE_LIMIT = 10 * 1024 * 1024;
 
 export function safeMax(arr) { let m = -Infinity; for (let i = 0; i < arr.length; i++) if (arr[i] > m) m = arr[i]; return m; }
 export function safeMin(arr) { let m = Infinity;  for (let i = 0; i < arr.length; i++) if (arr[i] < m) m = arr[i]; return m; }

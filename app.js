@@ -42,7 +42,7 @@ import { saveStravaCredentials, loadStravaCredentials, clearStravaCredentials,
          isStravaConnected, stravaStartAuth, stravaExchangeCode,
          stravaDisconnect, stravaSyncActivities, stravaCancelSync,
          icuRenderSyncUI, stravaRenderSyncUI, stravaSaveAndAuth,
-         stravaClearActivities, icuSaveAndConnect, saveOrsApiKey,
+         stravaClearActivities, icuSaveAndConnect, saveOrsApiKey, saveMapillaryKey,
          stravaFetch, stravaMapType, stravaSaveStreamsToIDB,
          stravaLoadStreamsFromIDB, _stravaOpenDB } from './js/strava.js';
 
@@ -531,6 +531,7 @@ function _pageListener(el, event, handler, opts) {
 function cleanupPageCharts(leavingPage) {
   // Stop vitality shader animation when leaving dashboard
   if (leavingPage === 'dashboard' && typeof _stopVitality === 'function') _stopVitality();
+  if (leavingPage === 'calendar') _calReturnPanel();
   // Run and clear any registered cleanup callbacks
   while (_pageCleanupFns.length) { try { _pageCleanupFns.pop()(); } catch(_){} }
   const keys = _pageChartKeys[leavingPage];
@@ -552,6 +553,7 @@ function cleanupPageCharts(leavingPage) {
   }
   // Destroy weather charts
   if (leavingPage === 'weather') {
+    pauseWeatherRadar();
     window._tempChart = destroyChart(window._tempChart);
     window._wxPerfTempSpeedChart = destroyChart(window._wxPerfTempSpeedChart);
     window._wxPerfTempPowerChart = destroyChart(window._wxPerfTempPowerChart);
@@ -712,9 +714,30 @@ function saveCredentials(athleteId, apiKey) {
 /* ====================================================
    ACTIVITY CACHE  (localStorage — survives page refresh)
 ==================================================== */
+// Fields needed for dashboard, activity list, charts, gear
+const _ACT_CACHE_FIELDS = [
+  'id', 'name', 'icu_name', 'type', 'start_date_local', 'start_date',
+  'distance', 'icu_distance', 'moving_time', 'elapsed_time', 'icu_moving_time', 'icu_elapsed_time',
+  'total_elevation_gain', 'icu_total_elevation_gain',
+  'average_speed', 'icu_average_speed', 'average_watts', 'icu_average_watts', 'icu_weighted_avg_watts',
+  'icu_training_load', 'tss', 'icu_intensity',
+  'average_heartrate', 'max_heartrate', 'icu_average_hr',
+  'gear_id', 'icu_gear_id',
+  'icu_achievements', 'icu_ftp',
+  'weather_temp', 'weather_icon', 'weather_wind_speed',
+];
+
+function _trimActivity(a) {
+  const slim = {};
+  for (const k of _ACT_CACHE_FIELDS) { if (a[k] != null) slim[k] = a[k]; }
+  return slim;
+}
+
 function saveActivityCache(activities) {
   try {
-    const payload = JSON.stringify(activities);
+    // Trim to essential fields to save space
+    const trimmed = activities.map(_trimActivity);
+    const payload = JSON.stringify(trimmed);
     const oldSize = new Blob([localStorage.getItem('icu_activities_cache') || '']).size;
     const newSize = new Blob([payload]).size;
     const { total } = getAppStorageUsage();
@@ -822,7 +845,7 @@ function clearFitnessCache() {
 ==================================================== */
 function saveLifetimeCache(activities) {
   try {
-    const payload = JSON.stringify(activities);
+    const payload = JSON.stringify(activities.map(_trimActivity));
     const oldSize = new Blob([localStorage.getItem('icu_lifetime_cache') || '']).size;
     const newSize = new Blob([payload]).size;
     const { total } = getAppStorageUsage();
@@ -1331,7 +1354,7 @@ async function syncData(force = false) {
     const localList = await _localLoadActivityList();
     if (localList) {
       try {
-        localStorage.setItem('icu_activities_cache', JSON.stringify(localList.activities));
+        localStorage.setItem('icu_activities_cache', JSON.stringify(localList.activities.map(_trimActivity)));
         localStorage.setItem('icu_last_sync', localList.lastSync);
       } catch(e) {}
       cache = localList;
@@ -2515,6 +2538,11 @@ function runLifetimeSync() {
         );
       }
 
+      // Cap at 5000 most recent to prevent unbounded memory/storage growth
+      const LIFETIME_MAX = 5000;
+      if (state.lifetimeActivities.length > LIFETIME_MAX) {
+        state.lifetimeActivities = state.lifetimeActivities.slice(0, LIFETIME_MAX);
+      }
       state.lifetimeLastSync = new Date();
       saveLifetimeCache(state.lifetimeActivities);
       updateLifetimeCacheUI();
@@ -2567,6 +2595,7 @@ function importLifetimeJSON() {
         state.lifetimeActivities = Array.from(map.values()).sort(
           (a, b) => new Date(b.start_date_local || b.start_date) - new Date(a.start_date_local || a.start_date)
         );
+        if (state.lifetimeActivities.length > 5000) state.lifetimeActivities = state.lifetimeActivities.slice(0, 5000);
         state.lifetimeLastSync = new Date();
         saveLifetimeCache(state.lifetimeActivities);
         updateLifetimeCacheUI();
@@ -3086,9 +3115,14 @@ function _peerBuildSnapshot() {
 
 function _peerRestoreSnapshot(snapshot) {
   if (!snapshot || typeof snapshot !== 'object') return;
+  let failed = 0;
   for (const [k, v] of Object.entries(snapshot)) {
-    if (k.startsWith('icu_') || k.startsWith('strava_')) localStorage.setItem(k, v);
+    if (k.startsWith('icu_') || k.startsWith('strava_')) {
+      try { localStorage.setItem(k, v); }
+      catch (_) { failed++; }
+    }
   }
+  if (failed > 0) showToast(`${failed} keys skipped (storage full)`, 'warning');
 }
 
 function _peerUpdateUI(status, peerId) {
@@ -4077,9 +4111,14 @@ function importFullBackup() {
         if (!backup.version || !backup.localStorage) {
           showToast('Invalid backup file', 'error'); return;
         }
-        // 1. Restore localStorage
+        // 1. Restore localStorage (with quota safety)
         const ls = backup.localStorage;
-        for (const k of Object.keys(ls)) localStorage.setItem(k, ls[k]);
+        let restoreFailed = 0;
+        for (const k of Object.keys(ls)) {
+          try { localStorage.setItem(k, ls[k]); }
+          catch (_) { restoreFailed++; }
+        }
+        if (restoreFailed > 0) showToast(`${restoreFailed} keys skipped (storage full)`, 'warning');
         // 2. Restore IndexedDB
         const idb = backup.indexedDB || {};
         await Promise.all([
@@ -4114,7 +4153,12 @@ function importBackupFromConnect(inputEl) {
         showToast('Invalid backup file', 'error'); return;
       }
       const ls = backup.localStorage;
-      for (const k of Object.keys(ls)) localStorage.setItem(k, ls[k]);
+      let restoreFailed = 0;
+      for (const k of Object.keys(ls)) {
+        try { localStorage.setItem(k, ls[k]); }
+        catch (_) { restoreFailed++; }
+      }
+      if (restoreFailed > 0) showToast(`${restoreFailed} keys skipped (storage full)`, 'warning');
       const idb = backup.indexedDB || {};
       await Promise.all([
         idb.actcache       ? _idbWriteAll(_actCacheDB,   'items',        idb.actcache)        : null,
@@ -4249,6 +4293,21 @@ function closeSidebar() {
 // Prevent touchmove on the backdrop — stops iOS from starting a scroll
 // context on the empty area that then "steals" scroll from the sidebar.
 document.addEventListener('DOMContentLoaded', () => {
+  // Suppress missing sprite image warnings globally for all MapLibre maps
+  if (window.maplibregl) {
+    const _origMap = maplibregl.Map;
+    maplibregl.Map = function(...args) {
+      const map = new _origMap(...args);
+      map.on('styleimagemissing', (e) => {
+        if (!map.hasImage(e.id)) {
+          map.addImage(e.id, { width: 1, height: 1, data: new Uint8Array(4) });
+        }
+      });
+      return map;
+    };
+    maplibregl.Map.prototype = _origMap.prototype;
+  }
+
   // Lazy settings subpages — safe because subpages are self-contained
   requestAnimationFrame(() => {
     _initSubpageCache();
@@ -4817,7 +4876,7 @@ function navigate(page, opts) {
     // Fire push notification for critical alerts (max 1 per session)
     setTimeout(_notifFirePush, 2000);
   }
-  if (page === 'calendar') { renderCalendar(); refreshCalendarEvents(); }
+  if (page === 'calendar') { renderCalendar(); refreshCalendarEvents(); _calExtractPanel(); }
   if (page === 'fitness')  { renderFitnessPage(); _renderGuideInline(); }
   if (page === 'power')    renderPowerPage();
   if (page === 'compare')  { ensureLifetimeLoaded(); renderComparePage(); }
@@ -6372,8 +6431,20 @@ async function renderRecentActCardMap(a, idx, idPrefix = 'recentActCard', mapSto
     points = pairs.filter((_, i) => i % step === 0);
     if (points[points.length - 1] !== pairs[pairs.length - 1]) points.push(pairs[pairs.length - 1]);
 
-    // Cache the downsampled points (~8 KB) so we never need to re-fetch on refresh
-    try { localStorage.setItem(`icu_gps_pts_${actId}`, JSON.stringify(points)); } catch (_) {}
+    // Cache the downsampled points (~8 KB) with LRU eviction (max 50 routes)
+    try {
+      const GPS_MAX = 50;
+      const gpsKeys = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('icu_gps_pts_')) gpsKeys.push(k);
+      }
+      // Evict oldest entries if over limit
+      while (gpsKeys.length >= GPS_MAX) {
+        localStorage.removeItem(gpsKeys.shift());
+      }
+      localStorage.setItem(`icu_gps_pts_${actId}`, JSON.stringify(points));
+    } catch (_) {}
   }
 
   // Fill location label from first GPS point
@@ -6834,7 +6905,7 @@ function _renderSettingsWidgets() {
     const def = _WIDGET_DEFS.find(w => w.id === id);
     if (!def) return;
     const isHidden = hidden.has(id);
-    html += `<div class="ios-row widget-editor-item" data-widget-id="${id}" draggable="true">
+    html += `<div class="ios-row widget-editor-item" data-widget-id="${id}">
       <div class="widget-editor-drag"><svg class="icon" width="22" height="22" style="stroke:var(--text-muted)"><use href="icons.svg#icon-menu"/></svg></div>
       <div class="widget-editor-icon">${def.icon}</div>
       <span class="ios-row-label" style="flex:1">${def.label}</span>
@@ -6846,12 +6917,21 @@ function _renderSettingsWidgets() {
   });
   list.innerHTML = html;
   // Init drag reorder on settings list
-  let dragItem = null;
-  list.querySelectorAll('.widget-editor-item').forEach(item => {
-    item.addEventListener('dragstart', e => { dragItem = item; item.classList.add('widget-dragging'); e.dataTransfer.effectAllowed = 'move'; });
-    item.addEventListener('dragend', () => { item.classList.remove('widget-dragging'); dragItem = null; const newOrder = [...list.querySelectorAll('.widget-editor-item')].map(el => el.dataset.widgetId); _saveWidgetOrder(newOrder); _applyWidgetOrder(); });
-    item.addEventListener('dragover', e => { e.preventDefault(); if (!dragItem || dragItem === item) return; const rect = item.getBoundingClientRect(); if (e.clientY < rect.top + rect.height / 2) list.insertBefore(dragItem, item); else list.insertBefore(dragItem, item.nextSibling); });
-  });
+  if (typeof Sortable !== 'undefined') {
+    Sortable.create(list, {
+      handle: '.widget-editor-drag',
+      animation: 150,
+      ghostClass: 'widget-dragging',
+      delay: 120,
+      delayOnTouchOnly: true,
+      touchStartThreshold: 8,
+      onEnd: () => {
+        const newOrder = [...list.querySelectorAll('.widget-editor-item')].map(el => el.dataset.widgetId);
+        _saveWidgetOrder(newOrder);
+        _applyWidgetOrder();
+      }
+    });
+  }
 }
 window._renderSettingsWidgets = _renderSettingsWidgets;
 
@@ -6866,121 +6946,23 @@ window._toggleWidget = _toggleWidget;
 
 function _initWidgetDragReorder() {
   const list = document.getElementById('widgetEditorList');
-  if (!list) return;
+  if (!list || list._sortable) return;
+  if (typeof Sortable === 'undefined') return;
 
-  // ── HTML5 drag (desktop) ──
-  let dragItem = null;
-  list.querySelectorAll('.widget-editor-item').forEach(item => {
-    item.setAttribute('draggable', 'true');
-    item.addEventListener('dragstart', e => {
-      dragItem = item;
-      item.classList.add('widget-dragging');
-      e.dataTransfer.effectAllowed = 'move';
-    });
-    item.addEventListener('dragend', () => {
-      item.classList.remove('widget-dragging');
-      dragItem = null;
+  list._sortable = Sortable.create(list, {
+    handle: '.widget-editor-drag',
+    animation: 150,
+    ghostClass: 'widget-dragging',
+    delay: 100,
+    delayOnTouchOnly: true,
+    touchStartThreshold: 8,
+    scroll: false,
+    onEnd: () => {
       const newOrder = [...list.querySelectorAll('.widget-editor-item')].map(el => el.dataset.widgetId);
       _saveWidgetOrder(newOrder);
       _applyWidgetOrder();
-    });
-    item.addEventListener('dragover', e => {
-      e.preventDefault();
-      if (!dragItem || dragItem === item) return;
-      const rect = item.getBoundingClientRect();
-      const mid = rect.top + rect.height / 2;
-      if (e.clientY < mid) list.insertBefore(dragItem, item);
-      else list.insertBefore(dragItem, item.nextSibling);
-    });
+    }
   });
-
-  // ── Touch drag (mobile) ──
-  // Long-press on drag handle to start reorder — prevents scroll conflict
-  let touchItem = null;
-  let touchClone = null;
-  let touchStartY = 0;
-  let touchOffsetY = 0;
-  let touchLongPress = null;
-  let touchDragging = false;
-  let touchPendingItem = null;
-
-  list.addEventListener('touchstart', e => {
-    const handle = e.target.closest('.widget-editor-drag');
-    if (!handle) return;
-    const item = handle.closest('.widget-editor-item');
-    if (!item) return;
-    touchStartY = e.touches[0].clientY;
-    touchPendingItem = item;
-    touchDragging = false;
-
-    // Start drag after 200ms hold (prevents scroll conflict)
-    touchLongPress = setTimeout(() => {
-      touchDragging = true;
-      touchItem = item;
-      const rect = item.getBoundingClientRect();
-      touchOffsetY = touchStartY - rect.top;
-
-      // Lock sheet scroll
-      const sheet = list.closest('.wxd-sheet, .wxd-sheet-body');
-      if (sheet) sheet.style.overflow = 'hidden';
-
-      // Create floating clone
-      touchClone = item.cloneNode(true);
-      touchClone.classList.add('widget-dragging-clone');
-      touchClone.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;z-index:10002;pointer-events:none;opacity:0.9;background:var(--bg-elevated);border-radius:var(--radius);box-shadow:0 8px 32px rgba(0,0,0,0.5);`;
-      document.body.appendChild(touchClone);
-      item.classList.add('widget-dragging');
-
-      // Haptic feedback if available
-      if (navigator.vibrate) navigator.vibrate(10);
-    }, 200);
-  }, { passive: true });
-
-  list.addEventListener('touchmove', e => {
-    // If not yet dragging, check if finger moved too much (cancel long-press, allow scroll)
-    if (!touchDragging && touchPendingItem) {
-      const dy = Math.abs(e.touches[0].clientY - touchStartY);
-      if (dy > 8) {
-        clearTimeout(touchLongPress);
-        touchPendingItem = null;
-      }
-      return;
-    }
-    if (!touchItem || !touchClone) return;
-    e.preventDefault();
-    const y = e.touches[0].clientY;
-    touchClone.style.top = (y - touchOffsetY) + 'px';
-
-    // Find item under finger and reorder
-    const items = [...list.querySelectorAll('.widget-editor-item')];
-    for (const sibling of items) {
-      if (sibling === touchItem) continue;
-      const rect = sibling.getBoundingClientRect();
-      const mid = rect.top + rect.height / 2;
-      if (y < mid) { list.insertBefore(touchItem, sibling); break; }
-      if (y > mid && sibling === items[items.length - 1]) { list.appendChild(touchItem); }
-    }
-  }, { passive: false });
-
-  const _touchEnd = () => {
-    clearTimeout(touchLongPress);
-    touchPendingItem = null;
-    if (!touchItem) { touchDragging = false; return; }
-    touchItem.classList.remove('widget-dragging');
-    if (touchClone) { touchClone.remove(); touchClone = null; }
-
-    // Unlock sheet scroll
-    const sheet = list.closest('.wxd-sheet, .wxd-sheet-body');
-    if (sheet) sheet.style.overflow = '';
-
-    const newOrder = [...list.querySelectorAll('.widget-editor-item')].map(el => el.dataset.widgetId);
-    _saveWidgetOrder(newOrder);
-    _applyWidgetOrder();
-    touchItem = null;
-    touchDragging = false;
-  };
-  list.addEventListener('touchend', _touchEnd);
-  list.addEventListener('touchcancel', _touchEnd);
 }
 
 /* ====================================================
@@ -7008,25 +6990,27 @@ function _renderDashboardImpl() {
   const thisWeekStr = toDateStr(thisWeekStart);
   const lastWeekStr = toDateStr(lastWeekStart);
 
-  function aggWeek(startStr, endStr) {
-    let tss = 0, dist = 0, time = 0, elev = 0, pow = 0, powN = 0, count = 0;
-    state.activities.forEach(a => {
-      if (isEmptyActivity(a)) return;
-      const d = (a.start_date_local || a.start_date || '').slice(0, 10);
-      if (d < startStr || (endStr && d >= endStr)) return;
-      count++;
-      tss  += actVal(a, 'icu_training_load', 'tss');
-      dist += actVal(a, 'distance', 'icu_distance') / 1000;
-      time += actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time', 'icu_elapsed_time') / 3600;
-      elev += actVal(a, 'total_elevation_gain', 'icu_total_elevation_gain');
-      const w = actVal(a, 'icu_weighted_avg_watts', 'average_watts', 'icu_average_watts');
-      if (w > 0) { pow += w; powN++; }
-    });
-    return { tss, dist, time, elev, pow: powN > 0 ? Math.round(pow / powN) : 0, powN, count };
-  }
-
-  const tw = aggWeek(thisWeekStr, null);       // this week: Mon → today
-  const lw = aggWeek(lastWeekStr, thisWeekStr); // last week: Mon → Sun
+  // Single-pass aggregation for both weeks
+  const _tw = { tss: 0, dist: 0, time: 0, elev: 0, pow: 0, powN: 0, count: 0 };
+  const _lw = { tss: 0, dist: 0, time: 0, elev: 0, pow: 0, powN: 0, count: 0 };
+  state.activities.forEach(a => {
+    if (isEmptyActivity(a)) return;
+    const d = (a.start_date_local || a.start_date || '').slice(0, 10);
+    let bucket = null;
+    if (d >= thisWeekStr) bucket = _tw;
+    else if (d >= lastWeekStr) bucket = _lw;
+    if (!bucket) return;
+    bucket.count++;
+    bucket.tss  += actVal(a, 'icu_training_load', 'tss');
+    bucket.dist += actVal(a, 'distance', 'icu_distance') / 1000;
+    bucket.time += actVal(a, 'moving_time', 'elapsed_time', 'icu_moving_time', 'icu_elapsed_time') / 3600;
+    bucket.elev += actVal(a, 'total_elevation_gain', 'icu_total_elevation_gain');
+    const w = actVal(a, 'icu_weighted_avg_watts', 'average_watts', 'icu_average_watts');
+    if (w > 0) { bucket.pow += w; bucket.powN++; }
+  });
+  _tw.pow = _tw.powN > 0 ? Math.round(_tw.pow / _tw.powN) : 0;
+  _lw.pow = _lw.powN > 0 ? Math.round(_lw.pow / _lw.powN) : 0;
+  const tw = _tw, lw = _lw;
 
   // Trend helper — returns { text, cls } for stat-delta
   function trend(cur, prev, opts = {}) {
@@ -7073,8 +7057,9 @@ function _renderDashboardImpl() {
     el.className = `stat-icon ${cls}`;
   }
 
-  // ── Update stat values (this week) — elements may not exist if section removed
-  const _s = id => document.getElementById(id);
+  // ── Update stat values (this week) — cache DOM lookups
+  const _els = {};
+  const _s = id => _els[id] || (_els[id] = document.getElementById(id));
   if (_s('statTSS'))   _s('statTSS').innerHTML   = `${Math.round(tw.tss)}<span class="unit"> tss</span>`;
   if (_s('statDist'))  _s('statDist').innerHTML  = `${tw.dist.toFixed(1)}<span class="unit"> km</span>`;
   if (_s('statTime'))  _s('statTime').innerHTML  = `${tw.time.toFixed(1)}<span class="unit"> h</span>`;
@@ -7140,13 +7125,13 @@ function _renderDashboardImpl() {
         if (Math.abs(pct) < 1) { trendText = '→ same'; }
         else { trendText = `${pct > 0 ? '+' : ''}${Math.round(pct)}%`; trendCls = pct > 0 ? 'up' : 'down'; }
       }
-      return `<div class="smc-card">
+      return `<div class="smc-card" style="background:${c.color};border-color:transparent">
         <div class="smc-label-row">
-          <svg class="icon" width="16" height="16" style="color:${c.color}"><use href="icons.svg#icon-${c.icon}"/></svg>
-          <span class="smc-label">${c.label}</span>
+          <svg class="icon" width="16" height="16" style="color:#000"><use href="icons.svg#icon-${c.icon}"/></svg>
+          <span class="smc-label" style="color:rgba(0,0,0,0.55)">${c.label}</span>
         </div>
-        <div class="smc-value">${c.val}${c.unit ? ` <span class="smc-unit">${c.unit}</span>` : ''}</div>
-        <span class="smc-trend ${trendCls}">${trendText}</span>
+        <div class="smc-value" style="color:#000">${c.val}${c.unit ? ` <span class="smc-unit">${c.unit}</span>` : ''}</div>
+        <span class="smc-trend ${trendCls}" style="color:rgba(0,0,0,0.6)">${trendText}</span>
       </div>`;
     }).join('');
   }
@@ -8388,6 +8373,15 @@ function renderWeekProgress(metric) {
   const wkEndName   = allDayNames[(state.weekStartDay + 6) % 7];
   const subtitleEl  = document.getElementById('wpSubtitle');
   if (subtitleEl) subtitleEl.textContent = m.label;
+
+  // Color the card background by metric
+  const wpCard = document.getElementById('weekProgressCard');
+  if (wpCard) {
+    wpCard.style.background = m.color;
+    wpCard.style.borderColor = 'transparent';
+    wpCard.style.color = '#000';
+  }
+
   const unitEl = document.getElementById('wpUnit');
   if (unitEl) unitEl.textContent = m.unit || '—';
 
@@ -8484,6 +8478,7 @@ function renderWeekProgress(metric) {
     ch.data.datasets[0].backgroundColor = barColors;
     ch.data.datasets[0].borderColor = m.color;
     ch.options.plugins.tooltip.callbacks.label = c => c.raw != null ? m.tooltip(c.raw) : '—';
+    ch.options.scales.x.ticks.color = 'rgba(0,0,0,0.6)';
     ch.update();
     return;
   }
@@ -8506,6 +8501,7 @@ function renderWeekProgress(metric) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      _noCrosshair: true,
       interaction: { mode: 'index', intersect: false },
       layout: { padding: { top: 12, bottom: 12 } },
       plugins: {
@@ -8518,7 +8514,10 @@ function renderWeekProgress(metric) {
           }
         }
       },
-      scales: cScales({ xGrid: false, yExtra: { maxTicksLimit: 4, display: false } })
+      scales: {
+        x: { grid: C_NOGRID, ticks: { color: 'rgba(0,0,0,0.6)', font: { size: 11, weight: '600', family: getComputedStyle(document.documentElement).getPropertyValue('--font-ui').trim() || 'Inter' } } },
+        y: { display: false }
+      }
     }
   });
 }
@@ -12967,6 +12966,12 @@ function setFitnessRange(days) {
   });
 }
 
+function _fitSwitchInsightTab(tab) {
+  document.querySelectorAll('.fit-ins-tab').forEach(t => t.classList.toggle('active', t.dataset.fitTab === tab));
+  document.querySelectorAll('.fit-ins-panel').forEach(p => p.style.display = p.dataset.fitPanel === tab ? '' : 'none');
+}
+window._fitSwitchInsightTab = _fitSwitchInsightTab;
+
 function renderFitnessPage() {
   if (!state.synced) return;
 
@@ -16474,6 +16479,321 @@ function calGoToday() {
 }
 
 /* ── Calendar Grid/List view toggle ── */
+/* ── Desktop Activity Timeline ── */
+function toggleCalTimeline() {
+  const shell = document.querySelector('.cal-shell');
+  if (!shell) return;
+  const active = shell.classList.toggle('cal-shell--timeline');
+  if (active) renderCalTimeline();
+}
+
+function renderCalTimeline() {
+  if (window.innerWidth < 769) return;
+  const scroll = document.getElementById('calTimelineScroll');
+  const rangeEl = document.getElementById('calTimelineRange');
+  if (!scroll) return;
+
+  const actMap = buildCalActMap();
+  const m = getCalMonth();
+  const year = m.getFullYear();
+  const month = m.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const todayStr = toDateStr(new Date());
+
+  // Month range label
+  if (rangeEl) {
+    rangeEl.textContent = m.toLocaleDateString('default', { month: 'long', year: 'numeric' });
+  }
+
+  const zoneColors = ['#4a9eff', '#00e5a0', '#f0c429', '#ff9500', '#ff453a', '#af52de'];
+  const HOUR_H = 60; // px per hour
+  const START_HOUR = 0, END_HOUR = 23; // full day
+  const PAD = 20;
+  const GRID_H = (END_HOUR - START_HOUR) * HOUR_H + PAD * 2;
+
+  // Day header row (fixed, non-scrolling vertically)
+  let headerHtml = '<div class="cal-tl-header-row"><div class="cal-tl-header-spacer"></div>';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateObj = new Date(year, month, d);
+    const dayName = dateObj.toLocaleDateString('default', { weekday: 'short' }).toUpperCase();
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const isToday = dateStr === todayStr;
+    headerHtml += `<div class="cal-tl-day-label${isToday ? ' cal-tl-day--today' : ''}"><span class="cal-tl-day-name">${dayName}</span><span class="cal-tl-day-date">${d}</span></div>`;
+  }
+  headerHtml += '</div>';
+
+  // Scrollable body: hours column + day grid columns
+  let bodyHtml = '<div class="cal-tl-body">';
+
+  // Hour labels
+  bodyHtml += '<div class="cal-tl-hours">';
+  for (let h = START_HOUR; h <= END_HOUR; h++) {
+    const top = (h - START_HOUR) * HOUR_H + PAD;
+    bodyHtml += `<div class="cal-tl-hour-label" style="top:${top}px">${String(h).padStart(2, '0')}:00</div>`;
+  }
+  bodyHtml += '</div>';
+
+
+
+  // Day columns
+  bodyHtml += '<div class="cal-tl-days">';
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const isToday = dateStr === todayStr;
+    const items = actMap[dateStr] || [];
+    const acts = items.filter(i => !i.isEvent && !isEmptyActivity(i.a));
+    const events = items.filter(i => i.isEvent);
+
+    bodyHtml += `<div class="cal-tl-day${isToday ? ' cal-tl-day--today' : ''}" data-date="${dateStr}">`;
+    bodyHtml += `<div class="cal-tl-day-grid" style="height:${GRID_H}px">`;
+
+    // Hour grid lines
+    for (let h = START_HOUR; h <= END_HOUR; h++) {
+      const top = (h - START_HOUR) * HOUR_H + PAD;
+      bodyHtml += `<div class="cal-tl-hour-line" style="top:${top}px"></div>`;
+    }
+
+    for (const { a, stateIdx } of acts) {
+      const name = cleanActivityName((a.name && a.name.trim()) ? a.name.trim() : activityFallbackName(a)).title;
+      const dist = (a.distance || 0) / 1000;
+      const secs = a.moving_time || a.elapsed_time || 0;
+      const tss = actVal(a, 'icu_training_load', 'tss');
+      const avgPwr = a.weighted_average_watts || a.average_watts || 0;
+      const avgHr = a.average_heartrate || 0;
+
+      // Position by start time
+      const startStr = a.start_date_local || a.start_date || '';
+      const startDate = new Date(startStr);
+      const startHour = startDate.getHours() + startDate.getMinutes() / 60;
+      const durationHours = secs / 3600;
+      const top = (startHour - START_HOUR) * HOUR_H + PAD;
+      const height = Math.max(40, durationHours * HOUR_H);
+
+      let cardBg = '#00e5a0';
+      if (tss > 250)      cardBg = '#ff453a';
+      else if (tss > 150) cardBg = '#ff9500';
+      else if (tss > 75)  cardBg = '#f0c429';
+
+      bodyHtml += `<div class="cal-tl-card" onclick="navigateToActivity(${stateIdx})" style="background:${cardBg};top:${top}px;height:${height}px">`;
+      bodyHtml += `<div class="cal-tl-name">${name}</div>`;
+      bodyHtml += `<div class="cal-tl-stats">`;
+      if (dist > 0.1) bodyHtml += `<div class="cal-tl-stat"><span class="cal-tl-stat-val">${dist.toFixed(1)}</span><span class="cal-tl-stat-lbl">km</span></div>`;
+      if (secs > 0) bodyHtml += `<div class="cal-tl-stat"><span class="cal-tl-stat-val">${fmtDur(secs)}</span><span class="cal-tl-stat-lbl">time</span></div>`;
+      if (tss > 0) bodyHtml += `<div class="cal-tl-stat"><span class="cal-tl-stat-val">${Math.round(tss)}</span><span class="cal-tl-stat-lbl">tss</span></div>`;
+      if (avgPwr > 0) bodyHtml += `<div class="cal-tl-stat"><span class="cal-tl-stat-val">${Math.round(avgPwr)}</span><span class="cal-tl-stat-lbl">W</span></div>`;
+      if (avgHr > 0) bodyHtml += `<div class="cal-tl-stat"><span class="cal-tl-stat-val">${Math.round(avgHr)}</span><span class="cal-tl-stat-lbl">bpm</span></div>`;
+      bodyHtml += `</div>`;
+
+      const zones = a.power_zone_time || a.icu_power_zone_time || a.hr_zone_time || a.icu_hr_zone_time;
+      if (zones && zones.length) {
+        const total = zones.reduce((s, v) => s + v, 0);
+        if (total > 0) {
+          bodyHtml += `<div class="cal-tl-zone-bar">`;
+          zones.forEach((z, i) => { if (z > 0) bodyHtml += `<div class="cal-tl-zone-seg" style="flex:${z};background:${zoneColors[i] || zoneColors[5]}"></div>`; });
+          bodyHtml += `</div>`;
+        }
+      }
+      bodyHtml += `</div>`;
+    }
+
+    for (const { a } of events) {
+      const evName = a.name || a.category || 'Planned';
+      const cat = (a.category || '').toUpperCase();
+      const isNote = cat === 'NOTE';
+      const startStr = a.start_date_local || a.start_date || '';
+      const startDate = new Date(startStr);
+      const startHour = startDate.getHours() + startDate.getMinutes() / 60;
+      const top = (startHour - START_HOUR) * HOUR_H + PAD;
+      const cardCls = isNote ? 'cal-tl-card cal-tl-card--note' : 'cal-tl-card cal-tl-card--event';
+      bodyHtml += `<div class="${cardCls}" data-event-id="${a.id}" onclick="openCalEventModal(window._calEvLookup&&window._calEvLookup[${a.id}])" style="top:${top}px;height:${isNote ? 'auto;min-height:36' : '40'}px">`;
+      bodyHtml += `<div class="cal-tl-name">${isNote ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-right:4px;vertical-align:-1px"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>' : ''}${evName}</div>`;
+      if (!isNote && a.icu_training_load) bodyHtml += `<div class="cal-tl-stats"><div class="cal-tl-stat"><span class="cal-tl-stat-val">${Math.round(a.icu_training_load)}</span><span class="cal-tl-stat-lbl">tss</span></div></div>`;
+      bodyHtml += `</div>`;
+    }
+
+    bodyHtml += `</div></div>`;
+  }
+  bodyHtml += '</div></div>';
+
+  scroll.innerHTML = headerHtml + bodyHtml;
+
+  // Sync header horizontal scroll with body
+  const headerRow = scroll.querySelector('.cal-tl-header-row');
+  const body = scroll.querySelector('.cal-tl-body');
+  const days = body?.querySelector('.cal-tl-days');
+  const hours = body?.querySelector('.cal-tl-hours');
+
+  // Set hours + day columns height to match grid
+  if (hours) hours.style.height = GRID_H + 'px';
+  scroll.querySelectorAll('.cal-tl-day').forEach(d => d.style.minHeight = GRID_H + 'px');
+
+  if (days && headerRow) {
+    days.addEventListener('scroll', () => {
+      headerRow.scrollLeft = days.scrollLeft;
+      if (hours) hours.style.transform = `translateY(${-days.scrollTop}px)`;
+    }, { passive: true });
+  }
+
+  // Auto-scroll to today horizontally (skip if restoring saved position)
+  if (!window._calTlRestoreScroll && todayStr.startsWith(`${year}-${String(month + 1).padStart(2, '0')}`)) {
+    const todayDay = days?.querySelector('.cal-tl-day--today');
+    if (todayDay && days) {
+      const offset = todayDay.offsetLeft - days.offsetWidth / 2 + todayDay.offsetWidth / 2;
+      days.scrollLeft = Math.max(0, offset);
+      if (headerRow) headerRow.scrollLeft = days.scrollLeft;
+    }
+  }
+
+  // Restore saved scroll or default to 7am
+  if (days) {
+    const saved = window._calTlRestoreScroll;
+    if (saved) {
+      days.scrollLeft = saved.left;
+      days.scrollTop = saved.top;
+      window._calTlRestoreScroll = null;
+    } else {
+      days.scrollTop = 7 * HOUR_H + PAD;
+    }
+    if (hours) hours.style.transform = `translateY(${-days.scrollTop}px)`;
+  }
+
+  // Mouse drag + wheel → horizontal scroll on .cal-tl-days
+  window._calTlDraggingEvent = false;
+  if (days) {
+    // Drag to pan vertically (hours) — skip when dragging an event
+    let _tlDrag = false, _tlStartY = 0, _tlScrollT = 0;
+    days.addEventListener('mousedown', e => {
+      if (e.target.closest('.cal-tl-card') || window._calTlDraggingEvent) return;
+      _tlDrag = true; _tlStartY = e.pageY; _tlScrollT = days.scrollTop;
+      days.style.cursor = 'grabbing'; days.style.userSelect = 'none';
+    });
+    days.addEventListener('mousemove', e => {
+      if (!_tlDrag || window._calTlDraggingEvent) return;
+      days.scrollTop = _tlScrollT - (e.pageY - _tlStartY);
+    });
+    days.addEventListener('mouseup', () => { _tlDrag = false; days.style.cursor = ''; days.style.userSelect = ''; });
+    days.addEventListener('mouseleave', () => { _tlDrag = false; days.style.cursor = ''; days.style.userSelect = ''; });
+    // Scroll wheel → horizontal (days)
+    days.addEventListener('wheel', e => {
+      e.preventDefault();
+      days.scrollLeft += e.deltaY || e.deltaX;
+    }, { passive: false });
+
+    // ── Timeline Drag & Drop (planned events) ──
+    _calTimelineDragInit(days);
+  }
+}
+
+function _calTimelineDragInit(daysEl) {
+  const HOUR_H = 60, START_HOUR = 0, PAD = 20;
+  let dragCard = null, dragGhost = null, dragEvId = null;
+  let startX = 0, startY = 0, dragging = false;
+  let dropDay = null, dropHour = 0;
+
+  daysEl.addEventListener('pointerdown', e => {
+    const card = e.target.closest('.cal-tl-card[data-event-id]');
+    if (!card || e.button !== 0) return;
+    dragEvId = card.dataset.eventId;
+    dragCard = card;
+    startX = e.clientX;
+    startY = e.clientY;
+    dragging = false;
+
+    function onMove(ev) {
+      const dx = ev.clientX - startX, dy = ev.clientY - startY;
+      if (!dragging) {
+        if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
+        dragging = true;
+        window._calTlDraggingEvent = true;
+        card.style.opacity = '0.3';
+        dragGhost = card.cloneNode(true);
+        dragGhost.style.cssText = `position:fixed;pointer-events:none;z-index:99999;width:${card.offsetWidth}px;opacity:0.9;transform:scale(1.05);box-shadow:0 8px 24px rgba(0,0,0,0.5);border-radius:8px;transition:none;`;
+        document.body.appendChild(dragGhost);
+      }
+      if (dragGhost) {
+        dragGhost.style.left = (ev.clientX - dragGhost.offsetWidth / 2) + 'px';
+        dragGhost.style.top = (ev.clientY - 20) + 'px';
+      }
+      // Hit-test under pointer
+      if (dragGhost) dragGhost.style.display = 'none';
+      const elUnder = document.elementFromPoint(ev.clientX, ev.clientY);
+      if (dragGhost) dragGhost.style.display = '';
+
+      // Find day column + hour
+      const dayCol = elUnder ? elUnder.closest('.cal-tl-day[data-date]') : null;
+      daysEl.querySelectorAll('.cal-tl-day--drag-over').forEach(el => el.classList.remove('cal-tl-day--drag-over'));
+      daysEl.querySelectorAll('.cal-tl-drop-line').forEach(el => el.remove());
+
+      if (dayCol) {
+        dayCol.classList.add('cal-tl-day--drag-over');
+        dropDay = dayCol.dataset.date;
+        const grid = dayCol.querySelector('.cal-tl-day-grid');
+        if (grid) {
+          const gridRect = grid.getBoundingClientRect();
+          const relY = ev.clientY - gridRect.top;
+          const hour = Math.max(0, Math.min(23, Math.round(((relY - PAD) / HOUR_H) * 2) / 2));
+          dropHour = hour;
+          // Show drop indicator line
+          const lineTop = hour * HOUR_H + PAD;
+          const line = document.createElement('div');
+          line.className = 'cal-tl-drop-line';
+          line.style.cssText = `position:absolute;left:0;right:0;top:${lineTop}px;height:2px;background:var(--accent);z-index:5;border-radius:1px;`;
+          grid.appendChild(line);
+        }
+      } else {
+        dropDay = null;
+      }
+    }
+
+    function onUp() {
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      if (dragCard) dragCard.style.opacity = '';
+      if (dragGhost) { dragGhost.remove(); dragGhost = null; }
+      daysEl.querySelectorAll('.cal-tl-day--drag-over').forEach(el => el.classList.remove('cal-tl-day--drag-over'));
+      daysEl.querySelectorAll('.cal-tl-drop-line').forEach(el => el.remove());
+
+      setTimeout(() => { window._calTlDraggingEvent = false; }, 50);
+      if (!dragging || !dragEvId || !dropDay) {
+        dragCard = null; dragEvId = null; dragging = false;
+        return;
+      }
+
+      const evId = dragEvId;
+      const newDate = dropDay;
+      const newHour = dropHour;
+      dragCard = null; dragEvId = null; dragging = false; dropDay = null;
+
+      const calEvt = window._calEvLookup ? window._calEvLookup[evId] : null;
+      if (!calEvt) return;
+
+      // Build new datetime: date + snapped hour
+      const h = Math.floor(newHour);
+      const m = Math.round((newHour - h) * 60);
+      const newDateTime = `${newDate}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`;
+
+      // Save scroll position to restore after re-render
+      const savedScrollLeft = daysEl.scrollLeft;
+      const savedScrollTop = daysEl.scrollTop;
+      window._calTlRestoreScroll = { left: savedScrollLeft, top: savedScrollTop };
+
+      icuPut('/athlete/' + state.athleteId + '/events/' + evId, {
+        start_date_local: newDateTime,
+      }).then(() => {
+        showToast('Moved "' + (calEvt.name || 'Event') + '"', 'success');
+        refreshCalendarEvents();
+      }).catch(err => {
+        showToast('Failed to move event', 'error');
+        console.error('Timeline drag error:', err);
+      });
+    }
+
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+  });
+}
+
 function toggleCalView() {
   const shell = document.querySelector('.cal-shell');
   if (!shell) return;
@@ -16704,20 +17024,68 @@ async function _loadCalListMiniGraphs(container) {
   }, { passive: true });
 })();
 
+function _isCalDesktop() { return window.innerWidth >= 769; }
+
+// Extract day panel from cal-body to document.body on desktop
+function _calExtractPanel() {
+  const panel = document.getElementById('calDayPanel');
+  if (!panel) return;
+  if (!_isCalDesktop()) return;
+  if (panel.classList.contains('cal-day-panel-extracted')) return;
+  // Move panel out of cal-body to document.body
+  document.body.appendChild(panel);
+  panel.classList.add('cal-day-panel-extracted');
+  const hidden = localStorage.getItem('icu_cal_panel_hidden') === '1';
+  const shell = document.querySelector('.cal-shell');
+  if (!hidden) {
+    requestAnimationFrame(() => {
+      panel.classList.add('cal-panel-visible');
+      if (shell) shell.classList.add('cal-panel-out');
+    });
+  }
+}
+
+function _calReturnPanel() {
+  // Always clean up shell class
+  const shell = document.querySelector('.cal-shell');
+  if (shell) shell.classList.remove('cal-panel-out');
+  const panel = document.getElementById('calDayPanel');
+  if (!panel) return;
+  if (!panel.classList.contains('cal-day-panel-extracted')) return;
+  panel.classList.remove('cal-day-panel-extracted', 'cal-panel-visible');
+  // Return panel to its original position inside cal-body
+  const calBody = document.querySelector('.cal-body');
+  if (calBody) {
+    const listView = calBody.querySelector('.cal-list-view');
+    if (listView) calBody.insertBefore(panel, listView);
+    else calBody.appendChild(panel);
+  }
+}
+
 function toggleCalPanel() {
-  const body = document.querySelector('.cal-body');
-  const btn  = document.getElementById('calPanelToggle');
-  if (!body) return;
-  body.classList.toggle('cal-body--panel-hidden');
-  const hidden = body.classList.contains('cal-body--panel-hidden');
-  if (btn) btn.classList.toggle('active', !hidden);
-  try { localStorage.setItem('icu_cal_panel_hidden', hidden ? '1' : ''); } catch (_) {}
+  const btn = document.getElementById('calPanelToggle');
+  const panel = document.getElementById('calDayPanel');
+  const shell = document.querySelector('.cal-shell');
+
+  if (_isCalDesktop() && panel?.classList.contains('cal-day-panel-extracted')) {
+    const visible = panel.classList.contains('cal-panel-visible');
+    panel.classList.toggle('cal-panel-visible', !visible);
+    if (shell) shell.classList.toggle('cal-panel-out', !visible);
+    if (btn) btn.classList.toggle('active', !visible);
+    try { localStorage.setItem('icu_cal_panel_hidden', visible ? '1' : ''); } catch (_) {}
+  } else {
+    const body = document.querySelector('.cal-body');
+    if (!body) return;
+    body.classList.toggle('cal-body--panel-hidden');
+    const hidden = body.classList.contains('cal-body--panel-hidden');
+    if (btn) btn.classList.toggle('active', !hidden);
+    try { localStorage.setItem('icu_cal_panel_hidden', hidden ? '1' : ''); } catch (_) {}
+  }
 }
 
 // Restore panel state on load
 (function _restoreCalPanel() {
   if (localStorage.getItem('icu_cal_panel_hidden') === '1') {
-    // Defer until calendar DOM exists
     const _obs = new MutationObserver(() => {
       const body = document.querySelector('.cal-body');
       if (body) { body.classList.add('cal-body--panel-hidden'); _obs.disconnect(); }
@@ -18443,11 +18811,13 @@ function renderCalendar() {
   // Init drag-and-drop on desktop
   if (window.innerWidth > 820) {
     _calInitDrag();
-    // Ensure draggable cards have -webkit-user-drag
     document.querySelectorAll('.cal-day-card--planned[draggable="true"]').forEach(function(card) {
       card.style.webkitUserDrag = 'element';
     });
   }
+  // Desktop timeline — update if active
+  const shell2 = document.querySelector('.cal-shell');
+  if (shell2 && shell2.classList.contains('cal-shell--timeline')) renderCalTimeline();
 }
 
 /* ── Calendar Drag & Drop (desktop only) ── */
@@ -18640,6 +19010,18 @@ function selectCalDay(dateStr, e) {
     el.classList.toggle('cal-day--selected', el.dataset.date === dateStr);
   });
   renderCalDayList(dateStr);
+  // Auto-show extracted panel on desktop when a day is selected
+  if (_isCalDesktop()) {
+    const panel = document.getElementById('calDayPanel');
+    const shell = document.querySelector('.cal-shell');
+    if (panel && panel.classList.contains('cal-day-panel-extracted') && !panel.classList.contains('cal-panel-visible')) {
+      panel.classList.add('cal-panel-visible');
+      if (shell) shell.classList.add('cal-panel-out');
+      const btn = document.getElementById('calPanelToggle');
+      if (btn) btn.classList.add('active');
+      try { localStorage.setItem('icu_cal_panel_hidden', ''); } catch (_) {}
+    }
+  }
 }
 
 // Render the activity list in the bottom day panel
@@ -21807,8 +22189,10 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
 
-  // Escape → close fullscreen map / keyboard overlay / open dialogs
+  // Escape → close global search / fullscreen map / keyboard overlay
   if (e.key === 'Escape') {
+    const gs = document.getElementById('globalSearchSheet');
+    if (gs?.classList.contains('gs-open')) { closeGlobalSearch(); return; }
     if (document.getElementById('detailMapCard')?.classList.contains('map-fullscreen')) {
       toggleMapFullscreen(); return;
     }
@@ -29830,7 +30214,7 @@ function _collectTransferableSettings() {
     'icu_chart_dot_size', 'icu_chart_dot_color',
     'icu_smart_poll', 'icu_smart_poll_interval',
     'icu_wx_locations', 'icu_wx_model', 'icu_wx_coords',
-    'icu_goals', 'icu_dash_sections', 'icu_ors_api_key',
+    'icu_goals', 'icu_dash_sections', 'icu_ors_api_key', 'icu_mapillary_key',
     'icu_avatar', 'icu_cal_panel_hidden',
     'icu_gear_components', 'icu_gear_batteries', 'icu_gear_services',
     'icu_gear_service_shops',
@@ -39139,10 +39523,17 @@ function _libBuildHeatmapTab() {
     <div class="lib-section">
       <div class="lib-section-title">Map Style</div>
       <div class="lib-pills">
-        <button class="lib-pill active" onclick="_libSetHeatMode('heat',this)">Heat</button>
+        <button class="lib-pill active" onclick="_libSetHeatMode('gpuheat',this)">Heat</button>
         <button class="lib-pill" onclick="_libSetHeatMode('lines',this)">Lines</button>
         <button class="lib-pill" onclick="_libSetHeatMode('speed',this)">Speed</button>
         <button class="lib-pill" onclick="_libSetHeatMode('year',this)">Year</button>
+        <button class="lib-pill" onclick="_libSetHeatMode('hex3d',this)">3D Hex</button>
+        <button class="lib-pill" onclick="_libSetHeatMode('trips',this)">Trips</button>
+        <button class="lib-pill" onclick="_libSetHeatMode('arcs',this)">Arcs</button>
+        <button class="lib-pill" onclick="_libSetHeatMode('screengrid',this)">Grid</button>
+        <button class="lib-pill" onclick="_libSetHeatMode('scatter',this)">Scatter</button>
+        <button class="lib-pill" onclick="_libSetHeatMode('particles',this)">Particles</button>
+        <button class="lib-pill" onclick="_libSetHeatMode('contour',this)">Contour</button>
       </div>
     </div>
     <div class="lib-section">
@@ -39153,6 +39544,7 @@ function _libBuildHeatmapTab() {
         <button class="lib-pill active" onclick="_libSetHeatPeriod('all',this)">All Time</button>
       </div>
     </div>
+    <div class="lib-section" id="libDeckSliders" style="display:none"></div>
     <div class="lib-section" id="libHeatStats"></div>
   `;
   // Init sliding indicators on pill groups (delay for layout)
@@ -39163,6 +39555,142 @@ function _libBuildHeatmapTab() {
     });
   }, 300);
 }
+
+// Slider configs per deck.gl mode
+const _DECK_SLIDERS = {
+  hex3d: [
+    { id: 'hex-radius',    label: 'Radius',    min: 100, max: 2000, val: 500, step: 50,  prop: 'radius' },
+    { id: 'hex-elevation', label: 'Height',     min: 1,   max: 50,   val: 15,  step: 1,   prop: 'elevationScale' },
+    { id: 'hex-coverage',  label: 'Coverage',   min: 0.2, max: 1,    val: 0.8, step: 0.05, prop: 'coverage' },
+  ],
+  screengrid: [
+    { id: 'sg-cellsize',  label: 'Cell Size',  min: 4,  max: 40, val: 12, step: 1, prop: 'cellSizePixels' },
+    { id: 'sg-opacity',   label: 'Opacity',    min: 0.1, max: 1,  val: 0.8, step: 0.05, prop: 'opacity' },
+  ],
+  scatter: [
+    { id: 'sc-minpx',   label: 'Min Size',   min: 1,   max: 15, val: 3,   step: 1,   prop: 'radiusMinPixels' },
+    { id: 'sc-maxpx',   label: 'Max Size',   min: 10,  max: 80, val: 40,  step: 2,   prop: 'radiusMaxPixels' },
+    { id: 'sc-opacity',  label: 'Opacity',    min: 0.1, max: 1,  val: 0.7, step: 0.05, prop: 'opacity' },
+  ],
+  gpuheat: [
+    { id: 'gh-radius',    label: 'Radius',     min: 5,   max: 80,  val: 30,  step: 1,   prop: 'radiusPixels' },
+    { id: 'gh-intensity', label: 'Intensity',   min: 0.2, max: 5,   val: 1.5, step: 0.1, prop: 'intensity' },
+    { id: 'gh-threshold', label: 'Threshold',   min: 0,   max: 0.3, val: 0.05, step: 0.01, prop: 'threshold' },
+  ],
+  trips: [
+    { id: 'tp-width',   label: 'Line Width',  min: 0.5, max: 6, val: 1.5, step: 0.5, prop: 'widthMinPixels' },
+    { id: 'tp-opacity', label: 'Opacity',      min: 0.1, max: 1, val: 0.7, step: 0.05, prop: 'opacity' },
+    { id: 'tp-stack',   label: 'Stack Height', min: 0, max: 50, val: 10, step: 1, prop: '_stackGap' },
+  ],
+  arcs: [
+    { id: 'ar-width',   label: 'Arc Width',   min: 0.5, max: 5, val: 1.5, step: 0.5, prop: 'getWidth' },
+  ],
+  contour: [
+    { id: 'ct-band',    label: 'Band Width', min: 0.5, max: 5, val: 1, step: 0.5, prop: 'cellSize' },
+    { id: 'ct-thresh',  label: 'Threshold',  min: 1, max: 20, val: 5, step: 1, prop: '_contourThresh' },
+  ],
+  particles: [
+    { id: 'pt-speed',  label: 'Speed',     min: 0.5, max: 10, val: 3, step: 0.5, prop: '_particleSpeed' },
+    { id: 'pt-trail',  label: 'Trail',     min: 50, max: 500, val: 150, step: 10, prop: '_particleTrail' },
+    { id: 'pt-size',   label: 'Dot Size',  min: 1, max: 8, val: 3, step: 0.5, prop: '_particleSize' },
+  ],
+};
+
+function _libUpdateDeckSliders(mode) {
+  const el = document.getElementById('libDeckSliders');
+  if (!el) return;
+  const sliders = _DECK_SLIDERS[mode];
+  if (!sliders || !sliders.length) { el.style.display = 'none'; return; }
+  el.style.display = '';
+  el.innerHTML = `<div class="lib-section-title">Adjust</div>` + sliders.map(s =>
+    `<div class="pro-pill-slider lib-pill-slider" id="lib-pill-${s.id}" data-prop="${s.prop}" data-min="${s.min}" data-max="${s.max}" data-step="${s.step}" data-value="${s.val}">
+      <div class="pro-pill-fill"></div>
+      <span class="pro-pill-label">${s.label}</span>
+      <span class="pro-pill-val">${typeof s.val === 'number' && s.val % 1 !== 0 ? s.val.toFixed(2) : s.val}</span>
+    </div>`
+  ).join('');
+  // Init pill drag interaction on each
+  sliders.forEach(s => _libInitPill(`lib-pill-${s.id}`, s));
+}
+window._libUpdateDeckSliders = _libUpdateDeckSliders;
+
+function _libInitPill(id, cfg) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const fill = el.querySelector('.pro-pill-fill');
+  const valEl = el.querySelector('.pro-pill-val');
+  let cur = cfg.val, drag = false;
+  const fmtVal = v => typeof v === 'number' && (cfg.step < 1 || v % 1 !== 0) ? v.toFixed(2) : String(v);
+  const apply = pct => {
+    pct = Math.max(0, Math.min(1, pct));
+    cur = cfg.min + pct * (cfg.max - cfg.min);
+    if (cfg.step) cur = Math.round(cur / cfg.step) * cfg.step;
+    cur = Math.max(cfg.min, Math.min(cfg.max, cur));
+    if (fill) fill.style.width = (((cur - cfg.min) / (cfg.max - cfg.min)) * 100) + '%';
+    if (valEl) valEl.textContent = fmtVal(cur);
+    _libDeckSliderChange(cfg.prop, cur);
+  };
+  apply((cfg.val - cfg.min) / (cfg.max - cfg.min));
+  el.addEventListener('pointerdown', e => {
+    drag = true; el.setPointerCapture(e.pointerId);
+    const r = el.getBoundingClientRect();
+    apply((e.clientX - r.left) / r.width);
+  });
+  el.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const r = el.getBoundingClientRect();
+    const raw = (e.clientX - r.left) / r.width;
+    apply(raw);
+    if (raw < -0.02) {
+      const pull = Math.min(10, Math.abs(raw) * 50);
+      el.style.transformOrigin = 'right center';
+      el.style.transform = `translateX(${-pull * 0.4}px) scaleX(${1 + pull * 0.003})`;
+    } else if (raw > 1.02) {
+      const pull = Math.min(10, (raw - 1) * 50);
+      el.style.transformOrigin = 'left center';
+      el.style.transform = `translateX(${pull * 0.4}px) scaleX(${1 + pull * 0.003})`;
+    } else {
+      el.style.transform = ''; el.style.transformOrigin = '';
+    }
+  });
+  const end = () => {
+    if (!drag) return; drag = false;
+    el.style.transition = 'transform 0.5s cubic-bezier(0.22, 1.8, 0.36, 1)';
+    el.style.transform = '';
+    setTimeout(() => { el.style.transition = ''; }, 550);
+  };
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', end);
+}
+
+function _libDeckSliderChange(prop, value) {
+  if (prop === '_stackGap') {
+    window._hmStackGap = parseFloat(value);
+    if (window.hmRedraw) hmRedraw();
+    return;
+  }
+  // Particle props — update globals, animation loop reads them live
+  if (prop === '_particleSpeed') { window._hmParticleSpeed = parseFloat(value); return; }
+  if (prop === '_particleTrail') { window._hmParticleTrail = parseFloat(value); return; }
+  // Contour/Column props — re-render
+  if (prop.startsWith('_contour') || prop.startsWith('_col')) {
+    window[prop.replace('_', '_hm')] = parseFloat(value);
+    if (window.hmRedraw) hmRedraw();
+    return;
+  }
+  if (prop === '_particleSize') { window._hmParticleSize = parseFloat(value); return; }
+  if (window._hm && _hm._deckOverlay) {
+    const layers = _hm._deckOverlay._props?.layers;
+    if (layers && layers[0]) {
+      const update = {};
+      update[prop] = parseFloat(value);
+      _hm._deckOverlay.setProps({
+        layers: [layers[0].clone(update)]
+      });
+    }
+  }
+}
+window._libDeckSliderChange = _libDeckSliderChange;
 
 function _libBuildRidesTab() {
   const pane = document.getElementById('libPaneRides');
@@ -39545,6 +40073,7 @@ function _libSlidePill(btn) {
 function _libSetHeatMode(mode, btn) {
   _libSlidePill(btn);
   if (window.hmSetColorMode) hmSetColorMode(mode);
+  _libUpdateDeckSliders(mode);
 }
 window._libSetHeatMode = _libSetHeatMode;
 
@@ -39709,6 +40238,14 @@ function openGlobalSearch() {
     <div>Search across your rides, routes, gear & settings</div>
   </div>`;
   gsSetFilter('all');
+
+  // Desktop: click backdrop to close
+  if (!el._backdropClose) {
+    el._backdropClose = true;
+    el.addEventListener('click', (e) => {
+      if (e.target === el) closeGlobalSearch();
+    });
+  }
 }
 
 function closeGlobalSearch() {
@@ -41784,7 +42321,7 @@ Object.assign(window, { saveStravaCredentials, loadStravaCredentials,
   clearStravaCredentials, isStravaConnected, stravaStartAuth, stravaExchangeCode,
   stravaDisconnect, stravaSyncActivities, stravaCancelSync,
   icuRenderSyncUI, stravaRenderSyncUI, stravaSaveAndAuth,
-  stravaClearActivities, icuSaveAndConnect, saveOrsApiKey,
+  stravaClearActivities, icuSaveAndConnect, saveOrsApiKey, saveMapillaryKey,
   stravaFetch, stravaMapType, stravaSaveStreamsToIDB, stravaLoadStreamsFromIDB });
 
 // ── From import.js ──
@@ -41807,7 +42344,7 @@ Object.assign(window, {
   onBatterySystemChange, onBatteryComponentChange, renderGearBatteries,
   openServiceModal, closeServiceModal, submitServiceForm,
   openServiceShopModal, closeServiceShopModal, saveServiceShop, closeServiceHistory,
-  calPrevMonth, calNextMonth, calGoToday, toggleCalPanel, toggleCalView,
+  calPrevMonth, calNextMonth, calGoToday, toggleCalPanel, toggleCalView, toggleCalTimeline, renderCalTimeline,
   openTrainingPlanModal, closeTrainingPlanModal, applyTrainingPlan,
   showTpSlotForm, hideTpSlotForm, addTpSlot, removeTpSlot,
   setHideEmptyCards, setFtpAlert,

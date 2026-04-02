@@ -545,16 +545,28 @@ function _proExitStyleEdit() {
   syncPill('proFillPill', _proFillOpacity, 0, 90, v => Math.round(v) + '%');
 }
 
-/* ── Smooth data with moving average ──────────────────── */
+/* ── Smooth data with sliding window moving average (O(N)) ── */
 function _smooth(data, win) {
   if (!data || win <= 1) return data;
   const n = data.length, out = new Array(n);
   const half = Math.floor(win / 2);
+  let sum = 0, cnt = 0;
+  // Seed initial window [0..half]
+  for (let j = 0; j <= Math.min(half, n - 1); j++) {
+    if (data[j] != null && !isNaN(data[j])) { sum += data[j]; cnt++; }
+  }
   for (let i = 0; i < n; i++) {
-    let sum = 0, cnt = 0;
-    const lo = Math.max(0, i - half), hi = Math.min(n - 1, i + half);
-    for (let j = lo; j <= hi; j++) {
-      if (data[j] != null && !isNaN(data[j])) { sum += data[j]; cnt++; }
+    // Add entering element (right edge)
+    const add = i + half;
+    if (add > half && add < n) {
+      const v = data[add];
+      if (v != null && !isNaN(v)) { sum += v; cnt++; }
+    }
+    // Remove leaving element (left edge)
+    const rem = i - half - 1;
+    if (rem >= 0) {
+      const v = data[rem];
+      if (v != null && !isNaN(v)) { sum -= v; cnt--; }
     }
     out[i] = cnt > 0 ? sum / cnt : null;
   }
