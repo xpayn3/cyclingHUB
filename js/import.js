@@ -1,5 +1,5 @@
 /* Import Page module — extracted from app.js */
-import { state, _app } from './state.js';
+import { state, ICU_BASE, _app } from './state.js';
 
 const showToast           = _app('showToast');
 const showConfirmDialog   = _app('showConfirmDialog');
@@ -313,22 +313,29 @@ export async function impProcessAll() {
       }
       const parsed = item.parsed;
 
-      // Duplicate check (returns false or a reason string)
+      // Duplicate check — warn but still import (replaces old version)
       const dupReason = optDupes && impIsDuplicate(parsed);
       if (dupReason) {
-        item.status = 'skipped';
-        item.error = dupReason;
-        skipped++;
-        impRenderQueue();
-        continue;
+        console.log('[Import] Duplicate detected, will replace:', dupReason);
       }
 
       // Build activity object
       const activity = impBuildActivity(parsed, item.file.name, optSport, optGPS, item.settings);
 
-      // Save to imported activities in localStorage
-      impSaveActivity(activity);
+      // Save to imported activities in localStorage + streams to IDB
+      impSaveActivity(activity, parsed);
       imported++;
+
+      // Push to intervals.icu if connected
+      if (state.athleteId && state.apiKey) {
+        try {
+          const icuId = await _uploadFitToICU(item.file);
+          if (icuId) {
+            activity._icuId = icuId;
+            console.log('[Import] Uploaded to intervals.icu, id:', icuId);
+          }
+        } catch (e) { console.warn('[Import] intervals.icu upload failed:', e.message); }
+      }
 
       item.status = 'done';
 
@@ -418,7 +425,7 @@ export async function impParseFIT(arrayBuffer) {
   if (typeof FitParser === 'undefined') {
     throw new Error('FIT parser library could not be loaded. Please check your internet connection.');
   }
-  const parser = new FitParser({ force: true, speedUnit: 'km/h', lengthUnit: 'km', elapsedRecordField: true });
+  const parser = new FitParser({ force: true, speedUnit: 'm/s', lengthUnit: 'm', elapsedRecordField: true });
   const data = { records: [], sessions: [], laps: [], events: [], device_infos: [], activity: null };
   parser.parse(arrayBuffer, (err, result) => {
     if (err) throw new Error(err);
@@ -495,6 +502,18 @@ export function impIsDuplicate(parsed) {
   return false;
 }
 
+/* ── Compute total ascent from records if session doesn't have it ── */
+function _computeAscent(records) {
+  let ascent = 0, lastAlt = null;
+  for (const r of records) {
+    const alt = r.enhanced_altitude ?? r.altitude;
+    if (alt == null) continue;
+    if (lastAlt != null && alt > lastAlt) ascent += alt - lastAlt;
+    lastAlt = alt;
+  }
+  return ascent > 10 ? Math.round(ascent) : 0;
+}
+
 /* ── Build activity from parsed FIT ── */
 export function impBuildActivity(parsed, fileName, autoSport, extractGPS, settings) {
   const s = parsed.sessions?.[0] || {};
@@ -518,8 +537,9 @@ export function impBuildActivity(parsed, fileName, autoSport, extractGPS, settin
     start_date: startDate,
     moving_time: Math.round(s.total_timer_time || s.total_elapsed_time || 0),
     elapsed_time: Math.round(s.total_elapsed_time || s.total_timer_time || 0),
-    distance: s.total_distance || 0,
-    total_ascent: st.elevation === false ? 0 : (s.total_ascent || 0),
+    distance: s.total_distance || s.enhanced_total_distance || s.distance ||
+              ((s.avg_speed || 0) * (s.total_timer_time || 0)) || 0,  // fallback: speed × time for indoor
+    total_ascent: st.elevation === false ? 0 : (s.total_ascent || s.total_elevation_gain || _computeAscent(records) || 0),
     average_speed: st.speed === false ? 0 : (s.avg_speed || s.enhanced_avg_speed || 0),
     max_speed: st.speed === false ? 0 : (s.max_speed || s.enhanced_max_speed || 0),
     average_heartrate: st.heartrate === false ? 0 : (s.avg_heart_rate || 0),
@@ -553,23 +573,129 @@ export function impBuildActivity(parsed, fileName, autoSport, extractGPS, settin
       const maxPts = 500;
       const step = Math.max(1, Math.floor(route.length / maxPts));
       activity.gps_route = route.filter((_, i) => i % step === 0);
+      activity.start_latlng = [route[0][0], route[0][1]];
+      activity.end_latlng = [route[route.length - 1][0], route[route.length - 1][1]];
     }
   }
+
+  // Aliases so the rest of the app finds data via actVal()
+  activity.start_date_local = activity.start_date;
+  if (activity.total_ascent) activity.total_elevation_gain = activity.total_ascent;
+  if (activity.training_stress_score) activity.tss = activity.training_stress_score;
+  if (activity.normalized_power) activity.icu_weighted_avg_watts = activity.normalized_power;
+  if (activity.average_watts) activity.icu_average_watts = activity.average_watts;
+  if (activity.average_heartrate) activity.icu_average_heartrate = activity.average_heartrate;
+  if (activity.intensity_factor) activity.icu_intensity = activity.intensity_factor;
+  if (activity.distance) activity.icu_distance = activity.distance;
+  if (activity.moving_time) activity.icu_moving_time = activity.moving_time;
 
   return activity;
 }
 
-/* ── Save to localStorage ── */
-export function impSaveActivity(activity) {
+/* ── Upload FIT file to intervals.icu ── */
+async function _uploadFitToICU(file) {
+  if (!state.athleteId || !state.apiKey) return null;
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await fetch(`${ICU_BASE}/athlete/${state.athleteId}/activities`, {
+    method: 'POST',
+    headers: { 'Authorization': 'Basic ' + btoa('API_KEY:' + state.apiKey) },
+    body: formData,
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`HTTP ${res.status}: ${text}`);
+  }
+  const data = await res.json().catch(() => null);
+  return data?.id || null;
+}
+
+/* ── Save to localStorage + streams to IndexedDB ── */
+export function impSaveActivity(activity, parsed) {
   const key = 'icu_fit_activities';
   const list = JSON.parse(localStorage.getItem(key) || '[]');
-  list.push(activity);
+  // Replace duplicate (same start time ± 60s and similar duration) instead of adding
+  const ts = new Date(activity.start_date).getTime();
+  const dur = activity.moving_time || 0;
+  const dupIdx = list.findIndex(a => {
+    const aTs = new Date(a.start_date).getTime();
+    return Math.abs(aTs - ts) < 60000 && Math.abs((a.moving_time || 0) - dur) < 60;
+  });
+  if (dupIdx >= 0) {
+    console.log('[Import] Replacing duplicate:', list[dupIdx].id, '→', activity.id);
+    list[dupIdx] = activity;
+  } else {
+    list.push(activity);
+  }
   try { localStorage.setItem(key, JSON.stringify(list)); } catch (e) { console.warn('localStorage.setItem failed:', e); }
 
-  // Also save GPS route to IndexedDB for heatmap if available
+  // Save GPS route to IndexedDB for heatmap
   if (activity.gps_route && activity.gps_route.length > 10) {
     impSaveRouteToIDB(activity.id, activity.gps_route);
   }
+
+  // Save streams to IndexedDB for full chart rendering on view
+  if (parsed?.records?.length) {
+    impSaveStreamsToIDB(activity.id, parsed.records).catch(() => {});
+  }
+}
+
+/* ── Save FIT streams to IndexedDB ── */
+const IMP_STREAMS_DB = 'cycleiq_fit_streams';
+const IMP_STREAMS_STORE = 'streams';
+
+function _openStreamsDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IMP_STREAMS_DB, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(IMP_STREAMS_STORE, { keyPath: 'id' });
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+export async function impSaveStreamsToIDB(activityId, records) {
+  // Build streams from FIT records (same format as fitRecordsToStreams in app.js)
+  const t0 = (records.find(r => r.timestamp) || {}).timestamp || 0;
+  const streams = { time: [], watts: [], heartrate: [], cadence: [], velocity_smooth: [], altitude: [], temp: [], distance: [] };
+  let cumDist = 0;
+  records.forEach((r, i) => {
+    streams.time.push((r.timestamp || 0) - t0);
+    streams.watts.push(r.power ?? null);
+    streams.heartrate.push(r.heart_rate ?? null);
+    streams.cadence.push(r.cadence ?? null);
+    streams.velocity_smooth.push(r.enhanced_speed ?? r.speed ?? null);
+    streams.altitude.push(r.enhanced_altitude ?? r.altitude ?? null);
+    streams.temp.push(r.temperature ?? null);
+    // Compute cumulative distance
+    if (r.distance != null) {
+      cumDist = r.distance;
+    } else if (i > 0 && r.speed != null) {
+      const dt = (streams.time[i] - streams.time[i - 1]);
+      cumDist += (r.speed || 0) * Math.max(0, dt);
+    }
+    streams.distance.push(cumDist);
+  });
+  // Drop all-null streams
+  Object.keys(streams).forEach(k => {
+    if (k !== 'time' && k !== 'distance' && streams[k].every(v => v === null)) delete streams[k];
+  });
+
+  const db = await _openStreamsDB();
+  const tx = db.transaction(IMP_STREAMS_STORE, 'readwrite');
+  tx.objectStore(IMP_STREAMS_STORE).put({ id: activityId, streams });
+  await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
+  db.close();
+}
+
+export async function impLoadStreamsFromIDB(activityId) {
+  try {
+    const db = await _openStreamsDB();
+    const tx = db.transaction(IMP_STREAMS_STORE, 'readonly');
+    const req = tx.objectStore(IMP_STREAMS_STORE).get(activityId);
+    const result = await new Promise((res, rej) => { req.onsuccess = () => res(req.result); req.onerror = rej; });
+    db.close();
+    return result?.streams || null;
+  } catch (_) { return null; }
 }
 
 /* ── Save route to IndexedDB (same DB as heatmap) ── */

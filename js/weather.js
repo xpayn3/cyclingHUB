@@ -345,6 +345,12 @@ export function renderActivityNotes(a) {
 export async function _saveActivityNotes(a, textarea, statusEl, origText) {
   const text = textarea.value;
   if (text === origText) return;
+  const _id = a.id;
+  if (typeof _id === 'string' && (_id.startsWith('fit_') || _id.startsWith('strava_'))) {
+    statusEl.textContent = 'Notes not saved — imported activity';
+    statusEl.className = 'act-notes-status act-notes-status--error';
+    return;
+  }
 
   statusEl.textContent = 'Saving…';
   statusEl.className = 'act-notes-status act-notes-status--saving';
@@ -379,6 +385,10 @@ export async function renderActivityIntervals(activityId) {
   const body = document.getElementById('detailIntervalsBody');
   const sub  = document.getElementById('detailIntervalsSubtitle');
   if (!card || !body) return;
+  // Skip API calls for locally imported activities
+  if (typeof activityId === 'string' && (activityId.startsWith('fit_') || activityId.startsWith('strava_'))) {
+    showCardNA('detailIntervalsCard'); return;
+  }
 
   try {
     // Check IDB cache first to avoid unnecessary API calls

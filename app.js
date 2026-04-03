@@ -48,7 +48,7 @@ import { saveStravaCredentials, loadStravaCredentials, clearStravaCredentials,
 
 import { initImportPage, impSwitchTab, impAddFiles, impRemoveFromQueue,
          impClearQueue, impProcessAll, impToggleSettings, impToggleStream,
-         impRenderHistory, impClearHistory, impSaveRouteToIDB } from './js/import.js';
+         impRenderHistory, impClearHistory, impSaveRouteToIDB, impLoadStreamsFromIDB } from './js/import.js';
 
 /* ====================================================
    DEVELOPER CONSOLE — capture console output for in-app log
@@ -557,9 +557,10 @@ function cleanupPageCharts(leavingPage) {
     window._wxPerfTempPowerChart = destroyChart(window._wxPerfTempPowerChart);
     window._wxPerfWindSpeedChart = destroyChart(window._wxPerfWindSpeedChart);
   }
-  // Clear activity page step-height timer and deactivate sheet mode
+  // Clear activity page step-height timer and deactivate sheet/desktop mode
   if (leavingPage === 'activity') {
     deactivateSheetMode();
+    deactivateDesktopMode();
   }
   // Destroy route builder map + sheet
   if (leavingPage === 'routes') {
@@ -1213,7 +1214,52 @@ async function fetchActivities(daysBack = null, since = null) {
   } else {
     state.activities = all;
   }
+  // Merge locally imported FIT/Strava activities into the main pool
+  _mergeImportedActivities();
   return state.activities;
+}
+
+function _mergeImportedActivities() {
+  const existingIds = new Set(state.activities.map(a => a.id));
+  try {
+    // Deduplicate FIT imports: keep only the latest per start_date
+    let fit = JSON.parse(localStorage.getItem('icu_fit_activities') || '[]');
+    if (fit.length > 1) {
+      const seen = new Map();
+      fit.forEach(a => {
+        const key = (a.start_date || '') + '_' + (a.moving_time || 0);
+        const prev = seen.get(key);
+        if (!prev || new Date(a.id?.split('_')[1] || 0) > new Date(prev.id?.split('_')[1] || 0)) {
+          seen.set(key, a);
+        }
+      });
+      const deduped = Array.from(seen.values());
+      if (deduped.length < fit.length) {
+        console.log('[Import] Deduped FIT imports:', fit.length, '→', deduped.length);
+        fit = deduped;
+        try { localStorage.setItem('icu_fit_activities', JSON.stringify(fit)); } catch (_) {}
+      }
+    }
+    const strava = JSON.parse(localStorage.getItem('icu_strava_activities') || '[]');
+    const imports = [...fit, ...strava].filter(a => a.id && !existingIds.has(a.id));
+    // Patch aliases on legacy imports that may not have icu_* fields
+    imports.forEach(a => {
+      if (!a.start_date_local && a.start_date) a.start_date_local = a.start_date;
+      if (!a.total_elevation_gain && a.total_ascent) a.total_elevation_gain = a.total_ascent;
+      if (!a.tss && a.training_stress_score) a.tss = a.training_stress_score;
+      if (!a.icu_weighted_avg_watts && a.normalized_power) a.icu_weighted_avg_watts = a.normalized_power;
+      if (!a.icu_average_watts && a.average_watts) a.icu_average_watts = a.average_watts;
+      if (!a.icu_average_heartrate && a.average_heartrate) a.icu_average_heartrate = a.average_heartrate;
+      if (!a.icu_distance && a.distance) a.icu_distance = a.distance;
+      if (!a.icu_moving_time && a.moving_time) a.icu_moving_time = a.moving_time;
+    });
+    if (imports.length) {
+      console.log('[Import] Merging', imports.length, 'imported activities. Sample:', imports[0]?.id, 'tss:', imports[0]?.tss, 'dist:', imports[0]?.distance, 'time:', imports[0]?.moving_time);
+      state.activities = [...state.activities, ...imports].sort(
+        (a, b) => new Date(b.start_date_local || b.start_date) - new Date(a.start_date_local || a.start_date)
+      );
+    }
+  } catch (e) { console.warn('[Import] merge error:', e); }
 }
 
 async function fetchFitness() {
@@ -1367,6 +1413,7 @@ async function syncData(force = false) {
       // Data is fresh — just restore from cache, no API calls.
       // Don't render here — navigate() handles page rendering after syncData returns.
       state.activities = cache.activities;
+      _mergeImportedActivities();
       state.synced = true;
       updateConnectionUI(true);
       updateLastSyncLabel(cache.lastSync);
@@ -5949,6 +5996,7 @@ async function renderZonesCardIntervals(a, idx) {
   const actId = a.id || a.icu_activity_id;
   const graphEl = document.getElementById(`zonesCardGraph_${idx}`);
   if (!graphEl || !actId) return;
+  if (_isImportedId(actId)) { graphEl.innerHTML = '<div class="zc-empty">Imported activity</div>'; return; }
 
   try {
     let raw = await actCacheGet(actId, 'intervals');
@@ -6410,10 +6458,10 @@ async function renderRecentActCardMap(a, idx, idPrefix = 'recentActCard', mapSto
     try { points = JSON.parse(cachedGPS); } catch (_) {}
   }
 
-  // Nothing cached — fetch from API then save GPS points for next refresh
+  // Nothing cached — try embedded gps_route (imported activities), then API
   if (!points || points.length < 2) {
-    let latlng = null;
-    try { latlng = await fetchMapGPS(actId); } catch (_) {}
+    let latlng = a.gps_route?.length > 1 ? a.gps_route : null;
+    if (!latlng) { try { latlng = await fetchMapGPS(actId); } catch (_) {} }
 
     if (!latlng || latlng.length < 2) {
       mapEl.innerHTML = '<div class="ra-map-empty">No GPS data</div>';
@@ -6447,16 +6495,8 @@ async function renderRecentActCardMap(a, idx, idPrefix = 'recentActCard', mapSto
     } catch (_) {}
   }
 
-  // Fill location label from first GPS point
-  if (points.length >= 1) {
-    const locEl = mapEl?.closest('.recent-act-card, .card')?.querySelector('.recent-act-location');
-    if (locEl && !locEl.textContent.trim()) {
-      const [lat0, lon0] = points[0];
-      reverseGeocode(lat0, lon0).then(name => {
-        if (name && locEl.isConnected) locEl.innerHTML = `<svg class="icon" width="12" height="12" style="opacity:0.5"><use href="icons.svg#icon-map-pin"/></svg> ${name}`;
-      });
-    }
-  }
+  // Location label disabled — saves ~180 Nominatim API calls per page load
+  // reverseGeocode is still available for individual activity detail if needed
 
   // Card grid thumbnails are small — further downsample to ~150 points
   let renderPts = points;
@@ -7462,26 +7502,54 @@ function _renderAqiBadge(badge, data) {
 // ── Reverse Geocoding (Nominatim) ────────────────────────────────────────────
 // Converts lat/lon to city name, cached in localStorage
 const _geoCache = JSON.parse(localStorage.getItem('icu_geocache') || '{}');
-async function reverseGeocode(lat, lon) {
-  const key = `${lat.toFixed(2)},${lon.toFixed(2)}`;
-  if (_geoCache[key]) return _geoCache[key];
-  try {
-    const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=10&addressdetails=1&accept-language=en`, {
-      headers: { 'User-Agent': 'CycleIQ/1.0 (cycling-pwa)' }
-    });
-    if (!resp.ok) return null;
-    const data = await resp.json();
-    const addr = data.address || {};
-    const name = addr.city || addr.town || addr.village || addr.hamlet || addr.municipality || (data.display_name || '').split(',')[0];
-    if (name) {
-      _geoCache[key] = name;
-      // Keep cache under 200 entries
-      const keys = Object.keys(_geoCache);
-      if (keys.length > 200) { delete _geoCache[keys[0]]; }
-      try { localStorage.setItem('icu_geocache', JSON.stringify(_geoCache)); } catch(_){}
+// Rate-limited geocoding queue — Nominatim allows 1 req/sec
+let _geoQueue = [];
+let _geoProcessing = false;
+
+async function _geoProcessQueue() {
+  if (_geoProcessing || !_geoQueue.length) return;
+  _geoProcessing = true;
+  while (_geoQueue.length) {
+    const { lat, lon, key, resolve } = _geoQueue.shift();
+    // Re-check cache (might have been filled by a previous queue item with same key)
+    if (_geoCache[key]) { resolve(_geoCache[key]); continue; }
+    let retries = 0;
+    let name = null;
+    while (retries < 3) {
+      try {
+        const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=10&addressdetails=1&accept-language=en`);
+        if (resp.status === 429) {
+          retries++;
+          await new Promise(r => setTimeout(r, 3000 * retries)); // backoff: 3s, 6s, 9s
+          continue;
+        }
+        if (!resp.ok) break;
+        const data = await resp.json();
+        const addr = data.address || {};
+        name = addr.city || addr.town || addr.village || addr.hamlet || addr.municipality || (data.display_name || '').split(',')[0];
+        if (name) {
+          _geoCache[key] = name;
+          const keys = Object.keys(_geoCache);
+          if (keys.length > 200) { delete _geoCache[keys[0]]; }
+          try { localStorage.setItem('icu_geocache', JSON.stringify(_geoCache)); } catch(_){}
+        }
+        break;
+      } catch(_) { break; }
     }
-    return name || null;
-  } catch(_) { return null; }
+    resolve(name || null);
+    // Wait 2s between requests to stay well under Nominatim's 1 req/sec limit
+    if (_geoQueue.length) await new Promise(r => setTimeout(r, 2000));
+  }
+  _geoProcessing = false;
+}
+
+async function reverseGeocode(lat, lon) {
+  const key = `${lat.toFixed(1)},${lon.toFixed(1)}`; // ~11km radius — maximise cache hits
+  if (_geoCache[key]) return _geoCache[key];
+  return new Promise(resolve => {
+    _geoQueue.push({ lat, lon, key, resolve });
+    _geoProcessQueue();
+  });
 }
 window.reverseGeocode = reverseGeocode;
 
@@ -7717,6 +7785,41 @@ function isEmptyActivity(a) {
   return dist === 0 && time === 0 && tss === 0 && hr === 0 && pwr === 0;
 }
 
+function deleteImportedActivity(actId) {
+  if (!actId) return;
+  // Remove from import lists
+  ['icu_fit_activities', 'icu_strava_activities'].forEach(key => {
+    try {
+      const list = JSON.parse(localStorage.getItem(key) || '[]');
+      const filtered = list.filter(a => String(a.id) !== String(actId));
+      localStorage.setItem(key, JSON.stringify(filtered));
+    } catch (_) {}
+  });
+  // Remove from activity cache (stored as plain array)
+  try {
+    const raw = localStorage.getItem('icu_activities_cache');
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) {
+        const filtered = arr.filter(a => String(a.id) !== String(actId));
+        localStorage.setItem('icu_activities_cache', JSON.stringify(filtered));
+      }
+    }
+  } catch (_) {}
+  // Remove from state.activities
+  state.activities = state.activities.filter(a => String(a.id) !== String(actId));
+  // Remove from IDB streams
+  try {
+    const req = indexedDB.open('cycleiq_fit_streams', 1);
+    req.onsuccess = () => { const db = req.result; const tx = db.transaction('streams', 'readwrite'); tx.objectStore('streams').delete(actId); db.close(); };
+  } catch (_) {}
+  // Remove the row from DOM
+  const row = document.querySelector(`[data-act-id="${actId}"]`);
+  if (row) row.remove();
+  showToast('Imported activity deleted', 'success');
+}
+window.deleteImportedActivity = deleteImportedActivity;
+
 // Global lookup: actKey → activity object, rebuilt on every renderActivityList call
 if (!window._actLookup) window._actLookup = {};
 
@@ -7760,10 +7863,12 @@ function _actRowHTML(a, containerId, fi, powerColor) {
   stats.push(statPill(hr > 0 ? hr : '—', 'bpm'));
 
   const _actId = a.id || a.icu_activity_id || '';
+  const _isImported = typeof _actId === 'string' && (_actId.startsWith('fit_') || _actId.startsWith('strava_'));
+  const deleteBtn = _isImported ? `<button class="act-delete-import-btn" onclick="event.stopPropagation();deleteImportedActivity('${_actId}')" title="Delete imported activity"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>` : '';
   return `<div class="activity-row ${rowClass}" data-act-id="${_actId}" onclick="navigateToActivity('${actKey}')">
     <div class="activity-type-icon ${tc}">${activityTypeIcon(a)}</div>
     <div class="act-card-info">
-      <div class="act-card-name">${name}</div>
+      <div class="act-card-name">${name}${_isImported ? '<span class="act-import-tag">Imported</span>' : ''}</div>
       <div class="act-card-sub">
         <span class="act-card-date">${date}</span>
         ${platformTag ? `<span class="act-platform-tag">${platformTag}</span>` : ''}
@@ -7771,6 +7876,7 @@ function _actRowHTML(a, containerId, fi, powerColor) {
       </div>
     </div>
     ${stats.length ? `<div class="act-card-stats">${stats.join('')}</div>` : ''}
+    ${deleteBtn}
   </div>`;
 }
 
@@ -8049,7 +8155,8 @@ function _scatterDatasetStyle(color) {
   return {
     backgroundColor: color.replace(/[\d.]+\)$/, '0.15)'),
     borderColor: color,
-    pointBorderColor: color.replace(/[\d.]+\)$/, '0.3)'),
+    pointBackgroundColor: color,
+    pointBorderColor: 'transparent',
     borderWidth: 1,
     pointRadius: 3,
     hoverRadius: 5,
@@ -8069,6 +8176,9 @@ Chart.defaults.animations = C_ANIM;
 // Chart dot defaults — overridden per-update by solidHoverDots plugin from CSS tokens
 Chart.defaults.elements.point.borderWidth = 0;
 Chart.defaults.elements.point.hoverBorderWidth = 0;
+Chart.defaults.elements.point.borderColor = 'transparent';
+Chart.defaults.elements.point.hoverBorderColor = 'transparent';
+Chart.defaults.elements.bar.borderWidth = 0;
 const C_NO_ANIM = { x: { duration: 0 }, y: { duration: 0 } };
 /** Run fn() with chart animations suppressed (instant render) */
 function noChartAnim(fn) {
@@ -8092,10 +8202,14 @@ Chart.register({
     const hideDots = state._streamsPanning;
     chart.data.datasets.forEach(ds => {
       if (ds._isAnomaly) return;
-      ds.pointHoverBackgroundColor = dotColor;
-      ds.pointHoverBorderColor = dotColor;
-      ds.pointHoverBorderWidth = 0;
+      // Hover: solid white, no stroke
       ds.pointHoverRadius = hideDots ? 0 : dotSize;
+      ds.pointHoverBackgroundColor = dotColor;
+      ds.pointHoverBorderColor = 'transparent';
+      ds.pointHoverBorderWidth = 0;
+      // No stroke on default dots
+      ds.pointBorderWidth = 0;
+      ds.pointBorderColor = 'transparent';
     });
   }
 });
@@ -8353,10 +8467,10 @@ function renderWeekProgress(metric) {
 
   // Metric config
   const cfg = {
-    tss:       { label: 'Training Load', unit: 'TSS',  color: ACCENT, dimColor: 'rgba(0,229,160,0.08)',    fmt: v => Math.round(v),           tooltip: v => `${Math.round(v)} TSS` },
-    distance:  { label: 'Distance',      unit: 'km',   color: C_BLUE, dimColor: 'rgba(74,158,255,0.08)',   fmt: v => (v/1000).toFixed(1),     tooltip: v => `${(v/1000).toFixed(1)} km` },
-    time:      { label: 'Time Riding',   unit: '',     color: C_PURPLE, dimColor: 'rgba(155,89,255,0.08)',   fmt: v => fmtDur(v),               tooltip: v => fmtDur(v) },
-    elevation: { label: 'Elevation',     unit: 'm',    color: C_ORANGE, dimColor: 'rgba(255,107,53,0.08)',   fmt: v => Math.round(v).toLocaleString(), tooltip: v => `${Math.round(v)} m` },
+    tss:       { label: 'Training Load', unit: 'TSS',  color: ACCENT, dimColor: 'rgba(0,229,160,0.35)',    fmt: v => Math.round(v),           tooltip: v => `${Math.round(v)} TSS` },
+    distance:  { label: 'Distance',      unit: 'km',   color: C_BLUE, dimColor: 'rgba(74,158,255,0.35)',   fmt: v => (v/1000).toFixed(1),     tooltip: v => `${(v/1000).toFixed(1)} km` },
+    time:      { label: 'Time Riding',   unit: '',     color: C_PURPLE, dimColor: 'rgba(155,89,255,0.35)',   fmt: v => fmtDur(v),               tooltip: v => fmtDur(v) },
+    elevation: { label: 'Elevation',     unit: 'm',    color: C_ORANGE, dimColor: 'rgba(255,107,53,0.35)',   fmt: v => Math.round(v).toLocaleString(), tooltip: v => `${Math.round(v)} m` },
   };
   const m = cfg[metric];
 
@@ -8418,7 +8532,7 @@ function renderWeekProgress(metric) {
   const ctx = document.getElementById('weekProgressChart');
   if (!ctx) return;
 
-  const barColors = last7Data.map((v, i) => i === 6 ? m.color : m.dimColor);
+  const barColors = last7Data.map(() => 'rgba(0,0,0,0.3)');
 
   // Update in-place to avoid destroy/recreate flicker
   if (state.weekProgressChart) {
@@ -8426,12 +8540,45 @@ function renderWeekProgress(metric) {
     ch.data.labels = dayLabels;
     ch.data.datasets[0].data = last7Data;
     ch.data.datasets[0].backgroundColor = barColors;
-    ch.data.datasets[0].borderColor = m.color;
-    ch.options.plugins.tooltip.callbacks.label = c => c.raw != null ? m.tooltip(c.raw) : '—';
-    ch.options.scales.x.ticks.color = 'rgba(0,0,0,0.6)';
+    ch.config._wpFmt = m.fmt;
     ch.update();
     return;
   }
+
+  // Plugin: draw value pill above each bar
+  const wpLabelPlugin = {
+    id: 'wpBarLabels',
+    afterDatasetsDraw(chart) {
+      const { ctx: c, data } = chart;
+      const meta = chart.getDatasetMeta(0);
+      const fmt = chart.config._wpFmt || m.fmt;
+      if (!meta || !fmt) return;
+      c.save();
+      c.textAlign = 'center';
+      c.textBaseline = 'bottom';
+      c.font = `700 9px ${getComputedStyle(document.documentElement).getPropertyValue('--font-num').trim() || 'Inter'}`;
+      meta.data.forEach((bar, i) => {
+        const val = data.datasets[0].data[i];
+        if (!val || val === 0) return;
+        const label = fmt(val);
+        const x = bar.x;
+        const y = bar.y - 6;
+        // Pill background
+        const tw = c.measureText(label).width;
+        const px = 5, ph = 14, r = 4;
+        const pw = tw + px * 2;
+        const lx = x - pw / 2, ly = y - ph;
+        c.fillStyle = 'rgba(0,0,0,0.35)';
+        c.beginPath();
+        c.roundRect(lx, ly, pw, ph, r);
+        c.fill();
+        // Text
+        c.fillStyle = '#fff';
+        c.fillText(label, x, y - 2);
+      });
+      c.restore();
+    }
+  };
 
   state.weekProgressChart = new Chart(ctx.getContext('2d'), {
     type: 'bar',
@@ -8441,34 +8588,29 @@ function renderWeekProgress(metric) {
         label: 'Last 7 days',
         data: last7Data,
         backgroundColor: barColors,
-        hoverBackgroundColor: m.color,
-        borderColor: m.color,
+        hoverBackgroundColor: barColors,
         borderWidth: 0,
         borderRadius: 4,
         borderSkipped: false,
       }]
     },
+    _wpFmt: m.fmt,
     options: {
       responsive: true,
       maintainAspectRatio: false,
       _noCrosshair: true,
-      interaction: { mode: 'index', intersect: false },
-      layout: { padding: { top: 12, bottom: 12 } },
+      interaction: { mode: 'none' },
+      layout: { padding: { top: 22, bottom: 0 } },
       plugins: {
         legend: { display: false },
-        tooltip: {
-          ...C_TOOLTIP,
-          filter: item => item.raw > 0,
-          callbacks: {
-            label: c => c.raw != null ? m.tooltip(c.raw) : '—'
-          }
-        }
+        tooltip: { enabled: false },
       },
       scales: {
-        x: { grid: C_NOGRID, ticks: { color: 'rgba(0,0,0,0.6)', font: { size: 11, weight: '600', family: getComputedStyle(document.documentElement).getPropertyValue('--font-ui').trim() || 'Inter' } } },
+        x: { grid: C_NOGRID, border: { display: false }, ticks: { color: 'rgba(0,0,0,0.6)', font: { size: 11, weight: '600', family: getComputedStyle(document.documentElement).getPropertyValue('--font-ui').trim() || 'Inter' } } },
         y: { display: false }
       }
-    }
+    },
+    plugins: [wpLabelPlugin],
   });
 }
 
@@ -9734,8 +9876,8 @@ function renderPwrHrScatter(activities) {
         data: points,
         pointRadius: 3,
         hoverRadius: 5,
-        pointBackgroundColor: colors.map(c => c.replace(/0\.\d+\)$/, '0.15)')),
-        pointBorderColor: colors.map(c => c.replace(/0\.\d+\)$/, '0.3)')),
+        pointBackgroundColor: colors,
+        pointBorderColor: 'transparent',
         pointBorderWidth: 1,
       },
       {
@@ -11322,10 +11464,11 @@ function _renderPwrPageScatter(activities) {
     type: 'scatter',
     data: { datasets: [{
       data: points,
-      backgroundColor: colors.map(c => c.replace(/0\.\d+\)$/, '0.15)')),
-      pointBorderColor: colors.map(c => c.replace(/0\.\d+\)$/, '0.3)')),
+      backgroundColor: colors,
+      pointBackgroundColor: colors,
+      pointBorderColor: 'transparent',
       borderColor: '#00e5a0',
-      pointBorderWidth: 1,
+      pointBorderWidth: 0,
       pointRadius: 3,
       hoverRadius: 5,
     }] },
@@ -13315,7 +13458,7 @@ function _renderVO2maxEstimate(fd) {
       if (state._fitVo2Chart) state._fitVo2Chart.destroy();
       state._fitVo2Chart = new Chart(chartCanvas, {
         type: 'line',
-        data: { labels, datasets: [{ data, borderColor: '#4a9eff', borderWidth: 2, pointRadius: 2, fill: false, tension: 0.3 }] },
+        data: { labels, datasets: [{ data, borderColor: '#4a9eff', pointBackgroundColor: '#4a9eff', borderWidth: 2, pointRadius: 2, fill: false, tension: 0.3 }] },
         options: {
           responsive: true, maintainAspectRatio: false,
           plugins: { legend: { display: false }, tooltip: { ...C_TOOLTIP } },
@@ -16835,7 +16978,7 @@ async function _loadCalListMiniGraphs(container) {
   const ftp = state.athlete?.ftp || 200;
   for (const el of els) {
     const actId = el.dataset.actId;
-    if (!actId) continue;
+    if (!actId || _isImportedId(actId)) continue;
     try {
       let raw = await actCacheGet(actId, 'intervals');
       if (!raw) {
@@ -19153,6 +19296,9 @@ async function navigateToActivity(actKey, fromStep = false) {
   const actId = activity.id;
   if (!actId) { skeletonCards(false); return; }
 
+  // Imported FIT/Strava activities: skip API, use embedded data
+  const _isImported = typeof actId === 'string' && (actId.startsWith('fit_') || actId.startsWith('strava_'));
+
   if (!fromStep && _loadingEl) _loadingEl.style.display = 'flex';
 
   // Pre-warm the MapLibre map immediately (loads style + tiles in parallel with API fetches)
@@ -19162,10 +19308,19 @@ async function navigateToActivity(actKey, fromStep = false) {
   _initActCardsGrid();
 
   try {
-    const [detailResult, streamsResult] = await Promise.allSettled([
-      fetchActivityDetail(actId),
-      fetchActivityStreams(actId)
-    ]);
+    let detailResult, streamsResult;
+    if (_isImported) {
+      // Use the activity object directly — no API
+      detailResult = { status: 'fulfilled', value: activity };
+      // Load streams from IndexedDB
+      const idbStreams = await impLoadStreamsFromIDB(actId).catch(() => null);
+      streamsResult = { status: 'fulfilled', value: idbStreams };
+    } else {
+      [detailResult, streamsResult] = await Promise.allSettled([
+        fetchActivityDetail(actId),
+        fetchActivityStreams(actId)
+      ]);
+    }
 
     const fullDetail = detailResult.status === 'fulfilled' ? detailResult.value : null;
     let   streams    = streamsResult.status === 'fulfilled' ? streamsResult.value : null;
@@ -19186,7 +19341,7 @@ async function navigateToActivity(actKey, fromStep = false) {
 
     // If the streams endpoint returned nothing, try downloading the original FIT file
     // and parsing it client-side — this gives full second-by-second data from Garmin.
-    if (!streams) {
+    if (!streams && !_isImported) {
       _loadingEl.innerHTML = '<div class="spinner"></div><span>Parsing FIT file…</span>';
       _loadingEl.style.display = 'flex';
       try {
@@ -19247,6 +19402,12 @@ async function navigateToActivity(actKey, fromStep = false) {
         gpsAlreadyResolved = true;
         actCachePut(actId, 'gps', localGps);
       }
+    }
+
+    // Imported activities: use embedded gps_route
+    if (!gpsAlreadyResolved && richActivity.gps_route?.length > 1) {
+      latlngForMap = richActivity.gps_route;
+      gpsAlreadyResolved = true;
     }
 
     if (!gpsAlreadyResolved) {
@@ -19345,6 +19506,8 @@ async function navigateToActivity(actKey, fromStep = false) {
     renderLapSplits(richActivity);
     renderDetailCurve(actId, normStreams).catch(() => unskeletonCard('detailCurveCard'));
     renderDetailHRCurve(normStreams).catch(() => unskeletonCard('detailHRCurveCard'));
+    renderDetailPerformance(richActivity, actId, normStreams);
+    renderDetailGradientProfile(normStreams, richActivity);
 
     // Advanced cards — defer until "Show All" is clicked
     window._advancedRenderArgs = { richActivity, actId, normStreams };
@@ -19419,9 +19582,10 @@ function _renderDetailPwrHR(streams, activity) {
     type: 'scatter',
     data: { datasets: [{
       data: points,
-      backgroundColor: 'rgba(0,229,160,0.15)',
+      backgroundColor: '#00e5a0',
+      pointBackgroundColor: '#00e5a0',
       borderColor: '#00e5a0',
-      pointBorderColor: 'rgba(0,229,160,0.3)',
+      pointBorderColor: 'transparent',
       borderWidth: 1,
       pointRadius: 3,
       hoverRadius: 5,
@@ -19568,10 +19732,11 @@ function _renderDetailSpeedGrade(streams, activity) {
     type: 'scatter',
     data: { datasets: [{
       data: points,
-      backgroundColor: colors.map(c => c.replace(/0\.\d+\)$/, '0.15)')),
-      pointBorderColor: colors.map(c => c.replace(/0\.\d+\)$/, '0.3)')),
+      backgroundColor: colors,
+      pointBackgroundColor: colors,
+      pointBorderColor: 'transparent',
       borderColor: '#00e5a0',
-      pointBorderWidth: 1,
+      pointBorderWidth: 0,
       pointRadius: 3,
       hoverRadius: 5,
     }] },
@@ -19808,10 +19973,10 @@ function _renderTempVsPower(streams, activity) {
   const ftp = state.ftp || activity?.icu_ftp || 200;
   const colors = valid.map(p => {
     const pct = p.y / ftp;
-    if (pct > 1.05) return 'rgba(255,69,58,0.5)';
-    if (pct > 0.9) return 'rgba(255,149,0,0.5)';
-    if (pct > 0.75) return 'rgba(240,196,41,0.5)';
-    return 'rgba(0,229,160,0.5)';
+    if (pct > 1.05) return '#ff453a';
+    if (pct > 0.9) return '#ff9500';
+    if (pct > 0.75) return '#f0c429';
+    return '#00e5a0';
   });
 
   const canvasId = 'actTempPowerChart';
@@ -19843,8 +20008,9 @@ function _renderTempVsPower(streams, activity) {
       data: { datasets: [{
         data: valid,
         ..._scatterDatasetStyle('rgba(0,229,160,1)'),
-        backgroundColor: colors.map(c => c.replace(/0\.\d+\)$/, '0.15)')),
-        pointBorderColor: colors.map(c => c.replace(/0\.\d+\)$/, '0.3)')),
+        backgroundColor: colors,
+        pointBackgroundColor: colors,
+        pointBorderColor: 'transparent',
       }] },
       options: {
         responsive: true, maintainAspectRatio: false, animation: false, _noCrosshair: true,
@@ -20777,7 +20943,9 @@ function _injectActCardDividers() {
     const cls = el.className || '';
     if (cls.includes('act-hero') || cls.includes('act-secondary-strip') ||
         cls.includes('act-sheet-handle') || cls.includes('detail-charts-loading') ||
-        cls.includes('act-card-divider')) return;
+        cls.includes('act-card-divider') || cls.includes('act-show-advanced-btn') ||
+        cls.includes('act-advanced-section') || cls.includes('detail-export-buttons') ||
+        cls.includes('detail-source-footer')) return;
     // Check if next visible sibling already has a divider
     let next = el.nextElementSibling;
     while (next && (next.offsetHeight === 0 || next.className?.includes('act-card-divider'))) {
@@ -20868,7 +21036,7 @@ async function _initSortableCards() {
     ghostClass: 'sortable-ghost',
     chosenClass: 'sortable-chosen',
     dragClass: 'sortable-drag',
-    filter: '.act-hero, .act-secondary-strip, .act-gear-badge, #detailMapCard, #detailStreamsCard, .detail-charts-loading, .detail-charts-row, .act-sheet-handle, .act-card-divider',
+    filter: '.act-hero, .act-secondary-strip, .act-gear-badge, #detailMapCard, .detail-charts-loading, .detail-charts-row, .act-sheet-handle, .act-card-divider, .act-desktop-hero-row, .act-desktop-hero-left, .act-desktop-hero-right, .act-map-wrap, .act-advanced-section, .act-show-advanced-btn, .detail-export-buttons, .detail-source-footer',
     onEnd: () => {
       // Save card order (only chart cards)
       const order = [];
@@ -20955,22 +21123,8 @@ function _updateActCardWidths(scroll) {
   const containerW = scroll.clientWidth;
   const halfW = (containerW - gap) / 2;
 
-  // Get all visible half-width cards (not full-width elements)
-  const fullWidthIds = new Set([
-    'detailCompareCard', 'detailMapCard', 'detailStreamsCard',
-    'detailLapSplitsCard', 'detailNotesCard', 'detailGradientCard'
-  ]);
-  const cards = [...scroll.querySelectorAll(':scope > .card')].filter(c =>
-    c.style.display !== 'none' && c.offsetHeight > 0 && !fullWidthIds.has(c.id)
-  );
-
-  // Remove old full-width marks
-  cards.forEach(c => c.classList.remove('act-card-full'));
-
-  // If odd number of half-width cards, last one gets full width
-  if (cards.length % 2 === 1) {
-    cards[cards.length - 1].classList.add('act-card-full');
-  }
+  // Remove old full-width marks from all visible cards
+  scroll.querySelectorAll(':scope > .card.act-card-full').forEach(c => c.classList.remove('act-card-full'));
 
   // Trigger Chart.js resize on all canvases after layout change
   requestAnimationFrame(() => {
@@ -22664,6 +22818,50 @@ function deactivateSheetMode() {
   if (menuBtn) menuBtn.style.display = '';
 }
 
+// ── Desktop activity layout ──────────────────────────────────────────────
+function deactivateDesktopMode() {
+  const page = document.getElementById('page-activity');
+  if (!page?.classList.contains('act-desktop-mode')) return;
+  page.classList.remove('act-desktop-mode');
+
+  // Reparent map back into detailMapCard
+  const mapEl = document.getElementById('activityMap');
+  const mapCard = document.getElementById('detailMapCard');
+  const mapBg = document.getElementById('actSheetMapBg');
+  if (mapEl && mapCard) mapCard.insertBefore(mapEl, mapCard.firstChild);
+  if (mapBg && mapCard) {
+    const ft2 = mapBg.querySelector('.map-float-top');
+    const sp = mapBg.querySelector('.map-stats-panel');
+    const fb = mapBg.querySelector('.fs-bottom-row');
+    if (ft2) mapCard.appendChild(ft2);
+    if (sp) mapCard.appendChild(sp);
+    if (fb) mapCard.appendChild(fb);
+  }
+
+  // Restore DOM order — move items back out of hero row
+  const scroll = document.getElementById('actSheetScroll');
+  const heroRow = scroll?.querySelector('.act-desktop-hero-row');
+  if (heroRow && scroll) {
+    // Move map bg back to page level
+    const mapBgEl = heroRow.querySelector('.act-sheet-map-bg');
+    const pageEl = document.getElementById('page-activity');
+    if (mapBgEl && pageEl) pageEl.insertBefore(mapBgEl, pageEl.firstChild);
+    // Move flythrough bar back to map wrap
+    const ftBar = heroRow.querySelector('.flythrough-bar');
+    const mapWrapEl = scroll.querySelector('.act-map-wrap');
+    if (ftBar && mapWrapEl) mapWrapEl.appendChild(ftBar);
+    // Move hero + secondary strip back
+    const hero = heroRow.querySelector('.act-hero');
+    const secStrip = heroRow.querySelector('#actSecondaryStats');
+    if (hero) scroll.insertBefore(hero, heroRow);
+    if (secStrip) scroll.insertBefore(secStrip, heroRow);
+    // Clean up created wrappers
+    heroRow.querySelector('.act-desktop-hero-left')?.remove();
+    heroRow.querySelector('.act-desktop-hero-right')?.remove();
+    heroRow.remove();
+  }
+}
+
 // Compatibility wrapper — code outside may call _setSheetState directly
 function _setSheetState(newState) {
   if (_sheet._ctrl) _sheet._ctrl.setState(newState);
@@ -22725,8 +22923,9 @@ function destroyChartInstances() {
 }
 
 function destroyActivityCharts() {
-  // Deactivate bottom sheet before destroying map
+  // Deactivate bottom sheet / desktop mode before destroying map
   deactivateSheetMode();
+  deactivateDesktopMode();
   // Exit map fullscreen if active
   const mapCard = document.getElementById('detailMapCard');
   if (mapCard?.classList.contains('map-fullscreen')) {
@@ -22885,6 +23084,7 @@ async function actCacheGetCachedIds() {
    ACTIVITY DETAIL — DATA FETCHING
 ==================================================== */
 async function fetchActivityDetail(activityId) {
+  if (_isImportedId(activityId)) return null;
   // 1. IDB (fastest — same device)
   const cached = await actCacheGet(activityId, 'detail');
   if (cached) {
@@ -22919,6 +23119,7 @@ async function fetchActivityDetail(activityId) {
 const _STREAMS_VER = 3; // bump when new stream types are added
 
 async function fetchActivityStreams(activityId) {
+  if (_isImportedId(activityId)) return null;
   // 1. IDB (fastest — same device)
   const cached = await actCacheGet(activityId, 'streams');
   if (cached) {
@@ -23036,6 +23237,7 @@ async function fetchActivityStreams(activityId) {
    power, heart_rate, cadence, speed (m/s), altitude (m), timestamp.
 ==================================================== */
 async function fetchFitFile(activityId) {
+  if (_isImportedId(activityId)) return null;
   // Try several URL patterns intervals.icu uses for FIT file export.
   // intervals.icu uses the numeric ID (no 'i' prefix) for file downloads.
   const numId    = String(activityId).replace(/^i/, '');
@@ -23073,7 +23275,10 @@ async function fetchFitFile(activityId) {
 // Their website uses /api/activity/{id}/map but that lacks CORS headers.
 // We try /api/v1/ variants first (CORS-enabled), then the internal one as a last hope.
 // Returns [[lat,lng],...] pairs or null.
+function _isImportedId(id) { return typeof id === 'string' && (id.startsWith('fit_') || id.startsWith('strava_')); }
+
 async function fetchMapGPS(activityId) {
+  if (_isImportedId(activityId)) return null;
   const numericId = String(activityId).replace(/^i/, '');
   // Two URLs: primary authenticated endpoint, then proxy fallback
   const urls = [
@@ -23157,6 +23362,7 @@ async function fetchMapGPS(activityId) {
 // We already have latitudes from the main streams fetch; this tries to pair them with longitudes.
 // Returns [[lat,lng],...] pairs or null.
 async function fetchLngStream(activityId, latArr) {
+  if (_isImportedId(activityId)) return null;
   const headers = { ...authHeader(), 'Accept': 'application/json' };
   // Try each streams base URL with only the lng (and lon) stream types
   const baseUrls = [
@@ -23193,6 +23399,7 @@ async function fetchLngStream(activityId, latArr) {
 // Fetch GPS track from a GPX file — intervals.icu can generate GPX for most activities.
 // Returns [[lat,lng],...] pairs or null.
 async function fetchGPSFromGPX(activityId) {
+  if (_isImportedId(activityId)) return null;
   // Try both URL patterns
   const gpxUrls = [
     ICU_BASE + `/activity/${activityId}.gpx`,
@@ -23822,7 +24029,7 @@ function renderActivityBasic(a) {
     if (cmpPct !== null && !isNaN(cmpPct)) {
       const up = cmpPct >= 1;
       const dn = cmpPct <= -1;
-      const cls = colored ? (up ? 'cmp-pos' : (dn ? 'cmp-neg' : 'cmp-neutral')) : 'cmp-neutral';
+      const cls = up ? 'cmp-pos' : (dn ? 'cmp-neg' : 'cmp-neutral');
       const pctAbs = Math.abs(Math.round(cmpPct));
       const label = pctAbs < 1 ? '≈ avg' : `${up ? '↑' : '↓'} ${pctAbs}% vs avg`;
       cmpHtml = `<div class="act-sstat-cmp ${cls}">${label}</div>`;
@@ -23888,7 +24095,7 @@ function renderActivityBasic(a) {
         : `<svg class="icon" width="32" height="32" style="color:var(--text-muted)"><use href="icons.svg#icon-bike"/></svg>`;
 
       gearBadgeEl.innerHTML = `
-        <div class="act-gear-card" onclick="window._garActiveBike='${bike.id}';navigate('bikedetail')">
+        <div class="act-gear-card" onclick="window._garActiveBike='${_escHtml(bike.id)}';navigate('bikedetail')">
           <div class="act-gear-photo" style="background:${bgCol}">${photoHtml}</div>
           <div class="act-gear-info">
             <div class="act-gear-name">${_escHtml(bike.name)}</div>
@@ -24040,39 +24247,35 @@ function renderDetailComparison(a) {
   // Determine overall vibe for the badge
   const allPcts = [];
 
-  // Helper: build one comparison row
-  // bar fills up to 150% of avg, so avg line sits at ~66.7%
+  // Helper: build one comparison pill (zone-pill style)
   const makeRow = (label, actual, avg, fmtFn, higherIsGood = true) => {
     if (!actual || !avg || avg <= 0) return '';
     const pct = ((actual - avg) / avg) * 100;
-    // Normalise bar: avg = 66.7%, max shown = 2× avg
-    const ratio = Math.min(actual / avg, 2.0);
-    const fillPct = (ratio / 2.0) * 100;
-    const avgLinePct = 50; // avg sits at 50% of the bar track (since max = 2×avg)
     const up = pct >= 1;
     const dn = pct <= -1;
     const positive = higherIsGood ? up : dn;
-    const cls = positive ? 'cmp-up' : (up || dn ? 'cmp-down' : 'cmp-same');
-    const fillColor = (!up && !dn) ? '#3d4459'   // at average → neutral grey
-                    : positive     ? ACCENT   // performing better than avg → green
-                    :                C_ORANGE_LIGHT;  // performing worse than avg → amber
+    const fillColor = (!up && !dn) ? 'var(--surface-2)'
+                    : positive     ? 'var(--accent)'
+                    :                'var(--orange)';
     const pctAbs = Math.abs(Math.round(pct));
     const pctLabel = pctAbs < 1 ? '≈ avg' : `${up ? '+' : '-'}${pctAbs}%`;
+    const pctColor = (!up && !dn) ? 'var(--text-muted)' : positive ? 'var(--accent)' : 'var(--orange)';
     allPcts.push(positive ? pct : -Math.abs(pct));
-    return `<div class="detail-cmp-row">
-      <div class="detail-cmp-top">
-        <div class="detail-cmp-label">${label}</div>
-        <div class="detail-cmp-vals">
-          <div class="detail-cmp-pct ${cls}">${pctLabel}</div>
-          <div class="detail-cmp-this">${fmtFn(actual)}</div>
-        </div>
+    // Fill grows from center (50%) outward — capped at 50% width (fills half the bar)
+    // For "lower is better" metrics (HR), flip direction: below avg → right (good), above → left (bad)
+    const barWidth = Math.min(50, Math.abs(pct) / 100 * 50 + 2);
+    const goesRight = higherIsGood ? up : dn;
+    const barLeft = goesRight ? 50 : 50 - barWidth;
+    return `<div class="cmp-pill">
+      <div class="cmp-pill-fill ${goesRight ? 'cmp-fill-right' : 'cmp-fill-left'}" data-target-w="${barWidth.toFixed(1)}" data-target-l="${barLeft.toFixed(1)}" style="left:50%;width:0%;--fill-color:${fillColor}"></div>
+      <div class="cmp-pill-avg-mark" style="left:50%">
+        <span class="cmp-pill-pct-badge" style="color:${pctColor}">${pctLabel}</span>
       </div>
-      <div class="detail-cmp-bar-wrap">
-        <div class="detail-cmp-bar-fill" style="width:${fillPct.toFixed(1)}%;background:${fillColor}"></div>
-        <div class="detail-cmp-bar-avg" style="left:${avgLinePct}%">
-          <div class="detail-cmp-avg-val">avg ${fmtFn(avg)}</div>
-        </div>
-      </div>
+      <span class="cmp-pill-label">${label}</span>
+      <span class="cmp-pill-right">
+        <span class="cmp-pill-val">${fmtFn(actual)}</span>
+        <span class="cmp-pill-avg">avg ${fmtFn(avg)}</span>
+      </span>
     </div>`;
   };
 
@@ -24154,30 +24357,24 @@ function renderDetailComparison(a) {
   card.style.display = '';
   unskeletonCard('detailCompareCard');
 
-  // Animate bars growing from zero when scrolled into view
+  // Animate pill fills growing from center when scrolled into view
   requestAnimationFrame(() => {
-    const bars = rowsEl.querySelectorAll('.detail-cmp-bar-fill');
-    if (!bars.length) return;
+    const fills = rowsEl.querySelectorAll('.cmp-pill-fill');
+    if (!fills.length) return;
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
-          const bar = entry.target;
-          const targetWidth = bar.dataset.width;
-          if (targetWidth) {
-            bar.classList.add('cmp-bar-animate');
-            bar.style.setProperty('width', targetWidth, 'important');
-          }
-          observer.unobserve(bar);
+          const el = entry.target;
+          const delay = (Array.from(fills).indexOf(el)) * 80;
+          setTimeout(() => {
+            el.style.width = el.dataset.targetW + '%';
+            el.style.left = el.dataset.targetL + '%';
+          }, delay);
+          observer.unobserve(el);
         }
       });
     }, { threshold: 0.1 });
-    bars.forEach(bar => {
-      // Store the target width and reset to 0
-      const inlineW = bar.style.width;
-      bar.dataset.width = inlineW;
-      bar.style.setProperty('width', '0', 'important');
-      observer.observe(bar);
-    });
+    fills.forEach(el => observer.observe(el));
   });
 }
 
@@ -25293,8 +25490,8 @@ function renderDetailSourceFooter(a) {
 
 // ── Advanced cards toggle ─────────────────────────────────────────────────
 const _ADVANCED_CARD_IDS = [
-  'detailPerfCard', 'detailDecoupleCard', 'detailLRBalanceCard',
-  'detailGradientCard', 'detailClimbsCard', 'detailCadenceCard',
+  'detailDecoupleCard', 'detailLRBalanceCard',
+  'detailClimbsCard', 'detailCadenceCard',
   'detailHistogramCard', 'detailSpeedGradeCard', 'detailTempPowerCard',
   'detailTempCard', 'detailPwrHRCard', 'detailNPTimelineCard',
   'detailDriftCard', 'detailHRRecoveryCard', 'detailHrvCard',
@@ -25309,6 +25506,9 @@ function toggleAdvancedCards() {
     const el = document.getElementById(id);
     if (el) el.classList.toggle('act-advanced-hidden', !_advancedVisible);
   });
+  // Toggle the entire section wrapper
+  const section = document.getElementById('actAdvancedSection');
+  if (section) section.style.display = _advancedVisible ? '' : 'none';
   const btn = document.getElementById('actShowAdvancedBtn');
   const label = document.getElementById('actAdvancedLabel');
   if (label) label.textContent = _advancedVisible ? 'Hide Advanced' : 'Advanced';
@@ -25318,12 +25518,10 @@ function toggleAdvancedCards() {
   if (_advancedVisible && !window._advancedRendered && window._advancedRenderArgs) {
     window._advancedRendered = true;
     const { richActivity, actId, normStreams } = window._advancedRenderArgs;
-    renderDetailPerformance(richActivity, actId, normStreams);
     renderDetailDecoupleChart(normStreams, richActivity);
     renderDetailLRBalance(normStreams, richActivity);
     renderDetailHistogram(richActivity, normStreams);
     renderDetailTempChart(normStreams, richActivity);
-    renderDetailGradientProfile(normStreams, richActivity);
     render3DElevation(normStreams, richActivity);
     renderClimbDetection(normStreams, richActivity);
     renderDetailCadenceHist(normStreams, richActivity);
@@ -25346,6 +25544,8 @@ function _initAdvancedCards() {
     const el = document.getElementById(id);
     if (el) el.classList.add('act-advanced-hidden');
   });
+  const section = document.getElementById('actAdvancedSection');
+  if (section) section.style.display = 'none';
   const btn = document.getElementById('actShowAdvancedBtn');
   const label = document.getElementById('actAdvancedLabel');
   if (label) label.textContent = 'Advanced';
@@ -25399,6 +25599,7 @@ function renderDetailExport(a) {
 
 // ── Download functions ─────────────────────────────────────────────────────
 async function downloadActivityFile(actId) {
+  if (_isImportedId(actId)) { showToast('Cannot download — this is a locally imported activity', 'error'); return; }
   try {
     const urls = [
       ICU_BASE + `/activity/${actId}/file`,
@@ -25431,6 +25632,7 @@ async function downloadActivityFile(actId) {
 }
 
 async function downloadFITFile(actId) {
+  if (_isImportedId(actId)) { showToast('Cannot download — this is a locally imported activity', 'error'); return; }
   try {
     const urls = [
       ICU_BASE + `/activity/${actId}.fit`,
@@ -25459,6 +25661,7 @@ async function downloadFITFile(actId) {
 }
 
 async function downloadGPXFile(actId) {
+  if (_isImportedId(actId)) { showToast('Cannot download — this is a locally imported activity', 'error'); return; }
   try {
     const urls = [
       ICU_BASE + `/activity/${actId}.gpx`,
@@ -25505,6 +25708,7 @@ function lerpColor(hex1, hex2, t) {
 // Return an exact colour for a given stream index and colour mode.
 // No quantisation — caller draws one segment per GPS pair for smooth gradients.
 function routePointColor(mode, streams, si, maxes) {
+  if (!streams) return 'var(--accent)';
   const get = (...keys) => {
     for (const k of keys) {
       const a = streams[k];
@@ -25550,6 +25754,7 @@ function routePointColor(mode, streams, si, maxes) {
 // no visible steps.  The Canvas renderer handles hundreds of short polylines
 // efficiently in a single <canvas> element.
 function buildColoredSegments(points, streams, mode, maxes) {
+  if (!streams) return [{ points, color: 'var(--accent)' }];
   const timeLen = streams.time?.length || points.length;
 
   // Exact color at every GPS point
@@ -26176,13 +26381,12 @@ function renderActivityMap(latlng, streams) {
       // Build GeoJSON for a color mode — returns array of {color, geojson} features
       const buildRouteGeoJSON = (mode) => {
         const segs = buildColoredSegments(points, streams, mode, maxes);
-        // Group consecutive segments with same color for fewer features
         const features = segs.map((seg, i) => ({
           type: 'Feature',
           properties: { color: seg.color, idx: i },
           geometry: {
             type: 'LineString',
-            coordinates: seg.points.map(p => [p[1], p[0]]), // [lng, lat]
+            coordinates: seg.points.map(p => [p[1], p[0]]),
           },
         }));
         return { type: 'FeatureCollection', features };
@@ -26224,6 +26428,8 @@ function renderActivityMap(latlng, streams) {
       // ── Map load — add sources, layers, markers, controls ────────────────
       // If pre-warmed map already loaded its style, fire immediately; else wait
       const _onMapReady = () => {
+        // Guard: style may not be fully initialized yet (race with pre-warm)
+        if (!map.style || !map.getStyle()) { map.once('styledata', _onMapReady); return; }
         const mapEl = map.getContainer();
         if (_isStravaTheme()) _applyStravaOverrides(map);
         if (mapEl.style.opacity === '0') requestAnimationFrame(() => { mapEl.style.opacity = '1'; });
@@ -26255,6 +26461,7 @@ function renderActivityMap(latlng, streams) {
           },
           layout: { 'line-cap': 'round', 'line-join': 'round' },
         });
+
 
         // Route layers visible immediately (no trace animation)
 
@@ -26315,8 +26522,7 @@ function renderActivityMap(latlng, streams) {
 
           map.on('mousemove', (e) => {
             if (state.flythrough?.playing) return;
-            // Skip expensive point lookup while user is panning/zooming the map
-            if (map.isMoving() || map.isZooming()) return;
+            if (map.isMoving() || map.isZooming() || map.isRotating()) return;
             const { lat, lng } = e.lngLat;
 
             // Find nearest GPS point with hysteresis to avoid jumps at route crossings
@@ -26363,13 +26569,15 @@ function renderActivityMap(latlng, streams) {
                   properties: { color: dotColor },
                 });
               }
-              if (map.getLayer('hover-dot-outline')) {
-                map.setPaintProperty('hover-dot-outline', 'circle-opacity', 1);
-                map.setPaintProperty('hover-dot-outline', 'circle-stroke-opacity', 1);
-              }
-              if (map.getLayer('hover-dot-fill')) {
-                map.setPaintProperty('hover-dot-fill', 'circle-opacity', 1);
-              }
+              try {
+                if (map.getLayer('hover-dot-outline')) {
+                  map.setPaintProperty('hover-dot-outline', 'circle-opacity', 1);
+                  map.setPaintProperty('hover-dot-outline', 'circle-stroke-opacity', 1);
+                }
+                if (map.getLayer('hover-dot-fill')) {
+                  map.setPaintProperty('hover-dot-fill', 'circle-opacity', 1);
+                }
+              } catch(_) {}
 
               refreshMapStats(statsEl, streams, si, maxSpdKmh, maxHR);
               if (state.flythrough?._drawMiniChart) state.flythrough._drawMiniChart(capturedIdx);
@@ -26380,13 +26588,15 @@ function renderActivityMap(latlng, streams) {
             _lastHoverIdx = -1;
             if (_hoverRaf) { cancelAnimationFrame(_hoverRaf); _hoverRaf = 0; }
             if (state.flythrough?.playing) return;
-            if (map.getLayer('hover-dot-outline')) {
-              map.setPaintProperty('hover-dot-outline', 'circle-opacity', 0);
-              map.setPaintProperty('hover-dot-outline', 'circle-stroke-opacity', 0);
-            }
-            if (map.getLayer('hover-dot-fill')) {
-              map.setPaintProperty('hover-dot-fill', 'circle-opacity', 0);
-            }
+            try {
+              if (map.getLayer('hover-dot-outline')) {
+                map.setPaintProperty('hover-dot-outline', 'circle-opacity', 0);
+                map.setPaintProperty('hover-dot-outline', 'circle-stroke-opacity', 0);
+              }
+              if (map.getLayer('hover-dot-fill')) {
+                map.setPaintProperty('hover-dot-fill', 'circle-opacity', 0);
+              }
+            } catch(_) {}
             resetMapStats(statsEl);
           });
         }
@@ -26549,7 +26759,7 @@ function renderActivityMap(latlng, streams) {
         // ── 3D terrain ─────────────────────────────────────────────────────
         _mlApplyTerrain(map);
       }; // end _onMapReady
-      if (map.isStyleLoaded()) _onMapReady(); else map.on('load', _onMapReady);
+      if (map.isStyleLoaded() && map.style && map.getStyle()) _onMapReady(); else map.on('load', _onMapReady);
 
       // ── Fit bounds ─────────────────────────────────────────────────────
       // Compute LngLatBounds from points
@@ -26560,19 +26770,67 @@ function renderActivityMap(latlng, streams) {
       );
       state.activityMap = map;
 
-      // ── Activate bottom-sheet layout ──────────────────────────────────────
-      activateSheetMode();
+      // ── Activate layout ──────────────────────────────────────────────────
+      const _isDesktopAct = window.innerWidth >= 901;
+      if (_isDesktopAct) {
+        // Desktop: reparent map into fixed container (like sheet mode) to avoid scroll-induced WebGL issues
+        const _page = document.getElementById('page-activity');
+        const _mapBg = document.getElementById('actSheetMapBg');
+        const _mapEl = document.getElementById('activityMap');
+        const _mapCard = document.getElementById('detailMapCard');
+        if (_page) _page.classList.add('act-desktop-mode');
 
-      // Set route bounds AFTER activateSheetMode so _sheet._ctrl exists
-      _sheet.routeBounds = routeBounds;
+        // Build hero row in scroll area
+        const _scroll = document.getElementById('actSheetScroll');
+        const _hero = _scroll?.querySelector('.act-hero');
+        const _secStrip = document.getElementById('actSecondaryStats');
+        if (_scroll && _hero) {
+          let heroRow = _scroll.querySelector('.act-desktop-hero-row');
+          if (!heroRow) {
+            heroRow = document.createElement('div');
+            heroRow.className = 'act-desktop-hero-row';
+            _scroll.insertBefore(heroRow, _scroll.firstChild);
+          }
+          // Left column: map bg + flythrough bar wrapped together
+          const leftCol = document.createElement('div');
+          leftCol.className = 'act-desktop-hero-left';
+          if (_mapBg) leftCol.appendChild(_mapBg);
+          // Move map + controls into map bg
+          if (_mapBg && _mapEl) {
+            _mapBg.appendChild(_mapEl);
+            if (_mapCard) {
+              const ft2 = _mapCard.querySelector('.map-float-top');
+              const sp = _mapCard.querySelector('.map-stats-panel');
+              const fb = _mapCard.querySelector('.fs-bottom-row');
+              if (ft2) _mapBg.appendChild(ft2);
+              if (sp) _mapBg.appendChild(sp);
+              if (fb) _mapBg.appendChild(fb);
+            }
+          }
+          // Move flythrough bar below map bg
+          const ftBarEl = document.getElementById('flythroughBar');
+          if (ftBarEl) leftCol.appendChild(ftBarEl);
+          heroRow.appendChild(leftCol);
 
-      // Fit route with bottom padding to account for the sheet overlay
-      // Must wait for rAF so the map resizes after reparenting into sheet bg
-      requestAnimationFrame(() => {
-        map.resize();
-        const sheetPad = Math.round(window.innerHeight * _sheet.SNAP_PEEK);
-        map.fitBounds(routeBounds, { padding: { top: 64, right: 40, bottom: sheetPad + 120, left: 40 }, duration: 0 });
-      });
+          const rightCol = document.createElement('div');
+          rightCol.className = 'act-desktop-hero-right';
+          rightCol.appendChild(_hero);
+          if (_secStrip) rightCol.appendChild(_secStrip);
+          heroRow.appendChild(rightCol);
+        }
+        requestAnimationFrame(() => {
+          map.resize();
+          map.fitBounds(routeBounds, { padding: { top: 40, right: 40, bottom: 40, left: 40 }, duration: 0 });
+        });
+      } else {
+        activateSheetMode();
+        _sheet.routeBounds = routeBounds;
+        requestAnimationFrame(() => {
+          map.resize();
+          const sheetPad = Math.round(window.innerHeight * _sheet.SNAP_PEEK);
+          map.fitBounds(routeBounds, { padding: { top: 64, right: 40, bottom: sheetPad + 120, left: 40 }, duration: 0 });
+        });
+      }
 
       // ── Scroll-to-zoom on hover + right-click 3D tilt ─────────────────────
       const mapContainer = map.getContainer();
@@ -26614,17 +26872,100 @@ function initFlythrough(map, valid, streams, maxes, maxSpdKmh, maxHR, statsEl, t
   const _playBtn = document.getElementById('ftPlayBtn');
   if (_playBtn) _playBtn.innerHTML = '<svg width="11" height="13" viewBox="0 0 11 13" fill="currentColor"><polygon points="0,0 11,6.5 0,13"/></svg>';
 
-  // Flythrough dot marker (MapLibre)
+  // Draw elevation profile on scrubber canvas
+  const _ftElevCanvas = document.getElementById('ftElevCanvas');
+  if (_ftElevCanvas && streams) {
+    const alt = streams.altitude || streams.elevation || streams.alt || [];
+    if (alt.length > 1) {
+      requestAnimationFrame(() => {
+        const cvs = _ftElevCanvas;
+        const w = cvs.parentElement.clientWidth || 400;
+        const h = cvs.parentElement.clientHeight || 36;
+        cvs.width = w * 2; cvs.height = h * 2;
+        cvs.style.width = w + 'px'; cvs.style.height = h + 'px';
+        const ctx = cvs.getContext('2d');
+        ctx.scale(2, 2);
+        // Downsample altitude to canvas width
+        const step = Math.max(1, Math.floor(alt.length / w));
+        const pts = [];
+        for (let i = 0; i < alt.length; i += step) {
+          const v = alt[i]; if (v != null) pts.push(v); else if (pts.length) pts.push(pts[pts.length - 1]);
+        }
+        if (pts.length < 2) return;
+        const mn = Math.min(...pts), mx = Math.max(...pts);
+        const range = mx - mn || 1;
+        const pad = 4;
+        // Filled area
+        ctx.beginPath();
+        ctx.moveTo(0, h);
+        for (let i = 0; i < pts.length; i++) {
+          const x = (i / (pts.length - 1)) * w;
+          const y = h - pad - ((pts[i] - mn) / range) * (h - pad * 2);
+          i === 0 ? ctx.lineTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.lineTo(w, h);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.06)';
+        ctx.fill();
+        // Stroke line
+        ctx.beginPath();
+        for (let i = 0; i < pts.length; i++) {
+          const x = (i / (pts.length - 1)) * w;
+          const y = h - pad - ((pts[i] - mn) / range) * (h - pad * 2);
+          i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+      });
+    }
+  }
+
+  // Compute bearing between two GPS points (degrees, 0=north, clockwise)
+  function _ftBearing(p1, p2) {
+    const toRad = Math.PI / 180;
+    const lat1 = p1[0] * toRad, lat2 = p2[0] * toRad;
+    const dLng = (p2[1] - p1[1]) * toRad;
+    const y = Math.sin(dLng) * Math.cos(lat2);
+    const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+    return ((Math.atan2(y, x) * 180 / Math.PI) + 360) % 360;
+  }
+
+  // Flythrough dot marker with directional cone (Apple Maps style)
   const ftDotEl = document.createElement('div');
   ftDotEl.className = 'ft-dot-wrap';
-  ftDotEl.innerHTML = `<div class="ft-dot-core" style="background:${ACCENT}"></div><div class="ft-dot-ring" style="border-color:${ACCENT}aa"></div>`;
+  ftDotEl.innerHTML = `
+    <div class="ft-dot-cone"></div>
+    <div class="ft-dot-core" style="background:${ACCENT}"></div>
+    <div class="ft-dot-ring" style="border-color:${ACCENT}aa"></div>
+  `;
 
+  let _ftLastBearing = 0;
   const makeFtIcon = (color) => {
     const core = ftDotEl.querySelector('.ft-dot-core');
     const ring = ftDotEl.querySelector('.ft-dot-ring');
+    const cone = ftDotEl.querySelector('.ft-dot-cone');
     if (core) core.style.background = color;
     if (ring) ring.style.borderColor = color + 'aa';
+    if (cone) cone.style.background = `conic-gradient(from -30deg, ${color}55 0deg, ${color}00 60deg)`;
   };
+
+  // Pre-compute bearings for every GPS point (look ~10 points ahead for stability)
+  const _ftBearings = new Float32Array(valid.length);
+  for (let i = 0; i < valid.length; i++) {
+    const ahead = Math.min(i + 10, valid.length - 1);
+    _ftBearings[i] = ahead > i ? _ftBearing(valid[i], valid[ahead]) : (i > 0 ? _ftBearings[i-1] : 0);
+  }
+
+  const _coneEl = ftDotEl.querySelector('.ft-dot-cone');
+  function _ftUpdateBearing(idx) {
+    const target = _ftBearings[idx] || 0;
+    let diff = target - _ftLastBearing;
+    if (diff > 180) diff -= 360;
+    if (diff < -180) diff += 360;
+    _ftLastBearing += diff * 0.5; // fast easing — responsive on turns
+    if (_coneEl) _coneEl.style.transform = `rotate(${_ftLastBearing}deg)`;
+  }
 
   const ftMarker = new maplibregl.Marker({ element: ftDotEl, anchor: 'center' })
     .setLngLat([valid[0][1], valid[0][0]]);
@@ -26819,8 +27160,10 @@ function initFlythrough(map, valid, streams, maxes, maxSpdKmh, maxHR, statsEl, t
   // goTo(idx) snaps to an integer index — used for scrubbing and manual seeks.
   // goToSmooth(frac) interpolates between GPS points for fluid marker movement.
   function goTo(idx) {
-    ft.idx = Math.max(0, Math.min(valid.length - 1, Math.round(idx)));
-    _updatePosition(ft.idx, valid[ft.idx]);
+    try {
+      ft.idx = Math.max(0, Math.min(valid.length - 1, Math.round(idx)));
+      _updatePosition(ft.idx, valid[ft.idx]);
+    } catch (e) { console.error('[FT] goTo error:', e); }
   }
 
   let _lastStatsIdx = -1;
@@ -26830,6 +27173,7 @@ function initFlythrough(map, valid, streams, maxes, maxSpdKmh, maxHR, statsEl, t
     ftMarker.setLngLat(lngLat);
     if (!ftMarker._map) ftMarker.addTo(map);
     if (ft.follow) map.jumpTo({ center: lngLat });
+    _ftUpdateBearing(idxForStats);
 
     // Throttle heavier UI updates to when the integer index changes
     if (idxForStats !== _lastStatsIdx) {
@@ -26841,26 +27185,75 @@ function initFlythrough(map, valid, streams, maxes, maxSpdKmh, maxHR, statsEl, t
       drawMiniChart(idxForStats);
     }
 
-    // Scrubber is cheap — update every frame
+    // Scrubber — cached refs, update every frame
     const pct = idxForStats / (valid.length - 1);
-    const fill  = document.getElementById('ftScrubberFill');
-    const thumb = document.getElementById('ftScrubberThumb');
-    if (fill)  fill.style.width = `${pct * 100}%`;
-    if (thumb) thumb.style.left = `${pct * 100}%`;
+    if (_ftFillEl)  _ftFillEl.style.width = `${pct * 100}%`;
+    if (_ftThumbEl) _ftThumbEl.style.left = `${pct * 100}%`;
+  }
+  const _ftFillEl  = document.getElementById('ftScrubberFill');
+  const _ftThumbEl = document.getElementById('ftScrubberThumb');
+
+  // Build the rendered polyline coordinates from the map's route source
+  // This is the EXACT line the user sees — interpolating along it keeps the dot on-track
+  let _ftLine = null;
+  function _getFtLine() {
+    if (_ftLine) return _ftLine;
+    try {
+      const src = map.getSource('activity-route') || map.getSource('route-source');
+      if (src) {
+        const data = src._data || src.serialize()?.data;
+        if (data?.geometry?.coordinates) {
+          _ftLine = data.geometry.coordinates; // [lng, lat] pairs
+          return _ftLine;
+        }
+      }
+    } catch(_) {}
+    // Fallback: use valid GPS points as [lng,lat]
+    _ftLine = valid.map(p => [p[1], p[0]]);
+    return _ftLine;
   }
 
-  // Interpolate marker position between two GPS points for smooth movement
+  // Pre-compute cumulative arc lengths along the drawn line
+  let _ftArcLen = null;
+  function _getFtArcLen() {
+    if (_ftArcLen) return _ftArcLen;
+    const line = _getFtLine();
+    _ftArcLen = [0];
+    for (let i = 1; i < line.length; i++) {
+      const dx = line[i][0] - line[i-1][0];
+      const dy = line[i][1] - line[i-1][1];
+      _ftArcLen.push(_ftArcLen[i-1] + Math.sqrt(dx*dx + dy*dy));
+    }
+    return _ftArcLen;
+  }
+
+  // Interpolate along the drawn polyline at a fractional GPS index
   function goToSmooth(fIdx) {
     const clamped = Math.max(0, Math.min(valid.length - 1, fIdx));
-    const i0 = Math.floor(clamped);
-    const i1 = Math.min(i0 + 1, valid.length - 1);
-    const t  = clamped - i0; // fractional part 0..1
+    ft.idx = Math.round(clamped);
 
-    const lat = valid[i0][0] + (valid[i1][0] - valid[i0][0]) * t;
-    const lng = valid[i0][1] + (valid[i1][1] - valid[i0][1]) * t;
+    const line = _getFtLine();
+    const arcLen = _getFtArcLen();
+    const totalLen = arcLen[arcLen.length - 1] || 1;
 
-    ft.idx = Math.round(clamped); // keep integer idx in sync for stats
-    _updatePosition(ft.idx, [lat, lng]);
+    // Map GPS index fraction to distance along the line
+    const frac = clamped / (valid.length - 1);
+    const targetDist = frac * totalLen;
+
+    // Binary search for the segment containing targetDist
+    let lo = 0, hi = arcLen.length - 1;
+    while (lo < hi - 1) {
+      const mid = (lo + hi) >> 1;
+      if (arcLen[mid] <= targetDist) lo = mid; else hi = mid;
+    }
+
+    // Interpolate within the segment
+    const segLen = arcLen[hi] - arcLen[lo];
+    const t = segLen > 0 ? (targetDist - arcLen[lo]) / segLen : 0;
+    const lng = line[lo][0] + (line[hi][0] - line[lo][0]) * t;
+    const lat = line[lo][1] + (line[hi][1] - line[lo][1]) * t;
+
+    _updatePosition(ft.idx, { lng, lat });
   }
 
   // ── RAF animation loop ──────────────────────────────────────────────────
@@ -26944,44 +27337,45 @@ function initFlythrough(map, valid, streams, maxes, maxSpdKmh, maxHR, statsEl, t
   };
 
   // ── Scrubber drag (mouse + touch) ───────────────────────────────────────
-  const track = document.getElementById('ftScrubberTrack');
-  if (track) {
-    const idxFromEvent = (clientX) => {
-      const rect = track.getBoundingClientRect();
-      const pct  = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-      return Math.round(pct * (valid.length - 1));
+  const _ftTrack = document.getElementById('ftScrubberTrack');
+  if (_ftTrack) {
+    let ftDragging = false;
+    let ftDragRAF = 0;
+    const ftIdxFromX = (cx) => {
+      const r = _ftTrack.getBoundingClientRect();
+      return Math.round(Math.max(0, Math.min(1, (cx - r.left) / r.width)) * (valid.length - 1));
     };
 
-    let dragging = false;
-
-    track.addEventListener('mousedown', (e) => {
-      dragging = true;
-      ft._resumeOnRelease = ft.playing;
+    _ftTrack.addEventListener('mousedown', (e) => {
+      ftDragging = true;
       ftPause();
-      goTo(idxFromEvent(e.clientX));
+      goTo(ftIdxFromX(e.clientX));
     });
-    let _ftMoveRAF = 0;
-    const ftMoveDoc = (e) => { if (!dragging) return; const cx = e.clientX; if (_ftMoveRAF) return; _ftMoveRAF = requestAnimationFrame(() => { _ftMoveRAF = 0; goTo(idxFromEvent(cx)); }); };
-    const ftUpDoc = () => { if (!dragging) return; dragging = false; if (ft._resumeOnRelease) ftPlay(); };
-    const ftTouchMoveDoc = (e) => { if (dragging) goTo(idxFromEvent(e.touches[0].clientX)); };
-    const ftTouchEndDoc = () => { if (!dragging) return; dragging = false; if (ft._resumeOnRelease) ftPlay(); };
-    document.addEventListener('mousemove', ftMoveDoc);
-    document.addEventListener('mouseup', ftUpDoc);
+    const _ftMoveDoc = (e) => {
+      if (!ftDragging) return;
+      const cx = e.clientX;
+      if (ftDragRAF) return;
+      ftDragRAF = requestAnimationFrame(() => { ftDragRAF = 0; if (ftDragging) goTo(ftIdxFromX(cx)); });
+    };
+    const _ftUpDoc = () => { ftDragging = false; };
+    document.addEventListener('mousemove', _ftMoveDoc);
+    document.addEventListener('mouseup', _ftUpDoc);
 
-    track.addEventListener('touchstart', (e) => {
-      dragging = true;
-      ft._resumeOnRelease = ft.playing;
+    _ftTrack.addEventListener('touchstart', (e) => {
+      ftDragging = true;
       ftPause();
-      goTo(idxFromEvent(e.touches[0].clientX));
+      if (e.touches.length) goTo(ftIdxFromX(e.touches[0].clientX));
     }, { passive: true });
-    document.addEventListener('touchmove', ftTouchMoveDoc, { passive: true });
-    document.addEventListener('touchend', ftTouchEndDoc);
+    const _ftTouchMoveDoc = (e) => { if (ftDragging && e.touches.length) goTo(ftIdxFromX(e.touches[0].clientX)); };
+    const _ftTouchEndDoc = () => { ftDragging = false; };
+    document.addEventListener('touchmove', _ftTouchMoveDoc, { passive: true });
+    document.addEventListener('touchend', _ftTouchEndDoc);
 
     _pageCleanupFns.push(() => {
-      document.removeEventListener('mousemove', ftMoveDoc);
-      document.removeEventListener('mouseup', ftUpDoc);
-      document.removeEventListener('touchmove', ftTouchMoveDoc);
-      document.removeEventListener('touchend', ftTouchEndDoc);
+      document.removeEventListener('mousemove', _ftMoveDoc);
+      document.removeEventListener('mouseup', _ftUpDoc);
+      document.removeEventListener('touchmove', _ftTouchMoveDoc);
+      document.removeEventListener('touchend', _ftTouchEndDoc);
     });
   }
 
@@ -27407,8 +27801,11 @@ function showCardNA(cardId) {
   card.style.display = '';
   card.classList.add('card--na');
   card.querySelectorAll('.detail-na-inject').forEach(e => e.remove());
-  // Hide existing chart/map areas
-  card.querySelectorAll('.chart-wrap, .map-container, .activity-map, .curve-peaks').forEach(e => { e.dataset.naHidden = '1'; e.style.display = 'none'; });
+  // Hide ALL children except card-header and our injected NA element
+  for (const ch of card.children) {
+    if (ch.classList.contains('card-header') || ch.classList.contains('detail-na-inject')) continue;
+    ch.dataset.naHidden = '1'; ch.style.display = 'none';
+  }
   // Create placeholder with faded demo wave
   const el = document.createElement('div');
   el.className = 'detail-na-inject detail-na-wave';
@@ -27795,7 +28192,10 @@ function renderDetailLRBalance(streams, activity) {
 }
 
 
+let _zoneToggleTimer = null;
 function _zoneToggle(el) {
+  if (_zoneToggleTimer) return; // debounce rapid taps
+  _zoneToggleTimer = setTimeout(() => { _zoneToggleTimer = null; }, 400);
   const card = el.closest('.card') || el.parentElement;
   const pills = card.querySelectorAll('.zone-pill');
   const newState = el.dataset.showTime === '1' ? '0' : '1';
@@ -27803,7 +28203,6 @@ function _zoneToggle(el) {
     p.dataset.showTime = newState;
     const val = p.querySelector('.zp-val');
     const newText = newState === '1' ? p.dataset.dur : p.dataset.pct;
-    // Animate: slide out → change text → slide in
     val.classList.add('zp-val--out');
     setTimeout(() => {
       val.textContent = newText;
@@ -27931,7 +28330,7 @@ function renderDetailHRZones(activity) {
 
   let hrZoneHTML = totals.map((secs, i) => {
     const pct   = totalSecs > 0 ? Math.round(secs / totalSecs * 100) : 0;
-    const color = ZONE_HEX[i] || ZONE_HEX[ZONE_HEX.length - 1];
+    const color = (HR_ZONE_HEX && HR_ZONE_HEX[i]) || ZONE_HEX[i] || ZONE_HEX[ZONE_HEX.length - 1];
     const tag   = `Z${i + 1}`;
     const name  = HR_ZONE_NAMES[i] || tag;
     if (secs === 0) return '';
@@ -27983,44 +28382,7 @@ function renderDetailTempChart(streams, activity) {
   const deg = imperial ? '°F' : '°C';
 
   if (!hasData) {
-    // Show greyed-out demo card with placeholder sine-wave data
-    unavailable.style.display = 'flex';
-    canvas.style.opacity = '0.18';
-    if (subtitle) subtitle.textContent = 'Garmin sensor data';
-
-    // Generate a fake smooth wave so the card doesn't look empty
-    const demoLen  = 60;
-    const demoData = Array.from({ length: demoLen }, (_, i) =>
-      Math.round((15 + Math.sin(i / 8) * 3 + Math.sin(i / 3) * 0.8) * 10) / 10
-    );
-    const demoLabels = demoData.map((_, i) => `${i}:00`);
-
-    window._tempChart = destroyChart(window._tempChart);
-    window._tempChart = new Chart(canvas.getContext('2d'), {
-      type: 'line',
-      data: {
-        labels: demoLabels,
-        datasets: [{
-          data: demoData,
-          borderColor: '#6b7280',
-          backgroundColor: 'rgba(107,114,128,0.12)',
-          fill: true,
-          pointRadius: 0,
-          borderWidth: 1.5,
-          tension: 0.4,
-        }]
-      },
-      options: {
-        animation: false,
-        plugins: { legend: { display: false }, tooltip: { enabled: false } },
-        scales: {
-          x: { display: false },
-          y: { display: false },
-        },
-        responsive: true,
-        maintainAspectRatio: false,
-      }
-    });
+    showCardNA('detailTempCard');
     return;
   }
 
@@ -28207,6 +28569,7 @@ function renderDetailHistogram(activity, streams) {
 
 // Fetch and render per-ride power curve
 async function fetchActivityPowerCurve(activityId) {
+  if (_isImportedId(activityId)) return null;
   // Check cache first — use sentinel object for "known 404 / no data"
   const cached = await actCacheGet(activityId, 'pcurve');
   if (cached) {
@@ -28747,7 +29110,7 @@ function renderClimbDetection(streams, activity) {
   const watts = streams?.watts;
 
   if (!Array.isArray(alt) || !Array.isArray(dist) || alt.length < 50) {
-    card.style.display = 'none'; return;
+    showCardNA('detailClimbsCard'); return;
   }
 
   // Step 1: Smooth altitude (rolling average, half-window = 10)
@@ -28822,7 +29185,7 @@ function renderClimbDetection(streams, activity) {
     return { s: seg.s, e: seg.e, climbDist, elevGain, avgGrade, maxGrade, duration, vam, avgPower, cat, gc };
   }).filter(c => c.elevGain >= 20);
 
-  if (!climbs.length) { card.style.display = 'none'; return; }
+  if (!climbs.length) { showCardNA('detailClimbsCard'); return; }
 
   // Step 5: Render — Tour de France style climb cards
   const totalGain = climbs.reduce((s, c) => s + c.elevGain, 0);
@@ -28993,9 +29356,10 @@ function renderDetailCadenceHist(streams, activity) {
 
   card.style.display = '';
   unskeletonCard('detailCadenceCard');
+  const _cadCanvas = document.getElementById('detailCadenceChart');
+  if (!_cadCanvas) return;
   state.activityCadenceChart = destroyChart(state.activityCadenceChart);
-  state.activityCadenceChart = new Chart(
-    document.getElementById('detailCadenceChart').getContext('2d'), {
+  state.activityCadenceChart = new Chart(_cadCanvas.getContext('2d'), {
       type: 'bar',
       data: {
         labels,
@@ -32684,6 +33048,7 @@ async function _fetchParsedFIT(actId) {
   try { return await promise; } finally { _fitInflight.delete(actId); }
 }
 async function _fetchParsedFITInner(actId) {
+  if (_isImportedId(actId)) return null;
   // 1. Check in-memory cache
   if (window._lastFITParse && window._lastFITParse.actId === actId) {
     return window._lastFITParse.data;
@@ -35728,6 +36093,120 @@ function loadGoals() {
 }
 function saveGoals(goals) { try { localStorage.setItem('icu_goals', JSON.stringify(goals)); } catch (e) { console.warn('localStorage.setItem failed:', e); } }
 
+// ── Goal pill tap-to-edit + vertical drag to adjust target ──
+function _initGoalPillEditors(container) {
+  container.querySelectorAll('.goal-pill[data-goal-id]').forEach(pill => {
+    let editing = false;
+    let dragging = false;
+    let startY = 0;
+    let startTarget = 0;
+    const goalId = Number(pill.dataset.goalId);
+    const metric = pill.dataset.metric;
+    const unit = pill.dataset.unit;
+    const fillEl = pill.querySelector('.goal-pill-fill');
+    const rightEl = pill.querySelector('.goal-pill-right');
+    const editEl = pill.querySelector('.goal-pill-edit');
+    const editValEl = pill.querySelector('.goal-pill-edit-val');
+    const m = GOAL_METRICS[metric];
+    // Target is stored in display units (km, hours, m, TSS)
+    const step = metric === 'time' ? 1 : metric === 'distance' ? 5 : metric === 'elevation' ? 10 : 10;
+
+    let didDrag = false;
+
+    // Tap: toggle edit mode (only if no drag happened)
+    pill.addEventListener('click', (e) => {
+      if (didDrag) { didDrag = false; return; }
+      if (!editing) {
+        editing = true;
+        pill.classList.add('goal-pill--editing');
+        rightEl.style.display = 'none';
+        pill.querySelector('.goal-pill-label').style.display = 'none';
+        pill.querySelector('.goal-pill-period').style.display = 'none';
+        editEl.style.display = '';
+        const goals = loadGoals();
+        const g = goals.find(g => g.id === goalId);
+        if (g && editValEl) editValEl.textContent = m ? m.fmt(g.target) : g.target;
+      } else {
+        editing = false;
+        pill.classList.remove('goal-pill--editing');
+        editEl.style.display = 'none';
+        // Re-render goals to reflect changes
+        if (state.currentPage === 'goals') renderGoalsPage();
+        renderGoalsDashboard();
+      }
+    });
+
+    // Drag: adjust target
+    const onDown = (clientY) => {
+      if (!editing) return;
+      dragging = true;
+      didDrag = false;
+      startY = clientY;
+      const goals = loadGoals();
+      const g = goals.find(g => g.id === goalId);
+      startTarget = g ? g.target : 0;
+      pill.classList.add('goal-pill--dragging');
+    };
+    const onMove = (clientY) => {
+      if (!dragging) return;
+      didDrag = true;
+      const dy = startY - clientY; // up = positive = increase
+      const delta = Math.round(dy / 3 / step) * step;
+      const newTarget = Math.max(0, startTarget + delta);
+      // Update UI
+      if (editValEl && m) editValEl.textContent = m.fmt(newTarget);
+      // Update fill height
+      const goals = loadGoals();
+      const g = goals.find(g => g.id === goalId);
+      if (g && fillEl) {
+        const p = computeGoalProgress({ ...g, target: newTarget });
+        const pct = Math.min(p.pct, 100);
+        fillEl.style.height = pct + '%';
+      }
+    };
+    const onUp = (clientY) => {
+      if (!dragging) return;
+      dragging = false;
+      pill.classList.remove('goal-pill--dragging');
+      const dy = startY - clientY;
+      const sensitivity = 200 / pillH();
+      const delta = Math.round(dy * sensitivity / step) * step;
+      const newTarget = Math.max(0, startTarget + delta);
+      // Save
+      const goals = loadGoals();
+      const g = goals.find(g => g.id === goalId);
+      if (g) {
+        g.target = newTarget;
+        saveGoals(goals);
+      }
+    };
+
+    // Desktop: scroll wheel to adjust when in edit mode
+    pill.addEventListener('wheel', (e) => {
+      if (!editing) return;
+      e.preventDefault();
+      const goals = loadGoals();
+      const g = goals.find(g => g.id === goalId);
+      if (!g) return;
+      const dir = e.deltaY < 0 ? 1 : -1; // scroll up = increase
+      g.target = Math.max(0, g.target + dir * step);
+      saveGoals(goals);
+      if (editValEl && m) editValEl.textContent = m.fmt(g.target);
+      // Update fill
+      if (fillEl) {
+        const p = computeGoalProgress(g);
+        fillEl.style.height = Math.min(p.pct, 100) + '%';
+      }
+    }, { passive: false });
+
+    // Mobile: drag to adjust
+    pill.addEventListener('touchstart', (e) => { if (e.touches.length) onDown(e.touches[0].clientY); }, { passive: true });
+    document.addEventListener('touchmove', (e) => { if (dragging && e.touches.length) { e.preventDefault(); onMove(e.touches[0].clientY); } }, { passive: false });
+    document.addEventListener('touchend', (e) => { if (dragging) onUp(e.changedTouches?.[0]?.clientY || startY); });
+  });
+}
+window._initGoalPillEditors = _initGoalPillEditors;
+
 function addGoal(metric, target, period) {
   const goals = loadGoals();
   goals.push({ id: Date.now(), metric, target: +target, period, active: true, created: new Date().toISOString().slice(0,10) });
@@ -36546,27 +37025,21 @@ function renderGoalsPage() {
     const circR = 36, circC = 2 * Math.PI * circR;
 
     html += `
-    <div class="goal-dash-card card hero-glow" onclick="showGoalForm(${goal.id})" style="cursor:pointer">
-      <div class="goal-dash-header">
-        <div>
-          <b class="goal-dash-title">${m.label}</b>
-          <span class="goal-dash-period">${periodLabel[goal.period]}</span>
-        </div>
-        <div class="goal-dash-ring">
-          <svg viewBox="0 0 88 88" width="56" height="56">
-            <circle cx="44" cy="44" r="${circR}" fill="none" stroke="${_isDark() ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)'}" stroke-width="8"/>
-            <circle class="goal-ring-fill" cx="44" cy="44" r="${circR}" fill="none" stroke="${ringColor}" stroke-width="8"
-              stroke-linecap="round" stroke-dasharray="${circC}" stroke-dashoffset="${circC}"
-              data-target-offset="${circC - (pctClamped / 100) * circC}"
-              transform="rotate(-90 44 44)" style="transition:stroke-dashoffset 0.8s cubic-bezier(0.22, 1, 0.36, 1)"/>
-            <text x="44" y="49" text-anchor="middle" fill="var(--text-primary)" font-size="17" font-weight="700" font-family="var(--font-num)">${Math.round(pctClamped)}</text>
-          </svg>
-        </div>
-      </div>
-      <div class="goal-dash-value">${m.fmt(p.current)}<span class="goal-dash-unit"> / ${m.fmt(p.target)} ${m.unit}</span></div>
-      <div class="goal-dash-footer">
-        <span class="goal-progress-badge goal-progress-badge--${statusCls[p.status]}">${statusLabel[p.status]}</span>
-        <span class="goal-dash-days">${p.remaining}d left</span>
+    <div class="goal-pill" data-goal-id="${goal.id}" data-target="${p.target}" data-metric="${goal.metric}"
+         data-color="${ringColor}" data-unit="${m.unit}" data-fmt="${goal.metric}">
+      <div class="goal-pill-fill" style="height:${pctClamped}%;background:${ringColor}"></div>
+      <span class="goal-pill-label">${m.label}</span>
+      <span class="goal-pill-period">${periodLabel[goal.period]}</span>
+      <span class="goal-pill-right">
+        <span class="goal-pill-val">${m.fmt(p.current)}</span>
+        <span class="goal-pill-target">/ ${m.fmt(p.target)} ${m.unit}</span>
+        <span class="goal-pill-meta">${Math.round(pctClamped)}% · ${p.remaining}d left</span>
+      </span>
+      <div class="goal-pill-edit" style="display:none">
+        <button class="goal-pill-delete" onclick="event.stopPropagation();deleteGoal(${goal.id})"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        <span class="goal-pill-edit-val">${m.fmt(p.target)}</span>
+        <span class="goal-pill-edit-unit">${m.unit}</span>
+        <span class="goal-pill-edit-hint">Scroll to adjust</span>
       </div>
     </div>`;
   });
@@ -36574,6 +37047,7 @@ function renderGoalsPage() {
   html += '</div>';
 
   container.innerHTML = html;
+  _initGoalPillEditors(container);
 
   // Animate ring fills
   requestAnimationFrame(() => {
@@ -36901,29 +37375,29 @@ function renderGoalsDashWidget() {
     const ringColor = statusColor[statusCls[p.status]] || 'var(--accent)';
 
     html += `
-    <div class="goal-dash-card card" onclick="showGoalForm(${goal.id})">
-      <div class="goal-dash-header">
-        <div class="goal-dash-title">${m.label}</div>
-        <div class="goal-dash-ring">
-          <svg viewBox="0 0 88 88" width="56" height="56">
-            <circle cx="44" cy="44" r="36" fill="none" stroke="${_isDark() ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)'}" stroke-width="8"/>
-            <circle class="goal-ring-fill" cx="44" cy="44" r="36" fill="none" stroke="${ringColor}" stroke-width="8"
-              stroke-linecap="round" stroke-dasharray="${2 * Math.PI * 36}" stroke-dashoffset="${2 * Math.PI * 36}"
-              data-target-offset="${2 * Math.PI * 36 - (pctClamped / 100) * 2 * Math.PI * 36}"
-              transform="rotate(-90 44 44)" style="transition:stroke-dashoffset 0.8s cubic-bezier(0.22, 1, 0.36, 1)"/>
-            <text x="44" y="49" text-anchor="middle" fill="var(--text-primary)" font-size="17" font-weight="700" font-family="var(--font-num)">${Math.round(pctClamped)}</text>
-          </svg>
-        </div>
-      </div>
-      <div class="goal-dash-value">${m.fmt(p.current)}<span class="goal-dash-unit"> / ${m.fmt(p.target)} ${m.unit}</span></div>
-      <div class="goal-dash-footer">
-        <span class="goal-progress-badge goal-progress-badge--${statusCls[p.status]}">${statusLabel[p.status]}</span>
-        <span class="goal-dash-days">${p.remaining}d left</span>
+    <div class="goal-pill" data-goal-id="${goal.id}" data-target="${p.target}" data-metric="${goal.metric}"
+         data-color="${ringColor}" data-unit="${m.unit}">
+      <div class="goal-pill-fill" style="height:${pctClamped}%;background:${ringColor}"></div>
+      <span class="goal-pill-label">${m.label}</span>
+      <span class="goal-pill-period">${periodLabel[goal.period]}</span>
+      <span class="goal-pill-right">
+        <span class="goal-pill-val">${m.fmt(p.current)}</span>
+        <span class="goal-pill-target">/ ${m.fmt(p.target)} ${m.unit}</span>
+        <span class="goal-pill-meta">${Math.round(pctClamped)}% · ${p.remaining}d left</span>
+      </span>
+      <div class="goal-pill-edit" style="display:none">
+        <button class="goal-pill-delete" onclick="event.stopPropagation();deleteGoal(${goal.id})"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        <span class="goal-pill-edit-val">${m.fmt(p.target)}</span>
+        <span class="goal-pill-edit-unit">${m.unit}</span>
+        <span class="goal-pill-edit-hint">Scroll to adjust</span>
       </div>
     </div>`;
   });
 
   container.innerHTML = html;
+
+  // Init goal pill tap/drag handlers
+  _initGoalPillEditors(container);
 
   // Animate ring fills from empty to target
   requestAnimationFrame(() => {
@@ -39863,6 +40337,7 @@ window._libToggleRide = _libToggleRide;
 
 // Save ride GPS route to library (IndexedDB)
 async function _libSaveRoute(actId) {
+  if (_isImportedId(actId)) { showToast('Cannot save route from imported activity', 'error'); return; }
   try {
     const streams = await icuFetch(`/activity/${actId}/streams?types=latlng,altitude,distance,time`);
     if (!streams?.latlng?.length) { _showToast('No GPS data for this ride', 'warning'); return; }
@@ -39899,6 +40374,7 @@ window._libSaveRoute = _libSaveRoute;
 
 // Edit route — load GPS into route builder
 async function _libEditRoute(actId) {
+  if (_isImportedId(actId)) { showToast('Cannot edit route from imported activity', 'error'); return; }
   try {
     const streams = await icuFetch(`/activity/${actId}/streams?types=latlng,altitude,distance`);
     if (!streams?.latlng?.length) { _showToast('No GPS data for this ride', 'warning'); return; }
@@ -39919,6 +40395,7 @@ async function _libEditRoute(actId) {
 window._libEditRoute = _libEditRoute;
 
 async function _libDrawElevation(actId) {
+  if (_isImportedId(actId)) return;
   const wrap = document.getElementById('libRideElev_' + actId);
   if (!wrap || wrap.dataset.drawn) return;
   const canvas = wrap.querySelector('canvas');

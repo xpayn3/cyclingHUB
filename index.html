@@ -1219,6 +1219,66 @@
                     <div id="actBottomSheet" class="act-bottom-sheet">
                         <div class="act-sheet-handle"><span></span></div>
                         <div class="act-sheet-scroll" id="actSheetScroll">
+                    <!-- Route map + playbar wrapper -->
+                    <div class="act-map-wrap" id="actMapWrap">
+                    <div class="card" id="detailMapCard" style="display: none">
+                        <div id="activityMap" class="activity-map"></div>
+                        <div class="map-float-top">
+                            <div class="map-float-top-row">
+                                <div class="card-header">
+                                    <div class="card-title" style="display:none"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-map"/></svg>Route</div>
+                                    <button class="map-expand-btn btn btn-ghost btn-sm" onclick="toggleMapFullscreen()" id="mapExpandBtn" title="Expand map">
+                                        <svg class="icon" width="16" height="16"><use href="icons.svg#icon-maximize"/></svg>
+                                    </button>
+                                </div>
+                                <div id="mapColorToggles" class="map-color-toggles"></div>
+                            </div>
+                        </div>
+                        <div id="mapStatsPanel" class="map-stats-panel collapsed">
+                            <button class="map-stats-toggle" onclick="toggleMapStats()" title="Toggle stats panel">
+                                <svg class="icon" width="11" height="11"><use href="icons.svg#icon-chevron-right"/></svg>
+                            </button>
+                            <div class="map-stats-mini">
+                                <span class="msm-label" style="color:#00e5a0">SPD</span>
+                                <span class="msm-label" style="color:#ef4444">HR</span>
+                                <span class="msm-label" style="color:#f59e0b">PWR</span>
+                                <span class="msm-label" style="color:#818cf8">CAD</span>
+                                <span class="msm-label" style="color:#94a3b8">ALT</span>
+                            </div>
+                            <div class="map-stats-content">
+                                <p class="map-stat-hint">Hover the<br/>route to<br/>see stats</p>
+                            </div>
+                        </div>
+                        <div class="fs-bottom-row" id="fsBottomRow">
+                            <div class="fs-bottom-right" id="fsMiniChart">
+                                <div class="fs-mini-chart-header">
+                                    <div class="fs-mini-toggles" id="fsMiniToggles"></div>
+                                </div>
+                                <canvas id="fsMiniCanvas" width="360" height="100"></canvas>
+                                <div class="fs-mini-vals" id="fsMiniVals"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="flythroughBar" class="flythrough-bar" style="display:none">
+                        <button class="ft-play-btn" id="ftPlayBtn" onclick="ftTogglePlay()" title="Play flythrough">
+                            <svg width="11" height="13" viewBox="0 0 11 13" fill="currentColor">
+                                <path d="M1.5 1.3a1 1 0 0 1 1.5-.86l7 5.2a1 1 0 0 1 0 1.72l-7 5.2a1 1 0 0 1-1.5-.86V1.3z"/>
+                            </svg>
+                        </button>
+                        <div class="ft-scrubber-track" id="ftScrubberTrack">
+                            <canvas class="ft-elev-canvas" id="ftElevCanvas"></canvas>
+                            <div class="ft-scrubber-fill" id="ftScrubberFill"></div>
+                            <div class="ft-scrubber-thumb" id="ftScrubberThumb"></div>
+                        </div>
+                        <button class="ft-speed-toggle" id="ftSpeedToggle" onclick="ftCycleSpeed()" title="Cycle speed">15×</button>
+                        <button class="ft-follow-btn active" id="ftFollowBtn" onclick="ftToggleFollow()" title="Follow dot on map">
+                            <svg width="13" height="13" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                                <circle cx="9" cy="9" r="3"/><line x1="9" y1="1" x2="9" y2="5"/><line x1="9" y1="13" x2="9" y2="17"/><line x1="1" y1="9" x2="5" y2="9"/><line x1="13" y1="9" x2="17" y2="9"/>
+                            </svg>
+                        </button>
+                    </div>
+                    </div><!-- end .act-map-wrap -->
+
                     <!-- Activity hero -->
                     <div class="act-hero">
                         <div class="act-hero-identity">
@@ -1318,141 +1378,6 @@
                             ></span>
                         </div>
                         <div class="detail-cmp-rows" id="detailCmpRows"></div>
-                    </div>
-
-                    <!-- Route map -->
-                    <div class="card" id="detailMapCard" style="display: none">
-                        <!-- Map fills entire card edge-to-edge -->
-                        <div id="activityMap" class="activity-map"></div>
-
-                        <!-- Floating top-left controls -->
-                        <div class="map-float-top">
-                            <div class="map-float-top-row">
-                                <div class="card-header">
-                                    <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-map"/></svg>Route</div>
-                                    <button
-                                        class="act-save-route-btn btn btn-ghost btn-sm"
-                                        onclick="saveActivityRoute()"
-                                        id="actSaveRouteBtn"
-                                        title="Save route to Route Builder"
-                                        style="display:none"
-                                    >
-                                        <svg class="icon" width="14" height="14"><use href="icons.svg#icon-save"/></svg>
-                                        <span>Save Route</span>
-                                    </button>
-                                    <button
-                                        class="map-expand-btn btn btn-ghost btn-sm"
-                                        onclick="toggleMapFullscreen()"
-                                        id="mapExpandBtn"
-                                        title="Expand map"
-                                    >
-                                        <svg class="icon" width="16" height="16"><use href="icons.svg#icon-maximize"/></svg>
-                                    </button>
-                                </div>
-                                <div
-                                    id="mapColorToggles"
-                                    class="map-color-toggles"
-                                ></div>
-                            </div>
-                        </div>
-
-                        <!-- Flythrough controls — floating bottom-left -->
-                        <div
-                            id="flythroughBar"
-                            class="flythrough-bar"
-                            style="display: none"
-                        >
-                            <button
-                                class="ft-play-btn"
-                                id="ftPlayBtn"
-                                onclick="ftTogglePlay()"
-                                title="Play flythrough"
-                            >
-                                <svg
-                                    width="11"
-                                    height="13"
-                                    viewBox="0 0 11 13"
-                                    fill="currentColor"
-                                >
-                                    <path d="M1.5 1.3a1 1 0 0 1 1.5-.86l7 5.2a1 1 0 0 1 0 1.72l-7 5.2a1 1 0 0 1-1.5-.86V1.3z"/>
-                                </svg>
-                            </button>
-                            <div class="ft-scrubber-track" id="ftScrubberTrack">
-                                <div
-                                    class="ft-scrubber-fill"
-                                    id="ftScrubberFill"
-                                ></div>
-                                <div
-                                    class="ft-scrubber-thumb"
-                                    id="ftScrubberThumb"
-                                ></div>
-                            </div>
-                            <button
-                                class="ft-speed-toggle"
-                                id="ftSpeedToggle"
-                                onclick="ftCycleSpeed()"
-                                title="Cycle speed"
-                            >15×</button>
-                            <button
-                                class="ft-follow-btn active"
-                                id="ftFollowBtn"
-                                onclick="ftToggleFollow()"
-                                title="Follow dot on map"
-                            >
-                                <svg
-                                    width="13"
-                                    height="13"
-                                    viewBox="0 0 18 18"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="1.8"
-                                    stroke-linecap="round"
-                                >
-                                    <circle cx="9" cy="9" r="3" />
-                                    <line x1="9" y1="1" x2="9" y2="5" />
-                                    <line x1="9" y1="13" x2="9" y2="17" />
-                                    <line x1="1" y1="9" x2="5" y2="9" />
-                                    <line x1="13" y1="9" x2="17" y2="9" />
-                                </svg>
-                            </button>
-                        </div>
-
-                        <!-- Floating right stats panel -->
-                        <div id="mapStatsPanel" class="map-stats-panel collapsed">
-                            <button class="map-stats-toggle" onclick="toggleMapStats()" title="Toggle stats panel">
-                                <svg class="icon" width="11" height="11"><use href="icons.svg#icon-chevron-right"/></svg>
-                            </button>
-                            <!-- Collapsed mini preview — visible only when panel is collapsed -->
-                            <div class="map-stats-mini">
-                                <span class="msm-label" style="color:#00e5a0">SPD</span>
-                                <span class="msm-label" style="color:#ef4444">HR</span>
-                                <span class="msm-label" style="color:#f59e0b">PWR</span>
-                                <span class="msm-label" style="color:#818cf8">CAD</span>
-                                <span class="msm-label" style="color:#94a3b8">ALT</span>
-                            </div>
-                            <div class="map-stats-content">
-                                <p class="map-stat-hint">
-                                    Hover the<br />route to<br />see stats
-                                </p>
-                            </div>
-                        </div>
-                        <!-- Fullscreen bottom row: stats left, chart right -->
-                        <div class="fs-bottom-row" id="fsBottomRow">
-                            <div class="fs-bottom-right" id="fsMiniChart">
-                                <div class="fs-mini-chart-header">
-                                    <div
-                                        class="fs-mini-toggles"
-                                        id="fsMiniToggles"
-                                    ></div>
-                                </div>
-                                <canvas
-                                    id="fsMiniCanvas"
-                                    width="360"
-                                    height="100"
-                                ></canvas>
-                                <div class="fs-mini-vals" id="fsMiniVals"></div>
-                            </div>
-                        </div>
                     </div>
 
                     <!-- Combined activity streams chart -->
@@ -1630,54 +1555,6 @@
                         ></div>
                     </div>
 
-                    <!-- Aerobic Decoupling chart -->
-                    <div
-                        class="card"
-                        id="detailDecoupleCard"
-                        style="display: none"
-                    >
-                        <div class="card-header">
-                            <div>
-                                <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-git-branch"/></svg>Aerobic Decoupling</div>
-                                <div
-                                    class="card-subtitle"
-                                    id="detailDecoupleSub"
-                                    style="display:none"
-                                ></div>
-                            </div>
-                            <span
-                                class="detail-decouple-badge"
-                                id="detailDecoupleBadge"
-                            ></span>
-                        </div>
-                        <div class="detail-decouple-wrap">
-                            <div class="chart-wrap" style="height: 180px">
-                                <canvas id="detailDecoupleChart"></canvas>
-                            </div>
-                            <div
-                                class="detail-decouple-halves"
-                                id="detailDecoupleHalves"
-                            ></div>
-                        </div>
-                    </div>
-
-                    <!-- L/R Power Balance chart -->
-                    <div class="card" id="detailLRBalanceCard" style="display: none">
-                        <div class="card-header">
-                            <div>
-                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="6" width="22" height="12" rx="2"/><line x1="12" y1="6" x2="12" y2="18"/></svg>L/R Power Balance</div>
-                                <div class="card-subtitle" id="detailLRBalSub" style="display:none"></div>
-                            </div>
-                            <span class="detail-lrbal-badge" id="detailLRBalBadge"></span>
-                        </div>
-                        <div class="detail-lrbal-wrap">
-                            <div class="chart-wrap" style="height: 180px">
-                                <canvas id="detailLRBalChart"></canvas>
-                            </div>
-                            <div class="detail-lrbal-summary" id="detailLRBalSummary"></div>
-                        </div>
-                    </div>
-
                     <!-- Power zones + HR zones side by side / swipe carousel on mobile -->
                     <!-- Power Zones (standalone card) -->
                     <div class="card" id="detailZonesCard" style="display: none">
@@ -1802,32 +1679,51 @@
                         ></textarea>
                     </div>
 
+                    <!-- Elevation Profile (basic) -->
+                    <div class="card" id="detailGradientCard" style="display: none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-mountain"/></svg>Elevation Profile</div>
+                                <div class="card-subtitle" id="detailGradientSubtitle">Altitude · gradient colour-coded by steepness</div>
+                            </div>
+                        </div>
+                        <div class="chart-wrap" style="height: 220px"><canvas id="detailGradientChart"></canvas></div>
+                    </div>
+
                     <!-- Show All advanced cards button -->
                     <button class="act-show-advanced-btn" id="actShowAdvancedBtn" onclick="toggleAdvancedCards()">
                         <svg class="icon" width="14" height="14"><use href="icons.svg#icon-chevron-down"/></svg>
                         <span id="actAdvancedLabel">Advanced</span>
                     </button>
 
-                    <!-- Gradient / Elevation Profile -->
-                    <div
-                        class="card"
-                        id="detailGradientCard"
-                        style="display: none"
-                    >
+                    <div class="act-advanced-section" id="actAdvancedSection">
+                    <!-- Aerobic Decoupling (advanced) -->
+                    <div class="card" id="detailDecoupleCard" style="display: none">
                         <div class="card-header">
                             <div>
-                                <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-mountain"/></svg>Elevation Profile</div>
-                                <div
-                                    class="card-subtitle"
-                                    id="detailGradientSubtitle"
-                                >
-                                    Altitude · gradient colour-coded by
-                                    steepness
-                                </div>
+                                <div class="card-title"><svg class="icon" width="16" height="16"><use href="icons.svg#icon-git-branch"/></svg>Aerobic Decoupling</div>
+                                <div class="card-subtitle" id="detailDecoupleSub" style="display:none"></div>
                             </div>
+                            <span class="detail-decouple-badge" id="detailDecoupleBadge"></span>
                         </div>
-                        <div class="chart-wrap" style="height: 220px">
-                            <canvas id="detailGradientChart"></canvas>
+                        <div class="detail-decouple-wrap">
+                            <div class="chart-wrap" style="height: 180px"><canvas id="detailDecoupleChart"></canvas></div>
+                            <div class="detail-decouple-halves" id="detailDecoupleHalves"></div>
+                        </div>
+                    </div>
+
+                    <!-- L/R Power Balance (advanced) -->
+                    <div class="card" id="detailLRBalanceCard" style="display: none">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="6" width="22" height="12" rx="2"/><line x1="12" y1="6" x2="12" y2="18"/></svg>L/R Power Balance</div>
+                                <div class="card-subtitle" id="detailLRBalSub" style="display:none"></div>
+                            </div>
+                            <span class="detail-lrbal-badge" id="detailLRBalBadge"></span>
+                        </div>
+                        <div class="detail-lrbal-wrap">
+                            <div class="chart-wrap" style="height: 180px"><canvas id="detailLRBalChart"></canvas></div>
+                            <div class="detail-lrbal-summary" id="detailLRBalSummary"></div>
                         </div>
                     </div>
 
@@ -1988,6 +1884,8 @@
                     <div class="card" id="detailHrvCard" style="display:none"></div>
 
                     <div class="card" id="detailDevicesCard" style="display:none"></div>
+
+                    </div><!-- close .act-advanced-section -->
 
                     <!-- Export options -->
                     <div class="detail-export-buttons" id="detailExportButtons"></div>
